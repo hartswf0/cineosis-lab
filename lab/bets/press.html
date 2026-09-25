@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>P8 Template Press · bet studio</title>
+<link rel="stylesheet" href="kernel.css">
+<style>
+  #tpl{ flex:0 0 200px; }
+  #slots{ display:flex; flex-direction:column; gap:6px; padding:10px; }
+  .slot{ border:3px solid var(--k); padding:8px; cursor:pointer; display:flex; gap:8px; align-items:center; background:var(--w); }
+  .slot b{ font-size:18px; width:20px; }
+  .slot span{ font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+  .slot:hover{ background:var(--lg); }
+  .slot i{ width:12px; height:12px; flex:0 0 auto; }
+  #tplNote{ padding:0 10px 10px; font-size:11px; color:var(--g); }
+  #bed{ flex:1 1 auto; }
+  .bt{ display:grid; grid-template-columns:44px 1fr; border-bottom:3px solid var(--k); cursor:pointer; }
+  .bt.on{ box-shadow:inset 5px 0 0 var(--hi); }
+  .bt .id{ border-right:3px solid var(--k); display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:700; }
+  .bt .id small{ font-size:9px; font-weight:400; color:var(--g); }
+  .bt .rt{ padding:4px 6px; min-width:0; }
+  .bt .ti{ font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:3px; }
+  .bt .strip{ position:relative; height:54px; background:repeating-linear-gradient(90deg,var(--lg) 0 2px,transparent 2px 10px); border:2px solid var(--k); }
+  .bt .strip .s{ position:absolute; top:0; bottom:0; overflow:hidden; border-right:2px solid var(--w); }
+  .bt .strip .s img{ width:100%; height:100%; object-fit:cover; }
+  .bt .strip .s.machine::after{ content:''; position:absolute; inset:0; background:repeating-linear-gradient(45deg,rgba(255,255,255,.55) 0 5px,transparent 5px 10px); }
+  .bt .strip .s .r{ position:absolute; left:0; bottom:0; font-size:9px; background:var(--w); padding:0 3px; text-transform:uppercase; }
+  .bt .strip .s.sel{ box-shadow:inset 0 0 0 3px var(--hi); }
+  #side{ flex:0 0 min(320px,27%); }
+  #side .mon{ flex:0 0 auto; aspect-ratio:4/3; }
+  #stats{ padding:8px 10px; font-size:12px; }
+  #stats .r{ display:flex; justify-content:space-between; border-bottom:2px solid var(--lg); padding:3px 0; }
+</style></head>
+<body>
+<div id="stage">
+  <section class="pane" id="tpl"><h2>Template</h2><div id="slots"></div><div id="tplNote"></div></section>
+  <section class="pane" id="bed"><h2>Press bed <span class="tag" id="bedTag"></span></h2><div class="body"><div class="scroll" id="beats"></div></div></section>
+  <section class="pane" id="side"><h2>Monitor <span class="tag" id="monTag"></span></h2><div id="monHost" style="display:flex"></div>
+    <h2 style="border-top:3px solid var(--k)">This poem</h2><div class="body"><div class="scroll" id="stats"></div></div></section>
+</div>
+<script src="kernel.js"></script>
+<script>
+/* P8 · TEMPLATE PRESS — make the rule once, apply it everywhere.
+   <template> an ordered row of slot roles · <slot> a role (holds the scene, carries the line, reads the sign,
+   archive find, any) · <draft> machine seats, hatched until a person accepts · <override> a person's replacement.
+   [draft] [press all] [accept] [override] [wipe].
+   Invariant: a draft never overwrites a person's seat, and re-pressing never undoes an override. */
+const ROLES = ['holds the scene', 'carries the line', 'reads the sign', 'archive find', 'any'];
+const RC = { 'holds the scene': '#008a4e', 'carries the line': '#0033cc', 'reads the sign': '#c8a800', 'archive find': '#e60000', 'any': '#8a8a8a' };
+const S = { tpl: JSON.parse(localStorage.getItem('bets.p8.tpl') || 'null') || ['holds the scene', 'carries the line', 'reads the sign'], bi: 0, sel: null, diverse: true };
+const $ = id => document.getElementById(id);
+const beat = () => K.film.beats[S.bi];
+const saveT = () => localStorage.setItem('bets.p8.tpl', JSON.stringify(S.tpl));
+
+K.boot({
+  code: 'P8', name: 'Template Press', claim: 'make the rule once, press it over every beat; the machine drafts, you correct',
+  verbs: [
+    { l: 'A', v: 'draft', tip: 'Press the template over the selected beat', do: () => { const n = draft(beat()); K.log('draft', `beat ${beat().id}: ${n} slots drafted`); } },
+    { l: 'B', v: 'press all', tip: 'Press every beat of this poem', do: () => { let n = 0; K.film.beats.forEach(b => n += draft(b)); K.log('press all', `${n} slots drafted across ${K.film.beats.length} beats`); } },
+    { l: 'C', v: 'accept', tip: 'Accept the machine’s seats in the selected beat', do: accept },
+    { l: 'D', v: 'override', tip: 'Replace the selected slot with the next clip of its role', do: override },
+    { l: 'E', v: 'wipe', tip: 'Remove every machine seat in this poem (yours stay)', do: () => { K.ledger.clear(K.film.t0, K.film.t1, s => s.by === 'machine'); K.log('wipe', 'machine drafts removed; your seats stayed'); } },
+  ],
+  help: { bet: '88 beats is too many to make by hand. Write a rule once, press it over every beat, and spend your attention on the exceptions.', inv: 'A draft never overwrites a person’s seat. Re-pressing never undoes an override. Machine seats stay hatched until accepted.',
+    keys: [['click a slot role', 'cycle its role'], ['↑ ↓', 'previous or next beat'], ['click a seat', 'select it for override']] },
+  keys: { ArrowUp: () => pickBeat(S.bi - 1), ArrowDown: () => pickBeat(S.bi + 1) },
+  space: () => K.playing() ? K.pause() : K.play(Math.max(beat().t0, K.film.p0) - .1, beat().t1),
+}).then(() => {
+  K.tools([{ t: '+ slot', do: () => { if (S.tpl.length < 5) { S.tpl.push('any'); saveT(); drawTpl(); } } }, { t: '− slot', do: () => { if (S.tpl.length > 1) { S.tpl.pop(); saveT(); drawTpl(); } } }],
+    [{ t: 'no repeats', id: 'div', on: true, tip: 'Diversity: a clip is used once per poem', do: () => { S.diverse = !S.diverse; $('div').classList.toggle('on', S.diverse); } }]);
+  K.monitor($('monHost'));
+  K.on('film', () => { S.bi = 0; S.sel = null; drawBeds(); }); K.on('ledger', () => { drawBeds(); });
+  K.on('tick', t => $('monTag').textContent = K.fmt(t));
+  drawTpl(); drawBeds();
+});
+
+function drawTpl() {
+  $('slots').replaceChildren(...S.tpl.map((r, i) => K.h('div', { class: 'slot', title: 'Click to change the role', onclick: () => { S.tpl[i] = ROLES[(ROLES.indexOf(r) + 1) % ROLES.length]; saveT(); drawTpl(); } },
+    K.h('b', {}, i + 1), K.h('i', { style: `background:${RC[r]}` }), K.h('span', {}, r))));
+  $('tplNote').textContent = `A beat is split at its ${S.tpl.length - 1} longest breath${S.tpl.length === 2 ? '' : 's'}; each slot takes the best-ranked clip of its role.`;
+}
+function pickBeat(i) { S.bi = Math.max(0, Math.min(K.film.beats.length - 1, i)); S.sel = null; K.seek(Math.max(beat().t0, K.film.p0)); drawBeds(); }
+function drawBeds() {
+  const box = $('beats'); box.replaceChildren();
+  K.film.beats.forEach((b, i) => {
+    const a = b.t0, z = b.t1, X = t => 100 * (t - a) / (z - a), strip = K.h('div', { class: 'strip' });
+    K.ledger.in(a, z).forEach(s => strip.append(K.h('div', { class: 's' + (s.by === 'machine' ? ' machine' : '') + (S.sel === s.id ? ' sel' : ''), title: `${s.clip.title} · ${s.by} · ${s.why}`, style: `left:${X(Math.max(a, s.t0))}%;width:${X(Math.min(z, s.t1)) - X(Math.max(a, s.t0))}%`,
+      onclick: e => { e.stopPropagation(); S.bi = i; S.sel = s.id; K.seek(s.t0); drawBeds(); } }, K.h('img', { src: s.clip.thumb, alt: '' }), K.h('span', { class: 'r' }, (s.why.match(/^slot \d+ · (.+?) ·/) || [])[1] || s.by))));
+    box.append(K.h('div', { class: 'bt' + (i === S.bi ? ' on' : ''), onclick: () => pickBeat(i) }, K.h('div', { class: 'id' }, b.id, K.h('small', {}, `${(b.t1 - b.t0).toFixed(0)}s`)), K.h('div', { class: 'rt' }, K.h('div', { class: 'ti' }, b.title), strip)));
+  });
+  box.querySelector('.bt.on')?.scrollIntoView({ block: 'nearest' });
+  const ss = K.ledger.in(K.film.p0, K.film.p1), m = ss.filter(s => s.by === 'machine').length;
+  $('bedTag').textContent = `${K.film.beats.length} beats · ${m} drafted · ${ss.length - m} yours`;
+  const st = $('stats'); st.replaceChildren();
+  [['seated', Math.round(100 * K.ledger.cover(K.film.p0, K.film.p1)) + '%'], ['machine drafts', m], ['your seats', ss.length - m], ['distinct clips', new Set(ss.map(s => s.clip.id)).size], ['distinct films', new Set(ss.map(s => s.clip.title)).size]]
+    .forEach(([k, v]) => st.append(K.h('div', { class: 'r' }, K.h('span', {}, k), K.h('b', {}, String(v)))));
+}
+function draft(b) {
+  const a = Math.max(b.t0, K.film.p0 - .01), z = b.t1; const ws = K.wordsIn(a, z); if (!ws.length) return 0;
+  const n = S.tpl.length, bs = K.breaths(ws[0].t0, ws.at(-1).t1, .15).sort((x, y) => y.len - x.len).slice(0, n - 1).map(x => x.t).sort((x, y) => x - y);
+  const edges = [ws[0].t0, ...bs, ws.at(-1).t1], pool = K.cands(b.id);
+  const used = new Set(S.diverse ? K.ledger.in(K.film.t0, K.film.t1).map(s => s.clip.id) : []);
+  let made = 0;
+  for (let i = 0; i < edges.length - 1; i++) {
+    const t0 = edges[i], t1 = edges[i + 1];
+    if (K.ledger.in(t0, t1).some(s => s.by === 'person')) continue;                     // never over a person's seat
+    const role = S.tpl[i], pick = pool.find(c => (role === 'any' || c.cat === role) && !used.has(c.id)) || pool.find(c => !used.has(c.id));
+    if (!pick) continue; used.add(pick.id);
+    K.ledger.seat({ t0, t1, clip: pick, by: 'machine', snap: false, why: `slot ${i + 1} · ${role} · pressed` }); made++;
+  }
+  return made;
+}
+function accept() { const ss = K.ledger.in(beat().t0, beat().t1).filter(s => s.by === 'machine'); ss.forEach(s => s.by = 'person'); K.ledger.save('accept'); K.log('accept', `${ss.length} seats in beat ${beat().id} are yours now`); }
+function override() {
+  const s = K.ledger.all().find(x => x.id === S.sel) || K.ledger.at(K.now()); if (!s) return K.log('override', 'click a seat first');
+  const b = K.beatAt((s.t0 + s.t1) / 2), pool = K.cands(b.id), role = (s.why.match(/· (.+?) ·/) || [])[1] || 'any';
+  const same = pool.filter(c => role === 'any' || c.cat === role), list = same.length > 1 ? same : pool, k = list.findIndex(c => c.id === s.clip.id), c = list[(k + 1) % list.length];
+  const ns = K.ledger.seat({ t0: s.t0, t1: s.t1, clip: c, snap: false, why: `slot · ${role} · overridden` }); S.sel = ns?.id;
+  K.log('override', `${c.title} (${c.cat}) replaces ${s.clip.title}`);
+}
+</script>
+</body></html>

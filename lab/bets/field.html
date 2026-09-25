@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>P5 Association Field · bet studio</title>
+<link rel="stylesheet" href="kernel.css">
+<style>
+  #fieldPane{ flex:1 1 auto; }
+  #field{ position:absolute; inset:14px 14px 30px 40px; border-left:3px solid var(--k); border-bottom:3px solid var(--k); }
+  #field .ax{ position:absolute; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--g); white-space:nowrap; }
+  #field .ax.x{ right:0; bottom:-22px; } #field .ax.y{ left:-30px; top:0; transform-origin:left top; transform:rotate(90deg) translateY(-100%); }
+  #field .grid50{ position:absolute; border:1px dashed var(--lg); pointer-events:none; }
+  .node{ position:absolute; width:62px; height:46px; margin:-23px 0 0 -31px; border:3px solid var(--k); background:var(--k); cursor:pointer; transition:transform .12s; }
+  .node img,.node video{ width:100%; height:100%; object-fit:cover; display:block; }
+  .node.far{ opacity:.18; width:40px; height:30px; margin:-15px 0 0 -20px; border-width:2px; }
+  .node.focus{ border-color:var(--hi); box-shadow:0 0 0 3px var(--hi); z-index:4; transform:scale(1.5); }
+  .node .p{ position:absolute; right:-10px; top:-10px; width:20px; height:20px; background:var(--aC); color:var(--w); font-weight:700; font-size:11px; display:flex; align-items:center; justify-content:center; }
+  .node[data-cat="carries the line"]{ border-color:#0033cc; } .node[data-cat="holds the scene"]{ border-color:#008a4e; } .node[data-cat="reads the sign"]{ border-color:#c8a800; }
+  .node[data-cat="archive find"]{ border-color:#e60000; } .node[data-cat="reviewed fit"]{ border-color:#000; }
+  #path{ position:absolute; inset:14px 14px 30px 40px; pointer-events:none; }
+  #side{ flex:0 0 min(360px,30%); }
+  #side .mon{ flex:0 0 auto; aspect-ratio:4/3; }
+  #seq{ display:flex; flex-direction:column; gap:4px; padding:6px; }
+  #seq .st{ display:grid; grid-template-columns:24px 64px 1fr; gap:6px; align-items:center; font-size:11px; }
+  #seq .st b{ background:var(--aC); color:var(--w); text-align:center; }
+  #seq .st img{ width:64px; height:44px; object-fit:cover; border:2px solid var(--k); }
+  #legend{ display:flex; flex-wrap:wrap; gap:4px; padding:6px; border-bottom:3px solid var(--k); }
+  #legend span{ font-size:10px; padding:0 5px; border:3px solid; text-transform:uppercase; }
+  #lineBand{ padding:8px 12px; font-size:16px; border-bottom:3px solid var(--k); }
+</style></head>
+<body>
+<div id="stage">
+  <section class="pane" id="fieldPane"><h2>Field <span class="tag" id="fieldTag"></span></h2>
+    <div id="lineBand"></div>
+    <div class="body"><div id="field"><span class="ax x">holds the scene →</span><span class="ax y">carries the line →</span></div><svg id="path"></svg></div></section>
+  <section class="pane" id="side"><h2>Monitor <span class="tag" id="monTag"></span></h2><div id="monHost" style="display:flex"></div>
+    <div id="legend"></div>
+    <h2>Path <span class="tag" id="pathTag"></span></h2><div class="body"><div class="scroll"><div id="seq"></div></div></div></section>
+</div>
+<script src="kernel.js"></script>
+<script>
+/* P5 · ASSOCIATION FIELD — meaning is a space; the sequence is a path walked through it.
+   <node> a clip placed by how well it carries the line (↑) and holds the scene (→), from CLIP fit · <kind> why it
+   is there (carries the line, holds the scene, reads the sign, archive find, reviewed fit) · <path> the clips you
+   walk, in order. [pull] [walk] [kind] [back] [lay].
+   Invariant: positions are computed and never dragged; only the path is personal. */
+const KINDS = ['all', 'carries the line', 'holds the scene', 'reads the sign', 'archive find', 'reviewed fit'];
+const COL = { 'carries the line': '#0033cc', 'holds the scene': '#008a4e', 'reads the sign': '#c8a800', 'archive find': '#e60000', 'reviewed fit': '#000' };
+const S = { li: 0, focus: null, path: [], kind: 0 };
+const $ = id => document.getElementById(id);
+const line = () => K.film.lines[S.li];
+const beat = () => K.beatAt((line().t0 + line().t1) / 2) || K.beatAt(line().t0);
+let nodes = [];
+
+K.boot({
+  code: 'P5', name: 'Association Field', claim: 'meaning is a space: clips placed by what they carry, the film is the path you walk',
+  verbs: [
+    { l: 'A', v: 'pull', tip: 'Focus the clip that carries this line best', do: pull },
+    { l: 'B', v: 'walk', tip: 'Add the focused clip to the path', do: walk },
+    { l: 'C', v: 'kind', tip: 'Show one kind of reason at a time', do: kind },
+    { l: 'D', v: 'back', tip: 'Take the last step off the path', do: () => { S.path.pop(); drawPath(); K.log('back', `${S.path.length} steps`); } },
+    { l: 'E', v: 'lay', tip: 'Lay the path over the line, split at its breaths', do: lay },
+  ],
+  help: { bet: 'The valuable thing is relation. Every clip for this poem sits where it belongs in meaning; the line lights its own neighbourhood; the sequence is found by walking.', inv: 'Positions are computed from the ranking’s CLIP fit and never dragged. Only the path is personal.',
+    keys: [['click a node', 'focus it'], ['← →', 'previous or next line'], ['arrow ↑ ↓', 'focus the next node by line fit']] },
+  keys: { ArrowLeft: () => go(S.li - 1), ArrowRight: () => go(S.li + 1), ArrowUp: () => nudge(1), ArrowDown: () => nudge(-1) },
+  space: () => K.playing() ? K.pause() : K.play(line().t0 - .2, line().t1 + .3),
+}).then(() => {
+  $('legend').append(...Object.entries(COL).map(([k, c]) => K.h('span', { style: `border-color:${c}` }, k)));
+  K.monitor($('monHost'));
+  K.on('film', () => { S.path = []; go(0); }); K.on('tick', t => $('monTag').textContent = K.fmt(t));
+  addEventListener('resize', drawPath);
+  go(0);
+});
+
+function go(i) { S.li = Math.max(0, Math.min(K.film.lines.length - 1, i)); $('lineBand').textContent = `L${line().n} · ${line().text}`; draw(); }
+function draw() {
+  const f = $('field'); f.querySelectorAll('.node,.grid50').forEach(n => n.remove());
+  f.append(K.h('div', { class: 'grid50', style: 'left:50%;top:0;bottom:0' }), K.h('div', { class: 'grid50', style: 'top:50%;left:0;right:0' }));
+  const b = beat(), seen = new Set(); nodes = [];
+  K.film.beats.forEach(bb => K.cands(bb.id).forEach(c => { if (seen.has(c.id)) return; seen.add(c.id); nodes.push({ c, beat: bb.id, near: bb.id === b?.id }); }));
+  const want = KINDS[S.kind];
+  let live = 0;
+  nodes.sort((a, z) => a.near - z.near).forEach(n => {
+    const hide = want !== 'all' && n.c.cat !== want; if (hide) return;
+    const x = Math.max(4, Math.min(96, n.c.fs + (n.c.id.charCodeAt(0) % 7 - 3))), y = Math.max(4, Math.min(96, n.c.fl + (n.c.id.charCodeAt(1) % 7 - 3)));   // a little deterministic jitter so equal fits do not stack
+    const el = K.h('div', { class: 'node' + (n.near ? '' : ' far') + (S.focus === n.c.id ? ' focus' : ''), 'data-cat': n.c.cat, 'data-id': n.c.id, style: `left:${x}%;top:${100 - y}%`, title: `${n.c.title} · beat ${n.beat}\n${n.c.cat} · line ${n.c.fl} · scene ${n.c.fs} · sign ${n.c.sign}`, onclick: () => focus(n.c.id) },
+      K.media(n.c, n.near && live++ < 6));
+    const k = S.path.findIndex(p => p.id === n.c.id); if (k >= 0) el.append(K.h('span', { class: 'p' }, k + 1));
+    f.append(el); n.el = el;
+  });
+  $('fieldTag').textContent = `${nodes.length} clips for ${K.film.title} · ${nodes.filter(n => n.near).length} near this line · ${want}`;
+  drawPath();
+}
+function focus(id) { S.focus = id; document.querySelectorAll('.node.focus').forEach(n => n.classList.remove('focus')); document.querySelector(`.node[data-id="${id}"]`)?.classList.add('focus'); const n = nodes.find(x => x.c.id === id); if (n) K.log('focus', `${n.c.title} · ${n.c.cat} · line ${n.c.fl} · scene ${n.c.fs}`); }
+function nearNodes() { return nodes.filter(n => n.near && (KINDS[S.kind] === 'all' || n.c.cat === KINDS[S.kind])).sort((a, z) => z.c.fl - a.c.fl); }
+function pull() { const n = nearNodes().find(x => !S.path.some(p => p.id === x.c.id)); if (n) focus(n.c.id); else K.log('pull', 'nothing near this line'); }
+function nudge(d) { const ns = nearNodes(); if (!ns.length) return; const i = ns.findIndex(n => n.c.id === S.focus); focus(ns[(i - d + ns.length) % ns.length].c.id); }
+function walk() { const n = nodes.find(x => x.c.id === S.focus); if (!n) return K.log('walk', 'focus a clip first (A or click)'); if (S.path.some(p => p.id === n.c.id)) return K.log('walk', 'already on the path'); S.path.push(n.c); draw(); K.log('walk', `step ${S.path.length} · ${n.c.title}`); }
+function kind() { S.kind = (S.kind + 1) % KINDS.length; draw(); K.log('kind', KINDS[S.kind]); }
+function drawPath() {
+  const svg = $('path'), f = $('field').getBoundingClientRect(), o = svg.getBoundingClientRect(); svg.replaceChildren();
+  const pts = S.path.map(c => { const e = document.querySelector(`.node[data-id="${c.id}"]`); if (!e) return null; const r = e.getBoundingClientRect(); return [r.left + r.width / 2 - o.left, r.top + r.height / 2 - o.top]; }).filter(Boolean);
+  if (pts.length > 1) svg.innerHTML = `<polyline points="${pts.map(p => p.join(',')).join(' ')}" fill="none" stroke="#e60000" stroke-width="3" stroke-dasharray="6 4"/>`;
+  const q = $('seq'); q.replaceChildren();
+  S.path.forEach((c, i) => q.append(K.h('div', { class: 'st' }, K.h('b', {}, i + 1), K.h('img', { src: c.thumb, alt: '' }), K.h('span', {}, `${c.title}${c.year ? ' · ' + c.year : ''}`))));
+  $('pathTag').textContent = S.path.length ? `${S.path.length} steps` : 'walk to build';
+}
+function lay() {
+  if (!S.path.length) return K.log('lay', 'walk at least one step');
+  const l = line(), n = S.path.length, bs = K.breaths(l.t0, l.t1, .12).sort((a, z) => z.len - a.len).slice(0, n - 1).map(b => b.t).sort((a, z) => a - z);
+  const edges = [l.t0, ...bs, l.t1];
+  if (edges.length - 1 < n) { const extra = n - (edges.length - 1); K.log('lay', `only ${edges.length - 1} breaths; the last ${extra} step${extra > 1 ? 's wait' : ' waits'} for the next line`); }
+  for (let i = 0; i < edges.length - 1 && i < n; i++) K.ledger.seat({ t0: edges[i], t1: edges[i + 1], clip: S.path[i], snap: false, why: `path step ${i + 1} of ${n}` });
+  const used = Math.min(n, edges.length - 1); S.path = S.path.slice(used); draw();
+  K.log('lay', `${used} step${used > 1 ? 's' : ''} laid over L${l.n}`); if (!S.path.length) go(S.li + 1);
+}
+</script>
+</body></html>

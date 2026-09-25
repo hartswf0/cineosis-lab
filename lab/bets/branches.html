@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>P6 Branch Garden · bet studio</title>
+<link rel="stylesheet" href="kernel.css">
+<style>
+  #garden{ flex:1 1 auto; }
+  #tree{ padding:10px 12px 10px 28px; position:relative; }
+  .ver{ position:relative; display:grid; grid-template-columns:118px 1fr 58px; gap:10px; align-items:center; padding:6px 0; }
+  .ver::before{ content:''; position:absolute; left:-16px; top:0; bottom:0; border-left:3px solid var(--k); }
+  .ver::after{ content:''; position:absolute; left:-16px; top:50%; width:12px; border-top:3px solid var(--k); }
+  .ver.trunk::before{ top:50%; } .ver:last-child::before{ bottom:50%; }
+  .ver .nm{ border:3px solid var(--k); padding:4px 6px; cursor:pointer; font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.06em; background:var(--w); }
+  .ver .nm small{ display:block; font-weight:400; font-size:10px; color:var(--g); text-transform:none; letter-spacing:0; }
+  .ver.on .nm{ background:var(--k); color:var(--w); }
+  .ver.on .nm small{ color:var(--lg); }
+  .ver .film{ position:relative; height:52px; border:3px solid var(--k); background:repeating-linear-gradient(45deg,var(--w) 0 6px,var(--lg) 6px 12px); overflow:hidden; cursor:pointer; }
+  .ver .film .s{ position:absolute; top:0; bottom:0; border-right:2px solid var(--w); overflow:hidden; }
+  .ver .film .s img{ width:100%; height:100%; object-fit:cover; }
+  .ver .film .s.diff{ box-shadow:inset 0 -6px 0 var(--aC); }
+  .ver .film .ph{ position:absolute; top:0; bottom:0; border-left:2px solid var(--hi); }
+  .ver .film .ln{ position:absolute; top:-3px; bottom:-3px; border:3px solid var(--hi); pointer-events:none; }
+  .ver .dv{ font-size:18px; font-weight:700; text-align:right; }
+  .ver .dv small{ display:block; font-size:9px; font-weight:400; color:var(--g); letter-spacing:.06em; }
+  #side{ flex:0 0 min(360px,30%); }
+  #side .mon{ flex:0 0 auto; aspect-ratio:4/3; }
+  #side .grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding:6px; }
+  #lineBand{ padding:8px 12px; font-size:15px; border-bottom:3px solid var(--k); }
+</style></head>
+<body>
+<div id="stage">
+  <section class="pane" id="garden"><h2>Versions of this poem <span class="tag" id="gTag"></span></h2><div id="lineBand"></div>
+    <div class="body"><div class="scroll"><div id="tree"></div></div></div></section>
+  <section class="pane" id="side"><h2>Playing <span class="tag" id="monTag"></span></h2><div class="mon" id="mon"></div>
+    <h2 style="border-top:3px solid var(--k)">Seat into <span id="intoTag"></span> <span class="tag" id="candTag"></span></h2><div class="body"><div class="scroll"><div class="grid" id="candGrid"></div></div></div></section>
+</div>
+<script src="kernel.js"></script>
+<script>
+/* P6 · BRANCH GARDEN — there is no single right cut.
+   <trunk> the ledger itself · <branch> a named version of one poem, forked from the trunk or another branch ·
+   <divergence> how much of the poem a branch cuts differently · <merge> one line of a branch copied into the trunk.
+   [fork] [switch] [play] [merge] [prune].
+   Invariant: branches never touch the trunk until a merge, and a merge moves one line, never the whole poem. */
+const BKEY = 'cineosis.branches.v1';
+const S = { active: 'trunk', li: 0, cand: 0 };
+const $ = id => document.getElementById(id);
+const line = () => K.film.lines[S.li];
+let B = []; try { B = JSON.parse(localStorage.getItem(BKEY)) || []; } catch (e) { B = []; }
+const saveB = () => { try { localStorage.setItem(BKEY, JSON.stringify(B)); } catch (e) {} };
+const mine = () => B.filter(b => b.film === K.film.n);
+const seatsOf = id => id === 'trunk' ? K.ledger.in(K.film.t0, K.film.t1) : (B.find(b => b.id === id)?.seats || []);
+const atIn = (list, t) => list.find(s => t >= s.t0 && t < s.t1);
+const nameOf = id => id === 'trunk' ? 'trunk' : B.find(b => b.id === id)?.name;
+function divergence(id) {
+  if (id === 'trunk') return 0; const f = K.film, a = seatsOf(id), T = seatsOf('trunk'); let d = 0, n = 0;
+  f.lines.forEach(l => { const m = (l.t0 + l.t1) / 2, x = atIn(a, m), y = atIn(T, m); n++; if ((x?.clip.id || null) !== (y?.clip.id || null)) d++; });
+  return n ? d / n : 0;
+}
+const cands = () => K.cands((K.beatAt((line().t0 + line().t1) / 2) || K.beatAt(line().t0))?.id);
+
+K.boot({
+  code: 'P6', name: 'Branch Garden', claim: 'there is no single right cut: keep versions side by side, merge what wins',
+  verbs: [
+    { l: 'A', v: 'fork', tip: 'Fork the playing version into a new branch', do: fork },
+    { l: 'B', v: 'switch', tip: 'Play and edit the next version', do: () => { const ids = ['trunk', ...mine().map(b => b.id)]; S.active = ids[(ids.indexOf(S.active) + 1) % ids.length]; draw(); K.log('switch', nameOf(S.active)); } },
+    { l: 'C', v: 'play', tip: 'Play the poem as the active version has it', do: () => { K.play(line().t0 - .1); K.log('play', `${nameOf(S.active)} from L${line().n}`); } },
+    { l: 'D', v: 'merge', tip: 'Copy this line of the active branch into the trunk', do: merge },
+    { l: 'E', v: 'prune', tip: 'Delete the active branch', do: prune },
+  ],
+  help: { bet: 'There is no single right cut. Keep forks of a poem, play them whole, and merge the lines that win back into the trunk.', inv: 'Branches never touch the trunk until a merge, and a merge moves one line at a time.',
+    keys: [['click a strip', 'switch to that version and jump there'], ['← →', 'previous or next line'], ['1–9', 'seat a candidate into the active version']] },
+  keys: { ArrowLeft: () => pick(S.li - 1), ArrowRight: () => pick(S.li + 1), ...Object.fromEntries([1,2,3,4,5,6,7,8,9].map(n => [String(n), () => seatInto(n - 1)])) },
+}).then(() => {
+  K.on('film', () => { S.active = 'trunk'; pick(0); }); K.on('ledger', draw);
+  let cur;
+  K.on('tick', t => {
+    $('monTag').textContent = `${nameOf(S.active)} · ${K.fmt(t)}`;
+    document.querySelectorAll('.ver .film .ph').forEach(p => p.style.left = X(t) + '%');
+    const s = atIn(seatsOf(S.active), t), key = s ? s.clip.id + s.t0 : 'none';
+    if (key !== cur) { cur = key; const m = $('mon'); m.replaceChildren(s ? K.media(s.clip, true) : K.h('span', { class: 'none' }, 'unseated in this version')); }
+    const l = K.lineAt(t); if (l && K.playing() && l.film === K.film.n && l !== line()) { S.li = K.film.lines.indexOf(l); drawLineMarks(); }
+  });
+  pick(0);
+});
+
+const X = t => 100 * (t - K.film.p0) / (K.film.p1 - K.film.p0);
+function pick(i) { S.li = Math.max(0, Math.min(K.film.lines.length - 1, i)); if (!K.playing()) K.seek(line().t0); draw(); }
+function draw() {
+  if (S.active !== 'trunk' && !B.some(b => b.id === S.active && b.film === K.film.n)) S.active = 'trunk';
+  const tree = $('tree'); tree.replaceChildren();
+  const T = seatsOf('trunk');
+  ['trunk', ...mine().map(b => b.id)].forEach(id => {
+    const list = seatsOf(id), b = B.find(x => x.id === id), dv = divergence(id);
+    const film = K.h('div', { class: 'film', onclick: e => { const r = e.currentTarget.getBoundingClientRect(); S.active = id; K.seek(K.film.p0 + (K.film.p1 - K.film.p0) * (e.clientX - r.left) / r.width); const l = K.lineAt(K.now()); if (l) S.li = K.film.lines.indexOf(l); draw(); } });
+    list.filter(s => s.t1 > K.film.p0 && s.t0 < K.film.p1).forEach(s => {
+      const differs = id !== 'trunk' && atIn(T, (s.t0 + s.t1) / 2)?.clip.id !== s.clip.id;
+      film.append(K.h('div', { class: 's' + (differs ? ' diff' : ''), style: `left:${X(Math.max(K.film.p0, s.t0))}%;width:${X(Math.min(K.film.p1, s.t1)) - X(Math.max(K.film.p0, s.t0))}%`, title: `${s.clip.title} · ${s.text}` }, K.h('img', { src: s.clip.thumb, alt: '' })));
+    });
+    film.append(K.h('div', { class: 'ln' }), K.h('div', { class: 'ph' }));
+    tree.append(K.h('div', { class: 'ver' + (id === 'trunk' ? ' trunk' : '') + (id === S.active ? ' on' : '') },
+      K.h('div', { class: 'nm', onclick: () => { S.active = id; draw(); } }, id === 'trunk' ? 'trunk' : b.name, K.h('small', {}, id === 'trunk' ? 'the ledger' : `from ${b.from}`)),
+      film, K.h('div', { class: 'dv' }, id === 'trunk' ? '—' : Math.round(dv * 100) + '%', K.h('small', {}, id === 'trunk' ? '' : 'differs'))));
+  });
+  $('gTag').textContent = `${K.film.title} · ${mine().length} branch${mine().length === 1 ? '' : 'es'}`;
+  $('intoTag').textContent = nameOf(S.active);
+  drawLineMarks(); drawCands();
+}
+function drawLineMarks() {
+  document.querySelectorAll('.ver .film .ln').forEach(e => { e.style.left = X(line().t0) + '%'; e.style.width = (X(line().t1) - X(line().t0)) + '%'; });
+  $('lineBand').textContent = `L${line().n} · ${line().text}`;
+}
+function drawCands() {
+  const g = $('candGrid'); g.replaceChildren(); const cs = cands(), here = atIn(seatsOf(S.active), (line().t0 + line().t1) / 2);
+  $('candTag').textContent = `L${line().n}`;
+  cs.slice(0, 9).forEach((c, i) => g.append(K.tile(c, { live: i < 3, seated: here?.clip.id === c.id, badge: `${i + 1} · ${c.fit}`, onclick: () => seatInto(i) })));
+}
+function seatInto(i) {
+  const c = cands()[i]; if (!c) return;
+  if (S.active === 'trunk') { K.ledger.seat({ t0: line().t0, t1: line().t1, clip: c, why: 'seated in the trunk' }); }
+  else { const b = B.find(x => x.id === S.active), r = K.place(b.seats, { t0: line().t0, t1: line().t1, clip: c, why: `in branch ${b.name}` }); if (r) { b.seats = r[0]; saveB(); draw(); } }
+  K.log('seat', `${c.title} → L${line().n} in ${nameOf(S.active)}`);
+}
+function fork() {
+  const n = mine().length + 1, name = String.fromCharCode(64 + n) + '-' + K.film.n;
+  const b = { id: 'b' + Date.now().toString(36), name, film: K.film.n, from: nameOf(S.active), seats: JSON.parse(JSON.stringify(seatsOf(S.active))) };
+  B.push(b); saveB(); S.active = b.id; draw(); K.log('fork', `${name} from ${b.from}: change it freely, the trunk is untouched`);
+}
+function merge() {
+  if (S.active === 'trunk') return K.log('merge', 'switch to a branch first');
+  const b = B.find(x => x.id === S.active), l = line(), ss = b.seats.filter(s => s.t1 > l.t0 && s.t0 < l.t1);
+  if (!ss.length) return K.log('merge', 'this branch has nothing on this line');
+  ss.forEach(s => K.ledger.seat({ t0: Math.max(s.t0, l.t0), t1: Math.min(s.t1, l.t1), clip: s.clip, snap: false, why: `merged from branch ${b.name}` }));
+  K.log('merge', `L${l.n} of ${b.name} is now in the trunk`);
+}
+function prune() {
+  if (S.active === 'trunk') return K.log('prune', 'the trunk cannot be pruned');
+  const b = B.find(x => x.id === S.active); B = B.filter(x => x !== b); saveB(); S.active = 'trunk'; draw(); K.log('prune', `${b.name} removed`);
+}
+</script>
+</body></html>
