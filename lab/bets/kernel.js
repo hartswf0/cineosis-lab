@@ -154,13 +154,27 @@
   K.signOf = c => { const n = c?.sg, g = n && K.data?.signs[n]; return g ? { n, symbol: g.symbol, name: g.name, dom: g.dom, col: K.DOM[g.dom] || '#ddd' } : { n: null, symbol: '·', name: 'no sign read', dom: null, col: '#ddd' }; };
   K.sa = s => ({ 'data-seat': s.id, 'data-flag': s.flag ? '1' : null, 'data-mute': s.mute ? '1' : null });   // seat attributes: right click, highlight, mute
   K.clips = new Map();
+  /* a tile is the clip and nothing else: its sign's colour for a frame, a star if flagged, a dot for each other bet
+     that chose it here. Everything else is in the hover title. */
   K.tile = (c, o = {}) => {
     K.clips.set(c.id, c); const g = K.signOf(c);
-    return h('div', { class: 'tile' + (o.on ? ' on' : '') + (o.seated ? ' seated' : '') + (K.bin.has(c.id) ? ' saved' : ''), 'data-clip': c.id, style: `--sg:${g.col};` + (o.style || ''),
-      title: `${c.title}${c.year ? ' · ' + c.year : ''}\n${g.symbol} ${g.name} (${g.dom || '—'})\n${c.verdict} · score ${c.score} · fit ${c.fit} · ${c.cat}\nright click: save · swap · preview`, onclick: o.onclick, ondblclick: o.ondblclick },
-      K.media(c, o.live), h('span', { class: 'v ' + c.verdict }, o.badge ?? c.verdict[0] + ' ' + c.fit), h('span', { class: 'sgn' }, g.symbol),
-      o.name === false ? null : h('span', { class: 'nm' }, `${c.title}${c.year ? ' ' + c.year : ''}`));
+    const e = h('div', { class: 'tile' + (o.on ? ' on' : '') + (o.seated ? ' seated' : '') + (K.bin.has(c.id) ? ' saved' : ''), 'data-clip': c.id, draggable: 'true', style: `--sg:${g.col};` + (o.style || ''),
+      title: `${c.title}${c.year ? ' · ' + c.year : ''}\n${g.symbol} ${g.name}\nclick to try · double click to keep · drag anywhere · right click for more`, onclick: o.onclick, ondblclick: o.ondblclick },
+      K.media(c, o.live), h('span', { class: 'pips' }));
+    if (o.pips) K.pips(e, o.pips);
+    return e;
   };
+  K.pips = (e, codes) => { const p = e.querySelector('.pips'); if (p) p.replaceChildren(...(codes || []).map(x => h('i', { title: `${x} chose this here` }, x.replace('P', '')))); };
+  K.celebrate = (el, col) => { if (!el) return; el.style.setProperty('--cele', col || 'var(--aB)'); el.classList.remove('cele'); void el.offsetWidth; el.classList.add('cele'); setTimeout(() => el.classList.remove('cele'), 1000); };
+
+  /* the other bets' films, read for comparison: what did each of them put here? */
+  const OTHERS = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9'];
+  let otherCache = null;
+  K.others = () => { if (!otherCache) { otherCache = {}; OTHERS.filter(c => c !== K.code).forEach(c => otherCache[c] = store.get(FILMKEY(c), [])); } return otherCache; };
+  K.othersAt = t => { const out = {}; Object.entries(K.others()).forEach(([c, seats]) => { const s = seats.find(x => t >= x.t0 && t < x.t1); if (s) (out[s.clip.id] = out[s.clip.id] || []).push(c); }); return out; };
+  addEventListener('storage', e => { if (/^cineosis\.film\./.test(e.key || '')) { otherCache = null; K.emit('others'); } });
+  addEventListener('focus', () => { otherCache = null; K.emit('others'); });
+
   /* layout words placed by time without collisions: a word that would overlap drops to the next row */
   K.layWords = (box, words, X, o = {}) => {
     const rows = []; const rh = o.rowH || 18, max = o.rows || 3;
@@ -183,98 +197,118 @@
     v.addEventListener('error', () => { if (c.loop && !v.dataset.fell) { v.dataset.fell = 1; v.src = K.loopURL(c); v.loop = true; } }, { once: false });
     return v;
   }
-  function drive(v, c, s, t, preview) {                                          // keep a real clip in step with the voice
+  function drive(v, c, s, t, preview) {                                          // keep a real clip near the voice, without fighting it
     if (!v || !c) return;
-    const dur = c.dur || v.duration || 10, into = preview != null ? preview : t - s.t0, want = (c.in || 0) + (into % Math.max(.5, dur));
-    if (v.dataset.fell) { if (K.playing() && v.paused) v.play().catch(() => {}); if (!K.playing() && !v.paused) v.pause(); }
-    else { if (Math.abs((v.currentTime || 0) - want) > .4 && v.readyState >= 1) try { v.currentTime = want; } catch (e) { /* not seekable yet */ } if (K.playing() && v.paused) v.play().catch(() => {}); if (!K.playing() && !v.paused) v.pause(); }
+    const dur = c.dur || v.duration || 10, into = preview != null ? preview : t - s.t0, want = (c.in || 0) + (((into % Math.max(.5, dur)) + dur) % dur);
+    const play = K.playing();
+    if (!v.dataset.fell && v.readyState >= 1 && !v.seeking) {
+      const drift = Math.abs((v.currentTime || 0) - want);
+      if (drift > (play ? 1.2 : .15)) try { v.currentTime = want; } catch (e) { /* not seekable yet */ }
+    }
+    if (play && v.paused && !v._starting) { v._starting = true; v.play().catch(() => {}).finally(() => { v._starting = false; }); }
+    if (!play && !v.paused) v.pause();
     const speaking = !!K.wordAt(t), on = K.clipSound && !(s && s.mute);
     v.muted = !on; v.volume = on ? (speaking ? .22 : .7) : 0;                     // her voice untouched; the clip steps back while she speaks
   }
 
   K.clipVideo = clipVideo; K.drive = drive;
 
-  /* ---------- the deck: what is seated now, playing with its own sound, and every candidate beside it ---------- */
-  K.pool = () => K.deckPool || []; K.pickIdx = 0; K.picked = () => K.pool()[K.pickIdx];
-  K.focusSpan = null;
-  K.focus = (t0, t1) => { K.focusSpan = t0 == null ? null : [t0, t1]; K.emit('focus'); };
-  K.pick = i => { if (i >= 0 && i < K.pool().length) { K.pickIdx = i; K.emit('pick', K.picked(), i); } };
-  K.swap = c => {                                                                 // put a clip into the seat under the focus or playhead, keeping its span
-    const t = K.focusSpan ? (K.focusSpan[0] + K.focusSpan[1]) / 2 : K.now(), s = L.at(t);
-    if (s) { K.ledger.seat({ t0: s.t0, t1: s.t1, clip: c, snap: false, why: `swapped in for ${s.clip.title}` }); K.log('swap', `${c.title} replaces ${s.clip.title}`); }
-    else if (K.focusSpan) { K.ledger.seat({ t0: K.focusSpan[0], t1: K.focusSpan[1], clip: c, why: 'seated from the deck' }); K.log('seat', `${c.title} on ${K.fmt(K.focusSpan[0])}–${K.fmt(K.focusSpan[1])}`); }
-    else { const w = K.wordAt(t) || K.data.words.find(x => x.t0 > t); if (w) { K.ledger.seat({ t0: w.t0, t1: K.phraseEnd(w), clip: c, why: 'seated from the deck' }); K.log('seat', c.title); } }
+  /* ---------- the span, the pool, and what is being tried ---------- */
+  K.focusSpan = null; K.pickIdx = 0; K.trying = null; K.deckPool = null;
+  K.span = () => { if (K.focusSpan) return K.focusSpan; const t = K.now(), l = K.lineAt(t) || K.data.lines.find(x => x.t0 > t) || K.data.lines.at(-1); return [l.t0, l.t1]; };
+  K.pool = () => { if (K.deckPool) return K.deckPool; const [a, b] = K.span(), be = K.beatAt((a + b) / 2) || K.beatAt(a); return be ? K.cands(be.id) : []; };
+  K.picked = () => K.pool()[K.pickIdx];
+  K.focus = (t0, t1) => { const n = t0 == null ? null : [t0, t1]; if (JSON.stringify(n) !== JSON.stringify(K.focusSpan)) { K.focusSpan = n; K.trying = null; K.deckPool = null; K.pickIdx = 0; } K.emit('focus'); };
+  K.pick = i => { const p = K.pool(); if (i >= 0 && i < p.length) { K.pickIdx = i; K.trying = p[i]; K.emit('pick', p[i], i); K.emit('try', p[i], i); } };
+  K.seatSpanFor = t => { const s = L.at(t); if (s) return [s.t0, s.t1, s]; const w = K.wordAt(t) || K.data.words.find(x => x.t0 > t); return w ? [w.t0, K.phraseEnd(w), null] : null; };
+  K.swap = c => {                                                                 // put a clip into the span in focus, or the seat under the playhead
+    const [a, b] = K.span(), s = L.at((a + b) / 2);
+    if (K.hooks.keep && K.hooks.keep(c, [a, b])) return;
+    if (s && !K.focusSpan) { K.ledger.seat({ t0: s.t0, t1: s.t1, clip: c, snap: false, why: `swapped in for ${s.clip.title}` }); K.log('keep', `${c.title} replaces ${s.clip.title}`); }
+    else { K.ledger.seat({ t0: a, t1: b, clip: c, why: K.trying === c ? 'kept under the loop' : 'kept' }); K.log('keep', `${c.title} · “${K.textOf(a, b).slice(0, 60)}”`); }
+    K.trying = null; K.celebrate(document.querySelector('.dmain'), K.signOf(c).col);
   };
+  K.hooks = {};
+
+  /* ---------- the five verbs, the same in every bet: watch, try, keep, flag, on ---------- */
+  K.UNI = [
+    { l: 'A', v: 'watch', tip: 'Loop the span you are on; press again to pause', do: () => { if (K.playing() && K.range()?.loop) { K.pause(); return; } const [a, b] = K.span(); K.play(a - .15, b + .35, { loop: true }); K.log('watch', `“${K.textOf(a, b).slice(0, 70)}” on repeat`); } },
+    { l: 'B', v: 'try', tip: 'The next candidate under the loop', do: () => { const p = K.pool(); if (!p.length) return; const i = K.trying ? (p.indexOf(K.trying) + 1) % p.length : (K.pickIdx + 1) % p.length; K.pick(i); if (!K.playing()) K.UNI[0].do(); K.log('try', `${i + 1}/${p.length} · ${p[i].title}`); } },
+    { l: 'C', v: 'keep', tip: 'Seat what is playing on the span', do: () => { const c = K.hooks.pick?.() || K.trying || K.picked(); if (c) K.swap(c); } },
+    { l: 'D', v: 'flag', tip: 'Celebrate this clip: noted for later, in every bet', do: () => {
+      const [a, b] = K.span(), s = L.at((a + b) / 2), c = K.trying || s?.clip || K.picked(); if (!c) return;
+      if (!K.bin.has(c.id)) K.save2bin(c); if (s && s.clip.id === c.id && !s.flag) { s.flag = true; L.save('flag'); }
+      K.celebrate(document.querySelector('.dmain'), K.signOf(c).col); K.log('flag', `★ ${c.title} · noted for later · ${K.bin.size} flagged`); } },
+    { l: 'E', v: 'on', tip: 'On to the next line (N: the next unmade one)', do: () => {
+      const [, b] = K.span(), l = K.data.lines.find(x => x.t0 >= b - .05) || K.data.lines[0], was = K.playing() && K.range()?.loop;
+      K.goto(l.t0 + .01); if (was) setTimeout(() => K.UNI[0].do(), 60); } },
+  ];
+
+  /* ---------- the deck: the words on top, the clips are the page ---------- */
   K.deck = (host, o = {}) => {
-    /* the wireframes' shape: the words on top, the clips are the page. The main clip takes a 2×2 block, the candidates
-       tile around it, and the tile size is chosen to fit the window so nothing ever scrolls. */
     const strip = o.strip !== false;
     const cap = h('div', { class: 'dcap' }), grid = h('div', { class: 'dgrid' });
-    const snd = h('button', { type: 'button', class: 'dic', title: 'Clip sound on or off (S)' }), sav = h('button', { type: 'button', class: 'dic', title: 'Show saved clips (shared by every bet)' });
+    const snd = h('button', { type: 'button', class: 'dic', title: 'Clip sound on or off (S)' }), sav = h('button', { type: 'button', class: 'dic', title: 'Flagged clips, shared by every bet' });
     const deck = h('div', { class: 'deck' + (strip ? '' : ' nostrip') }, h('div', { class: 'dtop' }, cap, strip ? sav : null, snd), grid);
     host.replaceChildren(deck);
-    const main = h('div', { class: 'dmain' });
-    let cur = null, v = null, prev = null, prevUntil = 0, shelf = 'beat', tiles = [], idleT = 0;
+    const main = h('div', { class: 'dmain', draggable: 'true' });
+    let cur = null, v = null, shelf = 'beat', tiles = [], poolKey = '', startT = 0, lastWord = null;
     const sndUI = () => { snd.innerHTML = K.clipSound ? '<svg viewBox="0 0 18 18" width="16" height="16"><path d="M3 7h3l4-3v10l-4-3H3z" fill="currentColor"/><path d="M12.5 6.5a3.5 3.5 0 0 1 0 5M14.5 4.5a6 6 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' : '<svg viewBox="0 0 18 18" width="16" height="16"><path d="M3 7h3l4-3v10l-4-3H3z" fill="currentColor"/><path d="M12 7l4 4M16 7l-4 4" stroke="currentColor" stroke-width="1.5"/></svg>'; snd.classList.toggle('off', !K.clipSound); };
     snd.onclick = () => K.setClipSound(!K.clipSound); K.on('clipsound', sndUI); sndUI();
     const savUI = () => { sav.textContent = `★ ${K.bin.size}`; sav.classList.toggle('on', shelf === 'saved'); };
-    sav.onclick = () => { shelf = shelf === 'saved' ? 'beat' : 'saved'; savUI(); fill(); };
+    sav.onclick = () => { shelf = shelf === 'saved' ? 'beat' : 'saved'; savUI(); fill(true); };
     const show = t => {
-      const s = L.at(t), pv = prev && performance.now() < prevUntil ? prev : null;
-      const idle = !s && !pv && strip ? K.picked() : null;                          // nothing seated: the picked candidate stands in, never a black void
-      const c = pv || s?.clip || idle;
-      const key = pv ? 'p:' + pv.id : s ? s.id + (s.mute ? 'm' : '') : idle ? 'i:' + idle.id : (() => { const f = K.filmAt(t); return `none:${f.n}:${t < f.p0 ? 'b' : t > f.p1 ? 'a' : 'i'}`; })();
+      const [a, b] = K.span(), s = L.at(t) || (K.focusSpan ? L.at((a + b) / 2) : null), tr = K.trying;
+      const c = tr || s?.clip || K.picked();                                       // always footage: what you try, else what is kept, else the first candidate
+      const key = c ? (tr ? 't:' : s ? 's:' : 'p:') + c.id + (s?.mute ? 'm' : '') : 'none';
       if (key !== cur) {
-        cur = key; idleT = t; main.replaceChildren(); v = null; main.className = 'dmain' + (idle || pv ? ' ghost' : '');
-        if (c) {
-          v = clipVideo(c); main.append(v); const g = K.signOf(c); main.style.setProperty('--sg', g.col); main.dataset.clip = c.id; K.clips.set(c.id, c);
-          main.append(h('span', { class: 'dsg' }, `${g.symbol} ${g.name}`), h('span', { class: 'dti' }, c.title + (c.year ? ' · ' + c.year : '')),
-            pv ? h('span', { class: 'dpv' }, 'hear') : idle ? h('span', { class: 'dpv' }, 'not seated · double click') : s?.by === 'machine' ? h('span', { class: 'dpv m' }, 'machine') : null);
-          if (s && !pv) Object.entries(K.sa(s)).forEach(([k, x]) => x == null ? main.removeAttribute(k) : main.setAttribute(k, x)); else ['data-seat', 'data-flag', 'data-mute'].forEach(k => main.removeAttribute(k));
-          main.ondblclick = () => { if (!s || pv) K.swap(c); };
-        } else {
-          ['data-seat', 'data-clip'].forEach(k => main.removeAttribute(k)); main.style.removeProperty('--sg'); main.ondblclick = null;
-          const f = K.filmAt(t); main.append(h('span', { class: 'none' }, t < f.p0 ? `${f.n} ${f.title}` : t > f.p1 ? '' : (o.empty || 'unmade')));
-        }
+        cur = key; startT = t; main.replaceChildren(); v = null;
+        main.className = 'dmain' + (s && !tr ? '' : ' loose');                     // loose: playing but not kept (dashed frame, no words about it)
+        if (c) { v = clipVideo(c); main.append(v); main.style.setProperty('--sg', K.signOf(c).col); main.dataset.clip = c.id; K.clips.set(c.id, c); main.title = `${c.title}${c.year ? ' · ' + c.year : ''} · ${K.signOf(c).symbol} ${K.signOf(c).name}${s && !tr ? ' · kept' : ' · not kept yet: C keeps it'}`; if (K.bin.has(c.id)) main.append(h('span', { class: 'star' }, '★')); }
+        if (s && !tr) Object.entries(K.sa(s)).forEach(([k, x]) => x == null ? main.removeAttribute(k) : main.setAttribute(k, x)); else ['data-seat', 'data-flag', 'data-mute'].forEach(k => main.removeAttribute(k));
       }
-      if (v && c) drive(v, c, s && !pv ? s : { t0: pv ? prev.t : t }, t, pv ? (t - prev.t) : idle ? (t - idleT) : null);
-      const w = K.wordAt(t) || K.wordAt(t + .3); cap.innerHTML = w ? w.line.words.map(x => x === w ? `<b>${K.esc(x.w)}</b>` : K.esc(x.w)).join(' ') : '';
+      if (v && c) drive(v, c, s && !tr ? s : { t0: startT }, t, s && !tr ? null : t - startT);
+      const w = K.wordAt(t) || K.wordAt(t + .3), wk = w ? w.i : -1;
+      if (wk !== lastWord) { lastWord = wk; cap.innerHTML = w ? w.line.words.map(x => x === w ? `<b>${K.esc(x.w)}</b>` : K.esc(x.w)).join(' ') : ''; }
     };
-    const layout = () => {                                                          // the largest tile size at which main (2×2) and every candidate fit
+    main.ondblclick = () => { if (K.trying) K.swap(K.trying); };
+    const layout = () => {
       const W = grid.clientWidth, H = grid.clientHeight, n = strip ? tiles.length : 0; if (!W || !H) return;
-      if (!n) { grid.style.gridTemplateColumns = '1fr'; grid.style.gridAutoRows = H + 'px'; main.style.gridColumn = main.style.gridRow = 'auto'; return; }
+      if (!n) { grid.style.gridTemplateColumns = '1fr'; grid.style.gridAutoRows = (H - 6) + 'px'; main.style.gridColumn = main.style.gridRow = 'auto'; return; }
       let best = null;
-      for (let cols = 2; cols <= 8; cols++) {
-        for (let m = Math.min(n, 15); m >= 1; m--) {
-          const rows = Math.ceil((m + 4) / cols), tw = (W - 6 - 3 * (cols - 1)) / cols, th = Math.min(tw * .75, (H - 6 - 3 * (rows - 1)) / rows);   // padding 3 and gap 3
-          if (rows * th + 3 * (rows - 1) + 6 <= H + 1) { const score = th * (m + 4 * 1.6); if (!best || score > best.score) best = { cols, m, th, score }; break; }
-        }
+      for (let cols = 2; cols <= 8; cols++) for (let m = Math.min(n, 15); m >= 1; m--) {
+        const rows = Math.ceil((m + 4) / cols), tw = (W - 6 - 3 * (cols - 1)) / cols, th = Math.min(tw * .75, (H - 6 - 3 * (rows - 1)) / rows);
+        if (rows * th + 3 * (rows - 1) + 6 <= H + 1) { const score = th * (m + 6.4); if (!best || score > best.score) best = { cols, m, th, score }; break; }
       }
       grid.style.gridTemplateColumns = `repeat(${best.cols},1fr)`; grid.style.gridAutoRows = Math.floor(best.th) + 'px';
       main.style.gridColumn = 'span 2'; main.style.gridRow = 'span 2';
       tiles.forEach((e, i) => e.hidden = i >= best.m);
     };
-    const fill = () => {
-      if (!strip) { grid.replaceChildren(main); layout(); return; }
-      const span = K.focusSpan || (() => { const l = K.lineAt(K.now()); return l ? [l.t0, l.t1] : [K.now(), K.now() + 1]; })();
-      const b = K.beatAt((span[0] + span[1]) / 2) || K.beatAt(span[0]);
-      K.deckPool = shelf === 'saved' ? [...K.bin.values()] : (b ? K.cands(b.id) : []);
-      if (K.pickIdx >= K.deckPool.length) K.pickIdx = 0;
-      const seated = L.at((span[0] + span[1]) / 2)?.clip.id;
-      tiles = K.deckPool.slice(0, 15).map((c, i) => K.tile(c, { live: i < 11, on: i === K.pickIdx, seated: c.id === seated, badge: `${i + 1}`, name: false,
-        onclick: () => { K.pick(i); prev = c; prev.t = K.now(); prevUntil = performance.now() + Math.max(4000, 1000 * (c.dur || 6)); cur = null; show(K.now()); },
-        ondblclick: () => { K.pick(i); prev = null; K.swap(c); } }));
-      grid.replaceChildren(main, ...tiles); savUI(); cur = null; show(K.now()); layout();
+    const marks = () => {                                                           // update the tiles in place: no reloading, no flicker
+      const [a, b] = K.span(), seated = L.at((a + b) / 2)?.clip.id, oth = K.othersAt((a + b) / 2);
+      tiles.forEach((e, i) => { const c = K.deckPool[i]; e.classList.toggle('on', c === K.trying); e.classList.toggle('seated', c.id === seated); e.classList.toggle('saved', K.bin.has(c.id)); K.pips(e, oth[c.id]); });
+    };
+    const fill = force => {
+      const [a, b] = K.span(), be = K.beatAt((a + b) / 2) || K.beatAt(a);
+      const pool = shelf === 'saved' ? [...K.bin.values()] : (be ? K.cands(be.id) : []);
+      const key = shelf + ':' + pool.map(c => c.id).join(',');
+      K.deckPool = pool; if (K.pickIdx >= pool.length) K.pickIdx = 0;
+      if (key !== poolKey || force) {
+        poolKey = key;
+        tiles = strip ? pool.slice(0, 15).map((c, i) => K.tile(c, { live: i < 11, onclick: () => K.pick(i), ondblclick: () => { K.pick(i); K.swap(c); } })) : [];
+        grid.replaceChildren(main, ...tiles); layout();
+      }
+      marks(); savUI(); cur = null; show(K.now());
     };
     new ResizeObserver(layout).observe(grid);
-    let lastBeat = null;
-    K.on('tick', t => { show(t); if (!K.focusSpan && strip) { const b = K.beatAt(t)?.id; if (b !== lastBeat) { lastBeat = b; fill(); } } });
-    K.on('ledger', () => { cur = null; fill(); }); K.on('focus', fill); K.on('bin', () => { savUI(); if (shelf === 'saved') fill(); });
-    K.on('pick', () => { tiles.forEach((e, i) => e.classList.toggle('on', i === K.pickIdx)); cur = null; show(K.now()); });
+    let lastSpan = '';
+    K.on('tick', t => { show(t); if (!K.focusSpan) { const sp = K.span().join(); if (sp !== lastSpan) { lastSpan = sp; K.trying = null; fill(); } } });
+    K.on('ledger', () => fill()); K.on('focus', () => fill()); K.on('others', marks); K.on('bin', () => { savUI(); if (shelf === 'saved') fill(true); else marks(); });
+    K.on('try', () => { marks(); cur = null; show(K.now()); });
     K.on('clipsound', () => { cur = null; show(K.now()); });
-    K.preview = c => { prev = c; prev.t = K.now(); prevUntil = performance.now() + Math.max(4000, 1000 * (c.dur || 6)); cur = null; show(K.now()); };
+    K.preview = c => { K.trying = c; cur = null; show(K.now()); marks(); };
     if (strip) K.deckStrip = true;
-    fill();
+    fill(true);
     return deck;
   };
   K.monitor = (host, o = {}) => K.deck(host, { ...o, strip: false });
@@ -302,6 +336,28 @@
   }
   function closeMenu() { document.getElementById('ctx')?.remove(); }
   addEventListener('contextmenu', menu); addEventListener('pointerdown', e => { if (!e.target.closest?.('#ctx')) closeMenu(); }, true);
+
+  /* ---------- drag a clip anywhere: onto a word, a seat, a span, a timeline, the deck ---------- */
+  const DROP = '[data-seat],[data-span],[data-tl0],.wd[data-i],.wd2[data-i],.tw[data-i],.dmain';
+  addEventListener('mousedown', e => { const c = e.target.closest?.('[data-clip]'); if (c && !c.draggable) c.draggable = true; }, true);
+  addEventListener('dragstart', e => { const c = e.target.closest?.('[data-clip]'); if (!c) return; e.dataTransfer.setData('text/plain', 'clip:' + c.dataset.clip); e.dataTransfer.effectAllowed = 'copy'; document.body.classList.add('dragging'); });
+  addEventListener('dragend', () => { document.body.classList.remove('dragging'); document.querySelectorAll('.dropok').forEach(x => x.classList.remove('dropok')); });
+  addEventListener('dragover', e => { const t = e.target.closest?.(DROP); document.querySelectorAll('.dropok').forEach(x => x !== t && x.classList.remove('dropok')); if (!t) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; t.classList.add('dropok'); });
+  addEventListener('drop', e => {
+    const t = e.target.closest?.(DROP), d = e.dataTransfer.getData('text/plain'); document.body.classList.remove('dragging'); document.querySelectorAll('.dropok').forEach(x => x.classList.remove('dropok'));
+    if (!t || !d.startsWith('clip:')) return; e.preventDefault();
+    const id = d.slice(5), c = K.clips.get(id) || K.bin.get(id) || Object.values(K.data.pool).flat().find(x => x.id === id); if (!c) return;
+    let span = null;
+    if (t.dataset.seat) { const s = L.seats.find(x => x.id === t.dataset.seat); if (s) span = [s.t0, s.t1, false]; }
+    else if (t.dataset.span) { const [a, b] = t.dataset.span.split(',').map(Number); span = [a, b, true]; }
+    else if (t.dataset.tl0 != null) { const r = t.getBoundingClientRect(), tt = +t.dataset.tl0 + (+t.dataset.tl1 - +t.dataset.tl0) * (e.clientX - r.left) / r.width, x = K.seatSpanFor(tt); if (x) span = [x[0], x[1], !x[2]]; }
+    else if (t.dataset.i != null) { const w = K.data.words[+t.dataset.i]; if (w) span = [w.t0, K.phraseEnd(w), true]; }
+    else if (t.classList.contains('dmain')) { K.swap(c); return; }
+    if (!span) return;
+    if (K.hooks.keep && K.hooks.keep(c, span)) return;
+    K.ledger.seat({ t0: span[0], t1: span[1], clip: c, snap: span[2], why: 'dropped here' });
+    K.log('drop', `${c.title} · “${K.textOf(span[0], span[1]).slice(0, 60)}”`); K.celebrate(t, K.signOf(c).col);
+  });
 
   /* ---------- undo ---------- */
   K.undo = () => { const snap = L.hist.pop(); if (!snap) return K.log('undo', 'nothing to undo'); L.seats = JSON.parse(snap); L.prev = snap; store.set(L.key, L.seats); K.emit('ledger', 'undo'); K.log('undo', `back one step · ${L.hist.length} more`); };
@@ -365,7 +421,8 @@
   K.icon = (n, s = 18) => `<svg viewBox="0 0 18 18" width="${s}" height="${s}">${IC[n] || n}</svg>`;
   K.log = (verb, text) => { const l = document.getElementById('log'); if (l) l.innerHTML = `<b>${K.esc(verb)}</b> · ${K.esc(text)}`; };
   K.tools = (...groups) => { const t = document.getElementById('tools'); groups.forEach(g => t.insertBefore(h('div', { class: 'tool-grp' }, g.map(b => h('button', { type: 'button', title: b.tip || b.t, 'aria-label': b.tip || b.t, class: b.on ? 'on' : '', id: b.id, onclick: b.do, html: (b.icon ? K.icon(b.icon, 16) : '') + (b.t ? `<span>${K.esc(b.t)}</span>` : '') }))), document.getElementById('log'))); };
-  K.fire = l => { const b = document.querySelector(`#verbs button[data-l="${l}"]`); if (!b || b.disabled) return; b.classList.add('fire'); setTimeout(() => b.classList.remove('fire'), 160); K.verbs[l]?.do?.(); };
+  K.fire = l => { const b = document.querySelector(`#verbs button[data-l="${l}"]`); if (b) { b.classList.add('fire'); setTimeout(() => b.classList.remove('fire'), 160); } K.verbs[l]?.do?.(); };
+  K.fireOwn = l => { const b = document.querySelector(`#own button[data-l="${l}"]`); if (b) { b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 160); } K.own[l]?.do?.(); };
 
   K.film = null;
   K.setFilm = (n, silent) => {
@@ -375,7 +432,11 @@
     try { const q = new URLSearchParams(location.search); q.set('film', K.film.n); history.replaceState(null, '', '?' + q); } catch (e) { /* file: */ }
     if (!silent) K.emit('film', K.film);
   };
-  function coverage() { document.querySelectorAll('#strip button').forEach(b => { const f = K.filmOf(b.dataset.n); b.querySelector('.cov i').style.width = Math.round(100 * L.cover(f.p0, f.p1)) + '%'; }); reel(document.getElementById('reel')); if (screenOn) reel(document.querySelector('#screen .reel')); stakeUI(); }
+  function coverage() {
+    document.querySelectorAll('#strip button').forEach(b => {                     // each poem tab carries its own little film
+      const f = K.filmOf(b.dataset.n), mr = b.querySelector('.mr'), X = t => 100 * (t - f.t0) / (f.t1 - f.t0);
+      mr.replaceChildren(...L.in(f.t0, f.t1).map(s => h('span', { style: `left:${X(Math.max(f.t0, s.t0))}%;width:${Math.max(.6, X(Math.min(f.t1, s.t1)) - X(Math.max(f.t0, s.t0)))}%;background-image:url("${s.clip.thumb}");--sg:${K.signOf(s.clip).col}` })), h('b', { class: 'mph' }));
+    }); if (screenOn) reel(document.querySelector('#screen .reel')); stakeUI(); }
 
   /* the reel: this bet's whole film on one line, the way back to anywhere in it */
   function reel(box) {
@@ -456,15 +517,17 @@
         h('button', { class: 'ic', type: 'button', title: 'Screen this bet’s film (F)', 'aria-label': 'Screen the film', html: '<svg viewBox="0 0 18 18" width="18" height="18"><path d="M2 3.5h14v9H2zM6 15.5h6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.5 6l4 2-4 2z" fill="currentColor"/></svg>', onclick: () => K.screen() }),
         h('button', { class: 'ic', type: 'button', title: 'The theory of this studio (?)', 'aria-label': 'Theory', html: K.icon('help'), onclick: () => document.getElementById('help').classList.toggle('hidden') }),
         h('a', { class: 'ic', href: './', title: 'All nine bets', 'aria-label': 'All nine bets', html: K.icon('grid') })),
-      h('div', { id: 'strip', role: 'tablist', 'aria-label': 'Poems' }),
-      h('div', { id: 'reel', title: 'This bet’s whole film. Click to go there.', onclick: reelClick }));
+      h('div', { id: 'strip', role: 'tablist', 'aria-label': 'Poems' }));
     const stage = document.getElementById('stage') || document.body.appendChild(h('div', { id: 'stage' }));
     document.body.append(stage, h('div', { id: 'tools' }, h('div', { id: 'log' }, 'loading the poem…')), h('div', { id: 'verbs' }));
-    o.verbs.forEach(v => { K.verbs[v.l] = v; document.getElementById('verbs').append(h('button', { type: 'button', 'data-l': v.l, title: `${v.l} · ${v.tip || v.v}`, onclick: () => K.fire(v.l) }, h('span', { class: 'L' }, v.l), h('span', { class: 'V' }, v.v))); });
+    K.UNI.forEach(v => { K.verbs[v.l] = v; document.getElementById('verbs').append(h('button', { type: 'button', 'data-l': v.l, title: `${v.l} · ${v.tip}`, onclick: () => K.fire(v.l) }, h('span', { class: 'L' }, v.l), h('span', { class: 'V' }, v.v))); });
+    K.own = {}; const own = h('div', { class: 'tool-grp', id: 'own', title: `${o.name}’s own moves: Shift + letter` });
+    o.verbs.forEach(v => { K.own[v.l] = v; own.append(h('button', { type: 'button', 'data-l': v.l, title: `Shift ${v.l} · ${v.tip || v.v}`, onclick: () => K.fireOwn(v.l) }, h('b', {}, v.l), ' ', v.v)); });
+    document.getElementById('tools').prepend(own);
     const hp = o.help || {};
     document.body.append(h('div', { id: 'help', class: 'hidden', role: 'dialog', 'aria-label': 'Theory' },
       h('h3', {}, `${o.code} · ${o.name}`), h('p', {}, hp.bet || o.claim),
-      h('dl', {}, o.verbs.map(v => [h('dt', {}, `${v.l}  ${v.v}`), h('dd', {}, v.tip || '')]), (hp.keys || []).map(([k, d]) => [h('dt', {}, k), h('dd', {}, d)])),
+      h('dl', {}, K.UNI.map(v => [h('dt', {}, `${v.l}  ${v.v}`), h('dd', {}, v.tip)]), o.verbs.map(v => [h('dt', {}, `⇧${v.l}  ${v.v}`), h('dd', {}, v.tip || '')]), (hp.keys || []).map(([k, d]) => [h('dt', {}, k), h('dd', {}, d)])),
       hp.inv ? h('p', { class: 'inv' }, h('b', {}, 'Invariant. '), hp.inv) : null,
       h('p', { class: 'inv mini' }, 'This bet makes its own film, start to finish; no other studio touches it. N next unmade line · F screen the film · S clip sound on or off · L the EDL: export JSON or CMX3600, import, or take a poem from another bet · right click a clip or seat: highlight, save, mute, delete, undo · Ctrl Z undo · 1–9 pick from the deck, double click to swap it in. Clips wear their strongest sign’s colour from the periodic table. Her voice is never edited; clip sound steps back while she speaks.')));
     A.addEventListener('play', () => document.getElementById('playbtn').innerHTML = K.icon('pause'));
@@ -480,8 +543,9 @@
         return;
       }
       if ((e.metaKey || e.ctrlKey) && k === 'Z') { e.preventDefault(); K.undo(); return; }
-      if ('ABCDE'.includes(k) && k.length === 1 && K.verbs[k]) { e.preventDefault(); K.fire(k); }
-      else if (K.deckStrip && /^[1-9]$/.test(e.key)) { e.preventDefault(); K.pick(+e.key - 1); }
+      if ('ABCDE'.includes(k) && e.key.length === 1 && e.shiftKey && K.own[k]) { e.preventDefault(); K.fireOwn(k); }
+      else if ('ABCDE'.includes(k) && e.key.length === 1 && K.verbs[k]) { e.preventDefault(); K.fire(k); }
+      else if (/^[1-9]$/.test(e.key) && !o.keys?.[e.key]) { e.preventDefault(); K.pick(+e.key - 1); }
       else if (k === 'S' && e.key.length === 1) { e.preventDefault(); K.setClipSound(!K.clipSound); K.log('clip sound', K.clipSound ? 'on, ducked under her words' : 'off'); }
       else if (k === 'L' && e.key.length === 1) { e.preventDefault(); edlPanel(); }
       else if (e.key === ' ') { e.preventDefault(); (o.space || K.toggle)(); }
@@ -494,14 +558,14 @@
     const D = await fetch(U('kernel-data.json')).then(r => r.json());
     index(D); A.src = U(D.audio); L.load(); K.stake.load();
     const strip = document.getElementById('strip');
-    D.films.forEach(f => strip.append(h('button', { type: 'button', role: 'tab', 'data-n': f.n, title: f.title, onclick: () => K.setFilm(f.n) }, h('span', { class: 'n' }, f.n), h('span', { class: 't' }, f.title), h('span', { class: 'cov' }, h('i')))));
+    D.films.forEach(f => strip.append(h('button', { type: 'button', role: 'tab', 'data-n': f.n, title: f.title, onclick: () => K.setFilm(f.n) }, h('span', { class: 'n' }, f.n), h('span', { class: 't' }, f.title), h('span', { class: 'mr', 'data-tl0': f.t0, 'data-tl1': f.t1 }))));
     K.on('ledger', coverage); coverage();
     const q = new URLSearchParams(location.search);
     K.setFilm(q.get('film') || '01', true);
     K.log(o.code, `${o.claim} · ${Math.round(100 * L.whole())}% of this bet’s film is made · N next unmade line · F screen it`);
     splitters();
     if (q.get('screen')) setTimeout(() => K.screen(K.film.t0), 50);
-    K.on('tick', t => { const p = document.querySelector('#reel .rph'); if (p) p.style.left = (100 * t / K.duration) + '%'; });
+    K.on('tick', t => { const f = K.film, p = document.querySelector(`#strip button[data-n="${f.n}"] .mph`); if (p) p.style.left = (100 * (t - f.t0) / (f.t1 - f.t0)) + '%'; });
     requestAnimationFrame(tick);
     return K;
   };

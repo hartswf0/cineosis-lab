@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>P4 Audition · bet studio</title>
-<link rel="stylesheet" href="kernel.css?v=7">
+<link rel="stylesheet" href="kernel.css?v=10">
 <style>
   #ring{ flex:1 1 auto; }
   #bout{ display:grid; grid-template-columns:1fr 1fr; gap:3px; background:var(--k); flex:1 1 auto; min-height:0; position:relative; }
@@ -44,7 +44,7 @@
   <section class="pane" id="side"><h2>The film here <span class="tag" id="monTag"></span></h2><div id="monHost" style="display:flex"></div>
     <h2 style="border-top:3px solid var(--k)">Why the champion <span class="tag">tally</span></h2><div class="body"><div class="scroll" id="why"></div></div></section>
 </div>
-<script src="kernel.js?v=8"></script>
+<script src="kernel.js?v=10"></script>
 <script>
 /* P4 · AUDITION — choosing among plenty is the work.
    <bout> two candidates over the same line on the same loop · <champion> stays until beaten · <challenger> the
@@ -71,6 +71,8 @@ K.boot({
 }).then(() => {
   K.tools(REASONS.map((r, i) => ({ t: r, id: 'rs-' + r, tip: `Reason ${i + 1}: it ${['carries the line', 'holds the scene', 'reads the sign', 'is well made'][i]}`, on: r === S.reason, do: () => reason(i) })));
   K.monitor($('monHost'));
+  K.hooks.pick = () => S.pool[S.champ];                                          // KEEP seats the champion
+  K.on('try', c => { const k = S.pool.findIndex(x => x.id === c.id); if (k >= 0 && k !== S.champ) { S.chal = k; draw(); } });
   K.on('film', () => go(0)); K.on('goto', l => go(K.film.lines.indexOf(l)));
   K.on('tick', t => { $('monTag').textContent = K.fmt(t); const r = K.range(); if (r) { const p = Math.max(0, Math.min(1, (t - r.t0) / (r.t1 - r.t0))); $('Lb').style.width = $('Rb').style.width = (100 * p) + '%'; } });
   ['L', 'R'].forEach(sd => { const b = $(sd + 'm'); const ui = () => b.classList.toggle('off', S.mute[sd]); b.onclick = () => { S.mute[sd] = !S.mute[sd]; ui(); K.log('sound', `${sd === 'L' ? 'A' : 'B'} ${S.mute[sd] ? 'muted' : 'audible'}`); }; ui(); });
@@ -82,7 +84,7 @@ K.boot({
 function go(i) {
   if (i >= K.film.lines.length && K.advance()) return; S.li = Math.max(0, Math.min(K.film.lines.length - 1, i));
   const b = K.beatAt((line().t0 + line().t1) / 2) || K.beatAt(line().t0);
-  S.pool = b ? K.cands(b.id) : []; S.champ = 0; S.chal = 1; S.lost = new Set(); S.why = {};
+  S.pool = b ? K.cands(b.id) : []; S.champ = 0; S.chal = 1; S.lost = new Set(); S.why = {}; K.focus(line().t0, line().t1);
   const seated = K.ledger.at((line().t0 + line().t1) / 2); if (seated) { const k = S.pool.findIndex(c => c.id === seated.clip.id); if (k > 0) { S.champ = k; S.chal = k === 1 ? 0 : 1; } }
   $('lineText').textContent = line().text; $('lineMeta').textContent = `${K.film.n} · L${line().n} · beat ${b?.id ?? '–'} · ${S.pool.length} in the pool`;
   draw(); loop(true);

@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>P6 Branch Garden · bet studio</title>
-<link rel="stylesheet" href="kernel.css?v=7">
+<link rel="stylesheet" href="kernel.css?v=10">
 <style>
   #garden{ flex:1 1 auto; }
   #tree{ padding:10px 12px 10px 28px; position:relative; }
@@ -22,7 +22,8 @@
   .ver .dv{ font-size:18px; font-weight:700; text-align:right; }
   .ver .dv small{ display:block; font-size:9px; font-weight:400; color:var(--g); letter-spacing:.06em; }
   #side{ flex:0 0 min(360px,30%); }
-  #side .mon{ flex:0 0 auto; aspect-ratio:4/3; }
+  #side .mon{ flex:0 0 auto; aspect-ratio:4/3; border:4px solid var(--sg,#000); } #side .mon.loose{ border-style:dashed; } #side .mon video{ width:100%; height:100%; object-fit:cover; }
+  .ver.other .nm{ background:var(--lg); } .ver.other .film{ opacity:.9; }
   #side .grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding:6px; }
   #lineBand{ padding:8px 12px; font-size:15px; border-bottom:3px solid var(--k); }
 </style></head>
@@ -33,7 +34,7 @@
   <section class="pane" id="side"><h2>Playing <span class="tag" id="monTag"></span></h2><div class="mon" id="mon"></div>
     <h2 style="border-top:3px solid var(--k)">Seat into <span id="intoTag"></span> <span class="tag" id="candTag"></span></h2><div class="body"><div class="scroll"><div class="grid" id="candGrid"></div></div></div></section>
 </div>
-<script src="kernel.js?v=8"></script>
+<script src="kernel.js?v=10"></script>
 <script>
 /* P6 · BRANCH GARDEN — there is no single right cut.
    <trunk> the ledger itself · <branch> a named version of one poem, forked from the trunk or another branch ·
@@ -47,9 +48,10 @@ const line = () => K.film.lines[S.li];
 let B = []; try { B = JSON.parse(localStorage.getItem(BKEY)) || []; } catch (e) { B = []; }
 const saveB = () => { try { localStorage.setItem(BKEY, JSON.stringify(B)); } catch (e) {} };
 const mine = () => B.filter(b => b.film === K.film.n);
-const seatsOf = id => id === 'trunk' ? K.ledger.in(K.film.t0, K.film.t1) : (B.find(b => b.id === id)?.seats || []);
+const NAMES = { P1: 'Concordance', P2: 'Voice Clock', P3: 'Scale Ladder', P4: 'Audition', P5: 'Association Field', P7: 'Loop Wheel', P8: 'Template Press', P9: 'Strata' };
+const seatsOf = id => id === 'trunk' ? K.ledger.in(K.film.t0, K.film.t1) : id.startsWith('bet:') ? (K.others()[id.slice(4)] || []).filter(s => s.t1 > K.film.t0 && s.t0 < K.film.t1) : (B.find(b => b.id === id)?.seats || []);
 const atIn = (list, t) => list.find(s => t >= s.t0 && t < s.t1);
-const nameOf = id => id === 'trunk' ? 'trunk' : B.find(b => b.id === id)?.name;
+const nameOf = id => id === 'trunk' ? 'trunk' : id.startsWith('bet:') ? id.slice(4) : B.find(b => b.id === id)?.name;
 function divergence(id) {
   if (id === 'trunk') return 0; const f = K.film, a = seatsOf(id), T = seatsOf('trunk'); let d = 0, n = 0;
   f.lines.forEach(l => { const m = (l.t0 + l.t1) / 2, x = atIn(a, m), y = atIn(T, m); n++; if ((x?.clip.id || null) !== (y?.clip.id || null)) d++; });
@@ -71,36 +73,40 @@ K.boot({
   keys: { ArrowLeft: () => pick(S.li - 1), ArrowRight: () => pick(S.li + 1), ...Object.fromEntries([1,2,3,4,5,6,7,8,9].map(n => [String(n), () => seatInto(n - 1)])) },
 }).then(() => {
   K.on('film', () => { S.active = 'trunk'; pick(0); }); K.on('goto', l => pick(K.film.lines.indexOf(l))); K.on('ledger', draw);
-  let cur;
+  let cur, curT = 0;
+  K.on('try', () => { cur = null; }); K.on('others', draw);
   K.on('tick', t => {
     $('monTag').textContent = `${nameOf(S.active)} · ${K.fmt(t)}`;
     document.querySelectorAll('.ver .film .ph').forEach(p => p.style.left = X(t) + '%');
-    const s = atIn(seatsOf(S.active), t), key = s ? s.clip.id + s.t0 : 'none';
-    if (key !== cur) { cur = key; const m = $('mon'); m.replaceChildren(s ? K.media(s.clip, true) : K.h('span', { class: 'none' }, 'unseated in this version')); }
+    const s = atIn(seatsOf(S.active), t), c = K.trying || s?.clip || K.pool()[0], key = c ? (K.trying ? 't' : '') + c.id + (s?.t0 || '') : 'none';
+    if (key !== cur) { cur = key; curT = t; const m = $('mon'); m.replaceChildren(c ? K.clipVideo(c) : ''); m.classList.toggle('loose', !s || !!K.trying); m.style.setProperty('--sg', c ? K.signOf(c).col : '#000'); if (c) m.dataset.clip = c.id; }
+    const v = $('mon').querySelector('video'); if (v && c) K.drive(v, c, s && !K.trying ? s : { t0: curT }, t, s && !K.trying ? null : t - curT);
     const l = K.lineAt(t); if (l && K.playing() && l.film === K.film.n && l !== line()) { S.li = K.film.lines.indexOf(l); drawLineMarks(); }
   });
   pick(0);
 });
 
 const X = t => 100 * (t - K.film.p0) / (K.film.p1 - K.film.p0);
-function pick(i) { if (i >= K.film.lines.length && K.advance()) return; S.li = Math.max(0, Math.min(K.film.lines.length - 1, i)); if (!K.playing()) K.seek(line().t0); draw(); }
+function pick(i) { if (i >= K.film.lines.length && K.advance()) return; S.li = Math.max(0, Math.min(K.film.lines.length - 1, i)); if (!K.playing()) K.seek(line().t0); K.focus(line().t0, line().t1); draw(); }
 function draw() {
-  if (S.active !== 'trunk' && !B.some(b => b.id === S.active && b.film === K.film.n)) S.active = 'trunk';
+  if (S.active !== 'trunk' && !S.active.startsWith('bet:') && !B.some(b => b.id === S.active && b.film === K.film.n)) S.active = 'trunk';
   const tree = $('tree'); tree.replaceChildren();
   const T = seatsOf('trunk');
-  ['trunk', ...mine().map(b => b.id)].forEach(id => {
-    const list = seatsOf(id), b = B.find(x => x.id === id), dv = divergence(id);
+  const others = Object.keys(K.others()).filter(c => seatsOf('bet:' + c).length).map(c => 'bet:' + c);
+  ['trunk', ...mine().map(b => b.id), ...others].forEach(id => {
+    const list = seatsOf(id), b = B.find(x => x.id === id), dv = divergence(id), ext = id.startsWith('bet:');
     const film = K.h('div', { class: 'film', onclick: e => { const r = e.currentTarget.getBoundingClientRect(); S.active = id; K.seek(K.film.p0 + (K.film.p1 - K.film.p0) * (e.clientX - r.left) / r.width); const l = K.lineAt(K.now()); if (l) S.li = K.film.lines.indexOf(l); draw(); } });
     list.filter(s => s.t1 > K.film.p0 && s.t0 < K.film.p1).forEach(s => {
       const differs = id !== 'trunk' && atIn(T, (s.t0 + s.t1) / 2)?.clip.id !== s.clip.id;
-      film.append(K.h('div', { class: 's' + (differs ? ' diff' : ''), style: `left:${X(Math.max(K.film.p0, s.t0))}%;width:${X(Math.min(K.film.p1, s.t1)) - X(Math.max(K.film.p0, s.t0))}%`, title: `${s.clip.title} · ${s.text}` }, K.h('img', { src: s.clip.thumb, alt: '' })));
+      film.append(K.h('div', { class: 's' + (differs ? ' diff' : ''), ...(id === 'trunk' ? K.sa(s) : {}), 'data-clip': s.clip.id, style: `box-shadow:inset 0 -5px 0 ${K.signOf(s.clip).col};left:${X(Math.max(K.film.p0, s.t0))}%;width:${X(Math.min(K.film.p1, s.t1)) - X(Math.max(K.film.p0, s.t0))}%`, title: `${s.clip.title} · ${s.text}` }, K.h('img', { src: s.clip.thumb, alt: '' }))); K.clips.set(s.clip.id, s.clip);
     });
     film.append(K.h('div', { class: 'ln' }), K.h('div', { class: 'ph' }));
-    tree.append(K.h('div', { class: 'ver' + (id === 'trunk' ? ' trunk' : '') + (id === S.active ? ' on' : '') },
-      K.h('div', { class: 'nm', onclick: () => { S.active = id; draw(); } }, id === 'trunk' ? 'trunk' : b.name, K.h('small', {}, id === 'trunk' ? 'the ledger' : `from ${b.from}`)),
+    if (id === 'trunk') { film.dataset.tl0 = K.film.p0; film.dataset.tl1 = K.film.p1; }   // drop a clip on the trunk to seat it there
+    tree.append(K.h('div', { class: 'ver' + (id === 'trunk' ? ' trunk' : '') + (ext ? ' other' : '') + (id === S.active ? ' on' : '') },
+      K.h('div', { class: 'nm', title: ext ? `Watch ${nameOf(id)}’s film here; double click to fork it into a branch of your own` : '', onclick: () => { S.active = id; draw(); }, ondblclick: () => { if (ext) { S.active = id; fork(); } } }, ext ? `${id.slice(4)} ${NAMES[id.slice(4)] || ''}` : id === 'trunk' ? 'this bet' : b.name, K.h('small', {}, id === 'trunk' ? 'the trunk' : ext ? 'another bet' : `from ${b.from}`)),
       film, K.h('div', { class: 'dv' }, id === 'trunk' ? '—' : Math.round(dv * 100) + '%', K.h('small', {}, id === 'trunk' ? '' : 'differs'))));
   });
-  $('gTag').textContent = `${K.film.title} · ${mine().length} branch${mine().length === 1 ? '' : 'es'}`;
+  $('gTag').textContent = `${mine().length} branch${mine().length === 1 ? '' : 'es'} · ${others.length} other bets here`;
   $('intoTag').textContent = nameOf(S.active);
   drawLineMarks(); drawCands();
 }
@@ -113,8 +119,14 @@ function drawCands() {
   $('candTag').textContent = `L${line().n}`;
   cs.slice(0, 9).forEach((c, i) => g.append(K.tile(c, { live: i < 3, seated: here?.clip.id === c.id, badge: `${i + 1} · ${c.fit}`, onclick: () => seatInto(i) })));
 }
+K.hooks.keep = (c, span) => {
+  if (S.active === 'trunk') return false;
+  if (S.active.startsWith('bet:')) { K.log('keep', `that is ${nameOf(S.active)}’s film: double click its name to fork it, then shape the fork`); return true; }
+  const b = B.find(x => x.id === S.active), r = K.place(b.seats, { t0: span[0], t1: span[1], clip: c, why: `in branch ${b.name}` }); if (r) { b.seats = r[0]; saveB(); draw(); K.log('keep', `${c.title} → ${b.name}`); } return true;
+};
 function seatInto(i) {
   const c = cands()[i]; if (!c) return;
+  if (S.active.startsWith('bet:')) return K.hooks.keep(c, [line().t0, line().t1]);
   if (S.active === 'trunk') { K.ledger.seat({ t0: line().t0, t1: line().t1, clip: c, why: 'seated in the trunk' }); }
   else { const b = B.find(x => x.id === S.active), r = K.place(b.seats, { t0: line().t0, t1: line().t1, clip: c, why: `in branch ${b.name}` }); if (r) { b.seats = r[0]; saveB(); draw(); } }
   K.log('seat', `${c.title} → L${line().n} in ${nameOf(S.active)}`);
