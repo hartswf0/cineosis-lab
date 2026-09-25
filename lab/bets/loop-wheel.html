@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>P7 Loop Wheel · bet studio</title>
-<link rel="stylesheet" href="kernel.css?v=2">
+<link rel="stylesheet" href="kernel.css?v=6">
 <style>
   #wheelPane{ flex:1 1 auto; }
   #wheel{ position:absolute; inset:0; }
@@ -30,7 +30,7 @@
   <section class="pane" id="side"><h2>The film <span class="tag" id="monTag"></span></h2><div id="monHost" style="display:flex"></div>
     <h2 style="border-top:3px solid var(--k)">Lines <span class="tag" id="linesTag"></span></h2><div class="body"><div class="scroll" id="lines"></div></div></section>
 </div>
-<script src="kernel.js?v=2"></script>
+<script src="kernel.js?v=6"></script>
 <script>
 /* P7 · LOOP WHEEL — watching is the interface.
    <loop> the line on repeat, never interrupted · <wheel> the candidates, one under the loop per pass · <hold>
@@ -56,6 +56,7 @@ K.boot({
 }).then(() => {
   K.monitor($('monHost'));
   K.on('film', () => go(0, K.playing())); K.on('goto', l => go(K.film.lines.indexOf(l), K.playing())); K.on('ledger', drawLines);
+  K.on('tick', t => { const v = $('hub').querySelector('video'), c = S.pool[S.cur]; if (v && c) K.drive(v, c, { t0: line().t0 - .15 }, t); });
   K.on('loop', () => { S.pass++; if (S.spin) turn(1); else $('hub').querySelector('.pass').textContent = `held · pass ${S.pass}`; });
   K.on('tick', t => {
     $('monTag').textContent = K.fmt(t);
@@ -73,14 +74,14 @@ function go(i, play) {
   const seated = K.ledger.at((line().t0 + line().t1) / 2); S.cur = Math.max(0, S.pool.findIndex(c => c.id === seated?.clip.id));
   $('words').replaceChildren(...line().words.map(w => [K.h('span', { class: 'wd', 'data-i': w.i }, w.w), ' ']).flat());
   const wh = $('wheel'); wh.querySelectorAll('#wheel .spoke').forEach(e => e.remove());
-  S.pool.forEach((c, k) => wh.append(K.h('div', { class: 'spoke', 'data-k': k, title: `${k + 1} · ${c.title} · ${c.cat} · fit ${c.fit}`, onclick: () => { S.cur = k; S.spin = false; hub(); place(); } }, K.h('img', { src: c.thumb, alt: '' }), K.h('span', {}, k + 1))));
+  S.pool.forEach((c, k) => wh.append(K.h('div', { class: 'spoke', 'data-k': k, 'data-clip': c.id, style: `border-color:${K.signOf(c).col}`, title: `${k + 1} · ${c.title} · ${c.cat} · fit ${c.fit}`, onclick: () => { S.cur = k; S.spin = false; hub(); place(); } }, K.h('img', { src: c.thumb, alt: '' }), K.h('span', {}, k + 1))));
   hub(); place(); drawLines();
   $('wTag').textContent = `${K.film.n} · L${line().n} · ${S.pool.length} on the wheel`;
   if (play) loop(true);
 }
 function hub() {
   const c = S.pool[S.cur], h = $('hub'); h.replaceChildren();
-  if (c) h.append(K.media(c, true)); h.append(K.h('span', { class: 'pass' }, c ? `${S.cur + 1}/${S.pool.length} · ${c.title.slice(0, 40)}` : 'no clips'), K.h('span', { class: 'meter' }, K.h('i')));
+  if (c) { h.append(K.clipVideo(c)); h.dataset.clip = c.id; K.clips.set(c.id, c); h.style.borderColor = K.signOf(c).col; h.style.boxShadow = `6px 6px 0 ${K.signOf(c).col}`; } h.append(K.h('span', { class: 'pass' }, c ? `${S.cur + 1}/${S.pool.length} · ${c.title.slice(0, 40)}` : 'no clips'), K.h('span', { class: 'meter' }, K.h('i')));
 }
 function place() {
   const n = S.pool.length; if (!n) return;

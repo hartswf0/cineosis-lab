@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>P1 Concordance · bet studio</title>
-<link rel="stylesheet" href="kernel.css?v=2">
+<link rel="stylesheet" href="kernel.css?v=6">
 <style>
   #poem .scroll{ padding:10px 12px; font-size:15px; line-height:1.9; }
   #poem .ln{ margin:0 0 4px; }
@@ -16,19 +16,16 @@
   .kw .pin{ height:48px; border:3px solid var(--k); background:var(--lg); overflow:hidden; }
   .kw .pin img,.kw .pin video{ width:100%; height:100%; object-fit:cover; }
   .kw .pin.empty{ border-style:dashed; border-color:var(--g); }
-  #cand .grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding:6px; }
   #right{ flex:0 0 min(420px,34%); }
-  #right .mon{ flex:0 0 auto; aspect-ratio:4/3; }
   #poem{ flex:1 1 34%; } #ment{ flex:1 1 32%; }
 </style></head>
 <body>
 <div id="stage">
   <section class="pane" id="poem"><h2>Poem <span class="tag" id="poemTag"></span></h2><div class="body"><div class="scroll" id="poemText"></div></div></section>
   <section class="pane" id="ment"><h2>Mentions <span class="tag" id="mentTag">pick a word</span></h2><div class="body"><div class="scroll" id="mentList"></div></div></section>
-  <section class="pane" id="right"><h2>Monitor <span class="tag" id="monTag"></span></h2><div id="monHost" style="display:flex"></div>
-    <h2 style="border-top:3px solid var(--k)">Candidates <span class="tag" id="candTag"></span></h2><div class="body" id="cand"><div class="scroll"><div class="grid" id="candGrid"></div></div></div></section>
+  <section class="pane" id="right"><h2>Deck <span class="tag" id="monTag"></span></h2><div class="body" id="monHost"></div></section>
 </div>
-<script src="kernel.js?v=2"></script>
+<script src="kernel.js?v=6"></script>
 <script>
 /* P1 · CONCORDANCE — the word is the unit.
    <occurrence> a word at a time · <mention-set> every occurrence of the same word · <pin> a clip held from an
@@ -39,7 +36,7 @@ const S = { occ: null, cand: 0, strikes: new Set(JSON.parse(localStorage.getItem
 const $ = id => document.getElementById(id);
 const pinSpan = w => [w.t0, K.phraseEnd(w)];
 const mentions = k => K.data.words.filter(w => w.k === k);
-const cands = () => S.occ ? K.cands(K.beatAt((S.occ.t0 + S.occ.t1) / 2)?.id) : [];
+const cands = () => K.pool();
 
 K.boot({
   code: 'P1', name: 'Concordance', claim: 'the word is the unit: one word, every time it is spoken, and what it shows each time',
@@ -52,9 +49,9 @@ K.boot({
   ],
   help: { bet: 'Meaning lives in single words and their recurrences. The film gains power when the same word keeps finding its image, or refuses to.', inv: 'A pin belongs to an occurrence, never to a bare string. Rhyme is an explicit act.',
     keys: [['click a word', 'select that occurrence'], ['1–9', 'choose a candidate'], ['← →', 'previous or next mention'], ['space', 'play or pause']] },
-  keys: { ArrowLeft: () => step(-1), ArrowRight: () => step(1), ...Object.fromEntries([1,2,3,4,5,6,7,8,9].map(n => [String(n), () => choose(n - 1)])) },
+  keys: { ArrowLeft: () => step(-1), ArrowRight: () => step(1), },
 }).then(() => {
-  K.monitor($('monHost'), { empty: 'nothing pinned here yet' });
+  K.deck($('monHost'), { empty: 'nothing pinned here yet' });
   K.on('film', () => { drawPoem(); }); K.on('goto', l => select(l.words.find(x => !STOP.has(x.k)) || l.words[0], true)); K.on('end', gatherNext); K.on('ledger', () => { drawPoem(); drawMentions(); });
   K.on('tick', t => { const w = K.wordAt(t); document.querySelectorAll('.wd.now').forEach(e => e.classList.remove('now')); if (w) document.querySelector(`.wd[data-i="${w.i}"]`)?.classList.add('now'); $('monTag').textContent = K.fmt(t); });
   drawPoem();
@@ -69,7 +66,7 @@ function drawPoem() {
 }
 function select(w, quiet) {
   if (!quiet) S.gq = null;
-  S.occ = w; S.cand = 0;
+  S.occ = w;
   document.querySelectorAll('.wd.sel').forEach(e => e.classList.remove('sel')); document.querySelector(`.wd[data-i="${w.i}"]`)?.classList.add('sel');
   drawMentions(); drawCands();
   if (!quiet) { K.play(w.t0 - .05, w.t1 + .15); K.log('focus', `“${w.w}” at ${K.fmt(w.t0)}, ${mentions(w.k).length} mentions in the suite`); }
@@ -84,17 +81,13 @@ function drawMentions() {
     const row = K.h('div', { class: 'kw' + (w === S.occ ? ' on' : ''), onclick: () => { if (w.line.film !== K.film.n) K.setFilm(w.line.film); select(w); } },
       K.h('div', { class: 'when' }, `${w.line.film} · L${w.line.n}`, K.h('br'), K.fmt(w.t0)),
       K.h('div', { class: 'ctx', html: `${K.esc(a)} <b>${K.esc(w.w)}</b> ${K.esc(b)}` }),
-      K.h('div', { class: 'pin' + (s ? '' : ' empty'), title: s ? `${s.clip.title} · ${s.by}` : 'no clip here' }, s ? K.media(s.clip, false) : null));
+      K.h('div', { class: 'pin' + (s ? '' : ' empty'), ...(s ? K.sa(s) : {}), style: s ? `border-color:${K.signOf(s.clip).col}` : null, title: s ? `${s.clip.title} · ${s.by}` : 'no clip here' }, s ? K.media(s.clip, false) : null));
     box.append(row);
   });
   box.querySelector('.kw.on')?.scrollIntoView({ block: 'nearest' });
 }
-function drawCands() {
-  const g = $('candGrid'); g.replaceChildren(); const cs = cands();
-  const b = S.occ && K.beatAt(S.occ.t0); $('candTag').textContent = b ? `beat ${b.id} · ${cs.length}` : '';
-  cs.slice(0, 9).forEach((c, i) => g.append(K.tile(c, { live: i < 6, on: i === S.cand, badge: `${i + 1} · ${c.fit}`, onclick: () => choose(i) })));
-}
-function choose(i) { if (i < cands().length) { S.cand = i; drawCands(); K.log('choose', `${i + 1} · ${cands()[i].title} · ${cands()[i].cat}`); } }
+function drawCands() { if (S.occ) K.focus(...pinSpan(S.occ)); }     // the deck shows this occurrence's candidates, live
+function choose(i) { K.pick(i); }
 function step(d) { if (!S.occ) return; const ms = mentions(S.occ.k), i = ms.indexOf(S.occ), w = ms[(i + d + ms.length) % ms.length]; if (w.line.film !== K.film.n) K.setFilm(w.line.film); select(w); }
 function focusNow() { const t = K.now(); const w = K.wordAt(t) || K.data.words.find(x => x.t0 >= t); if (w) { if (w.line.film !== K.film.n) K.setFilm(w.line.film); K.pause(); select(w); } }
 function gatherPlay() {
@@ -106,7 +99,7 @@ function gatherNext() {
   const w = S.gq[S.gi++]; if (w.line.film !== K.film.n) K.setFilm(w.line.film); select(w, true); K.play(w.t0 - .25, K.phraseEnd(w) + .1); K.log('gather', `${S.gi}/${S.gq.length} · ${w.line.film} L${w.line.n}`);
 }
 function pin() {
-  const c = cands()[S.cand]; if (!S.occ || !c) return;
+  const c = K.picked(); if (!S.occ || !c) return;
   const [t0, t1] = pinSpan(S.occ);
   K.ledger.seat({ t0, t1, clip: c, why: `pinned to “${S.occ.w}”` });
   K.log('pin', `${c.title} → “${S.occ.w}” ${K.fmt(t0)}–${K.fmt(t1)}`);

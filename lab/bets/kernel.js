@@ -88,7 +88,7 @@
       if (s.t1 > t1) keep.push({ ...s, id: s.id + 'b', t0: t1 });
     }
     const c = o.clip, seat = { id: 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), t0, t1, text: K.textOf(t0, t1),
-      clip: { id: c.id, title: c.title, year: c.year, thumb: c.thumb, video: c.video, loop: !!c.loop, verdict: c.verdict, score: c.score, fit: c.fit, cat: c.cat },
+      clip: { id: c.id, title: c.title, year: c.year, thumb: c.thumb, video: c.video, loop: !!c.loop, verdict: c.verdict, score: c.score, fit: c.fit, cat: c.cat, sg: c.sg ?? K.clips.get(c.id)?.sg ?? null, in: c.in || 0, dur: c.dur ?? null },
       by: o.by || 'person', bet: o.bet || K.code, why: o.why || '', at: Date.now() };
     return [keep.concat(seat).sort((a, b) => a.t0 - b.t0), seat];
   };
@@ -102,11 +102,17 @@
   K.readFilm = code => store.get(FILMKEY(code), []);
   const L = K.ledger = {
     seats: [], key: null,
-    load() { L.key = FILMKEY(K.code); L.seats = store.get(L.key, null) ?? L.split(); L.seats.sort((a, b) => a.t0 - b.t0); },
+    hist: [], prev: '[]',
+    load() {
+      L.key = FILMKEY(K.code); L.seats = store.get(L.key, null) ?? L.split(); L.seats.sort((a, b) => a.t0 - b.t0);
+      const byId = new Map(); Object.values(K.data.pool).forEach(v => v.forEach(c => byId.set(c.id, c)));
+      L.seats.forEach(s => { const c = byId.get(s.clip.id); if (c && s.clip.sg == null) Object.assign(s.clip, { sg: c.sg, in: c.in || 0, dur: c.dur }); });   // older seats learn their sign
+      L.prev = JSON.stringify(L.seats);
+    },
     split() {                                                                     // the first version kept one shared ledger: each bet takes back what it made
       const mine = store.get('cineosis.ledger.v1', []).filter(s => s.bet === K.code); store.set(L.key, mine); return mine;
     },
-    save(why) { if (L.quiet) { L.dirty = true; return; } L.seats.sort((a, b) => a.t0 - b.t0); store.set(L.key, L.seats); K.stake.decide(why); K.emit('ledger', why); },
+    save(why) { if (L.quiet) { L.dirty = true; return; } L.seats.sort((a, b) => a.t0 - b.t0); L.hist.push(L.prev); if (L.hist.length > 60) L.hist.shift(); L.prev = JSON.stringify(L.seats); store.set(L.key, L.seats); K.stake.decide(why); K.emit('ledger', why); },
     batch(fn, why = 'batch') { L.quiet = true; try { fn(); } finally { L.quiet = false; if (L.dirty) { L.dirty = false; L.save(why); } } },   // many seats, one save, one decision
     all: () => L.seats,
     at: t => L.seats.find(s => t >= s.t0 && t < s.t1) || null,
@@ -118,7 +124,7 @@
     clear(t0, t1, pred = () => true) { L.seats = L.seats.filter(s => !(s.t1 > t0 && s.t0 < t1 && pred(s))); L.save('clear'); },
     accept(id) { const s = L.seats.find(x => x.id === id); if (s) { s.by = 'person'; L.save('accept'); } },
   };
-  addEventListener('storage', e => { if (e.key === L.key) { L.seats = store.get(L.key, []); K.emit('ledger', 'elsewhere'); K.log('film', 'changed in another tab of this bet'); } });
+  addEventListener('storage', e => { if (e.key === 'cineosis.bin.v1') { K.bin = new Map(Object.entries(store.get('cineosis.bin.v1', {}))); K.emit('bin'); } if (e.key === L.key) { L.seats = store.get(L.key, []); L.prev = JSON.stringify(L.seats); K.emit('ledger', 'elsewhere'); K.log('film', 'changed in another tab of this bet'); } });
 
   /* ---------- the stake: what this wager has cost ---------- */
   K.stake = {
@@ -143,25 +149,188 @@
     }
     return h('img', { src: c.thumb, alt: '', loading: 'lazy' });
   };
-  K.tile = (c, o = {}) => h('div', { class: 'tile' + (o.on ? ' on' : '') + (o.seated ? ' seated' : ''), title: `${c.title}${c.year ? ' · ' + c.year : ''}\n${c.verdict} · score ${c.score} · fit ${c.fit} · ${c.cat}`, onclick: o.onclick, style: o.style },
-    K.media(c, o.live), h('span', { class: 'v ' + c.verdict }, o.badge ?? c.verdict[0] + ' ' + c.fit), o.name === false ? null : h('span', { class: 'nm' }, `${c.title}${c.year ? ' ' + c.year : ''}`));
-
-  /* the monitor: the film as the ledger has it, at the playhead */
-  K.monitor = (host, o = {}) => {
-    const mon = h('div', { class: 'mon' }), cap = h('div', { class: 'cap' }); host.append(mon); let cur;
-    const show = t => {
-      const s = L.at(t), key = s ? s.id : 'none';
-      if (key !== cur) {
-        cur = key; mon.replaceChildren();
-        if (s) mon.append(K.media(s.clip, true)); else mon.append(h('span', { class: 'none' }, o.empty || 'unmade in this bet'));
-        mon.append(cap);
-      }
-      const w = K.wordAt(t);
-      cap.textContent = (s ? (s.by === 'machine' ? '▒ ' : '') + s.clip.title + ' · ' : '') + (w ? w.line.text : '');
-    };
-    K.on('tick', show); K.on('ledger', () => { cur = null; show(K.now()); }); show(K.now());
-    return mon;
+  /* ---------- the periodic table's colours: every clip wears its strongest sign's domain ---------- */
+  K.DOM = { perception: '#e9d9a8', affect: '#f0b9a4', action: '#e7a37c', reflection: '#b9cfa0', mental: '#a9c9c9', break: '#d9d3c7', time: '#b8b3d8', read: '#d9b8d2' };
+  K.signOf = c => { const n = c?.sg, g = n && K.data?.signs[n]; return g ? { n, symbol: g.symbol, name: g.name, dom: g.dom, col: K.DOM[g.dom] || '#ddd' } : { n: null, symbol: '·', name: 'no sign read', dom: null, col: '#ddd' }; };
+  K.sa = s => ({ 'data-seat': s.id, 'data-flag': s.flag ? '1' : null, 'data-mute': s.mute ? '1' : null });   // seat attributes: right click, highlight, mute
+  K.clips = new Map();
+  K.tile = (c, o = {}) => {
+    K.clips.set(c.id, c); const g = K.signOf(c);
+    return h('div', { class: 'tile' + (o.on ? ' on' : '') + (o.seated ? ' seated' : '') + (K.bin.has(c.id) ? ' saved' : ''), 'data-clip': c.id, style: `--sg:${g.col};` + (o.style || ''),
+      title: `${c.title}${c.year ? ' · ' + c.year : ''}\n${g.symbol} ${g.name} (${g.dom || '—'})\n${c.verdict} · score ${c.score} · fit ${c.fit} · ${c.cat}\nright click: save · swap · preview`, onclick: o.onclick, ondblclick: o.ondblclick },
+      K.media(c, o.live), h('span', { class: 'v ' + c.verdict }, o.badge ?? c.verdict[0] + ' ' + c.fit), h('span', { class: 'sgn' }, g.symbol),
+      o.name === false ? null : h('span', { class: 'nm' }, `${c.title}${c.year ? ' ' + c.year : ''}`));
   };
+  /* layout words placed by time without collisions: a word that would overlap drops to the next row */
+  K.layWords = (box, words, X, o = {}) => {
+    const rows = []; const rh = o.rowH || 18, max = o.rows || 3;
+    words.forEach(w => {
+      const e = h('span', { class: o.cls || 'wd2', 'data-i': w.i, style: `left:${X(w.t0)}%`, ...(o.attrs ? o.attrs(w) : {}) }, w.w); box.append(e);
+      const L0 = e.offsetLeft, R0 = L0 + e.offsetWidth + 3; let r = rows.findIndex(end => end <= L0); if (r < 0) r = rows.length < max ? rows.length : rows.indexOf(Math.min(...rows));
+      rows[r] = R0; e.style.top = (o.top || 0) + r * rh + 'px';
+    });
+  };
+
+  /* ---------- the saved bin, shared by every bet: clips worth keeping ---------- */
+  K.bin = new Map(Object.entries(store.get('cineosis.bin.v1', {})));
+  K.save2bin = c => { if (K.bin.has(c.id)) K.bin.delete(c.id); else K.bin.set(c.id, { id: c.id, title: c.title, year: c.year, thumb: c.thumb, video: c.video, loop: c.loop, sg: c.sg, verdict: c.verdict || 'KEEP', score: c.score, fit: c.fit, cat: c.cat, in: c.in, dur: c.dur }); store.set('cineosis.bin.v1', Object.fromEntries(K.bin)); K.emit('bin'); return K.bin.has(c.id); };
+
+  /* ---------- clip sound: the real clip's audio, ducked under her words, mutable per seat ---------- */
+  K.clipSound = store.get('cineosis.clipsound', true);
+  K.setClipSound = on => { K.clipSound = on; store.set('cineosis.clipsound', on); K.emit('clipsound', on); };
+  function clipVideo(c) {
+    const v = h('video', { src: c.video || K.loopURL(c), poster: c.thumb, playsinline: true, preload: 'auto' });
+    v.addEventListener('error', () => { if (c.loop && !v.dataset.fell) { v.dataset.fell = 1; v.src = K.loopURL(c); v.loop = true; } }, { once: false });
+    return v;
+  }
+  function drive(v, c, s, t, preview) {                                          // keep a real clip in step with the voice
+    if (!v || !c) return;
+    const dur = c.dur || v.duration || 10, into = preview != null ? preview : t - s.t0, want = (c.in || 0) + (into % Math.max(.5, dur));
+    if (v.dataset.fell) { if (K.playing() && v.paused) v.play().catch(() => {}); if (!K.playing() && !v.paused) v.pause(); }
+    else { if (Math.abs((v.currentTime || 0) - want) > .4 && v.readyState >= 1) try { v.currentTime = want; } catch (e) { /* not seekable yet */ } if (K.playing() && v.paused) v.play().catch(() => {}); if (!K.playing() && !v.paused) v.pause(); }
+    const speaking = !!K.wordAt(t), on = K.clipSound && !(s && s.mute);
+    v.muted = !on; v.volume = on ? (speaking ? .22 : .7) : 0;                     // her voice untouched; the clip steps back while she speaks
+  }
+
+  K.clipVideo = clipVideo; K.drive = drive;
+
+  /* ---------- the deck: what is seated now, playing with its own sound, and every candidate beside it ---------- */
+  K.pool = () => K.deckPool || []; K.pickIdx = 0; K.picked = () => K.pool()[K.pickIdx];
+  K.focusSpan = null;
+  K.focus = (t0, t1) => { K.focusSpan = t0 == null ? null : [t0, t1]; K.emit('focus'); };
+  K.pick = i => { if (i >= 0 && i < K.pool().length) { K.pickIdx = i; K.emit('pick', K.picked(), i); } };
+  K.swap = c => {                                                                 // put a clip into the seat under the focus or playhead, keeping its span
+    const t = K.focusSpan ? (K.focusSpan[0] + K.focusSpan[1]) / 2 : K.now(), s = L.at(t);
+    if (s) { K.ledger.seat({ t0: s.t0, t1: s.t1, clip: c, snap: false, why: `swapped in for ${s.clip.title}` }); K.log('swap', `${c.title} replaces ${s.clip.title}`); }
+    else if (K.focusSpan) { K.ledger.seat({ t0: K.focusSpan[0], t1: K.focusSpan[1], clip: c, why: 'seated from the deck' }); K.log('seat', `${c.title} on ${K.fmt(K.focusSpan[0])}–${K.fmt(K.focusSpan[1])}`); }
+    else { const w = K.wordAt(t) || K.data.words.find(x => x.t0 > t); if (w) { K.ledger.seat({ t0: w.t0, t1: K.phraseEnd(w), clip: c, why: 'seated from the deck' }); K.log('seat', c.title); } }
+  };
+  K.deck = (host, o = {}) => {
+    const strip = o.strip !== false;
+    const main = h('div', { class: 'dmain' }), meta = h('div', { class: 'dmeta' }), cap = h('div', { class: 'dcap' });
+    const snd = h('button', { type: 'button', class: 'dsnd', title: 'Clip sound on or off (S)' });
+    const tabs = h('div', { class: 'dtabs' }), row = h('div', { class: 'drow' });
+    const deck = h('div', { class: 'deck' + (strip ? '' : ' nostrip') }, main, h('div', { class: 'dbar' }, meta, snd), cap, strip ? h('div', { class: 'dstrip' }, tabs, row) : null);
+    host.replaceChildren(deck);
+    let cur = null, v = null, prev = null, prevUntil = 0, shelf = 'beat';
+    const sndUI = () => { snd.innerHTML = K.clipSound ? '<svg viewBox="0 0 18 18" width="16" height="16"><path d="M3 7h3l4-3v10l-4-3H3z" fill="currentColor"/><path d="M12.5 6.5a3.5 3.5 0 0 1 0 5M14.5 4.5a6 6 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span>clip</span>' : '<svg viewBox="0 0 18 18" width="16" height="16"><path d="M3 7h3l4-3v10l-4-3H3z" fill="currentColor"/><path d="M12 7l4 4M16 7l-4 4" stroke="currentColor" stroke-width="1.5"/></svg><span>muted</span>'; snd.classList.toggle('off', !K.clipSound); };
+    snd.onclick = () => K.setClipSound(!K.clipSound); K.on('clipsound', sndUI); sndUI();
+    const show = t => {
+      const s = L.at(t), pv = prev && performance.now() < prevUntil ? prev : null, c = pv || s?.clip, key = pv ? 'p:' + pv.id : s ? s.id + (s.mute ? 'm' : '') : (() => { const f = K.filmAt(t); return `none:${f.n}:${t < f.p0 ? 'b' : t > f.p1 ? 'a' : 'i'}`; })();
+      if (key !== cur) {
+        cur = key; main.replaceChildren(); v = null;
+        if (c) { v = clipVideo(c); main.append(v); const g = K.signOf(c); main.style.setProperty('--sg', g.col);
+          main.append(h('span', { class: 'dsg' }, `${g.symbol} ${g.name}`), pv ? h('span', { class: 'dpv' }, 'PREVIEW') : null, s?.by === 'machine' && !pv ? h('span', { class: 'dpv m' }, 'MACHINE') : null);
+          if (s && !pv) Object.entries(K.sa(s)).forEach(([k, x]) => x == null ? main.removeAttribute(k) : main.setAttribute(k, x)); else main.removeAttribute('data-seat');
+          meta.innerHTML = `<b>${K.esc(c.title)}</b>${c.year ? ' · ' + c.year : ''}${s && !pv ? ` · <span>${K.esc(s.why || s.by)}</span>` : ''}`;
+        } else {
+          main.removeAttribute('data-seat'); main.style.removeProperty('--sg');
+          const f = K.filmAt(t), before = t < f.p0, after = t > f.p1;
+          main.append(h('span', { class: 'none' }, before ? `${f.n} ${f.title} · the drone before her voice` : after ? 'between poems' : (o.empty || 'unmade: nothing seated here yet')));
+          meta.textContent = before || after ? '' : 'N jumps to the next unmade line';
+        }
+      }
+      if (v && c) drive(v, c, s || { t0: t }, t, pv ? (t - prev.t) : null);
+      const w = K.wordAt(t) || K.wordAt(t + .3); cap.innerHTML = w ? w.line.words.map(x => x === w ? `<b>${K.esc(x.w)}</b>` : K.esc(x.w)).join(' ') : '';
+    };
+    const fill = () => {
+      if (!strip) return;
+      const span = K.focusSpan || (() => { const l = K.lineAt(K.now()); return l ? [l.t0, l.t1] : [K.now(), K.now() + 1]; })();
+      const b = K.beatAt((span[0] + span[1]) / 2) || K.beatAt(span[0]);
+      K.deckPool = shelf === 'saved' ? [...K.bin.values()] : (b ? K.cands(b.id) : []);
+      if (K.pickIdx >= K.deckPool.length) K.pickIdx = 0;
+      const seated = L.at((span[0] + span[1]) / 2)?.clip.id;
+      tabs.replaceChildren(
+        h('button', { type: 'button', class: shelf === 'beat' ? 'on' : '', onclick: () => { shelf = 'beat'; fill(); } }, b ? `beat ${b.id} · ${K.cands(b.id).length}` : 'beat'),
+        h('button', { type: 'button', class: shelf === 'saved' ? 'on' : '', title: 'Clips saved with right click, shared by every bet', onclick: () => { shelf = 'saved'; fill(); } }, `saved · ${K.bin.size}`),
+        h('span', { class: 'dhint' }, 'click hear · double click swap in · right click more'));
+      row.replaceChildren(...K.deckPool.slice(0, 16).map((c, i) => K.tile(c, { live: i < 10, on: i === K.pickIdx, seated: c.id === seated, badge: `${i + 1}`,
+        onclick: () => { K.pick(i); prev = c; prev.t = K.now(); prevUntil = performance.now() + Math.max(4000, 1000 * ((c.dur || 6))); cur = null; show(K.now()); fill(); },
+        ondblclick: () => { K.pick(i); prev = null; K.swap(c); } })));
+      row.querySelector('.tile.on')?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+    };
+    let lastBeat = null;
+    K.on('tick', t => { show(t); if (!K.focusSpan && strip) { const b = K.beatAt(t)?.id; if (b !== lastBeat) { lastBeat = b; fill(); } } });
+    K.on('ledger', () => { cur = null; show(K.now()); fill(); }); K.on('focus', fill); K.on('bin', fill); K.on('pick', () => { if (strip) row.querySelectorAll('.tile').forEach((e, i) => e.classList.toggle('on', i === K.pickIdx)); });
+    K.on('clipsound', () => { cur = null; show(K.now()); });
+    K.preview = c => { prev = c; prev.t = K.now(); prevUntil = performance.now() + Math.max(4000, 1000 * (c.dur || 6)); cur = null; show(K.now()); };
+    if (strip) K.deckStrip = true;
+    show(K.now()); fill();
+    return deck;
+  };
+  K.monitor = (host, o = {}) => K.deck(host, { ...o, strip: false });
+
+  /* ---------- right click: highlight, save, mute, delete, undo ---------- */
+  function menu(e) {
+    const seatEl = e.target.closest?.('[data-seat]'), clipEl = e.target.closest?.('[data-clip]');
+    const s = seatEl && L.seats.find(x => x.id === seatEl.dataset.seat), c = clipEl && (K.clips.get(clipEl.dataset.clip) || K.bin.get(clipEl.dataset.clip));
+    const items = [];
+    if (s) {
+      items.push([s.flag ? 'Unhighlight' : 'Highlight', 'H', () => { s.flag = !s.flag; L.save('highlight'); K.log('highlight', `${s.clip.title} ${s.flag ? 'marked' : 'unmarked'}`); }]);
+      items.push([K.bin.has(s.clip.id) ? 'Unsave clip' : 'Save clip', 'S', () => K.log('save', `${s.clip.title} ${K.save2bin({ ...s.clip }) ? 'saved' : 'removed from saved'}`)]);
+      items.push([s.mute ? 'Unmute its sound' : 'Mute its sound', 'M', () => { s.mute = !s.mute; L.save('mute'); K.log('sound', `${s.clip.title} ${s.mute ? 'muted' : 'audible'}`); }]);
+      items.push(['Delete seat', 'Del', () => { L.unseat(s.id); K.log('delete', `${s.clip.title} removed · Ctrl Z to undo`); }]);
+    } else if (c) {
+      items.push([K.bin.has(c.id) ? 'Unsave clip' : 'Save clip', 'S', () => K.log('save', `${c.title} ${K.save2bin(c) ? 'saved' : 'removed from saved'}`)]);
+      items.push(['Swap in here', '⇄', () => K.swap(c)]);
+    }
+    items.push(['Undo', 'Ctrl Z', () => K.undo()]);
+    e.preventDefault(); closeMenu();
+    const m = h('div', { id: 'ctx', role: 'menu' }, (s || c) ? h('div', { class: 'ch' }, (s ? s.clip : c).title.slice(0, 40)) : null,
+      items.map(([t, k, f]) => h('button', { type: 'button', role: 'menuitem', onclick: () => { closeMenu(); f(); } }, h('span', {}, t), h('small', {}, k))));
+    document.body.append(m); const r = m.getBoundingClientRect();
+    m.style.left = Math.min(e.clientX, innerWidth - r.width - 6) + 'px'; m.style.top = Math.min(e.clientY, innerHeight - r.height - 6) + 'px';
+  }
+  function closeMenu() { document.getElementById('ctx')?.remove(); }
+  addEventListener('contextmenu', menu); addEventListener('pointerdown', e => { if (!e.target.closest?.('#ctx')) closeMenu(); }, true);
+
+  /* ---------- undo ---------- */
+  K.undo = () => { const snap = L.hist.pop(); if (!snap) return K.log('undo', 'nothing to undo'); L.seats = JSON.parse(snap); L.prev = snap; store.set(L.key, L.seats); K.emit('ledger', 'undo'); K.log('undo', `back one step · ${L.hist.length} more`); };
+
+  /* ---------- the shared record: every bet's film as one EDL format ---------- */
+  const FPS = 25, tc = t => { const f = Math.round(Math.max(0, t) * FPS), hh = Math.floor(f / (3600 * FPS)), mm = Math.floor(f / (60 * FPS)) % 60, ss = Math.floor(f / FPS) % 60, ff = f % FPS; return [hh, mm, ss, ff].map(x => String(x).padStart(2, '0')).join(':'); };
+  K.edl = {
+    json(seats, bet) {
+      return { format: 'cineosis-edl/1', title: 'WYGWYL', bet, made: new Date().toISOString(), clock: { audio: 'WYGWYL_Suite_Audio.mp3', duration: K.duration, fps: FPS },
+        events: seats.map((s, i) => ({ n: i + 1, rec: [+s.t0.toFixed(3), +s.t1.toFixed(3)], words: s.text, clip: { id: s.clip.id, title: s.clip.title, year: s.clip.year, video: s.clip.video, thumb: s.clip.thumb, sg: s.clip.sg, loop: s.clip.loop },
+          src: [+(s.clip.in || 0).toFixed(3), +((s.clip.in || 0) + s.t1 - s.t0).toFixed(3)], by: s.by, bet: s.bet, why: s.why, flag: !!s.flag, mute: !!s.mute })) };
+    },
+    cmx(seats, bet) {
+      const out = [`TITLE: WYGWYL ${bet}`, 'FCM: NON-DROP FRAME', ''];
+      seats.forEach((s, i) => { const a = s.clip.in || 0, g = K.signOf(s.clip);
+        out.push(`${String(i + 1).padStart(3, '0')}  AX       V     C        ${tc(a)} ${tc(a + s.t1 - s.t0)} ${tc(s.t0)} ${tc(s.t1)}`,
+          `* FROM CLIP NAME: ${s.clip.title}${s.clip.year ? ' (' + s.clip.year + ')' : ''}`, `* SOURCE FILE: ${s.clip.video || ''}`,
+          `* WORDS: ${s.text}`, `* SIGN: ${g.symbol} ${g.name}${s.mute ? ' · CLIP SOUND MUTED' : ''}`, ''); });
+      return out.join('\n');
+    },
+    seatsOf(src) {                                                                 // another bet's film, or the house cut
+      if (src !== 'HOUSE') return store.get(FILMKEY(src), []);
+      const house = store.get('cineosis.house.v1', {}), out = [];
+      K.data.films.forEach(f => { const c = house[f.n]; if (c) store.get(FILMKEY(c), []).forEach(s => { if (s.t1 > f.t0 && s.t0 < f.t1) out.push(s); }); });
+      return out;
+    },
+    take(seats, t0, t1, from) { let n = 0; L.batch(() => seats.filter(s => s.t1 > t0 && s.t0 < t1).forEach(s => { K.ledger.seat({ t0: Math.max(t0, s.t0), t1: Math.min(t1, s.t1), clip: s.clip, snap: false, by: s.by, why: `from ${from} · ${s.why || ''}` }); n++; }), 'take'); return n; },
+    download(name, text, type) { const a = h('a', { href: URL.createObjectURL(new Blob([text], { type })), download: name }); document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); },
+  };
+  function edlPanel() {
+    let p = document.getElementById('edlp'); if (p) { p.remove(); return; }
+    const bets = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'HOUSE'].filter(b => b !== K.code);
+    const from = h('select', { id: 'edlFrom', 'aria-label': 'Take from' }, bets.map(b => h('option', { value: b }, `${b} · ${Math.round(100 * coverOf(K.edl.seatsOf(b)))}% made`)));
+    const scope = h('select', { id: 'edlScope', 'aria-label': 'How much' }, h('option', { value: 'poem' }, `this poem (${K.film.n})`), h('option', { value: 'film' }, 'the whole film'));
+    const file = h('input', { type: 'file', accept: '.json,application/json', id: 'edlFile', class: 'hidden', onchange: e => { const f = e.target.files[0]; if (!f) return; f.text().then(txt => { try { const j = JSON.parse(txt); if (j.format !== 'cineosis-edl/1') throw new Error('not a cineosis EDL'); const seats = j.events.map(ev => ({ t0: ev.rec[0], t1: ev.rec[1], clip: ev.clip, by: ev.by, why: ev.why })); const n = K.edl.take(seats, 0, K.duration, `${j.bet} EDL`); K.log('import', `${n} events from ${f.name}`); } catch (err) { K.log('import', `could not read ${f.name}: ${err.message}`); } }); } });
+    p = h('div', { id: 'edlp', role: 'dialog', 'aria-label': 'Edit decision list' },
+      h('h3', {}, `${K.code} · edit decision list`), h('p', {}, `${L.seats.length} events · ${Math.round(100 * L.whole())}% of the film. One record format for every bet, so any film can be shared, compared, or finished in an editor.`),
+      h('div', { class: 'erow' }, h('button', { type: 'button', onclick: () => K.edl.download(`wygwyl-${K.code}.cineosis-edl.json`, JSON.stringify(K.edl.json(L.seats, K.code), null, 1), 'application/json') }, 'Export EDL · JSON'),
+        h('button', { type: 'button', onclick: () => K.edl.download(`wygwyl-${K.code}.edl`, K.edl.cmx(L.seats, K.code), 'text/plain') }, 'Export CMX3600 .edl'),
+        h('button', { type: 'button', onclick: () => file.click() }, 'Import EDL'), file),
+      h('div', { class: 'erow' }, h('span', {}, 'Take from'), from, scope, h('button', { type: 'button', onclick: () => {
+        const src = from.value, seats = K.edl.seatsOf(src), [t0, t1] = scope.value === 'poem' ? [K.film.t0, K.film.t1] : [0, K.duration];
+        const n = K.edl.take(seats, t0, t1, src); K.log('take', `${n} events from ${src} into ${K.code} · Ctrl Z to undo`); p.remove(); } }, 'Take')),
+      h('p', { class: 'mini' }, 'Taking overwrites this bet’s seats where they overlap. Ctrl Z undoes it.'));
+    document.body.append(p);
+  }
+  function coverOf(seats) { let c = 0, n = 0; K.data.films.forEach(f => { let x = 0; seats.forEach(s => { if (s.t1 > f.p0 && s.t0 < f.p1) x += Math.min(f.p1, s.t1) - Math.max(f.p0, s.t0); }); c += Math.min(x, f.p1 - f.p0); n += f.p1 - f.p0; }); return n ? c / n : 0; }
+  K.edlPanel = edlPanel;
 
   /* ---------- chrome ---------- */
   const IC = {
@@ -193,7 +362,7 @@
   function reel(box) {
     if (!box || !K.data) return; const D = K.duration;
     box.replaceChildren(...K.data.films.map(f => h('span', { class: 'fb', style: `left:${100 * f.t0 / D}%;width:${100 * (f.t1 - f.t0) / D}%` }, f.n)),
-      ...L.seats.map(s => h('span', { class: 'rs' + (s.by === 'machine' ? ' m' : ''), style: `left:${100 * s.t0 / D}%;width:${Math.max(.08, 100 * (s.t1 - s.t0) / D)}%;background-image:url("${s.clip.thumb}")` })),
+      ...L.seats.map(s => h('span', { class: 'rs' + (s.by === 'machine' ? ' m' : ''), ...K.sa(s), style: `left:${100 * s.t0 / D}%;width:${Math.max(.08, 100 * (s.t1 - s.t0) / D)}%;background-image:url("${s.clip.thumb}");--sg:${K.signOf(s.clip).col}`, title: `${s.clip.title} · ${s.text}` })),
       h('span', { class: 'rph' }));
   }
   function reelClick(e) { const r = e.currentTarget.getBoundingClientRect(); K.goto(K.duration * (e.clientX - r.left) / r.width); }
@@ -244,6 +413,7 @@
         h('span', { class: 'stake', id: 'stake', title: 'The stake: how much of the film this bet has made, the time you have spent in it, and the decisions you made' }),
         h('span', { class: 'clock', id: 'clock' }, '00:00.0'),
         h('button', { class: 'ic', id: 'playbtn', type: 'button', title: 'Play or pause the voice (space)', 'aria-label': 'Play or pause', html: K.icon('play'), onclick: () => K.toggle() }),
+        h('button', { class: 'ic wide', type: 'button', title: 'Edit decision list: export, import, take from another bet (E is a verb, so this is the L key)', 'aria-label': 'Edit decision list', onclick: () => edlPanel() }, 'EDL'),
         h('button', { class: 'ic', type: 'button', title: 'Next unmade line (N)', 'aria-label': 'Next unmade line', html: '<svg viewBox="0 0 18 18" width="18" height="18"><path d="M3 4l6 5-6 5M10 4v10M14 4v10" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>', onclick: () => K.nextGap() }),
         h('button', { class: 'ic', type: 'button', title: 'Screen this bet’s film (F)', 'aria-label': 'Screen the film', html: '<svg viewBox="0 0 18 18" width="18" height="18"><path d="M2 3.5h14v9H2zM6 15.5h6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.5 6l4 2-4 2z" fill="currentColor"/></svg>', onclick: () => K.screen() }),
         h('button', { class: 'ic', type: 'button', title: 'The theory of this studio (?)', 'aria-label': 'Theory', html: K.icon('help'), onclick: () => document.getElementById('help').classList.toggle('hidden') }),
@@ -258,19 +428,24 @@
       h('h3', {}, `${o.code} · ${o.name}`), h('p', {}, hp.bet || o.claim),
       h('dl', {}, o.verbs.map(v => [h('dt', {}, `${v.l}  ${v.v}`), h('dd', {}, v.tip || '')]), (hp.keys || []).map(([k, d]) => [h('dt', {}, k), h('dd', {}, d)])),
       hp.inv ? h('p', { class: 'inv' }, h('b', {}, 'Invariant. '), hp.inv) : null,
-      h('p', { class: 'inv mini' }, 'This bet makes its own film, start to finish; no other studio touches it. N jumps to the next unmade line, F screens the film. Her voice is never edited. Seats snap to word edges. One clip per instant. The ranking only advises.')));
+      h('p', { class: 'inv mini' }, 'This bet makes its own film, start to finish; no other studio touches it. N next unmade line · F screen the film · S clip sound on or off · L the EDL: export JSON or CMX3600, import, or take a poem from another bet · right click a clip or seat: highlight, save, mute, delete, undo · Ctrl Z undo · 1–9 pick from the deck, double click to swap it in. Clips wear their strongest sign’s colour from the periodic table. Her voice is never edited; clip sound steps back while she speaks.')));
     A.addEventListener('play', () => document.getElementById('playbtn').innerHTML = K.icon('pause'));
     A.addEventListener('pause', () => document.getElementById('playbtn').innerHTML = K.icon('play'));
     addEventListener('keydown', e => {
-      if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.('input,textarea,select')) return;
       const k = e.key.toUpperCase();
+      if ((e.metaKey || e.ctrlKey) && k === 'Z' && !e.target.closest?.('input,textarea')) { e.preventDefault(); K.undo(); return; }
+      if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.('input,textarea,select')) return;
       if (screenOn) {                                                             // while screening, the keys belong to the screening
         if (e.key === ' ') { e.preventDefault(); K.toggle(); }
         else if (e.key === 'Escape' || k === 'F') K.unscreen();
         else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); const i = K.data.films.indexOf(K.filmAt(K.now())) + (e.key === 'ArrowRight' ? 1 : -1); K.screen(K.data.films[Math.max(0, Math.min(K.data.films.length - 1, i))].t0); }
         return;
       }
+      if ((e.metaKey || e.ctrlKey) && k === 'Z') { e.preventDefault(); K.undo(); return; }
       if ('ABCDE'.includes(k) && k.length === 1 && K.verbs[k]) { e.preventDefault(); K.fire(k); }
+      else if (K.deckStrip && /^[1-9]$/.test(e.key)) { e.preventDefault(); K.pick(+e.key - 1); }
+      else if (k === 'S' && e.key.length === 1) { e.preventDefault(); K.setClipSound(!K.clipSound); K.log('clip sound', K.clipSound ? 'on, ducked under her words' : 'off'); }
+      else if (k === 'L' && e.key.length === 1) { e.preventDefault(); edlPanel(); }
       else if (e.key === ' ') { e.preventDefault(); (o.space || K.toggle)(); }
       else if (e.key === '?') document.getElementById('help').classList.toggle('hidden');
       else if (e.key === 'Escape') document.getElementById('help').classList.add('hidden');

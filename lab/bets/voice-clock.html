@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>P2 Voice Clock · bet studio</title>
-<link rel="stylesheet" href="kernel.css?v=2">
+<link rel="stylesheet" href="kernel.css?v=6">
 <style>
   #clock-pane{ flex:1 1 auto; }
   #lanes{ position:relative; height:100%; display:grid; grid-template-rows:auto 1fr 28px 120px 34px; }
@@ -24,17 +24,14 @@
   #ph{ position:absolute; top:0; bottom:0; width:0; border-left:2px solid var(--hi); pointer-events:none; z-index:3; }
   #meter{ margin:0 14px; display:flex; align-items:center; gap:12px; font-size:11px; color:var(--g); }
   #side{ flex:0 0 min(380px,32%); }
-  #side .mon{ flex:0 0 auto; aspect-ratio:4/3; }
-  #side .grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding:6px; }
 </style></head>
 <body>
 <div id="stage">
   <section class="pane" id="clock-pane"><h2>Line <span class="tag" id="lineTag"></span></h2>
     <div class="body"><div id="lanes"><div id="lineText"></div><div id="wave"></div><div id="ticks"></div><div id="pic"></div><div id="meter"></div><div id="ph"></div></div></div></section>
-  <section class="pane" id="side"><h2>Monitor <span class="tag" id="monTag"></span></h2><div id="monHost" style="display:flex"></div>
-    <h2 style="border-top:3px solid var(--k)">Candidates <span class="tag" id="candTag"></span></h2><div class="body"><div class="scroll"><div class="grid" id="candGrid"></div></div></div></section>
+  <section class="pane" id="side"><h2>Deck <span class="tag" id="monTag"></span></h2><div class="body" id="monHost"></div></section>
 </div>
-<script src="kernel.js?v=2"></script>
+<script src="kernel.js?v=6"></script>
 <script>
 /* P2 · VOICE CLOCK — her breath cuts the picture.
    <breath> a pause between words · <cut> a picture boundary, only ever on a breath or a line edge ·
@@ -57,7 +54,7 @@ function cuts() {                                                  // the line's
 }
 function segments() { const c = cuts(); return c.slice(1).map((t1, i) => ({ t0: c[i], t1 })); }
 function segAt(t) { const g = segments(); return g.findIndex(s => t >= s.t0 && t < s.t1); }
-const cands = () => { const g = segments()[S.seg] || { t0: line().t0, t1: line().t1 }; return K.cands(K.beatAt((g.t0 + g.t1) / 2)?.id); };
+const cands = () => K.pool();
 const breathsOf = () => K.breaths(line().t0, line().t1, .12);
 
 K.boot({
@@ -71,17 +68,17 @@ K.boot({
   ],
   help: { bet: 'The rhythm of the film is already in the voice. This studio puts cuts only on breaths and word edges, and makes a bad cut hard to make.', inv: 'Every cut sits on a breath or a line edge. The voice never stretches; only the picture’s share of it moves.',
     keys: [['← →', 'previous or next line'], ['1–9', 'choose a candidate'], ['click the wave', 'move the playhead'], ['click a segment', 'select it']] },
-  keys: { ArrowLeft: () => go(S.li - 1), ArrowRight: () => go(S.li + 1), ...Object.fromEntries([1,2,3,4,5,6,7,8,9].map(n => [String(n), () => choose(n - 1)])) },
+  keys: { ArrowLeft: () => go(S.li - 1), ArrowRight: () => go(S.li + 1), },
   space: () => K.playing() ? K.pause() : K.play(Math.max(line().t0 - .2, Math.min(K.now(), line().t1 - .1)), line().t1 + .4),
 }).then(() => {
-  K.monitor($('monHost'));
+  K.deck($('monHost'));
   K.on('film', () => go(0)); K.on('goto', l => go(K.film.lines.indexOf(l))); K.on('ledger', () => { S.pending = []; draw(); });
   K.on('tick', t => { $('ph').style.left = `calc(14px + (100% - 28px) * ${parseFloat(X(t)) / 100})`; $('monTag').textContent = K.fmt(t); const i = segAt(t); if (i >= 0 && i !== S.seg && K.playing()) { S.seg = i; drawPic(); } });
   $('wave').addEventListener('click', e => { const r = e.currentTarget.getBoundingClientRect(), [a, b] = span(); K.seek(a + (b - a) * (e.clientX - r.left) / r.width); S.seg = Math.max(0, segAt(K.now())); drawPic(); drawCands(); });
   go(0);
 });
 
-function go(i) { if (i >= K.film.lines.length && K.advance()) return; const n = K.film.lines.length; S.li = Math.max(0, Math.min(n - 1, i)); S.seg = 0; S.cand = 0; S.pending = []; K.stopRange(); K.seek(line().t0); draw(); }
+function go(i) { if (i >= K.film.lines.length && K.advance()) return; const n = K.film.lines.length; S.li = Math.max(0, Math.min(n - 1, i)); S.seg = 0; S.pending = []; K.stopRange(); K.seek(line().t0); draw(); }
 function draw() { drawWave(); drawPic(); drawCands(); }
 function drawWave() {
   const l = line(), w = $('wave'), tk = $('ticks'); w.replaceChildren(); tk.replaceChildren();
@@ -101,16 +98,12 @@ function drawPic() {
   const p = $('pic'); p.replaceChildren();
   segments().forEach((g, i) => {
     const s = K.ledger.at((g.t0 + g.t1) / 2);
-    p.append(K.h('div', { class: 'seg' + (s ? '' : ' empty') + (i === S.seg ? ' on' : ''), style: `left:${X(g.t0)};width:calc(${X(g.t1)} - ${X(g.t0)})`, title: s ? s.clip.title : 'empty segment',
+    p.append(K.h('div', { class: 'seg' + (s ? '' : ' empty') + (i === S.seg ? ' on' : ''), ...(s ? K.sa(s) : {}), style: `left:${X(g.t0)};width:calc(${X(g.t1)} - ${X(g.t0)});${s ? 'box-shadow:inset 0 -6px 0 ' + K.signOf(s.clip).col : ''}`, title: s ? s.clip.title : 'empty segment',
       onclick: () => { S.seg = i; K.seek(g.t0); drawPic(); drawCands(); } }, s ? K.media(s.clip, true) : null, K.h('span', { class: 'd' }, `${(g.t1 - g.t0).toFixed(1)}s`)));
   });
 }
-function drawCands() {
-  const g = $('candGrid'); g.replaceChildren(); const cs = cands(), b = K.beatAt(line().t0);
-  $('candTag').textContent = b ? `beat ${b.id} · ${cs.length}` : '';
-  cs.slice(0, 9).forEach((c, i) => g.append(K.tile(c, { live: i < 3, on: i === S.cand, badge: `${i + 1} · ${c.fit}`, onclick: () => choose(i) })));
-}
-function choose(i) { if (i < cands().length) { S.cand = i; drawCands(); } }
+function drawCands() { const g = segments()[S.seg] || { t0: line().t0, t1: line().t1 }; K.focus(g.t0, g.t1); }
+function choose(i) { K.pick(i); }
 function snap() {
   const bs = breathsOf(); if (!bs.length) return K.log('snap', 'this line is one breath: no cut inside it');
   const t = K.now(), b = bs.reduce((a, x) => Math.abs(x.t - t) < Math.abs(a.t - t) ? x : a);
@@ -120,7 +113,7 @@ function snap() {
 }
 function underHead() { const i = segAt(K.now()); if (i >= 0) S.seg = i; return segments()[S.seg]; }
 function seat() {
-  const g = underHead(), c = cands()[S.cand]; if (!g || !c) return;
+  const g = underHead(), c = K.picked(); if (!g || !c) return;
   K.ledger.seat({ t0: g.t0, t1: g.t1, clip: c, snap: false, why: `cut on breath · ${(g.t1 - g.t0).toFixed(2)} s` });
   K.log('seat', `${c.title} holds ${K.fmt(g.t0)}–${K.fmt(g.t1)}`);
   const nx = segments()[S.seg + 1]; if (nx) { S.seg++; K.seek(nx.t0 + .01); drawPic(); } else setTimeout(() => go(S.li + 1), 400);   // the line is made: on to the next

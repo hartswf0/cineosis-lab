@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>P8 Template Press · bet studio</title>
-<link rel="stylesheet" href="kernel.css?v=2">
+<link rel="stylesheet" href="kernel.css?v=6">
 <style>
   #tpl{ flex:0 0 200px; }
   #slots{ display:flex; flex-direction:column; gap:6px; padding:10px; }
@@ -21,22 +21,21 @@
   .bt .strip{ position:relative; height:54px; background:repeating-linear-gradient(90deg,var(--lg) 0 2px,transparent 2px 10px); border:2px solid var(--k); }
   .bt .strip .s{ position:absolute; top:0; bottom:0; overflow:hidden; border-right:2px solid var(--w); }
   .bt .strip .s img{ width:100%; height:100%; object-fit:cover; }
-  .bt .strip .s.machine::after{ content:''; position:absolute; inset:0; background:repeating-linear-gradient(45deg,rgba(255,255,255,.55) 0 5px,transparent 5px 10px); }
+  .bt .strip .s.machine::after{ content:''; position:absolute; left:0; right:0; top:0; height:8px; background:repeating-linear-gradient(45deg,#fff 0 4px,#000 4px 8px); }   /* machine seats: a hazard band, the picture stays visible */
   .bt .strip .s .r{ position:absolute; left:0; bottom:0; font-size:9px; background:var(--w); padding:0 3px; text-transform:uppercase; }
   .bt .strip .s.sel{ box-shadow:inset 0 0 0 3px var(--hi); }
   #side{ flex:0 0 min(320px,27%); }
-  #side .mon{ flex:0 0 auto; aspect-ratio:4/3; }
-  #stats{ padding:8px 10px; font-size:12px; }
+  #stats{ padding:4px 10px; font-size:11px; display:grid; grid-template-columns:1fr 1fr; gap:0 12px; border-top:3px solid var(--k); flex:0 0 auto; }
   #stats .r{ display:flex; justify-content:space-between; border-bottom:2px solid var(--lg); padding:3px 0; }
 </style></head>
 <body>
 <div id="stage">
   <section class="pane" id="tpl"><h2>Template</h2><div id="slots"></div><div id="tplNote"></div></section>
   <section class="pane" id="bed"><h2>Press bed <span class="tag" id="bedTag"></span></h2><div class="body"><div class="scroll" id="beats"></div></div></section>
-  <section class="pane" id="side"><h2>Monitor <span class="tag" id="monTag"></span></h2><div id="monHost" style="display:flex"></div>
-    <h2 style="border-top:3px solid var(--k)">This poem</h2><div class="body"><div class="scroll" id="stats"></div></div></section>
+  <section class="pane" id="side"><h2>Deck <span class="tag" id="monTag"></span></h2><div class="body" id="monHost"></div>
+    <div id="stats"></div></section>
 </div>
-<script src="kernel.js?v=2"></script>
+<script src="kernel.js?v=6"></script>
 <script>
 /* P8 · TEMPLATE PRESS — make the rule once, apply it everywhere.
    <template> an ordered row of slot roles · <slot> a role (holds the scene, carries the line, reads the sign,
@@ -66,7 +65,7 @@ K.boot({
 }).then(() => {
   K.tools([{ t: '+ slot', do: () => { if (S.tpl.length < 5) { S.tpl.push('any'); saveT(); drawTpl(); } } }, { t: '− slot', do: () => { if (S.tpl.length > 1) { S.tpl.pop(); saveT(); drawTpl(); } } }],
     [{ t: 'no repeats', id: 'div', on: true, tip: 'Diversity: a clip is used once per poem', do: () => { S.diverse = !S.diverse; $('div').classList.toggle('on', S.diverse); } }]);
-  K.monitor($('monHost'));
+  K.deck($('monHost'));
   K.on('film', () => { S.bi = 0; S.sel = null; drawBeds(); }); K.on('goto', l => { const i = K.film.beats.findIndex(b => l.t0 >= b.t0 && l.t0 < b.t1); if (i >= 0) { S.bi = i; S.sel = null; drawBeds(); } }); K.on('ledger', () => { drawBeds(); });
   K.on('tick', t => $('monTag').textContent = K.fmt(t));
   drawTpl(); drawBeds();
@@ -77,13 +76,13 @@ function drawTpl() {
     K.h('b', {}, i + 1), K.h('i', { style: `background:${RC[r]}` }), K.h('span', {}, r))));
   $('tplNote').textContent = `A beat is split at its ${S.tpl.length - 1} longest breath${S.tpl.length === 2 ? '' : 's'}; each slot takes the best-ranked clip of its role.`;
 }
-function pickBeat(i) { S.bi = Math.max(0, Math.min(K.film.beats.length - 1, i)); S.sel = null; K.seek(Math.max(beat().t0, K.film.p0)); drawBeds(); }
+function pickBeat(i) { S.bi = Math.max(0, Math.min(K.film.beats.length - 1, i)); S.sel = null; K.seek(Math.max(beat().t0, K.film.p0)); K.focus(Math.max(beat().t0, K.film.p0), beat().t1); drawBeds(); }
 function drawBeds() {
   const box = $('beats'); box.replaceChildren();
   K.film.beats.forEach((b, i) => {
     const a = b.t0, z = b.t1, X = t => 100 * (t - a) / (z - a), strip = K.h('div', { class: 'strip' });
-    K.ledger.in(a, z).forEach(s => strip.append(K.h('div', { class: 's' + (s.by === 'machine' ? ' machine' : '') + (S.sel === s.id ? ' sel' : ''), title: `${s.clip.title} · ${s.by} · ${s.why}`, style: `left:${X(Math.max(a, s.t0))}%;width:${X(Math.min(z, s.t1)) - X(Math.max(a, s.t0))}%`,
-      onclick: e => { e.stopPropagation(); S.bi = i; S.sel = s.id; K.seek(s.t0); drawBeds(); } }, K.h('img', { src: s.clip.thumb, alt: '' }), K.h('span', { class: 'r' }, (s.why.match(/^slot \d+ · (.+?) ·/) || [])[1] || s.by))));
+    K.ledger.in(a, z).forEach(s => strip.append(K.h('div', { class: 's' + (s.by === 'machine' ? ' machine' : '') + (S.sel === s.id ? ' sel' : ''), ...K.sa(s), title: `box-shadow:inset 0 -6px 0 ${K.signOf(s.clip).col};${s.clip.title} · ${s.by} · ${s.why}`, style: `left:${X(Math.max(a, s.t0))}%;width:${X(Math.min(z, s.t1)) - X(Math.max(a, s.t0))}%`,
+      onclick: e => { e.stopPropagation(); S.bi = i; S.sel = s.id; K.seek(s.t0); K.focus(s.t0, s.t1); drawBeds(); } }, K.h('img', { src: s.clip.thumb, alt: '' }), K.h('span', { class: 'r' }, (s.why.match(/^slot \d+ · (.+?) ·/) || [])[1] || s.by))));
     box.append(K.h('div', { class: 'bt' + (i === S.bi ? ' on' : ''), onclick: () => pickBeat(i) }, K.h('div', { class: 'id' }, b.id, K.h('small', {}, `${(b.t1 - b.t0).toFixed(0)}s`)), K.h('div', { class: 'rt' }, K.h('div', { class: 'ti' }, b.title), strip)));
   });
   box.querySelector('.bt.on')?.scrollIntoView({ block: 'nearest' });

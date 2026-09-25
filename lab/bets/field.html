@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>P5 Association Field · bet studio</title>
-<link rel="stylesheet" href="kernel.css?v=2">
+<link rel="stylesheet" href="kernel.css?v=6">
 <style>
   #fieldPane{ flex:1 1 auto; }
   #field{ position:absolute; inset:14px 14px 30px 40px; border-left:3px solid var(--k); border-bottom:3px solid var(--k); }
@@ -35,7 +35,7 @@
     <div id="legend"></div>
     <h2>Path <span class="tag" id="pathTag"></span></h2><div class="body"><div class="scroll"><div id="seq"></div></div></div></section>
 </div>
-<script src="kernel.js?v=2"></script>
+<script src="kernel.js?v=6"></script>
 <script>
 /* P5 · ASSOCIATION FIELD — meaning is a space; the sequence is a path walked through it.
    <node> a clip placed by how well it carries the line (↑) and holds the scene (→), from CLIP fit · <kind> why it
@@ -64,7 +64,7 @@ K.boot({
   keys: { ArrowLeft: () => go(S.li - 1), ArrowRight: () => go(S.li + 1), ArrowUp: () => nudge(1), ArrowDown: () => nudge(-1) },
   space: () => K.playing() ? K.pause() : K.play(line().t0 - .2, line().t1 + .3),
 }).then(() => {
-  $('legend').append(...Object.entries(COL).map(([k, c]) => K.h('span', { style: `border-color:${c}` }, k)));
+  $('legend').append(...Object.entries(K.DOM).map(([k, c]) => K.h('span', { style: `background:${c};border-color:#000` }, k)));   // the periodic table's domains; C still filters by reason
   K.monitor($('monHost'));
   K.on('film', () => { S.path = []; go(0); }); K.on('goto', l => go(K.film.lines.indexOf(l))); K.on('tick', t => $('monTag').textContent = K.fmt(t));
   addEventListener('resize', drawPath);
@@ -82,15 +82,15 @@ function draw() {
   nodes.sort((a, z) => a.near - z.near).forEach(n => {
     const hide = want !== 'all' && n.c.cat !== want; if (hide) return;
     const x = Math.max(4, Math.min(96, n.c.fs + (n.c.id.charCodeAt(0) % 7 - 3))), y = Math.max(4, Math.min(96, n.c.fl + (n.c.id.charCodeAt(1) % 7 - 3)));   // a little deterministic jitter so equal fits do not stack
-    const el = K.h('div', { class: 'node' + (n.near ? '' : ' far') + (S.focus === n.c.id ? ' focus' : ''), 'data-cat': n.c.cat, 'data-id': n.c.id, style: `left:${x}%;top:${100 - y}%`, title: `${n.c.title} · beat ${n.beat}\n${n.c.cat} · line ${n.c.fl} · scene ${n.c.fs} · sign ${n.c.sign}`, onclick: () => focus(n.c.id) },
-      K.media(n.c, n.near && live++ < 6));
+    const el = K.h('div', { class: 'node' + (n.near ? '' : ' far') + (S.focus === n.c.id ? ' focus' : ''), 'data-cat': n.c.cat, 'data-id': n.c.id, 'data-clip': n.c.id, style: `left:${x}%;top:${100 - y}%`, title: `${n.c.title} · beat ${n.beat}\n${n.c.cat} · line ${n.c.fl} · scene ${n.c.fs} · sign ${n.c.sign}`, onclick: () => focus(n.c.id) },
+      K.media(n.c, n.near && live++ < 6)); K.clips.set(n.c.id, n.c); el.style.background = K.signOf(n.c).col; el.style.borderColor = K.signOf(n.c).col; el.style.padding = '3px';
     const k = S.path.findIndex(p => p.id === n.c.id); if (k >= 0) el.append(K.h('span', { class: 'p' }, k + 1));
     f.append(el); n.el = el;
   });
   $('fieldTag').textContent = `${nodes.length} clips for ${K.film.title} · ${nodes.filter(n => n.near).length} near this line · ${want}`;
   drawPath();
 }
-function focus(id) { S.focus = id; document.querySelectorAll('.node.focus').forEach(n => n.classList.remove('focus')); document.querySelector(`.node[data-id="${id}"]`)?.classList.add('focus'); const n = nodes.find(x => x.c.id === id); if (n) K.log('focus', `${n.c.title} · ${n.c.cat} · line ${n.c.fl} · scene ${n.c.fs}`); }
+function focus(id) { S.focus = id; document.querySelectorAll('.node.focus').forEach(n => n.classList.remove('focus')); document.querySelector(`.node[data-id="${id}"]`)?.classList.add('focus'); const n = nodes.find(x => x.c.id === id); if (n) { K.clips.set(n.c.id, n.c); K.preview?.(n.c); K.log('focus', `${n.c.title} · ${K.signOf(n.c).symbol} ${K.signOf(n.c).name} · ${n.c.cat} · line ${n.c.fl} · scene ${n.c.fs}`); } }
 function nearNodes() { return nodes.filter(n => n.near && (KINDS[S.kind] === 'all' || n.c.cat === KINDS[S.kind])).sort((a, z) => z.c.fl - a.c.fl); }
 function pull() { const n = nearNodes().find(x => !S.path.some(p => p.id === x.c.id)); if (n) focus(n.c.id); else K.log('pull', 'nothing near this line'); }
 function nudge(d) { const ns = nearNodes(); if (!ns.length) return; const i = ns.findIndex(n => n.c.id === S.focus); focus(ns[(i - d + ns.length) % ns.length].c.id); }

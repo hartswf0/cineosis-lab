@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>P3 Scale Ladder · bet studio</title>
-<link rel="stylesheet" href="kernel.css?v=2">
+<link rel="stylesheet" href="kernel.css?v=6">
 <style>
   #ladder{ flex:1 1 auto; }
   .rung{ border-bottom:3px solid var(--k); display:grid; grid-template-columns:88px 1fr; min-height:0; }
@@ -24,12 +24,10 @@
   .wd2.now{ background:var(--k); color:var(--w); }
   #r0{ flex:0 0 70px; } #r1{ flex:1 1 34%; } #r2{ flex:1 1 34%; }
   #r2 .track{ margin-top:12px; }
-  #r2 .pics{ position:absolute; left:0; right:0; top:34px; bottom:0; }
+  #r2 .pics{ position:absolute; left:0; right:0; top:48px; bottom:0; }
   #r1 .pics{ position:absolute; left:0; right:0; top:0; bottom:0; }
   #ladderBody{ display:flex; flex-direction:column; height:100%; }
   #side{ flex:0 0 min(380px,32%); }
-  #side .mon{ flex:0 0 auto; aspect-ratio:4/3; }
-  #side .grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding:6px; }
 </style></head>
 <body>
 <div id="stage">
@@ -39,10 +37,9 @@
       <div class="rung" id="r1" data-lv="1"><div class="lbl"><b>POEM</b><span class="pc" id="pc1"></span></div><div class="track" id="t1"></div></div>
       <div class="rung" id="r2" data-lv="2"><div class="lbl"><b>LINE</b><span class="pc" id="pc2"></span></div><div class="track" id="t2"></div></div>
     </div></div></section>
-  <section class="pane" id="side"><h2>Monitor <span class="tag" id="monTag"></span></h2><div id="monHost" style="display:flex"></div>
-    <h2 style="border-top:3px solid var(--k)">For the bracket <span class="tag" id="candTag"></span></h2><div class="body"><div class="scroll"><div class="grid" id="candGrid"></div></div></div></section>
+  <section class="pane" id="side"><h2>Deck <span class="tag" id="monTag"></span></h2><div class="body" id="monHost"></div></section>
 </div>
-<script src="kernel.js?v=2"></script>
+<script src="kernel.js?v=6"></script>
 <script>
 /* P3 · SCALE LADDER — the poem is nested, so the film is nested.
    <level> suite ⊃ poem ⊃ line ⊃ word · <lens> the part of a level the next level magnifies · <bracket> the span
@@ -52,7 +49,7 @@ const S = { lv: 1, li: 0, br: null, cand: 0, drag: null };
 const $ = id => document.getElementById(id);
 const line = () => K.film.lines[S.li];
 const pct = x => Math.round(100 * x) + '%';
-const cands = () => { const b = S.br ? K.beatAt((S.br[0] + S.br[1]) / 2) : K.beatAt(line().t0); return b ? K.cands(b.id) : []; };
+const cands = () => K.pool();
 
 K.boot({
   code: 'P3', name: 'Scale Ladder', claim: 'see word, line, poem and suite at once: a choice at one scale shows at every scale',
@@ -65,10 +62,10 @@ K.boot({
   ],
   help: { bet: 'You cannot make a 24-minute film one beat at a time. See word, line, poem and suite together, so every choice shows its effect at every scale.', inv: 'Coarse levels are derived from fine seats. A summary is never edited directly.',
     keys: [['↑ ↓', 'out or in'], ['← →', 'previous or next line'], ['drag words', 'bracket any span'], ['1–9', 'choose a candidate']] },
-  keys: { ArrowUp: () => level(S.lv - 1), ArrowDown: () => level(S.lv + 1), ArrowLeft: () => pick(S.li - 1), ArrowRight: () => pick(S.li + 1), ...Object.fromEntries([1,2,3,4,5,6,7,8,9].map(n => [String(n), () => choose(n - 1)])) },
+  keys: { ArrowUp: () => level(S.lv - 1), ArrowDown: () => level(S.lv + 1), ArrowLeft: () => pick(S.li - 1), ArrowRight: () => pick(S.li + 1), },
   space: () => S.br ? (K.playing() ? K.pause() : K.play(S.br[0] - .1, S.br[1] + .2)) : K.toggle(),
 }).then(() => {
-  K.monitor($('monHost'));
+  K.deck($('monHost'));
   K.on('film', () => { S.li = 0; S.br = null; draw(); }); K.on('goto', l => pick(K.film.lines.indexOf(l))); K.on('ledger', draw);
   K.on('tick', t => { $('monTag').textContent = K.fmt(t); const w = K.wordAt(t); document.querySelectorAll('.wd2.now').forEach(e => e.classList.remove('now')); if (w) document.querySelector(`.wd2[data-i="${w.i}"]`)?.classList.add('now'); const l = K.lineAt(t); if (l && K.playing() && l.film === K.film.n && l !== line()) { S.li = K.film.lines.indexOf(l); drawLine(); drawPoem(); } });
   document.querySelectorAll('.rung .lbl').forEach(l => l.onclick = () => level(+l.parentElement.dataset.lv));
@@ -93,7 +90,7 @@ function drawSuite() {
 function drawPoem() {
   const t = $('t1'), a = K.film.p0 - 1, b = K.film.p1 + 1, X = x => 100 * (x - a) / (b - a); t.replaceChildren();
   const pics = K.h('div', { class: 'pics' });
-  K.ledger.in(a, b).forEach(s => pics.append(K.h('div', { class: 'seatb' + (s.by === 'machine' ? ' machine' : ''), style: `left:${X(Math.max(a, s.t0))}%;width:${X(Math.min(b, s.t1)) - X(Math.max(a, s.t0))}%`, title: s.clip.title }, K.h('img', { src: s.clip.thumb, alt: '' }))));
+  K.ledger.in(a, b).forEach(s => pics.append(K.h('div', { class: 'seatb' + (s.by === 'machine' ? ' machine' : ''), ...K.sa(s), style: `box-shadow:inset 0 -5px 0 ${K.signOf(s.clip).col};left:${X(Math.max(a, s.t0))}%;width:${X(Math.min(b, s.t1)) - X(Math.max(a, s.t0))}%`, title: s.clip.title }, K.h('img', { src: s.clip.thumb, alt: '' }))));
   t.append(pics);
   K.film.lines.forEach((l, i) => {
     const cv = K.ledger.cover(l.t0, l.t1);
@@ -105,22 +102,18 @@ function drawPoem() {
 }
 function drawLine() {
   const t = $('t2'), l = line(), a = l.t0 - .3, b = l.t1 + .3, X = x => 100 * (x - a) / (b - a); t.replaceChildren();
-  l.words.forEach(w => t.append(K.h('span', { class: 'wd2', 'data-i': w.i, style: `left:${X(w.t0)}%`, onpointerdown: e => { S.drag = [w.t0, w.t1]; S.br = [w.t0, w.t1]; drawBracket(X); e.preventDefault(); },
+  K.layWords(t, l.words, X, { cls: 'wd2', rowH: 20, rows: 2, attrs: w => ({ onpointerdown: e => { S.drag = [w.t0, w.t1]; S.br = [w.t0, w.t1]; drawBracket(X); e.preventDefault(); },
     onpointerenter: () => { if (S.drag) { S.br = [Math.min(S.drag[0], w.t0), Math.max(S.drag[1], w.t1)]; drawBracket(X); } },
-    onpointerup: () => { if (S.drag) { S.drag = null; drawBracket(X); drawCands(); K.log('bracket', `“${K.textOf(...S.br)}”`); } } }, w.w)));
+    onpointerup: () => { if (S.drag) { S.drag = null; drawBracket(X); drawCands(); K.log('bracket', `“${K.textOf(...S.br)}”`); } } }) });
   const pics = K.h('div', { class: 'pics' });
-  K.ledger.in(a, b).forEach(s => pics.append(K.h('div', { class: 'seatb' + (s.by === 'machine' ? ' machine' : ''), style: `left:${X(Math.max(a, s.t0))}%;width:${X(Math.min(b, s.t1)) - X(Math.max(a, s.t0))}%;bottom:0`, title: `${s.clip.title} · ${s.text}` }, K.media(s.clip, true))));
+  K.ledger.in(a, b).forEach(s => pics.append(K.h('div', { class: 'seatb' + (s.by === 'machine' ? ' machine' : ''), ...K.sa(s), style: `box-shadow:inset 0 -5px 0 ${K.signOf(s.clip).col};left:${X(Math.max(a, s.t0))}%;width:${X(Math.min(b, s.t1)) - X(Math.max(a, s.t0))}%;bottom:0`, title: `${s.clip.title} · ${s.text}` }, K.media(s.clip, true))));
   t.append(pics); drawBracket(X);
   $('pc2').textContent = pct(K.ledger.cover(l.t0, l.t1));
 }
 addEventListener('pointerup', () => { S.drag = null; });
 function drawBracket(X) { $('t2').querySelector('.brk')?.remove(); if (!S.br) return; const l = line(); X = X || (x => 100 * (x - (l.t0 - .3)) / (l.t1 - l.t0 + .6)); $('t2').append(K.h('div', { class: 'brk', style: `left:${X(S.br[0])}%;width:${X(S.br[1]) - X(S.br[0])}%` })); }
-function drawCands() {
-  const g = $('candGrid'); g.replaceChildren(); const cs = cands(), b = K.beatAt(S.br ? S.br[0] : line().t0);
-  $('candTag').textContent = S.br ? `“${K.textOf(...S.br).slice(0, 28)}” · beat ${b?.id}` : '';
-  cs.slice(0, 9).forEach((c, i) => g.append(K.tile(c, { live: i < 3, on: i === S.cand, badge: `${i + 1} · ${c.fit}`, onclick: () => choose(i) })));
-}
-function choose(i) { if (i < cands().length) { S.cand = i; drawCands(); } }
+function drawCands() { if (S.br) K.focus(S.br[0], S.br[1]); else K.focus(line().t0, line().t1); }
+function choose(i) { K.pick(i); }
 function bracketHere() {
   const t = K.now();
   if (S.lv === 0) { const f = K.filmAt(t); K.setFilm(f.n); S.br = [f.p0, f.p1]; }
@@ -129,7 +122,7 @@ function bracketHere() {
   drawLine(); drawCands(); K.log('bracket', `${['poem', 'beat', 'line'][S.lv]} · ${K.fmt(S.br[0])}–${K.fmt(S.br[1])}`);
 }
 function seat() {
-  const c = cands()[S.cand]; if (!S.br || !c) return K.log('seat', 'bracket a span first (C, or drag across words)');
+  const c = K.picked(); if (!S.br || !c) return K.log('seat', 'bracket a span first (C, or drag across words)');
   K.ledger.seat({ t0: S.br[0], t1: S.br[1], clip: c, why: `bracketed at the ${['suite', 'poem', 'line'][S.lv]} level` });
   K.log('seat', `${c.title} → ${K.fmt(S.br[0])}–${K.fmt(S.br[1])} · suite now ${$('pc0').textContent}`);
 }

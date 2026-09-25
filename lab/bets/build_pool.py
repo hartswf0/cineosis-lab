@@ -4,6 +4,8 @@
   beats  · the 88 beats with their signs
   pool   · per beat, the top 16 ranked clips (candidate-ranks.json) with fit, scores and the category of why;
            `loop` marks the ones with a same-origin 3 s loop in wygwyl/tempest/ (the rest show a still)
+  each clip carries `sg`, its strongest sign in the whole table (cache/affinity.json), so it can wear the
+  periodic table's colour for that sign's domain, and `bs`, its strongest among the beat's own signs
     python3 lab/bets/build_pool.py
 """
 import json, os
@@ -11,6 +13,7 @@ LAB = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 D = json.load(open(os.path.join(LAB, 'wygwyl', 'collage-data.json')))
 R = json.load(open(os.path.join(LAB, 'wygwyl', 'candidate-ranks.json')))
 S = json.load(open(os.path.join(LAB, 'sound-cineosis.json')))
+AFF = json.load(open(os.path.join(LAB, 'cache', 'affinity.json')))
 PK = set(json.load(open(os.path.join(LAB, 'wygwyl', 'tempest', 'pack.json')))['files'])
 lines = []
 for p in S['poems']:
@@ -29,10 +32,14 @@ for b in beats:
         if x['verdict'] == 'FLOOR' and len(out) >= 8: continue
         c = x['comp']
         out.append({'id': x['id'], 'title': x['title'], 'year': x['year'], 'thumb': x['thumb'], 'video': x['video'], 'score': x['score'], 'fit': x['fit'],
-                    'verdict': x['verdict'], 'cat': x['cat'], 'fl': c['fl'], 'fs': c['fs'], 'sign': c['sign'], 'craft': c['craft'], 'loop': x['id'] in PK})
+                    'verdict': x['verdict'], 'cat': x['cat'], 'fl': c['fl'], 'fs': c['fs'], 'sign': c['sign'], 'craft': c['craft'], 'loop': x['id'] in PK,
+                    'in': x.get('in') or 0, 'dur': x.get('dur'),
+                    # the clip's own sign: its strongest in the whole table, and its strongest among this beat's signs
+                    'sg': (AFF.get(x['id'], {}).get('top') or [[None]])[0][0],
+                    'bs': max(b['codes'], key=lambda n: AFF.get(x['id'], {}).get('all', {}).get(n, 0)) if b['codes'] else None})
         if len(out) >= 16: break
     pool[b['id']] = out
-signs = {k: {'symbol': v['symbol'], 'name': v['name']} for k, v in S['signs'].items()}
+signs = {k: {'symbol': v['symbol'], 'name': v['name'], 'dom': v.get('dom')} for k, v in S['signs'].items()}
 films = [{'n': f['n'], 'title': f['title'], 't0': f['container'][0], 't1': f['container'][1]} for f in D['films']]
 json.dump({'duration': D['duration'], 'audio': '../wygwyl/WYGWYL_Suite_Audio.mp3', 'films': films, 'lines': lines, 'beats': beats, 'pool': pool, 'signs': signs},
           open(os.path.join(LAB, 'bets', 'kernel-data.json'), 'w'), ensure_ascii=False, separators=(',', ':'))
