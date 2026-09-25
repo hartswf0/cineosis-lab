@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>P7 Loop Wheel · bet studio</title>
-<link rel="stylesheet" href="kernel.css?v=10">
+<link rel="stylesheet" href="kernel.css?v=12">
 <style>
   #wheelPane{ flex:1 1 auto; }
   #wheel{ position:absolute; inset:0; }
@@ -19,7 +19,7 @@
   #side{ flex:0 0 min(300px,26%); }
   #side .mon{ flex:0 0 auto; aspect-ratio:4/3; }
   #lines{ font-size:12px; }
-  #lines .l{ padding:5px 8px; border-bottom:2px solid var(--lg); cursor:pointer; display:grid; grid-template-columns:22px 1fr 12px; gap:6px; }
+  #lines .l{ padding:3px 6px; border-bottom:2px solid var(--lg); cursor:pointer; display:grid; grid-template-columns:44px 1fr 12px; gap:8px; align-items:center; }
   #lines .l.on{ background:var(--k); color:var(--w); }
   #lines .l i{ width:10px; height:10px; border:2px solid currentColor; align-self:center; }
   #lines .l i.full{ background:currentColor; }
@@ -27,10 +27,10 @@
 <body>
 <div id="stage">
   <section class="pane" id="wheelPane"><h2>Wheel <span class="tag" id="wTag"></span></h2><div class="body"><div id="wheel"><div id="hub"></div><div id="words"></div></div></div></section>
-  <section class="pane" id="side"><h2>The film <span class="tag" id="monTag"></span></h2><div id="monHost" style="display:flex"></div>
+  <section class="pane" id="side"><h2>The film <span class="tag" id="monTag"></span></h2>
     <h2 style="border-top:3px solid var(--k)">Lines <span class="tag" id="linesTag"></span></h2><div class="body"><div class="scroll" id="lines"></div></div></section>
 </div>
-<script src="kernel.js?v=10"></script>
+<script src="kernel.js?v=12"></script>
 <script>
 /* P7 · LOOP WHEEL — watching is the interface.
    <loop> the line on repeat, never interrupted · <wheel> the candidates, one under the loop per pass · <hold>
@@ -54,7 +54,7 @@ K.boot({
   keys: { ArrowLeft: () => turn(-1), ArrowRight: () => turn(1), ArrowUp: () => go(S.li - 1, K.playing()), ArrowDown: () => go(S.li + 1, K.playing()) },
   space: () => K.playing() ? K.pause() : loop(),
 }).then(() => {
-  K.monitor($('monHost'));
+  K.preview = c => { K.trying = c; };                                             // the hub is the monitor here
   K.hooks.pick = () => S.pool[S.cur];                                            // KEEP seats the clip under the loop
   K.on('try', c => { const k = S.pool.findIndex(x => x.id === c.id); if (k >= 0) { S.cur = k; S.spin = false; hub(); place(); } });
   K.on('film', () => go(0, K.playing())); K.on('goto', l => go(K.film.lines.indexOf(l), K.playing())); K.on('ledger', drawLines);
@@ -106,7 +106,7 @@ function seat() {
 function drawLines() {
   const box = $('lines'); box.replaceChildren(); let full = 0;
   K.film.lines.forEach((l, i) => { const cv = K.ledger.cover(l.t0, l.t1); if (cv > .9) full++;
-    box.append(K.h('div', { class: 'l' + (i === S.li ? ' on' : ''), onclick: () => go(i, K.playing()) }, K.h('b', {}, l.n), K.h('span', {}, l.text.slice(0, 60)), K.h('i', { class: cv > .9 ? 'full' : '' }))); });
+    box.append(K.h('div', { class: 'l' + (i === S.li ? ' on' : ''), onclick: () => go(i, K.playing()) }, K.brick(l.t0, l.t1, { title: `line ${l.n}` }), K.h('span', {}, l.text.slice(0, 70)), K.h('i', { class: cv > .9 ? 'full' : '' }))); });
   $('linesTag').textContent = `${full}/${K.film.lines.length} seated`;
   box.querySelector('.on')?.scrollIntoView({ block: 'nearest' });
 }

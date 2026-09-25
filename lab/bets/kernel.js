@@ -136,19 +136,33 @@
   let lastAct = performance.now(), beats = 0;
   ['pointerdown', 'keydown'].forEach(n => addEventListener(n, () => { lastAct = performance.now(); }, true));
   setInterval(() => { const st = K.stake.s; if (!st || document.visibilityState !== 'visible') return; if (performance.now() - lastAct < 60000 || K.playing()) { st.ms += 1000; if (++beats % 10 === 0) K.stake.save(); else stakeUI(); } }, 1000);
-  function stakeUI() { const e = document.getElementById('stake'); if (!e || !K.stake.s || !K.data) return; const m = Math.floor(K.stake.s.ms / 60000); e.innerHTML = `<b>${Math.round(100 * L.whole())}%</b> made · ${m} min · ${K.stake.s.decisions} decisions`; }
+  let stT = 0;
+  K.stateUI = () => {                                                              // the state of things, in one dense line
+    const e = document.getElementById('state'); if (!e || !K.data || !K.film) return;
+    const t = K.now(), [a, b] = K.span(), l = K.lineAt((a + b) / 2) || K.lineAt(t), be = K.beatAt((a + b) / 2), kept = L.in(K.film.p0, K.film.p1).length;
+    const oth = Object.entries(K.others()).filter(([, ss]) => ss.some(s => s.t1 > a && s.t0 < b)).map(([c]) => c);
+    const cell = (k, v) => `<i>${k}</i><b>${v}</b>`;
+    e.innerHTML = [cell('poem', `${K.film.n}`), cell('line', l ? `${l.n}/${K.film.lines.length}` : '–'), cell('beat', be ? be.id : '–'), cell('here', L.cover(a, b) > .5 ? 'kept' : K.trying ? 'trying' : 'open'),
+      cell('poem made', Math.round(100 * L.cover(K.film.p0, K.film.p1)) + '%'), cell('film made', Math.round(100 * L.whole()) + '%'), cell('seats', kept), cell('★', K.bin.size),
+      cell('others here', oth.length ? oth.join(' ') : '–'), cell('min', Math.floor((K.stake.s?.ms || 0) / 60000)), cell('moves', K.stake.s?.decisions || 0)].join('');
+  };
+  K.on('ledger', () => K.stateUI()); K.on('focus', () => K.stateUI()); K.on('try', () => K.stateUI()); K.on('bin', () => K.stateUI()); K.on('others', () => K.stateUI());
+  K.on('tick', () => { const n = performance.now(); if (n - stT > 400) { stT = n; K.stateUI(); } });
+  function stakeUI() { K.stateUI?.(); const e = document.getElementById('stake'); if (!e || !K.stake.s || !K.data) return; const m = Math.floor(K.stake.s.ms / 60000); e.innerHTML = `<b>${Math.round(100 * L.whole())}%</b> made · ${m} min · ${K.stake.s.decisions} decisions`; }
 
   /* ---------- clips ---------- */
   const LIVE = new Set(); K.CAP = 14;
   K.loopURL = c => U(`../wygwyl/tempest/${c.id}.mp4`);
-  K.media = (c, live) => {
-    if (live && c.loop) {
-      [...LIVE].forEach(v => { if (!v.isConnected) LIVE.delete(v); });
-      if (LIVE.size >= K.CAP) { const old = LIVE.values().next().value; LIVE.delete(old); if (old.isConnected) old.replaceWith(h('img', { src: old.poster, alt: '' })); }
-      const v = h('video', { src: K.loopURL(c), poster: c.thumb, muted: true, loop: true, playsinline: true, autoplay: true, preload: 'auto' }); v.muted = true; v.play().catch(() => {}); LIVE.add(v); return v;
-    }
-    return h('img', { src: c.thumb, alt: '', loading: 'lazy' });
+  K.media = (c, live) => {                                                        // the still is always there; a live loop fades in over it once it truly plays
+    const img = h('img', { src: c.thumb, alt: '', loading: 'lazy' });
+    if (!(live && c.loop)) return img;
+    [...LIVE].forEach(v => { if (!v.isConnected) LIVE.delete(v); });
+    if (LIVE.size >= K.CAP) { const old = LIVE.values().next().value; LIVE.delete(old); old.remove(); }
+    const v = h('video', { src: K.loopURL(c), muted: true, loop: true, playsinline: true, autoplay: true, preload: 'auto' }); v.muted = true;
+    v.addEventListener('playing', () => v.classList.add('on'), { once: true }); v.play().catch(() => {}); LIVE.add(v);
+    return h('span', { class: 'mw' }, img, v);
   };
+
   /* ---------- the periodic table's colours: every clip wears its strongest sign's domain ---------- */
   K.DOM = { perception: '#e9d9a8', affect: '#f0b9a4', action: '#e7a37c', reflection: '#b9cfa0', mental: '#a9c9c9', break: '#d9d3c7', time: '#b8b3d8', read: '#d9b8d2' };
   K.signOf = c => { const n = c?.sg, g = n && K.data?.signs[n]; return g ? { n, symbol: g.symbol, name: g.name, dom: g.dom, col: K.DOM[g.dom] || '#ddd' } : { n: null, symbol: '·', name: 'no sign read', dom: null, col: '#ddd' }; };
@@ -166,6 +180,17 @@
   };
   K.pips = (e, codes) => { const p = e.querySelector('.pips'); if (p) p.replaceChildren(...(codes || []).map(x => h('i', { title: `${x} chose this here` }, x.replace('P', '')))); };
   K.celebrate = (el, col) => { if (!el) return; el.style.setProperty('--cele', col || 'var(--aB)'); el.classList.remove('cele'); void el.offsetWidth; el.classList.add('cele'); setTimeout(() => el.classList.remove('cele'), 1000); };
+
+  /* a brick: the clip seated on a span, or an empty dashed brick. Drop on it, right click it, click it to go there. */
+  K.brick = (t0, t1, o = {}) => { const e = h('span', { class: 'brick', 'data-span': `${t0},${t1}`, title: o.title || '', onclick: o.onclick }); fillBrick(e); return e; };
+  function fillBrick(e) {
+    const [a, b] = e.dataset.span.split(',').map(Number), s = L.at((a + b) / 2) || L.in(a, b)[0];
+    const key = s ? s.id + (s.flag ? 'f' : '') : ''; if (e.dataset.k === key) return; e.dataset.k = key;
+    e.replaceChildren(); ['data-seat', 'data-flag', 'data-mute', 'data-clip'].forEach(k => e.removeAttribute(k));
+    e.classList.toggle('full', !!s); e.style.setProperty('--sg', s ? K.signOf(s.clip).col : 'transparent');
+    if (s) { e.append(h('img', { src: s.clip.thumb, alt: '' })); Object.entries(K.sa(s)).forEach(([k, x]) => x != null && e.setAttribute(k, x)); e.dataset.clip = s.clip.id; K.clips.set(s.clip.id, s.clip); }
+  }
+  K.on('ledger', () => document.querySelectorAll('.brick[data-span]').forEach(fillBrick));
 
   /* the other bets' films, read for comparison: what did each of them put here? */
   const OTHERS = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9'];
@@ -247,15 +272,15 @@
   /* ---------- the deck: the words on top, the clips are the page ---------- */
   K.deck = (host, o = {}) => {
     const strip = o.strip !== false;
-    const cap = h('div', { class: 'dcap' }), grid = h('div', { class: 'dgrid' });
+    const grid = h('div', { class: 'dgrid' });
     const snd = h('button', { type: 'button', class: 'dic', title: 'Clip sound on or off (S)' }), sav = h('button', { type: 'button', class: 'dic', title: 'Flagged clips, shared by every bet' });
-    const deck = h('div', { class: 'deck' + (strip ? '' : ' nostrip') }, h('div', { class: 'dtop' }, cap, strip ? sav : null, snd), grid);
+    const deck = h('div', { class: 'deck' + (strip ? '' : ' nostrip') }, grid, h('div', { class: 'dctl' }, strip ? sav : null, snd));   // clips only: nothing above them to wrap and push them around
     host.replaceChildren(deck);
     const main = h('div', { class: 'dmain', draggable: 'true' });
     let cur = null, v = null, shelf = 'beat', tiles = [], poolKey = '', startT = 0, lastWord = null;
     const sndUI = () => { snd.innerHTML = K.clipSound ? '<svg viewBox="0 0 18 18" width="16" height="16"><path d="M3 7h3l4-3v10l-4-3H3z" fill="currentColor"/><path d="M12.5 6.5a3.5 3.5 0 0 1 0 5M14.5 4.5a6 6 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' : '<svg viewBox="0 0 18 18" width="16" height="16"><path d="M3 7h3l4-3v10l-4-3H3z" fill="currentColor"/><path d="M12 7l4 4M16 7l-4 4" stroke="currentColor" stroke-width="1.5"/></svg>'; snd.classList.toggle('off', !K.clipSound); };
     snd.onclick = () => K.setClipSound(!K.clipSound); K.on('clipsound', sndUI); sndUI();
-    const savUI = () => { sav.textContent = `★ ${K.bin.size}`; sav.classList.toggle('on', shelf === 'saved'); };
+    const savUI = () => { sav.textContent = `★${K.bin.size}`; sav.classList.toggle('on', shelf === 'saved'); };
     sav.onclick = () => { shelf = shelf === 'saved' ? 'beat' : 'saved'; savUI(); fill(true); };
     const show = t => {
       const [a, b] = K.span(), s = L.at(t) || (K.focusSpan ? L.at((a + b) / 2) : null), tr = K.trying;
@@ -264,12 +289,10 @@
       if (key !== cur) {
         cur = key; startT = t; main.replaceChildren(); v = null;
         main.className = 'dmain' + (s && !tr ? '' : ' loose');                     // loose: playing but not kept (dashed frame, no words about it)
-        if (c) { v = clipVideo(c); main.append(v); main.style.setProperty('--sg', K.signOf(c).col); main.dataset.clip = c.id; K.clips.set(c.id, c); main.title = `${c.title}${c.year ? ' · ' + c.year : ''} · ${K.signOf(c).symbol} ${K.signOf(c).name}${s && !tr ? ' · kept' : ' · not kept yet: C keeps it'}`; if (K.bin.has(c.id)) main.append(h('span', { class: 'star' }, '★')); }
+        if (c) { v = clipVideo(c); v.addEventListener('playing', () => v.classList.add('on'), { once: true }); main.append(h('img', { src: c.thumb, alt: '', class: 'still' }), v); main.style.setProperty('--sg', K.signOf(c).col); main.dataset.clip = c.id; K.clips.set(c.id, c); main.title = `${c.title}${c.year ? ' · ' + c.year : ''} · ${K.signOf(c).symbol} ${K.signOf(c).name}${s && !tr ? ' · kept' : ' · not kept yet: C keeps it'}`; if (K.bin.has(c.id)) main.append(h('span', { class: 'star' }, '★')); }
         if (s && !tr) Object.entries(K.sa(s)).forEach(([k, x]) => x == null ? main.removeAttribute(k) : main.setAttribute(k, x)); else ['data-seat', 'data-flag', 'data-mute'].forEach(k => main.removeAttribute(k));
       }
       if (v && c) drive(v, c, s && !tr ? s : { t0: startT }, t, s && !tr ? null : t - startT);
-      const w = K.wordAt(t) || K.wordAt(t + .3), wk = w ? w.i : -1;
-      if (wk !== lastWord) { lastWord = wk; cap.innerHTML = w ? w.line.words.map(x => x === w ? `<b>${K.esc(x.w)}</b>` : K.esc(x.w)).join(' ') : ''; }
     };
     main.ondblclick = () => { if (K.trying) K.swap(K.trying); };
     const layout = () => {
@@ -435,7 +458,10 @@
   function coverage() {
     document.querySelectorAll('#strip button').forEach(b => {                     // each poem tab carries its own little film
       const f = K.filmOf(b.dataset.n), mr = b.querySelector('.mr'), X = t => 100 * (t - f.t0) / (f.t1 - f.t0);
-      mr.replaceChildren(...L.in(f.t0, f.t1).map(s => h('span', { style: `left:${X(Math.max(f.t0, s.t0))}%;width:${Math.max(.6, X(Math.min(f.t1, s.t1)) - X(Math.max(f.t0, s.t0)))}%;background-image:url("${s.clip.thumb}");--sg:${K.signOf(s.clip).col}` })), h('b', { class: 'mph' }));
+      const own = L.in(f.p0, f.p1), rep = own[0]?.clip || K.cands(f.beats.find(x => x.t1 > f.p0)?.id)[0];   // the poem as a clip: its first kept clip, else its best candidate
+      if (rep) { b.style.backgroundImage = `url("${rep.thumb}")`; b.style.setProperty('--sg', K.signOf(rep).col); b.classList.toggle('made', !!own.length); }
+      b.title = `${f.n} ${f.title} · ${Math.round(100 * L.cover(f.p0, f.p1))}% made`;
+      mr.replaceChildren(...own.map(s => h('span', { style: `left:${X(Math.max(f.t0, s.t0))}%;width:${Math.max(.6, X(Math.min(f.t1, s.t1)) - X(Math.max(f.t0, s.t0)))}%;background:${K.signOf(s.clip).col}` })), h('b', { class: 'mph' }));
     }); if (screenOn) reel(document.querySelector('#screen .reel')); stakeUI(); }
 
   /* the reel: this bet's whole film on one line, the way back to anywhere in it */
@@ -473,9 +499,9 @@
           h('button', { type: 'button', title: 'Play or pause', class: 'pp', html: K.icon('pause'), onclick: () => K.toggle() }),
           h('button', { type: 'button', title: 'Next poem', html: K.icon('next'), onclick: () => K.screen(K.data.films[Math.min(K.data.films.length - 1, K.data.films.indexOf(K.filmAt(K.now())) + 1)].t0) }),
           h('button', { type: 'button', title: 'Back to the studio (Esc)', class: 'x', html: '<svg viewBox="0 0 18 18" width="18" height="18"><path d="M4 4l10 10M14 4L4 14" stroke="currentColor" stroke-width="2"/></svg>', onclick: () => K.unscreen() })),
-        h('div', { class: 'scr' }), h('div', { class: 'reel', onclick: e => { const r = e.currentTarget.getBoundingClientRect(); K.screen(K.duration * (e.clientX - r.left) / r.width); } }));
+        h('div', { class: 'scr' }), h('div', { class: 'scap' }), h('div', { class: 'reel', onclick: e => { const r = e.currentTarget.getBoundingClientRect(); K.screen(K.duration * (e.clientX - r.left) / r.width); } }));
       document.body.append(sc); K.monitor(sc.querySelector('.scr'), { empty: 'unmade' });
-      K.on('tick', t => { if (!screenOn) return; sc.querySelector('.ck').textContent = K.fmt(t); const f = K.filmAt(t); sc.querySelector('.ti').textContent = `${f.n} ${f.title}`; sc.querySelector('.reel .rph').style.left = (100 * t / K.duration) + '%'; });
+      K.on('tick', t => { if (!screenOn) return; sc.querySelector('.ck').textContent = K.fmt(t); const w = K.wordAt(t) || K.wordAt(t + .3), cp = sc.querySelector('.scap'), k = w ? w.i : -1; if (cp.dataset.k != k) { cp.dataset.k = k; cp.innerHTML = w ? w.line.words.map(x => x === w ? `<b>${K.esc(x.w)}</b>` : K.esc(x.w)).join(' ') : ''; } const f = K.filmAt(t); sc.querySelector('.ti').textContent = `${f.n} ${f.title}`; sc.querySelector('.reel .rph').style.left = (100 * t / K.duration) + '%'; });
       A.addEventListener('play', () => sc.querySelector('.pp').innerHTML = K.icon('pause')); A.addEventListener('pause', () => sc.querySelector('.pp').innerHTML = K.icon('play'));
     }
     screenOn = true; sc.classList.remove('hidden'); reel(sc.querySelector('.reel'));
@@ -508,8 +534,7 @@
     K.code = o.code; K.verbs = {};
     document.title = `${o.code} ${o.name} · bet studio`;
     document.body.prepend(
-      h('div', { id: 'bar' }, h('span', { class: 'ind' }), h('span', { class: 'bet', html: `<b>${K.esc(o.code)}</b>${K.esc(o.name)}` }), h('span', { class: 'claim' }, o.claim), h('span', { class: 'sp' }),
-        h('span', { class: 'stake', id: 'stake', title: 'The stake: how much of the film this bet has made, the time you have spent in it, and the decisions you made' }),
+      h('div', { id: 'bar' }, h('span', { class: 'ind' }), h('span', { class: 'bet', title: o.claim, html: `<b>${K.esc(o.code)}</b>${K.esc(o.name)}` }), h('span', { class: 'state', id: 'state' }), h('span', { class: 'sp' }),
         h('span', { class: 'clock', id: 'clock' }, '00:00.0'),
         h('button', { class: 'ic', id: 'playbtn', type: 'button', title: 'Play or pause the voice (space)', 'aria-label': 'Play or pause', html: K.icon('play'), onclick: () => K.toggle() }),
         h('button', { class: 'ic wide', type: 'button', title: 'Edit decision list: export, import, take from another bet (E is a verb, so this is the L key)', 'aria-label': 'Edit decision list', onclick: () => edlPanel() }, 'EDL'),
