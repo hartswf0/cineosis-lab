@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cutting Room Floor</title>
+<meta name="description" content="Every WYGWYL candidate playing at once: a MONTE wall of fourteen reels, the whole floor for one beat, an A/B audition, and the text as score. Click any clip to seat it in the cut.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Archivo:wdth,wght@62..100,400..900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0f11;--bg2:#12181b;--bg3:#1a2226;--line:#27323a;--ink:#e8eeeb;--dim:#8e9a97;--lime:#c4f46a;--blue:#4f8cff;--red:#e0483a;
+  --perception:#e9d9a8;--affect:#f0b9a4;--action:#e7a37c;--reflection:#b9cfa0;--mental:#a9c9c9;--break:#d9d3c7;--time:#b8b3d8;--read:#d9b8d2;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;--sans:"Archivo",system-ui,sans-serif}
+@media (prefers-color-scheme:light){:root:not([data-theme=dark]){--bg:#f1f0ec;--bg2:#e7e6e1;--bg3:#dcdad4;--line:#c9c7c1;--ink:#141414;--dim:#5f5e5a;--lime:#3d7a00;--blue:#1d5fe0}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);overflow:hidden}
+body{font:12px/1.4 var(--mono)}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:inherit}
+header{height:46px;display:flex;align-items:center;gap:12px;padding:0 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+header h1{font:900 19px/1 var(--sans);font-stretch:68%;letter-spacing:.01em;text-transform:uppercase;margin:0}
+header h1 i{color:var(--lime);font-style:normal}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{background:none;border:0;border-right:1px solid var(--line);padding:5px 10px;color:var(--dim)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--lime);color:#111}
+.seg button kbd{font-size:9px;opacity:.6;margin-left:4px}
+.rail{display:flex;align-items:center;gap:4px;margin-left:6px;min-width:0}
+.rail button.arrow{background:none;border:1px solid var(--line);border-radius:4px;padding:3px 7px}
+.rail .ch{display:flex;gap:10px;font-size:11px;color:var(--dim);overflow:hidden}
+.rail .ch b{color:var(--lime);font-weight:600}
+.sp{flex:1}
+.tp{display:flex;align-items:center;gap:8px}
+.tp .play{background:var(--lime);color:#111;border:0;border-radius:4px;width:34px;height:28px;font-size:13px}
+.tp .tc{font-variant-numeric:tabular-nums;color:var(--dim)}
+.tp label{color:var(--dim);font-size:11px}
+.tp select{background:var(--bg2);color:var(--ink);border:1px solid var(--line);border-radius:3px;font:inherit;font-size:11px}
+header nav a{color:var(--dim);text-decoration:none;font-size:11px;margin-left:8px}
+main{position:relative;height:calc(100% - 46px - 26px)}
+.mode{position:absolute;inset:0;display:none}
+.mode.on{display:block}
+footer{height:26px;display:flex;align-items:center;gap:14px;padding:0 12px;border-top:1px solid var(--line);color:var(--dim);font-size:11px;white-space:nowrap;overflow:hidden}
+footer i{margin-left:auto;font-family:Georgia,serif}
+/* ---------- a clip tile ---------- */
+.tile{position:relative;background:#000 center/cover no-repeat;border:1px solid var(--line);border-radius:3px;overflow:hidden;cursor:pointer}
+.tile video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.tile .cap{position:absolute;left:0;right:0;bottom:0;padding:2px 5px;background:linear-gradient(transparent,#000c);color:#fff;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.tile .tg{position:absolute;left:4px;top:4px;background:#000b;color:#fff;border-radius:2px;padding:1px 4px;font-size:9px;pointer-events:none}
+.tile .tg.A,.tile .tg.B{background:#1f7a3a}.tile .tg.C{background:#7a6a1f}.tile .tg.F{background:#7a3a1f}
+.tile:hover{border-color:var(--ink)}
+.tile .sc{position:absolute;left:4px;top:4px;display:flex;gap:3px;pointer-events:none}
+.tile .sc b{background:#000c;color:#fff;border-radius:2px;padding:1px 4px;font-size:10px;font-weight:600}
+.tile .sc b.fit{background:#1d5fe0}
+.tile .vd{position:absolute;right:4px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--dim);pointer-events:none}
+.tile.KEEP .vd{background:var(--lime)}.tile.MAYBE .vd{background:#e3a600}.tile.FLOOR .vd{background:var(--red)}
+.tile.FLOOR{filter:grayscale(.85) brightness(.55)}
+.tile.sm .cap,.tile.sm .sc b.fit{display:none}
+.tile.sm .sc b{font-size:9px;padding:0 3px}
+.tile.FLOOR:hover{filter:none}
+.tile.seated::after{top:auto;bottom:18px}
+.band{display:flex;flex-direction:column;min-height:0}
+.band > .bl{display:flex;gap:8px;align-items:baseline;font-size:10.5px;color:var(--dim);padding:0 2px 3px}
+.band > .bl b{font:800 11px/1 var(--sans);font-stretch:75%;letter-spacing:.1em}
+.band.KEEP > .bl b{color:var(--lime)}.band.MAYBE > .bl b{color:#e3a600}.band.FLOOR > .bl b{color:var(--red)}
+.band .bg{display:grid;gap:5px;justify-content:start}
+.why h4{margin:0 0 4px;font:700 14px/1.2 var(--sans);font-stretch:85%}
+.why .bars{display:grid;grid-template-columns:52px minmax(0,1fr) 30px;gap:3px 6px;align-items:center;font-size:10.5px;margin:6px 0}
+.why .bars i{display:block;height:7px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.why .bars i u{display:block;height:100%;background:var(--lime)}
+.why .bars i.fit u{background:#1d5fe0}
+.why p{margin:3px 0;color:var(--dim);font-size:11px}
+.why .v{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;color:#111}
+.why .v.KEEP{background:var(--lime)}.why .v.MAYBE{background:#e3a600}.why .v.FLOOR{background:var(--red);color:#fff}
+.strength{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600}
+.strength.strong{background:var(--lime);color:#111}.strength.thin{background:#e3a600;color:#111}.strength.weak{background:var(--red);color:#fff}
+.seats{display:flex;gap:4px;flex-wrap:wrap}
+.tile.seated{outline:2px solid var(--lime);outline-offset:-2px}
+.tile.seated::after{content:"SEATED";position:absolute;right:4px;top:4px;background:var(--lime);color:#111;font-size:9px;padding:1px 4px;border-radius:2px}
+.tile.focus{outline:2px solid var(--blue);outline-offset:-2px}
+/* ---------- WALL (MONTE) ---------- */
+#wall{display:none;gap:4px;padding:6px}
+#wall.on{display:grid}
+.col{position:relative;overflow:hidden;background:var(--bg2);border:1px solid var(--line);border-radius:3px;min-width:0}
+.col.cur{border-color:var(--lime)}
+.col .hd{position:absolute;left:0;right:0;top:0;z-index:3;background:var(--bg2);border-bottom:1px solid var(--line);padding:3px 5px;font-size:10px;display:flex;gap:4px;white-space:nowrap;overflow:hidden}
+.col .hd b{color:var(--lime)}
+.col.cur .hd{background:var(--lime);color:#111}
+.col.cur .hd b{color:#111}
+.col .track{position:absolute;left:3px;right:3px;top:0;will-change:transform}
+.col .track .tile{position:absolute;left:0;right:0}
+.col .bs{position:absolute;left:0;right:0;font-size:9px;color:var(--dim);padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#band{position:absolute;left:0;right:0;border-top:1px solid var(--lime);border-bottom:1px solid var(--lime);background:#c4f46a0d;pointer-events:none;z-index:4}
+#band span{position:absolute;right:6px;top:-15px;color:var(--lime);font-size:10px}
+/* ---------- FLOOR ---------- */
+#floor{display:none;grid-template-columns:260px minmax(0,1fr);height:100%}
+#floor.on{display:grid}
+.side{border-right:1px solid var(--line);padding:10px;display:flex;flex-direction:column;gap:10px;min-height:0;overflow:hidden}
+.side .prog{aspect-ratio:16/9;background:#000;border:1px solid var(--line);border-radius:3px;position:relative;overflow:hidden}
+.side .prog video,.big video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+.lbl{font:800 11px/1 var(--sans);font-stretch:75%;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.beatcard b{display:block;font:700 15px/1.2 var(--sans);font-stretch:85%;margin:4px 0}
+.beatcard p{margin:0 0 6px;color:var(--dim)}
+.line{font:500 15px/1.35 var(--sans);font-stretch:90%}
+.signs{display:flex;flex-wrap:wrap;gap:4px}
+.sign{display:inline-flex;gap:4px;align-items:center;border-radius:3px;padding:1px 6px 1px 2px;font-size:10.5px;color:#1d1b18;text-decoration:none}
+.sign i{font:700 11px/1 var(--sans);font-style:normal;background:#0002;border-radius:2px;padding:2px 3px}
+.srcs{display:flex;flex-wrap:wrap;gap:4px}
+.srcs button{background:none;border:1px solid var(--line);border-radius:10px;padding:1px 8px;color:var(--dim);font-size:10.5px}
+.srcs button.on{border-color:var(--lime);color:var(--lime)}
+#grid{position:relative;display:grid;gap:5px;padding:8px;align-content:start;overflow:hidden}
+/* ---------- AUDITION ---------- */
+#audition{display:none;grid-template-rows:minmax(0,1fr) auto;height:100%}
+#audition.on{display:grid}
+.ab{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px;min-height:0}
+.big{position:relative;background:#000;border:1px solid var(--line);border-radius:3px;overflow:hidden;min-height:0}
+.big.b{border-color:var(--blue)}
+.big .lab{position:absolute;left:8px;top:8px;z-index:2;background:#000b;color:#fff;padding:2px 7px;border-radius:3px;font-size:11px}
+.big .lab b{background:var(--lime);color:#111;padding:0 5px;margin-right:6px;border-radius:2px}
+.big.b .lab b{background:var(--blue);color:#fff}
+.big .ops{position:absolute;right:8px;bottom:8px;z-index:2;display:flex;gap:6px}
+.btn{background:var(--bg2);border:1px solid var(--line);border-radius:4px;padding:4px 10px;color:var(--ink)}
+.btn.pri{background:var(--lime);color:#111;border-color:var(--lime)}
+.btn:hover{border-color:var(--ink)}
+.strip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:5px;padding:0 10px 10px;height:clamp(90px,17vh,150px)}
+/* ---------- SCORE ---------- */
+#score{display:none;grid-template-rows:minmax(0,1fr) auto auto;height:100%}
+#score.on{display:grid}
+.stage{position:relative;margin:10px 10px 6px;background:#000;border:1px solid var(--line);border-radius:3px;overflow:hidden;min-height:0}
+.stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.stage .sub{position:absolute;left:5%;right:5%;bottom:5%;text-align:center;color:#fff;font:600 clamp(14px,2vw,24px)/1.3 var(--sans);font-stretch:85%;text-shadow:0 1px 4px #000}
+.cands{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:6px;padding:0 10px;height:clamp(84px,15vh,140px)}
+.tl{margin:8px 10px 10px;border:1px solid var(--line);border-radius:3px;padding:6px 8px;background:var(--bg2);user-select:none}
+.tl .row{display:grid;grid-template-columns:54px minmax(0,1fr);align-items:center;gap:6px;margin:3px 0}
+.tl .row .k{font-size:10px;color:var(--dim);letter-spacing:.08em}
+.tl .lane{position:relative;height:22px;background:var(--bg3);border-radius:2px;overflow:hidden;cursor:pointer}
+.tl .lane.shots{height:34px}
+.tl .lane i{position:absolute;top:0;bottom:0;border-right:1px solid var(--bg);background-size:cover;background-position:center;font-style:normal;font-size:10px;padding:3px 4px;white-space:nowrap;overflow:hidden;color:var(--ink)}
+.tl .lane.poem i{background:#4f8cff2a}
+.tl .lane.poem i.cur{background:#4f8cff66}
+.tl .lane.shots i.mine{outline:2px solid var(--lime);outline-offset:-2px}
+.tl .lane.beats i{background:var(--bg2);color:var(--dim)}
+.tl .lane.beats i.cur{background:var(--lime);color:#111}
+.tl .ph{position:absolute;top:0;bottom:0;width:2px;background:var(--red);pointer-events:none;z-index:2}
+.tl .ruler{display:grid;grid-template-columns:54px minmax(0,1fr);gap:6px;font-size:9.5px;color:var(--dim)}
+.tl .ruler div{position:relative;height:12px}
+.tl .ruler span{position:absolute}
+.toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);background:var(--lime);color:#111;padding:6px 12px;border-radius:4px;font-size:12px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50}
+.toast.on{opacity:1}
+dialog{background:var(--bg2);color:var(--ink);border:1px solid var(--line);border-radius:6px;max-width:560px}
+dialog td{padding:3px 10px 3px 0;vertical-align:top}
+kbd{border:1px solid var(--line);border-radius:3px;padding:0 4px;font-size:10px}
+@media (max-width:1100px){.rail .ch{display:none} header nav{display:none}}
+@media (max-width:760px){#floor{grid-template-columns:1fr}.side{display:none}.ab{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Cineosis <i>/</i> cutting room floor</h1>
+  <div class="seg" id="modes">
+    <button data-m="wall" title="MONTE: fourteen reels on conveyors; everything in the band plays">WALL<kbd>1</kbd></button>
+    <button data-m="floor" title="Every candidate for the beat under the playhead, all playing">FLOOR<kbd>2</kbd></button>
+    <button data-m="audition" title="A: the cut · B: the candidate · the whole strip playing below">AUDITION<kbd>3</kbd></button>
+    <button data-m="score" title="The player, the candidates, and the poem as score">SCORE<kbd>4</kbd></button>
+  </div>
+  <div class="rail"><button class="arrow" id="prevB" title="previous beat (←)">◀</button><span class="ch" id="chs"></span><button class="arrow" id="nextB" title="next beat (→)">▶</button></div>
+  <span class="sp"></span>
+  <div class="tp">
+    <button class="play" id="play" title="play the cut with the suite (space)">▶</button>
+    <span class="tc" id="tc">00:00 / 24:00</span>
+    <label>live <select id="live" title="how many clips play at once"><option>6</option><option selected>12</option><option>24</option><option>36</option></select></label>
+    <button class="btn" id="help" title="keys">?</button>
+  </div>
+  <nav><a href="cutting-room-tempest.html">Tempest</a><a href="./">Lab</a><a href="videotext.html">Videotext</a><a href="wygwyl.html">Four cuts</a></nav>
+</header>
+<main>
+  <section class="mode" id="wall"><div id="band"><span>the band plays</span></div></section>
+  <section class="mode" id="floor">
+    <div class="side">
+      <div class="prog" id="progF"></div>
+      <div class="beatcard" id="beatcard"></div>
+      <div class="why" id="why"></div>
+      <div class="seats"><button class="btn pri" id="seatBest" title="seat the top-ranked clip in this beat">seat the best</button><button class="btn" id="seatAll" title="seat every beat's top-ranked clip: a best-ranked cut you can play">best cut</button><button class="btn" id="clearSeats">clear seats</button></div>
+      <div><div class="lbl" style="margin-bottom:5px">sources</div><div class="srcs" id="srcs"></div></div>
+    </div>
+    <div id="grid"></div>
+  </section>
+  <section class="mode" id="audition">
+    <div class="ab">
+      <div class="big" id="bigA"><span class="lab"><b>A</b><span id="labA">the cut</span></span></div>
+      <div class="big b" id="bigB"><span class="lab"><b>B</b><span id="labB">candidate</span></span><div class="ops"><button class="btn" id="bPrev">◀</button><button class="btn pri" id="bSeat">Seat B in the cut ⏎</button><button class="btn" id="bNext">▶</button></div></div>
+    </div>
+    <div class="strip" id="stripA"></div>
+  </section>
+  <section class="mode" id="score">
+    <div class="stage" id="stage"><div class="sub" id="sub"></div></div>
+    <div class="cands" id="candsS"></div>
+    <div class="tl" id="tl"></div>
+  </section>
+</main>
+<footer><span id="fbeat"></span><span id="fseat"></span><span id="flive"></span><i>Sometimes into the wrong image.</i></footer>
+<div class="toast" id="toast"></div>
+<audio id="aud" preload="auto"></audio>
+<dialog id="keys"><h3 style="margin-top:0">Cutting room floor · keys</h3><table>
+  <tr><td><kbd>1</kbd>–<kbd>4</kbd></td><td>wall · floor · audition · score</td></tr>
+  <tr><td><kbd>space</kbd></td><td>play / pause the cut (suite audio, your seated shots over the suite cut)</td></tr>
+  <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>previous / next beat</td></tr>
+  <tr><td>click a clip</td><td>seat it in its beat · click again to unseat · in audition: put it in B</td></tr>
+  <tr><td><kbd>⏎</kbd></td><td>seat B (audition)</td></tr>
+  <tr><td><kbd>S</kbd></td><td>spin the wall (shuffle every reel)</td></tr>
+  <tr><td><kbd>W</kbd></td><td>wall: watch (conveyors move) / hold</td></tr>
+</table><p style="color:var(--dim)">Clips stream from the archive. “live” sets how many play at once; the rest show their still.</p><form method="dialog"><button class="btn">Close</button></form></dialog>
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const mm = t => { t = Math.max(0, t || 0); return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(Math.floor(t % 60)).padStart(2, '0'); };
+const DOM = { perception: '--perception', affect: '--affect', action: '--action', reflection: '--reflection', mental: '--mental', break: '--break', time: '--time', read: '--read' };
+const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* blocked */ } } };
+const S = { D: null, t: 0, playing: false, mode: store.get('floor.mode', 'floor'), beat: null, seats: store.get('floor.seats', {}), src: Object.assign({ cand: 1, forage: 1, cuts: 1, sign: 1, archive: 1 }, store.get('floor.src', {})), B: null, watch: true, speed: 14 };
+const aud = $('#aud');
+let toastT; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 1800); };
+
+/* ---------- the pool of clips for a beat ---------- */
+const SRCMAP = { candidate: 'cand', forage: 'forage', cut: 'cuts', sign: 'sign', archive: 'archive' };
+function pool(b) {                                   // the beat's clips, best first (wygwyl/candidate-ranks.json)
+  const R = S.R?.beats[b.id]; if (!R) return [];
+  return R.ranked.filter(c => S.src[SRCMAP[c.src]] !== 0).map(c => ({ ...c, beat: b.id }));
+}
+const beatAt = t => S.D.beats.find(b => t >= b.start && t < b.end) || S.D.beats[S.D.beats.length - 1];
+const chapterOf = b => S.D.films.find(f => f.n === b.chapter);
+const cutAt = t => (S.D.cuts.suite || []).find(p => t >= p.t0 && t < p.t1);
+const seatOf = b => S.seats[b.id];
+function seat(c) {
+  const b = S.D.beats.find(x => x.id === c.beat); if (!b) return;
+  if (S.seats[b.id]?.id === c.id) { delete S.seats[b.id]; toast(`unseated from beat ${b.id}`); }
+  else { S.seats[b.id] = { id: c.id, title: c.title, year: c.year, thumb: c.thumb, video: c.video, in: c.in || 0, url: c.url }; toast(`seated in beat ${b.id} · ${c.title}`); }
+  store.set('floor.seats', S.seats); markSeats(); foot(); showProgram();
+  if (S.mode === 'score') drawTL();
+}
+function markSeats() { $$('.tile').forEach(t => { const b = S.seats[t.dataset.beat]; t.classList.toggle('seated', !!b && b.id === t.dataset.id); }); }
+
+/* ---------- tiles and the live budget ---------- */
+function tile(c) {
+  const d = document.createElement('div'); d.className = 'tile ' + (c.verdict || ''); d.dataset.id = c.id; d.dataset.beat = c.beat;
+  d.style.backgroundImage = `url("${c.thumb}")`;
+  d.innerHTML = `<span class="sc"><b>#${c.rank} · ${c.score}</b><b class="fit" title="fit: how well it shows what the beat needs (absolute)">fit ${c.fit}</b></span><i class="vd"></i><span class="cap">${esc(c.cat)} · ${esc(c.title)}${c.year ? ' · ' + c.year : ''}</span>`;
+  d.title = `#${c.rank} · score ${c.score} · fit ${c.fit} · ${c.verdict}\n${c.title}${c.year ? ' · ' + c.year : ''} · ${c.tag}\nclick to seat · hover to see why`;
+  d.addEventListener('mouseenter', () => why(c));
+  d._c = c; return d;
+}
+function live(d, on) {
+  let v = d.querySelector('video');
+  if (on && !v) { v = document.createElement('video'); v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto'; v.src = d._c.video;
+    v.addEventListener('loadedmetadata', () => { try { v.currentTime = Math.min(d._c.in || 0, Math.max(0, v.duration - .5)); } catch (e) { /* not seekable */ } v.play().catch(() => {}); }, { once: true });
+    v.addEventListener('error', () => v.remove()); d.prepend(v); }
+  else if (!on && v) { v.pause(); v.removeAttribute('src'); v.load(); v.remove(); }
+}
+const budget = () => +$('#live').value;
+function liveAll(tiles) { const n = budget(); tiles.forEach((d, i) => live(d, i < n && !d.classList.contains('FLOOR'))); foot(); }
+
+/* ---------- the program: your seat for the beat, else the suite cut ---------- */
+const programs = [];
+function program(host) { let v = host.querySelector('video'); if (!v) { v = document.createElement('video'); v.muted = true; v.playsInline = true; v.loop = true; host.prepend(v); programs.push(v); } return v; }
+function showProgram() {
+  const b = S.beat, s = seatOf(b), p = cutAt(S.t);
+  const shot = s ? { ...s, in: s.in || 0 } : p ? { video: p.video, in: p.in + Math.max(0, S.t - p.t0), title: p.title } : null;
+  programs.forEach(v => {
+    if (!shot || !v.isConnected) return;
+    if (v.dataset.src !== shot.video) { v.dataset.src = shot.video; v.src = shot.video; v.addEventListener('loadedmetadata', () => { try { v.currentTime = shot.in || 0; } catch (e) { /* not seekable */ } if (S.playing) v.play().catch(() => {}); }, { once: true }); }
+    if (S.playing && v.paused) v.play().catch(() => {}); if (!S.playing && !v.paused) v.pause();
+  });
+  $('#labA').textContent = s ? `your seat · ${s.title}` : `suite cut · ${p ? p.title : ''}`;
+}
+
+/* ---------- WALL: MONTE — fourteen reels, the band plays ---------- */
+let wallCols = [];
+function buildWall() {
+  const host = $('#wall'); host.querySelectorAll('.col').forEach(c => c.remove());
+  host.style.gridTemplateColumns = `repeat(${S.D.films.length}, minmax(0,1fr))`;
+  wallCols = S.D.films.map(f => {
+    const col = document.createElement('div'); col.className = 'col'; col.dataset.ch = f.n;
+    const beats = S.D.beats.filter(b => b.chapter === f.n);
+    col.innerHTML = `<div class="hd"><b>${esc(f.n)}</b>${esc(f.title)}</div><div class="track"></div>`;
+    const items = beats.flatMap(b => pool(b).filter(c => c.verdict !== 'FLOOR').slice(0, 6));
+    host.appendChild(col);
+    return { col, track: col.querySelector('.track'), items, off: Math.random() * 400, tiles: [] };
+  });
+  layoutWall();
+}
+function layoutWall() {
+  const band = $('#band'), H = $('#wall').clientHeight;
+  wallCols.forEach(w => {
+    const cw = w.col.clientWidth - 6, th = Math.max(40, cw * .75), gap = 4; w.th = th + gap;
+    w.track.innerHTML = ''; w.tiles = [];
+    const n = Math.max(w.items.length, Math.ceil(H / w.th) + 2);
+    for (let k = 0; k < n * 2; k++) { const c = w.items[k % w.items.length]; if (!c) break; const d = tile(c); d.style.top = (k * w.th) + 'px'; d.style.height = th + 'px'; w.track.appendChild(d); w.tiles.push(d); }
+    w.loop = (w.items.length || 1) * w.th;
+  });
+  const th = wallCols[0]?.th || 100; band.style.top = Math.round(H * .42) + 'px'; band.style.height = Math.round(th * 2) + 'px';
+  markSeats();
+}
+function tickWall(dt) {
+  const band = $('#band'), bt = band.offsetTop, bb = bt + band.offsetHeight; let n = 0; const cap = budget();
+  const curCh = S.beat.chapter;
+  wallCols.forEach(w => {
+    w.col.classList.toggle('cur', w.col.dataset.ch === curCh);
+    if (S.watch) w.off = (w.off + S.speed * dt) % w.loop;
+    w.track.style.transform = `translateY(${-w.off}px)`;
+    w.tiles.forEach((d, k) => { const y = k * w.th - w.off + 22; const inBand = y + w.th * .6 > bt && y + w.th * .4 < bb; live(d, inBand && n++ < cap); });
+  });
+}
+function spin() { wallCols.forEach(w => { w.items.sort(() => Math.random() - .5); w.off = Math.random() * w.loop; }); layoutWall(); toast('spun the reels: order is random now (rebuild with 1 to restore best-first)'); }
+
+/* ---------- FLOOR: every candidate of the beat, all playing ---------- */
+function fit(n, W, H) {                         // columns that make n 4:3 tiles (+ caption) as big as the area allows
+  let best = { cols: 1, w: 0 };
+  for (let cols = 1; cols <= n; cols++) { const rows = Math.ceil(n / cols), w = Math.min((W - (cols - 1) * 5) / cols, ((H - (rows - 1) * 5) / rows) * 4 / 3); if (w > best.w) best = { cols, w }; }
+  return best;
+}
+function buildFloor() {
+  const b = S.beat, list = pool(b), g = $('#grid'); g.innerHTML = '';
+  const W = g.clientWidth - 16, H = g.clientHeight - 16, parts = [['KEEP', 'keep', .5], ['MAYBE', 'maybe', .3], ['FLOOR', 'the floor', .2]];
+  g.style.gridTemplateColumns = '1fr'; g.style.gridTemplateRows = parts.map(p => `${p[2]}fr`).join(' ');
+  const tiles = [];
+  parts.forEach(([v, label, share]) => {
+    const L = list.filter(c => c.verdict === v), band = document.createElement('div'); band.className = 'band ' + v;
+    band.innerHTML = `<div class="bl"><b>${label}</b><span>${L.length} clip${L.length === 1 ? '' : 's'}${v === 'KEEP' ? ' · the beat’s top 8 that actually show it (fit ≥ 45)' : v === 'FLOOR' ? ' · bottom half, title cards, dead frames' : ''}</span></div><div class="bg"></div>`;
+    g.appendChild(band);
+    const bh = H * share - 22, f = fit(Math.max(1, L.length), W, bh), bg = band.querySelector('.bg');
+    bg.style.gridTemplateColumns = `repeat(${f.cols}, ${f.w}px)`;
+    L.forEach(c => { const d = tile(c); d.style.height = (f.w * .75) + 'px'; if (f.w < 130) d.classList.add('sm'); bg.appendChild(d); tiles.push(d); });
+  });
+  liveAll(tiles); markSeats(); beatCard(); why(list[0]);
+  $('#srcs').innerHTML = [['cand', 'candidates'], ['forage', 'forage'], ['cuts', 'the four cuts'], ['sign', 'sign families'], ['archive', 'archive finds']].map(([k, l]) => `<button data-s="${k}" class="${S.src[k] ? 'on' : ''}">${l}</button>`).join('');
+}
+function why(c) {
+  if (!c || !$('#why')) return;
+  const R = S.R.beats[c.beat], k = c.comp, bar = (lab, v, cls = '', note = '') => `<span>${lab}</span><i class="${cls}"><u style="width:${v}%"></u></i><span>${v}</span>`;
+  $('#why').innerHTML = `<div class="lbl">why this one · #${c.rank} of ${R.pool}</div><h4>${esc(c.title)}${c.year ? ' · ' + c.year : ''}</h4>
+    <span class="v ${c.verdict}">${c.verdict}</span> <span style="color:var(--dim)">score ${c.score} · ${esc(c.cat)} · ${esc(c.tag)}</span>
+    <div class="bars">${bar('fit', c.fit, 'fit')}${bar('line', k.line)}${bar('scene', k.scene)}${bar('sign', k.sign)}${bar('review', k.review)}${bar('craft', k.craft)}</div>
+    <p>fit ${c.fit}: CLIP ${k.cl} to the line, ${k.cs} to the scene (archive median 0.135, archive best ≈ 0.29). The five bars below it rank the clip against the ${R.pool} on offer for this beat.</p>
+    ${c.obs ? `<p>reviewer: ${esc(c.obs)}</p>` : `<p>${c.grade === 'U' ? 'never reviewed by the suite' : 'reviewed ' + c.grade}</p>`}
+    ${c.flags.length ? `<p style="color:var(--red)">${esc(c.flags.join(' · '))}</p>` : ''}`;
+}
+function signChips(codes) { return codes.map(n => { const s = S.D.signs[n]; return s ? `<a class="sign" href="../periodic-table.html#${n}" target="_blank" style="background:var(${DOM[s.dom] || '--break'})" title="${esc(s.difference || '')}"><i>${esc(s.symbol)}</i>${n} ${esc(s.name)}</a>` : ''; }).join(''); }
+function beatCard() {
+  const b = S.beat, f = chapterOf(b), cue = S.D.cues.find(c => S.t >= c.t0 && S.t < c.t1) || S.D.cues.find(c => c.t0 >= b.start && c.text);
+  const R = S.R.beats[b.id];
+  $('#beatcard').innerHTML = `<div class="lbl">${esc(f.n)} ${esc(f.title)} · beat ${b.id}</div><b>${esc(b.title)}</b><p>${esc(b.mode)} · ${mm(b.start)}–${mm(b.end)} · <span class="strength ${R.strength}" title="best fit ${R.best_fit}; the suite's own forage fits ${R.forage_fit} at the median">${R.strength}</span> best fit ${R.best_fit} · forage ${R.forage_fit}</p>
+    <div class="line">${esc(cue?.text || cue?.screen || '')}</div><p style="margin-top:6px">${esc(b.operation || '')}</p><div class="signs">${signChips(b.codes)}</div>`;
+}
+
+/* ---------- AUDITION: A the cut, B the candidate, the whole strip playing ---------- */
+function buildAudition() {
+  const list = pool(S.beat), strip = $('#stripA'); strip.innerHTML = '';
+  const n = Math.min(list.length, Math.max(6, Math.floor(strip.clientWidth / 130)));
+  const tiles = list.slice(0, n).map(c => { const d = tile(c); strip.appendChild(d); return d; });
+  liveAll(tiles); markSeats();
+  if (!S.B || S.B.beat !== S.beat.id) setB(list[0]);
+}
+function setB(c) {
+  if (!c) return; S.B = c;
+  const host = $('#bigB'); let v = host.querySelector('video'); if (!v) { v = document.createElement('video'); v.muted = true; v.loop = true; v.playsInline = true; host.prepend(v); }
+  if (v.dataset.src !== c.video) { v.dataset.src = c.video; v.src = c.video; v.addEventListener('loadedmetadata', () => { try { v.currentTime = c.in || 0; } catch (e) { /* not seekable */ } v.play().catch(() => {}); }, { once: true }); }
+  $('#labB').textContent = `#${c.rank} · score ${c.score} · fit ${c.fit} · ${c.verdict} · ${c.title}${c.year ? ' · ' + c.year : ''} · ${c.cat}`;
+  $$('#stripA .tile').forEach(t => t.classList.toggle('focus', t.dataset.id === c.id));
+}
+function stepB(d) { const list = pool(S.beat); const i = list.findIndex(c => c.id === S.B?.id); setB(list[(i + d + list.length) % list.length]); }
+
+/* ---------- SCORE: the player, the candidates, the poem as score ---------- */
+function buildScore() {
+  const list = pool(S.beat), row = $('#candsS'); row.innerHTML = '';
+  const n = Math.min(list.length, Math.max(4, Math.floor(row.clientWidth / 150)));
+  liveAll(list.slice(0, n).map(c => { const d = tile(c); row.appendChild(d); return d; })); markSeats(); drawTL();
+}
+function drawTL() {
+  const f = chapterOf(S.beat), w0 = f.container[0], w1 = f.container[1], P = t => ((t - w0) / (w1 - w0) * 100).toFixed(3) + '%', W = (a, b) => `left:${P(Math.max(a, w0))};width:calc(${P(Math.min(b, w1))} - ${P(Math.max(a, w0))})`;
+  const cues = S.D.cues.filter(c => c.t1 > w0 && c.t0 < w1), beats = S.D.beats.filter(b => b.chapter === f.n);
+  const shots = beats.map(b => { const s = seatOf(b); return s ? { a: b.start, b: b.end, thumb: s.thumb, mine: 1, title: s.title } : null; }).filter(Boolean);
+  const cut = (S.D.cuts.suite || []).filter(p => p.t1 > w0 && p.t0 < w1 && !shots.some(s => p.t0 < s.b && p.t1 > s.a));
+  const ticks = []; for (let t = Math.ceil(w0 / 15) * 15; t < w1; t += 15) ticks.push(t);
+  $('#tl').innerHTML = `<div class="ruler"><span></span><div>${ticks.map(t => `<span style="left:${P(t)}">${mm(t)}</span>`).join('')}</div></div>
+    <div class="row"><span class="k">POEM</span><div class="lane poem">${cues.map(c => `<i style="${W(c.t0, c.t1)}" data-t="${c.t0}" title="${esc(c.text || c.screen)}">${esc(c.text || c.screen || '')}</i>`).join('')}<span class="ph"></span></div></div>
+    <div class="row"><span class="k">SHOTS</span><div class="lane shots">${[...cut.map(p => ({ a: p.t0, b: p.t1, thumb: p.thumb, title: p.title })), ...shots].map(s => `<i class="${s.mine ? 'mine' : ''}" style="${W(s.a, s.b)};background-image:url('${s.thumb}')" title="${esc(s.title)}${s.mine ? ' · your seat' : ''}"></i>`).join('')}<span class="ph"></span></div></div>
+    <div class="row"><span class="k">BEATS</span><div class="lane beats">${beats.map(b => `<i style="${W(b.start, b.end)}" data-t="${b.start}" data-b="${b.id}" title="${esc(b.title)}">${b.id} ${esc(b.title)}</i>`).join('')}<span class="ph"></span></div></div>`;
+  $$('#tl .lane').forEach(l => l.onclick = e => { const r = l.getBoundingClientRect(); seek(w0 + (e.clientX - r.left) / r.width * (w1 - w0)); });
+}
+
+/* ---------- the clock ---------- */
+function seek(t) { S.t = Math.max(0, Math.min(S.D.duration - .05, t)); if (S.playing) aud.currentTime = S.t; update(true); }
+function play() { if (S.playing) { aud.pause(); S.playing = false; $('#play').textContent = '▶'; showProgram(); return; } try { aud.currentTime = S.t; } catch (e) { /* not ready */ } aud.play().then(() => { S.playing = true; $('#play').textContent = '❚❚'; showProgram(); }).catch(() => toast('the suite audio did not load')); }
+function step(d) { const i = S.D.beats.indexOf(S.beat) + d; if (i >= 0 && i < S.D.beats.length) seek(S.D.beats[i].start + .05); }
+let lastBeat = null;
+function update(force) {
+  const b = beatAt(S.t); S.beat = b;
+  $('#tc').textContent = `${mm(S.t)} / ${mm(S.D.duration)}`;
+  if (b !== lastBeat || force) {
+    const changed = b !== lastBeat; lastBeat = b;
+    const f = chapterOf(b), i = S.D.films.indexOf(f), near = S.D.films.slice(Math.max(0, i - 1), i + 2);
+    $('#chs').innerHTML = near.map(x => x === f ? `<b>${x.n} ${esc(x.title)} · beat ${b.id}</b>` : `<span>${x.n} ${esc(x.title)}</span>`).join('');
+    if (changed || force) render();
+  }
+  showProgram();
+  const f = chapterOf(b); $$('#tl .ph').forEach(p => p.style.left = ((S.t - f.container[0]) / (f.container[1] - f.container[0]) * 100) + '%');
+  const cue = S.D.cues.find(c => S.t >= c.t0 && S.t < c.t1); $('#sub').textContent = cue ? cue.text : '';
+  $$('#tl .lane.beats i').forEach(e => e.classList.toggle('cur', +e.dataset.b === b.id));
+}
+function render() {
+  $$('#modes button').forEach(x => x.classList.toggle('on', x.dataset.m === S.mode));
+  $$('.mode').forEach(m => m.classList.toggle('on', m.id === S.mode));
+  $$('.tile').forEach(d => { if (!d.closest('#' + S.mode)) live(d, false); });   // only the visible mode plays
+  if (S.mode === 'wall') { if (!wallCols.length) buildWall(); }
+  if (S.mode === 'floor') { program($('#progF')); buildFloor(); }
+  if (S.mode === 'audition') { program($('#bigA')); buildAudition(); }
+  if (S.mode === 'score') { program($('#stage')); buildScore(); }
+  foot(); showProgram();
+}
+function foot() {
+  const n = Object.keys(S.seats).length, b = S.beat;
+  const R = b && S.R?.beats[b.id]; $('#fbeat').textContent = b ? `beat ${b.id} · ${b.title} · ${R ? `${R.strength} · keep ${R.keep} · maybe ${R.maybe} · floor ${R.floor}` : ''}` : '';
+  $('#fseat').textContent = `${n} of ${S.D.beats.length} beats seated`;
+  $('#flive').textContent = `${$$('.tile video').length} playing now`;
+}
+let last = performance.now();
+(function loop(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  if (S.D) { if (S.playing) { S.t = aud.currentTime; update(); } if (S.mode === 'wall') tickWall(dt); }
+  requestAnimationFrame(loop);
+})(last);
+
+/* ---------- input ---------- */
+$('#modes').onclick = e => { const b = e.target.closest('button'); if (b) { S.mode = b.dataset.m; store.set('floor.mode', S.mode); render(); } };
+$('#play').onclick = play; $('#prevB').onclick = () => step(-1); $('#nextB').onclick = () => step(1);
+$('#live').onchange = () => render();
+$('#help').onclick = () => $('#keys').showModal();
+$('#srcs').onclick = e => { const b = e.target.closest('[data-s]'); if (!b) return; S.src[b.dataset.s] = S.src[b.dataset.s] ? 0 : 1; store.set('floor.src', S.src); wallCols = []; render(); };
+document.addEventListener('click', e => {
+  const d = e.target.closest('.tile'); if (!d || !d._c) return;
+  if (S.mode === 'audition') setB(d._c); else seat(d._c);
+});
+$('#bSeat').onclick = () => S.B && seat(S.B);
+$('#seatBest').onclick = () => { const c = pool(S.beat)[0]; if (c && S.seats[S.beat.id]?.id !== c.id) seat(c); };
+$('#seatAll').onclick = () => { let n = 0; S.D.beats.forEach(b => { const c = pool(b)[0]; if (c) { S.seats[b.id] = { id: c.id, title: c.title, year: c.year, thumb: c.thumb, video: c.video, in: c.in || 0, url: c.url }; n++; } }); store.set('floor.seats', S.seats); markSeats(); foot(); showProgram(); toast(`seated the best-ranked clip in ${n} beats · press play`); };
+$('#clearSeats').onclick = () => { if (!Object.keys(S.seats).length) return; if (confirm('Clear every seat?')) { S.seats = {}; store.set('floor.seats', S.seats); markSeats(); foot(); showProgram(); } }; $('#bPrev').onclick = () => stepB(-1); $('#bNext').onclick = () => stepB(1);
+addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.target.closest('input,select')) return;
+  const k = e.key;
+  if ('1234'.includes(k)) { S.mode = ['wall', 'floor', 'audition', 'score'][+k - 1]; store.set('floor.mode', S.mode); render(); }
+  else if (k === ' ') { e.preventDefault(); play(); }
+  else if (k === 'ArrowLeft') S.mode === 'audition' ? stepB(-1) : step(-1);
+  else if (k === 'ArrowRight') S.mode === 'audition' ? stepB(1) : step(1);
+  else if (k === 'ArrowUp') step(-1); else if (k === 'ArrowDown') step(1);
+  else if (k === 'Enter' && S.mode === 'audition' && S.B) seat(S.B);
+  else if (k === 's' || k === 'S') { if (S.mode === 'wall') spin(); }
+  else if (k === 'w' || k === 'W') { S.watch = !S.watch; toast(S.watch ? 'the reels move' : 'the reels hold'); }
+  else if (k === '?') $('#keys').showModal();
+});
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (S.mode === 'wall') layoutWall(); else render(); }, 150); });
+
+(async () => {
+  [S.D, S.R] = await Promise.all([fetch('wygwyl/collage-data.json').then(r => r.json()), fetch('wygwyl/candidate-ranks.json').then(r => r.json())]);
+  aud.src = S.D.audio;
+  const h = /t=([\d.]+)/.exec(location.hash); S.t = h ? +h[1] : 0;
+  S.beat = beatAt(S.t); lastBeat = null; update(true);
+})();
+</script>
+</body>
+</html>

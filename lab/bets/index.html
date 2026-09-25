@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nine Wagers · WYGWYL</title>
+<link rel="stylesheet" href="kernel.css?v=6">
+<style>
+  body{ overflow:auto; height:auto; min-height:100dvh; }
+  main{ background:var(--k); padding:3px; display:flex; flex-direction:column; gap:3px; }
+  .blk{ background:var(--w); }
+  .blk > h2{ margin:0; padding:6px 10px; border-bottom:3px solid var(--k); font-size:12px; letter-spacing:.1em; text-transform:uppercase; display:flex; gap:10px; align-items:center; }
+  .blk > h2 .tag{ margin-left:auto; font-weight:400; opacity:.6; letter-spacing:.04em; text-transform:none; }
+  #rules{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
+  #rules div{ padding:10px 12px; border-left:3px solid var(--k); font-size:13px; }
+  #rules div:first-child{ border-left:0; }
+  #rules b{ display:block; font-size:11px; letter-spacing:.1em; text-transform:uppercase; margin-bottom:4px; }
+
+  /* the board */
+  .row{ display:grid; grid-template-columns:190px minmax(0,1fr) 250px; border-bottom:3px solid var(--k); min-height:58px; }
+  .row:last-child{ border-bottom:0; }
+  .row .who{ padding:6px 10px; border-right:3px solid var(--k); display:flex; flex-direction:column; justify-content:center; gap:2px; text-decoration:none; color:var(--k); }
+  .row .who:hover{ background:var(--lg); }
+  .row .who b{ font-size:13px; letter-spacing:.06em; text-transform:uppercase; }
+  .row .who b i{ font-style:normal; background:var(--k); color:var(--w); padding:0 5px; margin-right:6px; }
+  .row .who small{ font-size:10px; color:var(--g); }
+  .row .reel{ position:relative; background:#1a1a1a; margin:6px 8px; min-height:40px; cursor:pointer; }
+  .row .reel .fb{ position:absolute; top:0; bottom:0; border-left:1px solid #555; color:#777; font-size:9px; padding:1px 3px; pointer-events:none; }
+  .row .reel .rs{ position:absolute; top:4px; bottom:4px; background:#fff center/cover no-repeat; }
+  .row .reel .rs.m{ opacity:.45; }
+  .row .reel .won{ position:absolute; bottom:0; height:4px; background:var(--aB); }
+  .row .reel .rph{ position:absolute; top:0; bottom:0; border-left:3px solid var(--aB); }
+  .row .st{ border-left:3px solid var(--k); display:grid; grid-template-columns:repeat(4,1fr); align-items:center; text-align:center; }
+  .row .st span{ font-size:9px; color:var(--g); letter-spacing:.06em; text-transform:uppercase; display:flex; flex-direction:column; }
+  .row .st span b{ font-size:17px; color:var(--k); letter-spacing:0; }
+  .row.lead .who{ box-shadow:inset 6px 0 0 var(--aB); }
+
+  /* the screening room */
+  #room .ctrl{ display:flex; gap:3px; background:var(--k); padding:3px; overflow-x:auto; }
+  #room .ctrl button{ flex:0 0 auto; min-width:48px; height:40px; background:var(--w); font-weight:700; padding:0 8px; display:inline-flex; align-items:center; gap:6px; }
+  #room .ctrl button.on{ box-shadow:inset 0 0 0 3px var(--hi); }
+  #room .ctrl button small{ font-weight:400; font-size:9px; letter-spacing:.04em; }
+  #room .ctrl .pp{ background:var(--k); color:var(--w); border:2px solid var(--w); }
+  #wall{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:3px; background:var(--k); padding:0 3px 3px; }
+  .cell{ background:var(--k); display:flex; flex-direction:column; }
+  .cell .v{ aspect-ratio:4/3; position:relative; background:#000; display:flex; align-items:center; justify-content:center; }
+  .cell .v video,.cell .v img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .cell .v .none{ color:#666; font-size:10px; letter-spacing:.1em; text-transform:uppercase; }
+  .cell .v .code{ position:absolute; left:0; top:0; background:var(--w); color:var(--k); font-weight:700; font-size:12px; padding:1px 6px; }
+  .cell .v .cov{ position:absolute; right:0; top:0; background:var(--k); color:var(--w); font-size:10px; padding:1px 5px; }
+  .cell .v .crown{ position:absolute; right:0; bottom:0; background:var(--aB); color:var(--k); font-weight:700; font-size:10px; padding:1px 6px; }
+  .cell .a{ display:grid; grid-template-columns:1fr auto; background:var(--w); border-top:3px solid var(--k); }
+  .cell .a span{ font-size:10px; padding:4px 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cell .a button{ border-left:3px solid var(--k); padding:0 10px; font-size:10px; letter-spacing:.1em; font-weight:700; text-transform:uppercase; }
+  .cell .a button:hover{ background:var(--aB); }
+  .cell.win .a button{ background:var(--aB); }
+  .cell.house .v{ outline:3px solid var(--aB); outline-offset:-3px; }
+  .cell .v{ border-bottom:6px solid var(--sg,#000); }
+  .cell .v .sgt{ position:absolute; left:0; bottom:0; background:var(--sg,#ddd); color:#111; font-size:10px; font-weight:700; padding:1px 6px; }
+  .cell .a .mu{ border-left:3px solid var(--k); padding:0 10px; font-size:14px; }
+  .cell .a .mu.off{ background:var(--k); color:var(--w); text-decoration:line-through; }
+  .cell .a{ grid-template-columns:1fr auto auto; }
+  .row .st{ grid-template-columns:repeat(4,1fr) auto; }
+  .row .st .edl{ border-left:2px solid var(--k); height:100%; padding:0 10px; font-size:10px; font-weight:700; letter-spacing:.08em; }
+  .row .st .edl:hover{ background:var(--k); color:var(--w); }
+  .row .reel .rs{ box-shadow:inset 0 -5px 0 var(--sg,#fff); }
+  #cap{ background:var(--k); color:var(--w); padding:10px 14px; font-size:17px; text-align:center; min-height:48px; }
+
+  /* the house */
+  #house .hw{ display:grid; grid-template-columns:repeat(14,minmax(0,1fr)); }
+  #house .hw div{ border-left:3px solid var(--k); padding:6px 4px; text-align:center; font-size:10px; }
+  #house .hw div:first-child{ border-left:0; }
+  #house .hw div b{ display:block; font-size:15px; }
+  #house .hw div.set{ background:var(--aB); }
+  #house .acts{ display:flex; gap:8px; padding:8px 10px; border-top:3px solid var(--k); align-items:center; flex-wrap:wrap; }
+  #house .acts button{ border:2px solid var(--k); padding:6px 12px; font-size:11px; letter-spacing:.08em; text-transform:uppercase; font-weight:700; }
+  #house .acts button:hover{ background:var(--lg); }
+  #house .acts .msg{ font-size:12px; }
+  @media (max-width:820px){ .row{ grid-template-columns:1fr; } .row .who,.row .st{ border:0; } .row .st{ border-top:2px solid var(--lg); padding:4px 0; } #rules{ grid-template-columns:1fr; } #rules div{ border-left:0; border-top:3px solid var(--k); } #house .hw{ grid-template-columns:repeat(7,1fr); } }
+</style></head>
+<body>
+<div id="bar"><span class="ind"></span><span class="bet"><b>9</b>Wagers</span><span class="claim">nine ways to make the film; each makes a whole one; the screening decides</span><span class="sp"></span>
+  <span class="clock" id="clock">00:00.0</span>
+  <a class="ic" href="../program-theories/" title="The 92 sketches and their theories" aria-label="Sketches and theories"><svg viewBox="0 0 18 18" width="18" height="18"><path d="M3 3h5v5H3zM10 3h5v5h-5zM3 10h5v5H3zM10 10h5v5h-5z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></a></div>
+<main>
+  <section class="blk"><div id="rules">
+    <div><b>The claim</b>Each studio bets that its way of working makes the better film of WYGWYL. It makes the whole film its own way, all 14 poems, and no other studio touches it.</div>
+    <div><b>The stake</b>What a bet costs: minutes you spend in the studio and decisions you make. A bet that makes a good film cheaply beats one that makes it expensively.</div>
+    <div><b>The payoff</b>In the screening room every film plays the same moment on one voice. Award each poem to the bet that made it best. The winners make the house cut. Every film, and the house cut, exports as one EDL format.</div>
+  </div></section>
+
+  <section class="blk" id="board"><h2>The board <span class="tag" id="boardTag"></span></h2><div id="rows"></div></section>
+
+  <section class="blk" id="room"><h2>Screening room <span class="tag" id="roomTag">every bet’s film on one voice</span></h2>
+    <div class="ctrl" id="ctrl"></div>
+    <div id="wall"></div>
+    <div id="cap"></div></section>
+
+  <section class="blk" id="house"><h2>The house cut <span class="tag" id="houseTag"></span></h2><div class="hw" id="hw"></div>
+    <div class="acts"><button type="button" id="toFloor">Send the house cut to the floor</button><button type="button" id="hJSON">House EDL · JSON</button><button type="button" id="hCMX">House EDL · CMX3600</button><span class="msg" id="houseMsg">The floor, Tempest, CUT and WAG read the floor’s seats.</span></div></section>
+</main>
+<script>
+const BETS = [
+  ['P1', 'concordance.html', 'Concordance', 'the word is the unit'], ['P2', 'voice-clock.html', 'Voice Clock', 'her breath cuts the picture'],
+  ['P3', 'scale-ladder.html', 'Scale Ladder', 'see every scale at once'], ['P4', 'audition.html', 'Audition', 'choosing is the work'],
+  ['P5', 'field.html', 'Association Field', 'meaning is a space'], ['P6', 'branches.html', 'Branch Garden', 'no single right cut'],
+  ['P7', 'loop-wheel.html', 'Loop Wheel', 'watching is the interface'], ['P8', 'press.html', 'Template Press', 'rule once, apply everywhere'],
+  ['P9', 'strata.html', 'Strata', 'every layer on one clock'],
+];
+const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+const $ = id => document.getElementById(id);
+const h = (tag, a = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(a)) { if (v == null || v === false) continue; if (k === 'class') e.className = v; else if (k === 'style') e.style.cssText = v; else if (k === 'html') e.innerHTML = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v); } kids.flat(9).forEach(c => c != null && c !== false && e.append(c.nodeType ? c : document.createTextNode(c))); return e; };
+const fmt = t => { t = Math.max(0, t || 0); const m = Math.floor(t / 60); return `${String(m).padStart(2, '0')}:${(t - m * 60).toFixed(1).padStart(4, '0')}`; };
+const A = new Audio(); A.preload = 'auto';
+const DOM = { perception: '#e9d9a8', affect: '#f0b9a4', action: '#e7a37c', reflection: '#b9cfa0', mental: '#a9c9c9', break: '#d9d3c7', time: '#b8b3d8', read: '#d9b8d2' };
+const sign = c => { const g = c && c.sg && D.signs[c.sg]; return g ? { symbol: g.symbol, name: g.name, col: DOM[g.dom] || '#ddd' } : { symbol: '·', name: '', col: '#ddd' }; };
+const heard = store.get('cineosis.room.heard', { HOUSE: true });                 // which films you hear in the screening room
+const FPS = 25, tc = t => { const f = Math.round(Math.max(0, t) * FPS); return [Math.floor(f / 90000), Math.floor(f / 1500) % 60, Math.floor(f / FPS) % 60, f % FPS].map(x => String(x).padStart(2, '0')).join(':'); };
+function edlJSON(seats, bet) { return JSON.stringify({ format: 'cineosis-edl/1', title: 'WYGWYL', bet, made: new Date().toISOString(), clock: { audio: 'WYGWYL_Suite_Audio.mp3', duration: D.duration, fps: FPS },
+  events: seats.map((s, i) => ({ n: i + 1, rec: [+s.t0.toFixed(3), +s.t1.toFixed(3)], words: s.text, clip: s.clip, src: [s.clip.in || 0, (s.clip.in || 0) + s.t1 - s.t0], by: s.by, bet: s.bet || bet, why: s.why, flag: !!s.flag, mute: !!s.mute })) }, null, 1); }
+function edlCMX(seats, bet) { const o = [`TITLE: WYGWYL ${bet}`, 'FCM: NON-DROP FRAME', '']; seats.forEach((s, i) => { const a = s.clip.in || 0, g = sign(s.clip); o.push(`${String(i + 1).padStart(3, '0')}  AX       V     C        ${tc(a)} ${tc(a + s.t1 - s.t0)} ${tc(s.t0)} ${tc(s.t1)}`, `* FROM CLIP NAME: ${s.clip.title}${s.clip.year ? ' (' + s.clip.year + ')' : ''}`, `* SOURCE FILE: ${s.clip.video || ''}`, `* WORDS: ${s.text}`, `* SIGN: ${g.symbol} ${g.name}`, `* BET: ${s.bet || bet}`, ''); }); return o.join('\n'); }
+function download(name, text, type) { const a = h('a', { href: URL.createObjectURL(new Blob([text], { type })), download: name }); document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+let D, films = {}, stakes = {}, house = store.get('cineosis.house.v1', {}), poem = null, SOLO = null;
+
+function load() {
+  if (store.get('cineosis.film.P1.v1', null) === null) {                          // the first version kept one shared ledger: hand each bet what it made
+    const old = store.get('cineosis.ledger.v1', []);
+    BETS.forEach(([c]) => { if (store.get(`cineosis.film.${c}.v1`, null) === null) store.set(`cineosis.film.${c}.v1`, old.filter(s => s.bet === c)); });
+  }
+  const byId = new Map(); Object.values(D.pool).forEach(v => v.forEach(c => byId.set(c.id, c)));
+  BETS.forEach(([c]) => { films[c] = store.get(`cineosis.film.${c}.v1`, []).sort((a, b) => a.t0 - b.t0); stakes[c] = store.get(`cineosis.stake.${c}.v1`, { ms: 0, decisions: 0 });
+    films[c].forEach(s => { const x = byId.get(s.clip.id); if (x && s.clip.sg == null) Object.assign(s.clip, { sg: x.sg, in: x.in || 0, dur: x.dur }); }); });   // older seats learn their sign
+  house = store.get('cineosis.house.v1', {});
+}
+const cover = (seats, t0, t1) => { let c = 0; seats.forEach(s => { if (s.t1 > t0 && s.t0 < t1) c += Math.min(t1, s.t1) - Math.max(t0, s.t0); }); return t1 > t0 ? Math.min(1, c / (t1 - t0)) : 0; };
+const whole = seats => { let c = 0, n = 0; D.films.forEach(f => { c += cover(seats, f.p0, f.p1) * (f.p1 - f.p0); n += f.p1 - f.p0; }); return n ? c / n : 0; };
+const at = (seats, t) => seats.find(s => t >= s.t0 && t < s.t1);
+const won = c => Object.values(house).filter(x => x === c).length;
+
+function board() {
+  const rows = $('rows'); rows.replaceChildren();
+  const lead = BETS.map(([c]) => [c, won(c) * 1000 + whole(films[c])]).sort((a, b) => b[1] - a[1])[0];
+  BETS.forEach(([c, href, name, claim]) => {
+    const seats = films[c], st = stakes[c], w = whole(seats);
+    const reel = h('div', { class: 'reel', title: 'Click to screen this moment in every film', onclick: e => { const r = e.currentTarget.getBoundingClientRect(); const t = D.duration * (e.clientX - r.left) / r.width; const f = D.films.find(x => t >= x.t0 && t < x.t1) || D.films[0]; pick(f.n, t); $('room').scrollIntoView({ behavior: 'smooth' }); } },
+      D.films.map(f => h('span', { class: 'fb', style: `left:${100 * f.t0 / D.duration}%` }, f.n)),
+      seats.map(s => h('span', { class: 'rs' + (s.by === 'machine' ? ' m' : ''), style: `left:${100 * s.t0 / D.duration}%;width:${Math.max(.08, 100 * (s.t1 - s.t0) / D.duration)}%;background-image:url("${s.clip.thumb}");--sg:${sign(s.clip).col}` })),
+      D.films.filter(f => house[f.n] === c).map(f => h('span', { class: 'won', style: `left:${100 * f.t0 / D.duration}%;width:${100 * (f.t1 - f.t0) / D.duration}%` })),
+      h('span', { class: 'rph' }));
+    rows.append(h('div', { class: 'row' + (lead && lead[0] === c && lead[1] > 0 ? ' lead' : '') },
+      h('a', { class: 'who', href, title: `Open the ${name} studio and keep making its film` }, h('b', { html: `<i>${c}</i>${name}` }), h('small', {}, claim)),
+      reel,
+      h('div', { class: 'st' }, h('span', {}, h('b', {}, Math.round(100 * w) + '%'), 'made'), h('span', {}, h('b', {}, String(Math.round(st.ms / 60000))), 'minutes'), h('span', {}, h('b', {}, String(st.decisions)), 'decisions'), h('span', {}, h('b', {}, String(won(c))), 'poems won'), h('button', { type: 'button', class: 'edl', title: `Download ${c}’s film as a cineosis EDL (JSON)`, onclick: () => download(`wygwyl-${c}.cineosis-edl.json`, edlJSON(seats, c), 'application/json') }, 'EDL'))));
+  });
+  const made = BETS.filter(([c]) => films[c].length).length;
+  $('boardTag').textContent = `${made} of 9 bets have started a film`;
+}
+
+/* the screening room */
+function ctrl() {
+  const c = $('ctrl'); c.replaceChildren(h('button', { class: 'pp', id: 'pp', type: 'button', title: 'Play or pause (space)', onclick: toggle }, A.paused ? '▶' : '❚❚'));
+  D.films.forEach(f => c.append(h('button', { type: 'button', class: f.n === poem ? 'on' : '', title: f.title, onclick: () => pick(f.n) }, f.n, h('small', {}, house[f.n] || ''))));
+}
+function pick(n, t) { poem = n; const f = D.films.find(x => x.n === n); A.currentTime = t ?? f.t0; ctrl(); wall(); frame(true); $('roomTag').textContent = `${f.n} ${f.title} · award the poem to the film that made it best`; }
+function toggle() { if (A.paused) A.play().catch(() => {}); else A.pause(); }
+A.addEventListener('play', () => { const b = $('pp'); if (b) b.textContent = '❚❚'; }); A.addEventListener('pause', () => { const b = $('pp'); if (b) b.textContent = '▶'; });
+const cells = {};
+function wall() {
+  const w = $('wall'); w.replaceChildren(); const f = D.films.find(x => x.n === poem);
+  const list = BETS.map(b => b[0]).concat('HOUSE');
+  list.forEach(c => {
+    const isH = c === 'HOUSE', cv = isH ? null : cover(films[c], f.p0, f.p1);
+    const v = h('div', { class: 'v' }), mu = h('button', { type: 'button', class: 'mu' + (heard[c] ? '' : ' off'), title: `Hear ${c}’s clip sound`, onclick: () => { heard[c] = !heard[c]; store.set('cineosis.room.heard', heard); mu.classList.toggle('off', !heard[c]); } }, '♪');
+    const cell = h('div', { class: 'cell' + (house[poem] === c ? ' win' : '') + (isH ? ' house' : '') }, v,
+      h('div', { class: 'a' }, h('span', {}, isH ? 'the house cut: each poem from its winner' : `${BETS.find(b => b[0] === c)[2]}`), mu,
+        isH ? h('span', {}, house[poem] || 'no winner') : h('button', { type: 'button', title: `Award ${f.n} ${f.title} to ${c}`, onclick: () => award(c) }, house[poem] === c ? 'winner' : 'award')));
+    cells[c] = { v, key: null, cv }; w.append(cell);
+  });
+}
+function houseSeats() { const out = []; D.films.forEach(f => { const c = house[f.n]; if (c) films[c].forEach(s => { if (s.t1 > f.t0 && s.t0 < f.t1) out.push(s); }); }); return out; }
+function frame(force) {
+  const t = A.currentTime; $('clock').textContent = fmt(t);
+  const f = D.films.find(x => t >= x.t0 && t < x.t1);
+  if (f && f.n !== poem && !A.paused) { poem = f.n; ctrl(); wall(); force = true; }
+  const hs = houseSeats();
+  Object.entries(cells).forEach(([c, o]) => {
+    const s = at(c === 'HOUSE' ? hs : films[c], t), key = s ? s.clip.id + ':' + s.t0 : 'none';
+    if (!force && key === o.key) return; o.key = key; o.v.replaceChildren();
+    o.s = s; o.vid = null;
+    if (s) { const vid = h('video', { src: s.clip.video || `../wygwyl/tempest/${s.clip.id}.mp4`, poster: s.clip.thumb, playsinline: '', preload: 'auto' }); vid.muted = true; o.vid = vid; o.v.append(vid, h('span', { class: 'sgt' }, `${sign(s.clip).symbol} ${sign(s.clip).name}`)); o.v.style.setProperty('--sg', sign(s.clip).col);
+      vid.addEventListener('error', () => { if (s.clip.loop && !vid.dataset.fell) { vid.dataset.fell = 1; vid.src = `../wygwyl/tempest/${s.clip.id}.mp4`; vid.loop = true; } }); }
+    else { o.v.style.removeProperty('--sg'); o.v.append(h('span', { class: 'none' }, c === 'HOUSE' ? 'no winner yet' : (o.cv ? 'unmade here' : 'no stake in this poem'))); }
+    o.v.append(h('span', { class: 'code' }, c));
+    if (c !== 'HOUSE' && o.cv != null) o.v.append(h('span', { class: 'cov' }, Math.round(100 * o.cv) + '%'));
+    if (house[poem] === c) o.v.append(h('span', { class: 'crown' }, 'WINS ' + poem));
+  });
+  const speaking = D.lines.some(l => t >= l.t0 && t < l.t1);
+  Object.entries(cells).forEach(([c, o]) => {                                     // each film's real clip, in step with the voice, heard only if you ask
+    const v = o.vid, s = o.s; if (!v || !s) return;
+    const want = (s.clip.in || 0) + ((t - s.t0) % Math.max(.5, s.clip.dur || v.duration || 10));
+    if (!v.dataset.fell && v.readyState >= 1 && Math.abs(v.currentTime - want) > .4) try { v.currentTime = want; } catch (e) {}
+    if (!A.paused && v.paused) v.play().catch(() => {}); if (A.paused && !v.paused) v.pause();
+    const on = !!heard[c] && !s.mute; v.muted = !on; v.volume = on ? (speaking ? .22 : .7) : 0;
+  });
+  const l = D.lines.find(x => t >= x.t0 && t < x.t1 + .6);
+  $('cap').textContent = l ? l.text : '';
+  document.querySelectorAll('.row .reel .rph').forEach(p => p.style.left = (100 * t / D.duration) + '%');
+}
+function award(c) {
+  house[poem] = house[poem] === c ? undefined : c; if (!house[poem]) delete house[poem];
+  store.set('cineosis.house.v1', house); wall(); ctrl(); frame(true); board(); houseRow();
+}
+function houseRow() {
+  const hw = $('hw'); hw.replaceChildren(...D.films.map(f => h('div', { class: house[f.n] ? 'set' : '', title: f.title }, f.n, h('b', {}, house[f.n] || '·'))));
+  const n = Object.keys(house).length, tally = {}; Object.values(house).forEach(c => tally[c] = (tally[c] || 0) + 1);
+  $('houseTag').textContent = `${n} of 14 poems awarded` + (n ? ' · ' + Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([c, k]) => `${c} ${k}`).join(' · ') : '');
+}
+$('toFloor').onclick = () => {
+  const hs = houseSeats(); if (!hs.length) { $('houseMsg').textContent = 'Award at least one poem first.'; return; }
+  const F = store.get('floor.seats', {}); let n = 0;
+  D.beats.forEach(b => { let best = null, ov = 0; hs.forEach(s => { const o = Math.min(b.t1, s.t1) - Math.max(b.t0, s.t0); if (o > ov) { ov = o; best = s; } }); if (best) { F[b.id] = { id: best.clip.id, title: best.clip.title, year: best.clip.year, thumb: best.clip.thumb, video: best.clip.video, in: 0, score: best.clip.score, fit: best.clip.fit }; n++; } });
+  store.set('floor.seats', F); $('houseMsg').textContent = `${n} beats of the floor now hold the house cut. Open the cutting room floor, Tempest, CUT or WAG to use it.`;
+};
+$('hJSON').onclick = () => download('wygwyl-HOUSE.cineosis-edl.json', edlJSON(houseSeats(), 'HOUSE'), 'application/json');
+$('hCMX').onclick = () => download('wygwyl-HOUSE.edl', edlCMX(houseSeats(), 'HOUSE'), 'text/plain');
+addEventListener('keydown', e => { if (e.key === ' ' && !e.target.closest?.('button,input')) { e.preventDefault(); toggle(); } });
+addEventListener('storage', e => { if (/^cineosis\.(film|stake|house)/.test(e.key || '')) { load(); board(); wall(); frame(true); houseRow(); } });
+addEventListener('focus', () => { load(); board(); frame(true); houseRow(); });
+(function loop() { if (D) frame(false); requestAnimationFrame(loop); })();
+fetch('kernel-data.json').then(r => r.json()).then(d => { D = d; D.films.forEach(f => { const ls = D.lines.filter(l => l.film === f.n); f.p0 = ls.length ? ls[0].t0 : f.t0; f.p1 = ls.length ? ls.at(-1).t1 : f.t1; }); A.src = d.audio; load(); board(); houseRow(); pick('01'); });
+</script>
+</body></html>

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>P4 Audition · bet studio</title>
+<link rel="stylesheet" href="kernel.css?v=6">
+<style>
+  #ring{ flex:1 1 auto; }
+  #bout{ display:grid; grid-template-columns:1fr 1fr; gap:3px; background:var(--k); flex:1 1 auto; min-height:0; position:relative; }
+  #bout.ghost{ grid-template-columns:1fr; }
+  .corner{ background:var(--k); position:relative; display:flex; flex-direction:column; min-height:0; }
+  .corner .v{ flex:1 1 auto; min-height:0; display:flex; align-items:center; justify-content:center; position:relative; }
+  .corner video,.corner img{ width:100%; height:100%; object-fit:contain; }
+  .corner .who{ flex:0 0 auto; background:var(--w); padding:0 0 0 10px; display:grid; grid-template-columns:auto 1fr auto auto; gap:10px; align-items:center; border-top:6px solid var(--sg,var(--k)); }
+  .corner .who .mu{ height:100%; min-height:34px; padding:0 12px; border-left:3px solid var(--k); font-size:16px; }
+  .corner .who .mu.off{ background:var(--k); color:var(--w); text-decoration:line-through; }
+  .corner .v .sgt{ position:absolute; left:0; bottom:0; background:var(--sg); color:#111; font-size:11px; font-weight:700; padding:2px 7px; }
+  .corner .who .side{ font-weight:700; font-size:22px; line-height:1; }
+  .corner .who .t{ font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .corner .who .n{ font-size:11px; color:var(--g); white-space:nowrap; }
+  .corner .bar{ height:6px; background:var(--lg); } .corner .bar i{ display:block; height:100%; background:var(--k); }
+  #L .side{ color:var(--aA); } #R .side{ color:var(--aB); }
+  #bout.ghost #R{ position:absolute; inset:0; opacity:.5; pointer-events:none; }
+  #bout.ghost #R .who{ display:none; }
+  #lineBand{ flex:0 0 auto; padding:8px 12px; font-size:17px; border-bottom:3px solid var(--k); display:flex; gap:12px; align-items:baseline; }
+  #lineBand .mini{ margin-left:auto; white-space:nowrap; }
+  #queue{ flex:0 0 auto; display:flex; gap:4px; padding:6px; border-top:3px solid var(--k); overflow-x:auto; }
+  #queue .q{ flex:0 0 64px; height:48px; border:3px solid var(--k); position:relative; cursor:pointer; background:var(--lg); }
+  #queue .q img{ width:100%; height:100%; object-fit:cover; }
+  #queue .q.lost{ opacity:.25; } #queue .q.champ{ border-color:var(--aA); } #queue .q.chal{ border-color:var(--aB); }
+  #queue .q span{ position:absolute; left:0; top:0; font-size:9px; background:var(--w); padding:0 3px; }
+  #side{ flex:0 0 min(300px,26%); }
+  #side .mon{ flex:0 0 auto; aspect-ratio:4/3; }
+  #why{ padding:8px; font-size:12px; }
+  #why .r{ display:flex; justify-content:space-between; border-bottom:2px solid var(--lg); padding:3px 0; }
+</style></head>
+<body>
+<div id="stage">
+  <section class="pane" id="ring"><h2>Bout <span class="tag" id="boutTag"></span></h2>
+    <div id="lineBand"><span id="lineText"></span><span class="mini" id="lineMeta"></span></div>
+    <div id="bout">
+      <div class="corner" id="L"><div class="v" id="Lv"></div><div class="bar"><i id="Lb"></i></div><div class="who"><span class="side">A</span><span class="t" id="Lt"></span><span class="n" id="Ln"></span><button type="button" class="mu" id="Lm" title="This corner’s clip sound">♪</button></div></div>
+      <div class="corner" id="R"><div class="v" id="Rv"></div><div class="bar"><i id="Rb"></i></div><div class="who"><span class="side">B</span><span class="t" id="Rt"></span><span class="n" id="Rn"></span><button type="button" class="mu" id="Rm" title="This corner’s clip sound">♪</button></div></div>
+    </div>
+    <div id="queue"></div></section>
+  <section class="pane" id="side"><h2>The film here <span class="tag" id="monTag"></span></h2><div id="monHost" style="display:flex"></div>
+    <h2 style="border-top:3px solid var(--k)">Why the champion <span class="tag">tally</span></h2><div class="body"><div class="scroll" id="why"></div></div></section>
+</div>
+<script src="kernel.js?v=6"></script>
+<script>
+/* P4 · AUDITION — choosing among plenty is the work.
+   <bout> two candidates over the same line on the same loop · <champion> stays until beaten · <challenger> the
+   next in rank · <reason> the one word you give with every preference. [keep A] [take B] [ghost] [loop] [seat].
+   Invariant: both corners always play the same span of voice; every preference leaves a reason. */
+const REASONS = ['line', 'scene', 'sign', 'craft'];
+const S = { li: 0, pool: [], champ: 0, chal: 1, lost: new Set(), why: {}, reason: 'line', ghost: false, mute: { L: false, R: true } };   // B starts muted: two clip sounds at once is noise
+const $ = id => document.getElementById(id);
+const line = () => K.film.lines[S.li];
+
+K.boot({
+  code: 'P4', name: 'Audition', claim: 'choosing is the work: two clips, one line, the same loop, until one is left',
+  verbs: [
+    { l: 'A', v: 'keep A', tip: 'The champion (A) stays; the challenger is out', do: () => prefer('A') },
+    { l: 'B', v: 'take B', tip: 'The challenger (B) becomes champion', do: () => prefer('B') },
+    { l: 'C', v: 'ghost', tip: 'Lay B over A, half visible', do: ghost },
+    { l: 'D', v: 'loop', tip: 'Loop the line under both', do: loop },
+    { l: 'E', v: 'seat', tip: 'Seat the champion on the line', do: seat },
+  ],
+  help: { bet: 'There are already too many candidates. The scarce thing is judgment, so this studio is a tournament that makes each comparison honest and fast and leaves a reason behind.', inv: 'Both corners always play the same span of voice. Every preference records a reason.',
+    keys: [['← →', 'previous or next line'], ['1–4', 'reason: line · scene · sign · craft']] },
+  keys: { ArrowLeft: () => go(S.li - 1), ArrowRight: () => go(S.li + 1), '1': () => reason(0), '2': () => reason(1), '3': () => reason(2), '4': () => reason(3) },
+  space: loop,
+}).then(() => {
+  K.tools(REASONS.map((r, i) => ({ t: r, id: 'rs-' + r, tip: `Reason ${i + 1}: it ${['carries the line', 'holds the scene', 'reads the sign', 'is well made'][i]}`, on: r === S.reason, do: () => reason(i) })));
+  K.monitor($('monHost'));
+  K.on('film', () => go(0)); K.on('goto', l => go(K.film.lines.indexOf(l)));
+  K.on('tick', t => { $('monTag').textContent = K.fmt(t); const r = K.range(); if (r) { const p = Math.max(0, Math.min(1, (t - r.t0) / (r.t1 - r.t0))); $('Lb').style.width = $('Rb').style.width = (100 * p) + '%'; } });
+  ['L', 'R'].forEach(sd => { const b = $(sd + 'm'); const ui = () => b.classList.toggle('off', S.mute[sd]); b.onclick = () => { S.mute[sd] = !S.mute[sd]; ui(); K.log('sound', `${sd === 'L' ? 'A' : 'B'} ${S.mute[sd] ? 'muted' : 'audible'}`); }; ui(); });
+  K.on('tick', t => ['L', 'R'].forEach(sd => { const v = $(sd + 'v').querySelector('video'), c = S.pool[sd === 'L' ? S.champ : S.chal]; if (v && c) K.drive(v, c, { t0: line().t0 - .2, mute: S.mute[sd] }, t); }));
+  K.on('loop', n => $('boutTag').textContent = `pass ${n + 1}`);
+  go(0);
+});
+
+function go(i) {
+  if (i >= K.film.lines.length && K.advance()) return; S.li = Math.max(0, Math.min(K.film.lines.length - 1, i));
+  const b = K.beatAt((line().t0 + line().t1) / 2) || K.beatAt(line().t0);
+  S.pool = b ? K.cands(b.id) : []; S.champ = 0; S.chal = 1; S.lost = new Set(); S.why = {};
+  const seated = K.ledger.at((line().t0 + line().t1) / 2); if (seated) { const k = S.pool.findIndex(c => c.id === seated.clip.id); if (k > 0) { S.champ = k; S.chal = k === 1 ? 0 : 1; } }
+  $('lineText').textContent = line().text; $('lineMeta').textContent = `${K.film.n} · L${line().n} · beat ${b?.id ?? '–'} · ${S.pool.length} in the pool`;
+  draw(); loop(true);
+}
+function corner(side, c) {
+  const v = $(side + 'v'); v.replaceChildren(); if (!c) { $(side + 't').textContent = '—'; $(side + 'n').textContent = ''; return; }
+  const pv = K.clipVideo(c); pv.dataset.side = side; v.append(pv, K.h('span', { class: 'sgt' }, `${K.signOf(c).symbol} ${K.signOf(c).name}`));
+  v.dataset.clip = c.id; K.clips.set(c.id, c); $(side).style.setProperty('--sg', K.signOf(c).col);
+  $(side + 't').textContent = `${c.title}${c.year ? ' · ' + c.year : ''}`;
+  $(side + 'n').textContent = `#${S.pool.indexOf(c) + 1} · fit ${c.fit} · ${c.cat}`;
+}
+function draw() {
+  corner('L', S.pool[S.champ]); corner('R', S.pool[S.chal]);
+  const q = $('queue'); q.replaceChildren(); S.pool.forEach(c => K.clips.set(c.id, c));
+  S.pool.forEach((c, i) => q.append(K.h('div', { class: 'q' + (S.lost.has(i) ? ' lost' : '') + (i === S.champ ? ' champ' : '') + (i === S.chal ? ' chal' : ''), 'data-clip': c.id, style: `box-shadow:inset 0 -5px 0 ${K.signOf(c).col}`, title: `${i + 1} · ${c.title} · ${c.verdict} ${c.fit}`, onclick: () => { if (i !== S.champ) { S.chal = i; draw(); } } },
+    K.h('img', { src: c.thumb, alt: '' }), K.h('span', {}, i + 1))));
+  const left = S.pool.filter((_, i) => i !== S.champ && !S.lost.has(i)).length;
+  $('boutTag').textContent = left ? `${left} challengers left` : 'the champion stands · E to seat';
+  const w = $('why'); w.replaceChildren();
+  const c = S.pool[S.champ]; if (c) w.append(K.h('div', { class: 'mini', style: 'margin-bottom:6px' }, `A · ${c.title}`));
+  REASONS.forEach(r => w.append(K.h('div', { class: 'r' }, K.h('span', {}, r), K.h('b', {}, String(S.why[r] || 0)))));
+  if (c) w.append(K.h('div', { class: 'mini', style: 'margin-top:8px' }, `ranker: line ${c.fl} · scene ${c.fs} · sign ${c.sign} · craft ${c.craft}`));
+}
+function nextChallenger() { for (let i = 0; i < S.pool.length; i++) if (i !== S.champ && !S.lost.has(i)) return i; return -1; }
+function prefer(side) {
+  if (S.chal < 0 || !S.pool[S.chal]) return K.log('prefer', 'no challenger left');
+  S.why[S.reason] = (S.why[S.reason] || 0) + 1;
+  if (side === 'A') { S.lost.add(S.chal); K.log('keep A', `${S.pool[S.champ].title} over ${S.pool[S.chal].title} · ${S.reason}`); }
+  else { S.lost.add(S.champ); K.log('take B', `${S.pool[S.chal].title} over ${S.pool[S.champ].title} · ${S.reason}`); S.champ = S.chal; }
+  S.chal = nextChallenger(); draw();
+}
+function ghost() { S.ghost = !S.ghost; $('bout').classList.toggle('ghost', S.ghost); K.log('ghost', S.ghost ? 'B over A at half' : 'side by side'); }
+function loop(quiet) { K.play(line().t0 - .2, line().t1 + .35, { loop: true }); if (quiet !== true) K.log('loop', `L${line().n} under both corners`); }
+function reason(i) { S.reason = REASONS[i]; REASONS.forEach(r => $('rs-' + r)?.classList.toggle('on', r === S.reason)); }
+function seat() {
+  const c = S.pool[S.champ]; if (!c) return;
+  const tally = REASONS.filter(r => S.why[r]).map(r => `${r} ${S.why[r]}`).join(', ');
+  K.ledger.seat({ t0: line().t0, t1: line().t1, clip: c, why: `won ${S.lost.size} bouts${tally ? ' · ' + tally : ''}` });
+  K.log('seat', `${c.title} on L${line().n} after ${S.lost.size} bouts`);
+  setTimeout(() => go(S.li + 1), 500);
+}
+</script>
+</body></html>

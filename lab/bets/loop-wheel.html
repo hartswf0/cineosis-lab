@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>P7 Loop Wheel · bet studio</title>
+<link rel="stylesheet" href="kernel.css?v=6">
+<style>
+  #wheelPane{ flex:1 1 auto; }
+  #wheel{ position:absolute; inset:0; }
+  #hub{ position:absolute; left:50%; top:50%; width:min(46%,480px); aspect-ratio:4/3; transform:translate(-50%,-54%); background:var(--k); border:3px solid var(--k); box-shadow:6px 6px 0 var(--k); }
+  #hub video,#hub img{ width:100%; height:100%; object-fit:cover; display:block; }
+  #hub .pass{ position:absolute; left:0; top:0; background:var(--w); font-size:11px; padding:1px 6px; font-weight:700; }
+  #hub .meter{ position:absolute; left:0; right:0; bottom:0; height:6px; background:rgba(255,255,255,.35); } #hub .meter i{ display:block; height:100%; background:var(--w); }
+  #words{ position:absolute; left:6%; right:6%; bottom:14px; text-align:center; font-size:clamp(15px,2vw,22px); line-height:1.35; }
+  #words .wd.now{ background:var(--k); color:var(--w); }
+  .spoke{ position:absolute; width:clamp(64px,9vw,120px); aspect-ratio:4/3; margin:0; transform:translate(-50%,-50%); border:3px solid var(--k); background:var(--k); cursor:pointer; transition:left .35s,top .35s,opacity .35s; }
+  .spoke img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .spoke.cur{ border-color:var(--hi); box-shadow:0 0 0 3px var(--hi); }
+  .spoke.seated::after{ content:'■'; position:absolute; right:2px; top:-2px; color:var(--w); font-size:14px; }
+  .spoke span{ position:absolute; left:0; top:0; background:var(--w); font-size:9px; padding:0 3px; }
+  #side{ flex:0 0 min(300px,26%); }
+  #side .mon{ flex:0 0 auto; aspect-ratio:4/3; }
+  #lines{ font-size:12px; }
+  #lines .l{ padding:5px 8px; border-bottom:2px solid var(--lg); cursor:pointer; display:grid; grid-template-columns:22px 1fr 12px; gap:6px; }
+  #lines .l.on{ background:var(--k); color:var(--w); }
+  #lines .l i{ width:10px; height:10px; border:2px solid currentColor; align-self:center; }
+  #lines .l i.full{ background:currentColor; }
+</style></head>
+<body>
+<div id="stage">
+  <section class="pane" id="wheelPane"><h2>Wheel <span class="tag" id="wTag"></span></h2><div class="body"><div id="wheel"><div id="hub"></div><div id="words"></div></div></div></section>
+  <section class="pane" id="side"><h2>The film <span class="tag" id="monTag"></span></h2><div id="monHost" style="display:flex"></div>
+    <h2 style="border-top:3px solid var(--k)">Lines <span class="tag" id="linesTag"></span></h2><div class="body"><div class="scroll" id="lines"></div></div></section>
+</div>
+<script src="kernel.js?v=6"></script>
+<script>
+/* P7 · LOOP WHEEL — watching is the interface.
+   <loop> the line on repeat, never interrupted · <wheel> the candidates, one under the loop per pass · <hold>
+   the wheel stopped on one. [loop] [spin] [hold] [next] [seat].
+   Invariant: every candidate is seen against the words, never alone; browsing never interrupts the voice. */
+const S = { li: 0, pool: [], cur: 0, spin: true, pass: 0 };
+const $ = id => document.getElementById(id);
+const line = () => K.film.lines[S.li];
+
+K.boot({
+  code: 'P7', name: 'Loop Wheel', claim: 'watching is the interface: the line loops, the clips turn under it, stop on the one',
+  verbs: [
+    { l: 'A', v: 'loop', tip: 'Start the line looping', do: loop },
+    { l: 'B', v: 'spin', tip: 'Turn the wheel one clip per pass', do: () => { S.spin = true; K.log('spin', 'one clip per pass'); if (!K.playing()) loop(); } },
+    { l: 'C', v: 'hold', tip: 'Stop the wheel on this clip', do: () => { S.spin = false; K.log('hold', S.pool[S.cur]?.title || ''); } },
+    { l: 'D', v: 'next', tip: 'Next line', do: () => go(S.li + 1, true) },
+    { l: 'E', v: 'seat', tip: 'Seat the clip under the loop, then turn to the next line', do: seat },
+  ],
+  help: { bet: 'You only judge a film by watching it play. The line loops, the candidates turn under it one per pass, and you stop the wheel on the one that works.', inv: 'Every candidate is seen against the words, never alone. Browsing never interrupts the voice.',
+    keys: [['← →', 'turn the wheel by hand'], ['↑ ↓', 'previous or next line'], ['click a clip', 'put it under the loop']] },
+  keys: { ArrowLeft: () => turn(-1), ArrowRight: () => turn(1), ArrowUp: () => go(S.li - 1, K.playing()), ArrowDown: () => go(S.li + 1, K.playing()) },
+  space: () => K.playing() ? K.pause() : loop(),
+}).then(() => {
+  K.monitor($('monHost'));
+  K.on('film', () => go(0, K.playing())); K.on('goto', l => go(K.film.lines.indexOf(l), K.playing())); K.on('ledger', drawLines);
+  K.on('tick', t => { const v = $('hub').querySelector('video'), c = S.pool[S.cur]; if (v && c) K.drive(v, c, { t0: line().t0 - .15 }, t); });
+  K.on('loop', () => { S.pass++; if (S.spin) turn(1); else $('hub').querySelector('.pass').textContent = `held · pass ${S.pass}`; });
+  K.on('tick', t => {
+    $('monTag').textContent = K.fmt(t);
+    const r = K.range(); if (r) $('hub').querySelector('.meter i').style.width = Math.max(0, Math.min(100, 100 * (t - r.t0) / (r.t1 - r.t0))) + '%';
+    const w = K.wordAt(t); document.querySelectorAll('#words .wd.now').forEach(e => e.classList.remove('now')); if (w) document.querySelector(`#words .wd[data-i="${w.i}"]`)?.classList.add('now');
+  });
+  addEventListener('resize', place);
+  go(0);
+});
+
+function go(i, play) {
+  if (i >= K.film.lines.length && K.advance()) return; S.li = Math.max(0, Math.min(K.film.lines.length - 1, i)); S.pass = 0;
+  const b = K.beatAt((line().t0 + line().t1) / 2) || K.beatAt(line().t0);
+  S.pool = (b ? K.cands(b.id) : []).slice(0, 10);
+  const seated = K.ledger.at((line().t0 + line().t1) / 2); S.cur = Math.max(0, S.pool.findIndex(c => c.id === seated?.clip.id));
+  $('words').replaceChildren(...line().words.map(w => [K.h('span', { class: 'wd', 'data-i': w.i }, w.w), ' ']).flat());
+  const wh = $('wheel'); wh.querySelectorAll('#wheel .spoke').forEach(e => e.remove());
+  S.pool.forEach((c, k) => wh.append(K.h('div', { class: 'spoke', 'data-k': k, 'data-clip': c.id, style: `border-color:${K.signOf(c).col}`, title: `${k + 1} · ${c.title} · ${c.cat} · fit ${c.fit}`, onclick: () => { S.cur = k; S.spin = false; hub(); place(); } }, K.h('img', { src: c.thumb, alt: '' }), K.h('span', {}, k + 1))));
+  hub(); place(); drawLines();
+  $('wTag').textContent = `${K.film.n} · L${line().n} · ${S.pool.length} on the wheel`;
+  if (play) loop(true);
+}
+function hub() {
+  const c = S.pool[S.cur], h = $('hub'); h.replaceChildren();
+  if (c) { h.append(K.clipVideo(c)); h.dataset.clip = c.id; K.clips.set(c.id, c); h.style.borderColor = K.signOf(c).col; h.style.boxShadow = `6px 6px 0 ${K.signOf(c).col}`; } h.append(K.h('span', { class: 'pass' }, c ? `${S.cur + 1}/${S.pool.length} · ${c.title.slice(0, 40)}` : 'no clips'), K.h('span', { class: 'meter' }, K.h('i')));
+}
+function place() {
+  const n = S.pool.length; if (!n) return;
+  const seated = K.ledger.at((line().t0 + line().t1) / 2)?.clip.id;
+  document.querySelectorAll('#wheel .spoke').forEach(e => {
+    const k = +e.dataset.k, a = -Math.PI / 2 + 2 * Math.PI * ((k - S.cur + n) % n) / n;
+    e.style.left = (50 + 42 * Math.cos(a)) + '%'; e.style.top = (40 + 30 * Math.sin(a)) + '%';
+    e.classList.toggle('cur', k === S.cur); e.classList.toggle('seated', S.pool[k].id === seated);
+    e.style.opacity = k === S.cur ? 0 : 1;
+  });
+}
+function turn(d) { const n = S.pool.length; if (!n) return; S.cur = (S.cur + d + n) % n; hub(); place(); K.log('turn', `${S.cur + 1} · ${S.pool[S.cur].title} · ${S.pool[S.cur].cat}`); }
+function loop(quiet) { K.play(line().t0 - .15, line().t1 + .45, { loop: true }); if (quiet !== true) K.log('loop', `L${line().n} · ${S.spin ? 'spinning' : 'held'}`); }
+function seat() {
+  const c = S.pool[S.cur]; if (!c) return;
+  K.ledger.seat({ t0: line().t0, t1: line().t1, clip: c, why: `stopped the wheel on pass ${S.pass + 1}` });
+  K.log('seat', `${c.title} on L${line().n} · pass ${S.pass + 1}`);
+  S.spin = true; setTimeout(() => go(S.li + 1, true), 350);
+}
+function drawLines() {
+  const box = $('lines'); box.replaceChildren(); let full = 0;
+  K.film.lines.forEach((l, i) => { const cv = K.ledger.cover(l.t0, l.t1); if (cv > .9) full++;
+    box.append(K.h('div', { class: 'l' + (i === S.li ? ' on' : ''), onclick: () => go(i, K.playing()) }, K.h('b', {}, l.n), K.h('span', {}, l.text.slice(0, 60)), K.h('i', { class: cv > .9 ? 'full' : '' }))); });
+  $('linesTag').textContent = `${full}/${K.film.lines.length} seated`;
+  box.querySelector('.on')?.scrollIntoView({ block: 'nearest' });
+}
+</script>
+</body></html>
