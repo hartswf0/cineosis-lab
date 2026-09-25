@@ -55,7 +55,7 @@ K.boot({
   space: () => K.playing() ? K.pause() : loop(),
 }).then(() => {
   K.monitor($('monHost'));
-  K.on('film', () => go(0)); K.on('ledger', drawLines);
+  K.on('film', () => go(0, K.playing())); K.on('goto', l => go(K.film.lines.indexOf(l), K.playing())); K.on('ledger', drawLines);
   K.on('loop', () => { S.pass++; if (S.spin) turn(1); else $('hub').querySelector('.pass').textContent = `held · pass ${S.pass}`; });
   K.on('tick', t => {
     $('monTag').textContent = K.fmt(t);
@@ -67,7 +67,7 @@ K.boot({
 });
 
 function go(i, play) {
-  S.li = Math.max(0, Math.min(K.film.lines.length - 1, i)); S.pass = 0;
+  if (i >= K.film.lines.length && K.advance()) return; S.li = Math.max(0, Math.min(K.film.lines.length - 1, i)); S.pass = 0;
   const b = K.beatAt((line().t0 + line().t1) / 2) || K.beatAt(line().t0);
   S.pool = (b ? K.cands(b.id) : []).slice(0, 10);
   const seated = K.ledger.at((line().t0 + line().t1) / 2); S.cur = Math.max(0, S.pool.findIndex(c => c.id === seated?.clip.id));

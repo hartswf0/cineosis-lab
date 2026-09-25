@@ -69,14 +69,14 @@ K.boot({
   space: () => S.br ? (K.playing() ? K.pause() : K.play(S.br[0] - .1, S.br[1] + .2)) : K.toggle(),
 }).then(() => {
   K.monitor($('monHost'));
-  K.on('film', () => { S.li = 0; S.br = null; draw(); }); K.on('ledger', draw);
+  K.on('film', () => { S.li = 0; S.br = null; draw(); }); K.on('goto', l => pick(K.film.lines.indexOf(l))); K.on('ledger', draw);
   K.on('tick', t => { $('monTag').textContent = K.fmt(t); const w = K.wordAt(t); document.querySelectorAll('.wd2.now').forEach(e => e.classList.remove('now')); if (w) document.querySelector(`.wd2[data-i="${w.i}"]`)?.classList.add('now'); const l = K.lineAt(t); if (l && K.playing() && l.film === K.film.n && l !== line()) { S.li = K.film.lines.indexOf(l); drawLine(); drawPoem(); } });
   document.querySelectorAll('.rung .lbl').forEach(l => l.onclick = () => level(+l.parentElement.dataset.lv));
   draw();
 });
 
 function level(n) { S.lv = Math.max(0, Math.min(2, n)); document.querySelectorAll('.rung').forEach(r => r.classList.toggle('on', +r.dataset.lv === S.lv)); K.log(['suite', 'poem', 'line'][S.lv], ['the whole 24 minutes', `${K.film.title}`, `line ${line().n}`][S.lv]); }
-function pick(i) { S.li = Math.max(0, Math.min(K.film.lines.length - 1, i)); S.br = [line().t0, line().t1]; K.seek(line().t0); draw(); }
+function pick(i) { if (i >= K.film.lines.length && K.advance()) return; S.li = Math.max(0, Math.min(K.film.lines.length - 1, i)); S.br = [line().t0, line().t1]; K.seek(line().t0); draw(); }
 function draw() { drawSuite(); drawPoem(); drawLine(); drawCands(); level(S.lv); $('ladTag').textContent = `${K.fmt(K.film.p0)}–${K.fmt(K.film.p1)} · ${K.film.lines.length} lines · ${K.film.beats.length} beats`; }
 
 function drawSuite() {

@@ -54,7 +54,7 @@ K.boot({
   code: 'P8', name: 'Template Press', claim: 'make the rule once, press it over every beat; the machine drafts, you correct',
   verbs: [
     { l: 'A', v: 'draft', tip: 'Press the template over the selected beat', do: () => { const n = draft(beat()); K.log('draft', `beat ${beat().id}: ${n} slots drafted`); } },
-    { l: 'B', v: 'press all', tip: 'Press every beat of this poem', do: () => { let n = 0; K.film.beats.forEach(b => n += draft(b)); K.log('press all', `${n} slots drafted across ${K.film.beats.length} beats`); } },
+    { l: 'B', v: 'press film', tip: 'Press every beat of the whole film, all 14 poems (your seats are never touched)', do: () => { let n = 0; K.ledger.batch(() => K.data.films.forEach(f => { const keep = K.film; K.film = f; f.beats.forEach(b => n += draft(b)); K.film = keep; }), 'press film'); drawBeds(); K.log('press film', `${n} slots drafted across ${K.data.beats.length} beats · ${Math.round(100 * K.ledger.whole())}% of the film made`); } },
     { l: 'C', v: 'accept', tip: 'Accept the machine’s seats in the selected beat', do: accept },
     { l: 'D', v: 'override', tip: 'Replace the selected slot with the next clip of its role', do: override },
     { l: 'E', v: 'wipe', tip: 'Remove every machine seat in this poem (yours stay)', do: () => { K.ledger.clear(K.film.t0, K.film.t1, s => s.by === 'machine'); K.log('wipe', 'machine drafts removed; your seats stayed'); } },
@@ -67,7 +67,7 @@ K.boot({
   K.tools([{ t: '+ slot', do: () => { if (S.tpl.length < 5) { S.tpl.push('any'); saveT(); drawTpl(); } } }, { t: '− slot', do: () => { if (S.tpl.length > 1) { S.tpl.pop(); saveT(); drawTpl(); } } }],
     [{ t: 'no repeats', id: 'div', on: true, tip: 'Diversity: a clip is used once per poem', do: () => { S.diverse = !S.diverse; $('div').classList.toggle('on', S.diverse); } }]);
   K.monitor($('monHost'));
-  K.on('film', () => { S.bi = 0; S.sel = null; drawBeds(); }); K.on('ledger', () => { drawBeds(); });
+  K.on('film', () => { S.bi = 0; S.sel = null; drawBeds(); }); K.on('goto', l => { const i = K.film.beats.findIndex(b => l.t0 >= b.t0 && l.t0 < b.t1); if (i >= 0) { S.bi = i; S.sel = null; drawBeds(); } }); K.on('ledger', () => { drawBeds(); });
   K.on('tick', t => $('monTag').textContent = K.fmt(t));
   drawTpl(); drawBeds();
 });

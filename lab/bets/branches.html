@@ -70,7 +70,7 @@ K.boot({
     keys: [['click a strip', 'switch to that version and jump there'], ['← →', 'previous or next line'], ['1–9', 'seat a candidate into the active version']] },
   keys: { ArrowLeft: () => pick(S.li - 1), ArrowRight: () => pick(S.li + 1), ...Object.fromEntries([1,2,3,4,5,6,7,8,9].map(n => [String(n), () => seatInto(n - 1)])) },
 }).then(() => {
-  K.on('film', () => { S.active = 'trunk'; pick(0); }); K.on('ledger', draw);
+  K.on('film', () => { S.active = 'trunk'; pick(0); }); K.on('goto', l => pick(K.film.lines.indexOf(l))); K.on('ledger', draw);
   let cur;
   K.on('tick', t => {
     $('monTag').textContent = `${nameOf(S.active)} · ${K.fmt(t)}`;
@@ -83,7 +83,7 @@ K.boot({
 });
 
 const X = t => 100 * (t - K.film.p0) / (K.film.p1 - K.film.p0);
-function pick(i) { S.li = Math.max(0, Math.min(K.film.lines.length - 1, i)); if (!K.playing()) K.seek(line().t0); draw(); }
+function pick(i) { if (i >= K.film.lines.length && K.advance()) return; S.li = Math.max(0, Math.min(K.film.lines.length - 1, i)); if (!K.playing()) K.seek(line().t0); draw(); }
 function draw() {
   if (S.active !== 'trunk' && !B.some(b => b.id === S.active && b.film === K.film.n)) S.active = 'trunk';
   const tree = $('tree'); tree.replaceChildren();

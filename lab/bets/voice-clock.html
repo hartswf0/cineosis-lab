@@ -75,13 +75,13 @@ K.boot({
   space: () => K.playing() ? K.pause() : K.play(Math.max(line().t0 - .2, Math.min(K.now(), line().t1 - .1)), line().t1 + .4),
 }).then(() => {
   K.monitor($('monHost'));
-  K.on('film', () => go(0)); K.on('ledger', () => { S.pending = []; draw(); });
+  K.on('film', () => go(0)); K.on('goto', l => go(K.film.lines.indexOf(l))); K.on('ledger', () => { S.pending = []; draw(); });
   K.on('tick', t => { $('ph').style.left = `calc(14px + (100% - 28px) * ${parseFloat(X(t)) / 100})`; $('monTag').textContent = K.fmt(t); const i = segAt(t); if (i >= 0 && i !== S.seg && K.playing()) { S.seg = i; drawPic(); } });
   $('wave').addEventListener('click', e => { const r = e.currentTarget.getBoundingClientRect(), [a, b] = span(); K.seek(a + (b - a) * (e.clientX - r.left) / r.width); S.seg = Math.max(0, segAt(K.now())); drawPic(); drawCands(); });
   go(0);
 });
 
-function go(i) { const n = K.film.lines.length; S.li = Math.max(0, Math.min(n - 1, i)); S.seg = 0; S.cand = 0; S.pending = []; K.stopRange(); K.seek(line().t0); draw(); }
+function go(i) { if (i >= K.film.lines.length && K.advance()) return; const n = K.film.lines.length; S.li = Math.max(0, Math.min(n - 1, i)); S.seg = 0; S.cand = 0; S.pending = []; K.stopRange(); K.seek(line().t0); draw(); }
 function draw() { drawWave(); drawPic(); drawCands(); }
 function drawWave() {
   const l = line(), w = $('wave'), tk = $('ticks'); w.replaceChildren(); tk.replaceChildren();
@@ -123,7 +123,7 @@ function seat() {
   const g = underHead(), c = cands()[S.cand]; if (!g || !c) return;
   K.ledger.seat({ t0: g.t0, t1: g.t1, clip: c, snap: false, why: `cut on breath · ${(g.t1 - g.t0).toFixed(2)} s` });
   K.log('seat', `${c.title} holds ${K.fmt(g.t0)}–${K.fmt(g.t1)}`);
-  const nx = segments()[S.seg + 1]; if (nx) { S.seg++; K.seek(nx.t0 + .01); drawPic(); }
+  const nx = segments()[S.seg + 1]; if (nx) { S.seg++; K.seek(nx.t0 + .01); drawPic(); } else setTimeout(() => go(S.li + 1), 400);   // the line is made: on to the next
 }
 function hold() {
   underHead(); const gs = segments(), g = gs[S.seg], s = g && K.ledger.at((g.t0 + g.t1) / 2); if (!s) return K.log('hold', 'seat this segment first');

@@ -3,8 +3,9 @@
  *   <word>   2,799 words on that clock, from the readings' word timings
  *   <beat>   88 beats, each with a ranked pool of clips
  *   <seat>   {t0, t1, clip, by, bet, why}: a span of the clock holds a clip
- *   <ledger> the one list of seats every studio reads and writes (I2), live across tabs, mirrored into the
- *            cutting room floor's beat seats so the floor, Tempest, CUT and WAG see the same decisions
+ *   <film>   each bet's own list of seats: a wager is a whole film made one way (I2). Films never mix; the wager
+ *            board screens them side by side and the house cut takes the winner of each poem
+ *   <stake>  what a bet has cost: active time in its studio and the decisions made
  * Invariants the kernel enforces: every seat traces to words (I3: its span is snapped to word edges), one clip at
  * any instant (I4: a new seat trims what it overlaps), and the ranking only advises (I5: machine seats are marked
  * until a person accepts them).
@@ -14,7 +15,7 @@
   'use strict';
   const HERE = document.currentScript?.src || location.href;
   const U = p => new URL(p, HERE).href;
-  const LKEY = 'cineosis.ledger.v1', FKEY = 'floor.seats';
+  const FILMKEY = c => `cineosis.film.${c}.v1`, STAKEKEY = c => `cineosis.stake.${c}.v1`;
   const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* blocked */ } } };
   const ev = {};
   const K = window.K = {
@@ -96,35 +97,40 @@
   /* from a word to the end of its phrase: punctuation or a breath */
   K.phraseEnd = w => { const ws = w.line.words; for (let i = w.wi; i < ws.length; i++) { if (/[,.;:!?—]$/.test(ws[i].w) || (ws[i + 1] && ws[i + 1].t0 - ws[i].t1 > .25)) return ws[i].t1; } return ws.at(-1).t1; };
 
-  /* ---------- the ledger ---------- */
+  /* ---------- this bet's film ---------- */
+  K.filmKey = FILMKEY;
+  K.readFilm = code => store.get(FILMKEY(code), []);
   const L = K.ledger = {
-    seats: [],
-    load() { L.seats = store.get(LKEY, []); if (!L.seats.length) L.importFloor(); L.seats.sort((a, b) => a.t0 - b.t0); },
-    save(why) { L.seats.sort((a, b) => a.t0 - b.t0); store.set(LKEY, L.seats); L.mirror(); K.emit('ledger', why); },
+    seats: [], key: null,
+    load() { L.key = FILMKEY(K.code); L.seats = store.get(L.key, null) ?? L.split(); L.seats.sort((a, b) => a.t0 - b.t0); },
+    split() {                                                                     // the first version kept one shared ledger: each bet takes back what it made
+      const mine = store.get('cineosis.ledger.v1', []).filter(s => s.bet === K.code); store.set(L.key, mine); return mine;
+    },
+    save(why) { if (L.quiet) { L.dirty = true; return; } L.seats.sort((a, b) => a.t0 - b.t0); store.set(L.key, L.seats); K.stake.decide(why); K.emit('ledger', why); },
+    batch(fn, why = 'batch') { L.quiet = true; try { fn(); } finally { L.quiet = false; if (L.dirty) { L.dirty = false; L.save(why); } } },   // many seats, one save, one decision
     all: () => L.seats,
     at: t => L.seats.find(s => t >= s.t0 && t < s.t1) || null,
     in: (t0, t1) => L.seats.filter(s => s.t1 > t0 && s.t0 < t1),
     cover(t0, t1) { let c = 0; L.in(t0, t1).forEach(s => c += Math.min(t1, s.t1) - Math.max(t0, s.t0)); return t1 > t0 ? Math.min(1, c / (t1 - t0)) : 0; },
+    whole() { let c = 0, n = 0; K.data.films.forEach(f => { c += L.cover(f.p0, f.p1) * (f.p1 - f.p0); n += f.p1 - f.p0; }); return n ? c / n : 0; },
     seat(o) { const r = K.place(L.seats, o); if (!r) return null; L.seats = r[0]; L.save('seat'); return r[1]; },
     unseat(id) { L.seats = L.seats.filter(s => s.id !== id); L.save('unseat'); },
     clear(t0, t1, pred = () => true) { L.seats = L.seats.filter(s => !(s.t1 > t0 && s.t0 < t1 && pred(s))); L.save('clear'); },
     accept(id) { const s = L.seats.find(x => x.id === id); if (s) { s.by = 'person'; L.save('accept'); } },
-    importFloor() {
-      const F = store.get(FKEY, {}); if (!K.data) return;
-      Object.entries(F).forEach(([bid, c]) => { const b = K.data.byBeat[bid]; if (b && c?.id) L.seats.push({ id: 'f' + bid, t0: b.t0, t1: b.t1, text: K.textOf(b.t0, b.t1), clip: { ...c, loop: K.cands(b.id).some(x => x.id === c.id && x.loop) }, by: 'person', bet: 'floor', why: 'seated on the cutting room floor', at: 0 }); });
-      if (L.seats.length) store.set(LKEY, L.seats);
-    },
-    mirror() {                                                                    // the floor's beat seats follow the ledger
-      const F = store.get(FKEY, {});
-      K.data.beats.forEach(b => {
-        let best = null, ov = 0;
-        L.in(b.t0, b.t1).filter(s => s.by === 'person').forEach(s => { const o = Math.min(b.t1, s.t1) - Math.max(b.t0, s.t0); if (o > ov) { ov = o; best = s; } });
-        if (best) F[b.id] = { id: best.clip.id, title: best.clip.title, year: best.clip.year, thumb: best.clip.thumb, video: best.clip.video, in: 0, score: best.clip.score, fit: best.clip.fit };
-      });
-      store.set(FKEY, F);
-    },
   };
-  addEventListener('storage', e => { if (e.key === LKEY) { L.seats = store.get(LKEY, []); K.emit('ledger', 'elsewhere'); K.log('ledger', 'changed in another studio'); } });
+  addEventListener('storage', e => { if (e.key === L.key) { L.seats = store.get(L.key, []); K.emit('ledger', 'elsewhere'); K.log('film', 'changed in another tab of this bet'); } });
+
+  /* ---------- the stake: what this wager has cost ---------- */
+  K.stake = {
+    s: null,
+    load() { this.s = store.get(STAKEKEY(K.code), { ms: 0, decisions: 0, sessions: 0, started: Date.now() }); this.s.sessions++; this.save(); },
+    decide(why) { if (this.s && why && why !== 'elsewhere') { this.s.decisions++; this.save(); } },
+    save() { store.set(STAKEKEY(K.code), this.s); stakeUI(); },
+  };
+  let lastAct = performance.now(), beats = 0;
+  ['pointerdown', 'keydown'].forEach(n => addEventListener(n, () => { lastAct = performance.now(); }, true));
+  setInterval(() => { const st = K.stake.s; if (!st || document.visibilityState !== 'visible') return; if (performance.now() - lastAct < 60000 || K.playing()) { st.ms += 1000; if (++beats % 10 === 0) K.stake.save(); else stakeUI(); } }, 1000);
+  function stakeUI() { const e = document.getElementById('stake'); if (!e || !K.stake.s || !K.data) return; const m = Math.floor(K.stake.s.ms / 60000); e.innerHTML = `<b>${Math.round(100 * L.whole())}%</b> made · ${m} min · ${K.stake.s.decisions} decisions`; }
 
   /* ---------- clips ---------- */
   const LIVE = new Set(); K.CAP = 8;
@@ -147,7 +153,7 @@
       const s = L.at(t), key = s ? s.id : 'none';
       if (key !== cur) {
         cur = key; mon.replaceChildren();
-        if (s) mon.append(K.media(s.clip, true)); else mon.append(h('span', { class: 'none' }, o.empty || 'unseated'));
+        if (s) mon.append(K.media(s.clip, true)); else mon.append(h('span', { class: 'none' }, o.empty || 'unmade in this bet'));
         mon.append(cap);
       }
       const w = K.wordAt(t);
@@ -181,18 +187,69 @@
     try { const q = new URLSearchParams(location.search); q.set('film', K.film.n); history.replaceState(null, '', '?' + q); } catch (e) { /* file: */ }
     if (!silent) K.emit('film', K.film);
   };
-  function coverage() { document.querySelectorAll('#strip button').forEach(b => { const f = K.filmOf(b.dataset.n); b.querySelector('.cov i').style.width = Math.round(100 * L.cover(f.p0, f.p1)) + '%'; }); }
+  function coverage() { document.querySelectorAll('#strip button').forEach(b => { const f = K.filmOf(b.dataset.n); b.querySelector('.cov i').style.width = Math.round(100 * L.cover(f.p0, f.p1)) + '%'; }); reel(document.getElementById('reel')); if (screenOn) reel(document.querySelector('#screen .reel')); stakeUI(); }
+
+  /* the reel: this bet's whole film on one line, the way back to anywhere in it */
+  function reel(box) {
+    if (!box || !K.data) return; const D = K.duration;
+    box.replaceChildren(...K.data.films.map(f => h('span', { class: 'fb', style: `left:${100 * f.t0 / D}%;width:${100 * (f.t1 - f.t0) / D}%` }, f.n)),
+      ...L.seats.map(s => h('span', { class: 'rs' + (s.by === 'machine' ? ' m' : ''), style: `left:${100 * s.t0 / D}%;width:${Math.max(.08, 100 * (s.t1 - s.t0) / D)}%;background-image:url("${s.clip.thumb}")` })),
+      h('span', { class: 'rph' }));
+  }
+  function reelClick(e) { const r = e.currentTarget.getBoundingClientRect(); K.goto(K.duration * (e.clientX - r.left) / r.width); }
+
+  /* go anywhere: change poem if needed, move the voice, and let the studio select that line */
+  K.goto = t => {
+    const f = K.filmAt(t); if (f.n !== K.film.n) K.setFilm(f.n);
+    const l = K.lineAt(t) || K.data.lines.find(x => x.t0 >= t && x.film === f.n) || f.lines.at(-1);
+    K.seek(t); if (l) K.emit('goto', l, t);
+  };
+  K.nextGap = () => {
+    const t = K.now(), open = x => L.cover(x.t0, x.t1) < .5;
+    const l = K.data.lines.find(x => x.t0 > t + .05 && open(x)) || K.data.lines.find(open);
+    if (!l) return K.log('gap', 'this bet has made the whole film. Screen it (F).');
+    K.goto(l.t0); K.log('gap', `${l.film} · L${l.n} is the next unmade line · ${Math.round(100 * L.whole())}% of the film made`);
+  };
+  /* moving past the last line of a poem goes on to the next poem */
+  K.advance = () => { const i = K.data.films.indexOf(K.film); if (i < K.data.films.length - 1) { K.setFilm(K.data.films[i + 1].n); K.log('next poem', `${K.film.n} ${K.film.title}`); return true; } return false; };
+
+  /* the screening: this bet's film, full screen, from the start of the poem */
+  let screenOn = false;
+  K.screen = from => {
+    let sc = document.getElementById('screen');
+    if (!sc) {
+      sc = h('div', { id: 'screen', role: 'dialog', 'aria-label': 'Screening' },
+        h('div', { class: 'top' }, h('b', {}, K.code), h('span', { class: 'ti' }), h('span', { class: 'sp2' }), h('span', { class: 'ck' }),
+          h('button', { type: 'button', title: 'Previous poem', html: K.icon('prev'), onclick: () => K.screen(K.data.films[Math.max(0, K.data.films.indexOf(K.filmAt(K.now())) - 1)].t0) }),
+          h('button', { type: 'button', title: 'Play or pause', class: 'pp', html: K.icon('pause'), onclick: () => K.toggle() }),
+          h('button', { type: 'button', title: 'Next poem', html: K.icon('next'), onclick: () => K.screen(K.data.films[Math.min(K.data.films.length - 1, K.data.films.indexOf(K.filmAt(K.now())) + 1)].t0) }),
+          h('button', { type: 'button', title: 'Back to the studio (Esc)', class: 'x', html: '<svg viewBox="0 0 18 18" width="18" height="18"><path d="M4 4l10 10M14 4L4 14" stroke="currentColor" stroke-width="2"/></svg>', onclick: () => K.unscreen() })),
+        h('div', { class: 'scr' }), h('div', { class: 'reel', onclick: e => { const r = e.currentTarget.getBoundingClientRect(); K.screen(K.duration * (e.clientX - r.left) / r.width); } }));
+      document.body.append(sc); K.monitor(sc.querySelector('.scr'), { empty: 'unmade' });
+      K.on('tick', t => { if (!screenOn) return; sc.querySelector('.ck').textContent = K.fmt(t); const f = K.filmAt(t); sc.querySelector('.ti').textContent = `${f.n} ${f.title}`; sc.querySelector('.reel .rph').style.left = (100 * t / K.duration) + '%'; });
+      A.addEventListener('play', () => sc.querySelector('.pp').innerHTML = K.icon('pause')); A.addEventListener('pause', () => sc.querySelector('.pp').innerHTML = K.icon('play'));
+    }
+    screenOn = true; sc.classList.remove('hidden'); reel(sc.querySelector('.reel'));
+    K.stopRange(); A.currentTime = from ?? K.film.t0; K.play();
+    { const f = K.filmAt(A.currentTime); sc.querySelector('.ti').textContent = `${f.n} ${f.title}`; sc.querySelector('.ck').textContent = K.fmt(A.currentTime); }
+    K.log('screen', `${K.code} from ${K.fmt(A.currentTime)}`);
+  };
+  K.unscreen = () => { screenOn = false; K.pause(); document.getElementById('screen')?.classList.add('hidden'); };
 
   K.boot = async (o) => {
     K.code = o.code; K.verbs = {};
     document.title = `${o.code} ${o.name} · bet studio`;
     document.body.prepend(
       h('div', { id: 'bar' }, h('span', { class: 'ind' }), h('span', { class: 'bet', html: `<b>${K.esc(o.code)}</b>${K.esc(o.name)}` }), h('span', { class: 'claim' }, o.claim), h('span', { class: 'sp' }),
+        h('span', { class: 'stake', id: 'stake', title: 'The stake: how much of the film this bet has made, the time you have spent in it, and the decisions you made' }),
         h('span', { class: 'clock', id: 'clock' }, '00:00.0'),
         h('button', { class: 'ic', id: 'playbtn', type: 'button', title: 'Play or pause the voice (space)', 'aria-label': 'Play or pause', html: K.icon('play'), onclick: () => K.toggle() }),
+        h('button', { class: 'ic', type: 'button', title: 'Next unmade line (N)', 'aria-label': 'Next unmade line', html: '<svg viewBox="0 0 18 18" width="18" height="18"><path d="M3 4l6 5-6 5M10 4v10M14 4v10" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>', onclick: () => K.nextGap() }),
+        h('button', { class: 'ic', type: 'button', title: 'Screen this bet’s film (F)', 'aria-label': 'Screen the film', html: '<svg viewBox="0 0 18 18" width="18" height="18"><path d="M2 3.5h14v9H2zM6 15.5h6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.5 6l4 2-4 2z" fill="currentColor"/></svg>', onclick: () => K.screen() }),
         h('button', { class: 'ic', type: 'button', title: 'The theory of this studio (?)', 'aria-label': 'Theory', html: K.icon('help'), onclick: () => document.getElementById('help').classList.toggle('hidden') }),
         h('a', { class: 'ic', href: './', title: 'All nine bets', 'aria-label': 'All nine bets', html: K.icon('grid') })),
-      h('div', { id: 'strip', role: 'tablist', 'aria-label': 'Poems' }));
+      h('div', { id: 'strip', role: 'tablist', 'aria-label': 'Poems' }),
+      h('div', { id: 'reel', title: 'This bet’s whole film. Click to go there.', onclick: reelClick }));
     const stage = document.getElementById('stage') || document.body.appendChild(h('div', { id: 'stage' }));
     document.body.append(stage, h('div', { id: 'tools' }, h('div', { id: 'log' }, 'loading the poem…')), h('div', { id: 'verbs' }));
     o.verbs.forEach(v => { K.verbs[v.l] = v; document.getElementById('verbs').append(h('button', { type: 'button', 'data-l': v.l, title: `${v.l} · ${v.tip || v.v}`, onclick: () => K.fire(v.l) }, h('span', { class: 'L' }, v.l), h('span', { class: 'V' }, v.v))); });
@@ -201,26 +258,36 @@
       h('h3', {}, `${o.code} · ${o.name}`), h('p', {}, hp.bet || o.claim),
       h('dl', {}, o.verbs.map(v => [h('dt', {}, `${v.l}  ${v.v}`), h('dd', {}, v.tip || '')]), (hp.keys || []).map(([k, d]) => [h('dt', {}, k), h('dd', {}, d)])),
       hp.inv ? h('p', { class: 'inv' }, h('b', {}, 'Invariant. '), hp.inv) : null,
-      h('p', { class: 'inv mini' }, 'Every studio writes one ledger. Her voice is never edited. Seats snap to word edges. One clip per instant. The ranking only advises.')));
+      h('p', { class: 'inv mini' }, 'This bet makes its own film, start to finish; no other studio touches it. N jumps to the next unmade line, F screens the film. Her voice is never edited. Seats snap to word edges. One clip per instant. The ranking only advises.')));
     A.addEventListener('play', () => document.getElementById('playbtn').innerHTML = K.icon('pause'));
     A.addEventListener('pause', () => document.getElementById('playbtn').innerHTML = K.icon('play'));
     addEventListener('keydown', e => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.('input,textarea,select')) return;
       const k = e.key.toUpperCase();
+      if (screenOn) {                                                             // while screening, the keys belong to the screening
+        if (e.key === ' ') { e.preventDefault(); K.toggle(); }
+        else if (e.key === 'Escape' || k === 'F') K.unscreen();
+        else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); const i = K.data.films.indexOf(K.filmAt(K.now())) + (e.key === 'ArrowRight' ? 1 : -1); K.screen(K.data.films[Math.max(0, Math.min(K.data.films.length - 1, i))].t0); }
+        return;
+      }
       if ('ABCDE'.includes(k) && k.length === 1 && K.verbs[k]) { e.preventDefault(); K.fire(k); }
       else if (e.key === ' ') { e.preventDefault(); (o.space || K.toggle)(); }
       else if (e.key === '?') document.getElementById('help').classList.toggle('hidden');
       else if (e.key === 'Escape') document.getElementById('help').classList.add('hidden');
+      else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); K.nextGap(); }
+      else if (e.key === 'f' || e.key === 'F') { e.preventDefault(); K.screen(); }
       else if (o.keys?.[e.key]) { e.preventDefault(); o.keys[e.key](e); }
     });
     const D = await fetch(U('kernel-data.json')).then(r => r.json());
-    index(D); A.src = U(D.audio); L.load();
+    index(D); A.src = U(D.audio); L.load(); K.stake.load();
     const strip = document.getElementById('strip');
     D.films.forEach(f => strip.append(h('button', { type: 'button', role: 'tab', 'data-n': f.n, title: f.title, onclick: () => K.setFilm(f.n) }, h('span', { class: 'n' }, f.n), h('span', { class: 't' }, f.title), h('span', { class: 'cov' }, h('i')))));
     K.on('ledger', coverage); coverage();
     const q = new URLSearchParams(location.search);
     K.setFilm(q.get('film') || '01', true);
-    K.log(o.code, o.claim);
+    K.log(o.code, `${o.claim} · ${Math.round(100 * L.whole())}% of this bet’s film is made · N next unmade line · F screen it`);
+    if (q.get('screen')) setTimeout(() => K.screen(K.film.t0), 50);
+    K.on('tick', t => { const p = document.querySelector('#reel .rph'); if (p) p.style.left = (100 * t / K.duration) + '%'; });
     requestAnimationFrame(tick);
     return K;
   };

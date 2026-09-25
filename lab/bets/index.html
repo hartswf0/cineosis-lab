@@ -1,87 +1,198 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Nine Bets · WYGWYL</title>
+<title>Nine Wagers · WYGWYL</title>
 <link rel="stylesheet" href="kernel.css">
 <style>
   body{ overflow:auto; height:auto; min-height:100dvh; }
-  #wrap{ padding:3px; background:var(--k); display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:3px; flex:1 1 auto; }
-  .card{ background:var(--w); display:flex; flex-direction:column; text-decoration:none; color:var(--k); min-height:230px; }
-  .card:hover{ background:var(--lg); }
-  .card:focus-visible{ outline:3px solid var(--hi); outline-offset:-3px; }
-  .card h2{ margin:0; padding:6px 10px; border-bottom:3px solid var(--k); font-size:12px; letter-spacing:.1em; text-transform:uppercase; display:flex; gap:8px; align-items:center; }
-  .card h2 b{ background:var(--k); color:var(--w); padding:0 5px; }
-  .card h2 .tag{ margin-left:auto; font-weight:400; opacity:.6; letter-spacing:.04em; text-transform:none; }
-  .card .claim{ padding:10px; font-size:14px; line-height:1.4; flex:1 1 auto; }
-  .card .sk{ padding:0 10px 8px; font-size:10px; color:var(--g); }
-  .card .vb{ display:grid; grid-template-columns:repeat(5,1fr); border-top:3px solid var(--k); }
-  .card .vb span{ text-align:center; padding:6px 2px; font-size:9px; letter-spacing:.06em; text-transform:uppercase; border-left:2px solid var(--k); }
-  .card .vb span:first-child{ border-left:0; }
-  .card .vb span i{ display:block; font-style:normal; font-weight:700; font-size:15px; }
-  .card .vb span:nth-child(1) i{ color:var(--aA); } .card .vb span:nth-child(2) i{ color:var(--aB); } .card .vb span:nth-child(3) i{ color:var(--aC); } .card .vb span:nth-child(5) i{ color:var(--aE); }
-  .card .by{ height:8px; background:var(--lg); } .card .by i{ display:block; height:100%; background:var(--k); }
-  #kernel{ background:var(--w); padding:12px 14px; grid-column:1/-1; display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:14px 28px; }
-  #kernel h1{ margin:0 0 6px; font-size:18px; letter-spacing:.06em; text-transform:uppercase; }
-  #kernel p{ margin:0 0 8px; font-size:13px; max-width:68ch; }
-  #kernel pre{ margin:0; font:12px/1.6 ui-monospace,Menlo,monospace; border-left:3px solid var(--k); padding-left:12px; white-space:pre-wrap; }
-  #ledger .r{ display:flex; justify-content:space-between; border-bottom:2px solid var(--lg); padding:3px 0; font-size:12px; }
-  #ledger button{ margin-top:8px; border:2px solid var(--k); padding:4px 10px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
-  #ledger button.arm{ background:var(--aC); color:var(--w); border-color:var(--aC); }
-  @media (max-width:760px){ #kernel{ grid-template-columns:1fr; } }
+  main{ background:var(--k); padding:3px; display:flex; flex-direction:column; gap:3px; }
+  .blk{ background:var(--w); }
+  .blk > h2{ margin:0; padding:6px 10px; border-bottom:3px solid var(--k); font-size:12px; letter-spacing:.1em; text-transform:uppercase; display:flex; gap:10px; align-items:center; }
+  .blk > h2 .tag{ margin-left:auto; font-weight:400; opacity:.6; letter-spacing:.04em; text-transform:none; }
+  #rules{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
+  #rules div{ padding:10px 12px; border-left:3px solid var(--k); font-size:13px; }
+  #rules div:first-child{ border-left:0; }
+  #rules b{ display:block; font-size:11px; letter-spacing:.1em; text-transform:uppercase; margin-bottom:4px; }
+
+  /* the board */
+  .row{ display:grid; grid-template-columns:190px minmax(0,1fr) 250px; border-bottom:3px solid var(--k); min-height:58px; }
+  .row:last-child{ border-bottom:0; }
+  .row .who{ padding:6px 10px; border-right:3px solid var(--k); display:flex; flex-direction:column; justify-content:center; gap:2px; text-decoration:none; color:var(--k); }
+  .row .who:hover{ background:var(--lg); }
+  .row .who b{ font-size:13px; letter-spacing:.06em; text-transform:uppercase; }
+  .row .who b i{ font-style:normal; background:var(--k); color:var(--w); padding:0 5px; margin-right:6px; }
+  .row .who small{ font-size:10px; color:var(--g); }
+  .row .reel{ position:relative; background:#1a1a1a; margin:6px 8px; min-height:40px; cursor:pointer; }
+  .row .reel .fb{ position:absolute; top:0; bottom:0; border-left:1px solid #555; color:#777; font-size:9px; padding:1px 3px; pointer-events:none; }
+  .row .reel .rs{ position:absolute; top:4px; bottom:4px; background:#fff center/cover no-repeat; }
+  .row .reel .rs.m{ opacity:.45; }
+  .row .reel .won{ position:absolute; bottom:0; height:4px; background:var(--aB); }
+  .row .reel .rph{ position:absolute; top:0; bottom:0; border-left:3px solid var(--aB); }
+  .row .st{ border-left:3px solid var(--k); display:grid; grid-template-columns:repeat(4,1fr); align-items:center; text-align:center; }
+  .row .st span{ font-size:9px; color:var(--g); letter-spacing:.06em; text-transform:uppercase; display:flex; flex-direction:column; }
+  .row .st span b{ font-size:17px; color:var(--k); letter-spacing:0; }
+  .row.lead .who{ box-shadow:inset 6px 0 0 var(--aB); }
+
+  /* the screening room */
+  #room .ctrl{ display:flex; gap:3px; background:var(--k); padding:3px; overflow-x:auto; }
+  #room .ctrl button{ flex:0 0 auto; min-width:48px; height:40px; background:var(--w); font-weight:700; padding:0 8px; display:inline-flex; align-items:center; gap:6px; }
+  #room .ctrl button.on{ box-shadow:inset 0 0 0 3px var(--hi); }
+  #room .ctrl button small{ font-weight:400; font-size:9px; letter-spacing:.04em; }
+  #room .ctrl .pp{ background:var(--k); color:var(--w); border:2px solid var(--w); }
+  #wall{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:3px; background:var(--k); padding:0 3px 3px; }
+  .cell{ background:var(--k); display:flex; flex-direction:column; }
+  .cell .v{ aspect-ratio:4/3; position:relative; background:#000; display:flex; align-items:center; justify-content:center; }
+  .cell .v video,.cell .v img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .cell .v .none{ color:#666; font-size:10px; letter-spacing:.1em; text-transform:uppercase; }
+  .cell .v .code{ position:absolute; left:0; top:0; background:var(--w); color:var(--k); font-weight:700; font-size:12px; padding:1px 6px; }
+  .cell .v .cov{ position:absolute; right:0; top:0; background:var(--k); color:var(--w); font-size:10px; padding:1px 5px; }
+  .cell .v .crown{ position:absolute; right:0; bottom:0; background:var(--aB); color:var(--k); font-weight:700; font-size:10px; padding:1px 6px; }
+  .cell .a{ display:grid; grid-template-columns:1fr auto; background:var(--w); border-top:3px solid var(--k); }
+  .cell .a span{ font-size:10px; padding:4px 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cell .a button{ border-left:3px solid var(--k); padding:0 10px; font-size:10px; letter-spacing:.1em; font-weight:700; text-transform:uppercase; }
+  .cell .a button:hover{ background:var(--aB); }
+  .cell.win .a button{ background:var(--aB); }
+  .cell.house .v{ outline:3px solid var(--aB); outline-offset:-3px; }
+  #cap{ background:var(--k); color:var(--w); padding:10px 14px; font-size:17px; text-align:center; min-height:48px; }
+
+  /* the house */
+  #house .hw{ display:grid; grid-template-columns:repeat(14,minmax(0,1fr)); }
+  #house .hw div{ border-left:3px solid var(--k); padding:6px 4px; text-align:center; font-size:10px; }
+  #house .hw div:first-child{ border-left:0; }
+  #house .hw div b{ display:block; font-size:15px; }
+  #house .hw div.set{ background:var(--aB); }
+  #house .acts{ display:flex; gap:8px; padding:8px 10px; border-top:3px solid var(--k); align-items:center; flex-wrap:wrap; }
+  #house .acts button{ border:2px solid var(--k); padding:6px 12px; font-size:11px; letter-spacing:.08em; text-transform:uppercase; font-weight:700; }
+  #house .acts button:hover{ background:var(--lg); }
+  #house .acts .msg{ font-size:12px; }
+  @media (max-width:820px){ .row{ grid-template-columns:1fr; } .row .who,.row .st{ border:0; } .row .st{ border-top:2px solid var(--lg); padding:4px 0; } #rules{ grid-template-columns:1fr; } #rules div{ border-left:0; border-top:3px solid var(--k); } #house .hw{ grid-template-columns:repeat(7,1fr); } }
 </style></head>
 <body>
-<div id="bar"><span class="ind"></span><span class="bet"><b>9</b>Bets</span><span class="claim">nine programs for one film: each bets on a different thing being valuable, all write one ledger</span><span class="sp"></span>
+<div id="bar"><span class="ind"></span><span class="bet"><b>9</b>Wagers</span><span class="claim">nine ways to make the film; each makes a whole one; the screening decides</span><span class="sp"></span>
+  <span class="clock" id="clock">00:00.0</span>
   <a class="ic" href="../program-theories/" title="The 92 sketches and their theories" aria-label="Sketches and theories"><svg viewBox="0 0 18 18" width="18" height="18"><path d="M3 3h5v5H3zM10 3h5v5h-5zM3 10h5v5H3zM10 10h5v5h-5z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></a></div>
-<div id="wrap">
-  <section id="kernel">
-    <div><h1>What we have made</h1>
-      <p>Each studio is a core template for one bet from the program theories. They run on the real WYGWYL suite: 14 poems, 267 lines, 2,799 words on her 24-minute reading, 88 beats, 1,408 ranked clips. Open two studios in two tabs and a seat made in one appears in the other.</p>
-      <p>Test a bet by making one poem with it. Compare what each one made you choose.</p></div>
-    <div><pre>&lt;clock&gt;  her reading, never edited      I1
-&lt;ledger&gt; one list of seats, all nine  I2
-&lt;seat&gt;   snapped to word edges         I3
-         one clip per instant          I4
-         machine seats hatched ▒       I5</pre>
-      <div id="ledger"></div></div>
-  </section>
-</div>
+<main>
+  <section class="blk"><div id="rules">
+    <div><b>The claim</b>Each studio bets that its way of working makes the better film of WYGWYL. It makes the whole film its own way, all 14 poems, and no other studio touches it.</div>
+    <div><b>The stake</b>What a bet costs: minutes you spend in the studio and decisions you make. A bet that makes a good film cheaply beats one that makes it expensively.</div>
+    <div><b>The payoff</b>In the screening room every film plays the same moment on one voice. Award each poem to the bet that made it best. The winners make the house cut.</div>
+  </div></section>
+
+  <section class="blk" id="board"><h2>The board <span class="tag" id="boardTag"></span></h2><div id="rows"></div></section>
+
+  <section class="blk" id="room"><h2>Screening room <span class="tag" id="roomTag">every bet’s film on one voice</span></h2>
+    <div class="ctrl" id="ctrl"></div>
+    <div id="wall"></div>
+    <div id="cap"></div></section>
+
+  <section class="blk" id="house"><h2>The house cut <span class="tag" id="houseTag"></span></h2><div class="hw" id="hw"></div>
+    <div class="acts"><button type="button" id="toFloor">Send the house cut to the floor</button><span class="msg" id="houseMsg">The floor, Tempest, CUT and WAG read the floor’s seats.</span></div></section>
+</main>
 <script>
 const BETS = [
-  ['P1', 'concordance.html', 'Concordance', 'The word is the unit. Pick a word, hear it every time it is spoken, pin a clip to one occurrence, rhyme it across the rest.', ['focus', 'gather', 'pin', 'rhyme', 'strike']],
-  ['P2', 'voice-clock.html', 'Voice Clock', 'Her breath cuts the picture. The line drawn as stressed words and pauses; cuts can only fall on breaths.', ['snap', 'seat', 'hold', 'loop', 'unsnap']],
-  ['P3', 'scale-ladder.html', 'Scale Ladder', 'Suite, poem and line at once. Bracket at any level; every seat shows at every scale; jump to the next gap.', ['in', 'out', 'bracket', 'seat', 'gap']],
-  ['P4', 'audition.html', 'Audition', 'Two clips on the same looping line until one is left. Every preference leaves a reason.', ['keep A', 'take B', 'ghost', 'loop', 'seat']],
-  ['P5', 'field.html', 'Association Field', 'Every clip for the poem placed by what it carries. The line lights its neighbourhood; the film is the path you walk.', ['pull', 'walk', 'kind', 'back', 'lay']],
-  ['P6', 'branches.html', 'Branch Garden', 'Versions of a poem side by side, with how much each differs. Merge the lines that win into the trunk.', ['fork', 'switch', 'play', 'merge', 'prune']],
-  ['P7', 'loop-wheel.html', 'Loop Wheel', 'The line loops; the candidates turn under it one per pass. Stop the wheel on the one and it seats and turns to the next line.', ['loop', 'spin', 'hold', 'next', 'seat']],
-  ['P8', 'press.html', 'Template Press', 'Write a slot pattern once and press it over every beat. The machine drafts, hatched; you accept or override.', ['draft', 'press all', 'accept', 'override', 'wipe']],
-  ['P9', 'strata.html', 'Strata', 'Text, voice, picture, signs and world as lanes on one clock. The pin cuts through all of them; nudge an edge a word at a time.', ['play', 'solo', 'nudge ←', 'nudge →', 'seat']],
+  ['P1', 'concordance.html', 'Concordance', 'the word is the unit'], ['P2', 'voice-clock.html', 'Voice Clock', 'her breath cuts the picture'],
+  ['P3', 'scale-ladder.html', 'Scale Ladder', 'see every scale at once'], ['P4', 'audition.html', 'Audition', 'choosing is the work'],
+  ['P5', 'field.html', 'Association Field', 'meaning is a space'], ['P6', 'branches.html', 'Branch Garden', 'no single right cut'],
+  ['P7', 'loop-wheel.html', 'Loop Wheel', 'watching is the interface'], ['P8', 'press.html', 'Template Press', 'rule once, apply everywhere'],
+  ['P9', 'strata.html', 'Strata', 'every layer on one clock'],
 ];
-let seats = []; try { seats = JSON.parse(localStorage.getItem('cineosis.ledger.v1')) || []; } catch (e) {}
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-const byBet = {}; seats.forEach(s => byBet[s.bet] = (byBet[s.bet] || 0) + (s.t1 - s.t0));
-const maxB = Math.max(1, ...Object.values(byBet));
-const sk = {}; (window.THEORIES || []).forEach(t => (sk[t.f] = sk[t.f] || []).push(String(t.id).padStart(3, '0')));
-function cards() {
-  document.querySelectorAll('a.card').forEach(e => e.remove());
-  const wrap = document.getElementById('wrap');
-  BETS.forEach(([c, href, name, claim, verbs]) => {
-    const a = document.createElement('a'); a.className = 'card'; a.href = href;
-    a.innerHTML = `<h2><b>${c}</b>${esc(name)}<span class="tag">${byBet[c] ? Math.round(byBet[c]) + ' s seated' : 'untried'}</span></h2><div class="claim">${esc(claim)}</div>`
-      + (sk[c] ? `<div class="sk">sketches ${sk[c].join(' · ')}</div>` : '')
-      + `<div class="by"><i style="width:${100 * (byBet[c] || 0) / maxB}%"></i></div><div class="vb">${verbs.map((v, i) => `<span><i>${'ABCDE'[i]}</i>${esc(v)}</span>`).join('')}</div>`;
-    wrap.append(a);
+const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+const $ = id => document.getElementById(id);
+const h = (tag, a = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(a)) { if (v == null || v === false) continue; if (k === 'class') e.className = v; else if (k === 'style') e.style.cssText = v; else if (k === 'html') e.innerHTML = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v); } kids.flat(9).forEach(c => c != null && c !== false && e.append(c.nodeType ? c : document.createTextNode(c))); return e; };
+const fmt = t => { t = Math.max(0, t || 0); const m = Math.floor(t / 60); return `${String(m).padStart(2, '0')}:${(t - m * 60).toFixed(1).padStart(4, '0')}`; };
+const A = new Audio(); A.preload = 'auto';
+let D, films = {}, stakes = {}, house = store.get('cineosis.house.v1', {}), poem = null, SOLO = null;
+
+function load() {
+  if (store.get('cineosis.film.P1.v1', null) === null) {                          // the first version kept one shared ledger: hand each bet what it made
+    const old = store.get('cineosis.ledger.v1', []);
+    BETS.forEach(([c]) => { if (store.get(`cineosis.film.${c}.v1`, null) === null) store.set(`cineosis.film.${c}.v1`, old.filter(s => s.bet === c)); });
+  }
+  BETS.forEach(([c]) => { films[c] = store.get(`cineosis.film.${c}.v1`, []).sort((a, b) => a.t0 - b.t0); stakes[c] = store.get(`cineosis.stake.${c}.v1`, { ms: 0, decisions: 0 }); });
+  house = store.get('cineosis.house.v1', {});
+}
+const cover = (seats, t0, t1) => { let c = 0; seats.forEach(s => { if (s.t1 > t0 && s.t0 < t1) c += Math.min(t1, s.t1) - Math.max(t0, s.t0); }); return t1 > t0 ? Math.min(1, c / (t1 - t0)) : 0; };
+const whole = seats => { let c = 0, n = 0; D.films.forEach(f => { c += cover(seats, f.p0, f.p1) * (f.p1 - f.p0); n += f.p1 - f.p0; }); return n ? c / n : 0; };
+const at = (seats, t) => seats.find(s => t >= s.t0 && t < s.t1);
+const won = c => Object.values(house).filter(x => x === c).length;
+
+function board() {
+  const rows = $('rows'); rows.replaceChildren();
+  const lead = BETS.map(([c]) => [c, won(c) * 1000 + whole(films[c])]).sort((a, b) => b[1] - a[1])[0];
+  BETS.forEach(([c, href, name, claim]) => {
+    const seats = films[c], st = stakes[c], w = whole(seats);
+    const reel = h('div', { class: 'reel', title: 'Click to screen this moment in every film', onclick: e => { const r = e.currentTarget.getBoundingClientRect(); const t = D.duration * (e.clientX - r.left) / r.width; const f = D.films.find(x => t >= x.t0 && t < x.t1) || D.films[0]; pick(f.n, t); $('room').scrollIntoView({ behavior: 'smooth' }); } },
+      D.films.map(f => h('span', { class: 'fb', style: `left:${100 * f.t0 / D.duration}%` }, f.n)),
+      seats.map(s => h('span', { class: 'rs' + (s.by === 'machine' ? ' m' : ''), style: `left:${100 * s.t0 / D.duration}%;width:${Math.max(.08, 100 * (s.t1 - s.t0) / D.duration)}%;background-image:url("${s.clip.thumb}")` })),
+      D.films.filter(f => house[f.n] === c).map(f => h('span', { class: 'won', style: `left:${100 * f.t0 / D.duration}%;width:${100 * (f.t1 - f.t0) / D.duration}%` })),
+      h('span', { class: 'rph' }));
+    rows.append(h('div', { class: 'row' + (lead && lead[0] === c && lead[1] > 0 ? ' lead' : '') },
+      h('a', { class: 'who', href, title: `Open the ${name} studio and keep making its film` }, h('b', { html: `<i>${c}</i>${name}` }), h('small', {}, claim)),
+      reel,
+      h('div', { class: 'st' }, h('span', {}, h('b', {}, Math.round(100 * w) + '%'), 'made'), h('span', {}, h('b', {}, String(Math.round(st.ms / 60000))), 'minutes'), h('span', {}, h('b', {}, String(st.decisions)), 'decisions'), h('span', {}, h('b', {}, String(won(c))), 'poems won'))));
+  });
+  const made = BETS.filter(([c]) => films[c].length).length;
+  $('boardTag').textContent = `${made} of 9 bets have started a film`;
+}
+
+/* the screening room */
+function ctrl() {
+  const c = $('ctrl'); c.replaceChildren(h('button', { class: 'pp', id: 'pp', type: 'button', title: 'Play or pause (space)', onclick: toggle }, A.paused ? '▶' : '❚❚'));
+  D.films.forEach(f => c.append(h('button', { type: 'button', class: f.n === poem ? 'on' : '', title: f.title, onclick: () => pick(f.n) }, f.n, h('small', {}, house[f.n] || ''))));
+}
+function pick(n, t) { poem = n; const f = D.films.find(x => x.n === n); A.currentTime = t ?? f.t0; ctrl(); wall(); frame(true); $('roomTag').textContent = `${f.n} ${f.title} · award the poem to the film that made it best`; }
+function toggle() { if (A.paused) A.play().catch(() => {}); else A.pause(); }
+A.addEventListener('play', () => { const b = $('pp'); if (b) b.textContent = '❚❚'; }); A.addEventListener('pause', () => { const b = $('pp'); if (b) b.textContent = '▶'; });
+const cells = {};
+function wall() {
+  const w = $('wall'); w.replaceChildren(); const f = D.films.find(x => x.n === poem);
+  const list = BETS.map(b => b[0]).concat('HOUSE');
+  list.forEach(c => {
+    const isH = c === 'HOUSE', cv = isH ? null : cover(films[c], f.p0, f.p1);
+    const v = h('div', { class: 'v' }), cell = h('div', { class: 'cell' + (house[poem] === c ? ' win' : '') + (isH ? ' house' : '') }, v,
+      h('div', { class: 'a' }, h('span', {}, isH ? 'the house cut: each poem from its winner' : `${BETS.find(b => b[0] === c)[2]}`),
+        isH ? h('span', {}, house[poem] || 'no winner') : h('button', { type: 'button', title: `Award ${f.n} ${f.title} to ${c}`, onclick: () => award(c) }, house[poem] === c ? 'winner' : 'award')));
+    cells[c] = { v, key: null, cv }; w.append(cell);
   });
 }
-function ledger() {
-  const L = document.getElementById('ledger'), tot = seats.reduce((a, s) => a + s.t1 - s.t0, 0), m = seats.filter(s => s.by === 'machine').length;
-  L.innerHTML = [['seats in the ledger', seats.length], ['seconds of the suite seated', `${Math.round(tot)} of 1440`], ['machine drafts', m], ['distinct clips', new Set(seats.map(s => s.clip.id)).size]]
-    .map(([k, v]) => `<div class="r"><span>${k}</span><b>${v}</b></div>`).join('') + `<button type="button" id="wipe">Empty the ledger</button>`;
-  const b = document.getElementById('wipe'); let armed = false;
-  b.onclick = () => { if (!armed) { armed = true; b.classList.add('arm'); b.textContent = 'Tap again to empty it'; setTimeout(() => { armed = false; b.classList.remove('arm'); b.textContent = 'Empty the ledger'; }, 3000); return; }
-    try { localStorage.setItem('cineosis.ledger.v1', '[]'); } catch (e) {} seats = []; Object.keys(byBet).forEach(k => delete byBet[k]); ledger(); cards(); };
+function houseSeats() { const out = []; D.films.forEach(f => { const c = house[f.n]; if (c) films[c].forEach(s => { if (s.t1 > f.t0 && s.t0 < f.t1) out.push(s); }); }); return out; }
+function frame(force) {
+  const t = A.currentTime; $('clock').textContent = fmt(t);
+  const f = D.films.find(x => t >= x.t0 && t < x.t1);
+  if (f && f.n !== poem && !A.paused) { poem = f.n; ctrl(); wall(); force = true; }
+  const hs = houseSeats();
+  Object.entries(cells).forEach(([c, o]) => {
+    const s = at(c === 'HOUSE' ? hs : films[c], t), key = s ? s.clip.id + ':' + s.t0 : 'none';
+    if (!force && key === o.key) return; o.key = key; o.v.replaceChildren();
+    if (s) o.v.append(s.clip.loop ? h('video', { src: `../wygwyl/tempest/${s.clip.id}.mp4`, poster: s.clip.thumb, muted: '', loop: '', playsinline: '', autoplay: '' }) : h('img', { src: s.clip.thumb, alt: '' }));
+    else o.v.append(h('span', { class: 'none' }, c === 'HOUSE' ? 'no winner yet' : (o.cv ? 'unmade here' : 'no stake in this poem')));
+    o.v.append(h('span', { class: 'code' }, c));
+    if (c !== 'HOUSE' && o.cv != null) o.v.append(h('span', { class: 'cov' }, Math.round(100 * o.cv) + '%'));
+    if (house[poem] === c) o.v.append(h('span', { class: 'crown' }, 'WINS ' + poem));
+    o.v.querySelectorAll('video').forEach(v => { v.muted = true; v.play().catch(() => {}); });
+  });
+  const l = D.lines.find(x => t >= x.t0 && t < x.t1 + .6);
+  $('cap').textContent = l ? l.text : '';
+  document.querySelectorAll('.row .reel .rph').forEach(p => p.style.left = (100 * t / D.duration) + '%');
 }
-const s = document.createElement('script'); s.src = '../program-theories/data.js';
-s.onload = s.onerror = () => { (window.THEORIES || []).forEach(t => (sk[t.f] = sk[t.f] || []).push(String(t.id).padStart(3, '0'))); cards(); };
-document.head.append(s); ledger();
+function award(c) {
+  house[poem] = house[poem] === c ? undefined : c; if (!house[poem]) delete house[poem];
+  store.set('cineosis.house.v1', house); wall(); ctrl(); frame(true); board(); houseRow();
+}
+function houseRow() {
+  const hw = $('hw'); hw.replaceChildren(...D.films.map(f => h('div', { class: house[f.n] ? 'set' : '', title: f.title }, f.n, h('b', {}, house[f.n] || '·'))));
+  const n = Object.keys(house).length, tally = {}; Object.values(house).forEach(c => tally[c] = (tally[c] || 0) + 1);
+  $('houseTag').textContent = `${n} of 14 poems awarded` + (n ? ' · ' + Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([c, k]) => `${c} ${k}`).join(' · ') : '');
+}
+$('toFloor').onclick = () => {
+  const hs = houseSeats(); if (!hs.length) { $('houseMsg').textContent = 'Award at least one poem first.'; return; }
+  const F = store.get('floor.seats', {}); let n = 0;
+  D.beats.forEach(b => { let best = null, ov = 0; hs.forEach(s => { const o = Math.min(b.t1, s.t1) - Math.max(b.t0, s.t0); if (o > ov) { ov = o; best = s; } }); if (best) { F[b.id] = { id: best.clip.id, title: best.clip.title, year: best.clip.year, thumb: best.clip.thumb, video: best.clip.video, in: 0, score: best.clip.score, fit: best.clip.fit }; n++; } });
+  store.set('floor.seats', F); $('houseMsg').textContent = `${n} beats of the floor now hold the house cut. Open the cutting room floor, Tempest, CUT or WAG to use it.`;
+};
+addEventListener('keydown', e => { if (e.key === ' ' && !e.target.closest?.('button,input')) { e.preventDefault(); toggle(); } });
+addEventListener('storage', e => { if (/^cineosis\.(film|stake|house)/.test(e.key || '')) { load(); board(); wall(); frame(true); houseRow(); } });
+addEventListener('focus', () => { load(); board(); frame(true); houseRow(); });
+(function loop() { if (D) frame(false); requestAnimationFrame(loop); })();
+fetch('kernel-data.json').then(r => r.json()).then(d => { D = d; D.films.forEach(f => { const ls = D.lines.filter(l => l.film === f.n); f.p0 = ls.length ? ls[0].t0 : f.t0; f.p1 = ls.length ? ls.at(-1).t1 : f.t1; }); A.src = d.audio; load(); board(); houseRow(); pick('01'); });
 </script>
 </body></html>

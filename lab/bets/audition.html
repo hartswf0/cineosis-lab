@@ -68,14 +68,14 @@ K.boot({
 }).then(() => {
   K.tools(REASONS.map((r, i) => ({ t: r, id: 'rs-' + r, tip: `Reason ${i + 1}: it ${['carries the line', 'holds the scene', 'reads the sign', 'is well made'][i]}`, on: r === S.reason, do: () => reason(i) })));
   K.monitor($('monHost'));
-  K.on('film', () => go(0));
+  K.on('film', () => go(0)); K.on('goto', l => go(K.film.lines.indexOf(l)));
   K.on('tick', t => { $('monTag').textContent = K.fmt(t); const r = K.range(); if (r) { const p = Math.max(0, Math.min(1, (t - r.t0) / (r.t1 - r.t0))); $('Lb').style.width = $('Rb').style.width = (100 * p) + '%'; } });
   K.on('loop', n => $('boutTag').textContent = `pass ${n + 1}`);
   go(0);
 });
 
 function go(i) {
-  S.li = Math.max(0, Math.min(K.film.lines.length - 1, i));
+  if (i >= K.film.lines.length && K.advance()) return; S.li = Math.max(0, Math.min(K.film.lines.length - 1, i));
   const b = K.beatAt((line().t0 + line().t1) / 2) || K.beatAt(line().t0);
   S.pool = b ? K.cands(b.id) : []; S.champ = 0; S.chal = 1; S.lost = new Set(); S.why = {};
   const seated = K.ledger.at((line().t0 + line().t1) / 2); if (seated) { const k = S.pool.findIndex(c => c.id === seated.clip.id); if (k > 0) { S.champ = k; S.chal = k === 1 ? 0 : 1; } }
