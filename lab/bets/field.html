@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>P5 Association Field · bet studio</title>
-<link rel="stylesheet" href="kernel.css?v=10">
+<link rel="stylesheet" href="kernel.css?v=12">
 <style>
   #fieldPane{ flex:1 1 auto; }
   #field{ position:absolute; inset:14px 14px 30px 40px; border-left:3px solid var(--k); border-bottom:3px solid var(--k); }
@@ -35,7 +35,7 @@
     <div id="legend"></div>
     <h2>Path <span class="tag" id="pathTag"></span></h2><div class="body"><div class="scroll"><div id="seq"></div></div></div></section>
 </div>
-<script src="kernel.js?v=10"></script>
+<script src="kernel.js?v=12"></script>
 <script>
 /* P5 · ASSOCIATION FIELD — meaning is a space; the sequence is a path walked through it.
    <node> a clip placed by how well it carries the line (↑) and holds the scene (→), from CLIP fit · <kind> why it
@@ -66,13 +66,13 @@ K.boot({
 }).then(() => {
   $('legend').append(...Object.entries(K.DOM).map(([k, c]) => K.h('span', { style: `background:${c};border-color:#000` }, k)));   // the periodic table's domains; C still filters by reason
   K.monitor($('monHost'));
-  K.on('film', () => { S.path = []; go(0); }); K.on('goto', l => go(K.film.lines.indexOf(l))); K.on('tick', t => { $('monTag').textContent = K.fmt(t); const l = K.lineAt(t); if (K.playing() && l && l.film === K.film.n && l !== line() && !K.range()?.loop) { S.li = K.film.lines.indexOf(l); $('lineBand').textContent = l.text; K.focus(l.t0, l.t1); draw(); } else if (K.playing() && (++tickN % 30 === 0)) draw(); });
+  K.on('film', () => { S.path = []; go(0); }); K.on('goto', l => go(K.film.lines.indexOf(l))); K.on('tick', t => { $('monTag').textContent = K.fmt(t); const l = K.lineAt(t); if (K.playing() && l && l.film === K.film.n && l !== line() && !K.range()?.loop) { S.li = K.film.lines.indexOf(l); $('lineBand').replaceChildren(K.brick(l.t0, l.t1, { title: `line ${l.n}` }), l.text); K.focus(l.t0, l.t1); draw(); } else if (K.playing() && (++tickN % 30 === 0)) draw(); });
   K.on('try', c => { S.focus = c.id; draw(); }); K.on('ledger', draw); K.on('bin', draw); K.on('film', () => { els.forEach(e => e.remove()); els.clear(); });
   addEventListener('resize', drawPath);
   go(0);
 });
 
-function go(i) { if (i >= K.film.lines.length && K.advance()) return; S.li = Math.max(0, Math.min(K.film.lines.length - 1, i)); $('lineBand').textContent = line().text; K.focus(line().t0, line().t1); draw(); }
+function go(i) { if (i >= K.film.lines.length && K.advance()) return; S.li = Math.max(0, Math.min(K.film.lines.length - 1, i)); $('lineBand').replaceChildren(K.brick(line().t0, line().t1, { title: `line ${line().n}` }), line().text); K.focus(line().t0, line().t1); draw(); }
 const els = new Map();                                                           // nodes persist, so every change is a glide, not a rebuild
 function draw() {
   const f = $('field');
