@@ -165,12 +165,14 @@
       <button role="tab" data-tab="footage">Footage</button>
       <button role="tab" data-tab="sign">Sign</button>
       <button role="tab" data-tab="wygwyl">WYGWYL</button>
+      ${tool === 'cut' ? '<button role="tab" data-tab="sound">Sound</button>' : ''}
     </div>
     <div class="cx-body">
       <div class="cx-start" hidden></div>
       <section class="cx-pane" data-pane="footage"><div class="cx-foot"></div></section>
       <section class="cx-pane" data-pane="sign"><div class="cx-inspect"></div><div class="cx-card"></div></section>
       <section class="cx-pane" data-pane="wygwyl"><div class="cx-wy"></div></section>
+      ${tool === 'cut' ? '<section class="cx-pane" data-pane="sound"><div class="cx-sound"><p class="cx-none">loading the sound desk…</p></div></section>' : ''}
     </div>`;
   const $p = s => panel.querySelector(s);
   function status(t) { V.status = t; const s = $p('.cx-status'); if (s) { s.textContent = t; s.title = t; } }
@@ -465,13 +467,14 @@
     buildTable(); buildWygwyl(); buildFootage();
     pin(ls.get('cineosis.panel.sign', '1'));
     status('ready');
-    setInterval(() => { inspect(); markNow(); refreshStart(); }, 400); inspect(); refreshStart();
+    const safe = f => { try { f(); } catch (e) { /* one failing step must not stop the others */ } };
+    setInterval(() => { safe(inspect); safe(markNow); safe(refreshStart); }, 400); safe(inspect); safe(refreshStart);
     if (AUTO && !AUTO.skip) {
       if (AUTO.fresh) { status('emptying the editor…'); await ED.clear(); }
       setTab('wygwyl');
       loadAll();
     } else if (AUTO?.skip) status('WYGWYL was already loaded here once · use ?load=wygwyl&fresh=1 to reload it clean');
   }
-  window.CineosisPanel = { open: () => setOpen(true), close: () => setOpen(false), pin: n => pin(n, true), loadAll, loadChapter, beatPieces: (b, room) => beatPieces(b, room), wygwylBin: (beats, t) => wygwylBin(beats || D.wygwyl.beats, t || 'test'), data: () => D };
+  window.CineosisPanel = { open: () => setOpen(true), close: () => setOpen(false), setTab, status, soundHost: () => $p('.cx-sound'), pin: n => pin(n, true), loadAll, loadChapter, beatPieces: (b, room) => beatPieces(b, room), wygwylBin: (beats, t) => wygwylBin(beats || D.wygwyl.beats, t || 'test'), data: () => D };
   if (document.readyState === 'loading') addEventListener('DOMContentLoaded', boot); else boot();
 })();
