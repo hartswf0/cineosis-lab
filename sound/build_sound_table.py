@@ -113,12 +113,12 @@ def sung_st(rows):
             "poet_dist": med([l["voice"]["poet_dist"] for l in rows]), "registers": {r: sum(1 for l in rows if reg(l["voice"]["f0"]) == r) for r in ("ABYSSAL", "DEEP", "LOW", "HIGH")}}
 col("Kn", "Kin", V, "Mouths nearest the poet (poet_dist < 7.5): narration kin singing her lines.",
     "Waits for her line to end and ≥ 2 s of quiet; then answers. Drops to 0.12 if she returns.", 3, sung_ex(kin), sung_st(kin),
-    [("16", "a voice repeats another: the relation between two")],
+    [("14", "two voices trading one text: a duel of lines (inference)")],
     {"IN": "A second speaker seen answering her: dialogue.", "OFF": "An answer from beyond the frame: the scene has another person in it.",
      "OUT": "A second narrator: the text is told twice."})
 col("Mo", "Mouth", V, "Other singers carrying her lines, further from the poet (dist ≥ 7.5), by register ABYSSAL / DEEP / LOW / HIGH.",
     "Same law as Kin, one step lower: never two mouths at once.", 4, sung_ex(far), sung_st(far),
-    [("43", "the same words in other mouths: a story told by others")],
+    [("40", "the same words in other mouths: her story told by others (inference)")],
     {"IN": "A singer in shot mouthing her words: the musical, the number.", "OFF": "Singing from somewhere in the world of the shot.",
      "OUT": "Her poem sung over the film: the song as commentary."})
 col("Co", "Chorus", V, "Many mouths at once: combined codex lines, the crowd singing the poem.",
@@ -129,7 +129,7 @@ col("Co", "Chorus", V, "Many mouths at once: combined codex lines, the crowd sin
 fv_ex, fv_st = found("speech", also=("mixed",)); fv_st["speech_only"] = sum(1 for c in census.values() if c.get("kind") == "speech"); fv_st["with_music"] = sum(1 for c in census.values() if c.get("kind") == "mixed")
 col("Fv", "Found voice", V, "Strangers speaking in the archive footage: narrators, instructors, voices of the films themselves.",
     "An archive voice never speaks over hers: under her words it drops to 0.12; alone it may lead.", 6, fv_ex, fv_st,
-    [("28", "the educational/industrial narrator as the voice of the world's rules")],
+    [("21", "the found narrator: the everyday world explaining itself (inference)")],
     {"IN": "The film's own speaker, lips in sync: the found film talking.", "OFF": "The found film's narrator unseen: its world explains itself.",
      "OUT": "An archive voice cut loose from its picture: found speech as quotation."})
 songs = [s for s in sonic if s.get("eco") == "song"]
@@ -140,7 +140,7 @@ col("Sg", "Song", M, "Sections of the 34 carrier songs (744 segments, 19 familie
      "OUT": "Score: the song over the image."})
 col("Lp", "Loop", M, "Rhythm: 60 mined loops on a bar grid (median 2.56 s, flatness 0.008 — the most tonal thing in the atlas).",
     "Enters on a bar; matches tempo by playback rate; yields to any voice by carving, not stopping.", 8, pk_ex("LOOP"), pk_stats("LOOP"),
-    [("15", "repetition that organises action")],
+    [("27", "musicals: music as the movement of the world (Deamer p.125)")],
     {"IN": "A machine seen repeating: the loop is its sound.", "OFF": "A pulse from outside the frame: the world keeps time.",
      "OUT": "A beat under the film: the cut is paced by it."})
 chairs = [dict(o, num=w["num"]) for w in worlds for o in w.get("orchestra", [])]
@@ -148,12 +148,12 @@ col("St", "Stem", M, "Orchestra chairs: single instruments from the songs (drums
     "A chair in the poem's key (root or fifth) may stay under her; other keys wait for the gap.", 9,
     [{"label": f"{o['instrument']} · {o['song']}", "file": url(o["file"]), "meta": f"{o.get('key', '')} · {o.get('tempo', 0):.0f} bpm"} for o in chairs[::max(1, len(chairs) // 8)][:8]],
     {"count": len(chairs), "instruments": {i: sum(1 for o in chairs if o["instrument"] == i) for i in sorted({o["instrument"] for o in chairs})}},
-    [("6", "one instrument as a face: an affect held")],
+    [("4", "one instrument held like a face: an affect expressed (inference)")],
     {"IN": "The instrument seen being played.", "OFF": "A practice through the wall.", "OUT": "Accompaniment: the chair as commentary."})
 fm_ex, fm_st = found("music")
 col("Fm", "Found music", M, "Music inside the archive footage: scores, radios, bands of the found films.",
     "One music at a time: two musics crossfade on a beat, or the later one sinks to texture (lowpass, −12 dB).", 10, fm_ex, fm_st,
-    [("11", "the film's own score telling you what to feel")],
+    [("27", "source music moving the found world (Deamer p.125)")],
     {"IN": "The found film's band, seen.", "OFF": "The found film's radio, heard.", "OUT": "The found film's score lifted onto another picture."})
 drone = [s for s in sonic if s.get("eco") == "keynote" and "drone" in (s.get("label") or "").lower()]
 col("Dr", "Drone", F, "The unified drone: the corpus clock itself (1,440.1 s), and drone keynotes.",
@@ -167,7 +167,7 @@ col("Bd", "Bed", F, "Beds: 40 sustained segments (median 8 s, flatness 0.10).",
     {"IN": "Ambience with its source in view: the sea in the shot of the sea.", "OFF": "The weather of the scene, unseen.", "OUT": "A pad under the film: mood as floor."})
 col("Tx", "Texture", F, "Textures: 30 noisy segments (flatness 0.74, centroid 3.5 kHz — the noisiest element).",
     "Lowest priority of the field: first to go when two things fight.", 13, pk_ex("TEXTURE"), pk_stats("TEXTURE"),
-    [("5", "matter as grain: sound particles without a figure")],
+    [("3", "matter as grain: perception broken into particles (inference)")],
     {"IN": "Grain with a visible cause: rain on glass.", "OFF": "Static, wind, crowd murmur: the world as noise.", "OUT": "Hiss, tape, surface noise: the medium sounding."})
 fn_ex, fn_st = found("noise")
 col("Fn", "Found noise", F, "Noise and effects in the archive footage: machines, traffic, rooms, weather.",
@@ -177,11 +177,11 @@ col("Fn", "Found noise", F, "Noise and effects in the archive footage: machines,
      "OUT": "Effects laid on a picture that did not make them: the lock exposed."})
 col("Rs", "Riser", S, "Risers: 20 rising segments (median 4 s).",
     "Aims at a cut: ends on the next cut or breath; never rises into her word.", 15, pk_ex("RISER"), pk_stats("RISER"),
-    [("20", "tension that demands the next image")],
+    [("12", "a line of tension toward the next image (inference)")],
     {"IN": "A visible thing gathering: engine spinning up.", "OFF": "Something approaching, unseen.", "OUT": "Tension laid over the cut: the edit announced."})
 col("Ht", "Hit", S, "Hits: 60 impacts (median 1.16 s, centroid 2 kHz).",
     "Snaps to the next silence ≥ 1 s within 3 s; at least 7 s apart; never on a word.", 16, pk_ex("HIT"), pk_stats("HIT"),
-    [("17", "a sound as the index of an event")],
+    [("10", "a sound as the index of an event it does not show (inference)")],
     {"IN": "An impact seen and heard at once: the index.", "OFF": "A bang off-screen: an event the frame did not catch.", "OUT": "A stinger on the cut: the edit hits."})
 si_n = sum(1 for c in census.values() if c.get("kind") in ("silence", "none"))
 col("Si", "Silence", "ground", "The gap: her 606 breaths and pauses, and the archive's silent shots. The zero of the table.",

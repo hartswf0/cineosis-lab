@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sound Bench</title>
+<meta name="description" content="One line of the WYGWYL readings at word level, against the picture on screen at that moment. Select a word or a pause, press an action: each one makes a sound-table element and pushes the picture toward a sign.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#e6e5e1;--panel:#f3f2ee;--ink:#141414;--dim:#6b6a66;--line:#c9c7c1;--key:#fbfaf7;--sel:#141414;
+  --voice:#ff5a1f;--music:#1d6bff;--field:#1f9d57;--signal:#e3262d;--ground:#8b8a86;--time:#7a5cff;--move:#e3a600}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#121212;--panel:#1b1b1a;--ink:#ecebe6;--dim:#9a9994;--line:#34332f;--key:#232321;--sel:#ecebe6}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:12.5px/1.45 "IBM Plex Mono",ui-monospace,Menlo,monospace}
+a{color:inherit}
+button{font:inherit;color:inherit;cursor:pointer}
+.bar{display:flex;align-items:center;gap:10px;padding:10px 16px;flex-wrap:wrap}
+.bar h1{font:800 19px/1 Inter,system-ui,sans-serif;margin:0 8px 0 0;white-space:nowrap}
+.bar h1 i{display:inline-block;width:11px;height:11px;border-radius:50%;background:var(--time);margin-right:7px}
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+.chips button{border:1px solid var(--line);background:var(--key);border-radius:12px;padding:2px 8px;font-size:11px}
+.chips button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.bar nav{margin-left:auto;display:flex;gap:12px;font-size:11.5px}
+.dev{margin:0 16px 12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px}
+.top{display:grid;grid-template-columns:300px minmax(0,1fr) 300px;gap:14px}
+h3{font:600 10.5px/1 Inter,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:0 0 8px;display:flex;gap:8px;align-items:center}
+h3 .sp{flex:1}
+.screen{position:relative;aspect-ratio:4/3;background:#000;border-radius:8px;overflow:hidden}
+.screen img,.screen video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.screen .tag{position:absolute;left:6px;top:6px;background:#000b;color:#fff;border-radius:4px;padding:1px 6px;font-size:10.5px}
+.cap{margin:6px 0 4px;font-size:11.5px}
+.cap b{font-weight:600}
+.signs{display:flex;flex-wrap:wrap;gap:4px}
+.sg{display:inline-flex;gap:5px;align-items:center;border:1px solid var(--line);background:var(--key);border-radius:6px;padding:2px 6px;font-size:11px;text-decoration:none}
+.sg b{font:800 12px/1 Inter,sans-serif}
+.sg.push{border-color:var(--time);box-shadow:inset 0 0 0 1px var(--time)}
+.sg.pull{border-color:var(--move);box-shadow:inset 0 0 0 1px var(--move)}
+.stepper{display:flex;gap:6px;align-items:center}
+.stepper button,.tp{border:1px solid var(--line);background:var(--key);border-radius:16px;padding:3px 10px;box-shadow:0 2px 0 var(--line)}
+.tp{border-radius:50%;width:36px;height:36px;padding:0;font-size:14px;background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.linetxt{font:400 17px/1.35 Inter,sans-serif;margin:6px 0 10px;min-height:2.7em}
+.track{position:relative;height:150px;background:var(--key);border:1px solid var(--line);border-radius:10px;overflow:hidden;user-select:none}
+.track svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.w{position:absolute;bottom:26px;border-radius:5px 5px 2px 2px;background:var(--panel);border:1px solid var(--line);display:flex;align-items:flex-end;justify-content:center;padding:0 1px 3px;font-size:10.5px;overflow:hidden;cursor:pointer;white-space:nowrap}
+.w::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--gc)}
+.w:hover{border-color:var(--ink)}
+.w.sel{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.w.now{outline:2px solid var(--voice)}
+.gap{position:absolute;bottom:0;height:24px;border-radius:4px;background:repeating-linear-gradient(135deg,transparent 0 4px,#0001 4px 6px);border:1px dashed var(--line);font-size:9px;color:var(--dim);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.gap.sel{border:1.5px solid var(--ink);color:var(--ink);background:#0001}
+.ph{position:absolute;top:0;bottom:0;width:2px;background:var(--voice);pointer-events:none;display:none}
+.mk{position:absolute;top:4px;height:16px;border-radius:8px;font-size:9.5px;padding:0 6px;color:#fff;white-space:nowrap;overflow:hidden}
+.legend{display:flex;gap:12px;flex-wrap:wrap;color:var(--dim);font-size:10.5px;margin-top:6px}
+.legend i{display:inline-block;width:10px;height:3px;margin-right:4px;vertical-align:middle}
+.mini{display:grid;grid-template-columns:repeat(17,minmax(0,1fr));gap:2px}
+.mc{aspect-ratio:1;border-radius:3px;background:var(--key);border:1px solid var(--line);font:800 8.5px/1 Inter,sans-serif;display:flex;align-items:center;justify-content:center;color:var(--dim);text-decoration:none}
+.mc.on{background:var(--c);color:#fff;border-color:var(--c)}
+.mc.si{grid-row:span 3;aspect-ratio:auto}
+.rowl{display:flex;justify-content:space-between;font-size:9px;color:var(--dim);margin:3px 0 10px}
+.gauge{position:relative;height:30px;border-radius:15px;background:linear-gradient(90deg,var(--move) 0,var(--key) 45%,var(--key) 55%,var(--time) 100%);border:1px solid var(--line);margin:6px 0 2px}
+.gauge i{position:absolute;top:3px;width:22px;height:22px;border-radius:50%;background:var(--ink);transform:translateX(-50%);transition:left .25s ease;box-shadow:0 1px 0 #0004}
+.gl{display:flex;justify-content:space-between;font-size:10px;color:var(--dim)}
+.reading{font:400 13.5px/1.45 Inter,sans-serif;margin-top:10px}
+.deck{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.grp h3{margin-bottom:6px}
+.act{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;text-align:left;border:1px solid var(--line);background:var(--key);border-radius:10px;padding:7px 8px;margin-bottom:6px;box-shadow:0 2px 0 var(--line)}
+.act:hover:not(:disabled){border-color:var(--ink)}
+.act:active:not(:disabled){transform:translateY(1px);box-shadow:0 1px 0 var(--line)}
+.act:disabled{opacity:.38;cursor:default;box-shadow:none}
+.act.done{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.act .k{width:26px;height:26px;border-radius:50%;background:var(--c);color:#fff;display:flex;align-items:center;justify-content:center;font:800 10px/1 Inter,sans-serif}
+.act b{display:block;font:600 12px/1.2 Inter,sans-serif}
+.act small{display:block;font-size:10px;color:var(--dim);line-height:1.3}
+.act.done small{color:inherit;opacity:.75}
+.act em{font-style:normal;font-size:10px;text-align:right;white-space:nowrap}
+.act em .t{color:var(--time)}.act em .m{color:var(--move)}
+.recipe{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;margin:0 16px 12px}
+.rl{list-style:none;margin:0;padding:0}
+.rl li{display:grid;grid-template-columns:26px minmax(0,1fr) 22px;gap:8px;align-items:center;padding:5px 0;border-top:1px solid var(--line)}
+.rl li .k{width:22px;height:22px;border-radius:50%;background:var(--c);color:#fff;font:800 9px/22px Inter,sans-serif;text-align:center}
+.rl li button{border:0;background:none;color:var(--dim)}
+.why{color:var(--dim);font-size:11px}
+.foot{color:var(--dim);font-size:11px;margin:0 16px 24px;max-width:120ch}
+@media (max-width:1100px){.top{grid-template-columns:1fr}.deck{grid-template-columns:1fr 1fr}.recipe{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1><i></i>Sound Bench</h1>
+  <div class="chips" id="poems"></div>
+  <nav><a href="sound-table.html">Sound table</a><a href="../periodic-table.html">Picture table</a><a href="tools/cut.html">CUT</a></nav>
+</div>
+<section class="dev">
+  <div class="top">
+    <div>
+      <h3>The picture at this moment</h3>
+      <div class="screen" id="screen"></div>
+      <p class="cap" id="cap"></p>
+      <div class="signs" id="psigns"></div>
+    </div>
+    <div>
+      <h3><span id="where"></span><span class="sp"></span>
+        <span class="stepper"><button id="prev" title="previous line (←)">◀</button><span id="ln"></span><button id="next" title="next line (→)">▶</button></span>
+        <button class="tp" id="play" title="play the line with its actions (space)">▶</button></h3>
+      <p class="linetxt" id="text"></p>
+      <div class="track" id="track"><div class="ph" id="ph"></div></div>
+      <div class="legend"><span><i style="background:#141414"></i>grade A word</span><span><i style="background:#8b8a86"></i>B</span><span><i style="background:#d0cec8"></i>C</span><span><i style="background:var(--voice)"></i>her pitch</span><span>▨ pause / breath · click to select</span><span>click words · shift-click a range</span></div>
+    </div>
+    <div>
+      <h3>Sound table · this line</h3>
+      <div class="mini" id="mini"></div>
+      <div class="rowl"><span>rows: IN · OFF · OUT</span><span>Si = silence</span></div>
+      <h3>Movement-image ↔ time-image</h3>
+      <div class="gauge" id="gauge"><i></i></div>
+      <div class="gl"><span>locked to the picture</span><span>sound set free</span></div>
+      <p class="reading" id="reading"></p>
+    </div>
+  </div>
+</section>
+<section class="dev"><div class="deck" id="deck"></div></section>
+<section class="recipe">
+  <div class="dev" style="margin:0"><h3>Actions on this line<span class="sp"></span><button class="stepper" id="clear" style="border:0;background:none;color:var(--dim)">clear</button></h3><ul class="rl" id="recipe"></ul></div>
+  <div class="dev" style="margin:0"><h3>Why these signs</h3><p class="why" id="whyp"></p></div>
+</section>
+<p class="foot" id="foot">Rows are Deamer's, after Chion (p.167). The four picture moves are Deamer's list of how the time-image breaks the sound–image contract (p.168). Hold the breath follows his reading of Five (pp.302–304); whispers inside one body, his solid perception (pp.179–180). Every other action-to-sign link is the editor's inference. The words, grades, pitch, pauses, sung twins and chops are the WYGWYL atlas's own data.</p>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const FAM = { voice: 'var(--voice)', music: 'var(--music)', field: 'var(--field)', signal: 'var(--signal)', ground: 'var(--ground)' };
+const S = { D: null, T: null, K: {}, HITS: [], p: 0, l: 0, sel: null, acts: {}, playing: [] };
+const KEY = 'cineosis.bench.v1';
+try { S.acts = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { S.acts = {}; }
+const store = () => { try { localStorage.setItem(KEY, JSON.stringify(S.acts)); } catch (e) { /* storage blocked */ } };
+const P = () => S.D.poems[S.p], L = () => P().lines[S.l];
+const lineActs = () => S.acts[L().id] || [];
+
+/* ---------- the actions: each makes a sound-table element and pushes the picture toward a sign ---------- */
+const ACTIONS = [
+  // her words
+  { id: 'isolate', grp: 'Her words', name: 'Isolate', does: 'the selected words alone, cut tight', cell: ['Wh', 'OUT'], sign: '44', tilt: -1, need: 'words',
+    why: 'Lifted out of the line, a word is read as a word: the image becomes something read (inference).' },
+  { id: 'echo', grp: 'Her words', name: 'Echo into the pause', does: 'the words return, softer, in her next pause', cell: ['Wh', 'OFF'], sign: '39', tilt: -1, need: 'words',
+    why: 'Her own word coming back from elsewhere in the scene: a layer of the past heard in the present (inference).' },
+  { id: 'chop', grp: 'Her words', name: 'Whisper a chop', does: 'one of her power-phrase chops in this line, in the longest pause', cell: ['Wh', 'OUT'], sign: '1', tilt: -1, need: 'chops',
+    why: 'Breath and voiced thought heard from inside one body — Deamer’s solid perception (pp.179–180).' },
+  // other mouths
+  { id: 'answer', grp: 'Other mouths', name: 'Answer with the twin', does: 'the sung twin of this line, after her', cell: ['Mo', 'OUT'], sign: '40', tilt: -1, need: 'sung',
+    why: 'The same words in another mouth: her story told by others (inference).' },
+  { id: 'double', grp: 'Other mouths', name: 'Double with the twin', does: 'the sung twin under her, at a third of her level — breaks one speaker', cell: ['Co', 'OUT'], sign: '3', tilt: -1, need: 'sung',
+    why: 'Two mouths at once: the voice dispersed, with no single centre of hearing (inference). The mix law forbids it; here it is an experiment.' },
+  // silence and signal
+  { id: 'hold', grp: 'Silence', name: 'Hold the breath', does: '+1.5 s of silence in the selected pause', cell: ['Si', 'OUT'], sign: '34b', tilt: -2, need: 'gap',
+    why: 'Near-silence as a pure sound situation — Deamer’s reading of Five (pp.302–304).' },
+  { id: 'hit', grp: 'Silence', name: 'Hit on the breath', does: 'an atlas hit in the selected pause (or her first)', cell: ['Ht', 'OUT'], sign: '10', tilt: 1, need: 'anygap',
+    why: 'A sound that points to an event the frame does not show: an index (inference).' },
+  { id: 'bed', grp: 'Silence', name: 'Drone under', does: 'the unified drone at this moment of the clock, low', cell: ['Dr', 'OUT'], sign: '6', tilt: 0,
+    why: 'A floor with no source and no direction: space without coordinates (inference).' },
+  // the picture
+  { id: 'sync', grp: 'The picture', name: 'Sync the shot', does: 'the shot’s own sound IN, ducked under her words', cell: null, sign: null, tilt: 2, need: 'shot',
+    why: 'Synchresis: sound locked to what we see — the movement-image’s “fourth dimension of the visual image” (Deamer p.168, after C2).' },
+  { id: 'noscore', grp: 'The picture', name: 'Drop the score', does: 'remove the music under the line (drone, shot music)', cell: null, sign: '34a', tilt: -1,
+    why: 'Removing the music exposes the contract between sound and image (Deamer p.168).' },
+  { id: 'noeffects', grp: 'The picture', name: 'Drop the effects', does: 'the picture falls silent; only her voice remains', cell: ['Si', 'IN'], sign: '34b', tilt: -2, need: 'shot',
+    why: 'Remove the effects and the space off-screen closes (Deamer p.168).' },
+  { id: 'lock', grp: 'The picture', name: 'Expose the lock', does: 'the selected words played as if the shot made them, at its first frame', cell: ['Po', 'IN'], sign: '44', tilt: -2, need: 'words',
+    why: 'Her word placed IN a picture that did not make it: the sound–image contract shown as a contract (Deamer p.168).' }
+];
+const A = id => ACTIONS.find(a => a.id === id);
+function valid(a) {
+  const l = L(), sel = S.sel;
+  if (a.need === 'words') return sel?.kind === 'words';
+  if (a.need === 'gap') return sel?.kind === 'gap';
+  if (a.need === 'anygap') return gaps().length > 0;
+  if (a.need === 'sung') return !!l.sung;
+  if (a.need === 'chops') return l.chops.length > 0;
+  if (a.need === 'shot') return !!l.picture.shot;
+  if (a.id === 'noscore') return lineActs().some(x => x.id === 'bed' || x.id === 'sync');
+  return true;
+}
+function shotKind() { const sh = L().picture.shot; const k = sh && S.K[sh.id]; return k ? k[0] : null; }
+function cellOf(x) {
+  const a = A(x.id); if (a.cell) return a.cell;
+  if (x.id === 'sync') { const k = shotKind(); return [{ speech: 'Fv', mixed: 'Fv', music: 'Fm', noise: 'Fn' }[k] || (k ? 'Si' : 'Fn'), 'IN']; }
+  return null;
+}
+
+/* ---------- the line: words, pauses, pitch ---------- */
+function gaps() {
+  const W = L().words, out = [];
+  for (let i = 0; i + 1 < W.length; i++) { const g = W[i + 1].s - W[i].e; if (g >= .35) out.push({ i, s: W[i].e, e: W[i + 1].s }); }
+  const tail = L().e + 1.2; if (W.length && tail - W[W.length - 1].e > .5) out.push({ i: W.length - 1, s: W[W.length - 1].e, e: tail, tail: true });
+  return out;
+}
+function span() { const l = L(); return [l.s - .15, l.e + 1.3]; }
+function drawLine() {
+  const l = L(), [t0, t1] = span(), X = t => ((t - t0) / (t1 - t0) * 100) + '%', host = $('#track');
+  host.querySelectorAll('.w,.gap,.mk,svg').forEach(e => e.remove());
+  const ev = l.events.filter(e => e.type === 'PAUSE' || e.type === 'BREATH');
+  gaps().forEach((g, gi) => {
+    const d = document.createElement('div'); d.className = 'gap' + (S.sel?.kind === 'gap' && S.sel.gi === gi ? ' sel' : '');
+    const lab = ev.find(e => e.t >= g.s - .2 && e.t <= g.e + .2); d.textContent = lab ? lab.type.toLowerCase() : (g.tail ? 'after' : 'pause');
+    d.style.left = X(g.s); d.style.width = `calc(${X(g.e)} - ${X(g.s)})`; d.title = `${(g.e - g.s).toFixed(2)} s`;
+    d.onclick = () => { S.sel = { kind: 'gap', gi, g }; render(); }; host.appendChild(d);
+  });
+  const selW = S.sel?.kind === 'words' ? S.sel : null;
+  l.words.forEach((w, i) => {
+    const d = document.createElement('div'); d.className = 'w' + (selW && i >= selW.a && i <= selW.b ? ' sel' : '');
+    d.style.left = X(w.s); d.style.width = `calc(${X(w.e)} - ${X(w.s)} - 1px)`; d.style.height = (34 + (w.st || 0) * 60) + 'px';
+    d.style.setProperty('--gc', { A: '#141414', B: '#8b8a86', C: '#d0cec8' }[w.gr] || '#d0cec8');
+    d.textContent = w.w; d.title = `${w.w} · grade ${w.gr} · stress ${w.st ?? '—'} · ${w.f0 ? Math.round(w.f0) + ' Hz' : ''}`;
+    d.onclick = e => { if (e.shiftKey && selW) S.sel = { kind: 'words', a: Math.min(selW.a, i), b: Math.max(selW.b, i) }; else S.sel = { kind: 'words', a: i, b: i }; render(); };
+    host.appendChild(d);
+  });
+  // pitch and energy lanes
+  const n = l.rms.length, hop = l.hop, pts = (arr, f) => arr.map((v, k) => [((l.s + k * hop - t0) / (t1 - t0)) * 1000, f(v)]);
+  const rms = pts(l.rms, v => 150 - Math.min(1, v / 1.6) * 30), f0 = pts(l.f0, v => v ? 118 - (v - 60) / 140 * 100 : null);
+  const path = P => P.reduce((s, [x, y], k) => y == null ? s : s + (s && P[k - 1] && P[k - 1][1] != null ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1), '');
+  host.insertAdjacentHTML('afterbegin', `<svg viewBox="0 0 1000 150" preserveAspectRatio="none"><path d="${path(rms)} L${rms[n - 1]?.[0] || 0} 150 L${rms[0]?.[0] || 0} 150 Z" fill="#0000000d"/><path d="${path(f0)}" fill="none" stroke="var(--voice)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>`);
+  // markers for the actions placed
+  lineActs().forEach((x, k) => {
+    const c = cellOf(x), col = colOf(c?.[0]); const m = document.createElement('div'); m.className = 'mk';
+    m.style.background = col ? FAM[col.family] : 'var(--ground)'; m.style.left = X(x.at ?? l.s); m.style.top = (4 + (k % 3) * 18) + 'px';
+    m.textContent = `${c?.[0] || ''} ${A(x.id).name}`; host.appendChild(m);
+  });
+}
+
+/* ---------- the sound table, the gauge, the reading ---------- */
+const colOf = sym => S.T?.columns.find(c => c.sym === sym);
+function drawMini() {
+  const on = new Set([`Po:OUT`, ...lineActs().map(cellOf).filter(Boolean).map(c => c.join(':'))]);
+  const cols = S.T.columns.filter(c => c.sym !== 'Si'); let h = '';
+  S.T.rows.forEach((r, ri) => {
+    cols.forEach(c => { const k = `${c.sym}:${r.id}`; h += `<a class="mc${on.has(k) ? ' on' : ''}" style="--c:${FAM[c.family]}" href="sound-table.html#${c.sym}-${r.id}" target="_blank" title="${esc(c.name)} · ${esc(r.name)}">${c.sym}</a>`; });
+    if (ri === 0) h += `<a class="mc si${[...on].some(k => k.startsWith('Si:')) ? ' on' : ''}" style="--c:var(--ground)" href="sound-table.html#Si-OUT" target="_blank" title="Silence">Si</a>`;
+  });
+  $('#mini').innerHTML = h;
+}
+function drawGauge() {
+  const t = lineActs().reduce((s, x) => s + A(x.id).tilt, 0), v = Math.max(-6, Math.min(6, -t));
+  $('#gauge i').style.left = (50 + v / 6 * 45) + '%';
+  const l = L(), pic = (l.picture.beat?.codes || []).map(n => S.D.signs[n]).filter(Boolean);
+  const acts = lineActs().map(x => A(x.id));
+  const pushed = [...new Set(acts.map(a => a.sign).filter(Boolean))].map(n => `${S.D.signs[n]?.symbol} ${S.D.signs[n]?.name}`);
+  const sentence = !acts.length ? `Her voice OUT over ${pic.length ? pic.map(s => s.name.toLowerCase()).join(' and ') : 'the picture'}: the reading as voice-over, the picture unanswered.`
+    : `${pic.length ? 'The picture reads ' + pic.map(s => s.symbol + ' ' + s.name).join(', ') + '. ' : ''}With ${acts.map(a => a.name.toLowerCase()).join(', ')}, the line leans ${t < 0 ? 'toward the time-image (' + t + ')' : t > 0 ? 'toward the movement-image (+' + t + ')' : 'neither way'}${pushed.length ? ', pressing on ' + pushed.join(' · ') : ''}.`;
+  $('#reading').textContent = sentence;
+  $('#whyp').innerHTML = acts.length ? acts.map(a => `<b>${esc(a.name)}</b> — ${esc(a.why)}`).join('<br><br>') : 'Select a word or a pause in the line, then press an action. Each one names the sound-table element it makes and the sign it pushes toward.';
+}
+function drawPicture() {
+  const l = L(), sh = l.picture.shot, b = l.picture.beat, k = shotKind();
+  const acts = lineActs(), sync = acts.some(x => x.id === 'sync'), silent = acts.some(x => x.id === 'noeffects');
+  $('#screen').innerHTML = sh ? `<img src="${esc(sh.thumb)}" alt=""><span class="tag">${sync ? 'IN · its own sound' : silent ? 'silent' : 'picture · sound off'}${k ? ' · measured: ' + k : ''}</span>` : '<span class="tag">no shot</span>';
+  $('#cap').innerHTML = sh ? `<b>${esc(sh.title)}</b> ${esc(sh.year || '')} · Suite cut at ${Math.floor(l.clock / 60)}:${String(Math.floor(l.clock % 60)).padStart(2, '0')}${b ? ` · beat #${b.id} ${esc(b.title)} (${esc(b.mode)})` : ''}` : '';
+  const pushed = new Set(acts.map(x => A(x.id).sign).filter(Boolean)), lean = acts.reduce((s, x) => s + A(x.id).tilt, 0);
+  const codes = b?.codes || [];
+  $('#psigns').innerHTML = codes.map(n => { const s = S.D.signs[n]; return s ? `<a class="sg${lean > 0 ? ' pull' : ''}" href="../periodic-table.html#${n}" target="_blank"><b>${s.symbol}</b>${n} ${esc(s.name)}</a>` : ''; }).join('')
+    + [...pushed].filter(n => !codes.includes(n)).map(n => { const s = S.D.signs[n]; return `<a class="sg push" href="../periodic-table.html#${n}" target="_blank" title="pushed by the sound"><b>${s.symbol}</b>→ ${n} ${esc(s.name)}</a>`; }).join('');
+}
+function drawDeck() {
+  const grps = [...new Set(ACTIONS.map(a => a.grp))], done = new Set(lineActs().map(x => x.id));
+  $('#deck').innerHTML = grps.map(g => `<div class="grp"><h3>${esc(g)}</h3>${ACTIONS.filter(a => a.grp === g).map(a => {
+    const c = a.id === 'sync' ? cellOf({ id: 'sync' }) : a.cell, col = colOf(c?.[0]), s = a.sign ? S.D.signs[a.sign] : null;
+    return `<button class="act${done.has(a.id) ? ' done' : ''}" data-a="${a.id}" ${valid(a) || done.has(a.id) ? '' : 'disabled'} title="${esc(a.why)}">
+      <span class="k" style="--c:${col ? FAM[col.family] : 'var(--ground)'}">${c ? c[0] : '—'}</span>
+      <span><b>${esc(a.name)}</b><small>${esc(a.does)}${c ? ` · makes ${c[0]} ${c[1]}` : ''}</small></span>
+      <em>${s ? `→ ${s.symbol} ${a.sign}` : ''}<br><span class="${a.tilt < 0 ? 't' : 'm'}">${a.tilt < 0 ? '◄'.repeat(-a.tilt) + ' time' : a.tilt > 0 ? 'move ' + '►'.repeat(a.tilt) : '·'}</span></em></button>`; }).join('')}</div>`).join('');
+  $('#deck').querySelectorAll('.act').forEach(b => b.onclick = () => toggle(b.dataset.a));
+}
+function drawRecipe() {
+  $('#recipe').innerHTML = lineActs().map((x, i) => { const a = A(x.id), c = cellOf(x), col = colOf(c?.[0]);
+    return `<li><span class="k" style="--c:${col ? FAM[col.family] : 'var(--ground)'}">${c ? c[0] : '—'}</span><span><b>${esc(a.name)}</b>${x.label ? ` · “${esc(x.label)}”` : ''}<small class="why"> · ${esc(a.does)}</small></span><button data-i="${i}" title="remove">×</button></li>`; }).join('')
+    || '<li><span></span><span class="why">No actions yet: her voice plays OUT, alone, over the picture.</span><span></span></li>';
+  $('#recipe').querySelectorAll('button').forEach(b => b.onclick = () => { S.acts[L().id].splice(+b.dataset.i, 1); if (!S.acts[L().id].length) delete S.acts[L().id]; store(); render(); });
+}
+function render() {
+  const p = P(), l = L();
+  $('#poems').innerHTML = S.D.poems.map((q, i) => `<button class="${i === S.p ? 'on' : ''}" data-p="${i}" title="${esc(q.title)}">${q.n}</button>`).join('');
+  $('#poems').querySelectorAll('button').forEach(b => b.onclick = () => { S.p = +b.dataset.p; S.l = 0; S.sel = null; render(); });
+  $('#where').textContent = `${p.n} ${p.title}`;
+  $('#ln').textContent = `line ${S.l + 1} / ${p.lines.length}`;
+  $('#text').textContent = l.text;
+  drawLine(); drawMini(); drawGauge(); drawPicture(); drawDeck(); drawRecipe();
+  try { history.replaceState(null, '', '#' + l.id); } catch (e) { /* file: */ }
+}
+
+/* ---------- applying an action records where it sounds on the line ---------- */
+function toggle(id) {
+  const list = S.acts[L().id] ||= [], i = list.findIndex(x => x.id === id);
+  if (i >= 0) { list.splice(i, 1); if (!list.length) delete S.acts[L().id]; store(); render(); return; }
+  const a = A(id); if (!valid(a)) return;
+  const l = L(), W = l.words, G = gaps(), x = { id };
+  if (a.need === 'words') { const w0 = W[S.sel.a], w1 = W[S.sel.b]; x.from = w0.ts; x.to = w1.te; x.label = W.slice(S.sel.a, S.sel.b + 1).map(w => w.w).join(' '); x.at = w0.s; }
+  if (id === 'echo') { const g = G.find(g => g.s >= W[S.sel.b].e - .01) || G[G.length - 1]; x.at = g ? g.s + .1 : l.e + .2; }
+  if (id === 'hold') { x.at = S.sel.g.s + .05; x.len = 1.5; }
+  if (id === 'hit') { const g = S.sel?.kind === 'gap' ? S.sel.g : G[0]; x.at = g.s + .05; const h = S.HITS[Math.floor(Math.random() * S.HITS.length)]; x.src = h && (/^https?:/.test(h.file) ? h.file : S.D.atlas + h.file); x.label = h?.label; }
+  if (id === 'chop') { const c = l.chops.slice().sort((p, q) => (q.hook || 0) - (p.hook || 0))[0], g = G.slice().sort((p, q) => (q.e - q.s) - (p.e - p.s))[0]; x.src = c.file; x.label = c.label; x.at = g ? g.s + .05 : l.e + .2; }
+  if (id === 'answer') x.at = l.e + .4;
+  if (id === 'double') x.at = l.s;
+  if (id === 'lock') x.at = l.s;
+  list.push(x); store(); render();
+}
+
+/* ---------- playing the line with its actions (0 = line start) ---------- */
+function stop() { S.playing.forEach(p => { try { p.pause(); } catch (e) { /* gone */ } clearTimeout(p); }); S.playing = []; $('#play').textContent = '▶'; $('#ph').style.display = 'none'; cancelAnimationFrame(S.raf); }
+function aud(src, from, to, vol, delay) {
+  const a = new Audio(src); a.volume = vol; a.preload = 'auto';
+  const go = () => { try { a.currentTime = from || 0; } catch (e) { /* not ready */ } a.play().catch(() => {}); if (to != null) { const t = setTimeout(() => a.pause(), (to - (from || 0)) * 1000 + 30); S.playing.push(t); } };
+  const t = setTimeout(() => { if (a.readyState >= 1) go(); else a.addEventListener('loadedmetadata', go, { once: true }); }, Math.max(0, delay) * 1000);
+  S.playing.push(a, t); return a;
+}
+function play() {
+  if (S.playing.length) return stop();
+  const l = L(), acts = lineActs(), has = id => acts.find(x => x.id === id);
+  const iso = has('isolate'), hold = has('hold'), holdAt = hold ? hold.at - l.s : null, holdLen = hold ? hold.len : 0;
+  const shift = t => (hold && t > holdAt ? t + holdLen : t);          // after the held breath everything is later
+  const noScore = has('noscore');
+  // her voice: the line (or only the isolated words), split around a held breath
+  if (iso) aud(l.file, iso.from - l.s, iso.to - l.s, 1, 0);
+  else if (hold) { aud(l.file, 0, holdAt, 1, 0); aud(l.file, holdAt, l.e - l.s + .3, 1, holdAt + holdLen); }
+  else aud(l.file, 0, l.e - l.s + .3, 1, 0);
+  const end = iso ? iso.to - iso.from : shift(l.e - l.s) + 1.2;
+  for (const x of acts) {
+    const at = shift((x.at ?? l.s) - l.s);
+    if (x.id === 'echo') aud(l.file, x.from - l.s, x.to - l.s, .45, iso ? end : at);
+    if (x.id === 'lock') aud(l.file, x.from - l.s, x.to - l.s, 1, 0);
+    if (x.id === 'chop' && x.src) aud(x.src, 0, null, .6, at);
+    if (x.id === 'answer' && l.sung) aud(l.sung.file, 0, null, .9, iso ? end : shift(l.e - l.s) + .4);
+    if (x.id === 'double' && l.sung) aud(l.sung.file, 0, null, .33, 0);
+    if (x.id === 'hit' && x.src) aud(x.src, 0, null, .7, at);
+    if (x.id === 'bed' && !noScore) aud(S.D.atlas + 'drone/unified-drones-lite.mp3', l.clock, l.clock + end + 1, .18, 0);
+  }
+  // the picture: silent by default; sync plays its own sound, ducked while she speaks
+  const sh = l.picture.shot;
+  if (sh) {
+    const sync = has('sync') && !has('noeffects') && !(noScore && ['music'].includes(shotKind()));
+    $('#screen').innerHTML = `<video src="${esc(sh.video)}" muted playsinline></video><span class="tag">${sync ? 'IN · its own sound' : 'picture'}</span>`;
+    const v = $('#screen video'); v.volume = .6; v.muted = !sync;
+    v.addEventListener('loadedmetadata', () => { try { v.currentTime = sh.in || 0; } catch (e) { /* not seekable */ } v.play().catch(() => {}); }, { once: true });
+    S.playing.push(v);
+    if (sync) { const t0 = performance.now(), duck = () => { const t = (performance.now() - t0) / 1000, sp = l.words.some(w => t >= shift(w.s - l.s) && t <= shift(w.e - l.s)); v.volume = sp ? .12 : .6; if (S.playing.length) S.duck = requestAnimationFrame(duck); }; duck(); }
+  }
+  const t0 = performance.now(), [a0, a1] = span(), ph = $('#ph'); ph.style.display = 'block';
+  const step = () => { const t = (performance.now() - t0) / 1000; const lt = hold && t > holdAt ? (t < holdAt + holdLen ? holdAt : t - holdLen) : t;
+    ph.style.left = ((l.s + lt - a0) / (a1 - a0) * 100) + '%';
+    document.querySelectorAll('.w').forEach((e, i) => e.classList.toggle('now', lt >= l.words[i].s - l.s && lt <= l.words[i].e - l.s));
+    if (t > end + (acts.some(x => x.id === 'answer') ? (l.sung?.dur || 0) + .5 : 0)) return stop(); S.raf = requestAnimationFrame(step); };
+  step(); $('#play').textContent = '■';
+}
+$('#play').onclick = play;
+$('#prev').onclick = () => { stop(); if (S.l > 0) S.l--; else if (S.p > 0) { S.p--; S.l = P().lines.length - 1; } S.sel = null; render(); };
+$('#next').onclick = () => { stop(); if (S.l < P().lines.length - 1) S.l++; else if (S.p < S.D.poems.length - 1) { S.p++; S.l = 0; } S.sel = null; render(); };
+$('#clear').onclick = () => { delete S.acts[L().id]; store(); render(); };
+addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.target.closest('input')) return;
+  if (e.key === ' ') { e.preventDefault(); play(); } else if (e.key === 'ArrowLeft') $('#prev').click(); else if (e.key === 'ArrowRight') $('#next').click(); else if (e.key === 'Escape') { S.sel = null; render(); }
+});
+(async () => {
+  const [D, T, K] = await Promise.all([fetch('sound-cineosis.json').then(r => r.json()), fetch('sound-table.json').then(r => r.json()), fetch('tools/sound-kinds.json?v=2').then(r => r.json()).catch(() => ({ clips: {} }))]);
+  S.D = D; S.T = T; S.K = K.clips || {};
+  fetch(D.atlas + 'sonic/sonic.json').then(r => r.json()).then(j => { S.HITS = j.sounds.filter(s => s.cls === 'HIT'); drawDeck(); }).catch(() => {});
+  const id = location.hash.slice(1); D.poems.forEach((p, i) => p.lines.forEach((l, k) => { if (l.id === id) { S.p = i; S.l = k; } }));
+  render();
+})();
+</script>
+</body>
+</html>
