@@ -1,0 +1,3741 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Arc-Tunnel Operator — Live Video Instrument</title>
+    <style>
+        :root {
+            --bg: #fff;
+            --ink: #000;
+            --panel: #fff;
+            --border: #000;
+            --left: 56px;
+            --right: 300px;
+            --bottom: 52px;
+            --top: 0px; /* No top bar in bus mode */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            height: 100dvh;
+            overflow: hidden;
+            background: #000;
+            color: var(--ink);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            touch-action: none;
+            user-select: none;
+        }
+
+        /* Dual Canvas Architecture: Video Layer + UI Layer */
+        #bgStage {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            z-index: 0;
+        }
+
+        #stage {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            display: block;
+            z-index: 1;
+            cursor: crosshair
+        }
+
+        button {
+            font: inherit;
+            background: var(--panel);
+            color: var(--ink);
+            border: 2px solid var(--border);
+            border-radius: 0;
+            height: 32px;
+            padding: 0 8px;
+            font-weight: 900;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        button.on,
+        button:active {
+            background: var(--ink);
+            color: #fff
+        }
+
+        #rail {
+            position: fixed;
+            z-index: 20;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: var(--left);
+            border-right: 2px solid var(--border);
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 8px 6px;
+            pointer-events: auto
+        }
+
+        #rail b {
+            height: 38px;
+            border: 2px solid var(--border);
+            background: var(--ink);
+            color: #fff;
+            display: grid;
+            place-items: center;
+            font-size: 13px
+        }
+
+        #rail button {
+            width: 44px;
+            height: 38px;
+            font-size: 10px;
+            padding: 0
+        }
+
+        .spacer {
+            flex: 1
+        }
+
+        /* Top bar hidden in bus mode — controlled by harness */
+        #top { display: none !important; }
+
+        #brand {
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #000;
+        }
+
+        .mode {
+            margin-left: auto;
+            border: 2px solid var(--border);
+            padding: 5px 9px;
+            font-weight: 900
+        }
+
+        .mode b {
+            background: var(--ink);
+            color: #fff;
+            padding: 2px 5px;
+            margin-left: 5px
+        }
+
+        #ops {
+            position: fixed;
+            z-index: 16;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: var(--right);
+            border-left: 2px solid var(--border);
+            background: var(--bg);
+            overflow: auto;
+            pointer-events: auto
+        }
+
+        .opHead {
+            position: sticky;
+            top: 0;
+            background: var(--ink);
+            color: #fff;
+            padding: 10px;
+            font-weight: 900;
+            text-transform: uppercase
+        }
+
+        .op {
+            display: grid;
+            grid-template-columns: 48px 1fr;
+            border-bottom: 1px solid var(--border);
+            padding: 8px 10px;
+            gap: 8px;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .op:hover,
+        .op.on {
+            background: var(--ink);
+            color: #fff
+        }
+
+        .op code {
+            font-weight: 900
+        }
+
+        .op span {
+            font-size: 11px;
+            text-transform: uppercase
+        }
+
+        .op small {
+            display: block;
+            font-size: 10px;
+            margin-top: 3px;
+            opacity: .75
+        }
+
+        #bottom {
+            position: fixed;
+            z-index: 18;
+            left: var(--left);
+            right: var(--right);
+            bottom: 0;
+            height: var(--bottom);
+            border-top: 2px solid var(--border);
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 10px;
+            pointer-events: auto
+        }
+
+        .trk {
+            height: 34px;
+            min-width: 34px
+        }
+
+        .trk.on {
+            background: var(--ink);
+            color: #fff
+        }
+
+        #status {
+            margin-left: auto;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: #3b82f6;
+        }
+
+        .read {
+            border-left: 2px solid var(--border);
+            padding-left: 8px;
+            min-width: 160px;
+            text-align: right;
+            font-weight: 900
+        }
+
+        #dock {
+            position: fixed;
+            z-index: 22;
+            left: 50%;
+            bottom: calc(var(--bottom) + 10px);
+            transform: translateX(-50%);
+            display: flex;
+            border: 2px solid var(--border);
+            background: var(--bg);
+            pointer-events: auto
+        }
+
+        #dock button {
+            border: 0;
+            border-right: 1px solid var(--border);
+            height: 36px;
+            font-size: 11px;
+            background: transparent;
+            color: var(--ink);
+        }
+
+        #dock button:last-child {
+            border-right: 0
+        }
+
+        #dock button.on {
+            background: var(--ink);
+            color: #fff;
+        }
+
+        /* Tool category colors (when active) */
+        #dock button.on[data-cat="time"] { background: #166534; }
+        #dock button.on[data-cat="vis"] { background: #1e40af; }
+        #dock button.on[data-cat="ann"] { background: #92400e; }
+        /* Subtle tint when inactive */
+        #dock button[data-cat="time"] { color: #22c55e; }
+        #dock button[data-cat="vis"] { color: #60a5fa; }
+        #dock button[data-cat="ann"] { color: #fbbf24; }
+
+        #badge {
+            position: fixed;
+            z-index: 22;
+            left: calc(var(--left) + 12px);
+            top: 10px; /* No top offset in bus mode */
+            border: 3px solid var(--border);
+            background: var(--bg);
+            padding: 8px 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            box-shadow: 6px 6px 0 #000;
+            pointer-events: none;
+            min-width: 220px
+        }
+
+        #badge .big {
+            font-size: 18px;
+            line-height: 18px;
+            color: #000;
+        }
+
+        .meta {
+            font-size: 10px;
+            margin-top: 4px
+        }
+
+        #store {
+            position: fixed;
+            z-index: 17;
+            left: calc(var(--left) + 12px);
+            bottom: calc(var(--bottom) + 58px);
+            width: 340px;
+            border: 2px solid var(--border);
+            background: var(--bg);
+            pointer-events: auto;
+            display: none; /* Hidden by default — toggled by STORE tool */
+        }
+        #store.show { display: block; }
+
+        .storeHead {
+            padding: 7px 9px;
+            border-bottom: 2px solid var(--border);
+            background: var(--panel);
+            display: flex;
+            justify-content: space-between;
+            font-weight: 900;
+            text-transform: uppercase
+        }
+
+        .slots {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr)
+        }
+
+        .slot {
+            border-right: 1px solid var(--border);
+            padding: 8px;
+            font-size: 10px;
+            min-height: 42px;
+            cursor: pointer
+        }
+
+        .slot:last-child {
+            border-right: 0
+        }
+
+        .slot:hover {
+            background: var(--ink);
+            color: #fff
+        }
+
+        .slot b {
+            display: block
+        }
+
+        #menu {
+            position: fixed;
+            z-index: 60;
+            display: none;
+            border: 2px solid var(--border);
+            background: var(--bg);
+            min-width: 220px;
+            pointer-events: auto
+        }
+
+        .mi {
+            height: 34px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            cursor: pointer
+        }
+
+        .mi:hover,
+        .mi.title {
+            background: var(--ink);
+            color: #fff
+        }
+
+        .mi:last-child {
+            border-bottom: 0
+        }
+
+        #menu.show {
+            display: block
+        }
+
+        #toast {
+            position: fixed;
+            z-index: 70;
+            left: 50%;
+            bottom: 64px;
+            transform: translateX(-50%);
+            border: 2px solid var(--ink);
+            background: var(--ink);
+            color: #fff;
+            padding: 8px 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 12px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.1s
+        }
+
+        #toast.show {
+            opacity: 1
+        }
+
+        @media(max-width: 900px) {
+            :root {
+                --left: 36px;
+                --right: 36px;
+                --bottom: 38px;
+                --top: 0px;
+            }
+
+            /* Rail — compact */
+            #rail { width: var(--left); gap: 2px; padding: 4px 3px; }
+            #rail b { height: 26px; font-size: 8px; }
+            #rail button { width: 28px; height: 26px; font-size: 6px; padding: 0; }
+
+            /* Ops panel — simple buttons matching rail style */
+            #ops { top: 0; bottom: var(--bottom); width: var(--right); }
+            .opHead, .op code, .op small, .read, #store { display: none; }
+            .op {
+                display: flex; justify-content: center; align-items: center;
+                width: 34px; height: 34px; padding: 0;
+                border-bottom: 1px solid #ddd; border-left: 0; border-right: 0;
+                grid-template-columns: 1fr; cursor: pointer;
+            }
+            .op:hover, .op.on { background: var(--ink); color: #fff; }
+            .op span { font-size: 8px; font-weight: 900; writing-mode: initial; letter-spacing: 0; }
+            .op span:before { content: none; }
+
+            /* Bottom bar — compact */
+            #bottom { right: var(--right); height: var(--bottom); padding: 3px 4px; }
+            .trk { width: 24px; height: 28px; font-size: 0; padding: 0; min-width: 24px; }
+            .trk:after { content: attr(data-s); font-size: 10px; }
+            #status { font-size: 9px; }
+
+            /* Dock — edge-to-edge */
+            #dock {
+                left: calc(var(--left) + 4px); right: calc(var(--right) + 4px);
+                bottom: calc(var(--bottom) + 4px); transform: none; overflow-x: auto;
+            }
+            #dock button { height: 28px; min-width: 44px; font-size: 8px; padding: 0 4px; }
+
+            /* Badge — HIDDEN on mobile, info goes to bus strip */
+            #badge { display: none !important; }
+
+            #toast { bottom: 70px; font-size: 9px; }
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="bgStage"></canvas>
+    <canvas id="stage"></canvas>
+    <nav id="rail">
+        <b>ATO</b>
+        <button id="viewBtn">VIEW</button>
+        <button id="addBtn">ADD</button>
+        <button id="mediaBtn">MEDIA</button>
+        <button id="cutBtn">CUT</button>
+        <button id="bankBtn">BANK</button>
+        <button id="edlBtn">EDL</button>
+        <button id="importBtn">IMP</button>
+        <button id="exportBtn">OUT</button>
+        <div class="spacer"></div>
+        <button id="resetBtn">RST</button>
+    </nav>
+    <header id="top">
+        <div id="brand">ARC-TUNNEL LIVE</div>
+        <button id="playBtn">PLAY</button>
+        <button id="snapBtn" class="on">SNAP</button>
+        <div class="mode">
+            VIEW <b id="modeName">BARREL</b>
+        </div>
+    </header>
+    <aside id="ops">
+        <div class="opHead">Live Bound Operations</div>
+        <div id="opList"></div>
+    </aside>
+    <section id="badge">
+        <div class="big" id="selBig">NO CLIP</div>
+        <div class="meta" id="selMeta">TAP SECTION</div>
+    </section>
+    <section id="store">
+        <div class="storeHead">
+            <span>Store</span>
+            <span id="storeCount">0</span>
+        </div>
+        <div class="slots" id="slots"></div>
+    </section>
+    <section id="dock">
+        <button data-tool="MOVE" data-cat="time" class="on">MOVE</button>
+        <button data-tool="TRIM" data-cat="time">TRIM</button>
+        <button data-tool="ROLL" data-cat="vis">ROLL</button>
+        <button data-tool="LIFT" data-cat="vis">LIFT</button>
+        <button data-tool="SPLIT" data-cat="time">SPLIT</button>
+        <button data-tool="ROUTE" data-cat="ann">ROUTE</button>
+        <button data-tool="STORE" data-cat="ann">STORE</button>
+    </section>
+    <footer id="bottom">
+        <div id="tracks"></div>
+        <button id="backBtn">|‹</button>
+        <button id="fwdBtn">›|</button>
+        <button id="zoomOutBtn">−</button>
+        <button id="zoomInBtn">+</button>
+        <div id="status">IDLE</div>
+        <div class="read" id="readout">NONE</div>
+    </footer>
+    <input id="importFile" type="file" accept="application/json,.json" style="display:none" />
+    <input id="mediaFile" type="file" accept="video/mp4,video/webm,video/ogg" style="display:none" />
+    <div id="menu"></div>
+    <div id="toast"></div>
+
+    <!-- ── LOADING OVERLAY (shown during frame ripping) ── -->
+    <div id="rip-overlay" style="
+        position:fixed; inset:0; background:rgba(0,0,0,0.88);
+        display:none; flex-direction:column; align-items:center; justify-content:center;
+        z-index:9999; gap:12px;
+    ">
+        <canvas id="rip-reel" width="160" height="160"></canvas>
+        <div id="rip-msg" style="
+            font:900 13px ui-monospace,monospace; color:#fff;
+            text-transform:uppercase; letter-spacing:0.15em;
+        ">LOADING</div>
+        <div id="rip-count" style="
+            font:900 28px ui-monospace,monospace; color:#ef4444;
+        ">0</div>
+        <div style="width:180px; height:6px; border:2px solid #fff; margin-top:4px;">
+            <div id="rip-bar" style="height:100%; width:0%; background:#22c55e; transition:width 0.15s;"></div>
+        </div>
+    </div>
+    <script>
+            ( () => {
+                'use strict';
+                const canvas = document.getElementById('stage')
+                  , ctx = canvas.getContext('2d');
+                const bgCanvas = document.getElementById('bgStage')
+                  , bgCtx = bgCanvas.getContext('2d', {
+                    alpha: false
+                });
+                const modeName = document.getElementById('modeName')
+                  , statusEl = document.getElementById('status')
+                  , readout = document.getElementById('readout')
+                  , opList = document.getElementById('opList')
+                  , tracksEl = document.getElementById('tracks')
+                  , slotsEl = document.getElementById('slots')
+                  , storeCount = document.getElementById('storeCount')
+                  , menu = document.getElementById('menu')
+                  , toastEl = document.getElementById('toast')
+                  , selBig = document.getElementById('selBig')
+                  , selMeta = document.getElementById('selMeta')
+                  , dock = document.getElementById('dock');
+                const importFile = document.getElementById('importFile')
+                  , mediaFile = document.getElementById('mediaFile')
+                  , mediaBtn = document.getElementById('mediaBtn')
+                  , playBtn = document.getElementById('playBtn');
+
+                const VIEWS = ['BARREL', 'INSIDE', 'OUTSIDE', 'SIDE', 'BENCH'];
+                const TOOLS = ['MOVE', 'TRIM', 'ROLL', 'LIFT', 'SPLIT', 'ROUTE', 'STORE'];
+                const NAMES = ['POSSIBLE', 'PLAUSIBLE', 'PROBABLE', 'PREFERRED']
+                  , SHORT = ['P', 'L', 'B', 'F'];
+                const TRACK_COLORS = ['#ec4899', '#3b82f6', '#22c55e', '#f59e0b'];
+                const STYLES = [{
+                    dash: [1, 6],
+                    hatch: 0,
+                    color: TRACK_COLORS[0]
+                }, {
+                    dash: [8, 6],
+                    hatch: 1,
+                    color: TRACK_COLORS[1]
+                }, {
+                    dash: [],
+                    hatch: 2,
+                    color: TRACK_COLORS[2]
+                }, {
+                    dash: [12, 4, 2, 4],
+                    hatch: 3,
+                    color: TRACK_COLORS[3]
+                }];
+                const UNITS = ['CLIP', 'BEAT', 'CELL', 'EDGE']
+                  , UNIT_STEP = {
+                    CLIP: 60,
+                    BEAT: 30,
+                    CELL: 15,
+                    EDGE: 5
+                };
+                const SNAP = 60
+                  , R = 150
+                  , FAR = 7200
+                  , SAVE = 'ato-tube-instrument-v12';
+
+                let DPR = 1
+                  , W = 0
+                  , H = 0
+                  , last = 0
+                  , nextId = 1
+                  , rendered = []
+                  , gizmosToRender = []
+                  , timer = 0
+                  , currentSnapZ = null
+                  , hasInteracted = false
+                  , _areaCache = null;
+                const clips = []
+                  , bank = []
+                  , routes = [];
+                const S = {
+                    view: 0,
+                    tool: 'MOVE',
+                    unit: 'CLIP',
+                    cam: 420,
+                    zoom: .52,
+                    roll: -.25,
+                    active: 2,
+                    selected: null,
+                    hover: null,
+                    drag: null,
+                    scrub: null,
+                    play: false,
+                    playRate: 1,
+                    inertia: 0,
+                    playingClip: null
+                };
+                const F = {
+                    ctx: null,
+                    master: null,
+                    lastSlot: null,
+                    lastTrack: null,
+                    lastRot: null,
+                    lastAt: 0
+                };
+
+                // ======= VIDEO ENGINE =======
+                const bgVideo = document.createElement('video');
+                bgVideo.muted = true;
+                bgVideo.playsInline = true;
+                bgVideo.loop = true;
+
+                mediaBtn.onclick = () => {
+                    mediaFile.value = '';
+                    mediaFile.click();
+                }
+                mediaFile.onchange = e => {
+                    if (e.target.files && e.target.files[0]) {
+                        bgVideo.src = URL.createObjectURL(e.target.files[0]);
+                        bgVideo.load();
+                        mediaBtn.classList.add('on');
+                        setTimeout( () => mediaBtn.classList.remove('on'), 400);
+                        toast('MEDIA LOADED');
+                    }
+                }
+                ;
+
+                const clamp = (v, a, b) => Math.max(a, Math.min(b, v))
+                  , lerp = (a, b, t) => a + (b - a) * t
+                  , norm = t => ((Math.round(t) % 4) + 4) % 4;
+                const step = () => UNIT_STEP[S.unit] || SNAP;
+                const qsnap = (v) => S.snap ? Math.round(v / step()) * step() : v;
+
+                const magneticSnap = (v, tr=-1, ignoreId=null, dur=0) => {
+                    currentSnapZ = null;
+                    let z = qsnap(v);
+                    if (!S.snap)
+                        return z;
+                    let bd = Math.abs(v - z)
+                      , thresh = Math.max(step() * 1.5, SNAP);
+                    for (const c of clips) {
+                        if (c.id === ignoreId || (tr !== -1 && c.track !== tr))
+                            continue;
+                        let targets = [c.start, c.start + c.dur];
+                        if (dur > 0)
+                            targets.push(c.start - dur, c.start + c.dur - dur);
+                        for (let t of targets) {
+                            if (Math.abs(v - t) < bd && Math.abs(v - t) <= thresh) {
+                                bd = Math.abs(v - t);
+                                z = t;
+                                currentSnapZ = t + (t < v ? dur : 0);
+                            }
+                        }
+                    }
+                    return z;
+                }
+                ;
+
+                function isClip(c) {
+                    return !!c && typeof c === 'object' && Number.isFinite(c.start) && Number.isFinite(c.dur) && Number.isFinite(c.track)
+                }
+                function audio() {
+                    if (!F.ctx) {
+                        const AC = window.AudioContext || window.webkitAudioContext;
+                        if (!AC)
+                            return null;
+                        F.ctx = new AC();
+                        F.master = F.ctx.createGain();
+                        F.master.gain.value = .055;
+                        F.master.connect(F.ctx.destination)
+                    }
+                    if (F.ctx.state === 'suspended')
+                        F.ctx.resume();
+                    return F.ctx
+                }
+                function haptic(p) {
+                    try {
+                        if (navigator.vibrate && hasInteracted)
+                            navigator.vibrate(p)
+                    } catch (e) {}
+                }
+                function tone(f=600, d=.012, g=.006, type='sine') {
+                    if (!hasInteracted)
+                        return;
+                    let ac = audio();
+                    if (!ac)
+                        return;
+                    let o = ac.createOscillator()
+                      , gain = ac.createGain()
+                      , t = ac.currentTime;
+                    o.type = type;
+                    o.frequency.value = f;
+                    gain.gain.setValueAtTime(.0001, t);
+                    gain.gain.linearRampToValueAtTime(g, t + .001);
+                    gain.gain.exponentialRampToValueAtTime(.0001, t + d + .025);
+                    o.connect(gain);
+                    gain.connect(F.master);
+                    o.start(t);
+                    o.stop(t + d + .04)
+                }
+
+                function tick(kind='snap', pS=1) {
+                    if (!hasInteracted)
+                        return;
+                    let now = performance.now();
+                    if (now - F.lastAt < 18 && kind !== 'jog' && kind !== 'cross')
+                        return;
+                    F.lastAt = now;
+                    if (kind === 'wall') {
+                        tone(640, .018, .005);
+                        haptic([4, 10, 4])
+                    } else if (kind === 'rot') {
+                        tone(900, .01, .004, 'square');
+                        haptic(5)
+                    } else if (kind === 'ratchet') {
+                        tone(300 * pS, .01, .002, 'square');
+                        haptic(2);
+                    } else if (kind === 'cross') {
+                        tone(1200, .005, .002, 'square');
+                        haptic(3);
+                    } else if (kind === 'drop') {
+                        tone(520, .016, .006, 'triangle');
+                        setTimeout( () => tone(780, .014, .005, 'triangle'), 25);
+                        haptic([6, 16, 8])
+                    } else if (kind === 'export') {
+                        tone(740, .012, .004, 'triangle');
+                        setTimeout( () => tone(980, .018, .004, 'triangle'), 30);
+                        haptic([4, 18, 5])
+                    } else if (kind === 'import') {
+                        tone(480, .012, .004, 'sine');
+                        setTimeout( () => tone(760, .012, .004, 'sine'), 24);
+                        setTimeout( () => tone(1040, .018, .0035, 'sine'), 48);
+                        haptic([5, 14, 5, 14, 7])
+                    } else if (kind === 'invalid') {
+                        tone(170, .035, .007, 'sawtooth');
+                        haptic([12, 30, 12])
+                    } else if (kind === 'jog') {
+                        tone(880, .004, .001, 'triangle');
+                    } else if (kind === 'mode') {
+                        tone(660, .008, .003, 'square');
+                        setTimeout(() => tone(990, .006, .002, 'square'), 18);
+                        haptic([3, 8, 3]);
+                    } else if (kind === 'thud') {
+                        tone(180, .025, .008, 'sine');
+                        haptic([8, 20, 6]);
+                    } else if (kind === 'grab') {
+                        tone(440, .006, .002, 'triangle');
+                        haptic(3);
+                    } else if (kind === 'release') {
+                        tone(660, .008, .003, 'triangle');
+                        haptic([2, 6, 2]);
+                    } else {
+                        tone(1120, .008, S.unit === 'EDGE' ? .0025 : .0045, 'triangle');
+                        haptic(S.unit === 'EDGE' ? 2 : 4)
+                    }
+                }
+
+                window.addEventListener('pointerdown', () => {
+                    hasInteracted = true;
+                    audio();
+                }
+                , {
+                    once: true
+                });
+                window.addEventListener('keydown', () => {
+                    hasInteracted = true;
+                    audio();
+                }
+                , {
+                    once: true
+                });
+
+                function toast(x) {
+                    clearTimeout(timer);
+                    toastEl.textContent = x;
+                    toastEl.classList.add('show');
+                    timer = setTimeout( () => toastEl.classList.remove('show'), 900)
+                }
+                function setStatus(x) {
+                    statusEl.textContent = x
+                }
+                function fmt(z) {
+                    let u = Math.max(0, Math.round((Number.isFinite(z) ? z : 0) / SNAP));
+                    return String(Math.floor(u / 60)).padStart(2, '0') + ':' + String(u % 60).padStart(2, '0') + ':' + String(Math.floor((u % 1) * 30)).padStart(2, '0')
+                }
+                function id() {
+                    return 'SC-' + String(nextId++).padStart(3, '0')
+                }
+                function mk(start, dur, track) {
+                    return {
+                        id: id(),
+                        start: qsnap(start),
+                        dur: Math.max(SNAP, qsnap(dur)),
+                        track: norm(track),
+                        rot: 0,
+                        lift: 0,
+                        locked: false,
+                        labelDx: 0,
+                        labelDy: 0,
+                        vStart: start,
+                        vTrack: track,
+                        vLift: 0,
+                        vDur: dur
+                    }
+                }
+                function normClip(c) {
+                    c.start = Number.isFinite(+c.start) ? +c.start : 0;
+                    c.dur = Math.max(SNAP, Number.isFinite(+c.dur) ? +c.dur : SNAP);
+                    c.track = norm(+c.track || 0);
+                    c.rot = Number.isFinite(+c.rot) ? +c.rot : 0;
+                    c.lift = Number.isFinite(+c.lift) ? +c.lift : 0;
+                    return Object.assign(mk(0, 0, 0), c, {
+                        id: String(c.id || id()),
+                        vStart: c.start,
+                        vTrack: c.track,
+                        vDur: c.dur,
+                        _frameIndex: (c._frameIndex !== undefined) ? c._frameIndex : undefined,
+                        _userEdited: c._userEdited || false
+                    });
+                }
+                function seed() {
+                    clips.length = 0;
+                    nextId = 1;
+                    for (let t = 0; t < 4; t++) {
+                        let z = -900 + t * 160;
+                        while (z < 16000) {
+                            let d = qsnap(260 + Math.random() * 720);
+                            clips.push(mk(z, d, t));
+                            z += d + (Math.random() > .84 ? SNAP : 0)
+                        }
+                    }
+                }
+
+                // ======= I/O FILE SYSTEM =======
+                function projectPayload() {
+                    return {
+                        app: 'Arc-Tunnel Operator',
+                        version: 13,
+                        exportedAt: new Date().toISOString(),
+                        state: {
+                            view: S.view,
+                            tool: S.tool,
+                            unit: S.unit,
+                            cam: S.cam,
+                            zoom: S.zoom,
+                            roll: S.roll,
+                            active: S.active,
+                            snap: S.snap
+                        },
+                        nextId,
+                        clips: clips.map(c => ({
+                            id: c.id,
+                            start: c.start,
+                            dur: c.dur,
+                            track: c.track,
+                            rot: c.rot || 0,
+                            lift: c.lift || 0,
+                            locked: c.locked || false,
+                            labelDx: c.labelDx || 0,
+                            labelDy: c.labelDy || 0,
+                            _frameIndex: c._frameIndex,
+                            _userEdited: c._userEdited || false
+                        })),
+                        bank: bank.map(b => Object.assign({}, b)),
+                        routes: routes.map(r => Object.assign({}, r)),
+                        clipCount: clips.length,
+                        routeCount: routes.length
+                    }
+                }
+                function applyProjectPayload(d) {
+                    clips.splice(0, clips.length, ...(d.clips || []).map(normClip));
+                    bank.splice(0, bank.length, ...(d.bank || []));
+                    routes.splice(0, routes.length, ...(d.routes || []));
+                    nextId = d.nextId || 1;
+                    let st = d.state || {};
+                    Object.assign(S, st);
+                    select(clips[0] || null, 'import');
+                    drawTracks();
+                    drawStore();
+                    drawOps();
+                    _wakeBus();
+                    save();
+                    toast('LOADED ' + clips.length + ' CLIPS, ' + routes.length + ' ROUTES');
+                }
+                function save() {
+                    try {
+                        localStorage.setItem(SAVE, JSON.stringify(projectPayload()))
+                    } catch (e) {}
+                }
+                function load() {
+                    try {
+                        let d = JSON.parse(localStorage.getItem(SAVE));
+                        if (!d || !d.clips)
+                            return false;
+                        applyProjectPayload(d);
+                        return true
+                    } catch (e) {
+                        return false
+                    }
+                }
+
+                function downloadText(text, name, type='text/plain') {
+                    let blob = new Blob([text],{
+                        type
+                    });
+                    let a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = name;
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout( () => {
+                        URL.revokeObjectURL(a.href);
+                        a.remove()
+                    }
+                    , 500)
+                }
+                function safeClipboardWrite(text) {
+                    try {
+                        if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function')
+                            return Promise.resolve(false);
+                        return navigator.clipboard.writeText(text).then( () => true).catch(err => {
+                            return false
+                        }
+                        )
+                    } catch (err) {
+                        return Promise.resolve(false)
+                    }
+                }
+
+                function exportProject() {
+                    downloadText(JSON.stringify(projectPayload(), null, 2), 'arc_tunnel_project_' + Date.now() + '.json', 'application/json');
+                    tick('export');
+                    toast('PROJECT EXPORTED')
+                }
+                function exportSnapshot() {
+                    try {
+                        let a = document.createElement('a');
+                        a.href = canvas.toDataURL('image/png');
+                        a.download = 'arc_tunnel_snapshot_' + Date.now() + '.png';
+                        document.body.appendChild(a);
+                        a.click();
+                        setTimeout( () => a.remove(), 500);
+                        toast('SNAPSHOT EXPORTED');
+                        tick('export')
+                    } catch (e) {
+                        toast('SNAPSHOT BLOCKED');
+                        tick('invalid')
+                    }
+                }
+                function exportEDL() {
+                    let lines = ['TITLE: ARC-TUNNEL OPERATOR', 'EXPORTED: ' + new Date().toISOString(), ''];
+                    clips.slice().sort( (a, b) => a.start - b.start).forEach( (c, i) => {
+                        let fi = c._frameIndex !== undefined ? ' FRAME:' + (c._frameIndex + 1) : '';
+                        let rot = c.rot ? ' ROT:' + Math.round(c.rot * 180 / Math.PI) + '\u00B0' : '';
+                        let lift = c.lift ? ' LIFT:' + c.lift.toFixed(2) : '';
+                        lines.push(`${String(i + 1).padStart(3, '0')} ${c.id} TRACK:${NAMES[c.track]} START:${c.start} END:${c.start + c.dur}${fi}${rot}${lift}`);
+                    });
+                    let edl = lines.join(String.fromCharCode(10));
+                    safeClipboardWrite(edl).then(ok => {
+                        downloadText(edl, 'arc_tunnel_edl_' + Date.now() + '.txt', 'text/plain');
+                        tick('export');
+                        toast(ok ? 'EDL COPIED + DOWNLOADED' : 'EDL DOWNLOADED')
+                    })
+                }
+                function requestImport() {
+                    importFile.value = '';
+                    importFile.click()
+                }
+                function importProjectFile(file) {
+                    if (!file)
+                        return;
+                    let r = new FileReader();
+                    r.onload = () => {
+                        try {
+                            applyProjectPayload(JSON.parse(String(r.result || '')));
+                            tick('import');
+                            toast('PROJECT IMPORTED')
+                        } catch (err) {
+                            toast('IMPORT FAILED');
+                            tick('invalid')
+                        }
+                    }
+                    ;
+                    r.onerror = () => {
+                        toast('IMPORT READ FAILED');
+                        tick('invalid')
+                    }
+                    ;
+                    r.readAsText(file)
+                }
+
+                // ======= BACKGROUND VIDEO MONITOR =======
+                function drawVideoBackground(ts) {
+                    let activeClips = clips.filter(c => S.cam >= c.start && S.cam <= c.start + c.dur);
+                    let topClip = activeClips.length > 0 ? activeClips.reduce( (prev, current) => (prev.track > current.track) ? prev : current) : null;
+                    S.playingClip = topClip;
+
+                    bgCtx.clearRect(0, 0, W, H);
+
+                    // Simple bus-mode background: clean workspace, no decorative noise
+                    bgCtx.fillStyle = '#f8f8f8';
+                    bgCtx.fillRect(0, 0, W, H);
+
+                    // Draw bus frame thumbnail as background preview if available
+                    if (topClip && topClip._frameIndex !== undefined && typeof window._busGetThumb === 'function') {
+                        let thumb = window._busGetThumb(topClip._frameIndex);
+                        if (thumb) {
+                            let A = area();
+                            // Small preview in top-right corner
+                            let pw = Math.min(160, A.w / 4);
+                            let ph = pw * (thumb.height / thumb.width) || pw * 0.75;
+                            let px = A.x + A.w - pw - 8;
+                            let py = A.y + 8;
+                            bgCtx.save();
+                            bgCtx.shadowColor = 'rgba(0,0,0,0.2)';
+                            bgCtx.shadowBlur = 8;
+                            bgCtx.fillStyle = '#000';
+                            bgCtx.fillRect(px - 2, py - 2, pw + 4, ph + 4);
+                            bgCtx.shadowBlur = 0;
+                            bgCtx.drawImage(thumb, px, py, pw, ph);
+                            // Label
+                            bgCtx.fillStyle = '#fff';
+                            bgCtx.font = '900 9px ui-monospace';
+                            bgCtx.textAlign = 'left';
+                            bgCtx.textBaseline = 'bottom';
+                            bgCtx.fillText(topClip.id + ' F' + (topClip._frameIndex + 1), px + 4, py + ph - 4);
+                            bgCtx.restore();
+                        }
+                    }
+
+                    // Subtle grid — batched into single path
+                    let A = area();
+                    bgCtx.save();
+                    bgCtx.globalAlpha = 0.06;
+                    bgCtx.strokeStyle = '#000';
+                    bgCtx.lineWidth = 0.5;
+                    bgCtx.beginPath();
+                    for (let x = A.x; x < A.x + A.w; x += 60) {
+                        bgCtx.moveTo(x, A.y);
+                        bgCtx.lineTo(x, A.y + A.h);
+                    }
+                    for (let y = A.y; y < A.y + A.h; y += 60) {
+                        bgCtx.moveTo(A.x, y);
+                        bgCtx.lineTo(A.x + A.w, y);
+                    }
+                    bgCtx.stroke();
+                    bgCtx.restore();
+                }
+
+                // ======= GEOMETRY RENDERING =======
+                function resize() {
+                    _areaCache = null;
+                    // Mobile: DPR 1.0 for perf. Desktop: 1.5 max.
+                    DPR = innerWidth < 900 ? 1.0 : Math.min(1.5, devicePixelRatio || 1);
+                    W = innerWidth;
+                    H = innerHeight;
+                    canvas.width = Math.round(W * DPR);
+                    canvas.height = Math.round(H * DPR);
+                    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+                    bgCanvas.width = Math.round(W * DPR);
+                    bgCanvas.height = Math.round(H * DPR);
+                    bgCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+                    _wakeBus();
+                }
+                function area() {
+                    if (_areaCache) return _areaCache;
+                    let left = W < 900 ? 36 : 56
+                      , right = W < 900 ? 36 : 300
+                      , top = 0
+                      , bottom = W < 900 ? 38 : 52;
+                    _areaCache = {
+                        x: left,
+                        y: top,
+                        w: W - left - right,
+                        h: H - top - bottom,
+                        cx: left + (W - left - right) * .52,
+                        cy: top + (H - top - bottom) * .52
+                    };
+                    return _areaCache
+                }
+                function project(x, y, z) {
+                    let A = area()
+                      , dz = z - S.cam + 900;
+                    if (dz < 40)
+                        return null;
+                    let s = 720 / dz;
+                    return {
+                        x: A.cx + x * s + (z - S.cam) * .052,
+                        y: A.cy + y * s - (z - S.cam) * .016,
+                        s,
+                        d: dz
+                    }
+                }
+                function angle(c, track=isClip(c) ? c.vTrack : S.active) {
+                    return track * Math.PI / 2 - Math.PI / 2 + S.roll + ((c && Number.isFinite(c.rot)) ? c.rot : 0)
+                }
+                function trackAngle(track) {
+                    return track * Math.PI / 2 - Math.PI / 2 + S.roll
+                }
+
+                function tubeGeom(c) {
+                    if (!isClip(c))
+                        return {
+                            cells: [],
+                            hull: [],
+                            mid: null,
+                            depth: 1e9
+                        };
+                    let rr = R + (c.vLift || 0) * 36
+                      , base = angle(c)
+                      , a0 = base - Math.PI / 4 + .05
+                      , a1 = base + Math.PI / 4 - .05
+                      , z0 = c.vStart
+                      , z1 = c.vStart + c.vDur
+                      , mobile = W < 900
+                      , cells = []
+                      , hull = []
+                      , depth = 1e9;
+
+                    // LOD: estimate clip depth for adaptive detail
+                    let estDepth = ((z0 + z1) / 2) - S.cam + 900;
+                    let lodFactor = estDepth > 4000 ? 0.3 : estDepth > 2500 ? 0.5 : 1.0;
+                    let baseZ = mobile ? 12 : 28;
+                    let baseA = mobile ? 4 : 6;
+                    let zSteps = clamp(Math.ceil((z1 - z0) / SNAP * lodFactor), 2, Math.ceil(baseZ * lodFactor) || 2);
+                    let aSegs = Math.max(2, Math.ceil(baseA * lodFactor));
+
+                    for (let zi = 0; zi < zSteps; zi++) {
+                        let za = lerp(z0, z1, zi / zSteps)
+                          , zb = lerp(z0, z1, (zi + 1) / zSteps);
+                        for (let ai = 0; ai < aSegs; ai++) {
+                            let aa = lerp(a0, a1, ai / aSegs)
+                              , ab = lerp(a0, a1, (ai + 1) / aSegs)
+                              , raw = [[Math.cos(aa) * rr, Math.sin(aa) * rr, za], [Math.cos(ab) * rr, Math.sin(ab) * rr, za], [Math.cos(ab) * rr, Math.sin(ab) * rr, zb], [Math.cos(aa) * rr, Math.sin(aa) * rr, zb]]
+                              , pts = []
+                              , ok = true
+                              , cd = 1e9;
+                            for (const p of raw) {
+                                let q = project(p[0], p[1], p[2]);
+                                if (!q) {
+                                    ok = false;
+                                    break
+                                }
+                                pts.push(q);
+                                cd = Math.min(cd, q.d);
+                                depth = Math.min(depth, q.d)
+                            }
+                            if (ok)
+                                cells.push({
+                                    pts,
+                                    d: cd
+                                })
+                        }
+                    }
+                    for (let i = 0; i <= 8; i++) {
+                        let a = lerp(a0, a1, i / 8)
+                          , q = project(Math.cos(a) * rr, Math.sin(a) * rr, z0);
+                        if (q)
+                            hull.push(q)
+                    }
+                    for (let i = 8; i >= 0; i--) {
+                        let a = lerp(a0, a1, i / 8)
+                          , q = project(Math.cos(a) * rr, Math.sin(a) * rr, z1);
+                        if (q)
+                            hull.push(q)
+                    }
+                    return {
+                        cells,
+                        hull,
+                        depth
+                    }
+                }
+
+                function bounds(pts) {
+                    if (!pts || !pts.length)
+                        return { x: 0, y: 0, w: 0, h: 0 };
+                    let minX = pts[0].x, maxX = minX, minY = pts[0].y, maxY = minY;
+                    for (let i = 1; i < pts.length; i++) {
+                        const px = pts[i].x, py = pts[i].y;
+                        if (px < minX) minX = px; else if (px > maxX) maxX = px;
+                        if (py < minY) minY = py; else if (py > maxY) maxY = py;
+                    }
+                    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+                }
+                function path(pts) {
+                    let p = new Path2D();
+                    p.moveTo(pts[0].x, pts[0].y);
+                    for (let i = 1; i < pts.length; i++)
+                        p.lineTo(pts[i].x, pts[i].y);
+                    p.closePath();
+                    return p
+                }
+
+                // ── PRE-RENDERED HATCH PATTERNS (eliminates ctx.clip() calls) ──
+                const _hatchPatterns = [];
+                (function initHatchPatterns() {
+                    const sz = 10; // tile size matches original spacing
+                    const specs = [
+                        // kind 0: vertical lines
+                        (c, s) => { c.beginPath(); c.moveTo(s/2, 0); c.lineTo(s/2, s); c.stroke(); },
+                        // kind 1: horizontal lines
+                        (c, s) => { c.beginPath(); c.moveTo(0, s/2); c.lineTo(s, s/2); c.stroke(); },
+                        // kind 2: diagonal (bottom-left to top-right)
+                        (c, s) => { c.beginPath(); c.moveTo(0, s); c.lineTo(s, 0); c.stroke();
+                                    c.beginPath(); c.moveTo(-s, s); c.lineTo(s, -s); c.stroke();
+                                    c.beginPath(); c.moveTo(0, 2*s); c.lineTo(2*s, 0); c.stroke(); },
+                        // kind 3: cross-hatch (both diagonals, tighter 8px)
+                        (c, s) => { s = 8;
+                                    c.beginPath(); c.moveTo(0, 0); c.lineTo(s, s); c.stroke();
+                                    c.beginPath(); c.moveTo(s, 0); c.lineTo(0, s); c.stroke();
+                                    c.beginPath(); c.moveTo(-s, 0); c.lineTo(s, 2*s); c.stroke();
+                                    c.beginPath(); c.moveTo(2*s, 0); c.lineTo(0, 2*s); c.stroke(); }
+                    ];
+                    for (let i = 0; i < 4; i++) {
+                        const tileSz = i === 3 ? 8 : sz;
+                        const tile = document.createElement('canvas');
+                        tile.width = tileSz; tile.height = tileSz;
+                        const tc = tile.getContext('2d');
+                        tc.strokeStyle = '#000';
+                        tc.lineWidth = 0.7;
+                        specs[i](tc, tileSz);
+                        _hatchPatterns[i] = ctx.createPattern(tile, 'repeat');
+                    }
+                })();
+
+                function hatch(p, kind, b) {
+                    // Pattern fill — no clip() call needed
+                    ctx.save();
+                    ctx.globalAlpha = .42;
+                    ctx.fillStyle = _hatchPatterns[kind] || _hatchPatterns[0];
+                    ctx.fill(p);
+                    ctx.restore();
+                }
+                function tag(x, y, text, active=false) {
+                    let A = area()
+                      , fs = W < 900 ? 11 : 12
+                      , w = Math.max(54, String(text).length * 7.2 + 14)
+                      , h = fs + 10;
+                    x = clamp(x - w / 2, A.x + 4, A.x + A.w - w - 4);
+                    y = clamp(y - h / 2, A.y + 4, A.y + A.h - h - 4);
+                    ctx.fillStyle = active ? '#000' : '#fff';
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = active ? 3 : 2;
+                    ctx.beginPath();
+                    ctx.rect(x, y, w, h);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.fillStyle = active ? '#fff' : '#000';
+                    ctx.font = `900 ${fs}px ui-monospace`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(String(text), x + w / 2, y + h / 2);
+                    return {
+                        x,
+                        y,
+                        w,
+                        h
+                    }
+                }
+
+                function handle(x, y, r, type, c, label, isHov) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, r, 0, Math.PI * 2);
+                    ctx.fillStyle = isHov ? '#fef08a' : '#fff';
+                    ctx.fill();
+                    ctx.lineWidth = isHov ? 4 : 3;
+                    ctx.strokeStyle = '#000';
+                    ctx.stroke();
+                    ctx.fillStyle = '#000';
+                    ctx.font = '900 10px ui-monospace';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(label, x, y);
+                    rendered.push({
+                        type,
+                        clip: c,
+                        x,
+                        y,
+                        r
+                    })
+                }
+                function square(x, y, w, h, type, c, label, isHov) {
+                    ctx.fillStyle = isHov ? '#fef08a' : '#fff';
+                    ctx.fillRect(x - w / 2, y - h / 2, w, h);
+                    ctx.lineWidth = isHov ? 4 : 3;
+                    ctx.strokeStyle = '#000';
+                    ctx.strokeRect(x - w / 2, y - h / 2, w, h);
+                    ctx.fillStyle = '#000';
+                    ctx.font = '900 10px ui-monospace';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(label, x, y);
+                    rendered.push({
+                        type,
+                        clip: c,
+                        x: x - w / 2,
+                        y: y - h / 2,
+                        w,
+                        h
+                    })
+                }
+
+                // ======= OVERLAY GIZMOS PASS =======
+                function renderGizmos(c, m, hw, hh, drawRect=false) {
+                    if (drawRect) {
+                        ctx.save();
+                        ctx.setLineDash([7, 5]);
+                        ctx.lineWidth = 3;
+                        ctx.strokeStyle = '#000';
+                        ctx.strokeRect(m.x - hw - 9, m.y - hh - 9, hw * 2 + 18, hh * 2 + 18);
+                        ctx.restore();
+                    }
+                    let mode = S.hover?.clip === c ? S.hover.mode : null;
+
+                    if (S.tool === 'TRIM') {
+                        square(m.x - hw - 20, m.y, 30, 30, 'start', c, 'S', mode === 'start');
+                        square(m.x + hw + 20, m.y, 30, 30, 'end', c, 'E', mode === 'end');
+                    } else if (S.tool === 'MOVE') {
+                        square(m.x, m.y, 42, 30, 'move', c, 'M', mode === 'move');
+                        handle(m.x, m.y + hh + 20, 16, 'lane', c, 'L', mode === 'lane');
+                    } else if (S.tool === 'ROLL') {
+                        handle(m.x, m.y - hh - 20, 16, 'rotate', c, 'R', mode === 'rotate');
+                    } else if (S.tool === 'LIFT') {
+                        handle(m.x + hw + 30, m.y - hh - 10, 15, 'lift', c, '↑', mode === 'lift');
+                    } else if (S.tool === 'ROUTE') {
+                        handle(m.x + hw + 30, m.y + hh + 10, 15, 'route', c, '→', mode === 'route');
+                    } else if (S.tool === 'SPLIT') {
+                        ctx.fillStyle = '#ef4444';
+                        ctx.fillRect(m.x - 2, m.y - hh - 20, 4, hh * 2 + 40);
+                        square(m.x, m.y - hh - 20, 30, 20, 'split', c, 'CUT', mode === 'split');
+                    }
+                    handle(m.x - hw - 30, m.y - hh - 10, 14, 'lock', c, c.locked ? '✓' : '#', mode === 'lock');
+                }
+
+                function drawRoutes() {
+                    ctx.save();
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([8, 5]);
+                    ctx.strokeStyle = '#000';
+                    for (const r of routes) {
+                        let a = clips.find(c => c.id === r.from)
+                          , b = clips.find(c => c.id === r.to);
+                        if (!a || !b)
+                            continue;
+                        let mZ_a = (a.vStart + a.vStart + a.vDur) / 2
+                          , mZ_b = (b.vStart + b.vStart + b.vDur) / 2;
+                        let ma = project(Math.cos(angle(a)) * R, Math.sin(angle(a)) * R, mZ_a)
+                          , mb = project(Math.cos(angle(b)) * R, Math.sin(angle(b)) * R, mZ_b);
+                        if (ma && mb) {
+                            ctx.beginPath();
+                            ctx.moveTo(ma.x, ma.y);
+                            ctx.lineTo(mb.x, mb.y);
+                            ctx.stroke();
+                            tag((ma.x + mb.x) / 2, (ma.y + mb.y) / 2, r.type || 'ROUTE')
+                        }
+                    }
+                    if (S.drag && S.drag.mode === 'route' && S.drag.clip) {
+                        ctx.beginPath();
+                        ctx.moveTo(S.drag.sx, S.drag.sy);
+                        ctx.lineTo(S.drag.mx || S.drag.sx, S.drag.my || S.drag.sy);
+                        ctx.stroke();
+                        tag(S.drag.mx || S.drag.sx, S.drag.my || S.drag.sy, 'ROUTE')
+                    }
+                    ctx.restore()
+                }
+
+                function railLines() {
+                    const pts = W < 900 ? 25 : 50;
+                    ctx.save();
+                    for (let t = 0; t < 4; t++) {
+                        let a = trackAngle(t);
+                        ctx.setLineDash(STYLES[t].dash);
+                        ctx.lineWidth = (t === S.active ? 3 : 1.4);
+                        ctx.strokeStyle = '#000';
+                        ctx.globalAlpha = t === S.active || S.selected ? .85 : .22;
+                        ctx.beginPath();
+                        for (let i = 0; i <= pts; i++) {
+                            let z = S.cam - 900 + i * (FAR / pts)
+                              , q = project(Math.cos(a) * R, Math.sin(a) * R, z);
+                            if (q)
+                                i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)
+                        }
+                        ctx.stroke()
+                    }
+                    ctx.restore()
+                }
+
+                function drawGhostClip(c, startZ, track) {
+                    let proxy = {
+                        ...c,
+                        vStart: startZ,
+                        vTrack: track,
+                        vDur: c.dur,
+                        vLift: c.lift
+                    };
+                    let g = tubeGeom(proxy);
+                    ctx.save();
+                    ctx.globalAlpha = 0.2;
+                    for (const cell of g.cells.sort( (a, b) => b.d - a.d)) {
+                        let p = path(cell.pts);
+                        ctx.fillStyle = '#000';
+                        ctx.fill(p);
+                        ctx.lineWidth = 1;
+                        ctx.strokeStyle = '#000';
+                        ctx.stroke(p);
+                    }
+                    ctx.restore();
+                }
+
+                function drawTubeView() {
+                    railLines();
+                    // Batch all rings into one path — single stroke call
+                    const ringStep = W < 900 ? SNAP * 4 : SNAP * 2;
+                    ctx.save();
+                    ctx.strokeStyle = '#000';
+                    ctx.globalAlpha = .25;
+                    ctx.beginPath();
+                    for (let z = qsnap(S.cam - 900); z < S.cam + FAR; z += ringStep) {
+                        let q = project(0, 0, z);
+                        if (q && q.s > .04) {
+                            ctx.moveTo(q.x + R * q.s, q.y);
+                            ctx.arc(q.x, q.y, R * q.s, 0, Math.PI * 2);
+                        }
+                    }
+                    ctx.stroke();
+                    ctx.restore();
+
+                    let pRing = project(0, 0, S.cam);
+                    if (pRing) {
+                        ctx.save();
+                        ctx.strokeStyle = '#ef4444';
+                        ctx.lineWidth = 4;
+                        ctx.beginPath();
+                        ctx.arc(pRing.x, pRing.y, R * pRing.s, 0, Math.PI * 2);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+
+                    if (S.drag && S.drag.mode === 'move')
+                        drawGhostClip(S.drag.clip, S.drag.origStart, S.drag.origTrack);
+
+                    // Build sorted clip list with CACHED geometry (tubeGeom called once, not twice)
+                    let arr = [];
+                    for (const c of clips) {
+                        if (c.vStart + c.vDur < S.cam - 1300 || c.vStart > S.cam + FAR)
+                            continue;
+                        let g = tubeGeom(c);
+                        if (g.cells.length)
+                            arr.push({ c, g, d: g.depth });
+                    }
+                    arr.sort( (a, b) => b.d - a.d);
+                    const isMobile = W < 900;
+                    for (const o of arr) {
+                        let c = o.c
+                          , g = o.g  // CACHED — no second tubeGeom call
+                          , sel = S.selected === c
+                          , hov = S.hover && S.hover.clip === c
+                          , st = STYLES[c.track];
+
+                        // Sort cells by depth (back-to-front)
+                        g.cells.sort( (a, b) => b.d - a.d);
+
+                        // Find nearest cell for thumbnail (draw image only on closest cell)
+                        let nearestD = 1e9;
+                        for (const cell of g.cells) { if (cell.d < nearestD) nearestD = cell.d; }
+
+                        // Per-clip save/restore (not per-cell — LAW 9 Main Thread Sanctity)
+                        ctx.save();
+                        const baseFill = hov && !sel ? '#e2e8f0' : (sel ? '#000' : '#fff');
+                        ctx.setLineDash(sel ? [] : st.dash);
+                        ctx.strokeStyle = '#000';
+
+                        for (const cell of g.cells) {
+                            let p = path(cell.pts)
+                              , b = bounds(cell.pts);
+                            ctx.globalAlpha = clamp(1 - cell.d / 7200, .15, 1);
+                            ctx.fillStyle = baseFill;
+                            ctx.fill(p);
+
+                            // Hatch/thumbnail: show on ALL near cells (hold-frame model)
+                            // Extended clips show their source frame across the entire face
+                            if (!sel && cell.d < (isMobile ? 3500 : 5500)) {
+                                _busCurrentClip = c; // thumbnail on ALL near cells
+                                hatch(p, st.hatch, b);
+                                _busCurrentClip = null;
+                            }
+
+                            // Stroke: skip on far cells (too small to see outline)
+                            if (cell.d < 4500 || sel || hov) {
+                                ctx.lineWidth = sel ? 4 : hov ? 3 : 1.5;
+                                ctx.stroke(p);
+                                if (sel) {
+                                    ctx.strokeStyle = '#fff';
+                                    ctx.lineWidth = 2;
+                                    ctx.stroke(p);
+                                    ctx.strokeStyle = '#000'; // restore for next cell
+                                }
+                            }
+                        }
+                        ctx.restore();
+
+                        let mZ = (c.vStart + c.vStart + c.vDur) / 2;
+                        let A = area();
+                        let mP = project(Math.cos(angle(c)) * R, Math.sin(angle(c)) * R, mZ) || {
+                            x: A.cx, y: A.cy, s: 1
+                        };
+
+                        if (sel || hov || (!isMobile && g.depth < 1100))
+                            tag(mP.x, mP.y, c.id, sel);
+
+                        if (sel && g.hull.length) {
+                            mP.x = clamp(mP.x, A.x + 80, A.x + A.w - 80);
+                            mP.y = clamp(mP.y, A.y + 80, A.y + A.h - 80);
+                            let spread = clamp(80 * mP.s, 45, 120);
+                            gizmosToRender.push({
+                                c, m: mP, hw: spread, hh: spread, rect: true
+                            });
+                        }
+                        if (g.hull.length > 3)
+                            rendered.push({ type: 'clip', clip: c, pts: g.hull });
+                    };
+                    drawRoutes();
+
+                    let A = area()
+                      , x = A.cx;
+                    ctx.save();
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.beginPath();
+                    ctx.moveTo(x, A.y + 8);
+                    ctx.lineTo(x, A.y + A.h - 8);
+                    ctx.stroke();
+                    ctx.fillStyle = '#ef4444';
+                    ctx.fillRect(x - 34, A.y + 14, 68, 22);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '900 12px ui-monospace';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(fmt(S.cam), x, A.y + 25);
+                    ctx.restore();
+                    rendered.push({
+                        type: 'lathe',
+                        x: x - 38,
+                        y: A.y + 8,
+                        w: 76,
+                        h: A.h - 16
+                    })
+                }
+
+                function benchX(z) {
+                    let A = area();
+                    return A.x + A.w * .5 + (z - S.cam) * S.zoom
+                }
+                function benchTime(x) {
+                    let A = area();
+                    return S.cam + (x - (A.x + A.w * .5)) / S.zoom
+                }
+                function laneY(t) {
+                    let A = area();
+                    return A.y + 70 + (A.h - 140) * (t + .5) / 4
+                }
+                function laneH() {
+                    let A = area();
+                    return clamp((A.h - 140) / 4 * .55, 30, 72)
+                }
+
+                function drawBench() {
+                    let A = area();
+                    for (let t = 0; t < 4; t++) {
+                        let y = laneY(t)
+                          , h = laneH();
+                        ctx.strokeStyle = '#000';
+                        ctx.setLineDash(STYLES[t].dash);
+                        ctx.lineWidth = t === S.active ? 3 : 1.5;
+                        ctx.beginPath();
+                        ctx.moveTo(A.x + 12, y);
+                        ctx.lineTo(A.x + A.w - 12, y);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                        if (W > 900) {
+                            ctx.fillStyle = '#000';
+                            ctx.font = '900 12px ui-monospace';
+                            ctx.fillText(NAMES[t], A.x + 18, y - h * .62)
+                        }
+                    }
+
+                    if (S.drag && S.drag.mode === 'move') {
+                        let gx0 = benchX(S.drag.origStart)
+                          , gy = laneY(S.drag.origTrack)
+                          , gw = S.drag.clip.dur * S.zoom;
+                        ctx.save();
+                        ctx.globalAlpha = 0.2;
+                        ctx.fillStyle = '#000';
+                        ctx.fillRect(gx0, gy - laneH() / 2, gw, laneH());
+                        ctx.restore();
+                    }
+
+                    for (const c of clips) {
+                        let x0 = benchX(c.vStart)
+                          , x1 = benchX(c.vStart + c.vDur)
+                          , w = x1 - x0
+                          , y = laneY(c.vTrack)
+                          , h = laneH()
+                          , top = y - h / 2
+                          , sel = S.selected === c
+                          , hov = S.hover && S.hover.clip === c;
+                        if (x1 < A.x - 90 || x0 > A.x + A.w + 90)
+                            continue;
+                        // Apply visual rotation in flat views
+                        let hasRot = c.rot && Math.abs(c.rot) > 0.01;
+                        let cx = x0 + Math.max(5, w) / 2, cy = top + h / 2;
+                        if (hasRot) {
+                            ctx.save();
+                            ctx.translate(cx, cy);
+                            ctx.rotate(c.rot);
+                            ctx.translate(-cx, -cy);
+                        }
+                        let p = new Path2D();
+                        p.rect(x0, top, Math.max(5, w), h);
+                        ctx.save();
+                        ctx.globalAlpha = 0.85;
+                        ctx.fillStyle = hov && !sel ? '#e2e8f0' : (sel ? '#000' : '#fff');
+                        ctx.fill(p);
+                        ctx.restore();
+                        if (!sel)
+                            { _busCurrentClip = c; hatch(p, STYLES[c.track].hatch, {
+                                x: x0,
+                                y: top,
+                                w: Math.max(5, w),
+                                h
+                            }); _busCurrentClip = null; }
+                        ctx.setLineDash(sel ? [] : STYLES[c.track].dash);
+                        ctx.lineWidth = sel ? 5 : 2;
+                        ctx.strokeStyle = '#000';
+                        ctx.stroke(p);
+                        // Rotation angle indicator
+                        if (hasRot) {
+                            ctx.fillStyle = '#ef4444';
+                            ctx.font = '700 7px ui-monospace';
+                            ctx.textAlign = 'right';
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillText(Math.round(c.rot * 180 / Math.PI) + '\u00B0', x0 + Math.max(5, w) - 3, top + h - 2);
+                        }
+                        if (hasRot) ctx.restore(); // Undo rotation transform
+                        if (sel) {
+                            ctx.strokeStyle = '#fff';
+                            ctx.lineWidth = 2;
+                            ctx.stroke(p);
+                            let visX0 = Math.max(A.x + 20, x0)
+                              , visX1 = Math.min(A.x + A.w - 20, x1);
+                            let mx = (visX0 + visX1) / 2
+                              , hw = clamp((visX1 - visX0) / 2, 40, A.w / 3)
+                              , hh = clamp(h / 2, 20, 40);
+                            gizmosToRender.push({
+                                c,
+                                m: {
+                                    x: mx,
+                                    y: y
+                                },
+                                hw,
+                                hh,
+                                rect: false
+                            });
+                        }
+                        ctx.setLineDash([]);
+                        if (sel || hov || w > 88)
+                            tag((x0 + x1) / 2, y, c.id, sel);
+                        // Track layer pip — colored dot showing POSSIBLE/PLAUSIBLE/PROBABLE/PREFERRED
+                        ctx.save();
+                        ctx.fillStyle = TRACK_COLORS[c.track] || '#888';
+                        ctx.beginPath();
+                        ctx.arc(x0 + 6, top + 6, 4, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
+                        ctx.stroke();
+                        // Track initial letter
+                        if (w > 40) {
+                            ctx.fillStyle = '#000';
+                            ctx.font = '900 7px ui-monospace';
+                            ctx.textAlign = 'left';
+                            ctx.textBaseline = 'top';
+                            ctx.fillText(SHORT[c.track], x0 + 13, top + 2);
+                        }
+                        ctx.restore();
+                        rendered.push({
+                            type: 'bench',
+                            clip: c,
+                            x0,
+                            x1,
+                            y,
+                            top,
+                            h
+                        })
+                    }
+                    let ax = benchX(S.cam);
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.beginPath();
+                    ctx.moveTo(ax, A.y + 8);
+                    ctx.lineTo(ax, A.y + A.h - 8);
+                    ctx.stroke();
+                    ctx.fillStyle = '#ef4444';
+                    ctx.fillRect(ax - 34, A.y + 14, 68, 22);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '900 12px ui-monospace';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(fmt(S.cam), ax, A.y + 25);
+                    rendered.push({
+                        type: 'lathe',
+                        x: ax - 38,
+                        y: A.y + 8,
+                        w: 76,
+                        h: A.h - 16
+                    });
+
+                    // ── LIFT INDICATORS — vertical nub on each clip ──
+                    for (const c of clips) {
+                        if (!c.lift && c.lift !== 0) continue;
+                        if (Math.abs(c.lift) < 0.05) continue;
+                        let x0 = benchX(c.vStart)
+                          , x1 = benchX(c.vStart + c.vDur)
+                          , mx = (x0 + x1) / 2
+                          , y = laneY(c.vTrack)
+                          , h = laneH();
+                        if (x1 < A.x - 90 || x0 > A.x + A.w + 90) continue;
+                        // Nub: vertical bar extending up (positive) or down (negative) from clip center
+                        let nubH = Math.abs(c.lift) * h * 0.6;
+                        let nubY = c.lift > 0 ? y - h/2 - nubH : y + h/2;
+                        ctx.save();
+                        ctx.fillStyle = c.lift > 0 ? 'rgba(34,197,94,0.6)' : 'rgba(239,68,68,0.5)';
+                        ctx.fillRect(mx - 3, nubY, 6, nubH);
+                        ctx.strokeStyle = '#000';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(mx - 3, nubY, 6, nubH);
+                        // Label
+                        ctx.fillStyle = '#000';
+                        ctx.font = '700 7px ui-monospace';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = c.lift > 0 ? 'bottom' : 'top';
+                        ctx.fillText((c.lift > 0 ? '+' : '') + c.lift.toFixed(2), mx, c.lift > 0 ? nubY - 2 : nubY + nubH + 2);
+                        ctx.restore();
+                    }
+
+                    // ── ROUTE LINES — dashed connections between linked clips ──
+                    if (routes.length > 0) {
+                        ctx.save();
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([6, 4]);
+                        ctx.strokeStyle = '#000';
+                        for (const r of routes) {
+                            let a = clips.find(c => c.id === r.from)
+                              , b = clips.find(c => c.id === r.to);
+                            if (!a || !b) continue;
+                            let ax1 = (benchX(a.vStart) + benchX(a.vStart + a.vDur)) / 2
+                              , ay = laneY(a.vTrack)
+                              , bx = (benchX(b.vStart) + benchX(b.vStart + b.vDur)) / 2
+                              , by = laneY(b.vTrack);
+                            ctx.beginPath();
+                            ctx.moveTo(ax1, ay);
+                            ctx.lineTo(bx, by);
+                            ctx.stroke();
+                            // Route label at midpoint
+                            tag((ax1 + bx) / 2, (ay + by) / 2, r.type || 'ROUTE');
+                        }
+                        // Active route drag line
+                        if (S.drag && S.drag.mode === 'route' && S.drag.clip) {
+                            ctx.beginPath();
+                            ctx.moveTo(S.drag.sx, S.drag.sy);
+                            ctx.lineTo(S.drag.mx || S.drag.sx, S.drag.my || S.drag.sy);
+                            ctx.stroke();
+                            tag(S.drag.mx || S.drag.sx, S.drag.my || S.drag.sy, 'ROUTE');
+                        }
+                        ctx.setLineDash([]);
+                        ctx.restore();
+                    }
+                }
+
+                function outsideP() {
+                    let A = area()
+                      , m = W < 900;
+                    return {
+                        cx0: A.x + (m ? 88 : 185),
+                        cy0: A.y + A.h * .56,
+                        cx1: A.x + A.w - (m ? 36 : 90),
+                        cy1: A.y + A.h * .43,
+                        rx0: m ? 58 : 112,
+                        ry0: m ? 126 : 220,
+                        rx1: m ? 18 : 40,
+                        ry1: m ? 60 : 112,
+                        front: S.cam - 900,
+                        span: FAR + 1800
+                    }
+                }
+                function oc(s, P) {
+                    return {
+                        x: lerp(P.cx0, P.cx1, s),
+                        y: lerp(P.cy0, P.cy1, s)
+                    }
+                }
+                function orad(s, P) {
+                    return {
+                        rx: lerp(P.rx0, P.rx1, s),
+                        ry: lerp(P.ry0, P.ry1, s)
+                    }
+                }
+                function opoint(s, a, P) {
+                    let c = oc(s, P)
+                      , r = orad(s, P);
+                    return {
+                        x: c.x + Math.cos(a) * r.rx,
+                        y: c.y + Math.sin(a) * r.ry
+                    }
+                }
+                function os(z, P) {
+                    return clamp((z - P.front) / P.span, 0, 1)
+                }
+
+                function drawOutside() {
+                    let P = outsideP();
+                    ctx.strokeStyle = '#000';
+                    for (let i = 0; i <= 18; i++) {
+                        let c = oc(i / 18, P)
+                          , r = orad(i / 18, P);
+                        ctx.lineWidth = i === 0 ? 3 : 1;
+                        ctx.globalAlpha = 0.3;
+                        ctx.beginPath();
+                        ctx.ellipse(c.x, c.y, r.rx, r.ry, 0, 0, Math.PI * 2);
+                        ctx.stroke()
+                    }
+                    ctx.globalAlpha = 1;
+                    [-1.22, -.92, -.52, -.08, .34, .72, 1.08].forEach(a => {
+                        ctx.beginPath();
+                        for (let i = 0; i <= 36; i++) {
+                            let q = opoint(i / 36, a, P);
+                            i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)
+                        }
+                        ctx.stroke()
+                    }
+                    );
+                    let arr = [];
+                    for (const c of clips) {
+                        let s0 = os(c.vStart, P)
+                          , s1 = os(c.vStart + c.vDur, P);
+                        if (s1 <= 0 || s0 >= 1)
+                            continue;
+                        arr.push({
+                            c,
+                            s0: clamp(s0, 0, .995),
+                            s1: clamp(Math.max(s1, s0 + .012), 0, .995),
+                            m: (s0 + s1) / 2
+                        })
+                    }
+                    arr.sort( (a, b) => b.m - a.m).forEach(o => {
+                        let c = o.c
+                          , sel = S.selected === c
+                          , hov = S.hover && S.hover.clip === c
+                          , a0 = angle(c) - Math.PI / 4 + .05
+                          , a1 = angle(c) + Math.PI / 4 - .05
+                          , pts = []
+                          , s0 = o.s0
+                          , s1 = o.s1;
+                        for (let i = 0; i <= 14; i++)
+                            pts.push(opoint(lerp(s0, s1, i / 14), a0, P));
+                        for (let j = 1; j <= 6; j++)
+                            pts.push(opoint(s1, lerp(a0, a1, j / 6), P));
+                        for (let i = 13; i >= 0; i--)
+                            pts.push(opoint(lerp(s0, s1, i / 14), a1, P));
+                        for (let j = 5; j > 0; j--)
+                            pts.push(opoint(s0, lerp(a0, a1, j / 6), P));
+                        let pp = path(pts)
+                          , b = bounds(pts);
+                        ctx.save();
+                        ctx.globalAlpha = 0.85;
+                        ctx.fillStyle = hov && !sel ? '#e2e8f0' : (sel ? '#000' : '#fff');
+                        ctx.fill(pp);
+                        ctx.restore();
+                        if (!sel)
+                            { _busCurrentClip = c; hatch(pp, STYLES[c.track].hatch, b); _busCurrentClip = null; }
+                        ctx.setLineDash(sel ? [] : STYLES[c.track].dash);
+                        ctx.lineWidth = sel ? 5 : 2;
+                        ctx.strokeStyle = '#000';
+                        ctx.stroke(pp);
+
+                        if (sel) {
+                            ctx.strokeStyle = '#fff';
+                            ctx.lineWidth = 2;
+                            ctx.stroke(pp);
+                            let visS0 = Math.max(0.05, s0)
+                              , visS1 = Math.min(0.95, s1);
+                            let mS = (visS0 + visS1) / 2
+                              , mP = opoint(mS, angle(c), P)
+                              , spread = clamp(100 * (1.1 - mS), 45, 140);
+                            gizmosToRender.push({
+                                c,
+                                m: mP,
+                                hw: spread,
+                                hh: spread,
+                                rect: false
+                            });
+                        }
+                        ctx.setLineDash([]);
+                        if (sel || hov) {
+                            let m = opoint((s0 + s1) / 2, (a0 + a1) / 2, P);
+                            tag(m.x, m.y, c.id, sel)
+                        }
+                        rendered.push({
+                            type: 'clip',
+                            clip: c,
+                            pts
+                        })
+                    }
+                    );
+                    let s = os(S.cam, P)
+                      , cc = oc(s, P)
+                      , rr = orad(s, P);
+                    ctx.lineWidth = 4;
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.beginPath();
+                    ctx.ellipse(cc.x, cc.y, rr.rx, rr.ry, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                    tag(cc.x, area().y + 24, fmt(S.cam))
+                }
+
+                function drawSide() {
+                    drawBench();
+                    ctx.save();
+                    ctx.lineWidth = 3;
+                    ctx.setLineDash([6, 5]);
+                    ctx.strokeStyle = '#000';
+                    let A = area();
+                    ctx.strokeRect(A.x + 20, A.y + 20, A.w - 40, A.h - 40);
+                    ctx.restore()
+                }
+
+                function drawDragConstraints() {
+                    if (!S.drag || !S.drag.clip)
+                        return;
+                    ctx.save();
+                    ctx.lineWidth = 4;
+                    ctx.strokeStyle = '#3b82f6';
+                    ctx.globalAlpha = 0.8;
+                    let c = S.drag.clip;
+                    if (S.drag.axisLock === 'time') {
+                        if (S.view >= 3) {
+                            let y = laneY(c.track);
+                            ctx.beginPath();
+                            ctx.moveTo(area().x, y);
+                            ctx.lineTo(area().x + area().w, y);
+                            ctx.stroke();
+                        } else if (S.view === 2) {
+                            let P = outsideP()
+                              , a = trackAngle(c.track);
+                            ctx.beginPath();
+                            for (let i = 0; i <= 36; i++) {
+                                let q = opoint(i / 36, a, P);
+                                i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)
+                            }
+                            ctx.stroke();
+                        } else {
+                            let a = trackAngle(c.track);
+                            ctx.beginPath();
+                            for (let i = 0; i <= 50; i++) {
+                                let z = S.cam - 900 + i * (FAR / 50)
+                                  , q = project(Math.cos(a) * R, Math.sin(a) * R, z);
+                                if (q)
+                                    i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)
+                            }
+                            ctx.stroke();
+                        }
+                    } else if (S.drag.axisLock === 'track') {
+                        if (S.view >= 3) {
+                            let x = benchX(c.start);
+                            ctx.beginPath();
+                            ctx.moveTo(x, area().y);
+                            ctx.lineTo(x, area().y + area().h);
+                            ctx.stroke();
+                        } else if (S.view === 2) {
+                            let P = outsideP()
+                              , s = os(c.start, P)
+                              , cc = oc(s, P)
+                              , rr = orad(s, P);
+                            ctx.beginPath();
+                            ctx.ellipse(cc.x, cc.y, rr.rx, rr.ry, 0, 0, Math.PI * 2);
+                            ctx.stroke();
+                        } else {
+                            let q = project(0, 0, c.start);
+                            if (q) {
+                                ctx.beginPath();
+                                ctx.arc(q.x, q.y, Math.max(1, R * q.s), 0, Math.PI * 2);
+                                ctx.stroke();
+                            }
+                        }
+                    }
+                    ctx.restore();
+                }
+
+                function hitPoly(pt, pts) {
+                    let h = false;
+                    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+                        let xi = pts[i].x
+                          , yi = pts[i].y
+                          , xj = pts[j].x
+                          , yj = pts[j].y;
+                        if (((yi > pt.y) != (yj > pt.y)) && pt.x < (xj - xi) * (pt.y - yi) / ((yj - yi) || 1e-6) + xi)
+                            h = !h
+                    }
+                    return h
+                }
+
+                function timeFromScreen(x, y, track, fallbackZ) {
+                    if (S.view >= 3)
+                        return benchTime(x);
+                    if (S.view === 2) {
+                        let P = outsideP()
+                          , s = clamp((x - P.cx0) / (P.cx1 - P.cx0), 0, 1);
+                        return P.front + s * P.span;
+                    }
+                    let a = trackAngle(track)
+                      , bestZ = fallbackZ
+                      , bd = 1e9;
+                    for (let z = S.cam - 900; z < S.cam + FAR; z += SNAP * 2) {
+                        let q = project(Math.cos(a) * R, Math.sin(a) * R, z);
+                        if (q) {
+                            let d = Math.hypot(q.x - x, q.y - y);
+                            if (d < bd) {
+                                bd = d;
+                                bestZ = z;
+                            }
+                        }
+                    }
+                    for (let z = bestZ - SNAP * 2; z <= bestZ + SNAP * 2; z += 15) {
+                        let q = project(Math.cos(a) * R, Math.sin(a) * R, z);
+                        if (q) {
+                            let d = Math.hypot(q.x - x, q.y - y);
+                            if (d < bd) {
+                                bd = d;
+                                bestZ = z;
+                            }
+                        }
+                    }
+                    return bestZ;
+                }
+
+                function hit(x, y) {
+                    for (let i = rendered.length - 1; i >= 0; i--) {
+                        let r = rendered[i];
+                        if (r.type === 'lathe' && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h)
+                            return {
+                                mode: 'lathe',
+                                clip: null
+                            };
+                        if (isClip(r.clip) && r.r && Math.hypot(x - r.x, y - r.y) < r.r + 12)
+                            return {
+                                clip: r.clip,
+                                mode: r.type
+                            };
+                        if (isClip(r.clip) && r.w && x >= r.x - 10 && x <= r.x + r.w + 10 && y >= r.y - 10 && y <= r.y + r.h + 10)
+                            return {
+                                clip: r.clip,
+                                mode: r.type
+                            };
+                        if ((r.type === 'bench' || r.type === 'clip') && isClip(r.clip)) {
+                            let hitBody = false;
+                            if (r.type === 'bench')
+                                hitBody = (x >= r.x0 && x <= r.x1 && y >= r.top && y <= r.top + r.h);
+                            else
+                                hitBody = hitPoly({
+                                    x,
+                                    y
+                                }, r.pts);
+                            if (hitBody) {
+                                let mode = 'move';
+                                if (S.tool === 'TRIM') {
+                                    let cTime = r.clip.start + r.clip.dur / 2;
+                                    let ptr = (S.view >= 3) ? benchTime(x) : timeFromScreen(x, y, r.clip.track, cTime);
+                                    mode = (ptr < cTime) ? 'start' : 'end';
+                                } else if (S.tool === 'ROLL')
+                                    mode = 'rotate';
+                                else if (S.tool === 'LIFT')
+                                    mode = 'lift';
+                                else if (S.tool === 'ROUTE')
+                                    mode = 'route';
+                                else if (S.tool === 'SPLIT')
+                                    mode = 'split';
+                                return {
+                                    clip: r.clip,
+                                    mode
+                                };
+                            }
+                        }
+                    }
+                    return null
+                }
+
+                function drawSnapLine() {
+                    if (S.drag && currentSnapZ !== null && S.snap) {
+                        ctx.save();
+                        ctx.strokeStyle = '#22c55e';
+                        ctx.lineWidth = 4;
+                        ctx.setLineDash([8, 8]);
+                        if (S.view >= 3) {
+                            let x = benchX(currentSnapZ);
+                            ctx.beginPath();
+                            ctx.moveTo(x, area().y);
+                            ctx.lineTo(x, area().y + area().h);
+                            ctx.stroke();
+                            tag(x, area().y + 40, "JOIN " + fmt(currentSnapZ), true);
+                        } else if (S.view === 2) {
+                            let P = outsideP()
+                              , s = os(currentSnapZ, P)
+                              , cc = oc(s, P)
+                              , rr = orad(s, P);
+                            ctx.beginPath();
+                            ctx.ellipse(cc.x, cc.y, rr.rx, rr.ry, 0, 0, Math.PI * 2);
+                            ctx.stroke();
+                            tag(area().cx, area().cy + 60, "JOIN " + fmt(currentSnapZ), true);
+                        } else {
+                            let q = project(0, 0, currentSnapZ);
+                            if (q) {
+                                ctx.beginPath();
+                                ctx.arc(q.x, q.y, Math.max(1, R * q.s), 0, Math.PI * 2);
+                                ctx.stroke();
+                            }
+                            tag(area().cx, area().cy + 60, "JOIN " + fmt(currentSnapZ), true);
+                        }
+                        ctx.restore();
+                    }
+                }
+
+                function render(ts) {
+                    _areaCache = null; // Invalidate per-frame area cache
+                    rendered = [];
+                    gizmosToRender = [];
+                    ctx.clearRect(0, 0, W, H);
+
+                    drawVideoBackground(ts);
+
+                    if (S.view === 0 || S.view === 1)
+                        drawTubeView();
+                    else if (S.view === 2)
+                        drawOutside();
+                    else if (S.view === 3)
+                        drawSide();
+                    else
+                        drawBench();
+
+                    drawDragConstraints();
+                    drawSnapLine();
+                    for (const g of gizmosToRender) {
+                        renderGizmos(g.c, g.m, g.hw, g.hh, g.rect);
+                    }
+
+                    readout.textContent = S.hover && S.hover.clip ? `HOVER: ${String(S.hover.mode).toUpperCase()} [${S.hover.clip.id}]` : S.selected ? `${S.selected.id} ${S.unit} ${fmt(S.selected.start)} ${fmt(S.selected.dur)}` : `TIME ${fmt(S.cam)}`;
+                    modeName.textContent = VIEWS[S.view];
+
+                    if (S.play)
+                        playBtn.textContent = (S.playRate !== 1 ? (S.playRate > 0 ? "PLAY " + S.playRate + "X" : "REV " + Math.abs(S.playRate) + "X") : "PLAY");
+                    else
+                        playBtn.textContent = "PLAY";
+                }
+
+                // ═══════════════════════════════════════════
+                // ── PERFORMANCE MONITOR ──
+                // Press ~ to toggle. Shows FPS, render cost, idle %, bus msg rate.
+                // ═══════════════════════════════════════════
+                const _perf = {
+                    frames: 0, renderMs: 0, idleSkips: 0, busMsg: 0,
+                    lastReport: performance.now(),
+                    hud: null, visible: true
+                };
+
+                function _perfReport() {
+                    const now = performance.now();
+                    const elapsed = (now - _perf.lastReport) / 1000;
+                    if (elapsed < 1) return;
+                    const fps = (_perf.frames / elapsed).toFixed(1);
+                    const avgMs = _perf.frames > 0 ? (_perf.renderMs / _perf.frames).toFixed(1) : '0';
+                    const idlePct = ((_perf.idleSkips / (_perf.frames + _perf.idleSkips + 0.01)) * 100).toFixed(0);
+                    const msgRate = (_perf.busMsg / elapsed).toFixed(1);
+                    const loopState = _loopRunning ? 'RUN' : 'SLEEP';
+                    if (_perf.hud) {
+                        _perf.hud.textContent = `${fps} fps · ${avgMs}ms/f · idle ${idlePct}% · bus ${msgRate}/s · ${loopState} · ${clips.length} clips · DPR ${DPR}`;
+                    }
+                    // Console log every 5s for deep debugging
+                    if (elapsed > 4.9) {
+                        console.log(`[ATO-PERF] ${fps} fps | render ${avgMs}ms | idle ${idlePct}% | bus ${msgRate}/s | ${loopState} | ${clips.length} clips | DPR ${DPR} | ${W}x${H}`);
+                    }
+                    _perf.frames = 0; _perf.renderMs = 0; _perf.idleSkips = 0; _perf.busMsg = 0;
+                    _perf.lastReport = now;
+                }
+
+                // Create HUD element
+                (function initPerfHud() {
+                    const hud = document.createElement('div');
+                    hud.id = 'perf-hud';
+                    hud.style.cssText = 'position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(0,0,0,0.85);color:#0f0;font:900 9px ui-monospace;padding:2px 8px;pointer-events:none;display:none;white-space:nowrap;';
+                    document.body.appendChild(hud);
+                    _perf.hud = hud;
+                })();
+
+                // Toggle HUD with ~ key
+                document.addEventListener('keydown', e => {
+                    if (e.key === '`' || e.key === '~') {
+                        _perf.hud.style.display = _perf.hud.style.display === 'none' ? '' : 'none';
+                    }
+                });
+
+                // ── IFRAME VISIBILITY DETECTION ──
+                // When c-bus is display:none on mobile, stop all rendering
+                let _iframeVisible = true;
+                const _visObserver = new IntersectionObserver(entries => {
+                    const wasVisible = _iframeVisible;
+                    _iframeVisible = entries[0].isIntersecting;
+                    if (_iframeVisible && !wasVisible) {
+                        console.log('[ATO-PERF] Iframe visible — waking render loop');
+                        _wakeBus();
+                    } else if (!_iframeVisible && wasVisible) {
+                        console.log('[ATO-PERF] Iframe hidden — halting render loop');
+                        _loopRunning = false;
+                    }
+                }, { threshold: 0.01 });
+                _visObserver.observe(document.documentElement);
+
+                let _dirty = true;
+                let _loopRunning = false;
+                let _idleFrames = 0;
+                const _IDLE_STOP = 30;
+
+                function _wakeBus() {
+                    _dirty = true;
+                    _idleFrames = 0;
+                    if (!_loopRunning && _iframeVisible) {
+                        _loopRunning = true;
+                        requestAnimationFrame(loop);
+                    }
+                }
+
+                function loop(ts) {
+                    // Bail if iframe became hidden mid-loop
+                    if (!_iframeVisible) { _loopRunning = false; return; }
+
+                    let dt = Math.min(33, ts - last || 16);
+                    last = ts;
+
+                    // ── MOTION: only when something is moving ──
+                    if (S.play && !_BUSRX_ACTIVE) {
+                        // Standalone mode: tunnel advances its own clock
+                        S.cam += dt * 0.16 * S.playRate;
+                        _dirty = true;
+                    } else if (S.play && _BUSRX_ACTIVE) {
+                        // Coupled mode: engine is the clock — tunnel follows CURSOR_MOVE
+                        // Just keep dirty so we re-render (camera is set by message handler)
+                        _dirty = true;
+                    } else if (!S.drag && !S.scrub && Math.abs(S.inertia) > 0.05) {
+                        S.cam += S.inertia * (dt / 16);
+                        S.inertia *= 0.92;
+                        if (Math.abs(S.inertia) > 1 && Math.floor(S.cam) % 10 === 0)
+                            tick('jog');
+                        _dirty = true;
+                    } else if (Math.abs(S.inertia) <= 0.05)
+                        S.inertia = 0;
+
+                    // ── SKIP EVERYTHING when clean ──
+                    if (!_dirty) {
+                        _idleFrames++;
+                        _perf.idleSkips++;
+                        if (_idleFrames < _IDLE_STOP) {
+                            requestAnimationFrame(loop);
+                        } else {
+                            _loopRunning = false;
+                            console.log('[ATO-PERF] Loop sleeping — no activity for ' + _IDLE_STOP + ' frames');
+                        }
+                        _perfReport();
+                        return;
+                    }
+
+                    // ── Audio tic on boundary crossing ──
+                    let crossed = false;
+                    for (const c of clips) {
+                        if ((last <= c.start && S.cam > c.start) || (last >= c.start && S.cam < c.start)) {
+                            crossed = true; break;
+                        }
+                    }
+                    if (crossed && (S.play || Math.abs(S.inertia) > 0))
+                        tick('cross');
+
+                    // ── Physics lerp (only when dragging or animating) ──
+                    let needsLerp = S.drag || S.play || Math.abs(S.inertia) > 0.05;
+                    clips.forEach(c => {
+                        if (c.vStart === undefined) {
+                            c.vStart = c.start; c.vTrack = c.track;
+                            c.vDur = c.dur; c.vLift = c.lift;
+                        }
+                        if (needsLerp) {
+                            let lf = (S.drag && S.drag.clip === c) ? 0.6 : 0.25;
+                            c.vStart += (c.start - c.vStart) * lf;
+                            c.vTrack += (c.track - c.vTrack) * lf;
+                            c.vDur += (c.dur - c.vDur) * lf;
+                            c.vLift += (c.lift - c.vLift) * lf;
+                        } else {
+                            c.vStart = c.start; c.vTrack = c.track;
+                            c.vDur = c.dur; c.vLift = c.lift;
+                        }
+                    });
+
+                    // ── FRUSTUM TEXTURE HYDRATION (LAW 7) ──
+                    if (_BUSRX_ACTIVE && _busGridStore.size > 0) _busFrustumHydrate();
+
+                    // ── RENDER with timing ──
+                    const t0 = performance.now();
+                    render(ts);
+                    _perf.renderMs += performance.now() - t0;
+                    _perf.frames++;
+
+                    // ── CONTINUOUS CAMERA→FRAME SYNC (Hold-Frame Model) ──
+                    // Derives which SOURCE FRAME the camera is over by checking
+                    // which clip's [vStart, vStart+vDur) range contains S.cam.
+                    // This means extending a clip = holding that frame longer.
+                    if (_BUSRX_ACTIVE && _busFrameTotal > 0 && !S.drag) {
+                        const frameIdx = _busDeriveFrame(S.cam);
+                        const now = performance.now();
+                        if (frameIdx !== _busCamLastFrame && now - _busCamLastEmit > 60) {
+                            _busCamLastFrame = frameIdx;
+                            _busCamLastEmit = now;
+                            window.parent.postMessage({
+                                type: 'GOTO_FRAME',
+                                _origin: 'tunnel',
+                                cursor: frameIdx,
+                                source: 'camera'
+                            }, '*');
+                        }
+                    }
+
+                    _dirty = false;
+                    _idleFrames = 0;
+                    _perfReport();
+                    requestAnimationFrame(loop);
+                }
+
+                function select(c, src='object') {
+                    let old = S.selected;
+                    if (!isClip(c)) {
+                        S.selected = null;
+                        selBig.textContent = 'NO CLIP';
+                        selMeta.textContent = 'TAP SECTION';
+                        drawTracks();
+                        drawOps();
+                        return
+                    }
+                    S.selected = c;
+                    S.active = c.track;
+                    // Update active track for hold-frame derivation
+                    if (c._frameIndex !== undefined) _busActiveTrack = c.track;
+                    selBig.textContent = c._frameIndex !== undefined ? `F${c._frameIndex + 1}` : c.id;
+                    const holdBeats = Math.round(c.dur / SNAP);
+                    const frameInfo = c._frameIndex !== undefined ? `HOLD ${holdBeats}× ` : '';
+                    selMeta.textContent = `${c.name ? String(c.name).slice(0, 34).toUpperCase() + ' · ' : ''}${frameInfo}${NAMES[c.track]} ${fmt(c.start)} DUR ${fmt(c.dur)} ${c.locked ? 'LOCK' : ''}`;
+                    drawTracks();
+                    drawOps();
+                    if (src === 'object' && c !== old) {
+                        tick('snap');
+                        F.lastTrack = c.track;
+                        F.lastSlot = Math.round(c.start / step());
+                    }
+                }
+                function addClip(z=qsnap(S.cam), tr=S.active) {
+                    let c = mk(z, 360, tr);
+                    clips.push(c);
+                    select(c, 'add');
+                    save();
+                    toast('ADDED ' + c.id);
+                    return c;
+                }
+                function cutClip(c, z=qsnap(S.cam)) {
+                    if (!isClip(c))
+                        return tone(180, .025, .008, 'sawtooth');
+                    if (z <= c.start + step() || z >= c.start + c.dur - step()) {
+                        toast('CUT OUTSIDE');
+                        return
+                    }
+                    let n = {
+                        ...c,
+                        id: id(),
+                        start: z,
+                        dur: c.start + c.dur - z
+                    };
+                    c.dur = z - c.start;
+                    clips.push(n);
+                    select(n, 'cut');
+                    tick('drop');
+                    save()
+                }
+                function remove(c) {
+                    if (!isClip(c))
+                        return;
+                    let i = clips.indexOf(c);
+                    if (i >= 0)
+                        clips.splice(i, 1);
+                    select(null);
+                    save();
+                    toast('DELETED')
+                }
+                function clone(c) {
+                    if (!isClip(c))
+                        return;
+                    let n = {
+                        ...c,
+                        id: id(),
+                        start: qsnap(c.start + c.dur + step())
+                    };
+                    clips.push(n);
+                    select(n);
+                    save()
+                }
+                function bankClip(c) {
+                    if (!isClip(c))
+                        return;
+                    bank.unshift({
+                        id: c.id,
+                        dur: c.dur,
+                        start: c.start,
+                        track: c.track,
+                        lift: c.lift || 0,
+                        frameIndex: c._frameIndex,
+                        timestamp: Date.now()
+                    });
+                    bank.splice(8);
+                    tick('export');
+                    drawStore();
+                    toast('STORED ' + c.id + ' (' + NAMES[c.track] + ')')
+                }
+                function drawTracks() {
+                    tracksEl.innerHTML = '';
+                    NAMES.forEach( (n, i) => {
+                        let b = document.createElement('button');
+                        b.className = 'trk' + (S.active === i ? ' on' : '');
+                        b.dataset.s = SHORT[i];
+                        b.textContent = n;
+                        b.onclick = () => {
+                            S.active = i;
+                            toast(n);
+                            drawTracks()
+                        }
+                        ;
+                        tracksEl.appendChild(b)
+                    }
+                    )
+                }
+                function drawStore() {
+                    storeCount.textContent = bank.length;
+                    slotsEl.innerHTML = '';
+                    for (let i = 0; i < 8; i++) {
+                        let s = bank[i]
+                          , d = document.createElement('div');
+                        d.className = 'slot';
+                        if (s) {
+                            d.innerHTML = `<b>${s.id}</b><small>${NAMES[s.track]} F${(s.frameIndex||0)+1}</small>`;
+                            d.onclick = () => {
+                                // RECALL: jump camera to stored clip position
+                                S.cam = s.start + s.dur / 2;
+                                tick('snap');
+                                toast('RECALL ' + s.id);
+                                _wakeBus();
+                            };
+                        } else {
+                            d.innerHTML = '<b>EMPTY</b><small>STORE</small>';
+                        }
+                        slotsEl.appendChild(d)
+                    }
+                    // Export button
+                    if (bank.length > 0) {
+                        let ex = document.createElement('div');
+                        ex.className = 'slot';
+                        ex.style.gridColumn = '1 / -1';
+                        ex.style.textAlign = 'center';
+                        ex.style.fontWeight = '900';
+                        ex.style.letterSpacing = '0.08em';
+                        ex.innerHTML = '<b>EXPORT STORE</b><small>DOWNLOAD JSON</small>';
+                        ex.onclick = () => {
+                            const data = JSON.stringify({ store: bank, exported: new Date().toISOString() }, null, 2);
+                            const blob = new Blob([data], { type: 'application/json' });
+                            const a = document.createElement('a');
+                            a.href = URL.createObjectURL(blob);
+                            a.download = 'icaro-store-' + Date.now() + '.json';
+                            a.click();
+                            tick('export');
+                            toast('EXPORTED ' + bank.length + ' CLIPS');
+                        };
+                        slotsEl.appendChild(ex);
+                    }
+                }
+                function op(id, label, act, state) {
+                    let d = document.createElement('div');
+                    d.className = 'op' + (S.tool === label ? ' on' : '');
+                    let short = {
+                        view: 'VIEW',
+                        unit: 'UNIT',
+                        move: 'MOVE',
+                        trim: 'TRIM',
+                        roll: 'ROLL',
+                        lift: 'LIFT',
+                        route: 'ROUTE',
+                        store: 'BANK',
+                        edl: 'EDL',
+                        import: 'IMP',
+                        project: 'OUT'
+                    }[id] || id;
+                    d.innerHTML = `<code>${id}</code><span data-short="${short}">${label}<small>${act} - ${state}</small></span>`;
+                    d.onclick = () => runOp(id);
+                    opList.appendChild(d)
+                }
+                function drawOps() {
+                    opList.innerHTML = '';
+                    op('view', 'VIEW', 'cycle editing plane', VIEWS[S.view]);
+                    op('unit', 'UNIT', 'clip beat cell edge', S.unit);
+                    op('move', 'MOVE', 'center plate / front lip', S.tool);
+                    op('trim', 'TRIM', 'nose lip / rear lip', S.tool);
+                    op('roll', 'ROLL', 'angular rotation', S.selected ? Math.round((S.selected.rot||0) * 180 / Math.PI) + '\u00B0' : '0\u00B0');
+                    op('lift', 'LIFT', 'compositing weight', S.selected ? (S.selected.lift||0).toFixed(2) : '0.00');
+                    op('route', 'ROUTE', 'narrative link', routes.length + ' ROUTES');
+                    op('store', 'STORE', 'snapshot + recall', bank.length + ' STORED');
+                    op('edl', 'EDL', 'download edit list', 'READY');
+                    op('import', 'IMPORT', 'load project JSON', 'FILE');
+                    op('project', 'PROJECT', 'download full state', 'JSON')
+                }
+                // Tool descriptions — what each tool MEANS in the coupled system
+                const TOOL_DESC = {
+                    MOVE:  'REPOSITION IN TIME + TRACK',
+                    TRIM:  'EXTEND / SHORTEN HOLD',
+                    ROLL:  'ANGULAR ROTATION',
+                    LIFT:  'COMPOSITING WEIGHT',
+                    SPLIT: 'CUT AT PLAYHEAD',
+                    ROUTE: 'NARRATIVE LINK',
+                    STORE: 'SNAPSHOT + RECALL'
+                };
+
+                function setTool(t) {
+                    S.tool = t;
+                    [...dock.querySelectorAll('button')].forEach(b => b.classList.toggle('on', b.dataset.tool === t));
+                    // Toggle store panel visibility
+                    const storeEl = document.getElementById('store');
+                    if (storeEl) storeEl.classList.toggle('show', t === 'STORE');
+                    // Show tool description
+                    setStatus(TOOL_DESC[t] || t);
+                    drawOps();
+                    if (S.selected)
+                        select(S.selected, 'tool')
+                }
+                function runOp(k) {
+                    if (k === 'view')
+                        setView((S.view + 1) % VIEWS.length);
+                    else if (k === 'unit')
+                        cycleUnit();
+                    else if (k === 'move')
+                        setTool('MOVE');
+                    else if (k === 'trim')
+                        setTool('TRIM');
+                    else if (k === 'roll')
+                        setTool('ROLL');
+                    else if (k === 'lift')
+                        setTool('LIFT');
+                    else if (k === 'route')
+                        setTool('ROUTE');
+                    else if (k === 'store')
+                        bankClip(S.selected);
+                    else if (k === 'edl')
+                        exportEDL();
+                    else if (k === 'import')
+                        requestImport();
+                    else if (k === 'project')
+                        exportProject()
+                }
+                function cycleUnit() {
+                    let i = UNITS.indexOf(S.unit);
+                    S.unit = UNITS[(i + 1) % UNITS.length];
+                    tick('mode');
+                    toast('UNIT ' + S.unit);
+                    drawOps();
+                    if (S.selected)
+                        select(S.selected, 'unit')
+                }
+                function setView(v) {
+                    S.view = v;
+                    tick('mode');
+                    toast(VIEWS[v]);
+                    drawOps();
+                    _wakeBus();
+                    render(performance.now());
+                }
+
+                // ── CLIP UNDO STACK ──
+                // Captures clip state before drag operations.
+                // Right-click, Cmd+Z, or context menu to undo.
+                const _clipUndoMax = 30;
+                const _clipUndoStack = [];
+                let _clipUndoIndex = -1;
+
+                function pushClipUndo(clip) {
+                    if (!clip) return;
+                    const snap = {
+                        clipId: clip.id,
+                        start: clip.start, dur: clip.dur,
+                        track: clip.track, rot: clip.rot,
+                        lift: clip.lift, locked: clip.locked
+                    };
+                    _clipUndoStack.length = _clipUndoIndex + 1;
+                    _clipUndoStack.push(snap);
+                    if (_clipUndoStack.length > _clipUndoMax) _clipUndoStack.shift();
+                    _clipUndoIndex = _clipUndoStack.length - 1;
+                }
+
+                function clipUndo() {
+                    if (_clipUndoIndex < 0) { toast('NOTHING TO UNDO'); return; }
+                    const snap = _clipUndoStack[_clipUndoIndex];
+                    const c = clips.find(cl => cl.id === snap.clipId);
+                    if (c) {
+                        c.start = snap.start; c.dur = snap.dur;
+                        c.track = snap.track; c.rot = snap.rot;
+                        c.lift = snap.lift; c.locked = snap.locked;
+                        c.vStart = c.start; c.vDur = c.dur;
+                        c.vTrack = c.track; c.vLift = c.lift;
+                        select(c, 'undo');
+                    }
+                    _clipUndoIndex--;
+                    _wakeBus();
+                    toast('UNDO');
+                }
+
+                // Right-click undo on tunnel canvas
+                canvas.addEventListener('contextmenu', e => {
+                    e.preventDefault();
+                    clipUndo();
+                });
+
+                // Cmd+Z / Ctrl+Z for clip undo
+                window.addEventListener('keydown', e => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                        e.preventDefault();
+                        clipUndo();
+                    }
+                });
+
+                canvas.addEventListener('pointerdown', e => {
+                    _wakeBus();
+                    menu.classList.remove('show');
+                    S.inertia = 0;
+                    S.play = false;
+                    playBtn.classList.remove('on');
+                    S.playRate = 1;
+                    let h = hit(e.clientX, e.clientY);
+                    if (h) {
+                        // Guard: h.clip can be null (e.g. lathe hit)
+                        if (!h.clip) {
+                            // Clicked playhead/lathe area — start scrub instead
+                            S.scrub = {
+                                x: e.clientX,
+                                y: e.clientY,
+                                cam: S.cam,
+                                lastTime: performance.now(),
+                                lastCam: S.cam
+                            };
+                            return;
+                        }
+                        if (S.selected === h.clip && e.detail >= 2)
+                            cycleUnit();
+                        if (h.mode === 'split') {
+                            pushClipUndo(h.clip); // Snapshot before split
+                            let ptr = (S.view >= 3) ? benchTime(e.clientX) : timeFromScreen(e.clientX, e.clientY, h.clip.track, h.clip.start + h.clip.dur / 2);
+                            cutClip(h.clip, magneticSnap(ptr));
+                            return;
+                        }
+                        select(h.clip, 'object');
+                        pushClipUndo(h.clip); // Snapshot BEFORE drag mutation
+                        let ptrZ = (S.view >= 3) ? benchTime(e.clientX) : timeFromScreen(e.clientX, e.clientY, h.clip.track, h.clip.start);
+                        S.drag = {
+                            mode: h.mode,
+                            clip: h.clip,
+                            sx: e.clientX,
+                            sy: e.clientY,
+                            mx: e.clientX,
+                            my: e.clientY,
+                            origStart: h.clip.start,
+                            origTrack: h.clip.track,
+                            start: h.clip.start,
+                            dur: h.clip.dur,
+                            track: h.clip.track,
+                            rot: h.clip.rot,
+                            lift: h.clip.lift,
+                            pointerZ: ptrZ,
+                            axisLock: null,
+                            lastSnapZ: h.clip.start
+                        };
+                        tick('grab');
+                        setStatus(String(h.mode).toUpperCase())
+                    } else {
+                        S.scrub = {
+                            x: e.clientX,
+                            y: e.clientY,
+                            cam: S.cam,
+                            lastTime: performance.now(),
+                            lastCam: S.cam
+                        };
+                        setStatus('JOG WHEEL')
+                    }
+                }
+                );
+
+                canvas.addEventListener('pointermove', e => {
+                    _wakeBus();
+                    let x = e.clientX
+                      , y = e.clientY;
+                    if (S.drag && isClip(S.drag.clip)) {
+                        let d = S.drag
+                          , c = d.clip;
+                        d.mx = x;
+                        d.my = y;
+                        if (c.locked && d.mode !== 'lock') {
+                            setStatus('LOCKED');
+                            return
+                        }
+
+                        let dx = x - d.sx
+                          , dy = y - d.sy;
+                        let timeDelta = 0
+                          , trackDelta = 0;
+
+                        if (S.view >= 3) {
+                            timeDelta = dx / S.zoom;
+                            trackDelta = Math.round(dy / laneH());
+                        } else if (S.view === 2) {
+                            timeDelta = dx * 8;
+                            trackDelta = Math.round(dy / 50);
+                        } else {
+                            timeDelta = -dy * 15;
+                            trackDelta = Math.round(dx / 60);
+                        }
+                        // PUSH IS PUSH PHYSICS
+
+                        if (d.mode === 'move') {
+                            let tTrack = norm(d.track + trackDelta)
+                              , tStart = d.start + timeDelta;
+                            if (!e.shiftKey) {
+                                if (!d.axisLock && Math.hypot(dx, dy) > 8)
+                                    d.axisLock = Math.abs(dx) > Math.abs(dy) ? ((S.view >= 3 || S.view === 2) ? 'time' : 'track') : ((S.view >= 3 || S.view === 2) ? 'track' : 'time');
+                                if (d.axisLock === 'time')
+                                    tTrack = d.track;
+                                else if (d.axisLock === 'track')
+                                    tStart = d.start;
+                            } else
+                                d.axisLock = null;
+
+                            c.track = tTrack;
+                            let newStart = magneticSnap(tStart, c.track, c.id, c.dur);
+                            if (d.lastSnapZ !== newStart) {
+                                tick('ratchet', 1 + (c.track * 0.15));
+                                d.lastSnapZ = newStart;
+                            }
+                            c.start = newStart;
+                            select(c, 'drag');
+                            save()
+                        } else if (d.mode === 'start') {
+                            let ns = magneticSnap(d.start + timeDelta, c.track, c.id);
+                            ns = clamp(ns, d.start + d.dur - 5000, d.start + d.dur - step());
+                            if (d.lastSnapZ !== ns) {
+                                tick('ratchet', 1.2);
+                                d.lastSnapZ = ns;
+                            }
+                            c.start = ns;
+                            c.dur = (d.start + d.dur) - ns;
+                            select(c, 'trim');
+                            save()
+                        } else if (d.mode === 'end') {
+                            let ne = magneticSnap(d.start + d.dur + timeDelta, c.track, c.id);
+                            if (d.lastSnapZ !== ne) {
+                                tick('ratchet', 0.8);
+                                d.lastSnapZ = ne;
+                            }
+                            c.dur = Math.max(step(), ne - c.start);
+                            select(c, 'trim');
+                            save()
+                        } else if (d.mode === 'lane') {
+                            c.track = norm(d.track + trackDelta);
+                            select(c, 'lane');
+                            save()
+                        } else if (d.mode === 'rotate') {
+                            // ROLL = angular rotation
+                            // Tube views: rotates clip around barrel axis
+                            // Bench/side views: tilts clip visually
+                            c.rot = d.rot + dx * .012;
+                            if (S.snap)
+                                c.rot = Math.round(c.rot / (Math.PI / 4)) * (Math.PI / 4);
+                            tick('ratchet', 0.9 + Math.abs(c.rot) * 0.3);
+                            select(c, 'rot');
+                            save()
+                        } else if (d.mode === 'lift') {
+                            c.lift = clamp(d.lift - dy / 70, -1, 1);
+                            if (S.snap)
+                                c.lift = Math.round(c.lift * 4) / 4;
+                            select(c, 'lift');
+                            save()
+                        } else if (d.mode === 'lock') {
+                            c.locked = !c.locked;
+                            S.drag = null;
+                            select(c, 'lock');
+                            save()
+                        } else if (d.mode === 'route') {
+                            let hh = hit(x, y);
+                            if (hh && hh.clip && hh.clip !== c) {
+                                d.target = hh.clip;
+                                setStatus('TARGET ' + hh.clip.id)
+                            }
+                        }
+                        return
+                    }
+                    if (S.scrub) {
+                        let dx = x - S.scrub.x
+                          , dy = y - S.scrub.y
+                          , moveAmt = 0;
+                        if (S.view >= 3)
+                            moveAmt = -dx / S.zoom;
+                        else if (S.view === 2)
+                            moveAmt = -dx * 4;
+                        else
+                            moveAmt = dy * 4;
+                        // Pull Down = Pull Timeline Forward
+
+                        S.cam = S.scrub.cam + moveAmt;
+
+                        let now = performance.now()
+                          , dt = now - S.scrub.lastTime;
+                        if (dt > 0) {
+                            let newVel = (S.cam - S.scrub.lastCam) / dt * 16;
+                            S.vel = (S.vel * 0.5) + (newVel * 0.5);
+                            // Smooth velocity tracking
+                            S.scrub.lastTime = now;
+                            S.scrub.lastCam = S.cam;
+                        }
+                        return
+                    }
+                    S.hover = hit(x, y);
+                    if (S.hover) {
+                        let m = S.hover.mode;
+                        if (m === 'start' || m === 'end')
+                            canvas.style.cursor = 'col-resize';
+                        else if (m === 'move' || m === 'lane')
+                            canvas.style.cursor = 'grab';
+                        else if (m === 'rotate' || m === 'lift')
+                            canvas.style.cursor = 'ns-resize';
+                        else
+                            canvas.style.cursor = 'crosshair';
+                    } else
+                        canvas.style.cursor = 'crosshair';
+                    setStatus(S.hover ? 'HOVER' : 'IDLE')
+                }
+                );
+
+                canvas.addEventListener('pointerup', () => {
+                    if (S.drag) {
+                        if (S.drag.mode === 'move' || S.drag.mode === 'lane' || S.drag.mode === 'lift' || S.drag.mode === 'start' || S.drag.mode === 'end')
+                            tick('drop');
+                        // Mark clip as user-edited (survives incremental sync)
+                        if (S.drag.clip) S.drag.clip._userEdited = true;
+                        if (S.drag.mode === 'route' && S.drag.target) {
+                            routes.push({
+                                from: S.drag.clip.id,
+                                to: S.drag.target.id,
+                                type: 'ROUTE'
+                            });
+                            tick('drop');
+                            toast('ROUTED')
+                        }
+                        // ── EMIT CLIP ARRANGEMENT TO ENGINE ──
+                        // Closes the one-way mirror: engine learns spatial order
+                        _busEmitArrangement();
+                        S.drag = null
+                    }
+                    if (S.scrub) {
+                        if (Math.abs(S.vel) > 1)
+                            S.inertia = S.vel;
+                        // transfer scrub velocity to momentum
+                        S.scrub = null;
+                    }
+                    currentSnapZ = null;
+                    save()
+                }
+                );
+
+                canvas.addEventListener('dblclick', e => {
+                    let h = hit(e.clientX, e.clientY);
+                    if (!h || !h.clip) {
+                        let z = S.cam + 900;
+                        if (S.view >= 3)
+                            z = benchTime(e.clientX);
+                        else if (S.view === 2) {
+                            let P = outsideP()
+                              , s = clamp((e.clientX - P.cx0) / (P.cx1 - P.cx0), 0, 1);
+                            z = P.front + s * P.span;
+                        }
+                        addClip(magneticSnap(z, S.active), S.active);
+                    }
+                }
+                );
+
+                canvas.addEventListener('contextmenu', e => {
+                    e.preventDefault();
+                    let h = hit(e.clientX, e.clientY);
+                    menu.innerHTML = '';
+                    let title = document.createElement('div');
+                    title.className = 'mi title';
+                    title.textContent = h && h.clip ? h.clip.id : 'EMPTY';
+                    menu.appendChild(title);
+                    function mi(t, fn) {
+                        let d = document.createElement('div');
+                        d.className = 'mi';
+                        d.textContent = t;
+                        d.onclick = () => {
+                            menu.classList.remove('show');
+                            fn()
+                        }
+                        ;
+                        menu.appendChild(d)
+                    }
+                    if (h && h.clip) {
+                        mi('COPY', () => clone(h.clip));
+                        mi('STORE', () => bankClip(h.clip));
+                        mi('CUT', () => cutClip(h.clip));
+                        mi('DELETE', () => remove(h.clip));
+                        mi('EXPORT PROJECT', exportProject);
+                        mi('IMPORT PROJECT', requestImport)
+                    } else {
+                        let z = S.cam + 900;
+                        if (S.view >= 3)
+                            z = benchTime(e.clientX);
+                        else if (S.view === 2) {
+                            let P = outsideP()
+                              , s = clamp((e.clientX - P.cx0) / (P.cx1 - P.cx0), 0, 1);
+                            z = P.front + s * P.span;
+                        }
+                        mi('ADD CLIP', () => addClip(magneticSnap(z, S.active), S.active));
+                        mi('EXPORT EDL', exportEDL);
+                        mi('EXPORT PROJECT', exportProject);
+                        mi('IMPORT PROJECT', requestImport);
+                        mi('EXPORT PNG', exportSnapshot)
+                    }
+                    menu.style.left = clamp(e.clientX, 4, W - 230) + 'px';
+                    menu.style.top = clamp(e.clientY, 4, H - 220) + 'px';
+                    menu.classList.add('show')
+                }
+                );
+
+                canvas.addEventListener('wheel', e => {
+                    e.preventDefault();
+                    S.inertia = 0;
+                    if (e.ctrlKey || e.metaKey)
+                        S.zoom = clamp(S.zoom - e.deltaY * .001, .22, 1.3);
+                    else if (e.altKey)
+                        S.roll += e.deltaY * .006;
+                    else {
+                        S.cam += e.deltaY * 1.5;
+                        S.vel = 0;
+                    }
+                }
+                , {
+                    passive: false
+                });
+
+                // KEYBOARD INSTRUMENT 
+                window.addEventListener('keydown', e => {
+                    let k = e.key.toLowerCase();
+                    if (k === ' ') {
+                        e.preventDefault();
+                        S.play = !S.play;
+                        S.playRate = 1;
+                        playBtn.classList.toggle('on', S.play)
+                    }
+
+                    // J-K-L NLE Transport Controls
+                    if (k === 'j') {
+                        e.preventDefault();
+                        S.playRate = (S.play && S.playRate < 0) ? Math.max(-4, S.playRate * 2) : -1;
+                        S.play = true;
+                        playBtn.classList.add('on');
+                        toast('REV ' + Math.abs(S.playRate) + 'X');
+                    }
+                    if (k === 'k') {
+                        e.preventDefault();
+                        S.play = false;
+                        S.playRate = 1;
+                        S.inertia = 0;
+                        playBtn.classList.remove('on');
+                        toast('PAUSE');
+                    }
+                    if (k === 'l') {
+                        e.preventDefault();
+                        S.playRate = (S.play && S.playRate > 0) ? Math.min(4, S.playRate * 2) : 1;
+                        S.play = true;
+                        playBtn.classList.add('on');
+                        toast('FWD ' + S.playRate + 'X');
+                    }
+
+                    // Live VJ Sampler Keys
+                    if (['1', '2', '3', '4'].includes(e.key)) {
+                        e.preventDefault();
+                        let tr = parseInt(e.key) - 1;
+                        S.active = tr;
+                        drawTracks();
+                        if (e.shiftKey) {
+                            addClip(qsnap(S.cam), tr);
+                            tone(800, 0.05, 0.01, 'square');
+                            toast('PUNCH IN ' + NAMES[tr]);
+                        } else if (S.selected) {
+                            S.selected.track = S.active;
+                            save();
+                        }
+                    }
+
+                    // Quick tool switching
+                    if (k === 'q')
+                        setTool('MOVE');
+                    if (k === 'w')
+                        setTool('TRIM');
+                    if (k === 'e')
+                        setTool('SPLIT');
+
+                    if (k === 'i') {
+                        e.preventDefault();
+                        requestImport()
+                    }
+                    if (k === 'o') {
+                        e.preventDefault();
+                        exportProject()
+                    }
+                    if (k === 'p') {
+                        e.preventDefault();
+                        exportSnapshot()
+                    }
+                    if (e.key === 'ArrowLeft') {
+                        e.preventDefault();
+                        if (S.selected)
+                            moveClip(S.selected, -step() * (e.shiftKey ? 4 : 1), 0);
+                        else
+                            S.cam -= step() * (e.shiftKey ? 4 : 1);
+                    }
+                    if (e.key === 'ArrowRight') {
+                        e.preventDefault();
+                        if (S.selected)
+                            moveClip(S.selected, step() * (e.shiftKey ? 4 : 1), 0);
+                        else
+                            S.cam += step() * (e.shiftKey ? 4 : 1);
+                    }
+                    if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        if (S.selected)
+                            moveClip(S.selected, 0, -1)
+                    }
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        if (S.selected)
+                            moveClip(S.selected, 0, 1)
+                    }
+                    if (e.key === '[') {
+                        if (S.selected) {
+                            S.selected.rot -= Math.PI / 2;
+                            select(S.selected);
+                            save()
+                        }
+                    }
+                    if (e.key === ']') {
+                        if (S.selected) {
+                            S.selected.rot += Math.PI / 2;
+                            select(S.selected);
+                            save()
+                        }
+                    }
+                    if (e.key === '.' || e.key === ',')
+                        cycleUnit();
+                    if (k === 'v')
+                        setView((S.view + 1) % VIEWS.length);
+                    if (k === 'a')
+                        addClip();
+                    if (k === 'x')
+                        cutClip(S.selected);
+                    if (k === 'b')
+                        bankClip(S.selected);
+                    if (k === 'n')
+                        exportEDL();
+                    if (e.key === 'Delete' || e.key === 'Backspace')
+                        remove(S.selected)
+                }
+                );
+
+                function moveClip(c, dt=0, dtr=0) {
+                    if (!isClip(c) || c.locked)
+                        return;
+                    c.start = magneticSnap(c.start + dt, c.track, c.id);
+                    c.track = norm(c.track + dtr);
+                    S.active = c.track;
+                    tick('snap');
+                    select(c, 'key');
+                    save()
+                }
+
+                window.addEventListener('resize', resize);
+                viewBtn.onclick = () => setView((S.view + 1) % VIEWS.length);
+                addBtn.onclick = () => addClip();
+                cutBtn.onclick = () => cutClip(S.selected);
+                bankBtn.onclick = () => bankClip(S.selected);
+                edlBtn.onclick = exportEDL;
+                importBtn.onclick = requestImport;
+                exportBtn.onclick = exportProject;
+                resetBtn.onclick = () => {
+                    localStorage.removeItem(SAVE);
+                    seed();
+                    select(null);
+                    save();
+                    toast('RESET')
+                }
+                ;
+                playBtn.onclick = () => {
+                    S.play = !S.play;
+                    S.playRate = 1;
+                    playBtn.classList.toggle('on', S.play)
+                }
+                ;
+                snapBtn.onclick = () => {
+                    S.snap = !S.snap;
+                    snapBtn.classList.toggle('on', S.snap)
+                }
+                ;
+                backBtn.onclick = () => {
+                    S.cam -= SNAP * 4;
+                    S.inertia = -20;
+                }
+                ;
+                fwdBtn.onclick = () => {
+                    S.cam += SNAP * 4;
+                    S.inertia = 20;
+                }
+                ;
+                zoomOutBtn.onclick = () => S.zoom = clamp(S.zoom - .08, .22, 1.3);
+                zoomInBtn.onclick = () => S.zoom = clamp(S.zoom + .08, .22, 1.3);
+                dock.querySelectorAll('button').forEach(b => b.onclick = () => setTool(b.dataset.tool));
+                document.addEventListener('pointerdown', e => {
+                    if (!menu.contains(e.target))
+                        menu.classList.remove('show')
+                }
+                );
+
+                if (!load())
+                    seed();
+                resize();
+                drawTracks();
+                drawStore();
+                drawOps();
+                select(clips.find(c => c.id === 'SC-034') || clips[0] || null);
+                _wakeBus(); // Start render loop
+
+                // ═══════════════════════════════════════════════════
+                // ── ATO-BUS RECEIVER SHIM ──
+                // Receives frame data from parent harness via
+                // postMessage. Caches thumbnails. Patches clip
+                // rendering to show frame content on clip faces.
+                // ═══════════════════════════════════════════════════
+                const _BUSRX_ACTIVE = (window.parent !== window);
+
+                // ── SHARED: Emit full clip arrangement to engine ──
+                function _busEmitArrangement() {
+                    if (!_BUSRX_ACTIVE) return;
+                    const arrangement = clips
+                        .filter(c => c._frameIndex !== undefined)
+                        .sort((a, b) => a.vStart - b.vStart)
+                        .map(c => ({
+                            frameIndex: c._frameIndex,
+                            vStart: c.vStart,
+                            vDur: c.vDur,
+                            track: c.track,
+                            lift: c.lift || 0,
+                            rot: c.rot || 0
+                        }));
+                    window.parent.postMessage({
+                        type: 'CLIP_ARRANGE',
+                        _origin: 'tunnel',
+                        arrangement: arrangement,
+                        playOrder: arrangement.map(a => a.frameIndex)
+                    }, '*');
+                }
+
+
+                // ── TWO-TIER CACHE (LAW 7 — O(1) Memory) ──
+                // Tier 1: Raw grid data (cheap, unbounded)
+                const _busGridStore = new Map();  // index → { grid, version }
+                // Tier 2: Rendered canvases (expensive, capped)
+                const _busTexturePool = new Map(); // index → { canvas, version, lastAccess }
+                const MAX_TEXTURES = 32; // LAW 7 ceiling
+
+                // Legacy compat wrapper — reads from both tiers
+                const _busFrameCache = {
+                    get(idx) {
+                        const tex = _busTexturePool.get(idx);
+                        if (tex) { tex.lastAccess = performance.now(); return tex; }
+                        // Hydrate on demand if grid exists and within frustum
+                        const grid = _busGridStore.get(idx);
+                        if (grid) {
+                            const canvas = _busRenderThumb(grid.grid, _busGridW, _busGridH);
+                            _busEvictIfFull();
+                            const entry = { grid: grid.grid, canvas, version: grid.version, lastAccess: performance.now() };
+                            _busTexturePool.set(idx, entry);
+                            return entry;
+                        }
+                        return undefined;
+                    },
+                    set(idx, val) {
+                        // Always store raw grid (Tier 1)
+                        _busGridStore.set(idx, { grid: val.grid, version: val.version });
+                        // Only store texture (Tier 2) if within budget
+                        if (val.canvas) {
+                            _busEvictIfFull();
+                            _busTexturePool.set(idx, { ...val, lastAccess: performance.now() });
+                        }
+                    },
+                    has(idx) { return _busGridStore.has(idx); }
+                };
+
+                // Evict oldest texture when pool is full
+                function _busEvictIfFull() {
+                    if (_busTexturePool.size < MAX_TEXTURES) return;
+                    let oldestKey = null, oldestTime = Infinity;
+                    for (const [k, v] of _busTexturePool) {
+                        if (v.lastAccess < oldestTime) { oldestTime = v.lastAccess; oldestKey = k; }
+                    }
+                    if (oldestKey !== null) _busTexturePool.delete(oldestKey);
+                }
+
+                // Frustum-aware texture pre-hydration (called once per render)
+                function _busFrustumHydrate() {
+                    const margin = 1500;
+                    const front = S.cam - margin;
+                    const back = S.cam + FAR;
+                    for (const c of clips) {
+                        if (c._frameIndex === undefined) continue;
+                        const inFrustum = c.vStart + c.vDur >= front && c.vStart <= back;
+                        if (inFrustum && !_busTexturePool.has(c._frameIndex)) {
+                            const grid = _busGridStore.get(c._frameIndex);
+                            if (grid) {
+                                _busEvictIfFull();
+                                _busTexturePool.set(c._frameIndex, {
+                                    grid: grid.grid,
+                                    canvas: _busRenderThumb(grid.grid, _busGridW, _busGridH),
+                                    version: grid.version,
+                                    lastAccess: performance.now()
+                                });
+                            }
+                        }
+                    }
+                }
+
+                let _busGridW = 128, _busGridH = 96;
+                let _busFrameTotal = 0;
+                let _busCamLastFrame = -1;  // Last frame index emitted via camera sync
+                let _busCamLastEmit = 0;    // Timestamp of last camera sync emit
+                let _busActiveTrack = -1;   // -1 = all tracks, 0-3 = specific track
+
+                // ── HOLD-FRAME DERIVATION ──
+                // Replaces the old linear Math.round(S.cam / (SNAP * 2)).
+                // Walks clips to find which clip's [vStart, vStart+vDur) 
+                // contains the camera position, then returns that clip's
+                // source frame. Extending a clip = holding that frame longer.
+                function _busDeriveFrame(cam) {
+                    // Determine active track from selection
+                    const track = (S.selected && S.selected._frameIndex !== undefined)
+                        ? S.selected.track : _busActiveTrack;
+
+                    let best = -1, bestDist = Infinity;
+                    for (let i = 0; i < clips.length; i++) {
+                        const c = clips[i];
+                        if (c._frameIndex === undefined) continue;
+                        // Track filter: -1 = all tracks
+                        if (track >= 0 && c.track !== track) continue;
+                        const cStart = c.vStart;
+                        const cEnd = c.vStart + c.vDur;
+                        // Camera is inside this clip's range
+                        if (cam >= cStart && cam < cEnd) {
+                            return c._frameIndex;
+                        }
+                        // Track nearest clip for fallback
+                        const mid = (cStart + cEnd) / 2;
+                        const dist = Math.abs(cam - mid);
+                        if (dist < bestDist) { bestDist = dist; best = c._frameIndex; }
+                    }
+                    // Fallback: nearest clip, or linear
+                    if (best >= 0) return best;
+                    return Math.max(0, Math.min(_busFrameTotal - 1,
+                        Math.round(cam / (SNAP * 2))));
+                }
+
+                // Shade palette matching icaro-pro BEFLIX engine
+                const _BUS_SHADES = [
+                    [255,255,255], [221,221,221], [187,187,187], [153,153,153],
+                    [119,119,119], [85,85,85], [51,51,51], [0,0,0]
+                ];
+
+                function _busRenderThumb(gridData, gw, gh) {
+                    const c = document.createElement('canvas'); c.width = gw; c.height = gh;
+                    const x = c.getContext('2d');
+                    const id = x.createImageData(gw, gh);
+                    for (let i = 0; i < gridData.length; i++) {
+                        const s = _BUS_SHADES[gridData[i] || 0];
+                        id.data[i*4] = s[0]; id.data[i*4+1] = s[1]; id.data[i*4+2] = s[2]; id.data[i*4+3] = 255;
+                    }
+                    x.putImageData(id, 0, 0);
+                    return c;
+                }
+
+                let _busMeta = [];
+                // A reel frame goes on the track its evidence earns (POSSIBLE … PREFERRED); anything else keeps i % 4
+                function _busTrackFor(i) { const m = _busMeta[i]; return m && m.tier >= 0 && m.tier <= 3 ? m.tier : i % 4; }
+                function _busNameClip(c, i) { const m = _busMeta[i]; if (m && m.name) c.name = m.name; return c; }
+                window._reelClips = () => clips.map(c => ({ track: c.track, name: c.name || '', frame: c._frameIndex }));   // read-only, for checking a rip
+                function _busSeedFromFrames(total) {
+                    // INITIAL SEED ONLY — called when no frame-mapped clips exist
+                    // For incremental updates, use _busSyncFromFrames()
+                    clips.length = 0;
+                    nextId = 1;
+                    for (let i = 0; i < total; i++) {
+                        const track = _busTrackFor(i);
+                        const start = i * SNAP * 2;
+                        const dur = SNAP * 2;
+                        const c = _busNameClip(mk(start, dur, track), i);
+                        c._frameIndex = i; // Map clip to source frame
+                        c._defaultStart = start; // Record default position for shift detection
+                        c._userEdited = false; // Track whether user has modified this clip
+                        clips.push(c);
+                    }
+                    select(clips[0] || null, 'bus-sync');
+                    drawTracks();
+                    drawOps();
+                    toast(total + ' FRAMES RECEIVED');
+                    // Emit initial arrangement so engine knows spatial order
+                    _busEmitArrangement();
+                }
+
+                // ── INCREMENTAL CLIP SYNC (Non-Destructive) ──
+                // Preserves user edits (trim, move, lift, rotate).
+                // Only adds clips for new frames, removes for deleted frames.
+                // Auto-shifts when frames inserted before existing clips.
+                function _busSyncFromFrames(total) {
+                    // Build lookup: frameIndex → clip
+                    const existingByFrame = new Map();
+                    for (const c of clips) {
+                        if (c._frameIndex !== undefined) existingByFrame.set(c._frameIndex, c);
+                    }
+
+                    const prevTotal = existingByFrame.size;
+
+                    // Detect insertions: if total increased and we have existing clips
+                    // Find the first new frame index (gap in sequence)
+                    if (total > prevTotal && prevTotal > 0) {
+                        // Auto-shift: move clips whose _frameIndex >= insertion point
+                        // Simple heuristic: new frames are at the end OR after current cursor
+                        // For now, assume new frames are appended at the end
+                        // (This handles the most common case: add frame, duplicate, ingest)
+                    }
+
+                    // Phase 1: Add new clips for frames that don't have one
+                    for (let i = 0; i < total; i++) {
+                        if (!existingByFrame.has(i)) {
+                            const track = _busTrackFor(i);
+                            const start = i * SNAP * 2; // Default position
+                            const c = _busNameClip(mk(start, SNAP * 2, track), i);
+                            c._frameIndex = i;
+                            c._defaultStart = start;
+                            c._userEdited = false;
+                            clips.push(c);
+                        }
+                    }
+
+                    // Phase 2: Remove clips for frames that no longer exist
+                    for (let j = clips.length - 1; j >= 0; j--) {
+                        if (clips[j]._frameIndex !== undefined && clips[j]._frameIndex >= total) {
+                            if (S.selected === clips[j]) S.selected = null;
+                            clips.splice(j, 1);
+                        }
+                    }
+
+                    // Phase 3: Sort by _frameIndex for consistent depth ordering
+                    clips.sort((a, b) => (a._frameIndex ?? 0) - (b._frameIndex ?? 0));
+
+                    // Ensure UI reflects changes
+                    drawTracks();
+                    drawOps();
+                    if (total !== prevTotal) {
+                        toast(total + ' FRAMES (' + (total > prevTotal ? '+' : '') + (total - prevTotal) + ')');
+                    }
+                    // Emit arrangement so engine knows updated spatial order
+                    _busEmitArrangement();
+                }
+
+                // Rendering context: which clip is currently being drawn
+                let _busCurrentClip = null;
+
+                // Patch hatch() to draw frame thumbnails on clip faces
+                // THROTTLED: _busCurrentClip is only set on the NEAREST cell per clip
+                // so thumbnail drawImage+clip happens at most ONCE per clip, not 200× per clip
+                const _origHatch = hatch;
+                hatch = function(p, kind, b) {
+                    if (_busCurrentClip && _busCurrentClip._frameIndex !== undefined) {
+                        const entry = _busFrameCache.get(_busCurrentClip._frameIndex);
+                        if (entry && entry.canvas) {
+                            ctx.save();
+                            ctx.clip(p);
+                            ctx.globalAlpha = 0.85;
+                            ctx.drawImage(entry.canvas, b.x, b.y, b.w, b.h);
+                            ctx.restore();
+                            return;
+                        }
+                    }
+                    _origHatch(p, kind, b);
+                };
+
+                // Patch into the rendering pipeline to set _busCurrentClip
+                // We intercept every .forEach call on sorted clip arrays
+                // by wrapping the main tube/bench render functions
+                let _busThumbOverlayEnabled = true;
+
+                window.addEventListener('message', e => {
+                    const d = e.data;
+                    // ── MESSAGE VALIDATION (Structural) ──
+                    // Reject malformed messages. Makes type-error crashes impossible.
+                    if (!d || typeof d !== 'object' || typeof d.type !== 'string') return;
+                    // Reject messages from self (echo prevention at protocol level)
+                    if (d._origin === 'tunnel') return;
+                    _perf.busMsg++;
+                    _wakeBus(); // Any valid bus message requires re-render
+
+                    if (d.type === 'FRAMES_SYNC') {
+                        // Cineosis reel: a new reel replaces every clip; each frame brings its shot's name and tier
+                        if (d.reset) clips.length = 0;
+                        if (Array.isArray(d.meta)) _busMeta = d.meta;
+                        _busGridW = d.gridW || 128;
+                        _busGridH = d.gridH || 96;
+                        _busFrameTotal = d.total;
+
+                        // Process thumbnails in async batches to avoid freezing
+                        // (keeps reel animation spinning during load)
+                        const BATCH = 8;
+                        let idx = 0;
+                        function processBatch() {
+                            const end = Math.min(idx + BATCH, d.frames.length);
+                            for (let i = idx; i < end; i++) {
+                                const f = d.frames[i];
+                                const existing = _busFrameCache.get(f.index);
+                                if (!existing || existing.version !== f.version) {
+                                    _busFrameCache.set(f.index, {
+                                        grid: f.grid,
+                                        canvas: _busRenderThumb(f.grid, _busGridW, _busGridH),
+                                        version: f.version
+                                    });
+                                }
+                            }
+                            idx = end;
+                            if (idx < d.frames.length) {
+                                setTimeout(processBatch, 0); // yield to keep UI alive
+                            } else {
+                                // All thumbnails processed — reconcile clips
+                                const hasFrameMapped = clips.some(c => c._frameIndex !== undefined);
+                                if (!hasFrameMapped || clips.length === 0) {
+                                    // First time: full seed
+                                    _busSeedFromFrames(d.total);
+                                } else {
+                                    // Subsequent: incremental sync (preserves user edits)
+                                    _busSyncFromFrames(d.total);
+                                }
+                                _wakeBus(); // trigger re-render with new thumbs
+                                // Dismiss loading overlay if engine is done
+                                if (_busRipDone) _dismissRipOverlay();
+                                // LAW 2: Navigate camera AFTER clips exist
+                                if (typeof d.cursor === 'number') {
+                                    const targetClip = clips.find(c => c._frameIndex === d.cursor);
+                                    if (targetClip) {
+                                        S.cam = targetClip.vStart + targetClip.vDur / 2;
+                                    } else {
+                                        S.cam = d.cursor * SNAP * 2;
+                                    }
+                                    _busCamLastFrame = d.cursor;
+                                }
+                            }
+                        }
+                        processBatch();
+                    }
+
+                    if (d.type === 'CURSOR_MOVE') {
+                        // Don't fight the user's drag — skip cursor sync during interaction
+                        if (!S.drag && typeof d.cursor === 'number') {
+                            // LAW 2: Frame index is shared unit, position lookup is LOCAL
+                            const targetClip = clips.find(c => c._frameIndex === d.cursor);
+                            if (targetClip) {
+                                S.cam = targetClip.vStart + targetClip.vDur / 2;
+                            } else {
+                                S.cam = d.cursor * SNAP * 2;
+                            }
+                            _busCamLastFrame = d.cursor;
+                            // SYNCHRONOUS RENDER — eliminate rAF delay
+                            render(performance.now());
+                        }
+                    }
+
+                    // FRAME_PATCH — single frame delta (LAW 6)
+                    // Updates one thumbnail in cache. O(1) cost.
+                    if (d.type === 'FRAME_PATCH') {
+                        const idx = d.index;
+                        const existing = _busFrameCache.get(idx);
+                        if (!existing || existing.version !== d.version) {
+                            _busFrameCache.set(idx, {
+                                grid: d.grid,
+                                canvas: _busRenderThumb(d.grid, d.gridW || _busGridW, d.gridH || _busGridH),
+                                version: d.version
+                            });
+                            _wakeBus(); // trigger re-render with updated thumb
+                        }
+                    }
+
+                    if (d.type === 'PLAY_SYNC') {
+                        // Sync tunnel play state with icaro-pro
+                        if (d.playing && !S.play) {
+                            S.play = true;
+                            S.playRate = 1;
+                            tick('thud');
+                            statusEl.textContent = 'PLAYING';
+                        } else if (!d.playing && S.play) {
+                            S.play = false;
+                            tick('thud');
+                            statusEl.textContent = 'IDLE';
+                        }
+                    }
+
+                    if (d.type === 'VIEW_CYCLE') {
+                        // Harness requested view change
+                        if (typeof d.view === 'number') {
+                            S.view = d.view % VIEWS.length;
+                            tick('mode');
+                            _wakeBus();
+                            render(performance.now());
+                        }
+                    }
+
+                    // ── STRIP REORDER — engine reordered frames, reposition clips ──
+                    if (d.type === 'STRIP_REORDER' && Array.isArray(d.order)) {
+                        const newOrder = d.order;
+                        // Reposition clips to match engine's new order
+                        for (let pos = 0; pos < newOrder.length; pos++) {
+                            const fi = newOrder[pos];
+                            const clip = clips.find(c => c._frameIndex === fi);
+                            if (clip) {
+                                clip.start = pos * SNAP * 2;
+                                clip.vStart = clip.start;
+                                clip.vDur = SNAP * 2;
+                                clip.dur = SNAP * 2;
+                                clip.track = fi % 4;
+                                clip._userEdited = true;
+                            }
+                        }
+                        clips.sort((a, b) => a.start - b.start);
+                        drawTracks();
+                        drawOps();
+                        save();
+                        toast('STRIP REORDER');
+                        _wakeBus();
+                    }
+
+                    // ── LOADING OVERLAY ──
+                    if (d.type === 'RIP_PROGRESS') {
+                        const ov = document.getElementById('rip-overlay');
+                        const msg = document.getElementById('rip-msg');
+                        const cnt = document.getElementById('rip-count');
+                        const bar = document.getElementById('rip-bar');
+                        if (d.phase === 'START') {
+                            ov.style.display = 'flex';
+                            msg.textContent = 'LOADING FRAMES';
+                            cnt.textContent = '0 / ' + d.total;
+                            bar.style.width = '0%';
+                            _busRipDone = false;
+                            _startReelAnim();
+                        } else if (d.phase === 'CHUNK') {
+                            msg.textContent = 'RIPPING ' + d.done + '/' + d.total;
+                            cnt.textContent = d.done + ' / ' + d.total;
+                            bar.style.width = Math.round((d.done / d.total) * 100) + '%';
+                        } else if (d.phase === 'DONE') {
+                            // Engine is done ripping — but tunnel still processing thumbnails
+                            // Don't dismiss yet; show "PROCESSING" until FRAMES_SYNC completes
+                            msg.textContent = 'PROCESSING';
+                            cnt.textContent = d.total + ' FRAMES';
+                            bar.style.width = '100%';
+                            _busRipDone = true;
+                            // The thumbnail batch handler will call _dismissRipOverlay()
+                        }
+                    }
+                });
+
+                // ── LOADING OVERLAY STATE ──
+                let _busRipDone = false;
+                function _dismissRipOverlay() {
+                    const ov = document.getElementById('rip-overlay');
+                    const msg = document.getElementById('rip-msg');
+                    if (ov && ov.style.display !== 'none') {
+                        msg.textContent = 'READY';
+                        _stopReelAnim();
+                        setTimeout(() => { ov.style.display = 'none'; }, 800);
+                    }
+                }
+
+                // ── SPINNING FILM REEL ANIMATION ──
+                let _reelAnim = null, _reelFrame = 0;
+                function _startReelAnim() {
+                    if (_reelAnim) return;
+                    _reelFrame = 0;
+                    _drawReel();
+                }
+                function _stopReelAnim() {
+                    if (_reelAnim) { cancelAnimationFrame(_reelAnim); _reelAnim = null; }
+                }
+                function _drawReel() {
+                    const cv = document.getElementById('rip-reel');
+                    if (!cv) return;
+                    const c = cv.getContext('2d'), sz = 160, cx = sz / 2, cy = sz / 2;
+                    c.clearRect(0, 0, sz, sz);
+                    _reelFrame++;
+
+                    // Outer ring
+                    c.strokeStyle = '#333'; c.lineWidth = 3;
+                    c.beginPath(); c.arc(cx, cy, 60, 0, Math.PI * 2); c.stroke();
+
+                    // Hub
+                    c.beginPath(); c.arc(cx, cy, 16, 0, Math.PI * 2);
+                    c.strokeStyle = '#444'; c.stroke();
+                    c.fillStyle = '#222'; c.fill();
+
+                    // Spokes (rotating)
+                    const ang = (_reelFrame * 4) * Math.PI / 180;
+                    c.strokeStyle = '#555'; c.lineWidth = 3;
+                    for (let i = 0; i < 6; i++) {
+                        const a = ang + (i * Math.PI / 3);
+                        c.beginPath();
+                        c.moveTo(cx + Math.cos(a) * 16, cy + Math.sin(a) * 16);
+                        c.lineTo(cx + Math.cos(a) * 55, cy + Math.sin(a) * 55);
+                        c.stroke();
+                    }
+
+                    // Center dot (pulsing)
+                    c.fillStyle = '#ef4444';
+                    c.globalAlpha = 0.5 + 0.4 * Math.sin(_reelFrame * 0.12);
+                    c.beginPath(); c.arc(cx, cy, 5, 0, Math.PI * 2); c.fill();
+                    c.globalAlpha = 1;
+
+                    // Sprocket holes
+                    c.fillStyle = '#1a1a1a';
+                    for (let i = 0; i < 12; i++) {
+                        const a = ang * 0.5 + (i * Math.PI / 6);
+                        c.beginPath();
+                        c.arc(cx + Math.cos(a) * 68, cy + Math.sin(a) * 68, 4, 0, Math.PI * 2);
+                        c.fill();
+                    }
+
+                    _reelAnim = requestAnimationFrame(_drawReel);
+                }
+
+                // When a clip is selected, tell engine to navigate to that frame
+                const _origSelect = select;
+                select = function(c, reason) {
+                    _origSelect(c, reason);
+                    if (_BUSRX_ACTIVE && c) {
+                        if (c._frameIndex !== undefined) {
+                            window.parent.postMessage({
+                                type: 'GOTO_FRAME',
+                                _origin: 'tunnel',
+                                cursor: c._frameIndex
+                            }, '*');
+                        }
+                        // Broadcast clip info to harness for bus strip display
+                        window.parent.postMessage({
+                            type: 'CLIP_SELECT',
+                            _origin: 'tunnel',
+                            name: c.name || ('SC-' + String(c.id).padStart(3,'0')),
+                            track: c.track,
+                            start: c.start,
+                            dur: c.dur
+                        }, '*');
+                    }
+                };
+
+                // Expose bus thumbnail lookup for rendering
+                window._busGetThumb = function(frameIndex) {
+                    const entry = _busFrameCache.get(frameIndex);
+                    return entry ? entry.canvas : null;
+                };
+
+                if (_BUSRX_ACTIVE) {
+                    console.log('[ATO-BUS] Receiver shim active — listening for frame data');
+                }
+
+            }
+            )();
+    </script>
+</body>
+
+</html>
