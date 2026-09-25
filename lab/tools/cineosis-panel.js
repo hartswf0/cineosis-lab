@@ -22,8 +22,10 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const tc = t => { t = Math.max(0, t || 0); const m = Math.floor(t / 60), s = t - m * 60; return String(m).padStart(2, '0') + ':' + s.toFixed(1).padStart(4, '0'); };
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
-  const thumbUrl = p => new URL('../' + p, HERE).href;
+  const thumbUrl = p => /^https?:/.test(p || '') ? p : new URL('../' + p, HERE).href;
   const media = id => new URL('/media/' + id + '.mp4', location).href;
+  const SERVER = /github\.io$/.test(location.hostname) ? Promise.resolve(false) : fetch('/api/assignments', { signal: AbortSignal.timeout(1500) }).then(r => r.ok).catch(() => false);
+  const CLIPS = new Map();
   const uid = p => p + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
 
   let D = null, SIGN = new Map(), CELL = new Map(), BEAT = new Map();
@@ -77,8 +79,16 @@
   function send(bin, what) {
     const B = window.CineosisBridge;
     if (!B) return status('the bridge is missing on this page');
-    status(`${what} → the ${tool === 'cut' ? 'frame' : 'room'} · ${bin.items.length} piece${bin.items.length === 1 ? '' : 's'}…`);
-    return Promise.resolve(B.take(bin)).then(() => status(`${what} · in`));
+    return SERVER.then(srv => {
+      let skipped = 0;
+      if (!srv) {
+        bin = { ...bin, items: bin.items.map(it => { const c = CLIPS.get(it.shot); if (c) return { ...it, media: thumbUrl(c) }; skipped++; return null; }).filter(Boolean) };
+      }
+      const miss = skipped ? ` · ${skipped} piece${skipped === 1 ? '' : 's'} left out: their clips play only with the local lab server` : '';
+      if (!bin.items.length) return status(`${what} · no clip here without the local lab server (python3 lab/server.py 8765)`);
+      status(`${what} → the ${tool === 'cut' ? 'frame' : 'room'} · ${bin.items.length} piece${bin.items.length === 1 ? '' : 's'}…${miss}`);
+      return Promise.resolve(B.take(bin)).then(() => status(`${what} · in${miss}`));
+    });
   }
   function addShot(s, f) { return send({ id: uid('cx-shot'), title: `${s.symbol} · ${f.title}`, layout: 'sequence', items: [shotItem(s, f)] }, `${s.symbol} · ${f.title}`); }
   function addFamily(s, layout = 'sequence') {
@@ -366,7 +376,7 @@
       list.querySelectorAll('img').forEach(im => im.onerror = () => im.replaceWith(el('span', 'cx-noimg', 'no still')));
     }));
     // the rendered film, when there is one: read the folder listing (lab server) rather than probe the file with a 404
-    fetch('../wygwyl/').then(r => r.ok ? r.text() : '').then(t => {
+    SERVER.then(srv => srv ? fetch('../wygwyl/').then(r => r.ok ? r.text() : '') : '').then(t => {
       const has = f => t.includes('href="' + f + '"'), out = [];
       if (has('wygwyl-cut.mp4')) out.push('<a href="../wygwyl/wygwyl-cut.mp4" target="_blank" rel="noopener">the rendered film</a>');
       if (has('player.html')) out.push('<a href="../wygwyl/player.html" target="_blank" rel="noopener">the WYGWYL player</a>');
@@ -400,6 +410,8 @@
     catch (e) { status('could not read cineosis-index.json · ' + e.message); return; }
     SIGN = new Map(D.signs.map(s => [String(s.n), s]));
     BEAT = new Map(D.wygwyl.beats.map(b => [b.id, b]));
+    D.signs.forEach(s => (s.family || []).forEach(f => f.clip && CLIPS.set(f.id, f.clip)));
+    D.wygwyl.beats.forEach(b => [b.a, b.b].forEach(c => c && c.clip && CLIPS.set(c.id, c.clip)));
     buildTable(); buildWygwyl();
     pin(ls.get('cineosis.panel.sign', '1'));
     status('ready');

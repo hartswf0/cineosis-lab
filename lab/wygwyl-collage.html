@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WYGWYL Collage</title>
+<meta name="description" content="For any moment of the WYGWYL suite: every shot, forage clip, cut and reference we have for that beat. Drag them onto the frame to collage the beat; play the suite to watch the collages.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff;--ink:#000;--dim:#555;--rule:#000;--soft:#e9e9e9;--sel:#1f6bff;--mark:#ffe14d}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d0d0d;--ink:#f2f2f2;--dim:#a8a8a8;--rule:#f2f2f2;--soft:#262626;--mark:#6b5a00}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:12.5px/1.45 "IBM Plex Mono",ui-monospace,Menlo,monospace}
+a{color:inherit}
+button,select,input{font:inherit;color:inherit}
+button{background:var(--bg);border:1.5px solid var(--rule);padding:3px 9px;cursor:pointer}
+button:hover{background:var(--ink);color:var(--bg)}
+button.on{background:var(--ink);color:var(--bg)}
+button:disabled{opacity:.35;cursor:default;background:var(--bg);color:var(--ink)}
+header{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1.5px solid var(--rule);flex-wrap:wrap;position:sticky;top:0;background:var(--bg);z-index:20}
+header b.brand{font-weight:600;letter-spacing:.04em}
+header .now{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40vw}
+header .sp{flex:1}
+header .tc{font-weight:600;font-variant-numeric:tabular-nums}
+#play{min-width:38px;font-size:14px}
+main{display:grid;grid-template-columns:minmax(0,1fr) 440px;min-height:calc(100vh - 44px)}
+.left{padding:10px 12px;min-width:0;border-right:1.5px solid var(--rule)}
+.stagewrap{position:relative}
+#stage{position:relative;aspect-ratio:16/9;background:#000;overflow:hidden;border:1.5px solid var(--rule);touch-action:none;user-select:none}
+#stage.drop{outline:4px dashed var(--sel);outline-offset:-6px}
+#stage .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:#bbb;padding:24px;pointer-events:none;font-size:13px}
+.layer{position:absolute;overflow:hidden;cursor:move}
+.layer video,.layer img{width:100%;height:100%;display:block;pointer-events:none}
+.layer.sel{outline:2px solid var(--sel);outline-offset:0;z-index:999!important}
+.layer .h{display:none;position:absolute;right:0;bottom:0;width:16px;height:16px;background:var(--sel);cursor:nwse-resize}
+.layer.sel .h{display:block}
+.layer.mask-circle{border-radius:50%}
+.layer.mask-soft{-webkit-mask-image:radial-gradient(ellipse at center,#000 55%,transparent 75%);mask-image:radial-gradient(ellipse at center,#000 55%,transparent 75%)}
+.cap{display:flex;gap:8px;align-items:baseline;margin:6px 0;flex-wrap:wrap}
+.cap .mode{border:1.5px solid var(--rule);padding:0 6px;text-transform:uppercase;font-size:11px}
+.cap .f{margin-left:auto;color:var(--dim)}
+.tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;border:1.5px solid var(--rule);padding:6px 8px;margin:6px 0;min-height:40px}
+.tools label{display:inline-flex;gap:5px;align-items:center}
+.tools input[type=range]{width:90px}
+.tools .hint{color:var(--dim)}
+h4{margin:12px 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;display:flex;gap:8px;align-items:center}
+h4::after{content:"";flex:1;border-top:1.5px solid var(--rule)}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px}
+.opt{border:1.5px solid var(--rule);padding:5px;cursor:pointer;background:var(--bg);text-align:left}
+.opt:hover{background:var(--soft);color:var(--ink)}
+.opt .mini{position:relative;aspect-ratio:16/9;background:#000;overflow:hidden;margin-bottom:4px}
+.opt .mini i{position:absolute;background-size:cover;background-position:center;outline:1px solid #0006}
+.opt b{display:block;font-weight:600}
+.opt small{color:var(--dim);display:block;line-height:1.3}
+.track{position:relative;height:30px;border:1.5px solid var(--rule);margin-top:10px;cursor:pointer;touch-action:none}
+.track .bt{position:absolute;top:0;bottom:0;border-right:1px solid var(--bg);background:var(--soft)}
+.track .bt.has{background:var(--ink)}
+.track .bt.cur{outline:2px solid var(--sel);outline-offset:-2px;z-index:1}
+.track .ph{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--sel);pointer-events:none;z-index:2}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));margin-top:8px;border-left:1.5px solid var(--rule);border-top:1.5px solid var(--rule)}
+.chips button{border:0;border-right:1.5px solid var(--rule);border-bottom:1.5px solid var(--rule);text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:4px 6px}
+.legend{color:var(--dim);margin-top:8px}
+.legend kbd{border:1px solid var(--rule);padding:0 3px;font:inherit;font-size:11px}
+aside{overflow:auto;max-height:calc(100vh - 44px);position:sticky;top:44px}
+aside section{border-bottom:1.5px solid var(--rule);padding:8px 12px}
+aside h3{margin:0 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.title{font-size:17px;font-weight:600;line-height:1.25;margin:2px 0 4px}
+dl{display:grid;grid-template-columns:78px minmax(0,1fr);gap:3px 8px;margin:0}
+dt{color:var(--dim)}dd{margin:0}
+.sign{display:inline-block;border:1.5px solid var(--rule);padding:0 5px;margin:0 4px 3px 0;cursor:help}
+.poem p{margin:0 0 6px;color:var(--dim)}
+.poem p.cur{color:var(--ink);background:var(--mark)}
+.poem p b{display:block;color:var(--ink);font-weight:600}
+.tabs{display:flex;flex-wrap:wrap;gap:0;margin-bottom:8px;border-left:1.5px solid var(--rule)}
+.tabs button{border-left:0}
+.tray{display:grid;grid-template-columns:repeat(auto-fill,minmax(122px,1fr));gap:8px}
+.card{border:1.5px solid var(--rule);background:var(--bg);cursor:grab;position:relative;min-width:0}
+.card:active{cursor:grabbing}
+.card .im{position:relative;aspect-ratio:4/3;background:#000 center/cover no-repeat}
+.card .im video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.card .g{position:absolute;top:3px;left:3px;background:var(--bg);color:var(--ink);border:1px solid var(--rule);padding:0 4px;font-size:10.5px}
+.card .add{position:absolute;top:3px;right:3px;padding:0 6px;font-size:13px;line-height:18px}
+.card .tx{padding:3px 5px}
+.card .tx b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .tx small{display:block;color:var(--dim);line-height:1.3;max-height:3.9em;overflow:hidden}
+.card.used{outline:3px solid var(--sel);outline-offset:-3px}
+.quiet{color:var(--dim)}
+.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:6px 12px;display:none;z-index:50;max-width:90vw}
+.toast.on{display:block}
+.toast button{margin-left:10px;background:var(--bg);color:var(--ink);border-color:var(--bg)}
+@media (max-width:980px){main{grid-template-columns:1fr}.left{border-right:0}aside{position:static;max-height:none;border-top:1.5px solid var(--rule)}header .now{max-width:100%}}
+</style>
+</head>
+<body>
+<header>
+  <b class="brand">■ WYGWYL · COLLAGE</b>
+  <button id="play" title="Play the suite from here (space)">▶</button>
+  <span class="now" id="nowLbl">loading…</span>
+  <span class="sp"></span>
+  <span class="tc" id="tc">00:00.0 / 24:00.1</span>
+  <button id="exp" title="Download every beat's collage as JSON">Export</button>
+  <button id="imp" title="Load collages from a JSON file">Import</button>
+  <input type="file" id="impFile" accept=".json,application/json" hidden>
+  <a href="wygwyl.html">Four cuts</a>
+  <a href="./#wygwyl">Lab</a>
+</header>
+<main>
+  <section class="left">
+    <div class="stagewrap"><div id="stage" aria-label="Collage frame: drop shots here"><div class="empty" id="empty"></div></div></div>
+    <div class="cap" id="cap"></div>
+    <div class="tools" id="tools"></div>
+    <h4>Options for this beat · click one to lay it out</h4>
+    <div class="opts" id="opts"></div>
+    <div class="track" id="track" aria-label="Beats on the suite clock; click to jump"><div class="ph" id="ph"></div></div>
+    <div class="chips" id="chips"></div>
+    <p class="legend">Drag a card from the right onto the frame, or press its <b>+</b>. Drag a layer to move it; drag its blue corner to resize. <kbd>space</kbd> play · <kbd>←</kbd><kbd>→</kbd> previous/next beat · <kbd>Del</kbd> remove layer · <kbd>[</kbd><kbd>]</kbd> back/front · <kbd>⌘Z</kbd> undo. Black beats on the strip have a collage. Collages stay in this browser until you Export.</p>
+  </section>
+  <aside>
+    <section id="now"></section>
+    <section id="poem" class="poem"></section>
+    <section id="chapter"></section>
+    <section>
+      <h3>Assets for this moment</h3>
+      <div class="tabs" id="tabs"></div>
+      <div class="tray" id="tray"></div>
+    </section>
+  </aside>
+</main>
+<div class="toast" id="toast"></div>
+<audio id="aud" preload="auto"></audio>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const tc = t => { t = Math.max(0, t || 0); const m = Math.floor(t / 60); return String(m).padStart(2, '0') + ':' + (t - m * 60).toFixed(1).padStart(4, '0'); };
+const uid = () => Math.random().toString(36).slice(2, 9);
+const KEY = 'wygwyl.collage.v1';
+const store = { get() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } },
+                set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); return true; } catch (e) { return false; } } };
+const S = { D: null, t: 0, beat: null, sel: null, col: store.get(), hist: [], fut: [], tab: 'candidates', A: new Map() };
+const aud = $('#aud'), stage = $('#stage');
+const BLENDS = ['normal', 'screen', 'multiply', 'overlay', 'lighten', 'darken', 'difference', 'luminosity'];
+
+/* ---------- time and lookups ---------- */
+const beatAt = t => S.D.beats.find(b => t >= b.start && t < b.end) || S.D.beats[S.D.beats.length - 1];
+const worldOf = b => S.D.worlds.find(w => w.n === b.chapter);
+const cutAt = (slug, t) => (S.D.cuts[slug] || []).find(p => t >= p.t0 && t < p.t1);
+const movementAt = (w, t) => w.movements.find(m => t >= m.t0 && t < m.t1) || w.movements[w.movements.length - 1];
+const layers = () => S.col[S.beat.id] || [];
+function A_of(id) { const b = S.beat; return b.candidates.find(c => c.id === id) || b.forage.find(c => c.id === id); }
+function aClip(b) { return b.candidates.find(c => c.id === b.selected) || b.candidates[0]; }
+function bClip(b) { const p = S.D.beats.find(x => x.id === b.partner); return p ? (p.candidates.find(c => c.id === p.selected) || p.candidates[0]) : b.candidates[1]; }
+
+/* ---------- edits: every change goes through commit, so it can be undone ---------- */
+function commit(next, msg) {
+  S.hist.push({ id: S.beat.id, prev: JSON.stringify(layers()) }); S.fut = [];
+  if (S.hist.length > 200) S.hist.shift();
+  if (next.length) S.col[S.beat.id] = next; else delete S.col[S.beat.id];
+  const ok = store.set(S.col);
+  renderStage(); renderTrack(); markUsed();
+  if (msg) toast(msg + (ok ? '' : ' · not saved: browser storage is blocked, use Export'), true);
+}
+function undo() {
+  const h = S.hist.pop(); if (!h) return toast('nothing to undo');
+  const cur = JSON.stringify(S.col[h.id] || []);
+  const prev = JSON.parse(h.prev); if (prev.length) S.col[h.id] = prev; else delete S.col[h.id];
+  S.fut.push({ id: h.id, prev: cur }); store.set(S.col);
+  if (h.id !== S.beat.id) seek(S.D.beats.find(b => b.id === h.id).start + .01); else { renderStage(); renderTrack(); markUsed(); }
+  toast('undone');
+}
+function redo() {
+  const h = S.fut.pop(); if (!h) return;
+  S.hist.push({ id: h.id, prev: JSON.stringify(S.col[h.id] || []) });
+  const v = JSON.parse(h.prev); if (v.length) S.col[h.id] = v; else delete S.col[h.id];
+  store.set(S.col); renderStage(); renderTrack(); markUsed();
+}
+const mk = (a, box, extra = {}) => ({ id: uid(), src: a.video || null, thumb: a.thumb || a.frame || null, kind: a.video ? 'video' : 'image',
+  title: a.title || a.label || '', ref: a.id || null, url: a.url || null, in: a.in || 0, x: .25, y: .2, w: .5, h: .6, op: 1, blend: 'normal', fit: 'cover', mask: 'none', ...box, ...extra });
+function addAsset(a, x, y) {
+  const w = .46, h = .6, L = mk(a, { x: Math.min(1 - w, Math.max(0, (x ?? .5) - w / 2)), y: Math.min(1 - h, Math.max(0, (y ?? .5) - h / 2)), w, h });
+  commit([...layers(), L], `added ${a.title || a.label || 'layer'} · ⌘Z to undo`); S.sel = L.id; renderStage();
+}
+function patch(id, ch, record = true) {
+  const next = layers().map(l => l.id === id ? { ...l, ...ch } : l);
+  if (record) commit(next); else { S.col[S.beat.id] = next; styleLayer(id); }
+}
+
+/* ---------- the frame ---------- */
+function styleLayer(id) {
+  const L = layers().find(l => l.id === id), el = stage.querySelector(`.layer[data-id="${id}"]`); if (!L || !el) return;
+  Object.assign(el.style, { left: L.x * 100 + '%', top: L.y * 100 + '%', width: L.w * 100 + '%', height: L.h * 100 + '%', opacity: L.op, mixBlendMode: L.blend });
+  el.className = 'layer' + (S.sel === id ? ' sel' : '') + (L.mask !== 'none' ? ' mask-' + L.mask : '');
+  const m = el.querySelector('video,img'); if (m) m.style.objectFit = L.fit;
+}
+function renderStage() {
+  const L = layers();
+  const keep = new Map([...stage.querySelectorAll('.layer')].map(e => [e.dataset.id, e]));
+  L.forEach((l, i) => {
+    let el = keep.get(l.id);
+    if (!el) {
+      el = document.createElement('div'); el.className = 'layer'; el.dataset.id = l.id;
+      if (l.kind === 'video' && l.src) {
+        const v = document.createElement('video'); v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto';
+        if (l.thumb) v.poster = l.thumb; v.src = l.src;
+        v.addEventListener('loadedmetadata', () => { try { v.currentTime = Math.min(l.in || 0, Math.max(0, v.duration - .2)); } catch (e) { /* not seekable yet */ } if (!aud.paused) v.play().catch(() => {}); }, { once: true });
+        v.addEventListener('error', () => { if (l.thumb) { const im = new Image(); im.src = l.thumb; im.style.objectFit = l.fit; v.replaceWith(im); } });
+        el.appendChild(v);
+      } else { const im = new Image(); im.alt = ''; im.draggable = false; im.src = l.thumb || l.src; el.appendChild(im); }
+      const h = document.createElement('i'); h.className = 'h'; el.appendChild(h);
+      stage.appendChild(el);
+    }
+    keep.delete(l.id); el.style.zIndex = i + 1; styleLayer(l.id);
+  });
+  keep.forEach(e => e.remove());
+  $('#empty').style.display = L.length ? 'none' : 'flex';
+  $('#empty').innerHTML = `Empty frame for beat #${esc(S.beat.id)}.<br>Pick an option below, or drag shots here from the right.`;
+  renderTools();
+}
+function renderTools() {
+  const L = layers().find(l => l.id === S.sel), box = $('#tools');
+  if (!L) { box.innerHTML = `<span class="hint">${layers().length ? 'Click a layer on the frame to change it.' : 'No layers yet.'}</span>${layers().length ? '<button id="clr" style="margin-left:auto">Clear this beat</button>' : ''}`;
+    const c = $('#clr'); if (c) c.onclick = () => commit([], `cleared beat #${S.beat.id} · ⌘Z to undo`); return; }
+  box.innerHTML = `<b style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(L.title)}</b>
+    <label>opacity <input type="range" min="0.05" max="1" step="0.05" value="${L.op}" id="tOp"></label>
+    <label>blend <select id="tBl">${BLENDS.map(b => `<option${b === L.blend ? ' selected' : ''}>${b}</option>`).join('')}</select></label>
+    <button id="tFit" title="cover crops to fill the box; contain shows the whole shot">${L.fit}</button>
+    <select id="tMk" title="edge of the layer">${['none', 'soft', 'circle'].map(m => `<option value="${m}"${m === L.mask ? ' selected' : ''}>edge: ${m}</option>`).join('')}</select>
+    <button id="tFull" title="fill the frame">full</button>
+    <button id="tBk" title="send back ([)">back</button><button id="tFr" title="bring front (])">front</button>
+    <button id="tDup">duplicate</button><button id="tDel" title="Delete">remove</button>
+    ${L.url ? `<a href="${esc(L.url)}" target="_blank" rel="noopener">source ↗</a>` : ''}`;
+  let before = null;
+  $('#tOp').oninput = e => { before = before || JSON.stringify(layers()); patch(L.id, { op: +e.target.value }, false); };
+  $('#tOp').onchange = () => { if (before) { S.hist.push({ id: S.beat.id, prev: before }); S.fut = []; before = null; store.set(S.col); } };
+  $('#tBl').onchange = e => patch(L.id, { blend: e.target.value });
+  $('#tMk').onchange = e => patch(L.id, { mask: e.target.value });
+  $('#tFit').onclick = () => patch(L.id, { fit: L.fit === 'cover' ? 'contain' : 'cover' });
+  $('#tFull').onclick = () => patch(L.id, { x: 0, y: 0, w: 1, h: 1 });
+  $('#tBk').onclick = () => order(-1); $('#tFr').onclick = () => order(1);
+  $('#tDup').onclick = () => { const d = { ...L, id: uid(), x: Math.min(.9, L.x + .04), y: Math.min(.9, L.y + .04) }; commit([...layers(), d]); S.sel = d.id; renderStage(); };
+  $('#tDel').onclick = removeSel;
+}
+function order(d) {
+  const L = [...layers()], i = L.findIndex(l => l.id === S.sel), j = i + d; if (i < 0 || j < 0 || j >= L.length) return;
+  [L[i], L[j]] = [L[j], L[i]]; commit(L);
+}
+function removeSel() { const L = layers().find(l => l.id === S.sel); if (!L) return; S.sel = null; commit(layers().filter(l => l.id !== L.id), `removed ${L.title} · ⌘Z to undo`); }
+
+/* move / resize on the frame */
+let drag = null;
+stage.addEventListener('pointerdown', e => {
+  const el = e.target.closest('.layer'); if (!el) { S.sel = null; renderStage(); return; }
+  S.sel = el.dataset.id; const L = layers().find(l => l.id === S.sel); renderStage();
+  const r = stage.getBoundingClientRect();
+  drag = { id: L.id, mode: e.target.classList.contains('h') ? 'size' : 'move', x0: e.clientX, y0: e.clientY, r, L0: { ...L }, before: JSON.stringify(layers()) };
+  stage.setPointerCapture(e.pointerId); e.preventDefault();
+});
+stage.addEventListener('pointermove', e => {
+  if (!drag) return; const dx = (e.clientX - drag.x0) / drag.r.width, dy = (e.clientY - drag.y0) / drag.r.height, L = drag.L0;
+  if (drag.mode === 'move') patch(drag.id, { x: Math.max(-L.w + .05, Math.min(.95, L.x + dx)), y: Math.max(-L.h + .05, Math.min(.95, L.y + dy)) }, false);
+  else { let w = Math.max(.05, L.w + dx), h = Math.max(.05, L.h + dy); if (e.shiftKey) h = w * L.h / L.w; patch(drag.id, { w, h }, false); }
+});
+stage.addEventListener('pointerup', () => {
+  if (!drag) return; const d = drag; drag = null;
+  if (JSON.stringify(layers()) !== d.before) { S.hist.push({ id: S.beat.id, prev: d.before }); S.fut = []; store.set(S.col); }
+});
+/* drop from the tray */
+stage.addEventListener('dragover', e => { e.preventDefault(); stage.classList.add('drop'); });
+stage.addEventListener('dragleave', () => stage.classList.remove('drop'));
+stage.addEventListener('drop', e => {
+  e.preventDefault(); stage.classList.remove('drop');
+  const a = S.A.get(e.dataTransfer.getData('text/plain')); if (!a) return;
+  const r = stage.getBoundingClientRect(); addAsset(a, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+});
+
+/* ---------- options: ready-made layouts from what this beat has ---------- */
+function options() {
+  const b = S.beat, w = worldOf(b), A = aClip(b), B = bClip(b), t = S.t, out = [];
+  const box = (x, y, w_, h) => ({ x, y, w: w_, h });
+  const F = box(0, 0, 1, 1);
+  const treat = { hold: [[A, F]], split: [[A, box(0, 0, .5, 1)], [B, box(.5, 0, .5, 1)]], inset: [[A, F], [B, box(.6, .56, .36, .38)]],
+    dissolve: [[A, F], [B, F, { op: b.opacity || .45 }]], montage: [[A, F], [B, F, { op: .5, blend: 'screen' }]], black: [] }[b.mode] || [[A, F]];
+  out.push({ name: `The suite: ${b.mode}`, note: b.edit || 'the treatment’s own composition of A and B', L: treat });
+  const cuts = ['suite', 'scenes', 'cineosis', 'drift'].map(s => cutAt(s, t)).filter(Boolean);
+  if (cuts.length === 4) out.push({ name: 'Four cuts, now', note: 'Suite · Scenes / Cineosis · Drift at this moment', L: cuts.map((c, k) => [c, box((k % 2) * .5, (k > 1) * .5, .5, .5)]) });
+  const top = b.candidates.filter(c => c.grade !== 'U').concat(b.candidates.filter(c => c.grade === 'U'));
+  if (top.length >= 3) out.push({ name: 'Triptych', note: 'the three best-graded candidates side by side', L: top.slice(0, 3).map((c, k) => [c, box(k / 3, 0, 1 / 3, 1)]) });
+  const mv = movementAt(w, t);
+  if (mv && mv.frame && A) out.push({ name: 'Halfworld ghost', note: `A under the reference movement “${mv.label}” (multiply)`, L: [[A, F], [{ ...mv, title: 'Halfworld · ' + mv.label, thumb: mv.frame }, F, { blend: 'multiply', op: .85, fit: 'contain' }]] });
+  const fam = (S.D.signs[b.codes[0]] || {}).family || [];
+  if (fam.length && A) out.push({ name: `Sign: ${S.D.signs[b.codes[0]].symbol} ${S.D.signs[b.codes[0]].name}`, note: 'A with the sign’s own read shots as a strip', L: [[A, box(0, 0, 1, .7)], ...fam.slice(0, 4).map((f, k) => [f, box(k / 4, .7, .25, .3)])] });
+  const pool = [...top, ...b.forage].slice(0, 9);
+  if (pool.length >= 6) out.push({ name: 'Contact sheet', note: 'nine shots from this beat’s forage in a 3×3 grid', L: pool.map((c, k) => [c, box((k % 3) / 3, Math.floor(k / 3) / 3, 1 / 3, 1 / 3)]) });
+  if (A && B) out.push({ name: 'Iris', note: 'B through a soft round window over A', L: [[A, F], [B, box(.3, .15, .4, .7), { mask: 'soft' }]] });
+  return out.filter(o => o.L.length && o.L.every(([a]) => a));
+}
+function renderOptions() {
+  const host = $('#opts'); const O = options();
+  host.innerHTML = O.map((o, i) => `<button class="opt" data-i="${i}" title="${esc(o.note)}"><div class="mini">${o.L.map(([a, bx, ex]) => `<i style="left:${bx.x * 100}%;top:${bx.y * 100}%;width:${bx.w * 100}%;height:${bx.h * 100}%;background-image:url('${esc(a.thumb || a.frame || '')}');opacity:${ex?.op ?? 1};mix-blend-mode:${ex?.blend || 'normal'}${ex?.mask === 'soft' ? ';border-radius:50%' : ''}"></i>`).join('')}</div><b>${esc(o.name)}</b><small>${esc(o.note)}</small></button>`).join('')
+    || '<span class="quiet">This beat is black in the suite: nothing to lay out.</span>';
+  host.querySelectorAll('.opt').forEach(el => el.onclick = () => {
+    const o = O[+el.dataset.i]; S.sel = null;
+    commit(o.L.map(([a, bx, ex]) => mk(a, bx, ex)), `${o.name} laid out · ⌘Z to undo`);
+  });
+}
+
+/* ---------- the right side ---------- */
+function signChip(n) { const s = S.D.signs[n]; return s ? `<span class="sign" title="${esc(s.difference || s.name)}">${esc(s.symbol)} ${esc(n)} ${esc(s.name)}</span>` : `<span class="sign">${esc(n)}</span>`; }
+function renderNow() {
+  const b = S.beat, w = worldOf(b), mv = movementAt(w, S.t);
+  $('#now').innerHTML = `<h3>Now · beat #${esc(b.id)}</h3><div class="title">${esc(b.title)}</div>
+    <dl><dt>Chapter</dt><dd>${esc(w.n)} ${esc(w.title)}</dd><dt>Window</dt><dd>${tc(b.start)}–${tc(b.end)} · ${(b.end - b.start).toFixed(1)} s</dd>
+    <dt>Mode</dt><dd>${esc(b.mode)}</dd><dt>Signs</dt><dd>${b.codes.map(signChip).join('') || '—'}</dd>
+    <dt>Operation</dt><dd>${esc(b.operation || '—')}</dd><dt>Gap</dt><dd>${esc(b.gap || '—')}</dd><dt>Edit</dt><dd>${esc(b.edit || '—')}</dd>
+    ${mv ? `<dt>Movement</dt><dd>${esc(mv.label)}</dd>` : ''}</dl>`;
+  const f = S.D.films.find(x => x.n === b.chapter), cues = S.D.cues.filter(c => c.t0 >= f.container[0] - .01 && c.t0 < f.container[1]);
+  $('#poem').innerHTML = `<h3>Poem</h3>` + cues.map(c => `<p class="${S.t >= c.t0 && S.t < c.t1 ? 'cur' : ''}" data-t="${c.t0}">${c.screen ? `<b>${esc(c.screen)}</b>` : ''}${esc(c.text)}</p>`).join('');
+  $('#poem').querySelectorAll('p').forEach(p => p.onclick = () => seek(+p.dataset.t + .01));
+  $('#chapter').innerHTML = `<h3>Chapter ${esc(w.n)} · ${esc(w.title)}</h3><dl><dt>Mood</dt><dd>${esc((w.moods || []).join('; '))}</dd>
+    <dt>Symbols</dt><dd>${esc((w.symbols || []).join('; '))}</dd><dt>Tone</dt><dd>${esc(w.tone || '—')}</dd><dt>Logline</dt><dd>${esc(w.logline || '—')}</dd></dl>`;
+}
+function tabsFor() {
+  const b = S.beat, w = worldOf(b), t = S.t;
+  const cuts = ['suite', 'scenes', 'cineosis', 'drift'].map(s => { const c = cutAt(s, t); return c && { ...c, why: s.toUpperCase() + ' cut · ' + (c.why || '') }; }).filter(Boolean);
+  const fam = b.codes.flatMap(n => ((S.D.signs[n] || {}).family || []).map(f => ({ ...f, why: `${S.D.signs[n].symbol} ${n} · ${f.note || ''}` })));
+  const ref = w.movements.filter(m => m.frame).map(m => ({ ...m, id: 'hw' + w.n + m.index, title: m.label, thumb: m.frame, why: m.line || 'Halfworld reference frame' }));
+  return { candidates: ['Candidates', b.candidates], forage: ['Forage', b.forage], cuts: ['Four cuts', cuts], signs: ['Sign families', fam], reference: ['Halfworld', ref] };
+}
+function renderTray() {
+  const T = tabsFor(); if (!T[S.tab]) S.tab = 'candidates';
+  $('#tabs').innerHTML = Object.entries(T).map(([k, [n, L]]) => `<button data-k="${k}" class="${k === S.tab ? 'on' : ''}">${n} ${L.length}</button>`).join('');
+  $('#tabs').querySelectorAll('button').forEach(x => x.onclick = () => { S.tab = x.dataset.k; renderTray(); });
+  const L = T[S.tab][1]; S.A.clear();
+  $('#tray').innerHTML = L.length ? L.map((a, i) => { const k = S.tab + i; S.A.set(k, a);
+    return `<div class="card" draggable="true" data-k="${k}" data-ref="${esc(a.id || '')}" title="${esc([a.title, a.year, a.observed || a.why, a.use].filter(Boolean).join(' · '))}">
+      <div class="im" style="background-image:url('${esc(a.thumb || '')}')">${a.grade ? `<span class="g">${esc(a.grade)}</span>` : ''}<button class="add" title="Add to the frame">+</button></div>
+      <div class="tx"><b>${esc(a.title || '—')}</b><small>${esc(a.year || '')} ${esc(a.observed && !/^Unreviewed/.test(a.observed) ? a.observed : (a.why || a.query || ''))}</small></div></div>`; }).join('')
+    : '<p class="quiet">Nothing of this kind for this moment.</p>';
+  $('#tray').querySelectorAll('.card').forEach(c => {
+    const a = S.A.get(c.dataset.k);
+    c.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', c.dataset.k); e.dataTransfer.effectAllowed = 'copy'; });
+    c.querySelector('.add').onclick = e => { e.stopPropagation(); addAsset(a); };
+    if (a.video) {                                       // hover plays the clip, muted
+      let v = null;
+      c.addEventListener('mouseenter', () => { v = document.createElement('video'); v.muted = true; v.loop = true; v.playsInline = true; v.src = a.video; v.addEventListener('loadedmetadata', () => { try { v.currentTime = a.in || 0; } catch (e) { /* not ready */ } v.play().catch(() => {}); }, { once: true }); c.querySelector('.im').appendChild(v); });
+      c.addEventListener('mouseleave', () => { if (v) { v.pause(); v.removeAttribute('src'); v.load(); v.remove(); v = null; } });
+    }
+  });
+  markUsed();
+}
+function markUsed() { const used = new Set(layers().map(l => l.ref)); $('#tray').querySelectorAll('.card').forEach(c => c.classList.toggle('used', used.has(c.dataset.ref))); }
+
+/* ---------- the clock ---------- */
+function renderTrack() {
+  const D = S.D.duration, host = $('#track');
+  if (!host.querySelector('.bt')) {
+    host.insertAdjacentHTML('afterbegin', S.D.beats.map(b => `<div class="bt" data-id="${b.id}" title="#${b.id} ${esc(b.title)}" style="left:${b.start / D * 100}%;width:${(b.end - b.start) / D * 100}%"></div>`).join(''));
+    $('#chips').innerHTML = S.D.films.map(f => `<button data-t="${f.container[0]}">${esc(f.n)} ${esc(f.title)}</button>`).join('');
+    $('#chips').querySelectorAll('button').forEach(x => x.onclick = () => seek(+x.dataset.t + .01));
+  }
+  host.querySelectorAll('.bt').forEach(e => { e.classList.toggle('has', !!S.col[e.dataset.id]); e.classList.toggle('cur', +e.dataset.id === S.beat.id); });
+  $('#chips').querySelectorAll('button').forEach(x => x.classList.toggle('on', worldOf(S.beat).window[0] === +x.dataset.t));
+}
+function clock() {
+  $('#tc').textContent = `${tc(S.t)} / ${tc(S.D.duration)}`;
+  $('#ph').style.left = (S.t / S.D.duration * 100) + '%';
+  const b = beatAt(S.t);
+  if (b !== S.beat) { S.beat = b; S.sel = null; enterBeat(); }
+  else { const p = $('#poem').querySelector('p.cur'), c = S.D.cues.find(q => S.t >= q.t0 && S.t < q.t1); if ((p && +p.dataset.t) !== (c && c.t0)) renderNow(); }
+}
+function enterBeat() {
+  const b = S.beat, w = worldOf(b);
+  $('#nowLbl').textContent = `${w.n} ${w.title} · #${b.id} ${b.title}`;
+  $('#cap').innerHTML = `<b>#${esc(b.id)} ${esc(b.title)}</b><span class="mode">${esc(b.mode)}</span><span class="f">${tc(b.start)}–${tc(b.end)}</span>`;
+  renderStage(); renderOptions(); renderNow(); renderTray(); renderTrack();
+  stage.querySelectorAll('video').forEach(v => { if (!aud.paused) v.play().catch(() => {}); });
+}
+function seek(t) {
+  S.t = Math.max(0, Math.min(S.D.duration - .01, t)); if (!aud.paused || aud.readyState) try { aud.currentTime = S.t; } catch (e) { /* not loaded */ }
+  const b = beatAt(S.t); if (b === S.beat) { renderOptions(); renderTray(); } clock();
+}
+function step(d) { const i = S.D.beats.indexOf(S.beat) + d; if (i >= 0 && i < S.D.beats.length) seek(S.D.beats[i].start + .01); }
+function playPause() {
+  if (aud.paused) { try { aud.currentTime = S.t; } catch (e) { /* not ready */ } aud.play().then(() => { stage.querySelectorAll('video').forEach(v => v.play().catch(() => {})); }).catch(() => toast('the suite audio did not load')); }
+  else { aud.pause(); stage.querySelectorAll('video').forEach(v => v.pause()); }
+}
+aud.addEventListener('play', () => $('#play').textContent = '❚❚');
+aud.addEventListener('pause', () => $('#play').textContent = '▶');
+(function loop() { if (!aud.paused && S.D) { S.t = aud.currentTime; clock(); } requestAnimationFrame(loop); })();
+const trackSeek = e => { const r = $('#track').getBoundingClientRect(); seek((e.clientX - r.left) / r.width * S.D.duration); };
+$('#track').addEventListener('pointerdown', e => { trackSeek(e); $('#track').setPointerCapture(e.pointerId); });
+$('#track').addEventListener('pointermove', e => { if (e.buttons) trackSeek(e); });
+$('#play').onclick = playPause;
+
+/* ---------- keys, export, import ---------- */
+addEventListener('keydown', e => {
+  if (e.target.closest('input,select,textarea')) return;
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (mod) return;
+  if (e.key === ' ') { e.preventDefault(); playPause(); }
+  else if (e.key === 'ArrowLeft' && !S.sel) step(-1);
+  else if (e.key === 'ArrowRight' && !S.sel) step(1);
+  else if (S.sel && e.key.startsWith('Arrow')) { e.preventDefault(); const L = layers().find(l => l.id === S.sel), d = e.shiftKey ? .05 : .01;
+    patch(S.sel, { x: L.x + (e.key === 'ArrowLeft' ? -d : e.key === 'ArrowRight' ? d : 0), y: L.y + (e.key === 'ArrowUp' ? -d : e.key === 'ArrowDown' ? d : 0) }); }
+  else if ((e.key === 'Delete' || e.key === 'Backspace') && S.sel) { e.preventDefault(); removeSel(); }
+  else if (e.key === '[') order(-1); else if (e.key === ']') order(1);
+  else if (e.key === 'Escape') { S.sel = null; renderStage(); }
+});
+$('#exp').onclick = () => {
+  const n = Object.keys(S.col).length; if (!n) return toast('no collages yet: lay out a beat first');
+  const blob = new Blob([JSON.stringify({ kind: 'wygwyl-collage', version: 1, saved: new Date().toISOString(), beats: S.col }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'wygwyl-collage.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast(`exported ${n} beat${n === 1 ? '' : 's'} · wygwyl-collage.json`);
+};
+$('#imp').onclick = () => $('#impFile').click();
+$('#impFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return; e.target.value = '';
+  try {
+    const j = JSON.parse(await f.text()); if (j.kind !== 'wygwyl-collage' || !j.beats) throw new Error('not a wygwyl-collage file');
+    const before = JSON.stringify(S.col), n = Object.keys(j.beats).length;
+    S.col = { ...S.col, ...j.beats }; store.set(S.col); renderStage(); renderTrack(); markUsed();
+    toast(`imported ${n} beat${n === 1 ? '' : 's'}`, true, () => { S.col = JSON.parse(before); store.set(S.col); renderStage(); renderTrack(); toast('import undone'); });
+  } catch (err) { toast('import failed: ' + err.message); }
+};
+let tt = 0;
+function toast(msg, undoable, fn) {
+  const el = $('#toast'); el.innerHTML = esc(msg) + (fn ? ' <button>undo</button>' : ''); el.classList.add('on');
+  if (fn) el.querySelector('button').onclick = () => { fn(); el.classList.remove('on'); };
+  clearTimeout(tt); tt = setTimeout(() => el.classList.remove('on'), fn ? 8000 : 2600);
+}
+
+/* ---------- boot ---------- */
+(async () => {
+  try { S.D = await (await fetch('wygwyl/collage-data.json')).json(); }
+  catch (e) { $('#nowLbl').textContent = 'could not load wygwyl/collage-data.json'; return; }
+  aud.src = S.D.audio;
+  const h = decodeURIComponent(location.hash.slice(1)), m = /^b(\d+)$/.exec(h), t = /^t([\d.]+)$/.exec(h);
+  S.t = m ? (S.D.beats.find(b => b.id === +m[1]) || S.D.beats[0]).start + .01 : t ? +t[1] : 0;
+  clock();
+})();
+</script>
+</body>
+</html>
