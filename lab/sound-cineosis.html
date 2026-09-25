@@ -39,6 +39,7 @@ h3 .sp{flex:1}
 .sg.push{border-color:var(--time);box-shadow:inset 0 0 0 1px var(--time)}
 .sg.pull{border-color:var(--move);box-shadow:inset 0 0 0 1px var(--move)}
 .stepper{display:flex;gap:6px;align-items:center}
+.stepper a{font-size:11px;margin-right:4px}
 .stepper button,.tp{border:1px solid var(--line);background:var(--key);border-radius:16px;padding:3px 10px;box-shadow:0 2px 0 var(--line)}
 .tp{border-radius:50%;width:36px;height:36px;padding:0;font-size:14px;background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .linetxt{font:400 17px/1.35 Inter,sans-serif;margin:6px 0 10px;min-height:2.7em}
@@ -103,7 +104,7 @@ h3 .sp{flex:1}
     </div>
     <div>
       <h3><span id="where"></span><span class="sp"></span>
-        <span class="stepper"><button id="prev" title="previous line (←)">◀</button><span id="ln"></span><button id="next" title="next line (→)">▶</button></span>
+        <span class="stepper"><a id="toCut" target="_blank" title="Hear this line with its actions in CUT's sound desk, at its place on the 24-minute clock">in CUT ↗</a><a id="toWag" target="_blank" title="…or in WAG's Cutting Room">in WAG ↗</a><button id="prev" title="previous line (←)">◀</button><span id="ln"></span><button id="next" title="next line (→)">▶</button></span>
         <button class="tp" id="play" title="play the line with its actions (space)">▶</button></h3>
       <p class="linetxt" id="text"></p>
       <div class="track" id="track"><div class="ph" id="ph"></div></div>
@@ -125,6 +126,7 @@ h3 .sp{flex:1}
   <div class="dev" style="margin:0"><h3>Actions on this line<span class="sp"></span><button class="stepper" id="clear" style="border:0;background:none;color:var(--dim)">clear</button></h3><ul class="rl" id="recipe"></ul></div>
   <div class="dev" style="margin:0"><h3>Why these signs</h3><p class="why" id="whyp"></p></div>
 </section>
+<p class="foot">Your actions are saved in this browser and play in the Sound tab of CUT and WAG at each line’s place on the suite clock (tracks “Bench”). The clock there cannot stretch, so a held breath becomes a 1.5 s hole in the whole mix.</p>
 <p class="foot" id="foot">Rows are Deamer's, after Chion (p.167). The four picture moves are Deamer's list of how the time-image breaks the sound–image contract (p.168). Hold the breath follows his reading of Five (pp.302–304); whispers inside one body, his solid perception (pp.179–180). Every other action-to-sign link is the editor's inference. The words, grades, pitch, pauses, sung twins and chops are the WYGWYL atlas's own data.</p>
 <script>
 const $ = s => document.querySelector(s);
@@ -281,6 +283,7 @@ function render() {
   $('#poems').querySelectorAll('button').forEach(b => b.onclick = () => { S.p = +b.dataset.p; S.l = 0; S.sel = null; render(); });
   $('#where').textContent = `${p.n} ${p.title}`;
   $('#ln').textContent = `line ${S.l + 1} / ${p.lines.length}`;
+  $('#toCut').href = `tools/cut.html#t=${l.clock.toFixed(1)}`; $('#toWag').href = `tools/hand-butter.html#t=${l.clock.toFixed(1)}`;
   $('#text').textContent = l.text;
   drawLine(); drawMini(); drawGauge(); drawPicture(); drawDeck(); drawRecipe();
   try { history.replaceState(null, '', '#' + l.id); } catch (e) { /* file: */ }
@@ -361,7 +364,8 @@ addEventListener('keydown', e => {
   const [D, T, K] = await Promise.all([fetch('sound-cineosis.json').then(r => r.json()), fetch('sound-table.json').then(r => r.json()), fetch('tools/sound-kinds.json?v=2').then(r => r.json()).catch(() => ({ clips: {} }))]);
   S.D = D; S.T = T; S.K = K.clips || {};
   fetch(D.atlas + 'sonic/sonic.json').then(r => r.json()).then(j => { S.HITS = j.sounds.filter(s => s.cls === 'HIT'); drawDeck(); }).catch(() => {});
-  const id = location.hash.slice(1); D.poems.forEach((p, i) => p.lines.forEach((l, k) => { if (l.id === id) { S.p = i; S.l = k; } }));
+  const id = location.hash.slice(1), tm = /^t=([\d.]+)$/.exec(id);
+  D.poems.forEach((p, i) => p.lines.forEach((l, k) => { if (l.id === id || (tm && l.clock <= +tm[1] + .01)) { S.p = i; S.l = k; } }));
   render();
 })();
 </script>

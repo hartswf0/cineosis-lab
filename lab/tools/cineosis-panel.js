@@ -165,14 +165,14 @@
       <button role="tab" data-tab="footage">Footage</button>
       <button role="tab" data-tab="sign">Sign</button>
       <button role="tab" data-tab="wygwyl">WYGWYL</button>
-      ${tool === 'cut' ? '<button role="tab" data-tab="sound">Sound</button>' : ''}
+      <button role="tab" data-tab="sound">Sound</button>
     </div>
     <div class="cx-body">
       <div class="cx-start" hidden></div>
       <section class="cx-pane" data-pane="footage"><div class="cx-foot"></div></section>
       <section class="cx-pane" data-pane="sign"><div class="cx-inspect"></div><div class="cx-card"></div></section>
       <section class="cx-pane" data-pane="wygwyl"><div class="cx-wy"></div></section>
-      ${tool === 'cut' ? '<section class="cx-pane" data-pane="sound"><div class="cx-sound"><p class="cx-none">loading the sound desk…</p></div></section>' : ''}
+      <section class="cx-pane" data-pane="sound"><div class="cx-sound"><p class="cx-none">loading the sound desk…</p></div></section>
     </div>`;
   const $p = s => panel.querySelector(s);
   function status(t) { V.status = t; const s = $p('.cx-status'); if (s) { s.textContent = t; s.title = t; } }
@@ -411,7 +411,7 @@
         <p class="cx-quiet">${tool === 'cut'
           ? 'Placed by beat mode: hold = A full frame (repeated to fill) · split = A left, B right · inset = A with B top-right from the midpoint · dissolve = A then B overlapping · montage = A/B in 1.5 s pieces · black = empty. Beat rates are not applied.'
           : 'The room takes the A line only, each clip at its beat time; the room deepens to 30 min.'}</p>
-        <p class="cx-note">Neither editor holds the suite's audio track — play it alongside: <a href="../wygwyl/WYGWYL_Suite_Audio.mp3" target="_blank" rel="noopener">suite audio (mp3)</a><span class="cx-film"></span></p>
+        <p class="cx-note">The suite, the reading and the atlas’s sound play from the <b>Sound</b> tab, on this clock.</p>
       </div>
       ${W.films.map((f, i) => `
         <details class="cx-ch" data-ch="${i}">

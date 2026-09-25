@@ -1703,7 +1703,7 @@
             }
         </style>
         <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-        <link rel="stylesheet" href="cineosis-panel.css?v=10">
+        <link rel="stylesheet" href="cineosis-panel.css?v=13">
     </head>
     <body>
         <main id="app">
@@ -77943,7 +77943,7 @@
                             }
                             const want = clamp(srcAt(c.def, CUT.time - c.start), 0, Math.max(0, src.dur - .03));
                             v.muted = CUT.muted;
-                            v.volume = clamp(fadeOf(c, active), 0, 1);
+                            v.volume = clamp(fadeOf(c, active), 0, 1) * clamp(window.CineosisSound?.clipGain?.(src.name) ?? 1, 0, 1);   // the sound desk (atlas-sound.js)
                             if (CUT.playing && c.def.rate > 0) {
                                 if (v.playbackRate !== CUT.rate * c.def.rate)
                                     v.playbackRate = CUT.rate * c.def.rate;
@@ -78174,7 +78174,7 @@
                         monSize(1280, 720);
                         const stream = mon.captureStream(30);
                         try {
-                            CUT.ac ||= new (window.AudioContext || window.webkitAudioContext)();
+                            CUT.ac ||= window.CineosisSound?.ctx?.() || new (window.AudioContext || window.webkitAudioContext)();   // share the sound desk's context
                             await CUT.ac.resume();
                             if (!CUT.recDest) {
                                 CUT.recDest = CUT.ac.createMediaStreamDestination();
@@ -78188,6 +78188,7 @@
                             }
                             for (const src of CUT.sources.values())
                                 wire(src);
+                            window.CineosisSound?.wire?.(CUT.recDest);   // the sound desk's mix goes into the recording
                             const track = CUT.recDest.stream.getAudioTracks()[0];
                             if (track)
                                 stream.addTrack(track);
@@ -79313,7 +79314,8 @@
                 }
                 )();
             </script>
-        <script src="bridge.js?v=10"></script>
-        <script src="cineosis-panel.js?v=10"></script>
+        <script src="bridge.js?v=13"></script>
+        <script src="cineosis-panel.js?v=13"></script>
+<script src="atlas-sound.js?v=13"></script>
 </body>
     </html>

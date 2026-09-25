@@ -48,6 +48,8 @@
     { id: 'radio', name: 'Radio Atlantis', sym: 'Sg', fam: 'music', note: 'fourteen scores · carries her voice' },
     { id: 'transmission', name: 'Transmission', sym: 'Sg', fam: 'music', note: 'the readings as broadcast · carries her voice' },
     { id: 'worlds', name: 'Poem worlds', sym: 'Sg', fam: 'music', note: 'each poem’s referred songs as beds' },
+    { id: 'bench', name: 'Bench · voices', sym: 'Wh', fam: 'voice', prio: 2, note: 'word actions from the Sound Bench, at their lines' },
+    { id: 'benchfx', name: 'Bench · hits + drone', sym: 'Ht', fam: 'field', note: 'hits and drone from the Sound Bench' },
     { id: 'fx', name: 'FX', sym: 'Ht', fam: 'field', note: 'library sounds you place · snapped to breath' },
     { id: 'archive', name: 'Archive', sym: 'Fn', fam: 'archive', note: 'the footage’s own sound, by its measured kind' }
   ];
@@ -65,6 +67,7 @@
   const saved = ls.get(KEY, {});
   const T = Object.fromEntries(TRACKS.map(t => [t.id, { ...t, on: false, gain: 1, solo: false, duck: t.fam !== 'voice', ...(saved.tracks?.[t.id] || {}), clips: [], state: '' }]));
   if (!saved.tracks) { T.suite.on = true; T.archive.on = true; T.archive.gain = .4; }
+  if (!saved.tracks?.bench) { T.bench.on = true; T.benchfx.on = true; }
   const FX = saved.fx || [];
   let QUIET = saved.quiet ?? 2;                     // seconds of her quiet before another mouth may answer (water table: 2)
   let IMPORTED = saved.imported || [];
@@ -111,9 +114,43 @@
     T.codex.clips.forEach(c => { c.at0 = c.at; });
     T.fx.clips = FX;
     D = { dur, clock };
+    await loadBench();
     schedule();
     ready = true;
   }
+
+  /* ---------- the Sound Bench's actions (lab/sound-cineosis.html), placed at their lines on the clock ---------- */
+  let BENCH = null, WINDOWS = [];                   // WINDOWS: {type: mute-all | mute-her | mute-music | archive-on | archive-off, a, b, why}
+  async function loadBench() {
+    let acts = {}; try { acts = JSON.parse(localStorage.getItem('cineosis.bench.v1')) || {}; } catch (e) { acts = {}; }
+    T.bench.clips = []; T.benchfx.clips = []; WINDOWS = [];
+    if (!Object.keys(acts).length) return;
+    BENCH ||= await fetch(new URL('../sound-cineosis.json', HERE).href).then(r => r.json()).catch(() => null);
+    if (!BENCH) return;
+    const lines = new Map(BENCH.poems.flatMap(p => p.lines.map(l => [l.id, l])));
+    const DRONE = abs('drone/unified-drones-lite.mp3');
+    for (const [id, list] of Object.entries(acts)) {
+      const l = lines.get(id); if (!l) continue;
+      const C = t => l.clock + (t - l.s), len = l.e - l.s, word = (x, at, g = 1) => ({ at: +at.toFixed(3), s: +(x.from - l.s).toFixed(3), e: +(x.to - l.s).toFixed(3), src: l.file, gain: g, fadeIn: .01, fadeOut: .05, label: `${l.id} “${x.label || ''}”` });
+      for (const x of list) {
+        if (x.id === 'isolate') { WINDOWS.push({ type: 'mute-her', a: l.clock, b: l.clock + len, why: 'isolate' }); T.bench.clips.push({ ...word(x, C(x.from)), sym: 'Wh' }); }
+        if (x.id === 'echo') T.bench.clips.push({ ...word(x, C(x.at), .45), sym: 'Wh' });
+        if (x.id === 'lock') T.bench.clips.push({ ...word(x, l.clock), sym: 'Po', row: 'IN' });
+        if (x.id === 'chop' && x.src) T.bench.clips.push({ at: +C(x.at).toFixed(3), s: 0, e: 4, src: x.src, gain: .6, sym: 'Wh', fadeIn: .01, fadeOut: .2, label: `${l.id} chop “${x.label || ''}”` });
+        if (x.id === 'answer' && l.sung) T.bench.clips.push({ at: +(l.clock + len + .4).toFixed(3), s: 0, e: l.sung.dur || 8, src: l.sung.file, gain: .9, sym: 'Mo', fadeIn: .05, fadeOut: .5, label: `${l.id} answered` });
+        if (x.id === 'double' && l.sung) T.bench.clips.push({ at: l.clock, s: 0, e: l.sung.dur || 8, src: l.sung.file, gain: .33, sym: 'Co', fadeIn: .05, fadeOut: .5, label: `${l.id} doubled` });
+        if (x.id === 'hit' && x.src) T.benchfx.clips.push({ at: +C(x.at).toFixed(3), s: 0, e: 2, src: x.src, gain: .7, sym: 'Ht', fam: 'signal', fadeIn: .005, fadeOut: .1, label: `${l.id} hit` });
+        if (x.id === 'bed') T.benchfx.clips.push({ at: l.clock, s: l.clock, e: l.clock + len + 1.2, src: DRONE, gain: .5, sym: 'Dr', fam: 'field', fadeIn: .4, fadeOut: .6, label: `${l.id} drone` });
+        if (x.id === 'hold') WINDOWS.push({ type: 'mute-all', a: C(x.at), b: C(x.at) + (x.len || 1.5), why: 'held breath (the clock cannot stretch: a hole)' });
+        if (x.id === 'sync') WINDOWS.push({ type: 'archive-on', a: l.clock, b: l.clock + len + 1.2, why: 'sync the shot' });
+        if (x.id === 'noeffects') WINDOWS.push({ type: 'archive-off', a: l.clock, b: l.clock + len + 1.2, why: 'drop the effects' });
+        if (x.id === 'noscore') WINDOWS.push({ type: 'mute-music', a: l.clock, b: l.clock + len + 1.2, why: 'drop the score' });
+      }
+    }
+    T.bench.clips.sort((a, b) => a.at - b.at); T.benchfx.clips.sort((a, b) => a.at - b.at);
+  }
+  addEventListener('storage', e => { if (e.key === 'cineosis.bench.v1') loadBench().then(() => { voices.forEach((v, k) => k.startsWith('bench') && drop(k)); render(); }); });
+  const windowAt = (t, type) => WINDOWS.some(w => w.type === type && t >= w.a && t < w.b);
 
   /* ---------- law 3: one speaker — lower voices move to her gaps, or are held ---------- */
   const herOn = () => ['reading', 'onecut', 'duets'].some(id => audible(T[id]));
@@ -156,14 +193,29 @@
     return cand;
   };
 
+  /* ---------- the editor: CUT (window.CUT) or WAG's Cutting Room (window.ButterCut), one surface for the desk ---------- */
+  const shotOfName = name => window.CineosisBridge?.tagOf?.(name)?.shot || null;
+  function editor() {
+    const C = window.CUT;
+    if (C?.S) return { kind: 'cut', time: C.S.time, playing: C.S.playing, seek: t => C.seek(t),
+      clips: () => C.S.clips.map(c => ({ t: c.t, len: c.out - c.in, shot: c.cineosis?.shot || null, name: C.S.sources.get(c.src)?.name || 'clip', note: c.cineosis ? `${c.cineosis.symbol || ''} ${c.cineosis.note || ''}`.trim() : null })),
+      top: () => { const c = (C.onSheet?.() || []).slice(-1)[0]; return c && { shot: c.cineosis?.shot || null, name: C.S.sources.get(c.src)?.name || '' }; },
+      frame: () => document.getElementById('stage') };
+    const B = window.ButterCut, st = B?.state?.();
+    if (st && st.booted !== false) return { kind: 'room', time: st.time, playing: st.playing, seek: t => B.seek(t),
+      clips: () => B.state().clips.map(c => ({ t: c.start, len: c.end - c.start, shot: shotOfName(c.source), name: c.source || 'clip', note: null })),
+      top: () => { const t = B.state().time, on = B.state().clips.filter(c => c.start <= t && c.end > t).slice(-1)[0]; return on && { shot: shotOfName(on.source), name: on.source || '' }; },
+      frame: () => document.getElementById('cutDock') };
+    return null;
+  }
+
   /* ---------- the audio graph ---------- */
   let ctx = null, master = null, keyBus = null, analyser = null, buf = null, amt = 0, lastT = 0, wiredDest = null;
   const bus = {};
   function graph() {
     if (ctx) return true;
-    const C = window.CUT; if (!C) return false;
-    ctx = C.S.ac || new (window.AudioContext || window.webkitAudioContext)();
-    C.S.ac = ctx;                                    // CUT's Export records from this context
+    if (window.CUT?.S) { ctx = window.CUT.S.ac || new (window.AudioContext || window.webkitAudioContext)(); window.CUT.S.ac = ctx; }   // CUT's Export records from this context
+    else ctx = new (window.AudioContext || window.webkitAudioContext)();                                                               // WAG asks for it at export (CineosisSound.ctx)
     master = ctx.createGain(); master.connect(ctx.destination);
     keyBus = ctx.createGain(); analyser = ctx.createAnalyser(); analyser.fftSize = 1024; keyBus.connect(analyser);
     buf = new Float32Array(analyser.fftSize);
@@ -203,11 +255,16 @@
   const inside = (c, t) => !c.held && t >= c.at && t < c.at + (c.e - c.s);
 
   /* ---------- the archive: CUT's clips, gained by their measured sound (law 7) ---------- */
-  const kindOf = c => { const id = c?.cineosis?.shot; return id && KINDS[id] ? KINDS[id] : null; };
+  const kindOfShot = id => (id && KINDS[id]) || null;
+  const kindOf = c => kindOfShot(c?.shot ?? c?.cineosis?.shot);
   let atlasMusicFront = false;
-  function clipGain(c) {
-    const A = T.archive; if (!audible(A)) return 0;
-    const k = kindOf(c); let g = A.gain;
+  function clipGain(c) { return gainForShot(c?.cineosis?.shot); }
+  function gainForShot(id) {
+    const A = T.archive, t = editor()?.time || 0;
+    if (windowAt(t, 'mute-all') || windowAt(t, 'archive-off')) return 0;
+    const forced = windowAt(t, 'archive-on');
+    if (!audible(A) && !forced) return 0;
+    const k = kindOfShot(id); let g = forced ? Math.max(A.gain, 1) : A.gain;
     if (k && typeof k[1] === 'number') g *= Math.min(1, Math.pow(10, (-24 - k[1]) / 20));
     const kind = k?.[0];
     if (kind === 'speech' || kind === 'mixed') g *= (1 - .88 * amt) * (kind === 'mixed' && atlasMusicFront ? .5 : 1);   // a found voice never speaks over hers
@@ -219,11 +276,11 @@
   let NOW = [];                                       // what is sounding: [{sym, name, fam, row, state, track}]
   function tick() {
     requestAnimationFrame(tick);
-    const C = window.CUT; if (!C || !ready) return;
-    C.S.archiveGain = 1; C.S.clipGain = clipGain;
-    const t = C.S.time, playing = C.S.playing;
+    const E = editor(); if (!E || !ready) return;
+    if (window.CUT?.S) { window.CUT.S.archiveGain = 1; window.CUT.S.clipGain = clipGain; }
+    const t = E.time, playing = E.playing;
     if (!ctx) { if (playing) graph(); if (!ctx) { hud([]); return; } }
-    if (C.S.dest && wiredDest !== C.S.dest) { master.connect(C.S.dest); wiredDest = C.S.dest; }
+    const dest = window.CUT?.S?.dest; if (dest && wiredDest !== dest) { master.connect(dest); wiredDest = dest; }
     const now = performance.now(), dt = Math.min(.1, (now - (lastT || now)) / 1000); lastT = now;
     // law 5: her level → amt, 30 ms down, 160 ms up (poemworlds)
     const target = rms(analyser, buf) > .012 ? 1 : 0;
@@ -239,7 +296,9 @@
       const b = bus[tr.id], on = audible(tr), isMusic = tr.fam === 'music', protectedVoice = tr.fam === 'voice' && tr.prio === 1;
       const under = on && isMusic && front && front !== tr && sounding.includes(tr);
       tr.state = !on ? '' : under ? 'under' : isMusic && front === tr ? 'front' : sounding.includes(tr) ? 'on' : 'waiting';
-      b.g.gain.setTargetAtTime(on ? tr.gain * (under ? .3 : 1) : 0, ctx.currentTime, .05);
+      const her = ['reading', 'onecut', 'duets', 'suite', 'radio', 'transmission'].includes(tr.id);
+      const win = windowAt(t, 'mute-all') || (her && windowAt(t, 'mute-her')) || ((isMusic || tr.id === 'drone') && windowAt(t, 'mute-music')) ? 0 : 1;
+      b.g.gain.setTargetAtTime(on ? tr.gain * (under ? .3 : 1) * win : 0, ctx.currentTime, .05);
       b.lp.frequency.setTargetAtTime(under ? 900 : 20000, ctx.currentTime, .1);
       const carve = !protectedVoice && tr.fam !== 'voice' && tr.duck;
       b.eq.gain.setTargetAtTime(carve ? -7 * amt : 0, ctx.currentTime, .02);
@@ -259,16 +318,17 @@
           if (v.el.paused) { try { v.el.currentTime = want; } catch (e) { /* not ready */ } v.el.play().catch(() => {}); }
           else if (Math.abs(v.el.currentTime - want) > .3 && !v.el.seeking) v.el.currentTime = want;
         } else if (!v.el.paused) v.el.pause();
-        if (isIn) nowList.push({ sym: c.sym || tr.sym, name: tr.name, fam: c.fam || tr.fam, row: 'OUT', state: tr.state === 'under' ? 'under' : c.moved ? 'moved to her gap' : '', label: c.label });
+        if (isIn) nowList.push({ sym: c.sym || tr.sym, name: tr.name, fam: c.fam || tr.fam, row: c.row || 'OUT', state: tr.state === 'under' ? 'under' : c.moved ? 'moved to her gap' : '', label: c.label });
       });
     }
     for (const [k, v] of voices) if (now - v.last > 2000 || !audible(v.track)) drop(k);
     // the archive: what the top clip on CUT's sheet sounds like
     if (audible(T.archive)) {
-      const top = (C.onSheet?.() || []).slice(-1)[0], k = kindOf(top);
+      const top = E.top(), k = kindOfShot(top?.shot);
       if (top) { const K = KIND[k?.[0]] || ['Fn', 'Archive (unmeasured)', 'field'];
-        nowList.push({ sym: K[0], name: K[1], fam: K[2], row: 'IN', state: `${Math.round(clipGain(top) * 100)}%${k && typeof k[1] === 'number' ? ' · ' + k[1] + ' LUFS' : ''}`, label: C.S.sources.get(top.src)?.name || '' }); }
+        nowList.push({ sym: K[0], name: K[1], fam: K[2], row: 'IN', state: `${Math.round(gainForShot(top.shot) * 100)}%${k && typeof k[1] === 'number' ? ' · ' + k[1] + ' LUFS' : ''}`, label: top.name }); }
     }
+    for (const w of WINDOWS) if (t >= w.a && t < w.b) nowList.push({ sym: w.type === 'archive-on' ? 'Fv' : 'Si', name: 'bench', fam: w.type === 'archive-on' ? 'voice' : 'ground', row: w.type === 'archive-on' ? 'IN' : 'OUT', state: w.why, label: w.why });
     NOW = nowList;
     hud(nowList, amt);
     meters();
@@ -279,10 +339,10 @@
   let hudEl = null, hudLast = 0;
   function hud(list, a = 0) {
     if (performance.now() - hudLast < 120) return; hudLast = performance.now();
-    const st = document.getElementById('stage'); if (!st) return;
+    const st = editor()?.frame(); if (!st) return;
     if (!hudEl) { hudEl = document.createElement('div'); hudEl.className = 'sd-hud'; document.body.appendChild(hudEl); }
     const r = st.getBoundingClientRect();
-    Object.assign(hudEl.style, { left: r.left + 10 + 'px', top: r.bottom - 10 + 'px' });
+    Object.assign(hudEl.style, st.id === 'cutDock' ? { left: r.left + 10 + 'px', top: r.top - 8 + 'px' } : { left: r.left + 10 + 'px', top: r.bottom - 10 + 'px' });
     hudEl.hidden = !list.length;
     const key = JSON.stringify(list.map(x => [x.sym, x.state, x.row])) + (a > .5);
     if (hudEl.dataset.k === key) return; hudEl.dataset.k = key;
@@ -326,13 +386,15 @@
     const W = ready ? warnings() : [];
     host.innerHTML = `
       <div class="sd-dev">
-      <div class="sd-head"><b>SOUND DESK</b><span class="sd-state">${ready ? 'the WYGWYL atlas on CUT’s clock' : 'loading the atlas…'}</span>
+      <div class="sd-head"><b>SOUND DESK</b><span class="sd-state">${ready ? 'the WYGWYL atlas on the editor’s clock' : 'loading the atlas…'}</span>
         <a href="${TABLE}" target="_blank" title="The periodic table of sound: every element here, by where it stands to the image">sound table ↗</a></div>
       <div class="sd-pre">${PRESETS.map(([n], i) => `<button data-p="${i}">${esc(n)}</button>`).join('')}</div>
       <canvas class="sd-ov" height="${14 * all().length + 8}" aria-label="The tracks on the 24-minute clock · click to move the playhead"></canvas>
       <div class="sd-trs">${all().map(row).join('')}</div>
       <div class="sd-quiet"><span>Quiet before an answer</span>${[[2, '2 s · water table'], [.5, '0.5 s · call and response']].map(([v, l]) => `<button data-q="${v}" class="${QUIET === v ? 'act' : ''}">${l}</button>`).join('')}</div>
       ${W.map(w => `<p class="sd-warn">${esc(w)}</p>`).join('')}
+      <p class="sd-bench">${T.bench.clips.length + T.benchfx.clips.length + WINDOWS.length ? `From the Sound Bench: ${T.bench.clips.length + T.benchfx.clips.length} sounds and ${WINDOWS.length} picture moves, at their lines.` : 'Nothing from the Sound Bench yet.'}
+        <a href="${new URL('../sound-cineosis.html', HERE).href}#t=${(editor()?.time || 0).toFixed(1)}" target="_blank">open the bench at this moment ↗</a></p>
       <details class="sd-law"><summary>The mix law</summary><ol>
         <li><b>One clock.</b> Nothing is re-timed except by law 3.</li>
         <li><b>Her voice untouched.</b> Reading, One cut, Duets are never ducked or carved.</li>
@@ -361,7 +423,7 @@
       r.querySelector('.sd-s').onclick = () => { t.solo = !t.solo; if (t.solo) t.on = true; changed(); };
       const d = r.querySelector('.sd-d'); if (d) d.onclick = () => { t.duck = !t.duck; changed(); };
     });
-    overview.onclick = e => { const r = overview.getBoundingClientRect(); window.CUT?.seek((e.clientX - r.left) / r.width * (D?.dur || 1440)); };
+    overview.onclick = e => { const r = overview.getBoundingClientRect(); editor()?.seek((e.clientX - r.left) / r.width * (D?.dur || 1440)); };
     host.querySelectorAll('[data-fx]').forEach(b => b.onclick = () => { FX.splice(+b.dataset.fx, 1); save(); render(); });
     host.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { IMPORTED = IMPORTED.filter(i => i.id !== b.dataset.rm); delete T[b.dataset.rm]; save(); render(); });
     const file = host.querySelector('.sd-files input');
@@ -395,7 +457,7 @@
       g.fillStyle = '#0002'; g.fillRect(0, y, w, 10);
       g.globalAlpha = audible(t) ? 1 : .25;
       if (t.id === 'archive') {                        // CUT's clips, coloured by their measured kind
-        for (const c of window.CUT?.S.clips || []) { const k = kindOf(c)?.[0]; g.fillStyle = COLOR[(KIND[k] || [0, 0, 'archive'])[2]]; g.fillRect(c.t / dur * w, y + 2, Math.max(1, (c.out - c.in) / dur * w), 6); }
+        for (const c of editor()?.clips() || []) { const k = kindOfShot(c.shot)?.[0]; g.fillStyle = COLOR[(KIND[k] || [0, 0, 'archive'])[2]]; g.fillRect(c.t / dur * w, y + 2, Math.max(1, c.len / dur * w), 6); }
       } else for (const c of t.clips) {
         const x = c.at / dur * w, cw = Math.max(1, (c.e - c.s) / dur * w);
         if (c.held) { g.strokeStyle = col; g.lineWidth = 1; g.strokeRect(x + .5, y + .5, cw, 9); }
@@ -404,7 +466,7 @@
       g.globalAlpha = 1;
     });
     if (T.reading.on || T.onecut.on || T.duets.on) { g.fillStyle = COLOR.voice + '66'; for (const [a, b] of SPEECH) g.fillRect(a / dur * w, 0, Math.max(1, (b - a) / dur * w), 3); }
-    const x = (window.CUT?.S.time || 0) / dur * w; g.fillStyle = '#e0483a'; g.fillRect(x - 1, 0, 2, overview.height);
+    const x = (editor()?.time || 0) / dur * w; g.fillStyle = '#e0483a'; g.fillRect(x - 1, 0, 2, overview.height);
   }
 
   /* ---------- the library: sonic.json, searchable, placed at the playhead by law 6 ---------- */
@@ -428,7 +490,7 @@
       const s = LIB[+r.dataset.i];
       r.querySelector('.sd-pv').onclick = () => { if (preview) { preview.pause(); preview = null; } preview = new Audio(abs(s.file)); preview.play().catch(() => {}); };
       r.querySelector('.sd-add').onclick = () => {
-        const t0 = window.CUT?.S.time || 0, len = Math.max(.2, Math.min(+s.dur || 4, 60)), [sym, fam] = famOfSound(s);
+        const t0 = editor()?.time || 0, len = Math.max(.2, Math.min(+s.dur || 4, 60)), [sym, fam] = famOfSound(s);
         let at = t0, snapped = false;
         if (fam === 'signal' || sym === 'Wh') {                            // law 6: land in her breath
           const gap = silenceAfter(t0, sym === 'Wh' ? 3.5 : 1);
@@ -447,8 +509,8 @@
   function exportFresco() {
     const tracks = all().filter(t => audible(t) && t.id !== 'archive' && t.clips.length).map(t => ({ id: t.id, name: t.name.toUpperCase(), gain: t.gain,
       clips: t.clips.filter(c => !c.held).map(c => ({ at: c.at, source: c.src, s: c.s, e: c.e, gain: c.gain ?? 1, fadeIn: c.fadeIn || 0, fadeOut: c.fadeOut || 0, label: c.label || '', ...(c.moved ? { movedFrom: c.at0 } : {}) })) }));
-    const cuts = (window.CUT?.S.clips || []).map(c => ({ t: +c.t.toFixed(3), value: c.cineosis ? `${c.cineosis.symbol || ''} ${c.cineosis.note || ''}`.trim() : (window.CUT.S.sources.get(c.src)?.name || 'clip'), kind: kindOf(c)?.[0] || null }));
-    const score = { fresco: '0.1', title: 'CUT · cineosis sound desk', duration: D?.dur || 1440.07, base: '', tracks,
+    const cuts = (editor()?.clips() || []).map(c => ({ t: +c.t.toFixed(3), value: c.note || c.name, kind: kindOfShot(c.shot)?.[0] || null }));
+    const score = { fresco: '0.1', title: `${editor()?.kind === 'room' ? 'WAG' : 'CUT'} · cineosis sound desk`, duration: D?.dur || 1440.07, base: '', tracks,
       lanes: [{ id: 'picture', name: 'PICTURE', type: 'marker', events: cuts.map(e => ({ t: e.t, type: 'CUT', value: e.value, sound: e.kind })) },
               { id: 'speech', name: 'HER WORDS', type: 'marker', events: SPEECH.map(([a, b]) => ({ t: +a.toFixed(3), type: 'LINE', value: +(b - a).toFixed(2) })) }],
       law: ['one clock', 'her voice untouched', 'one speaker', 'one music', 'carve, don’t bury', 'snap to breath', 'level'],
@@ -487,7 +549,18 @@
     render();
     try { await load(); } catch (e) { const s = host?.querySelector('.sd-state'); if (s) s.textContent = 'the atlas did not load · ' + e.message; return; }
     render();
+    const m = /[#&]t=([\d.]+)/.exec(location.hash);          // #t=123.4 : open at that moment, sound tab showing
+    if (m) {
+      window.CineosisPanel?.setTab('sound'); window.CineosisPanel?.open();
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      for (let k = 0; k < 100 && !editor(); k++) await wait(200);
+      await wait(1500);                                        // a ?load=wygwyl starts on the editor's first frames …
+      for (let k = 0; k < 600 && window.CineosisBridge?.busy?.(); k++) await wait(500);   // … and moves the playhead when it finishes
+      editor()?.seek(+m[1]);
+    }
   })();
+  window.CineosisSound = { ctx: () => (graph(), ctx), wire: d => { try { if (graph() && d && wiredDest !== d) { master.connect(d); wiredDest = d; } } catch (e) { /* a different context: the export records the clips only */ } },
+    clipGain: name => ready ? gainForShot(shotOfName(name)) : 1 };
   window.AtlasSound = { tracks: () => all(), preset: name => { const p = PRESETS.find(x => x[0] === name); if (p) preset(p[1]); }, exportFresco,
     amt: () => amt, voices: () => voices.size, now: () => NOW, speech: () => SPEECH.length,
     debug: () => ({ failed: [...failed], codex: { moved: T.codex.clips.filter(c => c.moved).length, frag: T.codex.clips.filter(c => c.frag).length, held: T.codex.clips.filter(c => c.held).length },
