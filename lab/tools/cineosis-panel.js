@@ -29,7 +29,7 @@
   const uid = p => p + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
 
   let D = null, SIGN = new Map(), CELL = new Map(), BEAT = new Map();
-  const V = { pinned: '1', shown: '1', inspected: null, hover: false, tab: ls.get('cineosis.panel.tab', 'sign'), status: '' };
+  const V = { pinned: '1', shown: '1', inspected: null, hover: false, tab: ls.get('cineosis.panel.tab', 'footage'), status: '' };
   document.documentElement.classList.add('cx-' + tool);
 
   /* ---------- the URL: ?load=wygwyl[&fresh=1] ---------- */
@@ -162,10 +162,13 @@
     </div>
     <div class="cx-tablehost"></div>
     <div class="cx-tabs" role="tablist">
+      <button role="tab" data-tab="footage">Footage</button>
       <button role="tab" data-tab="sign">Sign</button>
       <button role="tab" data-tab="wygwyl">WYGWYL</button>
     </div>
     <div class="cx-body">
+      <div class="cx-start" hidden></div>
+      <section class="cx-pane" data-pane="footage"><div class="cx-foot"></div></section>
       <section class="cx-pane" data-pane="sign"><div class="cx-inspect"></div><div class="cx-card"></div></section>
       <section class="cx-pane" data-pane="wygwyl"><div class="cx-wy"></div></section>
     </div>`;
@@ -307,21 +310,68 @@
         <div class="cx-sym"><small>${esc(s.n)}</small><b>${esc(s.symbol)}</b></div>
         <div><h3>${esc(s.name)}</h3><p class="cx-dom">${esc(DOMNAME[s.dom])}${s.image ? ' · ' + esc(s.image) : ''}</p></div>
       </div>
-      ${s.question ? `<p class="cx-q">${esc(s.question)}</p>` : ''}
-      <p class="cx-gloss">${esc(s.gloss)}</p>
-      <h4>the deciding test</h4><p>${esc(s.difference)}</p>
-      <div class="cx-ceil"><span>single-shot ceiling</span><span class="cx-bar"><i style="width:${+s.ceiling || 0}%"></i></span><b>${esc(s.ceiling)}%</b></div>
-      ${s.confusions?.length ? `<h4>confused with</h4><div class="cx-chips">${s.confusions.map(c => chip(c)).join('')}</div>` : ''}
-      <h4>family · ${s.family.length} read shot${s.family.length === 1 ? '' : 's'}, best first</h4>
+      <h4>${s.family.length} shot${s.family.length === 1 ? '' : 's'} · click one to add it</h4>
       <div class="cx-actions">${lay}</div>
       <div class="cx-family">${s.family.map((f, i) => `
         <button class="cx-shot" data-i="${i}" title="Add this shot (${tc(Math.max(0, f.read_t - 1.5))}–${tc(Math.min(f.dur, f.read_t + 2.5))} around its reading)">
           <span class="cx-img"><img loading="lazy" alt="" src="${esc(thumbUrl(f.thumb))}"><em>${esc(f.conf)}%</em></span>
           <span class="cx-meta"><b>${esc(f.title)}</b>${f.year ? ' · ' + esc(f.year) : ''}<span>${esc(f.note)}</span>${f.alt ? `<span class="cx-alt">rival ${esc(signOf(f.alt)?.symbol || f.alt)} ${esc(f.alt_conf)}%</span>` : ''}</span>
-        </button>`).join('') || '<p class="cx-none">No read shots yet.</p>'}</div>`;
+        </button>`).join('') || '<p class="cx-none">No read shots yet.</p>'}</div>
+      ${s.question ? `<p class="cx-q">${esc(s.question)}</p>` : ''}
+      <p class="cx-gloss">${esc(s.gloss)}</p>
+      <h4>the deciding test</h4><p>${esc(s.difference)}</p>
+      <div class="cx-ceil"><span>single-shot ceiling</span><span class="cx-bar"><i style="width:${+s.ceiling || 0}%"></i></span><b>${esc(s.ceiling)}%</b></div>
+      ${s.confusions?.length ? `<h4>confused with</h4><div class="cx-chips">${s.confusions.map(c => chip(c)).join('')}</div>` : ''}`;
     card.querySelectorAll('.cx-shot').forEach(b => b.onclick = () => addShot(s, s.family[+b.dataset.i]));
     card.querySelectorAll('[data-lay]').forEach(b => b.onclick = () => { V.layout = b.dataset.lay; addFamily(s, b.dataset.lay); });
     card.querySelectorAll('img').forEach(im => im.onerror = () => im.replaceWith(el('span', 'cx-noimg', 'no still')));
+  }
+
+  /* ---------- footage: every clip this page can add, searchable ---------- */
+  let FOOT = [];
+  function buildFootage() {
+    const seen = new Map();
+    D.signs.forEach(s => (s.family || []).forEach(f => { if (!seen.has(f.id)) seen.set(f.id, { f, s, tags: [] }); seen.get(f.id).tags.push(s.symbol + ' ' + s.name); }));
+    D.wygwyl.beats.forEach(b => [b.a, b.b].forEach(c => { if (!c) return;
+      const s = signOf(b.codes?.[0]);
+      if (!seen.has(c.id)) seen.set(c.id, { f: { ...c, read_t: Math.min(1.5, (c.dur || 4) / 2), note: b.title }, s, tags: [] });
+      seen.get(c.id).tags.push('WYGWYL #' + b.id + ' ' + b.title); }));
+    FOOT = [...seen.values()];
+    const box = $p('.cx-foot');
+    box.innerHTML = `<div class="cx-fhead"><input type="search" class="cx-fq" placeholder="search ${FOOT.length} shots · title, sign, beat" aria-label="Search footage">
+      <span class="cx-lbl">click a shot to add it · or use the editor's <b>Import</b> for your own files</span></div><div class="cx-family cx-fgrid"></div>`;
+    const grid = box.querySelector('.cx-fgrid'), q = box.querySelector('.cx-fq');
+    const draw = () => {
+      const w = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      const L = FOOT.filter(x => !w.length || w.every(t => (x.f.title + ' ' + (x.f.year || '') + ' ' + x.tags.join(' ')).toLowerCase().includes(t)));
+      grid.innerHTML = L.slice(0, 240).map((x, i) => `<button class="cx-shot" data-i="${FOOT.indexOf(x)}" title="${esc(x.tags.join(' · '))}">
+        <span class="cx-img"><img loading="lazy" alt="" src="${esc(thumbUrl(x.f.thumb))}"><em>+ add</em></span>
+        <span class="cx-meta"><b>${esc(x.f.title)}</b>${x.f.year ? ' · ' + esc(x.f.year) : ''}<span>${esc(x.tags[0] || '')}${x.tags.length > 1 ? ' +' + (x.tags.length - 1) : ''}</span></span></button>`).join('')
+        + (L.length > 240 ? `<p class="cx-none">${L.length - 240} more · narrow the search</p>` : '') + (L.length ? '' : '<p class="cx-none">No shot matches.</p>');
+      grid.querySelectorAll('.cx-shot').forEach(b => b.onclick = () => { const x = FOOT[+b.dataset.i]; addShot(x.s || { n: null, symbol: '' }, x.f); });
+      grid.querySelectorAll('img').forEach(im => im.onerror = () => im.replaceWith(el('span', 'cx-noimg', 'no still')));
+    };
+    q.oninput = draw; draw();
+  }
+  function importOwn() {
+    const b = document.getElementById('cutImport') || document.querySelector('#file')?.closest('label') || document.getElementById('file');
+    if (b) b.click(); else status('use the editor\'s Import button');
+  }
+  let startShown = null;
+  function refreshStart() {
+    let n = 0; try { n = ED.count(); } catch (e) { /* editor still booting */ }
+    const show = n === 0 && !window.CineosisBridge?.busy?.();
+    if (show === startShown) return; startShown = show;
+    const box = $p('.cx-start'); box.hidden = !show; if (!show) return;
+    box.innerHTML = `<b>The ${tool === 'cut' ? 'frame' : 'room'} is empty. Start with one:</b>
+      <button class="cx-primary" data-go="wy">Load the WYGWYL cut</button>
+      <button data-go="foot">Browse footage · ${FOOT.length} shots</button>
+      <button data-go="sign">Pick a sign in the table, add its shots</button>
+      <button data-go="own">Import your own video</button>`;
+    box.querySelector('[data-go=wy]').onclick = () => { setTab('wygwyl'); loadAll(); };
+    box.querySelector('[data-go=foot]').onclick = () => { setOpen(true); setTab('footage'); $p('.cx-fq')?.focus(); };
+    box.querySelector('[data-go=sign]').onclick = () => { setOpen(true); setTab('sign'); tileOf(V.pinned)?.focus(); };
+    box.querySelector('[data-go=own]').onclick = importOwn;
   }
 
   /* ---------- inspect: what the selected clip reads as ---------- */
@@ -412,10 +462,10 @@
     BEAT = new Map(D.wygwyl.beats.map(b => [b.id, b]));
     D.signs.forEach(s => (s.family || []).forEach(f => f.clip && CLIPS.set(f.id, f.clip)));
     D.wygwyl.beats.forEach(b => [b.a, b.b].forEach(c => c && c.clip && CLIPS.set(c.id, c.clip)));
-    buildTable(); buildWygwyl();
+    buildTable(); buildWygwyl(); buildFootage();
     pin(ls.get('cineosis.panel.sign', '1'));
     status('ready');
-    setInterval(() => { inspect(); markNow(); }, 400); inspect();
+    setInterval(() => { inspect(); markNow(); refreshStart(); }, 400); inspect(); refreshStart();
     if (AUTO && !AUTO.skip) {
       if (AUTO.fresh) { status('emptying the editor…'); await ED.clear(); }
       setTab('wygwyl');

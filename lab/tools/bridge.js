@@ -89,6 +89,7 @@
   const SPANS = [20, 30, 60, 120, 300, 600, 1200, 1800, 3600];
   async function intoRoom(bin) {
     const B = window.ButterCut, items = bin.items;
+    if (B.state().booted === false) say('the room is starting up · your shots follow in a few seconds');
     for (let k = 0; k < 600 && B.state().booted === false; k++) await sleep(100);   // the room boots on its first frame
     if (bin.span) { const sp = SPANS.find(s => s >= bin.span) || SPANS[SPANS.length - 1]; if (B.state().span < sp) B.setSpan(sp); }
     let t0 = null, n = 0;
