@@ -76,6 +76,7 @@ function prep(s, i) {
   s._dur = Math.max(0.1, (s.end || 0) - (s.start || 0));
   s._dot = dotColor(s);
   s._cuts = cutItems(s);
+  s._col = s.collections && s.collections.length ? s.collections : ['cineosis'];
 }
 /** normalised cut-out list: SAM 2 tracked segments when present, else the older single-frame cut-outs */
 function cutItems(s) {
@@ -107,6 +108,9 @@ async function loadData(silent) {
   const rows = await probeServer();
   L.server = !!rows;
   L.assignments = L.server ? rows : [...(d.assignments || []), ...Store.get()];
+  L.wyg = d.wygwyl || null;
+  L.wygCands = new Map();
+  for (const s of L.shots) if (s.wygwyl && s.wygwyl.beats) for (const b of s.wygwyl.beats) { const k = String(b); if (!L.wygCands.has(k)) L.wygCands.set(k, []); if (!L.wygCands.get(k).includes(s)) L.wygCands.get(k).push(s); }
   const H = L.has = {};
   H.xy = L.shots.some(s => s.xy); H.hue = L.shots.some(s => s.hue != null); H.palette = L.shots.some(s => s.palette);
   H.strip = L.shots.some(s => s.strip); H.cut = L.shots.some(s => s._cuts.length); H.seg = L.shots.some(s => s.segments && s.segments.objects && s.segments.objects.length);
@@ -149,7 +153,7 @@ const STATIC_NOTE = 'live archive search needs the local server — clone the re
 
 /* ================================================================ FILTER */
 const F = {
-  signs: new Set(), smode: 'corpus', dec: new Set(), color: 'all', hue: null, subj: new Set(), scale: new Set(),
+  col: 'both', signs: new Set(), smode: 'corpus', dec: new Set(), color: 'all', hue: null, subj: new Set(), scale: new Set(),
   cut: false, audio: new Set(), q: '', terms: [], signTerms: [], decTerms: [],
 };
 const SORT = { key: 'sign', dir: 1 };
@@ -165,6 +169,7 @@ const PRED = {
   subj: s => !F.subj.size || (s.subjects || []).some(x => F.subj.has(x.label)),
   scale: s => !F.scale.size || F.scale.has(s.scale),
   cut: s => !F.cut || s._cuts.length > 0,
+  col: s => F.col === 'both' || s._col.includes(F.col),
   audio: s => !F.audio.size || (s.audio && F.audio.has(s.audio.kind)),
   q: s => {
     if (!F.terms.length && !F.signTerms.length && !F.decTerms.length) return true;
@@ -235,7 +240,7 @@ function viewList() { return [...liveView(), ...VIEW.filter(s => !s._liveHit || 
 
 function compute() {
   const P = FKEYS.map(k => PRED[k]), nF = P.length;
-  const C = { signs: {}, dec: {}, color: { bw: 0, col: 0 }, hue: new Array(36).fill(0), grey: 0, subj: {}, scale: {}, cut: 0, audio: {}, read: 0 };
+  const C = { signs: {}, dec: {}, color: { bw: 0, col: 0 }, hue: new Array(36).fill(0), grey: 0, subj: {}, scale: {}, cut: 0, audio: {}, read: 0, col: { cineosis: 0, wygwyl: 0, both: 0 } };
   const out = [];
   for (const s of L.shots) {
     let fails = 0, fk = -1;
@@ -251,6 +256,7 @@ function compute() {
     if (!only || only === 'subj') for (const x of s.subjects || []) C.subj[x.label] = (C.subj[x.label] || 0) + 1;
     if (!only || only === 'scale') if (s.scale) C.scale[s.scale] = (C.scale[s.scale] || 0) + 1;
     if (!only || only === 'cut') if (s._cuts.length) C.cut++;
+    if (!only || only === 'col') { C.col.both++; for (const c of s._col) if (C.col[c] != null) C.col[c]++; }
     if (!only || only === 'audio') if (s.audio) C.audio[s.audio.kind] = (C.audio[s.audio.kind] || 0) + 1;
     if (!only || only === 'read') if (s._read.length) C.read++;
   }
@@ -286,7 +292,9 @@ const Facets = {
   build() {
     const R = this.root = $('#facets');
     R.innerHTML = `
-      <div class="fx-head"><span>FILTER</span><button class="ghost" id="fxReset">reset all</button></div>
+      <div class="fx-head"><span>FILTER</span><em>click to narrow the shots</em></div>
+      <section class="fx" id="fx-col"><h3>Collection</h3><div class="seg fx-scope" id="fxCol">
+        <button data-v="both" title="every shot in the lab">both <i></i></button><button data-v="cineosis" title="the Cineosis 44 corpus: searched for the 45 signs">cineosis <i></i></button><button data-v="wygwyl" title="the WYGWYL Forage Suite: footage foraged for the film's 88 beats">wygwyl <i></i></button></div></section>
       <section class="fx" id="fx-signs">
         <h3>Sign</h3><div class="seg fx-scope" id="fxScope"><button data-v="corpus" title="read shots + everything each sign's searches surfaced">corpus</button><button data-v="read" title="only the shots the editor read">read only</button><button data-v="machine" title="machine-suggested: filter by the machine's top-3 sign affinity">machine top-3</button></div>
         <div class="ptable" id="ptable"></div>
@@ -311,15 +319,17 @@ const Facets = {
     T.addEventListener('click', e => {
       const b = e.target.closest('.pt'); if (!b) return;
       const n = b.dataset.n;
-      if (e.altKey || e.metaKey) { F.signs = new Set(F.signs.size === 1 && F.signs.has(n) ? [] : [n]); }
+      if (e.altKey) { Send.sendFamily(n, 'cut'); return; }
+      if (e.shiftKey || e.metaKey) { F.signs = new Set(F.signs.size === 1 && F.signs.has(n) ? [] : [n]); }
       else F.signs.has(n) ? F.signs.delete(n) : F.signs.add(n);
+      Guide.mark(1);
       refresh();
     });
     T.addEventListener('pointerover', e => { const b = e.target.closest('.pt'); if (b) Tip.sign(b.dataset.n, e); });
     T.addEventListener('pointerout', () => Tip.hide());
+    $('#fxCol', R).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; F.col = b.dataset.v; refresh(); });
     $('#fxScope', R).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; F.smode = b.dataset.v; refresh(); });
     $('#fxColor', R).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; F.color = b.dataset.v; refresh(); });
-    $('#fxReset', R).addEventListener('click', () => Facets.reset());
     // decade histogram with click / drag range
     const DH = $('#dechist', R);
     this.decKeys = [1900, 1910, 1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020, -1];
@@ -376,10 +386,11 @@ const Facets = {
     tagToggle('#fxSubj', F.subj); tagToggle('#fxScale', F.scale); tagToggle('#fxAudio', F.audio);
     $('#fxCut', R).addEventListener('click', e => { if (e.target.closest('button')) { F.cut = !F.cut; refresh(); } });
     $('#fxLegend', R).innerHTML = Object.entries(DOMN).map(([k, v]) => `<span><i style="background:${DOMC[k]}"></i>${v}</span>`).join('') +
-      `<p>click a sign to toggle · alt-click to solo · drag across decades for a range · drag on the hue strip for a band</p>`;
+      `<p>click a sign to toggle · shift-click to solo · ⌥/alt-click sends its family to CUT · drag across decades for a range · drag on the hue strip for a band</p>`;
   },
   reset() {
-    F.signs.clear(); F.smode = 'corpus'; F.dec.clear(); F.color = 'all'; F.hue = null; F.subj.clear(); F.scale.clear(); F.cut = false; F.audio.clear();
+    SORT.key = 'sign'; SORT.dir = 1; GROUP = 'none'; $('#sort').value = 'sign'; $('#sortDir').textContent = '↓'; $('#group').value = 'none';
+    F.col = 'both'; F.signs.clear(); F.smode = 'corpus'; F.dec.clear(); F.color = 'all'; F.hue = null; F.subj.clear(); F.scale.clear(); F.cut = false; F.audio.clear();
     $('#q').value = ''; parseQuery(''); refresh();
   },
   update() {
@@ -391,6 +402,7 @@ const Facets = {
     });
     $('#ptable', R).classList.toggle('sel', F.signs.size > 0);
     $$('#fxScope button', R).forEach(b => b.classList.toggle('on', b.dataset.v === F.smode));
+    $$('#fxCol button', R).forEach(b => { b.classList.toggle('on', b.dataset.v === F.col); b.querySelector('i').textContent = fmt(C.col[b.dataset.v] || 0); });
     $('#signNote', R).innerHTML = F.signs.size
       ? `${[...F.signs].map(n => chip(n)).join('')} <button class="ghost" id="clrSigns">clear</button>`
       : `<span>${{ read: 'only the 253 shots the editor read', machine: 'shots whose machine top-3 affinity includes the sign — a pointer, not a reading', corpus: 'read shots + everything each sign’s searches surfaced' }[F.smode]}</span>`;
@@ -473,7 +485,7 @@ const Tip = {
     if (matchMedia('(hover: none)').matches) return;
     const n = signOf(s), en = n && entryOf(s, n);
     const badges = s._read.length ? `<span class="t-f">read as</span> ${s._read.map(x => chip(x)).join('')}` : machineChips(s, 2);
-    this.show(`${s._live ? '<span class="livebadge">LIVE</span>' : ''}
+    this.show(`${s._live ? '<span class="livebadge">LIVE</span>' : ''}${colBadge(s)}
       <div class="t-t">${esc(s.title)}</div>
       <div class="t-m">${s.year ?? 'undated'} · ${mmss(s.start || 0)} · ${s._dur.toFixed(1)}s${s.bw ? ' · B&amp;W' : ''}${s.scale ? ' · ' + SCALE_AB[s.scale] : ''}</div>
       <div class="t-b">${badges}</div>
@@ -486,6 +498,11 @@ const Tip = {
   },
 };
 
+/** which collection(s) a shot belongs to */
+function colBadge(s) {
+  const c = s._col || ['cineosis'];
+  return c.includes('wygwyl') ? `<span class="colbadge${c.includes('cineosis') ? ' both' : ''}" title="${c.join(' + ')}">${c.includes('cineosis') ? 'CINEOSIS + WYGWYL' : 'WYGWYL'}</span>` : '';
+}
 /** the machine's top sign(s) for an unread shot, labelled as such */
 function machineChips(s, k) {
   const top = (s.aff_top || []).slice(0, k);
@@ -617,8 +634,11 @@ const Wall = {
       gap: 4, aspect: 0.75, tileW: () => Shell.size,
       make: (s) => {
         const d = el('div', 'tile' + (s._live ? ' live' : '') + (s._read.length ? ' read' : ''));
+        d.appendChild(el('span', 'tcap', `<b>${esc(s.title || 'untitled')}</b><em>${s.year ?? 'undated'}</em>`));
         const img = new Image(); img.decoding = 'async'; img.loading = 'lazy'; img.alt = ''; img.draggable = false;
-        img.onerror = () => d.classList.add('broken'); img.src = s.thumb; d.appendChild(img);
+        img.onerror = () => d.classList.add('broken'); img.onload = () => d.classList.add('loaded');
+        if (s.thumb) img.src = s.thumb; else d.classList.add('broken');
+        d.appendChild(img);
         const b = el('div', 'badges');
         b.innerHTML = (s._live ? '<span class="livebadge">LIVE</span>' : '') + s._read.map(n => chip(n, 'sm')).join('') + (s._cuts.length ? '<span class="mk" title="has cut-outs">✂</span>' : '');
         d.appendChild(b);
@@ -795,7 +815,7 @@ const MapMode = {
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
     IMG.flush();
-    const anyIn = F.signs.size || F.dec.size || F.color !== 'all' || F.hue || F.subj.size || F.scale.size || F.cut || F.audio.size || F.q || F.smode === 'read';
+    const anyIn = F.signs.size || F.dec.size || F.color !== 'all' || F.hue || F.subj.size || F.scale.size || F.cut || F.audio.size || F.q || F.smode === 'read' || F.col !== 'both';
     // axes
     if (this.axes && this.axes.cols) {
       const A = this.axes;
@@ -1191,11 +1211,12 @@ const Reel = {
       else if (a === 'loop') { this.loop = !this.loop; b.classList.toggle('on', this.loop); }
     });
     $('#reelSpeed', R).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; this.speed = +b.dataset.v; this.va.playbackRate = this.vb.playbackRate = this.speed; this.paintCtl(); });
-    $('#reelSrc', R).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; this.src = b.dataset.v; this.start(); });
+    $('#reelSrc', R).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; this.src = b.dataset.v; this.custom = null; this.start(); });
     $('#reelRail', R).addEventListener('click', e => { const r = e.currentTarget.getBoundingClientRect(); this.go(Math.floor(clamp((e.clientX - r.left) / r.width, 0, .9999) * this.Q.length)); });
     let idle; R.addEventListener('pointermove', () => { R.classList.remove('idle'); clearTimeout(idle); idle = setTimeout(() => { if (this.playing) R.classList.add('idle'); }, 2600); });
   },
   queue() {
+    if (this.custom) return this.custom;
     const Q = [];
     if (this.src === 'table') {
       const signs = F.signs.size ? L.signs.filter(s => F.signs.has(s.n)) : L.signs;
@@ -1221,6 +1242,7 @@ const Reel = {
   },
   close() {
     if (!this.root) return;
+    this.custom = null;
     this.pause(); if (this.closeFilm) this.closeFilm(); this.root.hidden = true; document.body.classList.remove('reeling');
     [this.va, this.vb].forEach(v => { v.removeAttribute('src'); v.dataset.key = ''; v.load(); });
   },
@@ -1228,7 +1250,8 @@ const Reel = {
     this.Q = this.queue(); this.i = 0;
     const R = this.root;
     $('#reelRail', R).innerHTML = '<div class="rail-ph"></div>' + this.Q.map((q, i) => q.type === 'card' ? `<i style="left:${i / Math.max(1, this.Q.length) * 100}%;background:${signColor(q.n)}"></i>` : '').join('');
-    $('#reelNote', R).textContent = `${this.Q.filter(q => q.type === 'card').length} signs · ${this.Q.filter(q => q.type === 'shot').length} shots` + (this.src === 'table' && F.signs.size ? ' · limited to the selected signs' : '');
+    $$('#reelSrc button', R).forEach(b => b.classList.toggle('on', !this.custom && b.dataset.v === this.src));
+    $('#reelNote', R).textContent = this.custom ? `montage · ${this.Q.filter(q => q.type === 'shot').length} clips in time order` : `${this.Q.filter(q => q.type === 'card').length} signs · ${this.Q.filter(q => q.type === 'shot').length} shots` + (this.src === 'table' && F.signs.size ? ' · limited to the selected signs' : '');
     if (!this.Q.length) { $('#reelCard', R).innerHTML = `<div class="c-name">Nothing to play in this selection.</div>`; $('#reelCard', R).hidden = false; return; }
     this.go(0); this.play();
   },
@@ -1240,7 +1263,12 @@ const Reel = {
     this.i = i; this.t = 0; this.stallT = 0; this.lastCT = -1;
     const q = this.item(), R = this.root, card = $('#reelCard', R), lower = $('#reelLower', R);
     clearTimeout(this.skipT);
-    if (q.type === 'card') {
+    if (q.type === 'card' && !L.S[q.n]) {        // a montage title card
+      card.style.setProperty('--c', '#ece6da');
+      card.innerHTML = `<div class="c-name">${esc(q.title || 'montage')}</div><div class="c-img">${esc(q.sub || '')}</div>${q.why ? `<div class="c-diff">${esc(q.why)}</div>` : ''}`;
+      card.hidden = false; card.classList.remove('in'); void card.offsetWidth; card.classList.add('in');
+      lower.hidden = true; this.cur.classList.remove('on'); this.cur.pause(); this.preload();
+    } else if (q.type === 'card') {
       const s = L.S[q.n];
       card.style.setProperty('--c', DOMC[s.dom]);
       card.innerHTML = `<div class="c-sym">${esc(s.symbol)}</div><div class="c-name">${esc(s.name)}</div><div class="c-img">${esc(s.image)} · ${esc(s.code)} · ${esc(s.n)}</div><div class="c-diff">${esc(s.difference || s.gloss || '')}</div>`;
@@ -1251,16 +1279,16 @@ const Reel = {
       const s = q.s, key = s.id;
       let v = this.cur;
       if (this.nxt.dataset.key === key) { v = this.nxt; this.nxt = this.cur; this.cur = v; }
-      else if (v.dataset.key !== key) this.assign(v, s);
+      else if (v.dataset.key !== key) this.assign(v, s, qStart(q));
       this.nxt.classList.remove('on'); this.nxt.pause();
       v.classList.add('on'); v.playbackRate = this.speed;
-      const t0 = reelStart(s);
-      this.t0 = t0; this.limit = Math.min(s._dur || 5, t0 + 5);
+      const t0 = qStart(q);
+      this.t0 = t0; this.limit = q.b != null ? Math.max(t0 + .2, q.b) : Math.min(s._dur || 5, t0 + 5);
       this.lastCT = -1;
       if (v.readyState >= 1) { try { v.currentTime = t0; } catch (e) { /* not ready */ } if (this.playing) v.play().catch(() => {}); }
       const e = q.e, sg = q.n && L.S[q.n];
       lower.innerHTML = `<div class="l-row">${q.n ? chip(q.n) : ''}<span class="l-sign">${sg ? esc(sg.name) : 'unread'}</span>${e ? `<span class="l-conf">${e.conf ?? '—'}%</span>` : ''}</div>
-        <div class="l-note">${e ? esc(e.note) : esc(((s.found || [])[0] || {}).q || '')}</div>
+        <div class="l-note">${q.note ? esc(q.note) : e ? esc(e.note) : esc(((s.found || [])[0] || {}).q || '')}</div>
         <div class="l-meta">${esc(s.title)} · ${s.year ?? 'undated'} · ${tc(s.start || 0)}</div>
         ${e && e.conf != null ? readingBar(q.n, e) : ''}`;
       lower.hidden = false;
@@ -1271,18 +1299,18 @@ const Reel = {
   preload() {
     for (let j = this.i + 1; j < Math.min(this.Q.length, this.i + 4); j++) {
       const q = this.Q[j]; if (q.type !== 'shot') continue;
-      if (this.nxt.dataset.key !== q.s.id) this.assign(this.nxt, q.s);
+      if (this.nxt.dataset.key !== q.s.id) this.assign(this.nxt, q.s, qStart(q));
       break;
     }
   },
   /** load shot s into video v (local clips arrive as blobs so they can seek); seek to its start frame and play if current */
-  assign(v, s) {
+  assign(v, s, t0) {
     const key = s.id; v.dataset.key = key; v._shot = s; v.pause(); v.removeAttribute('src');
     playable(s).then(url => {
       if (v.dataset.key !== key) return;
       v.addEventListener('loadedmetadata', () => {
         if (v.dataset.key !== key) return;
-        try { v.currentTime = reelStart(s); } catch (e) { /* ignore */ }
+        try { v.currentTime = t0 != null ? t0 : reelStart(s); } catch (e) { /* ignore */ }
         if (v === this.cur && this.playing) v.play().catch(() => {});
       }, { once: true });
       v.preload = 'auto'; v.src = url;
@@ -1332,7 +1360,7 @@ const Reel = {
     const R = this.root; if (!R) return;
     $('[data-a="play"]', R).textContent = this.playing ? '❚❚' : '▶';
     $$('#reelSpeed button', R).forEach(b => b.classList.toggle('on', +b.dataset.v === this.speed));
-    $$('#reelSrc button', R).forEach(b => b.classList.toggle('on', b.dataset.v === this.src));
+    $$('#reelSrc button', R).forEach(b => b.classList.toggle('on', !this.custom && b.dataset.v === this.src));
     const q = this.item();
     const signsTotal = this.Q.filter(x => x.type === 'card').length;
     let si = 0; for (let j = 0; j <= this.i && j < this.Q.length; j++) if (this.Q[j].type === 'card') si++;
@@ -1351,6 +1379,7 @@ const Reel = {
     return true;
   },
 };
+const qStart = q => q.a != null ? Math.max(0, q.a) : reelStart(q.s);
 const reelStart = s => s.read_t != null ? Math.max(0, s.read_t - 0.6) : 0;
 /* server.py serves byte ranges, so local clips stream and seek directly; remote clips are range-capable too. */
 /** a local clip that 404s (e.g. not published to Pages) falls back once to the archive's remote mp4 */
@@ -1415,6 +1444,7 @@ const Inspector = {
             <input id="insNote" placeholder="note — why this sub-shot is this sign" spellcheck="false">
             <span class="ab-read" id="insABread"></span>
             <button id="insSave">save sub-shot</button>
+            <span class="ins-send" id="insSend"></span>
             <span id="insSaved"></span>
           </div>
         </div>
@@ -1426,6 +1456,13 @@ const Inspector = {
     $('#insSign', R).innerHTML = L.signs.map(s => `<option value="${esc(s.n)}">${esc(s.symbol)} · ${esc(s.name)}</option>`).join('');
     $('.scrub-btns', R).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.v != null) this.setSpeed(+b.dataset.v); else this.act(b.dataset.a); });
     $('#insSave', R).onclick = () => this.save();
+    $('#insSend', R).addEventListener('click', e => {
+      const b = e.target.closest('[data-send]'); if (!b) return; const s = this.s;
+      const ab = this.A != null && this.B != null;
+      const n = s._read[0] || null;
+      Send.go(b.dataset.send, `${s.title}${ab ? ` · ${this.A.toFixed(1)}–${this.B.toFixed(1)}s` : ''}`, 'sequence',
+        [ab ? { s, n, a: +this.A.toFixed(3), b: +this.B.toFixed(3) } : { s, n }]);
+    });
     v.addEventListener('loadedmetadata', () => { this.fitFrame(); this.ticks(); this.marks(); if (this.pendingSeek != null) { v.currentTime = this.pendingSeek; this.pendingSeek = null; } });
     v.addEventListener('error', () => !remoteFallback(v, this.s) && v.getAttribute('src') && this.msg('video could not be loaded — ' + (this.s && this.s.clip ? 'local clip missing' : 'remote source unavailable')));
     v.addEventListener('play', () => this.paintPlay()); v.addEventListener('pause', () => this.paintPlay());
@@ -1445,6 +1482,7 @@ const Inspector = {
     if (!this.root) this.build();
     this.list = list && list.length ? list : [s];
     this.root.hidden = false; document.body.classList.add('inspecting');
+    Guide.mark(2);
     if (Shell.mode === 'reel') Reel.pause();
     this.load(s);
   },
@@ -1470,12 +1508,13 @@ const Inspector = {
       v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
     });
     const i = this.list.indexOf(s);
-    $('#insTitle', R).innerHTML = `${s._live ? '<span class="livebadge">LIVE</span>' : ''}<b>${esc(s.title)}</b> <span>${s.year ?? 'undated'} · ${tc(s.start || 0)} – ${tc(s.end || 0)} · ${s.clip ? 'local clip' : 'remote'}</span>${this.list.length > 1 ? `<em>${i + 1} / ${fmt(this.list.length)}</em>` : ''}`;
+    $('#insTitle', R).innerHTML = `${s._live ? '<span class="livebadge">LIVE</span>' : ''}${colBadge(s) || '<span class="colbadge c">CINEOSIS</span>'}<b>${esc(s.title)}</b> <span>${s.year ?? 'undated'} · ${tc(s.start || 0)} – ${tc(s.end || 0)} · ${s.clip ? 'local clip' : 'remote'}</span>${this.list.length > 1 ? `<em>${i + 1} / ${fmt(this.list.length)}</em>` : ''}`;
     $('#insStrip', R).style.backgroundImage = s.strip ? `url("${s.strip}")` : `url("${s.thumb}")`;
     $('#insStrip', R).classList.toggle('thumbonly', !s.strip);
     const def = s._read[0] || s._found[0] || '1';
     $('#insSign', R).value = def;
     $('#insNote', R).value = ''; $('#insSaved', R).textContent = '';
+    $('#insSend', R).innerHTML = sendButtons();
     this.side(); this.cutLayer(); this.segLayer(); this.marks(); this.ticks(); this.paintSpeeds();
     cancelAnimationFrame(this.raf);
     const loop = () => { this.paint(); this.raf = requestAnimationFrame(loop); };
@@ -1566,6 +1605,7 @@ const Inspector = {
     const mine = L.assignments.filter(a => a.id === s.id).map(a => `<div class="fd">${chip(String(a.n), 'sm')}<span>${esc(a.note || '')}</span><em>${a.a != null ? (+a.a).toFixed(1) : '—'}–${a.b != null ? (+a.b).toFixed(1) : '—'}s</em></div>`).join('');
     const seg = this.segs(), cuts = !seg && s.cutouts && s.cutouts.length;
     R.querySelector('#insSide').innerHTML = `
+      ${wygBlock(s)}
       ${affinityBlock(s)}
       ${seg ? this.segBlock(seg) : (s._read.length ? `<div class="sd-block"><h4>segments over time</h4>${pend('SAM 2 tracking for this shot is still running — press ↻ later')}</div>` : '')}
       <div class="sd-block"><h4>editor’s reading</h4>${reads || pend(s._live ? 'live result — not read yet; assign it below' : 'not read — surfaced by search only')}</div>
@@ -1586,6 +1626,7 @@ const Inspector = {
     const ct = $('#insCutT', R); if (ct) ct.onclick = () => this.toggleCuts();
     const cs = $('#insCutSend', R); if (cs) cs.onclick = () => { Cuts.send(s); toast(`${s.cutouts.length} cut-out${s.cutouts.length > 1 ? 's' : ''} sent to the table`); };
     // affinity table: hover readout, click filters the wall
+    $$('.wy-go', R).forEach(b => { b.onclick = () => Wyg.goBeat(b.dataset.beat); });
     const at = $('.aff', R);
     if (at) {
       const out = $('.aff-read', R), def = out.innerHTML;
@@ -1593,6 +1634,7 @@ const Inspector = {
       at.addEventListener('pointerleave', () => { out.innerHTML = def; });
       at.addEventListener('click', e => {
         const c = e.target.closest('.ac'); if (!c) return;
+        if (e.altKey) { Send.sendFamily(c.dataset.n, 'cut'); return; }
         F.signs = new Set([c.dataset.n]); this.close(); if (Shell.mode !== 'wall') Shell.setMode('wall'); refresh();
         toast(`wall filtered to ${L.S[c.dataset.n].symbol} · ${L.S[c.dataset.n].name}`);
       });
@@ -1740,7 +1782,20 @@ const Inspector = {
   },
 };
 
-/* ---- inspector helpers: affinity table, segment colours, animated sprites */
+/* ---- inspector helpers: WYGWYL block, affinity table, segment colours, animated sprites */
+function wygBlock(s) {
+  const w = s.wygwyl; if (!w) return '';
+  const B = (L.wyg && L.wyg.beats) || [], byId = id => B.find(b => String(b.id) === String(id));
+  const beats = (w.beats || []).map(id => { const b = byId(id); return `<button class="ghost wy-go" data-beat="${esc(String(id))}" title="${b ? esc(b.title) : ''}">#${esc(String(id))}${b ? ' · ' + esc(b.title) : ''}</button>`; }).join('');
+  const ch = w.chosen != null ? byId(w.chosen) : null;
+  return `<div class="sd-block wyblock"><h4>WYGWYL <small>Forage Suite review</small></h4>
+    <div class="kv"><span>grade</span><b><span class="gr g-${esc(w.grade || 'U')}">${esc(w.grade || 'U')}</span> ${w.grade === 'U' || !w.grade ? 'unreviewed' : 'reviewed'}</b></div>
+    ${w.chosen != null ? `<p class="wy-chosen">chosen for beat <button class="ghost wy-go" data-beat="${esc(String(w.chosen))}">#${esc(String(w.chosen))}${ch ? ' · ' + esc(ch.title) : ''}</button></p>` : ''}
+    ${w.observed ? `<h5>observed</h5><p class="wy-p">${esc(w.observed)}</p>` : ''}
+    ${w.use ? `<h5>use</h5><p class="wy-p">${esc(w.use)}</p>` : ''}
+    ${beats ? `<h5>candidate for</h5><div class="wy-beatlinks">${beats}</div>` : ''}
+    ${(w.queries || []).filter(Boolean).length ? `<p class="hint">foraged with: ${w.queries.filter(Boolean).slice(0, 4).map(q => '“' + esc(q) + '”').join(' · ')}</p>` : ''}</div>`;
+}
 const SEGC = ['#ffd166', '#7fd1ff', '#9ef01a', '#f78cff', '#5ef2c9', '#ffa94d', '#c3b5ff'];
 function segColor(o, i) { return o.role === 'reading' ? '#ffffff' : SEGC[i % SEGC.length]; }
 function affinityBlock(s) {
@@ -1758,7 +1813,7 @@ function affinityBlock(s) {
   const top = (s.aff_top || []).slice(0, 3).map(([n, v], i) => { const sg = L.S[String(n)]; if (!sg) return ''; return `
     <div class="sug"><div class="sug-h"><span class="sug-i">${i + 1}</span>${chip(sg.n)}<b>${esc(sg.name)}</b><em>${(+v).toFixed(1)}%</em></div>
       <p>${esc(sg.difference || sg.gloss || '')}</p></div>`; }).join('');
-  const def = A ? `hover a sign for its affinity · click to filter the wall` : 'affinity not computed for this shot';
+  const def = A ? `hover a sign for its affinity · click to filter the wall · ⌥-click sends its family to CUT` : 'affinity not computed for this shot';
   return `<div class="sd-block affblock"><h4>the 45 signs</h4>
     <div class="aff">${cells}</div>
     <div class="aff-key"><span><i class="k-rd"></i>editor’s reading + conf %</span><span><i class="k-alt"></i>rival</span><span><i class="k-dot"></i>found by its search</span><span><i class="k-heat"></i>machine affinity</span></div>
@@ -1847,8 +1902,726 @@ function fromClip(c) {
   };
 }
 
+/* ================================================================ SEND (lab → editors, contract: tools/bridge.js) */
+const TOOLS = {
+  cut: { url: 'tools/cut.html', win: 'cineosis-cut', name: 'CUT' },
+  room: { url: 'tools/hand-butter.html', win: 'cineosis-room', name: 'the Cutting Room' },
+};
+const LAYOUTS = ['sequence', 'grid', 'cascade', 'split'];
+const BUS = 'BroadcastChannel' in window ? new BroadcastChannel('cineosis') : null;
+const Send = {
+  /** default in/out for a shot: a window round the read frame for read shots, the whole clip otherwise */
+  win(s) {
+    if (s.read_t == null || !s._read.length) return [null, null];
+    return [+Math.max(0, s.read_t - 1.5).toFixed(3), +Math.min(s._dur, s.read_t + 2.5).toFixed(3)];
+  },
+  media(s) {
+    if (L.server) return new URL('/media/' + s.id + '.mp4', location).href;
+    return s.clip ? new URL(s.clip, location).href : null;
+  },
+  /** one bin item, or null when the media can't be served same-origin (static site, unread shot) */
+  item(s, n, a, b, place, note) {
+    const media = this.media(s); if (!media) return null;
+    n = n || s._read[0] || null;
+    const e = n ? entryOf(s, n) : null, sg = n ? L.S[n] : null;
+    if (a === undefined) [a, b] = this.win(s);
+    const it = { shot: s.id, title: s.title, year: s.year ?? null, n, symbol: sg ? sg.symbol : null, note: note || (e ? e.note : ''), a: a ?? null, b: b ?? null, media };
+    if (place) it.place = place;
+    return it;
+  },
+  /** entries: [{s, n?, a?, b?, place?, note?}] */
+  go(tool, title, layout, entries) {
+    const T = TOOLS[tool];
+    if (tool === 'room' && !L.server) { toast('the Cutting Room is local-only — run python3 lab/server.py'); return; }
+    const items = [], total = entries.length;
+    for (const x of entries) { const it = this.item(x.s, x.n, x.a, x.b, x.place, x.note); if (it) items.push(it); }
+    const skipped = total - items.length;
+    if (!items.length) { toast(skipped ? `nothing to send: none of these ${skipped} shots has a clip on this static site` : 'nothing to send'); return; }
+    const bin = { id: 'lab-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7), title, layout: tool === 'room' ? 'sequence' : (layout || 'sequence'), items };
+    try { localStorage.setItem('cineosis.bin', JSON.stringify(bin)); } catch (e) { /* storage blocked: the channel still carries it */ }
+    const w = window.open(T.url, T.win);
+    if (BUS) BUS.postMessage({ type: 'bin', bin });
+    toast(`${items.length} shot${items.length > 1 ? 's' : ''} → ${T.name} · ${bin.layout}${skipped ? ` · ${skipped} skipped (no clip on the static site)` : ''}${w ? '' : ' · allow pop-ups for this page'}`, 4200);
+  },
+  /** a sign's read shots, best conf first, with read windows */
+  family(n) {
+    return L.shots.filter(s => s._read.includes(n))
+      .sort((a, b) => ((entryOf(b, n) || {}).conf || 0) - ((entryOf(a, n) || {}).conf || 0)).map(s => ({ s, n }));
+  },
+  sendFamily(n, tool = 'cut') {
+    const sg = L.S[n], fam = this.family(n);
+    if (!fam.length) { toast(`${sg.symbol} has no read shots yet`); return; }
+    this.go(tool, `${sg.symbol} · ${sg.name} — the family`, 'sequence', fam);
+  },
+  sendView(tool, layout) {
+    const list = viewList(), ent = list.slice(0, 24).map(s => ({ s, n: signOf(s) }));
+    if (!ent.length) { toast('the view is empty'); return; }
+    if (list.length > 24) toast(`sending the first 24 of ${fmt(list.length)} shots in the view`, 3000);
+    this.go(tool, `view · ${fmt(list.length)} shots${F.signs.size ? ' · ' + [...F.signs].map(n => L.S[n].symbol).join(' ') : ''}`, layout, ent);
+  },
+};
+function sendButtons(extra = '') {
+  return `<button class="ghost send" data-send="cut" title="send to CUT — the frame, depth as time">→ CUT</button>` +
+    (L.server ? `<button class="ghost send" data-send="room" title="send to the WAG Cutting Room (local only)">→ Cutting Room</button>` : '') + extra;
+}
+
+/* ================================================================ MONTAGE (recipes for relational signs + saved edits) */
+const RECIPES = [
+  { id: 'markdemark', title: 'Mark → Demark', signs: ['31', '32'], layout: 'sequence', why: 'a series, then the term that breaks it',
+    build: () => [...Send.family('31').slice(0, 3), ...Send.family('32').slice(0, 1)] },
+  { id: 'peaks', title: 'Peaks of the present', signs: ['38'], layout: 'grid', why: 'several presents, simultaneously valid',
+    build: () => Send.family('38').slice(0, 4) },
+  { id: 'sheets', title: 'Sheets of the past', signs: ['39'], layout: 'cascade', why: 'layers of the past coexisting',
+    build: () => Send.family('39') },
+  { id: 'forking', title: 'Forking paths', signs: ['30'], layout: 'split', why: 'incompatible pasts, both running — two at a time, side by side',
+    build: () => Send.family('30') },
+  { id: 'binomial', title: 'Binomial', signs: ['14'], layout: 'split', why: 'two sides of a duel',
+    build: () => Send.family('14').slice(0, 2) },
+  { id: 'destiny', title: 'Strong destiny → what it determines', signs: ['28'], layout: 'sequence', why: 'a destiny, then the shot it determines (next in your current selection — swap it for your pick)',
+    build: () => { const d = Send.family('28').slice(0, 1); const nx = viewList().find(s => !s._read.includes('28')); return nx ? [...d, { s: nx, n: signOf(nx) }] : d; } },
+  { id: 'any', title: 'Any sign, any layout', signs: [], layout: 'sequence', why: 'pick a sign (its family) or take the current selection', any: true,
+    build: () => Montage.anySrc === 'view' ? viewList().slice(0, 24).map(s => ({ s, n: signOf(s) })) : Send.family(Montage.anySign) },
+  { id: 'wychapter', title: 'WYGWYL chapter', signs: [], layout: 'sequence', wyg: true, why: 'a chapter of the Forage Suite: its beats’ A clips in cut order, trimmed as the cut trims them',
+    build: () => Wyg.beats().filter(b => b.chapter === Montage.wyCh && b.a && L.byId.get(b.a.id)).map(b => {
+      const len = (b.end - b.start) * (b.rate || 1), a = +(b.trim || 0);
+      return { s: L.byId.get(b.a.id), n: b.codes && b.codes[0] != null ? String(b.codes[0]) : null, a, b: +(a + len).toFixed(3), note: `#${b.id} ${b.title}` };
+    }) },
+  { id: 'wycands', title: 'WYGWYL beat’s candidates', signs: [], layout: 'grid', wyg: true, why: 'every shot the forage found for one beat, reviewed first — to choose between them in the frame',
+    build: () => { const b = Wyg.beats().find(x => String(x.id) === String(Montage.wyBeat)); return b ? Wyg.candidates(b).slice(0, 24).map(s => ({ s, n: signOf(s) })) : []; } },
+];
+const Montage = {
+  host: null, state: {}, edits: [], anySign: '32', anySrc: 'sign', wyCh: 0, wyBeat: null,
+  mount(host) {
+    if (this.host) return;
+    this.host = host;
+    host.innerHTML = `<div class="mont">
+      <section class="mont-col"><div class="mont-h"><h2>Montage recipes</h2><p>Some signs are relations between shots — a series and its break, presents side by side, pasts that fork. One shot can’t carry them; a cut can. Each recipe builds a bin for the editors: check the shots, drag to reorder, × to drop, ⇄ to swap in the next shot from your current view.</p></div>
+        <div id="recipes"></div></section>
+      <section class="mont-col"><div class="mont-h"><h2>Edits</h2><p>Montages saved back from CUT or the Cutting Room (“↩ lab”). They are the corpus’s new material: sequences where relational signs can actually happen. <span id="editsSrc"></span></p>
+        <div class="cutbtns"><button class="ghost" id="editsRefresh">refresh</button></div></div>
+        <div id="edits"></div></section></div>`;
+    $('#editsRefresh', host).onclick = () => this.loadEdits();
+    $('#recipes', host).addEventListener('click', e => this.onRecipe(e));
+    $('#recipes', host).addEventListener('change', e => {
+      const card = e.target.closest('.rc-card'); if (!card) return; const id = card.dataset.id;
+      if (e.target.matches('.rc-layout')) this.state[id].layout = e.target.value;
+      if (e.target.matches('.rc-sign')) { this.anySign = e.target.value; this.anySrc = 'sign'; this.reset(id); }
+      if (e.target.matches('.rc-src')) { this.anySrc = e.target.value; this.reset(id); }
+      if (e.target.matches('.rc-wych')) { this.wyCh = +e.target.value; this.reset(id); }
+      if (e.target.matches('.rc-wybeat')) { this.wyBeat = e.target.value; this.reset(id); }
+    });
+    // drag to reorder thumbnails inside a recipe
+    let drag = null;
+    $('#recipes', host).addEventListener('dragstart', e => { const t = e.target.closest('.rt'); if (!t) return; drag = t; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', t.dataset.i); } catch (er) { /* ignore */ } });
+    $('#recipes', host).addEventListener('dragover', e => { if (drag && e.target.closest('.rthumbs') === drag.parentNode) e.preventDefault(); });
+    $('#recipes', host).addEventListener('drop', e => {
+      const t = e.target.closest('.rt'); if (!drag || !t || t.parentNode !== drag.parentNode) return; e.preventDefault();
+      const id = t.closest('.rc-card').dataset.id, L2 = this.state[id].list, from = +drag.dataset.i, to = +t.dataset.i;
+      const [x] = L2.splice(from, 1); L2.splice(to, 0, x); drag = null; this.renderRecipe(id);
+    });
+    $('#recipes', host).addEventListener('dragend', () => { drag = null; });
+    $('#edits', host).addEventListener('click', e => this.onEdit(e));
+    if (BUS) BUS.addEventListener('message', e => { if (e.data && e.data.type === 'edit') { this.loadEdits(); toast('a montage came back from the editor'); } });
+  },
+  show() { this.renderRecipes(); this.loadEdits(); },
+  update() { /* recipes keep their picks; the view only feeds ⇄ and “current selection” */ },
+  reset(id) { const r = RECIPES.find(x => x.id === id); this.state[id] = { list: r.build(), layout: this.state[id] ? this.state[id].layout : r.layout }; this.renderRecipe(id); },
+  renderRecipes() {
+    const box = $('#recipes', this.host);
+    const list = RECIPES.filter(r => !r.wyg || (L.wyg && Wyg.beats().length));
+    if (this.wyBeat == null && Wyg.beats().length) this.wyBeat = String(Wyg.beats()[0].id);
+    box.innerHTML = list.map(r => `<div class="rc-card" data-id="${r.id}"></div>`).join('');
+    list.forEach(r => { if (!this.state[r.id]) this.state[r.id] = { list: r.build(), layout: r.layout }; this.renderRecipe(r.id); });
+  },
+  renderRecipe(id) {
+    const r = RECIPES.find(x => x.id === id), st = this.state[id], card = $(`.rc-card[data-id="${id}"]`, this.host); if (!card) return;
+    const signs = r.any ? (this.anySrc === 'sign' ? [this.anySign] : []) : r.signs;
+    const thumbs = st.list.map((x, i) => `<div class="rt" draggable="true" data-i="${i}" title="${esc(x.s.title)} · ${x.s.year ?? '—'}">
+        <img src="${esc(x.s.thumb)}" alt="" draggable="false" onerror="this.style.visibility='hidden'">${x.n && L.S[x.n] ? chip(x.n, 'sm') : ''}
+        <button class="rt-x" data-act="drop" data-i="${i}" title="drop">×</button><button class="rt-s" data-act="swap" data-i="${i}" title="swap for the next shot in your view">⇄</button></div>`).join('');
+    const anyCtl = r.any ? `<div class="rc-any"><select class="rc-src"><option value="sign"${this.anySrc === 'sign' ? ' selected' : ''}>a sign’s family</option><option value="view"${this.anySrc === 'view' ? ' selected' : ''}>current selection (24)</option></select>
+        <select class="rc-sign"${this.anySrc === 'view' ? ' disabled' : ''}>${L.signs.map(s => `<option value="${s.n}"${s.n === this.anySign ? ' selected' : ''}>${esc(s.symbol)} · ${esc(s.name)}</option>`).join('')}</select></div>` : '';
+    const wyCtl = r.id === 'wychapter' ? `<div class="rc-any"><select class="rc-wych">${Wyg.films().map((f, i) => `<option value="${i}"${i === this.wyCh ? ' selected' : ''}>${esc(f.n)} · ${esc(f.title)}</option>`).join('')}</select></div>`
+      : r.id === 'wycands' ? `<div class="rc-any"><select class="rc-wybeat">${Wyg.beats().map(b => `<option value="${esc(String(b.id))}"${String(b.id) === String(this.wyBeat) ? ' selected' : ''}>#${esc(String(b.id))} · ${esc(b.title)}</option>`).join('')}</select></div>` : '';
+    card.innerHTML = `<div class="rc-h">${r.wyg ? '<span class="colbadge">WYGWYL</span>' : ''}${signs.map(n => chip(n)).join('<span class="arr">→</span>')}<b>${esc(r.title)}</b></div>
+      <p class="rc-why">${esc(r.why)}</p>${anyCtl}${wyCtl}
+      <div class="rthumbs">${thumbs || '<span class="pending">no read shots for this recipe yet</span>'}</div>
+      <div class="rc-foot"><label>layout <select class="rc-layout">${LAYOUTS.map(l => `<option${l === st.layout ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+        <button class="ghost" data-act="add" title="add the next shot from your current view">+ from view</button><button class="ghost" data-act="reset">reset</button>
+        <button class="ghost" data-act="play" title="play it here, in the reel">play here</button>${sendButtons()}</div>`;
+  },
+  onRecipe(e) {
+    const b = e.target.closest('button'); if (!b) return;
+    const card = b.closest('.rc-card'), id = card.dataset.id, r = RECIPES.find(x => x.id === id), st = this.state[id];
+    const nextFromView = () => { const used = new Set(st.list.map(x => x.s.id)); const s = viewList().find(v => !used.has(v.id)); return s ? { s, n: signOf(s) } : null; };
+    const act = b.dataset.act, i = +b.dataset.i;
+    if (act === 'drop') st.list.splice(i, 1);
+    else if (act === 'swap') { const nx = nextFromView(); if (nx) st.list[i] = nx; else toast('no unused shot in the current view'); }
+    else if (act === 'add') { const nx = nextFromView(); if (nx) st.list.push(nx); else toast('no unused shot in the current view'); }
+    else if (act === 'reset') return this.reset(id);
+    else if (act === 'play') return this.play(r.title, r.why, st.list.map(x => { const [a, bb] = x.a !== undefined ? [x.a, x.b] : Send.win(x.s); return { s: x.s, n: x.n, a, b: bb, note: x.note }; }));
+    else if (b.dataset.send) return Send.go(b.dataset.send, `${r.title}${r.any && this.anySrc === 'sign' ? ' · ' + L.S[this.anySign].name : ''}`, st.layout, st.list);
+    else return;
+    this.renderRecipe(id);
+  },
+  /** play a list of {s,n,a,b,note} in the reel */
+  play(title, why, list) {
+    const Q = [{ type: 'card', n: null, title, sub: `${list.length} clips`, why }];
+    for (const x of list) { if (!x.s) continue; const n = x.n && L.S[x.n] ? x.n : null; Q.push({ type: 'shot', s: x.s, n, e: n ? entryOf(x.s, n) : null, a: x.a, b: x.b, note: x.note }); }
+    if (Q.length < 2) { toast('none of these clips are in the corpus'); return; }
+    Reel.custom = Q;
+    if (Shell.mode === 'reel') Reel.start(); else Shell.setMode('reel');
+  },
+  async loadEdits() {
+    let rows = [];
+    if (L.server) {
+      try { const r = await fetch('/api/edits', { cache: 'no-store' }); if (r.ok) rows = await r.json(); } catch (e) { rows = []; }
+    } else { try { rows = JSON.parse(localStorage.getItem('cineosis.edits') || '[]'); } catch (e) { rows = []; } }
+    this.edits = (Array.isArray(rows) ? rows : []).slice().sort((a, b) => String(b.ts || '').localeCompare(String(a.ts || '')));
+    if (this.host) this.renderEdits();
+  },
+  renderEdits() {
+    $('#editsSrc', this.host).textContent = L.server ? 'Listed from lab/edits/ on the local server.' : 'Static site: listed from this browser (the editors keep them here and download a JSON).';
+    const box = $('#edits', this.host);
+    if (!this.edits.length) { box.innerHTML = `<div class="empty"><b>No montages yet.</b><p>Send a recipe to CUT, cut it, and press “↩ lab” in the editor. It will appear here.</p></div>`; return; }
+    box.innerHTML = this.edits.map((ed, i) => {
+      const clips = ed.clips || [], signs = [...new Set((ed.signs && ed.signs.length ? ed.signs : clips.map(c => c.n)).filter(Boolean).map(String))];
+      const strip = clips.slice(0, 16).map(c => { const s = c.shot && L.byId.get(c.shot); return s ? `<img src="${esc(s.thumb)}" alt="" title="${esc(s.title)}" onerror="this.style.visibility='hidden'">` : '<i></i>'; }).join('');
+      return `<div class="ed" data-i="${i}"><div class="ed-h"><b>${esc(ed.title || 'untitled montage')}</b><span>${esc(ed.tool || 'edit')} · ${esc(String(ed.ts || '').replace('T', ' '))} · ${clips.length} clip${clips.length === 1 ? '' : 's'}</span></div>
+        <div class="ed-signs">${signs.map(n => chip(n)).join('')}</div>
+        <div class="ed-strip">${strip}</div>
+        <div class="cutbtns"><button class="ghost" data-act="play">play here</button><button class="ghost" data-act="cut">reopen in CUT</button><button class="ghost" data-act="json">export JSON</button></div></div>`;
+    }).join('');
+  },
+  onEdit(e) {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const ed = this.edits[+b.closest('.ed').dataset.i]; if (!ed) return;
+    const clips = (ed.clips || []).slice().sort((a, c) => (a.t || 0) - (c.t || 0));
+    const known = clips.filter(c => c.shot && L.byId.get(c.shot));
+    if (b.dataset.act === 'json') {
+      const url = URL.createObjectURL(new Blob([JSON.stringify(ed, null, 1)], { type: 'application/json' }));
+      const a = document.createElement('a'); a.href = url; a.download = `montage-${(ed.title || 'untitled').replace(/[^\w-]+/g, '-').slice(0, 40)}.json`;
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000); return;
+    }
+    if (!known.length) { toast('none of this montage’s clips are corpus shots'); return; }
+    const miss = clips.length - known.length;
+    if (b.dataset.act === 'play') {
+      this.play(ed.title || 'montage', `${ed.tool || 'edit'}${miss ? ` · ${miss} clip(s) not in the corpus skipped` : ''}`,
+        known.map(c => ({ s: L.byId.get(c.shot), n: c.n != null ? String(c.n) : null, a: c.in, b: c.out, note: c.note })));
+    } else if (b.dataset.act === 'cut') {
+      Send.go('cut', ed.title || 'reopened montage', 'sequence', known.map(c => ({ s: L.byId.get(c.shot), n: c.n != null ? String(c.n) : null, a: c.in ?? null, b: c.out ?? null, note: c.note,
+        place: c.x != null && c.w != null ? { t: c.t || 0, x: c.x, y: c.y, w: c.w, h: c.h } : { t: c.t || 0, x: 0, y: 0, w: 1, h: 1 } })));
+    }
+  },
+};
+
+/* ================================================================ WYGWYL (the Forage Suite cut as an inspectable archive) */
+function setVT(v, t) {
+  if (v.readyState >= 1) { try { v.currentTime = t; } catch (e) { /* ignore */ } return; }
+  v._wantT = t;
+  if (!v._wantL) { v._wantL = true; v.addEventListener('loadedmetadata', () => { v._wantL = false; try { v.currentTime = v._wantT; } catch (e) { /* ignore */ } }, { once: true }); }
+}
+/** is there a pre-rendered wygwyl/cuts/grid.mp4? The local server lists the folder (no 404 noise); elsewhere ask with HEAD */
+async function probeGrid() {
+  const url = 'wygwyl/cuts/grid.mp4';
+  try {
+    if (L.server) { const r = await fetch('wygwyl/cuts/', { cache: 'no-store' }); return r.ok && /href="grid\.mp4"/.test(await r.text()) ? url : null; }
+    const r = await fetch(url, { method: 'HEAD', cache: 'no-store' }); return r.ok ? url : null;
+  } catch (e) { return null; }
+}
+const MODE_GLYPH = { hold: '▮', split: '◧', inset: '▣', dissolve: '◐', montage: '▦', black: '■' };
+const GRADE_ORDER = g => g && g !== 'U' ? g.charCodeAt(0) : 999;
+const Wyg = {
+  host: null, cur: -1, playing: false, useFilm: false, raf: 0, cuts: [], ci: 0, patches: null, cutsLoaded: false,
+  grid: false, gridFile: false, gridURL: null, gv: [], gcuts: [], focus: 0, syncT: 0,
+  beats() { return (L.wyg && L.wyg.beats) || []; },
+  films() { return (L.wyg && L.wyg.films) || []; },
+  cut() { return this.cuts[this.ci] || null; },
+  /** the ribbon's cells: the selected cut's patches when it has them, else the original cut's beats */
+  cells() { return this.patches || this.beats(); },
+  dur() { const c = this.cut(); return (c && c.duration) || (L.wyg && L.wyg.cut && L.wyg.cut.duration) || 1440; },
+  mount(host) {
+    if (this.host) return;
+    this.host = host;
+    host.innerHTML = `<div class="wyg">
+      <div class="wy-top"><div class="wy-cuts" id="wyCuts"></div><div class="wy-ribbon" id="wyRibbon"><div class="wy-ph" id="wyPH"></div></div></div>
+      <div class="wy-main">
+        <div class="wy-stage">
+          <div class="wy-view" id="wyView"><video id="wyFilm" playsinline preload="auto"></video>
+            <div class="wy-grid" id="wyGrid" hidden>${[0, 1, 2, 3].map(i => `<div class="wg-cell" data-q="${i}"><video playsinline muted preload="auto"></video><span class="wg-l"></span></div>`).join('')}</div><div class="wy-mock" id="wyMock" hidden></div><div class="wy-fallback" id="wyFallback" hidden></div></div>
+          <div class="wy-ctl">
+            <button class="ghost" data-a="prev" title="previous (←)">⏮</button><button class="ghost big" data-a="play" title="play / pause (space)">▶</button><button class="ghost" data-a="next" title="next (→)">⏭</button>
+            <span class="wy-tc" id="wyTC">00:00</span>
+            <span class="wy-src" id="wySrc"></span>
+            <span class="wy-links">
+              <button class="ghost send" data-a="cut">open in CUT</button>
+              <button class="ghost send" data-a="wag" id="wyWag">open in WAG</button>
+              <a class="ghost" href="wygwyl/player.html" target="_blank" rel="noopener">original Forage player ↗</a>
+              <button class="ghost" data-a="json">cut JSON</button>
+              <a class="ghost" href="wygwyl/WYGWYL_Forage_Catalogue.json" download>catalogue JSON</a>
+            </span>
+          </div>
+        </div>
+        <aside class="wy-card" id="wyCard"></aside>
+      </div>
+      <audio id="wyAudio" preload="metadata"></audio></div>`;
+    this.audio = $('#wyAudio', host); this.film = $('#wyFilm', host);
+    $('.wy-ctl', host).addEventListener('click', e => { const b = e.target.closest('button[data-a]'); if (b) this.act(b.dataset.a); });
+    $('#wyCuts', host).addEventListener('click', e => {
+      if (e.target.closest('[data-grid]')) { this.toggleGrid(); return; }
+      if (e.target.closest('[data-gridfile]')) { this.toggleGridFile(); return; }
+      const b = e.target.closest('[data-ci]'); if (b) { if (this.grid) this.leaveGrid(+b.dataset.ci); else this.setCut(+b.dataset.ci); }
+    });
+    this.gv = $$('#wyGrid video', host);
+    const G = $('#wyGrid', host);
+    G.addEventListener('click', e => { const c = e.target.closest('.wg-cell'); if (c) this.setFocus(+c.dataset.q); });
+    G.addEventListener('dblclick', e => { const c = e.target.closest('.wg-cell'); if (!c) return; const k = this.cuts.indexOf(this.gcuts[+c.dataset.q]); if (k >= 0) this.leaveGrid(k); });
+    // the three followers mirror the master at once on play / pause / seek
+    const M = this.gv[0];
+    M.addEventListener('play', () => { if (this.grid && !this.gridFile) this.gv.slice(1).forEach(v => { if (v.getAttribute('src')) { v.currentTime = M.currentTime; v.play().catch(() => {}); } }); this.paintPlay(); });
+    M.addEventListener('pause', () => { if (this.grid && !this.gridFile) this.gv.slice(1).forEach(v => v.pause()); this.paintPlay(); });
+    M.addEventListener('seeking', () => { if (this.grid && !this.gridFile) this.gv.slice(1).forEach(v => { if (v.readyState >= 1) v.currentTime = M.currentTime; }); });
+    this.syncT = setInterval(() => this.drift(), 500);
+    const rib = $('#wyRibbon', host); let drag = false;
+    const seekAt = e => { const r = rib.getBoundingClientRect(); this.seek(clamp((e.clientX - r.left) / r.width, 0, 1) * this.dur()); };
+    rib.addEventListener('pointerdown', e => { rib.setPointerCapture(e.pointerId); drag = true; seekAt(e); });
+    rib.addEventListener('pointermove', e => { if (drag) seekAt(e); else { const c = e.target.closest('.wy-beat'); if (c) Tip.text(this.cellLabel(this.cells()[+c.dataset.i]), e); else Tip.hide(); } });
+    rib.addEventListener('pointerup', () => { drag = false; });
+    rib.addEventListener('pointerleave', () => Tip.hide());
+    $('#wyCard', host).addEventListener('click', e => this.onCard(e));
+    for (const m of [this.audio, this.film]) { m.addEventListener('play', () => this.paintPlay()); m.addEventListener('pause', () => this.paintPlay()); }
+    this.film.addEventListener('error', () => {
+      if (this.grid && this.gridFile) { this.gridFile = false; toast('the rendered grid could not be loaded — back to the four synced videos'); this.enterGrid(this._pendingT || 0, this.playing); return; }
+      if (!this.useFilm || !this.film.getAttribute('src')) return;
+      const t = this._pendingT || 0; this.useFilm = false; this.film.removeAttribute('src');
+      toast(`${this.cut() ? this.cut().title : 'this cut'}: the film could not be loaded — falling back to the stills mock-up`, 4000);
+      this.applyMaster(t, this.playing);
+    });
+  },
+  async show() {
+    if (!L.wyg) { $('#wyCard', this.host).innerHTML = `<div class="empty"><b>WYGWYL isn’t in lab-data.json yet.</b><p>The Forage Suite collection is being merged into the lab data — press ↻ in a few minutes.</p></div>`; return; }
+    $('#wyWag', this.host).hidden = !L.server;
+    if (!this.cutsLoaded) await this.loadCuts();
+    this.renderCuts();
+    this.ribbon();
+    if (this.cur < 0) this.select(0, false, true); else this.select(this.cur, false, true);
+    this.loop();
+  },
+  hide() { this.pause(); cancelAnimationFrame(this.raf); this.raf = 0; Tip.hide(); },
+  update() { /* the collection facet doesn't change the cut */ },
+  /* ---- the cuts: the original forage render + whatever lab/wygwyl/cuts/index.json lists */
+  async loadCuts() {
+    const orig = L.wyg.cut || {};
+    const list = [{ slug: 'forage', title: 'Forage cut (A/B compositions)', idea: 'The original forage: each of the 88 beats composed from its A and B shots (hold, split, inset, dissolve, montage).', film: orig.film || null, duration: orig.duration, patches: null }];
+    try {
+      const r = await fetch('wygwyl/cuts/index.json', { cache: 'no-store' });
+      if (r.ok) {
+        const j = await r.json(), arr = Array.isArray(j) ? j : (j.cuts || []);
+        for (const c of arr) { if (!c || !c.slug || c.slug === 'forage') continue; if (c.slug === 'grid') { this.gridURL = c.film || null; continue; } list.push(c); }
+        if (!Array.isArray(j) && j.grid) this.gridURL = typeof j.grid === 'string' ? j.grid : j.grid.film;
+      }
+    } catch (e) { /* no extra cuts yet */ }
+    this.cuts = list; this.cutsLoaded = true;
+    let slug = null; try { slug = localStorage.getItem('lab.wygwyl.cut'); } catch (e) { /* storage blocked */ }
+    const i = Math.max(0, list.findIndex(c => c.slug === slug));
+    await this.setCut(i, true);
+    this.gcuts = list.filter(c => c.slug !== 'forage' && c.film).slice(0, 4);
+    if (!this.gridURL && this.gcuts.length) this.gridURL = await probeGrid();
+    let g = false; try { g = localStorage.getItem('lab.wygwyl.grid') === '1'; } catch (e) { /* storage blocked */ }
+    if (g && this.gcuts.length > 1) await this.enterGrid(0, false);
+  },
+  renderCuts() {
+    const box = $('#wyCuts', this.host);
+    const gridBtn = this.gcuts.length > 1 ? `<button class="wy-cutb wy-gridb${this.grid ? ' on' : ''}" data-grid title="all ${this.gcuts.length} new cuts at once, in sync (G)">▦ grid</button>` +
+      (this.grid && this.gridURL ? `<button class="wy-cutb${this.gridFile ? ' on' : ''}" data-gridfile title="play the pre-rendered grid.mp4 instead of four synced videos">rendered grid</button>` : '') : '';
+    box.innerHTML = `<span class="wy-cuts-l">cut</span>` + this.cuts.map((c, i) => `<button class="wy-cutb${i === this.ci && !this.grid ? ' on' : ''}${this.grid && this.gcuts[this.focus] === c ? ' focus' : ''}" data-ci="${i}" title="${esc(c.idea || '')}">${esc(c.title || c.slug)}${c.film ? '' : ' <em>no film yet</em>'}</button>`).join('') + gridBtn +
+      (this.grid ? `<span class="wy-idea">${this.gridFile ? 'the rendered grid (one file)' : `four cuts in sync — the focused quadrant (<b>${esc(this.cut().title)}</b>) is the one you hear and read; double-click a quadrant to open it alone`}</span>`
+        : this.cut() && this.cut().idea ? `<span class="wy-idea">${esc(this.cut().idea)}</span>` : '') + `<span class="wy-keys">[ ] cut · G grid</span><a class="wy-cutb wy-page" href="./wygwyl.html" target="_blank" rel="noopener" title="Open the WYGWYL page in a new tab">Open WYGWYL page ↗</a>`;
+  },
+  async loadPatches(c) {
+    if (!c || !c.patches) return null;
+    if (c._patches !== undefined) return c._patches;
+    try {
+      const r = await fetch(c.patches, { cache: 'no-store' }); if (!r.ok) throw new Error(r.status);
+      const j = await r.json(), P = Array.isArray(j) ? j : (j.patches || []);
+      const out = P.map(p => ({ ...p, start: +p.t0, end: +p.t1 })).filter(p => isFinite(p.start) && isFinite(p.end)).sort((a, b) => a.start - b.start);
+      c._patches = out.length ? out : null;
+    } catch (e) { c._patches = null; }
+    return c._patches;
+  },
+  async setCut(i, quiet, tOver, playOver) {
+    if (!this.cuts.length) return;
+    i = (i + this.cuts.length) % this.cuts.length;
+    const t = tOver != null ? tOver : this.cutsLoaded && this.master() ? this.now() : 0, was = playOver != null ? playOver : this.playing;
+    this.pause();
+    this.ci = i; const c = this.cut();
+    try { localStorage.setItem('lab.wygwyl.cut', c.slug); } catch (e) { /* storage blocked */ }
+    this.patches = await this.loadPatches(c);
+    if (c.patches && !this.patches && !quiet) toast(`${c.title}: patches.json not readable — showing the original beats`);
+    this.useFilm = !!c.film;
+    this.cur = -1;
+    if (this.host) { this.renderCuts(); this.ribbon(); }
+    this.applyMaster(t, was);
+    const k = this.indexAt(t); this.select(k >= 0 ? k : 0, false, true);
+    if (!quiet) toast(`cut · ${c.title}`);
+  },
+  /** point the clock at the film (its own soundtrack is the suite audio) or, with no film, the suite audio + stills */
+  applyMaster(t, play) {
+    const c = this.cut() || {}, f = this.film, a = this.audio;
+    if (this.useFilm && c.film) {
+      a.pause(); a.removeAttribute('src'); a.load();
+      if (f.getAttribute('src') !== c.film) f.src = c.film;
+    } else {
+      this.useFilm = false;
+      f.pause(); f.removeAttribute('src'); f.load();
+      const au = (L.wyg.cut && L.wyg.cut.audio) || 'wygwyl/WYGWYL_Suite_Audio.mp3';
+      if (a.getAttribute('src') !== au) a.src = au;
+    }
+    f.hidden = !this.useFilm; $('#wyMock', this.host).hidden = this.useFilm || !!this.patches; $('#wyFallback', this.host).hidden = this.useFilm || !this.patches;
+    this.setTime(t || 0);
+    if (play) this.play();
+    this.paintSrc();
+  },
+  ribbon() {
+    const D = this.dur(), R = $('#wyRibbon', this.host);
+    const films = this.films().map(f => `<div class="wy-ch" style="left:${f.container[0] / D * 100}%;width:${(f.container[1] - f.container[0]) / D * 100}%" title="${esc(f.n)} · ${esc(f.title)}"><span>${esc(f.n)} ${esc(f.title)}</span></div>`).join('');
+    const cells = this.patches
+      ? this.patches.map((p, i) => { const th = p.clip && p.clip.thumb; return `<div class="wy-beat wy-patch${th ? '' : ' empty'}" data-i="${i}" style="left:${p.start / D * 100}%;width:${Math.max(.04, (p.end - p.start) / D * 100)}%;${th ? `background-image:url('${esc(th)}')` : ''}"></div>`; }).join('')
+      : this.beats().map((b, i) => `<div class="wy-beat m-${esc(b.mode)}" data-i="${i}" style="left:${b.start / D * 100}%;width:${Math.max(.05, (b.end - b.start) / D * 100)}%;${b.a && b.a.thumb ? `background-image:url('${esc(b.a.thumb)}')` : ''}"><i>${MODE_GLYPH[b.mode] || '·'}</i></div>`).join('');
+    R.innerHTML = `<div class="wy-chs">${films}</div><div class="wy-beats">${cells}</div><div class="wy-ph" id="wyPH"></div>`;
+  },
+  /** set the master clock; before its metadata has loaded, remember the time and apply it on load */
+  setTime(t) {
+    if (this.grid && !this.gridFile) { this.gv.forEach(v => { if (v.getAttribute('src')) setVT(v, t); }); this._pendingT = t; return; }
+    const m = this.master();
+    if (m.readyState >= 1) { try { m.currentTime = t; } catch (e) { /* ignore */ } }
+    else { m.preload = 'auto'; m.addEventListener('loadedmetadata', () => { try { m.currentTime = this._pendingT ?? t; } catch (e) { /* ignore */ } }, { once: true }); }
+    this._pendingT = t;
+  },
+  cellLabel(c) {
+    if (!c) return '';
+    if (this.patches) return `${c.id || ''} · ${c.clip ? c.clip.title : c.beat_title || 'patch'} · ${mmss(c.start)}–${mmss(c.end)}${c.line ? ' · “' + c.line + '”' : ''}`;
+    return `#${c.id} · ${c.title} · ${c.mode} · ${mmss(c.start)}–${mmss(c.end)}`;
+  },
+  now() { const m = this.master(); return m && m.readyState >= 1 ? (m.currentTime || 0) : (this._pendingT || 0); },
+  master() { if (this.grid) return this.gridFile ? this.film : this.gv[0]; return this.useFilm ? this.film : this.audio; },
+  indexAt(t) { const B = this.cells(); for (let i = 0; i < B.length; i++) if (t >= B[i].start && t < B[i].end) return i; return t >= this.dur() - .05 ? B.length - 1 : -1; },
+  seek(t) {
+    this.setTime(clamp(t, 0, this.dur() - .01));
+    const i = this.indexAt(t); if (i >= 0 && i !== this.cur) this.select(i, false);
+    this.paintHead(t);
+  },
+  select(i, seekTo = true, force = false) {
+    const B = this.cells(); if (!B.length) return;
+    i = clamp(i, 0, B.length - 1);
+    const changed = i !== this.cur; this.cur = i;
+    if (seekTo) this.setTime(B[i].start + .001);
+    if (changed || force) { this.card(); if (!this.useFilm) this.mock(); }
+    $$('.wy-beat', this.host).forEach(c => c.classList.toggle('on', +c.dataset.i === i));
+    this.paintHead(seekTo ? B[i].start : this.now());
+  },
+  async goBeat(id) {
+    Inspector.close();
+    Shell.setMode('wyg');
+    const fk = this.cuts.findIndex(c => c.slug === 'forage');               // beats belong to the original cut
+    if (this.grid) await this.leaveGrid(fk); else if (this.patches) await this.setCut(fk, true);
+    const i = this.beats().findIndex(b => String(b.id) === String(id));
+    if (i >= 0) this.select(i, true);
+  },
+  act(a) {
+    if (a === 'play') this.playing ? this.pause() : this.play();
+    else if (a === 'prev') this.select(this.cur - 1);
+    else if (a === 'next') this.select(this.cur + 1);
+    else if (a === 'cut') window.open('tools/cut.html?load=wygwyl', 'cineosis-cut');
+    else if (a === 'wag') { if (L.server) window.open('tools/hand-butter.html?load=wygwyl', 'cineosis-room'); }
+    else if (a === 'json') this.exportCut();
+  },
+  play() { this.playing = true; this.master().play().catch(() => { this.playing = false; this.paintPlay(); }); this.paintPlay(); },
+  pause() { this.playing = false; if (this.audio) this.audio.pause(); if (this.film) this.film.pause(); this.gv.forEach(v => v.pause()); this.paintPlay(); },
+  paintPlay() { const b = $('.wy-ctl [data-a="play"]', this.host); if (b) b.textContent = this.playing && !this.master().paused ? '❚❚' : '▶'; },
+  paintSrc() {
+    const c = this.cut() || {};
+    if (this.grid) { $('#wySrc', this.host).innerHTML = this.gridFile ? '<b>rendered grid</b> · one file' : `<b>grid</b> · ${this.gcuts.length} cuts in sync · hearing <b>${esc(c.title || '')}</b>`; return; }
+    $('#wySrc', this.host).innerHTML = this.useFilm ? `<b>${esc(c.title || 'cut')}</b> · moving footage` :
+      `<b class="warn">no rendered film for this cut yet</b> · suite audio over a stills mock-up`;
+  },
+  paintHead(t) {
+    const ph = $('#wyPH', this.host); if (ph) ph.style.left = (t / this.dur() * 100) + '%';
+    const tcs = `${mmss(t)} / ${mmss(this.dur())}`; if (tcs !== this._tc) { $('#wyTC', this.host).textContent = tcs; this._tc = tcs; }
+  },
+  loop() {
+    cancelAnimationFrame(this.raf); this.paintSrc();
+    const step = () => {
+      if (Shell.mode !== 'wyg') return;
+      const t = this.now();
+      if (this.playing) { const i = this.indexAt(t); if (i >= 0 && i !== this.cur) this.select(i, false); }   // the clock leads only while playing
+      if (this.playing || t !== this._lastT) this.paintHead(t);
+      this._lastT = t; if (!this.useFilm) this.animMock(t);
+      this.raf = requestAnimationFrame(step);
+    };
+    this.raf = requestAnimationFrame(step);
+  },
+  /** fallback only (no rendered film): the beat's composition from its A/B stills, or the patch's clip still */
+  mock() {
+    if (this.patches) {
+      const p = this.patches[this.cur], F2 = $('#wyFallback', this.host); if (!F2) return;
+      F2.innerHTML = `<div class="wm wm-full wm-hold" style="${p && p.clip && p.clip.thumb ? `background-image:url('${esc(p.clip.thumb)}')` : ''}"></div><div class="wm-cap"><span class="wm-mode">stills mock-up · no film</span> ${esc(p ? (p.clip ? p.clip.title : p.beat_title || '') : '')}</div>`;
+      return;
+    }
+    const b = this.beats()[this.cur], M = $('#wyMock', this.host); if (!b || !M) return;
+    const img = (x, cls) => x && x.thumb ? `<div class="wm ${cls}" style="background-image:url('${esc(x.thumb)}')"></div>` : `<div class="wm ${cls} none"></div>`;
+    let h = '';
+    if (b.mode === 'black') h = `<div class="wm-black"><span>${esc(b.title)}</span></div>`;
+    else if (b.mode === 'split') h = img(b.a, 'wm-l') + img(b.b, 'wm-r');
+    else if (b.mode === 'inset') h = img(b.a, 'wm-full') + img(b.b, 'wm-inset');
+    else if (b.mode === 'dissolve') h = img(b.a, 'wm-full') + img(b.b, 'wm-full wm-over');
+    else if (b.mode === 'montage') h = img(b.a, 'wm-full wm-mA') + img(b.b, 'wm-full wm-mB');
+    else h = img(b.a, 'wm-full wm-hold');
+    M.className = 'wy-mock mode-' + b.mode;
+    M.innerHTML = h + `<div class="wm-cap"><span class="wm-mode">stills mock-up · no film · ${MODE_GLYPH[b.mode] || ''} ${esc(b.mode)}</span> ${esc(b.title)}</div>`;
+  },
+  animMock(t) {
+    const b = this.cells()[this.cur]; if (!b) return;
+    const p = clamp((t - b.start) / Math.max(.1, b.end - b.start), 0, 1), M = this.patches ? $('#wyFallback', this.host) : $('#wyMock', this.host);
+    if (!this.patches && b.mode === 'dissolve') { const o = $('.wm-over', M); if (o) o.style.opacity = p.toFixed(3); }
+    else if (!this.patches && b.mode === 'montage') { const on = Math.floor(t / .7) % 2 === 0, a = $('.wm-mA', M), bb = $('.wm-mB', M); if (a && bb) { a.style.opacity = on ? 1 : 0; bb.style.opacity = on ? 0 : 1; } }
+    const k = $('.wm-hold', M) || $('.wm-full', M); if (k) k.style.transform = `scale(${(1 + p * .05).toFixed(4)})`;
+  },
+  /* ---- grid: the new cuts side by side, one clock ---- */
+  async toggleGrid() {
+    if (this.grid) { const k = this.cuts.indexOf(this.gcuts[this.focus]); return this.leaveGrid(k >= 0 ? k : this.ci); }
+    if (this.gcuts.length < 2) { toast('the grid needs at least two rendered cuts in wygwyl/cuts/'); return; }
+    const k = this.gcuts.indexOf(this.cut()); if (k >= 0) this.focus = k;
+    await this.enterGrid(this.now(), this.playing);
+  },
+  async enterGrid(t, play) {
+    this.pause();
+    const a = this.audio, f = this.film;
+    a.removeAttribute('src'); a.load();
+    this.grid = true; this.useFilm = false;
+    try { localStorage.setItem('lab.wygwyl.grid', '1'); } catch (e) { /* storage blocked */ }
+    if (this.gridFile && this.gridURL) { if (f.getAttribute('src') !== this.gridURL) f.src = this.gridURL; f.muted = false; }
+    else { f.pause(); f.removeAttribute('src'); f.load(); }
+    this.gcuts.forEach((c, i) => { const v = this.gv[i]; if (this.gridFile) { v.pause(); v.removeAttribute('src'); v.load(); return; } if (v.getAttribute('src') !== c.film) v.src = c.film; v.playbackRate = 1; });
+    this.gv.forEach((v, i) => { v.parentNode.hidden = i >= this.gcuts.length; v.nextElementSibling.textContent = this.gcuts[i] ? this.gcuts[i].title : ''; });
+    await Promise.all(this.gcuts.map(c => this.loadPatches(c)));
+    $('#wyGrid', this.host).hidden = this.gridFile; f.hidden = !this.gridFile;
+    $('#wyMock', this.host).hidden = true; $('#wyFallback', this.host).hidden = true;
+    $('#wyGrid', this.host).dataset.n = this.gcuts.length;
+    this.setFocus(this.focus, true);
+    this.setTime(t || 0);
+    if (play) this.play();
+  },
+  /** the focused quadrant is the one heard and read; timing never changes (all four carry the same suite audio) */
+  setFocus(q, quiet) {
+    if (!this.grid || !this.gcuts[q]) return;
+    this.focus = q;
+    if (!this.gridFile) this.gv.forEach((v, i) => { v.muted = i !== q; });
+    $$('.wg-cell', this.host).forEach(c => c.classList.toggle('focus', +c.dataset.q === q));
+    this.ci = Math.max(0, this.cuts.indexOf(this.gcuts[q]));
+    this.patches = this.gcuts[q]._patches || null;
+    this.cur = -1; this.renderCuts(); this.ribbon();
+    const k = this.indexAt(this.now()); this.select(k >= 0 ? k : 0, false, true);
+    this.paintSrc();
+    if (!quiet) toast(`hearing ${this.gcuts[q].title}`);
+  },
+  async leaveGrid(k) {
+    const t = this.now(), was = this.playing;
+    this.pause(); this.grid = false;
+    try { localStorage.setItem('lab.wygwyl.grid', '0'); } catch (e) { /* storage blocked */ }
+    this.gv.forEach(v => { v.removeAttribute('src'); v.load(); v.playbackRate = 1; });
+    $('#wyGrid', this.host).hidden = true;
+    await this.setCut(k, true, t, was);
+  },
+  toggleGridFile() {
+    if (!this.gridURL) return;
+    const t = this.now(), was = this.playing; this.gridFile = !this.gridFile;
+    this.enterGrid(t, was); this.renderCuts();
+  },
+  /** every ~500 ms: followers drifting more than 0.12 s get nudged (±3 % rate under 0.4 s) or re-seated */
+  drift() {
+    if (!this.grid || this.gridFile || !this.playing) return;
+    const M = this.gv[0]; if (M.paused || M.readyState < 2) return;
+    for (const v of this.gv.slice(1)) {
+      if (!v.getAttribute('src') || v.readyState < 1) continue;
+      if (v.paused && !M.paused) v.play().catch(() => {});
+      const d = v.currentTime - M.currentTime, ad = Math.abs(d);
+      if (ad > 0.4) { v.currentTime = M.currentTime; v.playbackRate = 1; }
+      else if (ad > 0.12) v.playbackRate = d > 0 ? 0.97 : 1.03;
+      else if (ad < 0.04 && v.playbackRate !== 1) v.playbackRate = 1;
+    }
+  },
+  patchCard() {
+    const p = this.patches[this.cur], C = $('#wyCard', this.host); if (!p || !C) return;
+    const cl = p.clip, s = cl && L.byId.get(cl.id), c = this.cut();
+    C.innerHTML = `<div class="sd-block">
+      <div class="wy-h"><span class="wy-n">${esc(p.id || '')}</span><b>${esc(cl ? cl.title : (p.beat_title || 'patch'))}</b></div>
+      <div class="kv"><span>cut</span><b>${esc(c.title)}</b><span>chapter</span><b>${esc(p.chapter || '')}${p.film ? ' · ' + esc(p.film) : ''}</b>
+        <span>time</span><b>${mmss(p.start)} – ${mmss(p.end)} · ${(p.end - p.start).toFixed(1)} s</b>
+        ${p.beat ? `<span>beat</span><b>#${esc(String(p.beat))}${p.beat_title ? ' · ' + esc(p.beat_title) : ''}</b>` : ''}</div>
+      ${(p.codes || []).length ? `<div class="wy-codes"><span>cineosis signs</span>${p.codes.map(n => `<button class="wy-code" data-n="${esc(String(n))}">${chip(String(n))}${esc(L.S[String(n)] ? L.S[String(n)].name : n)}</button>`).join('')}</div>` : ''}
+      ${p.line ? `<h4>the line</h4><p class="wy-line">“${esc(p.line)}”</p>` : ''}
+      ${p.why ? `<h4>why this clip</h4><p class="wy-p">${esc(p.why)}</p>` : ''}</div>
+      <div class="sd-block"><h4>clip</h4>${cl ? `<div class="wy-ab" data-id="${esc(cl.id)}"><em></em><img src="${esc(cl.thumb || (s && s.thumb) || '')}" alt="" onerror="this.style.visibility='hidden'">
+        <div><b>${esc(cl.title)}</b><span>${cl.year ?? '—'}${cl.in != null ? ` · in ${(+cl.in).toFixed(1)} s` : ''}${cl.out != null ? ` · out ${(+cl.out).toFixed(1)} s` : ''}</span>
+        <p>${s ? 'click to inspect' : 'not in the lab corpus'}</p></div></div>` : '<span class="pending">no clip chosen for this patch yet</span>'}</div>`;
+  },
+  candidates(b) { return (L.wygCands.get(String(b.id)) || []).slice().sort((x, y) => GRADE_ORDER(x.wygwyl.grade) - GRADE_ORDER(y.wygwyl.grade) || (y._read.length - x._read.length)); },
+  card() {
+    if (this.patches) return this.patchCard();
+    const b = this.beats()[this.cur], C = $('#wyCard', this.host); if (!b || !C) return;
+    const f = this.films()[b.chapter] || {}, ch = this.choices()[b.id] || {};
+    const side = (x, k) => {
+      if (!x) return `<div class="wy-ab"><em>${k}</em><span class="pending">none</span></div>`;
+      const pick = ch[k] && ch[k] !== x.id ? L.byId.get(ch[k]) : null;
+      return `<div class="wy-ab" data-id="${esc(x.id)}"><em>${k}</em><img src="${esc(x.thumb || '')}" alt="" onerror="this.style.visibility='hidden'">
+        <div><b>${esc(x.title)}</b><span>${x.year ?? '—'} · ${x.dur ? x.dur.toFixed(1) + ' s' : ''} · grade ${esc(x.grade || 'U')}</span><p>${esc(x.observed || '')}</p>
+        ${pick ? `<p class="wy-pick">your choice: <b>${esc(pick.title)}</b> (${pick.year ?? '—'})</p>` : ''}</div></div>`;
+    };
+    const cands = this.candidates(b);
+    C.innerHTML = `<div class="sd-block">
+      <div class="wy-h"><span class="wy-n">#${esc(b.id)}</span><b>${esc(b.title)}</b></div>
+      <div class="kv"><span>chapter</span><b>${esc(f.n || '')} · ${esc(f.title || b.sequence || '')}</b><span>time</span><b>${mmss(b.start)} – ${mmss(b.end)} · ${(b.end - b.start).toFixed(1)} s</b>
+        <span>mode</span><b>${MODE_GLYPH[b.mode] || ''} ${esc(b.mode)}${b.partner ? ` · partner #${esc(b.partner)}` : ''}</b>${b.rate && b.rate !== 1 ? `<span>rate</span><b>${b.rate}×</b>` : ''}</div>
+      ${(b.codes || []).length ? `<div class="wy-codes"><span>cineosis signs</span>${b.codes.map(n => `<button class="wy-code" data-n="${esc(String(n))}" title="open ${esc(L.S[String(n)] ? L.S[String(n)].name : n)} in the periodic table">${chip(String(n))}${esc(L.S[String(n)] ? L.S[String(n)].name : n)}</button>`).join('')}</div>` : ''}
+      ${b.edit ? `<h4>edit</h4><p class="wy-p">${esc(b.edit)}</p>` : ''}
+      ${b.operation ? `<h4>operation</h4><p class="wy-p">${esc(b.operation)}</p>` : ''}
+      ${b.gap ? `<h4>gap — needs original material</h4><p class="wy-p wy-gap">${esc(b.gap)}</p>` : ''}
+      ${b.query ? `<p class="hint">search: “${esc(b.query)}”</p>` : ''}</div>
+      <div class="sd-block"><h4>A · B</h4>${side(b.a, 'A')}${side(b.b, 'B')}</div>
+      <div class="sd-block"><h4>candidates <small>${cands.length} corpus shot${cands.length === 1 ? '' : 's'} forage found for this beat · reviewed first</small></h4>
+        <div class="wy-cands">${cands.map(s => `<div class="wy-cand${ch.A === s.id ? ' isA' : ''}${ch.B === s.id ? ' isB' : ''}" data-id="${esc(s.id)}">
+          <img src="${esc(s.thumb)}" alt="" onerror="this.style.visibility='hidden'"><span class="gr g-${esc(s.wygwyl.grade || 'U')}">${esc(s.wygwyl.grade || 'U')}</span>
+          <p>${esc(s.wygwyl.observed || s.title)}</p>
+          <div class="wy-use"><button class="ghost" data-use="A">use as A</button><button class="ghost" data-use="B">use as B</button></div></div>`).join('') || '<span class="pending">no candidates recorded</span>'}</div></div>`;
+  },
+  onCard(e) {
+    const code = e.target.closest('.wy-code');
+    if (code) { window.open('../periodic-table.html#' + encodeURIComponent(code.dataset.n), '_blank', 'noopener'); return; }
+    const use = e.target.closest('[data-use]');
+    if (use) { this.choose(use.closest('.wy-cand').dataset.id, use.dataset.use); return; }
+    const t = e.target.closest('.wy-ab[data-id], .wy-cand');
+    if (t) { const s = L.byId.get(t.dataset.id); if (s) { this.pause(); Inspector.open(s, this.patches ? [s] : this.candidates(this.beats()[this.cur])); } else toast('that shot isn’t in the lab corpus'); }
+  },
+  /** {beatId: {A: shotId, B: shotId}} from the saved assignment rows (last one wins) */
+  choices() {
+    const out = {};
+    for (const r of L.assignments) { const m = /^wygwyl beat (\S+) (A|B)$/.exec(r.note || ''); if (m) (out[m[1]] = out[m[1]] || {})[m[2]] = r.id; }
+    return out;
+  },
+  async choose(id, k) {
+    if (this.patches) return;
+    const b = this.beats()[this.cur]; if (!b) return;
+    const note = `wygwyl beat ${b.id} ${k}`;
+    if (!L.server) { const row = { id, n: null, note, a: null, b: null, ts: new Date().toISOString().slice(0, 19) }; if (!Store.add(row)) { toast('this browser blocks local storage'); return; } L.assignments.push(row); }
+    else {
+      try {  // server.py requires a truthy n, so the collection name stands in for “no sign”
+        const r = await fetch('/api/assign', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id, n: 'wygwyl', note, a: null, b: null }) });
+        const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status); L.assignments.push(j);
+      } catch (er) { toast('not saved — ' + er.message); return; }
+    }
+    toast(`beat #${b.id}: ${k} = ${(L.byId.get(id) || {}).title || id}`); this.card();
+  },
+  async exportCut() {
+    let cut;
+    try { const r = await fetch('wygwyl/WYGWYL_Forage_Cut.json'); if (!r.ok) throw new Error(r.status); cut = await r.json(); }
+    catch (e) { toast('could not read wygwyl/WYGWYL_Forage_Cut.json'); return; }
+    const ch = this.choices(), applied = [];
+    for (const sh of cut.shots || []) {
+      const c = ch[sh.id]; if (!c) continue;
+      if (c.A) { sh.selected = c.A; applied.push({ beat: sh.id, A: c.A }); }
+      if (c.B) { sh.layer = c.B; applied.push({ beat: sh.id, B: c.B }); }   // B normally comes from the partner beat; an explicit pick rides on `layer`
+    }
+    cut.lab_choices = applied; cut.lab_note = 'A picks replace `selected`; B picks are recorded in `layer` (the counter-image), since B otherwise comes from the partner beat.';
+    const url = URL.createObjectURL(new Blob([JSON.stringify(cut, null, 1)], { type: 'application/json' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'WYGWYL_Forage_Cut.lab.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+    toast(`cut JSON exported · ${applied.length} choice${applied.length === 1 ? '' : 's'} applied`);
+  },
+  key(e) {
+    if (e.key === 'g' || e.key === 'G') { this.toggleGrid(); return true; }
+    if (e.key === '[') { this.setCut(this.ci - 1); return true; }
+    if (e.key === ']') { this.setCut(this.ci + 1); return true; }
+    if (e.key === ' ') { e.preventDefault(); this.act('play'); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); this.select(this.cur + 1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); this.select(this.cur - 1); }
+    else return false;
+    return true;
+  },
+};
+
+/* ================================================================ GUIDE (first-visit card) + STATUS (what is filtered, and the undo) */
+const Guide = {
+  key: 'cineosis.seen',
+  seen() { try { return !!localStorage.getItem(this.key); } catch (e) { return true; } },
+  open() { const g = $('#guide'); return !!g && !g.hidden; },
+  show() {
+    const g = $('#guide'); if (!g) return;
+    g.setAttribute('role', 'dialog'); g.setAttribute('aria-labelledby', 'guideH');
+    g.innerHTML = `<div class="gd-h" id="guideH">Start here <em>3 steps</em></div>
+      <ol>
+        <li data-g="1"><b>Click a sign</b> in the table at left: the wall keeps only that sign’s shots. <span>No table? Press <kbd>F</kbd> or the ≡ button at top left.</span></li>
+        <li data-g="2"><b>Click any shot:</b> the inspector plays it from the frame the reading was made from. <span><kbd>Esc</kbd> closes it.</span></li>
+        <li data-g="3"><b>Press <kbd>1</kbd>–<kbd>8</kbd></b> to switch views. <span><kbd>?</kbd> lists every key.</span></li>
+      </ol>
+      <div class="gd-f"><button class="gd-go" id="guideGo">Start</button><span><kbd>Esc</kbd> closes · <kbd>?</kbd> reopens</span></div>`;
+    g.hidden = false;
+    $('#guideGo', g).onclick = e => { e.stopPropagation(); this.close(); };
+    if (F.signs.size) this.mark(1);
+    try { $('#guideGo', g).focus({ preventScroll: true }); } catch (e) { /* old browser */ }
+  },
+  close() {
+    const g = $('#guide'); if (g) g.hidden = true;
+    try { localStorage.setItem(this.key, '1'); } catch (e) { /* storage blocked: the card returns next visit */ }
+  },
+  mark(i) { const li = this.open() && $(`#guide [data-g="${i}"]`); if (li) li.classList.add('done'); },
+};
+
+const Status = {
+  items: [],
+  /** every change from the default view, each with its own undo */
+  active() {
+    const out = [], add = (label, title, clear) => out.push({ label, title, clear });
+    const scopeN = { read: 'read only', machine: 'machine top-3' };
+    if (F.col !== 'both') add(`collection ${F.col}`, 'show both collections', () => { F.col = 'both'; });
+    if (F.smode !== 'corpus') add(`signs: ${scopeN[F.smode]}`, 'count every shot a sign’s searches surfaced', () => { F.smode = 'corpus'; });
+    for (const n of F.signs) { const g = L.S[n]; add(`sign ${chip(n, 'sm')}${g ? esc(n) : ''}`, g ? `remove ${g.name}` : 'remove', () => { F.signs.delete(n); }); }
+    if (F.dec.size) add(`decade ${esc(Facets.decRangeLabel())}`, 'show every decade', () => { F.dec.clear(); });
+    if (F.color !== 'all') add(F.color === 'bw' ? 'B&amp;W' : 'colour', 'show colour and B&W', () => { F.color = 'all'; });
+    if (F.hue) add(`hue ${Math.round(F.hue[0])}°–${Math.round(F.hue[1])}°`, 'show every hue', () => { F.hue = null; });
+    for (const l of F.subj) add(`subject ${esc(l)}`, 'remove this subject', () => { F.subj.delete(l); });
+    for (const c of F.scale) add(`scale ${SCALE_AB[c] || esc(c)}`, 'remove this scale', () => { F.scale.delete(c); });
+    if (F.cut) add('has cut-outs', 'show shots without cut-outs too', () => { F.cut = false; });
+    for (const k of F.audio) add(`audio ${esc(k)}`, 'remove this audio kind', () => { F.audio.delete(k); });
+    if (F.q && Shell.scope === 'corpus') add(`search “${esc(F.q)}”`, 'clear the search', () => { $('#q').value = ''; parseQuery(''); });
+    if (GROUP !== 'none') add(`grouped by ${esc(GROUP)}`, 'stop grouping', () => { GROUP = 'none'; $('#group').value = 'none'; });
+    if (SORT.key !== 'sign' || SORT.dir < 0) add(`sorted by ${esc(($('#sort').selectedOptions[0] || {}).textContent || SORT.key)} ${SORT.dir < 0 ? '↑' : '↓'}`, 'back to sign order', () => { SORT.key = 'sign'; SORT.dir = 1; $('#sort').value = 'sign'; $('#sortDir').textContent = '↓'; });
+    return out;
+  },
+  render(lv) {
+    const b = $('#status'); if (!b) return;
+    if (!b._wired) {
+      b._wired = true;
+      b.addEventListener('click', e => {
+        const x = e.target.closest('[data-x]');
+        if (x) { const it = this.items[+x.dataset.x]; if (it) { it.clear(); refresh(); } return; }
+        if (e.target.closest('#stReset')) { Facets.reset(); return; }
+        if (e.target.closest('#stPanel')) { document.body.classList.remove('nofacets'); Shell.updateCount(); setTimeout(() => { Wall.resize(); Strata.resize(); }, 260); }
+      });
+    }
+    const it = this.items = this.active(), n = VIEW.length, N = L.shots.length;
+    const live = lv ? ` <span class="livebadge">+${lv} LIVE</span>` : '';
+    const count = !it.length ? `Showing all <b>${fmt(N)}</b> shots${live}`
+      : n ? `Showing <b>${fmt(n)}</b> of ${fmt(N)} shots${live}` : `<b>No shots match</b>${live} · remove a filter (✕) or reset all`;
+    const panelHidden = document.body.classList.contains('nofacets');
+    const hint = panelHidden ? ` · <button class="st-lnk" id="stPanel">open filters</button> and click a sign to narrow` : ' · click a sign in the table at left to narrow';
+    b.innerHTML = `<span class="st-n">${count}</span>` + (it.length
+      ? `<span class="st-f"><span class="st-l">filters:</span>${it.map((x, i) => `<button class="st-x" data-x="${i}" title="${esc(x.title)} (click ✕)" aria-label="remove filter ${x.label.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}">${x.label}<i aria-hidden="true">✕</i></button>`).join('')}</span><button class="st-lnk st-reset" id="stReset" title="clear every filter, the search, sort and grouping">reset all</button>`
+      : `<span class="st-h">${hint}</span>`);
+  },
+};
+
 /* ================================================================ SHELL */
-const MODES = { wall: Wall, map: MapMode, ring: Ring, strata: Strata, cuts: Cuts, reel: Reel };
+const MODES = { wall: Wall, map: MapMode, ring: Ring, strata: Strata, cuts: Cuts, reel: Reel, montage: Montage, wyg: Wyg };
 const Shell = {
   mode: null, prevMode: null, size: 132, scope: 'corpus',
   init() {
@@ -1877,13 +2650,26 @@ const Shell = {
       if (this.scope === 'corpus') { parseQuery(q.value); refresh(); }
       this.qstat(''); q.focus();
     });
-    $('#facetBtn').addEventListener('click', () => document.body.classList.toggle('nofacets'));
-    $('#aboutBtn').addEventListener('click', () => this.about());
+    $('#facetBtn').addEventListener('click', () => { document.body.classList.toggle('nofacets'); Shell.updateCount(); });
+    $('#aboutBtn').addEventListener('click', e => { e.stopPropagation(); this.help(); });
     $('#reload').addEventListener('click', () => this.reload());
+    const pop = $('#sendPop');
+    $('#sendBtn').addEventListener('click', e => {
+      e.stopPropagation();
+      if (!pop.hidden) { pop.hidden = true; return; }
+      const n = viewList().length;
+      pop.innerHTML = `<div class="sp-h">send the view to an editor</div>
+        <p>${n > 24 ? `the first 24 of ${fmt(n)} shots, in the current order` : `${fmt(n)} shot${n === 1 ? '' : 's'}, in the current order`}${L.server ? '' : ' · static site: only shots with a local clip travel'}</p>
+        <label>layout <select id="spLayout">${LAYOUTS.map(l => `<option>${l}</option>`).join('')}</select></label>
+        <div class="cutbtns">${sendButtons()}</div>`;
+      pop.hidden = false;
+    });
+    pop.addEventListener('click', e => { e.stopPropagation(); const b = e.target.closest('[data-send]'); if (!b) return; Send.sendView(b.dataset.send, $('#spLayout').value); pop.hidden = true; });
+    document.addEventListener('click', () => { pop.hidden = true; });
     if (innerWidth < 900) document.body.classList.add('nofacets');
     addEventListener('keydown', e => this.key(e));
     addEventListener('resize', debounce(() => { if (this.mode === 'ring') Ring.resize(); Facets.drawHue(); }, 150));
-    addEventListener('hashchange', () => { const m = location.hash.slice(1); if (MODES[m] && m !== this.mode) this.setMode(m); });
+    addEventListener('hashchange', () => { const m = ({ wygwyl: 'wyg' })[location.hash.slice(1)] || location.hash.slice(1); if (MODES[m] && m !== this.mode) this.setMode(m); });
     addEventListener('focus', () => { if (Date.now() - L.loadedAt > 5 * 60e3) this.reload(true); });
   },
   setMode(m) {
@@ -1893,6 +2679,7 @@ const Shell = {
     if (old && MODES[old].hide) MODES[old].hide();
     if (old === 'reel') Reel.close();
     if (m === 'reel') { this.prevMode = old && old !== 'reel' ? old : this.prevMode || 'wall'; }
+    if (old) Guide.mark(3);
     this.mode = m;
     $$('#modes button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
     if (m === 'reel') { Reel.open(); } else {
@@ -1907,14 +2694,15 @@ const Shell = {
   },
   badge() {
     const b = $('#srvBadge'); if (!b) return;
-    b.innerHTML = L.server ? '<b>local</b><span> server</span>' : '<b>static</b><span> · read-only archive</span>';
+    b.innerHTML = L.server ? '<b>local</b><span> server</span>' : '<b>static</b><span> · archive search needs local server</span>';
     b.title = L.server ? 'server.py is running: archive search and saving to assignments.json are on' : STATIC_NOTE;
     const ar = $('.scope [data-scope="archive"]');
-    ar.classList.toggle('off', !L.server); ar.title = L.server ? 'search the whole archive (Enter)' : STATIC_NOTE;
+    ar.title = 'switch to archive, type, press Enter: the whole archive is searched';
+    $('.scope').hidden = !L.server;
+    if (!L.server && this.scope === 'archive') { this.scope = 'corpus'; $$('.scope button').forEach(x => x.classList.toggle('on', x.dataset.scope === 'corpus')); }
   },
   updateCount() {
-    const lv = liveView().length;
-    $('#count').innerHTML = `<b>${fmt(VIEW.length)}</b> / ${fmt(L.shots.length)}${lv ? ` <span class="livebadge">+${lv} LIVE</span>` : ''}`;
+    Status.render(liveView().length);
   },
   updateLiveBar() {
     const b = $('#livebar');
@@ -1932,37 +2720,57 @@ const Shell = {
     try {
       await loadData(true); Shell.badge(); Facets.update(); MapMode.kind = null; Ring.key = null;
       if (this.mode === 'map') MapMode.show();
+      Wyg.cutsLoaded = false;
+      if (this.mode === 'wyg') Wyg.show();
+      if (this.mode === 'montage') Montage.renderRecipes();
       if (Cuts.host) Cuts.update();
       refresh();
       if (!silent) toast(`reloaded · ${fmt(L.shots.length)} shots · ${['palette', 'xy', 'strip', 'cut', 'subj', 'audio'].filter(k => L.has[k]).join(' · ') || 'no analysis yet'}`);
     } catch (e) { if (!silent) toast('reload failed — ' + e.message); }
     b.classList.remove('spin');
   },
+  help() {
+    const A = $('#about');
+    if (!A.hidden) { A.hidden = true; return; }
+    if (Guide.open()) { Guide.close(); this.about(); return; }
+    Guide.show();
+  },
   about() {
     const A = $('#about');
     if (!A.hidden) { A.hidden = true; return; }
     A.innerHTML = `<div class="about-in"><button class="ghost about-x" title="close">✕</button>
       <h2>Cineosis Lab</h2>
-      <p class="lede">An instrument for the corpus behind the 45 signs: ${fmt(L.shots.length)} shots from the Moving Image Archive, ${fmt(L.shots.filter(s => s._read.length).length)} of them read by the editor. Filter on the left; every mode shows the same selection, in the same order.</p>
+      <p class="lede">${fmt(L.shots.length)} shots from the Moving Image Archive, ${fmt(L.shots.filter(s => s._read.length).length)} of them read by the editor for one of the 45 signs. Click controls on the left to narrow them; every view below shows that same selection, in the same order. The line above the shots lists each filter: click its ✕ to remove it, or “reset all”.</p>
+      <h3>First steps</h3>
+      <ol class="about-steps">
+        <li>Click a sign in the table at left: the shots narrow to that sign. Shift-click keeps only that sign.</li>
+        <li>Click any shot: the inspector plays it from the frame the reading was made from. <kbd>Esc</kbd> closes it.</li>
+        <li>Press <kbd>1</kbd>–<kbd>8</kbd> to switch views.</li>
+      </ol>
+      <h3>Views</h3>
       <dl>
-        <dt>Wall <kbd>1</kbd></dt><dd>A dense grid of every shot in the selection. Sort by sign, hue, luminance, year, confidence, similarity or film; group into labelled rows. Re-sorting slides the tiles to their new places.</dd>
-        <dt>Map <kbd>2</kbd></dt><dd>Shots laid out by visual similarity (CLIP embedding, t-SNE). Drag to pan, wheel or pinch to zoom: colour swatches far out, thumbnails close in. Shots outside the filter stay dimmed in place. Until similarity is computed it falls back to hue × decade or sign × decade.</dd>
-        <dt>Ring <kbd>3</kbd></dt><dd>The first 240 of the selection wrapped on a spinning cylinder. Drag or wheel to spin.</dd>
-        <dt>Strata <kbd>4</kbd></dt><dd>Each shot as a receding stack of its own frames: time as depth. Hover to run the stack.</dd>
-        <dt>Cut-outs <kbd>5</kbd></dt><dd>SAM figures lifted out of the shots onto black. Drag them onto the table, compose, shift-click to duplicate, join two with +.</dd>
-        <dt>Reel <kbd>6</kbd></dt><dd>A film of the table: each sign’s title card and deciding test, then each shot read for it, captioned with the reading. Or a reel of the current selection.</dd>
-        <dt>Inspector</dt><dd>Click any shot. Source-film timecode at 24 fps, frame stepping, speed, the matched frame (M), your in/out points (A, B), and “save sub-shot” to assign a sign.</dd>
-        <dt>Archive search</dt><dd>Switch the search scope to <i>archive</i> and press Enter: results from the whole archive arrive as a LIVE layer you can inspect and assign.</dd>
+        <dt>Wall <kbd>1</kbd></dt><dd>Every shot in the selection as a grid. Pick sort and group in the top bar: tiles slide to their new places. Drag the size slider to resize tiles.</dd>
+        <dt>Map <kbd>2</kbd></dt><dd>Shots placed by visual likeness. Drag to pan, wheel or pinch to zoom, <kbd>0</kbd> to fit. Shots outside the filter stay dimmed in place.</dd>
+        <dt>Ring <kbd>3</kbd></dt><dd>The first 240 shots of the selection on a cylinder. Drag or wheel to spin; click a shot to inspect it.</dd>
+        <dt>Strata <kbd>4</kbd></dt><dd>Each shot as a stack of its own frames, time running into depth. Hover a stack to run it.</dd>
+        <dt>Cut-outs <kbd>5</kbd></dt><dd>Figures lifted out of the shots. Drag one onto the table; shift-click duplicates it; select two and press <kbd>+</kbd> to join; <kbd>Delete</kbd> removes it.</dd>
+        <dt>Reel <kbd>6</kbd></dt><dd>Plays the table: each sign’s title card, then the shots read for it. <kbd>space</kbd> plays, <kbd>←</kbd><kbd>→</kbd> changes sign, <kbd>[</kbd> <kbd>]</kbd> changes shot, <kbd>Esc</kbd> exits.</dd>
+        <dt>Montage <kbd>7</kbd></dt><dd>Recipes for signs that need two or more shots (mark → demark, sheets of the past, forking paths…). Click × to drop a shot or ⇄ to swap it, then “→ CUT” to send the recipe to the editor; montages sent back appear under Edits.</dd>
+        <dt>WYGWYL <kbd>8</kbd></dt><dd>The WYGWYL Forage Suite, a 24-minute film in 88 beats. Click the ribbon to jump to a beat; <kbd>space</kbd> plays, <kbd>←</kbd><kbd>→</kbd> steps beats, <kbd>[</kbd> <kbd>]</kbd> changes cut, <kbd>G</kbd> shows the cuts side by side. “Open WYGWYL page ↗” opens the film’s own page.</dd>
+        <dt>Inspector</dt><dd>Click any shot. <kbd>space</kbd> plays, <kbd>,</kbd> <kbd>.</kbd> step one frame, <kbd>A</kbd> <kbd>B</kbd> set in/out, <kbd>M</kbd> jumps to the matched frame; pick a sign and click “save sub-shot” to record your reading.</dd>
+        ${L.server ? `<dt>Archive search</dt><dd>Click <i>archive</i> beside the search box, type, press Enter: results from the whole archive appear as a LIVE layer above the shots. Click “clear” on that bar to remove it.</dd>` : ''}
       </dl>
       <h3>Your sub-shots</h3>
       <p class="about-p">${L.server ? 'Running on the local server: “save sub-shot” appends to lab/assignments.json.' : 'Static copy (no server): “save sub-shot” keeps rows in this browser only. Archive search needs the local server — clone the repo and run <code>python3 lab/server.py</code>.'}
         <button class="ghost" id="aboutExport">export assignments.json</button></p>
       <h3>Keys</h3>
       <div class="keys">
-        <span><kbd>1</kbd>–<kbd>6</kbd> modes</span><span><kbd>/</kbd> search</span><span><kbd>F</kbd> filters</span><span><kbd>?</kbd> this panel</span><span><kbd>Esc</kbd> close</span>
+        <span><kbd>1</kbd>–<kbd>8</kbd> views</span><span><kbd>/</kbd> search</span><span><kbd>F</kbd> show/hide filters</span><span><kbd>?</kbd> first steps, then this list</span><span><kbd>Esc</kbd> close</span>
         <span>inspector: <kbd>space</kbd> play · <kbd>,</kbd> <kbd>.</kbd> ±1 frame · <kbd>←</kbd><kbd>→</kbd> ±1 frame (shift: ±1 s) · <kbd>A</kbd> <kbd>B</kbd> in/out · <kbd>[</kbd> <kbd>]</kbd> jump to A/B · <kbd>L</kbd> loop A–B · <kbd>M</kbd> matched frame · <kbd>0</kbd> <kbd>8</kbd> <kbd>9</kbd> <kbd>1</kbd> <kbd>2</kbd> speed 0/.25/.5/1/2 · <kbd>C</kbd> cut-outs · <kbd>↑</kbd><kbd>↓</kbd> prev/next shot</span>
         <span>reel: <kbd>space</kbd> play · <kbd>←</kbd><kbd>→</kbd> sign · <kbd>[</kbd> <kbd>]</kbd> shot</span>
       </div>
+      <h3>Editors</h3>
+      <p class="about-p">Two editors take shots from the lab. <b>CUT</b> treats the frame as a space and depth as time: each clip is a box placed in the frame and a moment in time, to chop, push and stretch, and it records the cut to video. <b>The Cutting Room</b> (WAG · Hand Butter 13) is a 3-D plate volume where time is depth. Send with “→ CUT” / “→ Cutting Room” from the Inspector, the top bar (“send view”), a sign chip (⌥-click: its family) or a Montage recipe. In the editor, “↩ lab” brings the montage back as data — which shots, which signs, in/out, when and where — and it appears under Montage → Edits, where you can play it here or reopen it in CUT. The Cutting Room is local-only (it needs <code>python3 lab/server.py</code>); CUT also works on the static site with the read shots’ clips.</p>
       <h3>Source &amp; credits</h3>
       <ul class="credits">
         <li>The signs follow David Deamer, <i>Deleuze’s Cinema Books: Three Introductions to the Taxonomy of Images</i> (Edinburgh University Press, 2016).</li>
@@ -1981,12 +2789,14 @@ const Shell = {
     if (typing(e)) { if (e.key === 'Escape') e.target.blur(); return; }
     if (Inspector.root && !Inspector.root.hidden) { if (Inspector.key(e)) return; return; }
     if (!$('#about').hidden && e.key === 'Escape') { $('#about').hidden = true; return; }
+    if (Guide.open() && e.key === 'Escape') { Guide.close(); return; }
     if (this.mode === 'reel' && Reel.key(e)) return;
+    if (this.mode === 'wyg' && Wyg.key(e)) return;
     if (e.key === '/') { e.preventDefault(); $('#q').focus(); return; }
-    if (e.key === '?') { this.about(); return; }
-    if (e.key === 'f' || e.key === 'F') { document.body.classList.toggle('nofacets'); setTimeout(() => { Wall.resize(); Strata.resize(); }, 260); return; }
-    const m = ['wall', 'map', 'ring', 'strata', 'cuts', 'reel'][+e.key - 1];
-    if (m && /^[1-6]$/.test(e.key)) { this.setMode(m); return; }
+    if (e.key === '?') { this.help(); return; }
+    if (e.key === 'f' || e.key === 'F') { document.body.classList.toggle('nofacets'); this.updateCount(); setTimeout(() => { Wall.resize(); Strata.resize(); }, 260); return; }
+    const m = ['wall', 'map', 'ring', 'strata', 'cuts', 'reel', 'montage', 'wyg'][+e.key - 1];
+    if (m && /^[1-8]$/.test(e.key)) { this.setMode(m); return; }
     if (this.mode === 'cuts' && (e.key === 'Delete' || e.key === 'Backspace')) { Cuts.removeSel(); return; }
     if (this.mode === 'cuts' && e.key === '+') { Cuts.join(); return; }
     if (this.mode === 'map' && (e.key === '0')) MapMode.fit();
@@ -2006,8 +2816,9 @@ const Shell = {
   Facets.build();
   parseQuery('');
   compute(); Facets.update(); Shell.updateCount(); Shell.updateLiveBar();
-  const m = location.hash.slice(1);
+  const m = ({ wygwyl: 'wyg' })[location.hash.slice(1)] || location.hash.slice(1);
   Shell.setMode(MODES[m] ? m : 'wall');
+  if (!Guide.seen()) Guide.show();
   // facet panel slides: re-layout grids once the transition ends
   $('#facets').addEventListener('transitionend', () => { Wall.resize(); Strata.resize(); Facets.drawHue(); });
 })();

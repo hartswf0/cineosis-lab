@@ -13,6 +13,18 @@ ROOT = os.path.dirname(LAB)
 API = "https://www.movingimagearchive.com/api/search"
 LIVE = os.path.join(LAB, "cache", "live")
 ASSIGN = os.path.join(LAB, "assignments.json")
+EDITS = os.path.join(LAB, "edits")            # montages saved back from CUT / the Cutting Room
+REMOTE = os.path.join(LAB, "cache", "remote") # archive shots fetched on demand for editing
+_corpus = {}
+
+def corpus_url(sid):
+    if not _corpus:
+        try:
+            _corpus.update(json.load(open(os.path.join(LAB, "cache", "corpus.json"))))
+        except OSError:
+            pass
+    c = _corpus.get(sid)
+    return c and c.get("videoUrl")
 GAP = 2.5
 _lock, _last = threading.Lock(), [0.0]
 
@@ -61,11 +73,51 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/api/assignments":
             return self._json(200, json.load(open(ASSIGN)) if os.path.exists(ASSIGN) else [])
+        if self.path == "/api/edits":
+            return self._json(200, sorted((json.load(open(os.path.join(EDITS, f))) for f in os.listdir(EDITS) if f.endswith(".json")),
+                                          key=lambda e: e.get("ts", "")) if os.path.isdir(EDITS) else [])
+        if self.path.startswith("/media/"):
+            return self._media(self.path[len("/media/"):].split("?")[0])
         rng = self.headers.get("Range")
         path = self.translate_path(self.path)
         if rng and rng.startswith("bytes=") and os.path.isfile(path):
             return self._range(path, rng)
         return super().do_GET()
+
+    def _media(self, name):
+        """/media/<shot id>.mp4 → a same-origin copy of any corpus shot, so editors can read it as a file and record
+        their canvas (a cross-origin video would taint it). Local clips first; otherwise fetched once from the
+        archive's CDN into cache/remote/."""
+        sid = name[:-4] if name.endswith(".mp4") else name
+        if not sid or any(ch not in "0123456789abcdef-" for ch in sid):   # shot ids only; no paths
+            return self._json(400, {"error": "bad shot id"})
+        local = os.path.join(LAB, "clips", sid + ".mp4")
+        if not os.path.isfile(local):
+            local = os.path.join(REMOTE, sid + ".mp4")
+            if not os.path.isfile(local):
+                url = corpus_url(sid)
+                if not url:
+                    return self._json(404, {"error": "unknown shot"})
+                os.makedirs(REMOTE, exist_ok=True)
+                try:
+                    with urllib.request.urlopen(urllib.request.Request(url, headers={"user-agent": "cineosis-lab"}), timeout=60) as r:
+                        data = r.read()
+                except Exception as e:
+                    return self._json(502, {"error": f"could not fetch shot: {e}"})
+                tmp = local + ".part"
+                open(tmp, "wb").write(data); os.replace(tmp, local)
+        rng = self.headers.get("Range")
+        if rng and rng.startswith("bytes="):
+            return self._range(local, rng)
+        size = os.path.getsize(local)
+        self.send_response(200)
+        self.send_header("Content-Type", "video/mp4"); self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Content-Length", str(size)); self.end_headers()
+        with open(local, "rb") as f:
+            try:
+                self.wfile.write(f.read())
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
     def _range(self, path, rng):
         """Serve a single byte range so video can seek (SimpleHTTPRequestHandler ignores Range)."""
@@ -119,10 +171,18 @@ class Handler(SimpleHTTPRequestHandler):
             rows.append(row)
             json.dump(rows, open(ASSIGN, "w"), indent=1, ensure_ascii=False)
             return self._json(200, row)
+        if self.path == "/api/edits":
+            if not isinstance(body.get("clips"), list) or not body["clips"]:
+                return self._json(400, {"error": "clips required"})
+            os.makedirs(EDITS, exist_ok=True)
+            body["ts"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+            name = time.strftime("%Y%m%d-%H%M%S") + "-" + str(body.get("tool", "edit"))[:12] + ".json"
+            json.dump(body, open(os.path.join(EDITS, name), "w"), indent=1, ensure_ascii=False)
+            return self._json(200, {"saved": name, "clips": len(body["clips"])})
         return self._json(404, {"error": "unknown endpoint"})
 
     def log_message(self, fmt, *args):
-        if "/api/" in (args[0] if args else ""):
+        if "/api/" in str(args[0] if args else ""):   # args[0] is not always the request line (errors pass codes)
             sys.stderr.write("%s\n" % (fmt % args))
 
 if __name__ == "__main__":

@@ -1,20 +1,32 @@
 # Cineosis Lab
 
-*Forty-four ways an image can think.*
+Deleuze's 44 cinematic signs, after David Deamer: a periodic table to read them, a lab of archive shots to find them, and films cut from those shots.
 
-A working instrument for Gilles Deleuze's taxonomy of cinematic signs — the **cineosis** — as systematised by David Deamer in *Deleuze's Cinema Books: Three Introductions to the Taxonomy of Images* (Edinburgh University Press, 2016). It has two parts:
+**Open it:** https://hartswf0.github.io/cineosis-lab/ — nothing to install.
 
-- **[The Periodic Table of Cinematic Signs](https://hartswf0.github.io/cineosis-lab/periodic-table.html)** — the 44 signs (with opsign and sonsign split into two elements, 34a and 34b) laid out on Deamer's own structure: sixteen image types as columns, two signs of composition and one sign of genesis as rows, the movement-image's Peircean codes (111 … 333) and the time-image's 0 · 1 · 2 · 3 · ∞. Each element carries the test that decides it against its neighbours, the three signs it is most often confused with and what would flip a shot to each, a counterfeit, a confidence rubric with a single-shot ceiling, and a family of 4–6 archival shots, each with a reading and a confidence bar.
-- **[The Lab](https://hartswf0.github.io/cineosis-lab/lab/)** — 4,788 shots from 1,075 films, sortable by sign, colour, era, subject, shot scale and visual similarity, in six modes: **wall**, **similarity map**, **ring**, **strata** (shots as stacks of frames), **cut-outs** (SAM 2.1 figures tracked through their shots, recombinable on a black table) and **reel** (a film that walks the table). The **inspector** scrubs any shot with a source-film timecode, frame stepping, R/M/A/B markers and sub-shot saving, shows a heat-mapped mini periodic table of machine sign-affinity, and overlays tracked segments that move with the video.
-- **The film** — `cineosis-reel.mp4` (10 min) in the [Releases](https://github.com/hartswf0/cineosis-lab/releases): every sign as a title card with its deciding test, then its strongest shots with their readings.
+## Use it in three moves
+
+1. **Read a sign.** Open the [periodic table](https://hartswf0.github.io/cineosis-lab/periodic-table.html) and click an element. You get the test that decides the sign, the three signs it is confused with and what would flip a shot to each, and 4–6 archive shots with a reading and a confidence bar.
+2. **Find shots.** Open the [lab](https://hartswf0.github.io/cineosis-lab/lab/). Click a sign in the small table on the left: the wall keeps only its shots. Add a decade, a colour band or a subject to narrow it; the line under the top bar lists every filter with a ✕ to drop it. Click a shot: the inspector plays it from the frame its reading was made from. Keys `1`–`8` switch views (wall, similarity map, ring, strata, cut-outs, reel, montage, WYGWYL); `?` lists every key.
+3. **Watch a film.** Open [WYGWYL · four cuts](https://hartswf0.github.io/cineosis-lab/lab/wygwyl.html). Pick Suite, Scenes, Cineosis or Drift, or `G` for all four in one frame, and press play. The poem line, the shot's source film and the signs of its beat follow the picture. `←`/`→` step shot by shot; switching cuts keeps the time.
+
+## What is in it
+
+- **The periodic table** — 45 elements: the 44 signs, with opsign and sonsign split into 34a and 34b, on Deamer's structure (sixteen image types as columns; two signs of composition and one of genesis as rows; the movement-image's Peircean codes 111 … 333 and the time-image's 0 · 1 · 2 · 3 · ∞).
+- **The lab** — 15,149 shots in two collections: *cineosis* (4,788 shots found sign by sign, 253 of them read) and *wygwyl* (the WYGWYL Forage Suite's candidates). Filter by sign, colour, era, subject, shot scale and visual similarity. The inspector scrubs with a source-film timecode, frame stepping, R/M/A/B markers and sub-shot saving, shows the machine's sign affinity as a heat-mapped mini table, and overlays SAM 2.1 segments tracked through the shot.
+- **WYGWYL** — a 24-minute poem suite (14 films, 88 beats) cut four ways from archive footage, one full-frame shot per 6–12 s patch, no shot repeated: **Suite** (closest to the suite's treatment), **Scenes** (each line from one film, in that film's order), **Cineosis** (chosen for the beat's signs), **Drift** (each shot follows the one before). The films stream from the [wygwyl-v1 release](https://github.com/hartswf0/cineosis-lab/releases/tag/wygwyl-v1); each cut's shot list, story map and patch genome are in `lab/wygwyl/cuts/<cut>/`.
+- **The cineosis reel** — `cineosis-reel.mp4` (10 min) in [Releases](https://github.com/hartswf0/cineosis-lab/releases/tag/v0.1): every sign as a title card with its deciding test, then its strongest shots.
+
+Static site limits: only the 253 read shots ship as local clips; every other shot plays from the archive's CDN. Chrome and Firefox stream the WYGWYL films from the release; if Safari refuses, the page offers the file to download.
 
 ## Run it locally
 
 ```bash
-python3 lab/server.py 8765          # then open http://localhost:8765/lab/  (table: /periodic-table.html)
+git clone https://github.com/hartswf0/cineosis-lab && cd cineosis-lab
+python3 lab/server.py 8765          # then open http://localhost:8765/
 ```
 
-The local server adds what the static site can't: **live search** of movingimagearchive.com's shot index (the archive sends no CORS headers, so it is proxied and rate-limited) and **saving sub-shots** to `lab/assignments.json`. On GitHub Pages the lab runs in static mode: corpus search only, sub-shots kept in your browser with an export button.
+The local server adds what the static site can't: the two editors (**CUT** and **WAG**, the Cutting Room, each with the periodic table as its clip bin, `lab/tools/`), **live search** of movingimagearchive.com's shot index (the archive sends no CORS headers, so it is proxied and rate-limited) and **saving sub-shots** to `lab/assignments.json`. On GitHub Pages the lab runs in static mode: corpus search only, sub-shots kept in your browser with an export button.
 
 ## How it was made
 
@@ -31,6 +43,10 @@ The local server adds what the static site can't: **live search** of movingimage
 | segments | `lab/seg_track.py` | SAM 2.1 proposals directed by CLIP toward what the reading is about, plus face/person detector prompts; chosen objects tracked through the shot with SAM 2's video predictor. |
 | film | `lab/render_reel.py` | Title cards + shots + captions → `cineosis-reel.mp4`. |
 | lab data | `lab/build_lab.py` → `lab/lab-data.json` | Contract in `lab/DATA_CONTRACT.md`. |
+| WYGWYL patches | `lab/cutbastard/timeline.py` | The suite clock cut into 169 patches of 6–12 s on cue edges, internal cuts snapped to score onsets. |
+| WYGWYL forage | `lab/cutbastard/forage.py`, `queries.json` | 417 archive queries from the suite's lines and beats, then whole source films expanded. |
+| WYGWYL watching | `lab/cutbastard/watch.py` | Per clip: motion, camera travel, dead frames, title-card probability, CLIP fingerprint. |
+| WYGWYL cuts | `lab/cutbastard/plan.py`, `render_cut.py`, `render_grid.py` | Four strategies choose one unrepeated shot per patch; frame-exact render to the suite audio; the 2×2 grid. |
 
 To re-run the Python pipeline: `sh setup.sh` (creates `lab/.venv`, installs SAM 2, downloads the SAM 2.1 small checkpoint from Meta).
 

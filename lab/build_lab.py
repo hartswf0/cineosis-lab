@@ -54,6 +54,33 @@ def main():
             cid = e["page"].split("clip=")[1]
             readings.setdefault(cid, []).append({"n": s["n"], "note": e["note"], "conf": e.get("conf"), "shot": e.get("shot"),
                                                  "alt": e.get("alt"), "alt_conf": e.get("alt_conf"), "flip": e.get("flip")})
+    wyg = {}                                    # id -> WYGWYL review + where the cut uses it
+    wbeats, wfilms, wcut = [], [], None
+    wd = os.path.join(LAB, "wygwyl")
+    if os.path.exists(os.path.join(wd, "WYGWYL_Forage_Catalogue.json")):
+        cat = json.load(open(os.path.join(wd, "WYGWYL_Forage_Catalogue.json")))
+        cutj = json.load(open(os.path.join(wd, "WYGWYL_Forage_Cut.json")))
+        chosen = {x["selected"]: x["id"] for x in cutj["shots"] if x.get("selected")}
+        for c in cat["catalogue"]:
+            wyg[c["id"]] = {"grade": c.get("grade"), "observed": c.get("observed"), "use": c.get("use"),
+                            "queries": c.get("queries"), "beats": [], "chosen": None}
+        for b in cat["beats"]:
+            for c in b["candidates"]:
+                w = wyg.setdefault(c["id"], {"grade": c.get("grade"), "observed": c.get("observed"), "use": c.get("use"),
+                                             "queries": [c.get("query")], "beats": [], "chosen": None})
+                if c.get("grade") and c.get("grade") != "U":        # a reviewed placement is more specific
+                    w.update(grade=c.get("grade"), observed=c.get("observed"), use=c.get("use"))
+                w["beats"].append(b["id"])
+        for cid, bid in chosen.items():
+            wyg.setdefault(cid, {"beats": []})["chosen"] = bid
+        idx = json.load(open(os.path.join(LAB, "tools", "cineosis-index.json"))) if os.path.exists(os.path.join(LAB, "tools", "cineosis-index.json")) else {}
+        wbeats = idx.get("wygwyl", {}).get("beats", [])
+        wfilms = idx.get("wygwyl", {}).get("films", [])
+        edl = os.path.join(wd, "wygwyl-cut.edl.json")
+        wcut = {"title": cat.get("title"), "duration": cutj["duration"], "audio": "wygwyl/WYGWYL_Suite_Audio.mp3",
+                "film": "wygwyl/wygwyl-cut.mp4" if os.path.exists(os.path.join(wd, "wygwyl-cut.mp4")) else None,
+                "animatic_note": "The suite's own animatic is stills (its downloads 403'd); wygwyl-cut.mp4 is rendered from the archive footage.",
+                "scope": cat.get("scope")}
     shots = []
     for cid, c in corpus.items():
         a = ana.get(cid, {})
@@ -75,10 +102,14 @@ def main():
             "cutouts": cuts.get(cid, []), "audio": audio.get(cid),
             "affinity": affinity.get(cid, {}).get("all"), "aff_top": affinity.get(cid, {}).get("top"),
             "segments": segs.get(cid),
+            "collections": c.get("collections", ["cineosis"]), "wygwyl": wyg.get(cid),
         })
     shots.sort(key=lambda s: (not s["signs"], s["sim"] if s["sim"] is not None else 1e9))
-    out = {"signs": signs, "shots": shots, "assignments": load("assignments.json", [])}
-    json.dump(out, open(os.path.join(LAB, "lab-data.json"), "w"), ensure_ascii=False, separators=(",", ":"))
+    out = {"signs": signs, "shots": shots, "assignments": load("assignments.json", []),
+           "wygwyl": {"cut": wcut, "films": wfilms, "beats": wbeats} if wcut else None}
+    tmp = os.path.join(LAB, "lab-data.json.tmp")         # atomic: readers never see a half-written file
+    json.dump(out, open(tmp, "w"), ensure_ascii=False, separators=(",", ":"))
+    os.replace(tmp, os.path.join(LAB, "lab-data.json"))
     print(len(signs), "signs;", len(shots), "shots;", sum(1 for s in shots if s["signs"]), "read;",
           sum(1 for s in shots if s["palette"]), "analysed;", sum(1 for s in shots if s["cutouts"]), "cut out")
 

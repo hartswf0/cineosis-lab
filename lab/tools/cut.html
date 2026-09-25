@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>CUT · Cineosis</title>
+<link rel="icon" type="image/svg+xml" href="./favicon.svg">
+<link rel="stylesheet" href="cineosis-panel.css">
+<style>
+:root{--bg:#0b0f11;--ink:#e8eeeb;--mute:#7f8d8a;--line:#243033;--lime:#c4f46a;--red:#ff5a4f;--pad-top:env(safe-area-inset-top,0px);--pad-bot:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--ink);font:13px ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden;overscroll-behavior:none}
+#stage{position:absolute;inset:0;touch-action:none;display:block}
+#bar{position:absolute;left:0;right:0;top:var(--pad-top);display:flex;gap:6px;padding:8px;align-items:center;pointer-events:none}
+#bar *{pointer-events:auto}
+button,label.btn{min-height:40px;min-width:40px;padding:0 12px;border:1px solid var(--line);background:#141b1e;color:var(--ink);font:inherit;display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}
+button:active{background:#1e272b}
+button.on{border-color:var(--lime);color:var(--lime)}
+button[hidden]{display:none}
+button.danger{border-color:#5a2a27;color:var(--red)}
+svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+svg.solid{fill:currentColor;stroke:none}
+#time{font-weight:600;padding:0 8px;letter-spacing:1px}
+#time i{font-style:normal;color:var(--mute)}
+.gap{flex:1}
+#hint{position:absolute;left:0;right:0;bottom:calc(46px + var(--pad-bot));text-align:center;color:var(--mute);pointer-events:none;padding:0 12px;transition:opacity .3s}
+#hint.hot{color:var(--lime)}
+#strip{position:absolute;left:0;right:0;bottom:var(--pad-bot);height:44px;touch-action:none;display:block}
+#cam{position:absolute;right:8px;top:calc(56px + var(--pad-top));width:112px;height:84px;object-fit:cover;transform:scaleX(-1);border:1px solid var(--line);display:none;opacity:.8}
+#cam.on{display:block}
+#drop{position:absolute;inset:12px;border:2px dashed var(--lime);display:none;place-content:center;color:var(--lime);background:#0b0f11d9;pointer-events:none}
+#drop.on{display:grid}
+@media (max-width:640px){button span{display:none}#bar{gap:4px;padding:6px}}
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div id="bar">
+  <label class="btn" title="Import video or image files"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg><span>Import</span><input id="file" type="file" accept="video/*,image/*" multiple hidden></label>
+  <button id="play" title="Play / pause · Space"><svg class="solid" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg></button>
+  <output id="time">00:00.0 <i>/ 00:00.0</i></output>
+  <button id="chop" title="Chop the selected clip at the sheet · C"><svg viewBox="0 0 24 24"><path d="M12 2v20M3 7h6v10H3zM15 7h6v10h-6z"/></svg><span>Chop</span></button>
+  <button id="del" class="danger" hidden title="Delete the selected clip · Backspace"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+  <button id="hands" title="Hands · pinch to grab, open to let go, thumbs up to chop"><svg viewBox="0 0 24 24"><path d="M8 13V5a1.5 1.5 0 0 1 3 0v6M11 11V4a1.5 1.5 0 0 1 3 0v7M14 11V5a1.5 1.5 0 0 1 3 0v8M17 12a1.5 1.5 0 0 1 3 0v3a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3.5L4 14a1.5 1.5 0 0 1 2.5-1.5L8 14"/></svg><span>Hands</span></button>
+  <span class="gap"></span>
+  <button id="undo" title="Undo · Z"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5M4 9h9a6 6 0 0 1 0 12H8"/></svg></button>
+  <button id="export" title="Record the cut to a video file"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 14v6h16v-6"/></svg><span>Export</span></button>
+</div>
+<div id="hint">Import a video. It stands at the sheet, full frame.</div>
+<canvas id="strip"></canvas>
+<video id="cam" playsinline muted></video>
+<div id="drop">Drop files to add them</div>
+<script>
+/* CUT — the frame, with depth as time.
+   The picture you are making is the front face of a volume. Behind it is what comes next: a clip is a box that
+   starts where its front face stands and runs back for its length. Where a clip stands in the frame is where it
+   appears; how far back it stands is when. Boxes that overlap composite, the later start on top.
+   Four verbs, all placement: put (drag), stretch (corner), push (wheel or two fingers, in time), chop.
+   No tracks, no modes, no settings. */
+'use strict';
+const $ = s => document.querySelector(s);
+const stage = $('#stage'), sctx = stage.getContext('2d');
+const strip = $('#strip'), tctx = strip.getContext('2d');
+const prog = document.createElement('canvas'); prog.width = 1280; prog.height = 720; const pctx = prog.getContext('2d');
+const HORIZON = 10;            // seconds ahead at which a box is drawn at half size
+const AHEAD = 40;              // seconds of future drawn
+const MIN = .2;
+const PALETTE = ['#ff5a4f','#ffc42e','#3bd16f','#19d3bb','#5b8cff','#a46bff','#f2f2ec','#ff8a3c'];
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const tc = t => { t = Math.max(0, t); const m = Math.floor(t/60), s = t - m*60; return String(m).padStart(2,'0') + ':' + s.toFixed(1).padStart(4,'0'); };
+
+const S = { sources: new Map(), clips: [], time: 0, playing: false, sel: null, next: 1, history: [], rec: null, ac: null, dest: null, hint: '' };
+
+/* ---------- media ---------- */
+let dbP = null;
+const db = () => dbP ||= new Promise((res, rej) => { const r = indexedDB.open('cut-media', 1); r.onupgradeneeded = () => r.result.createObjectStore('m'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+async function blobOp(mode, fn) { try { const d = await db(); return await new Promise((res, rej) => { const tx = d.transaction('m', mode), q = fn(tx.objectStore('m')); tx.oncomplete = () => res(q.result); tx.onerror = tx.onabort = () => rej(tx.error); }); } catch (e) { return null; } }
+function attach(src, blob) {
+  return new Promise(res => {
+    src.url = URL.createObjectURL(blob);
+    if (src.kind === 'image') { const im = new Image(); im.onload = () => { src.image = im; src.w = im.naturalWidth; src.h = im.naturalHeight; src.ready = true; res(true); }; im.onerror = () => res(false); im.src = src.url; return; }
+    const v = document.createElement('video'); v.playsInline = true; v.preload = 'auto'; v.src = src.url;
+    const fail = setTimeout(() => res(false), 12000);
+    v.onloadedmetadata = () => { clearTimeout(fail); src.video = v; src.w = v.videoWidth || 1280; src.h = v.videoHeight || 720; if (isFinite(v.duration) && v.duration > 0) src.dur = v.duration; src.ready = true; if (S.ac) wire(src); res(true); };
+    v.onerror = () => { clearTimeout(fail); res(false); };
+  });
+}
+async function importFile(file) {
+  const kind = file.type.startsWith('video/') || /\.(mp4|mov|webm|m4v)$/i.test(file.name) ? 'video' : file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(file.name) ? 'image' : null;
+  if (!kind) return hint(file.name + ' is not a video or an image.');
+  let src = [...S.sources.values()].find(s => s.name === file.name && s.size === file.size);
+  const fresh = !src;
+  if (fresh) src = { id: 's' + S.next++, kind, name: file.name, size: file.size, dur: kind === 'image' ? 6 : 0, w: 1280, h: 720, color: PALETTE[S.sources.size % PALETTE.length], ready: false };
+  else if (src.ready) return placeNew(src);
+  if (!(await attach(src, file)) || !src.dur) return hint('Could not read ' + file.name + '.');
+  S.sources.set(src.id, src);
+  if (file.size < 4e8) blobOp('readwrite', s => s.put(file, src.id));
+  for (const c of S.clips) if (c.src === src.id) thumb(c);
+  if (fresh) placeNew(src); else hint(file.name + ' relinked.');
+  save();
+}
+function placeNew(src) {
+  // A new clip stands at the sheet, full frame, on top of whatever is there.
+  const c = { id: 'c' + S.next++, src: src.id, in: 0, out: src.dur, t: S.time, x: 0, y: 0, w: 1, h: 1 };
+  mutate(() => { S.clips.push(c); S.sel = c.id; });
+  thumb(c);
+  hint(src.name.replace(/\.[a-z0-9]+$/i, '') + ' · full frame at ' + tc(c.t) + ' · drag to place, scroll or two fingers to push it later, drag a corner to shrink it');
+}
+
+/* ---------- thumbnails: one frame per clip at its in point ---------- */
+const thumbQ = []; let pumping = false;
+function thumb(c) {
+  const src = S.sources.get(c.src); if (!src || !src.ready) return;
+  c.thumb = document.createElement('canvas'); c.thumb.width = 320; c.thumb.height = 180;
+  const g = c.thumb.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, 320, 180);
+  if (src.kind === 'image') { drawFit(g, src.image, src.w, src.h, 320, 180); return; }
+  thumbQ.push(c); pump();
+}
+async function pump() {
+  if (pumping) return; pumping = true;
+  while (thumbQ.length) {
+    const c = thumbQ.shift(), src = S.sources.get(c.src); if (!src) continue;
+    src.probe ||= (() => { const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = src.url; return v; })();
+    const v = src.probe;
+    await new Promise(r => { let done = false; const end = () => { if (!done) { done = true; v.removeEventListener('seeked', end); r(); } }; v.addEventListener('seeked', end); setTimeout(end, 1500); v.currentTime = clamp(c.in + .05, 0, src.dur - .05); });
+    if (v.readyState >= 2 && c.thumb) drawFit(c.thumb.getContext('2d'), v, src.w, src.h, 320, 180);
+  }
+  pumping = false;
+}
+function drawFit(g, im, iw, ih, w, h) { const k = Math.min(w / iw, h / ih); g.drawImage(im, (w - iw * k) / 2, (h - ih * k) / 2, iw * k, ih * k); }
+
+/* ---------- edits: every one is a snapshot, so Undo is one line ---------- */
+function mutate(fn) { S.history.push(JSON.stringify(S.clips)); if (S.history.length > 200) S.history.shift(); fn(); save(); }
+function undo() {
+  const h = S.history.pop(); if (!h) return hint('Nothing to undo.');
+  const keep = new Map(S.clips.map(c => [c.id, c.thumb]));
+  S.clips = JSON.parse(h); for (const c of S.clips) { c.thumb = keep.get(c.id); if (!c.thumb) thumb(c); }
+  if (!S.clips.some(c => c.id === S.sel)) S.sel = null;
+  save(); hint('Undone.');
+}
+const dur = c => c.out - c.in, end = c => c.t + dur(c);
+const sel = () => S.clips.find(c => c.id === S.sel) || null;
+function chop() {
+  const c = sel() || onSheet().slice(-1)[0];
+  if (!c) return hint('Select a clip, or scrub the sheet into one.');
+  const o = S.time - c.t;
+  if (o < MIN || dur(c) - o < MIN) return hint('Scrub the sheet to where the cut goes, inside ' + name(c) + '.');
+  mutate(() => {
+    const b = { ...c, id: 'c' + S.next++, in: c.in + o, t: S.time, thumb: undefined };
+    c.out = c.in + o; S.clips.push(b); S.sel = b.id; thumb(b);
+  });
+  hint('Chopped at ' + tc(S.time) + '. Both pieces are yours to move.');
+}
+function del() { const c = sel(); if (!c) return; mutate(() => { S.clips = S.clips.filter(q => q !== c); S.sel = null; }); hint(name(c) + ' removed.'); }
+const name = c => (S.sources.get(c.src)?.name || 'clip').replace(/\.[a-z0-9]+$/i, '').slice(0, 18);
+const color = c => S.sources.get(c.src)?.color || '#9aa7a3';
+const total = () => S.clips.reduce((m, c) => Math.max(m, end(c)), 0);
+function onSheet() { return S.clips.filter(c => c.t <= S.time + 1e-6 && end(c) > S.time).sort((a, b) => a.t - b.t); }
+
+/* ---------- transport and the composite (also the export frame) ---------- */
+function frameOf(c, t) { const src = S.sources.get(c.src); return src?.kind === 'image' ? src.image : src?.video; }
+function drive(active) {
+  const owner = new Map(); for (const c of active) if (!owner.has(c.src)) owner.set(c.src, c);
+  for (const src of S.sources.values()) {
+    const v = src.video; if (!v) continue; const c = owner.get(src.id);
+    if (!c) { if (!v.paused) v.pause(); continue; }
+    const want = clamp(c.in + (S.time - c.t), 0, Math.max(0, src.dur - .03));
+    v.muted = false; v.volume = c === active[active.length - 1] ? 1 : .35;
+    if (S.playing) { if (v.paused) v.play().catch(() => {}); if (Math.abs(v.currentTime - want) > .25 && !v.seeking) v.currentTime = want; }
+    else { if (!v.paused) v.pause(); if (Math.abs(v.currentTime - want) > .03 && !v.seeking) v.currentTime = want; }
+  }
+  return owner;
+}
+function composite(active, owner) {
+  // The picture is opaque only where something stands, so the room shows what is coming through the empty sheet.
+  // A recording gets black there, as a film would.
+  pctx.clearRect(0, 0, prog.width, prog.height);
+  if (S.rec) { pctx.fillStyle = '#000'; pctx.fillRect(0, 0, prog.width, prog.height); }
+  for (const c of active) {
+    const src = S.sources.get(c.src), im = src && (src.kind === 'image' || owner.get(src.id) === c) ? frameOf(c) : null;
+    const x = c.x * prog.width, y = c.y * prog.height, w = c.w * prog.width, h = c.h * prog.height;
+    pctx.save(); pctx.beginPath(); pctx.rect(x, y, w, h); pctx.clip(); pctx.fillStyle = '#000'; pctx.fillRect(x, y, w, h);
+    pctx.translate(x, y);
+    if (im && (src.kind === 'image' ? im.complete : im.readyState >= 2)) drawFit(pctx, im, src.w, src.h, w, h);
+    else if (c.thumb) pctx.drawImage(c.thumb, 0, 0, w, h);
+    pctx.restore();
+  }
+}
+
+/* ---------- the room: front-on, depth is time ---------- */
+let W = 0, H = 0, F = { x: 0, y: 0, w: 0, h: 0 }, DPR = 1;
+function layout() {
+  DPR = Math.min(devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  stage.width = W * DPR; stage.height = H * DPR; stage.style.width = W + 'px'; stage.style.height = H + 'px';
+  const IX = S.inset = clamp(window.CUT_INSET || 0, 0, W * .8);   // a panel docked on the left (the cineosis table) takes this much
+  const top = 56, bot = 54 + 40, aw = W - IX - 24, ah = H - top - bot;
+  let fw = aw, fh = fw * 9 / 16; if (fh > ah) { fh = ah; fw = fh * 16 / 9; }
+  F = { x: IX + (W - IX - fw) / 2, y: top + (ah - fh) / 2, w: fw, h: fh };
+  strip.width = (W - IX) * DPR; strip.height = 44 * DPR; strip.style.left = IX + 'px'; strip.style.width = (W - IX) + 'px';
+}
+addEventListener('resize', layout);
+const scaleAt = dt => HORIZON / (HORIZON + Math.max(0, dt));
+function proj(c, dt) {
+  // A region of the frame, seen dt seconds ahead: scaled toward the frame's centre.
+  const s = scaleAt(dt), cx = F.x + F.w / 2, cy = F.y + F.h / 2;
+  const x0 = F.x + c.x * F.w, y0 = F.y + c.y * F.h, x1 = x0 + c.w * F.w, y1 = y0 + c.h * F.h;
+  return [cx + (x0 - cx) * s, cy + (y0 - cy) * s, cx + (x1 - cx) * s, cy + (y1 - cy) * s];
+}
+function drawRoom(active) {
+  const g = sctx; g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, W, H);
+  g.fillStyle = '#0b0f11'; g.fillRect(0, 0, W, H);
+  // Depth lines: the frame's corners run to the vanishing point, marked every 5 s.
+  const cx = F.x + F.w / 2, cy = F.y + F.h / 2;
+  g.strokeStyle = '#1b2427'; g.lineWidth = 1;
+  for (const [x, y] of [[F.x, F.y], [F.x + F.w, F.y], [F.x, F.y + F.h], [F.x + F.w, F.y + F.h]]) { g.beginPath(); g.moveTo(x, y); g.lineTo(cx + (x - cx) * scaleAt(AHEAD), cy + (y - cy) * scaleAt(AHEAD)); g.stroke(); }
+  g.font = '10px ui-monospace,monospace'; g.fillStyle = '#3b4a4d'; g.textAlign = 'left';
+  for (let d = 5; d <= AHEAD; d += 5) { const s = scaleAt(d); g.strokeRect(cx - F.w / 2 * s, cy - F.h / 2 * s, F.w * s, F.h * s); g.fillText('+' + d + 's', cx + F.w / 2 * s + 3, cy - F.h / 2 * s + 10); }
+  // Boxes ahead, far to near, so nearer ones cover farther ones. The sheet's own clips come last as the picture.
+  const ahead = S.clips.filter(c => end(c) > S.time).sort((a, b) => b.t - a.t);
+  for (const c of ahead) {
+    const front = Math.max(0, c.t - S.time), back = Math.min(AHEAD, end(c) - S.time);
+    if (front >= AHEAD) continue;
+    const [ax, ay, bx, by] = proj(c, front), [px, py, qx, qy] = proj(c, back), col = color(c), on = c.id === S.sel, live = front === 0;
+    // sides
+    g.fillStyle = col + '33'; g.strokeStyle = on ? '#c4f46a' : col; g.lineWidth = on ? 2 : 1;
+    for (const poly of [[ax, ay, bx, ay, qx, py, px, py], [ax, by, bx, by, qx, qy, px, qy], [ax, ay, ax, by, px, qy, px, py], [bx, ay, bx, by, qx, qy, qx, py]]) {
+      g.beginPath(); g.moveTo(poly[0], poly[1]); for (let i = 2; i < 8; i += 2) g.lineTo(poly[i], poly[i + 1]); g.closePath(); g.fill(); g.stroke();
+    }
+    g.strokeRect(px, py, qx - px, qy - py);
+    if (!live) {
+      // front face ahead: the first frame, dimmed by distance
+      g.save(); g.beginPath(); g.rect(ax, ay, bx - ax, by - ay); g.clip(); g.fillStyle = '#000'; g.fillRect(ax, ay, bx - ax, by - ay);
+      if (c.thumb) g.drawImage(c.thumb, ax, ay, bx - ax, by - ay);
+      g.fillStyle = 'rgba(11,15,17,' + (1 - scaleAt(front)) * .8 + ')'; g.fillRect(ax, ay, bx - ax, by - ay); g.restore();
+      g.strokeStyle = on ? '#c4f46a' : col; g.strokeRect(ax, ay, bx - ax, by - ay);
+      label(g, c, ax, ay, bx - ax, scaleAt(front), 'in ' + tc(front).replace(/^00:/, '') + 's');
+    }
+  }
+  // The sheet: the composite, drawn once at full size.
+  g.drawImage(prog, F.x, F.y, F.w, F.h);
+  g.strokeStyle = '#c4f46a'; g.lineWidth = 1.5; g.strokeRect(F.x, F.y, F.w, F.h);
+  for (const c of active) {
+    const [ax, ay, bx, by] = proj(c, 0), on = c.id === S.sel;
+    g.strokeStyle = on ? '#c4f46a' : color(c); g.lineWidth = on ? 2 : 1; g.strokeRect(ax, ay, bx - ax, by - ay);
+    label(g, c, ax, ay, bx - ax, 1, tc(dur(c) - (S.time - c.t)) + ' left');
+    if (on) handles(g, ax, ay, bx, by);
+  }
+  const s = sel();
+  if (s && !active.includes(s)) { const [ax, ay, bx, by] = proj(s, Math.max(0, s.t - S.time)); if (s.t >= S.time) handles(g, ax, ay, bx, by); }
+  if (!S.clips.length) { g.fillStyle = '#3b4a4d'; g.font = '14px ui-monospace,monospace'; g.textAlign = 'center'; g.fillText('THE SHEET · what stands here is the picture', cx, cy); }
+}
+function label(g, c, x, y, w, s, right) {
+  if (w < 60) return;
+  const h = 16; g.fillStyle = '#0b0f11cc'; g.fillRect(x, y, w, h); g.fillStyle = color(c); g.fillRect(x, y, 3, h);
+  g.font = '11px ui-monospace,monospace'; g.textBaseline = 'middle'; g.textAlign = 'left'; g.fillStyle = '#e8eeeb'; g.fillText(name(c), x + 7, y + h / 2);
+  g.textAlign = 'right'; g.fillStyle = '#9daaa9'; if (w > 150) g.fillText(right, x + w - 5, y + h / 2);
+}
+function handles(g, ax, ay, bx, by) { g.fillStyle = '#c4f46a'; for (const [x, y] of [[ax, ay], [bx, ay], [ax, by], [bx, by]]) g.fillRect(x - 6, y - 6, 12, 12); }
+function drawStrip() {
+  const g = tctx, w = W - (S.inset || 0), h = 44, T = Math.max(20, total() + 5);
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, w, h); g.fillStyle = '#0e1417'; g.fillRect(0, 0, w, h);
+  const x = t => 10 + t / T * (w - 20);
+  const rows = new Map(); S.clips.slice().sort((a, b) => a.t - b.t).forEach(c => { let r = 0; while ([...rows.entries()].some(([id, v]) => v.r === r && v.end > c.t + .01 && S.clips.find(q => q.id === id).t < end(c) - .01)) r++; rows.set(c.id, { r, end: end(c) }); });
+  const nr = Math.max(1, ...[...rows.values()].map(v => v.r + 1)), rh = Math.min(10, 30 / nr);
+  for (const c of S.clips) { const r = rows.get(c.id).r; g.fillStyle = c.id === S.sel ? '#c4f46a' : color(c); g.fillRect(x(c.t), 8 + r * (rh + 1), Math.max(2, x(end(c)) - x(c.t)), rh); }
+  g.fillStyle = '#c4f46a'; g.fillRect(x(S.time) - 1, 2, 2, h - 4);
+  g.font = '10px ui-monospace,monospace'; g.fillStyle = '#7f8d8a'; g.textAlign = 'left'; g.textBaseline = 'bottom';
+  const step = [5, 10, 30, 60, 120, 300, 600].find(q => (w - 20) / T * q >= 48) || 600; for (let t = 0; t <= T; t += step) g.fillText(tc(t).slice(0, 5), x(t) + 2, h - 2);
+  S.stripT = T;
+}
+
+/* ---------- pointer: put, stretch, push, scrub ---------- */
+let P = null;
+const pt = e => ({ x: e.clientX, y: e.clientY });
+function hit(x, y) {
+  // Nearest first: the sheet's clips, then boxes ahead by their front faces.
+  const cands = S.clips.filter(c => end(c) > S.time && c.t - S.time < AHEAD).sort((a, b) => a.t - b.t);
+  for (const c of cands) {
+    const [ax, ay, bx, by] = proj(c, Math.max(0, c.t - S.time));
+    if (x >= ax - 8 && x <= bx + 8 && y >= ay - 8 && y <= by + 8) {
+      const corner = [[ax, ay, 'nw'], [bx, ay, 'ne'], [ax, by, 'sw'], [bx, by, 'se']].find(([hx, hy]) => Math.hypot(x - hx, y - hy) < 14);
+      return { c, corner: c.id === S.sel && corner ? corner[2] : null };
+    }
+  }
+  return null;
+}
+const pointers = new Map();
+/* Every driver (mouse, touch, hands) calls these three. A hand is a pointer that can also push in depth. */
+function down(id, x, y) {
+  pointers.set(id, { x, y });
+  if (pointers.size === 2 && P?.c) { P.kind = 'push'; P.y0 = [...pointers.values()].reduce((m, q) => m + q.y, 0) / 2; P.t0 = P.c.t; P.w0 = P.c.w; P.d0 = spread(); return; }
+  if (pointers.size > 1) return;
+  const h = hit(x, y);
+  if (!h) { S.sel = null; P = { kind: 'scrub', x0: x, t0: S.time }; return; }
+  S.sel = h.c.id;
+  P = { kind: h.corner ? 'stretch' : 'put', c: h.c, corner: h.corner, x0: x, y0: y, o: { x: h.c.x, y: h.c.y, w: h.c.w, h: h.c.h, t: h.c.t }, moved: false, snap: JSON.stringify(S.clips), now: performance.now() };
+}
+function spread() { const v = [...pointers.values()]; return v.length > 1 ? Math.hypot(v[0].x - v[1].x, v[0].y - v[1].y) : 0; }
+function move(id, x, y) {
+  if (!P) return; pointers.set(id, { x, y });
+  if (P.kind === 'scrub') { seek(P.t0 - (x - P.x0) / F.w * 10); return; }
+  if (P.kind === 'wheel') return;   // a wheel push in progress has no drag origin (unguarded, a move here threw)
+  const c = P.c, s = scaleAt(Math.max(0, c.t - S.time));
+  if (P.kind === 'push') {
+    // Two hands or two fingers on one box: their spread is its size, their height is its time.
+    const y = [...pointers.values()].reduce((m, v) => m + v.y, 0) / 2, d = spread();
+    push(c, P.t0 + (P.y0 - y) / 8);
+    if (P.d0 > 20 && d > 20) { const w = clamp(P.w0 * d / P.d0, .1, 1); const cx = c.x + c.w / 2, cy = c.y + c.h / 2; c.w = c.h = w; c.x = clamp(cx - w / 2, 0, 1 - w); c.y = clamp(cy - w / 2, 0, 1 - w); }
+    P.moved = true; return;
+  }
+  const dx = (x - P.x0) / (F.w * s), dy = (y - P.y0) / (F.h * s);
+  if (Math.hypot(x - P.x0, y - P.y0) > 4) P.moved = true;
+  if (P.kind === 'put') { c.x = clamp(P.o.x + dx, 0, 1 - c.w); c.y = clamp(P.o.y + dy, 0, 1 - c.h); cue(c); }
+  else {
+    const o = P.o; let w = o.w, h = o.h, x0 = o.x, y0 = o.y;
+    if (P.corner.includes('e')) w = clamp(o.w + dx, .1, 1 - o.x); else { x0 = clamp(o.x + dx, 0, o.x + o.w - .1); w = o.w + (o.x - x0); }
+    h = w;
+    if (P.corner.includes('n')) y0 = clamp(o.y + o.h - h, 0, 1); else y0 = o.y;
+    if (y0 + h > 1) { h = 1 - y0; w = h; if (P.corner.includes('w')) x0 = o.x + o.w - w; }
+    c.x = x0; c.y = y0; c.w = w; c.h = h; cue(c);
+  }
+}
+function up(id) {
+  pointers.delete(id); if (pointers.size) return; const p = P; P = null; if (!p) return;
+  if (p.kind === 'scrub') return;
+  if (!p.moved) { if (p.kind === 'put' && performance.now() - (p.c.lastTap || 0) < 350) { S.time = clamp(S.time, p.c.t, end(p.c) - .01); chop(); } p.c.lastTap = performance.now(); return; }
+  S.history.push(p.snap); save();
+  const c = p.c; hint(name(c) + ' placed · ' + Math.round(c.w * 100) + '% of the frame · starts ' + tc(c.t) + (overlapsOf(c).length ? ' · over ' + overlapsOf(c).map(name).join(', ') : ''));
+}
+function push(c, t) { c.t = clamp(t, 0, 3600); cue(c); }
+function cue(c) { hint(name(c) + ' · ' + Math.round(c.w * 100) + '% wide · ' + Math.round(c.x * 100) + '% across, ' + Math.round(c.y * 100) + '% down · starts ' + tc(c.t) + (c.t > S.time ? ' · in ' + (c.t - S.time).toFixed(1) + ' s' : c.t < S.time ? ' · on the sheet' : ''), true); }
+function overlapsOf(c) { return S.clips.filter(o => o !== c && o.t < end(c) && end(o) > c.t && o.x < c.x + c.w && o.x + o.w > c.x && o.y < c.y + c.h && o.y + o.h > c.y); }
+stage.addEventListener('pointerdown', e => { stage.setPointerCapture(e.pointerId); down(e.pointerId, e.clientX, e.clientY); });
+stage.addEventListener('pointermove', e => move(e.pointerId, e.clientX, e.clientY));
+stage.addEventListener('pointerup', e => up(e.pointerId)); stage.addEventListener('pointercancel', e => up(e.pointerId));
+stage.addEventListener('wheel', e => {
+  e.preventDefault(); const q = pt(e), h = hit(q.x, q.y), c = h ? h.c : sel();
+  if (!c) { seek(S.time + e.deltaY / 40); return; }
+  if (!P) { S.history.push(JSON.stringify(S.clips)); P = { kind: 'wheel', c }; setTimeout(() => { if (P?.kind === 'wheel') { P = null; save(); } }, 400); }
+  push(c, c.t + e.deltaY / 40);
+}, { passive: false });
+strip.addEventListener('pointerdown', e => { strip.setPointerCapture(e.pointerId); const scrub = ev => seek((ev.clientX - (S.inset || 0) - 10) / (W - (S.inset || 0) - 20) * S.stripT); scrub(e); const mv = ev => scrub(ev); strip.addEventListener('pointermove', mv); strip.addEventListener('pointerup', () => strip.removeEventListener('pointermove', mv), { once: true }); });
+function seek(t) { S.time = clamp(t, 0, 3600); }
+function hint(text, hot) { const h = $('#hint'); h.textContent = text; h.classList.toggle('hot', !!hot); h.style.opacity = 1; clearTimeout(hint.tm); hint.tm = setTimeout(() => h.style.opacity = .55, 4000); }
+
+/* ---------- export: the composite, recorded in real time, with sound ---------- */
+function wire(src) { if (src.wired || !src.video || !S.ac) return; try { const n = S.ac.createMediaElementSource(src.video); n.connect(S.ac.destination); n.connect(S.dest); src.wired = true; } catch (e) {} }
+function download(blob, fname) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 20000); }
+async function exportCut() {
+  if (S.rec) return stopExport();
+  const T = total(); if (!T) return hint('Nothing to export yet.');
+  if (!window.MediaRecorder || !prog.captureStream) return hint('This browser cannot record.');
+  const stream = prog.captureStream(30);
+  try { S.ac ||= new (window.AudioContext || window.webkitAudioContext)(); await S.ac.resume(); if (!S.dest) { S.dest = S.ac.createMediaStreamDestination(); const z = S.ac.createGain(); z.gain.value = 0; const k = S.ac.createConstantSource(); k.connect(z).connect(S.dest); k.start(); } for (const s of S.sources.values()) wire(s); const tr = S.dest.stream.getAudioTracks()[0]; if (tr) stream.addTrack(tr); } catch (e) {}
+  const type = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find(t => MediaRecorder.isTypeSupported(t));
+  let rec; try { rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 8e6 }); } catch (e) { return hint('Recorder refused: ' + e.message); }
+  const chunks = []; rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  rec.onstop = () => { download(new Blob(chunks, { type: rec.mimeType }), 'cut-' + new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14) + ((type || '').includes('mp4') ? '.mp4' : '.webm')); hint('Exported ' + tc(S.rec?.end || T) + ' of cut.'); S.rec = null; syncPlay(); };
+  S.rec = { rec, end: T }; seek(0); rec.start(500); S.playing = true; syncPlay(); hint('Recording the cut in real time · press again to stop early.', true);
+}
+function stopExport() { const r = S.rec?.rec; if (r && r.state !== 'inactive') r.stop(); S.playing = false; syncPlay(); }
+function syncPlay() { $('#play').innerHTML = S.rec ? '<svg class="solid" viewBox="0 0 24 24"><path d="M5 5h14v14H5z"/></svg>' : S.playing ? '<svg class="solid" viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>' : '<svg class="solid" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>'; $('#export').classList.toggle('on', !!S.rec); }
+function togglePlay() { if (S.rec) return stopExport(); if (!S.clips.length) return hint('Import something first.'); if (!S.playing && S.time >= total() - .02) seek(0); S.playing = !S.playing; syncPlay(); }
+
+/* ---------- hands: pinch grabs, open lets go, thumbs up chops, distance pushes ----------
+   A hand is a pointer. The pinch point (thumb tip to index tip) is its cursor, mirrored to match the screen.
+   Depth is real: pull a pinched box toward you and it starts earlier; push it into the screen and it starts later.
+   Hand size on camera is the depth signal. */
+const HAND = { on: false, worker: null, ready: false, hands: [], cam: $('#cam'), stream: null, busy: false, last: 0 };
+const L = (h, i) => h.lm[i];
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+function classify(lm) {
+  const size = dist(lm[0], lm[9]) || 1e-3;                       // wrist to middle knuckle
+  const pinch = dist(lm[4], lm[8]) / size < .4;
+  const ext = i => dist(lm[i], lm[0]) > dist(lm[i - 2], lm[0]) * 1.15;   // tip further from wrist than its pip
+  const fingers = [8, 12, 16, 20].map(ext);
+  const open = fingers.every(Boolean) && !pinch;
+  const thumbUp = !fingers.some(Boolean) && lm[4].y < lm[3].y - size * .3 && lm[4].y < lm[5].y && !pinch;
+  return { size, pinch, open, thumbUp, x: (1 - (lm[4].x + lm[8].x) / 2) * W, y: (lm[4].y + lm[8].y) / 2 * H };
+}
+function feedHands(list, now) {
+  // list: [{ lm: [21 {x,y}], hand: 'Left'|'Right' }] in camera image coordinates (0..1, unmirrored)
+  const seen = new Set();
+  for (const raw of list.slice(0, 2)) {
+    const g = classify(raw.lm), id = 'h' + (raw.hand === 'Left' ? 0 : 1);
+    seen.add(id);
+    let h = HAND.hands.find(q => q.id === id);
+    if (!h) { h = { id, x: g.x, y: g.y, pinch: false, size: g.size, thumbAt: 0 }; HAND.hands.push(h); }
+    h.x = h.x * .4 + g.x * .6; h.y = h.y * .4 + g.y * .6; h.open = g.open; h.thumb = g.thumbUp;
+    if (g.pinch && !h.pinch) { h.pinch = true; h.size0 = g.size; h.t0 = null; down(id, h.x, h.y); if (P?.c) h.t0 = P.c.t; }
+    else if (!g.pinch && h.pinch) { h.pinch = false; up(id); }
+    else if (h.pinch) {
+      move(id, h.x, h.y);
+      // depth: closer hand is larger; ±8% is dead band; beyond it, each 10% is a second
+      if (P?.kind === 'put' && P.c && h.t0 !== null) { const r = g.size / h.size0; if (Math.abs(r - 1) > .08) { push(P.c, h.t0 + (1 - r) * 10); P.moved = true; } }
+    }
+    if (g.thumbUp && now - h.thumbAt > 1200) { h.thumbAt = now; const c = hit(h.x, h.y)?.c || sel(); if (c) { S.sel = c.id; S.time = clamp(S.time, c.t, end(c) - .01); chop(); } else hint('Thumbs up over a box chops it at the sheet.'); }
+  }
+  for (const h of HAND.hands.filter(h => !seen.has(h.id))) { if (h.pinch) { h.pinch = false; up(h.id); } }
+  HAND.hands = HAND.hands.filter(h => seen.has(h.id));
+}
+function drawHands(g) {
+  for (const h of HAND.hands) {
+    g.beginPath(); g.arc(h.x, h.y, h.pinch ? 9 : 14, 0, 6.2832);
+    g.lineWidth = 2; g.strokeStyle = h.thumb ? '#ffc42e' : '#c4f46a'; g.stroke();
+    if (h.pinch) { g.fillStyle = '#c4f46a'; g.fill(); }
+    if (h.open) { g.fillStyle = '#c4f46a55'; g.fill(); }
+  }
+}
+async function startHands() {
+  if (HAND.on) { stopHands(); return; }
+  try { HAND.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false }); }
+  catch (e) { return hint('Camera refused: ' + e.message); }
+  HAND.cam.srcObject = HAND.stream; await HAND.cam.play(); HAND.cam.classList.add('on');
+  HAND.on = true; $('#hands').classList.add('on'); hint('Loading the hand tracker…');
+  const src = `let t;onmessage=async({data:d})=>{try{if(d.type==='init'){const m=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/+esm');const f=await m.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm');t=await m.HandLandmarker.createFromOptions(f,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},runningMode:'VIDEO',numHands:2});postMessage({type:'ready'})}else if(d.type==='frame'){try{const r=t.detectForVideo(d.frame,d.time);postMessage({type:'result',landmarks:r.landmarks,handedness:r.handedness})}finally{d.frame.close()}}}catch(e){postMessage({type:'error',message:String(e&&e.message||e)})}}`;
+  HAND.worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), { type: 'module' });
+  HAND.worker.onmessage = ({ data }) => {
+    if (data.type === 'ready') { HAND.ready = true; hint('Hands on · pinch to grab · open to let go · thumbs up to chop · pull toward you for earlier, push away for later', true); }
+    else if (data.type === 'result') { HAND.busy = false; feedHands((data.landmarks || []).map((lm, i) => ({ lm, hand: data.handedness?.[i]?.[0]?.categoryName || (i ? 'Right' : 'Left') })), performance.now()); }
+    else if (data.type === 'error') { HAND.busy = false; hint('Hand tracker: ' + data.message); }
+  };
+  HAND.worker.postMessage({ type: 'init' });
+}
+function stopHands() { HAND.on = false; HAND.ready = false; $('#hands').classList.remove('on'); HAND.cam.classList.remove('on'); HAND.worker?.terminate(); HAND.worker = null; HAND.stream?.getTracks().forEach(t => t.stop()); for (const h of HAND.hands) if (h.pinch) up(h.id); HAND.hands = []; hint('Hands off.'); }
+async function pumpHands(now) {
+  if (!HAND.on || !HAND.ready || HAND.busy || now - HAND.last < 33 || HAND.cam.readyState < 2) return;
+  HAND.last = now; HAND.busy = true;
+  try { const f = new VideoFrame(HAND.cam); HAND.worker.postMessage({ type: 'frame', frame: f, time: Math.round(now) }, [f]); } catch (e) { HAND.busy = false; }
+}
+$('#hands').onclick = startHands;
+
+/* ---------- persistence ---------- */
+function save() { try { localStorage.setItem('cut-v1', JSON.stringify({ time: S.time, next: S.next, sources: [...S.sources.values()].map(s => ({ id: s.id, kind: s.kind, name: s.name, size: s.size, dur: s.dur, w: s.w, h: s.h, color: s.color })), clips: S.clips.map(({ thumb, lastTap, ...c }) => c) })); } catch (e) {} }
+function boot() {
+  let d = null; try { d = JSON.parse(localStorage.getItem('cut-v1') || 'null'); } catch (e) {}
+  if (d) {
+    S.time = +d.time || 0; S.next = Math.max(1, +d.next || 1);
+    for (const s of d.sources || []) { const src = { ...s, ready: false }; S.sources.set(src.id, src); blobOp('readonly', st => st.get(src.id)).then(async b => { if (b && await attach(src, b)) for (const c of S.clips) if (c.src === src.id) thumb(c); }); }
+    S.clips = (d.clips || []).filter(c => S.sources.has(c.src));
+    if (S.clips.length) hint(S.clips.length + ' clip' + (S.clips.length > 1 ? 's' : '') + ' on the sheet from last time.');
+  }
+}
+
+/* ---------- keys and buttons ---------- */
+$('#file').onchange = async e => { for (const f of [...e.target.files]) await importFile(f); e.target.value = ''; };
+$('#play').onclick = togglePlay; $('#chop').onclick = chop; $('#del').onclick = del; $('#undo').onclick = undo; $('#export').onclick = exportCut;
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return; const k = e.key.toLowerCase();
+  if (e.code === 'Space') togglePlay(); else if (k === 'c') chop(); else if (k === 'z') undo(); else if (k === 'backspace' || k === 'delete') del();
+  else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { const c = sel(); const d = (e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 1 : 1 / 30); if (c && e.shiftKey) { S.history.push(JSON.stringify(S.clips)); push(c, c.t + d); save(); } else seek(S.time + d); }
+  else if (e.key === 'Home') seek(0); else if (e.key === 'End') seek(total()); else return; e.preventDefault();
+});
+let dd = 0; addEventListener('dragenter', e => { if ([...e.dataTransfer.types].includes('Files')) { dd++; $('#drop').classList.add('on'); } });
+addEventListener('dragleave', () => { if (--dd <= 0) { dd = 0; $('#drop').classList.remove('on'); } });
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', async e => { e.preventDefault(); dd = 0; $('#drop').classList.remove('on'); for (const f of [...e.dataTransfer.files]) await importFile(f); });
+
+/* ---------- frame ---------- */
+let last = 0;
+function frame(now) {
+  const dt = Math.min(.5, (now - (last || now)) / 1000); last = now;
+  if (S.playing) { S.time += dt; const stop = S.rec ? S.rec.end : total(); if (S.time >= stop) { S.time = stop; S.playing = false; syncPlay(); if (S.rec) stopExport(); } }
+  const active = onSheet(), owner = drive(active);
+  pumpHands(now);
+  composite(active, owner); drawRoom(active); drawHands(sctx); drawStrip();
+  $('#time').innerHTML = tc(S.time) + ' <i>/ ' + tc(total()) + '</i>';
+  $('#del').hidden = !sel();
+  requestAnimationFrame(frame);
+}
+layout(); boot(); syncPlay(); requestAnimationFrame(frame);
+window.CUT = { S, seek, chop, undo, del, importFile, push, exportCut, total, onSheet, proj, layout, F: () => F, feedHands, classify, HAND, save, thumb, mutate, hint };
+</script>
+<script src="bridge.js"></script>
+<script src="cineosis-panel.js"></script>
+</body>
+</html>
