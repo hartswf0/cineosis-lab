@@ -49,6 +49,32 @@ footer i{margin-left:auto;font-family:Georgia,serif}
 .tile .tg{position:absolute;left:4px;top:4px;background:#000b;color:#fff;border-radius:2px;padding:1px 4px;font-size:9px;pointer-events:none}
 .tile .tg.A,.tile .tg.B{background:#1f7a3a}.tile .tg.C{background:#7a6a1f}.tile .tg.F{background:#7a3a1f}
 .tile:hover{border-color:var(--ink)}
+.tile .sc{position:absolute;left:4px;top:4px;display:flex;gap:3px;pointer-events:none}
+.tile .sc b{background:#000c;color:#fff;border-radius:2px;padding:1px 4px;font-size:10px;font-weight:600}
+.tile .sc b.fit{background:#1d5fe0}
+.tile .vd{position:absolute;right:4px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--dim);pointer-events:none}
+.tile.KEEP .vd{background:var(--lime)}.tile.MAYBE .vd{background:#e3a600}.tile.FLOOR .vd{background:var(--red)}
+.tile.FLOOR{filter:grayscale(.85) brightness(.55)}
+.tile.sm .cap,.tile.sm .sc b.fit{display:none}
+.tile.sm .sc b{font-size:9px;padding:0 3px}
+.tile.FLOOR:hover{filter:none}
+.tile.seated::after{top:auto;bottom:18px}
+.band{display:flex;flex-direction:column;min-height:0}
+.band > .bl{display:flex;gap:8px;align-items:baseline;font-size:10.5px;color:var(--dim);padding:0 2px 3px}
+.band > .bl b{font:800 11px/1 var(--sans);font-stretch:75%;letter-spacing:.1em}
+.band.KEEP > .bl b{color:var(--lime)}.band.MAYBE > .bl b{color:#e3a600}.band.FLOOR > .bl b{color:var(--red)}
+.band .bg{display:grid;gap:5px;justify-content:start}
+.why h4{margin:0 0 4px;font:700 14px/1.2 var(--sans);font-stretch:85%}
+.why .bars{display:grid;grid-template-columns:52px minmax(0,1fr) 30px;gap:3px 6px;align-items:center;font-size:10.5px;margin:6px 0}
+.why .bars i{display:block;height:7px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.why .bars i u{display:block;height:100%;background:var(--lime)}
+.why .bars i.fit u{background:#1d5fe0}
+.why p{margin:3px 0;color:var(--dim);font-size:11px}
+.why .v{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;color:#111}
+.why .v.KEEP{background:var(--lime)}.why .v.MAYBE{background:#e3a600}.why .v.FLOOR{background:var(--red);color:#fff}
+.strength{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600}
+.strength.strong{background:var(--lime);color:#111}.strength.thin{background:#e3a600;color:#111}.strength.weak{background:var(--red);color:#fff}
+.seats{display:flex;gap:4px;flex-wrap:wrap}
 .tile.seated{outline:2px solid var(--lime);outline-offset:-2px}
 .tile.seated::after{content:"SEATED";position:absolute;right:4px;top:4px;background:var(--lime);color:#111;font-size:9px;padding:1px 4px;border-radius:2px}
 .tile.focus{outline:2px solid var(--blue);outline-offset:-2px}
@@ -153,7 +179,9 @@ kbd{border:1px solid var(--line);border-radius:3px;padding:0 4px;font-size:10px}
     <div class="side">
       <div class="prog" id="progF"></div>
       <div class="beatcard" id="beatcard"></div>
-      <div><div class="lbl" style="margin-bottom:5px">on the floor</div><div class="srcs" id="srcs"></div></div>
+      <div class="why" id="why"></div>
+      <div class="seats"><button class="btn pri" id="seatBest" title="seat the top-ranked clip in this beat">seat the best</button><button class="btn" id="seatAll" title="seat every beat's top-ranked clip: a best-ranked cut you can play">best cut</button><button class="btn" id="clearSeats">clear seats</button></div>
+      <div><div class="lbl" style="margin-bottom:5px">sources</div><div class="srcs" id="srcs"></div></div>
     </div>
     <div id="grid"></div>
   </section>
@@ -188,18 +216,15 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const mm = t => { t = Math.max(0, t || 0); return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(Math.floor(t % 60)).padStart(2, '0'); };
 const DOM = { perception: '--perception', affect: '--affect', action: '--action', reflection: '--reflection', mental: '--mental', break: '--break', time: '--time', read: '--read' };
 const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* blocked */ } } };
-const S = { D: null, t: 0, playing: false, mode: store.get('floor.mode', 'floor'), beat: null, seats: store.get('floor.seats', {}), src: store.get('floor.src', { cand: 1, forage: 1, cuts: 1, sign: 1 }), B: null, watch: true, speed: 14 };
+const S = { D: null, t: 0, playing: false, mode: store.get('floor.mode', 'floor'), beat: null, seats: store.get('floor.seats', {}), src: Object.assign({ cand: 1, forage: 1, cuts: 1, sign: 1, archive: 1 }, store.get('floor.src', {})), B: null, watch: true, speed: 14 };
 const aud = $('#aud');
 let toastT; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 1800); };
 
 /* ---------- the pool of clips for a beat ---------- */
-function pool(b) {
-  const out = [], seen = new Set(), put = (c, tag) => { if (!c || !c.video || seen.has(c.id)) return; seen.add(c.id); out.push({ ...c, tag, beat: b.id }); };
-  if (S.src.cuts) ['suite', 'scenes', 'cineosis', 'drift'].forEach(k => (S.D.cuts[k] || []).filter(p => p.t1 > b.start && p.t0 < b.end).forEach(p => put(p, k)));
-  if (S.src.cand) b.candidates.forEach(c => put(c, c.grade && c.grade !== 'U' ? c.grade : 'cand'));
-  if (S.src.sign) b.codes.forEach(n => ((S.D.signs[n] || {}).family || []).forEach(f => put(f, S.D.signs[n].symbol)));
-  if (S.src.forage) b.forage.forEach(c => put(c, 'forage'));
-  return out;
+const SRCMAP = { candidate: 'cand', forage: 'forage', cut: 'cuts', sign: 'sign', archive: 'archive' };
+function pool(b) {                                   // the beat's clips, best first (wygwyl/candidate-ranks.json)
+  const R = S.R?.beats[b.id]; if (!R) return [];
+  return R.ranked.filter(c => S.src[SRCMAP[c.src]] !== 0).map(c => ({ ...c, beat: b.id }));
 }
 const beatAt = t => S.D.beats.find(b => t >= b.start && t < b.end) || S.D.beats[S.D.beats.length - 1];
 const chapterOf = b => S.D.films.find(f => f.n === b.chapter);
@@ -216,10 +241,11 @@ function markSeats() { $$('.tile').forEach(t => { const b = S.seats[t.dataset.be
 
 /* ---------- tiles and the live budget ---------- */
 function tile(c) {
-  const d = document.createElement('div'); d.className = 'tile'; d.dataset.id = c.id; d.dataset.beat = c.beat;
+  const d = document.createElement('div'); d.className = 'tile ' + (c.verdict || ''); d.dataset.id = c.id; d.dataset.beat = c.beat;
   d.style.backgroundImage = `url("${c.thumb}")`;
-  d.innerHTML = `<span class="tg ${esc(c.tag)}">${esc(c.tag)}</span><span class="cap">${esc(c.title)}${c.year ? ' · ' + c.year : ''}</span>`;
-  d.title = `${c.title}${c.year ? ' · ' + c.year : ''}${c.observed && !/^Unreviewed/.test(c.observed) ? '\n' + c.observed : ''}\nbeat ${c.beat} · click to seat`;
+  d.innerHTML = `<span class="sc"><b>#${c.rank} · ${c.score}</b><b class="fit" title="fit: how well it shows what the beat needs (absolute)">fit ${c.fit}</b></span><i class="vd"></i><span class="cap">${esc(c.cat)} · ${esc(c.title)}${c.year ? ' · ' + c.year : ''}</span>`;
+  d.title = `#${c.rank} · score ${c.score} · fit ${c.fit} · ${c.verdict}\n${c.title}${c.year ? ' · ' + c.year : ''} · ${c.tag}\nclick to seat · hover to see why`;
+  d.addEventListener('mouseenter', () => why(c));
   d._c = c; return d;
 }
 function live(d, on) {
@@ -230,7 +256,7 @@ function live(d, on) {
   else if (!on && v) { v.pause(); v.removeAttribute('src'); v.load(); v.remove(); }
 }
 const budget = () => +$('#live').value;
-function liveAll(tiles) { const n = budget(); tiles.forEach((d, i) => live(d, i < n)); foot(); }
+function liveAll(tiles) { const n = budget(); tiles.forEach((d, i) => live(d, i < n && !d.classList.contains('FLOOR'))); foot(); }
 
 /* ---------- the program: your seat for the beat, else the suite cut ---------- */
 const programs = [];
@@ -255,7 +281,7 @@ function buildWall() {
     const col = document.createElement('div'); col.className = 'col'; col.dataset.ch = f.n;
     const beats = S.D.beats.filter(b => b.chapter === f.n);
     col.innerHTML = `<div class="hd"><b>${esc(f.n)}</b>${esc(f.title)}</div><div class="track"></div>`;
-    const items = beats.flatMap(b => pool(b).slice(0, 8));
+    const items = beats.flatMap(b => pool(b).filter(c => c.verdict !== 'FLOOR').slice(0, 6));
     host.appendChild(col);
     return { col, track: col.querySelector('.track'), items, off: Math.random() * 400, tiles: [] };
   });
@@ -283,7 +309,7 @@ function tickWall(dt) {
     w.tiles.forEach((d, k) => { const y = k * w.th - w.off + 22; const inBand = y + w.th * .6 > bt && y + w.th * .4 < bb; live(d, inBand && n++ < cap); });
   });
 }
-function spin() { wallCols.forEach(w => { w.items.sort(() => Math.random() - .5); w.off = Math.random() * w.loop; }); layoutWall(); toast('spun the reels'); }
+function spin() { wallCols.forEach(w => { w.items.sort(() => Math.random() - .5); w.off = Math.random() * w.loop; }); layoutWall(); toast('spun the reels: order is random now (rebuild with 1 to restore best-first)'); }
 
 /* ---------- FLOOR: every candidate of the beat, all playing ---------- */
 function fit(n, W, H) {                         // columns that make n 4:3 tiles (+ caption) as big as the area allows
@@ -293,16 +319,35 @@ function fit(n, W, H) {                         // columns that make n 4:3 tiles
 }
 function buildFloor() {
   const b = S.beat, list = pool(b), g = $('#grid'); g.innerHTML = '';
-  const W = g.clientWidth - 16, H = g.clientHeight - 16, f = fit(list.length, W, H);
-  g.style.gridTemplateColumns = `repeat(${f.cols}, ${f.w}px)`; g.style.justifyContent = 'center';
-  const tiles = list.map(c => { const d = tile(c); d.style.height = (f.w * .75) + 'px'; g.appendChild(d); return d; });
-  liveAll(tiles); markSeats(); beatCard();
-  $('#srcs').innerHTML = [['cand', 'candidates'], ['forage', 'forage'], ['cuts', 'the four cuts'], ['sign', 'sign families']].map(([k, l]) => `<button data-s="${k}" class="${S.src[k] ? 'on' : ''}">${l}</button>`).join('');
+  const W = g.clientWidth - 16, H = g.clientHeight - 16, parts = [['KEEP', 'keep', .5], ['MAYBE', 'maybe', .3], ['FLOOR', 'the floor', .2]];
+  g.style.gridTemplateColumns = '1fr'; g.style.gridTemplateRows = parts.map(p => `${p[2]}fr`).join(' ');
+  const tiles = [];
+  parts.forEach(([v, label, share]) => {
+    const L = list.filter(c => c.verdict === v), band = document.createElement('div'); band.className = 'band ' + v;
+    band.innerHTML = `<div class="bl"><b>${label}</b><span>${L.length} clip${L.length === 1 ? '' : 's'}${v === 'KEEP' ? ' · the beat’s top 8 that actually show it (fit ≥ 45)' : v === 'FLOOR' ? ' · bottom half, title cards, dead frames' : ''}</span></div><div class="bg"></div>`;
+    g.appendChild(band);
+    const bh = H * share - 22, f = fit(Math.max(1, L.length), W, bh), bg = band.querySelector('.bg');
+    bg.style.gridTemplateColumns = `repeat(${f.cols}, ${f.w}px)`;
+    L.forEach(c => { const d = tile(c); d.style.height = (f.w * .75) + 'px'; if (f.w < 130) d.classList.add('sm'); bg.appendChild(d); tiles.push(d); });
+  });
+  liveAll(tiles); markSeats(); beatCard(); why(list[0]);
+  $('#srcs').innerHTML = [['cand', 'candidates'], ['forage', 'forage'], ['cuts', 'the four cuts'], ['sign', 'sign families'], ['archive', 'archive finds']].map(([k, l]) => `<button data-s="${k}" class="${S.src[k] ? 'on' : ''}">${l}</button>`).join('');
+}
+function why(c) {
+  if (!c || !$('#why')) return;
+  const R = S.R.beats[c.beat], k = c.comp, bar = (lab, v, cls = '', note = '') => `<span>${lab}</span><i class="${cls}"><u style="width:${v}%"></u></i><span>${v}</span>`;
+  $('#why').innerHTML = `<div class="lbl">why this one · #${c.rank} of ${R.pool}</div><h4>${esc(c.title)}${c.year ? ' · ' + c.year : ''}</h4>
+    <span class="v ${c.verdict}">${c.verdict}</span> <span style="color:var(--dim)">score ${c.score} · ${esc(c.cat)} · ${esc(c.tag)}</span>
+    <div class="bars">${bar('fit', c.fit, 'fit')}${bar('line', k.line)}${bar('scene', k.scene)}${bar('sign', k.sign)}${bar('review', k.review)}${bar('craft', k.craft)}</div>
+    <p>fit ${c.fit}: CLIP ${k.cl} to the line, ${k.cs} to the scene (archive median 0.135, archive best ≈ 0.29). The five bars below it rank the clip against the ${R.pool} on offer for this beat.</p>
+    ${c.obs ? `<p>reviewer: ${esc(c.obs)}</p>` : `<p>${c.grade === 'U' ? 'never reviewed by the suite' : 'reviewed ' + c.grade}</p>`}
+    ${c.flags.length ? `<p style="color:var(--red)">${esc(c.flags.join(' · '))}</p>` : ''}`;
 }
 function signChips(codes) { return codes.map(n => { const s = S.D.signs[n]; return s ? `<a class="sign" href="../periodic-table.html#${n}" target="_blank" style="background:var(${DOM[s.dom] || '--break'})" title="${esc(s.difference || '')}"><i>${esc(s.symbol)}</i>${n} ${esc(s.name)}</a>` : ''; }).join(''); }
 function beatCard() {
   const b = S.beat, f = chapterOf(b), cue = S.D.cues.find(c => S.t >= c.t0 && S.t < c.t1) || S.D.cues.find(c => c.t0 >= b.start && c.text);
-  $('#beatcard').innerHTML = `<div class="lbl">${esc(f.n)} ${esc(f.title)} · beat ${b.id}</div><b>${esc(b.title)}</b><p>${esc(b.mode)} · ${mm(b.start)}–${mm(b.end)}</p>
+  const R = S.R.beats[b.id];
+  $('#beatcard').innerHTML = `<div class="lbl">${esc(f.n)} ${esc(f.title)} · beat ${b.id}</div><b>${esc(b.title)}</b><p>${esc(b.mode)} · ${mm(b.start)}–${mm(b.end)} · <span class="strength ${R.strength}" title="best fit ${R.best_fit}; the suite's own forage fits ${R.forage_fit} at the median">${R.strength}</span> best fit ${R.best_fit} · forage ${R.forage_fit}</p>
     <div class="line">${esc(cue?.text || cue?.screen || '')}</div><p style="margin-top:6px">${esc(b.operation || '')}</p><div class="signs">${signChips(b.codes)}</div>`;
 }
 
@@ -318,7 +363,7 @@ function setB(c) {
   if (!c) return; S.B = c;
   const host = $('#bigB'); let v = host.querySelector('video'); if (!v) { v = document.createElement('video'); v.muted = true; v.loop = true; v.playsInline = true; host.prepend(v); }
   if (v.dataset.src !== c.video) { v.dataset.src = c.video; v.src = c.video; v.addEventListener('loadedmetadata', () => { try { v.currentTime = c.in || 0; } catch (e) { /* not seekable */ } v.play().catch(() => {}); }, { once: true }); }
-  $('#labB').textContent = `${c.title}${c.year ? ' · ' + c.year : ''} · ${c.tag}`;
+  $('#labB').textContent = `#${c.rank} · score ${c.score} · fit ${c.fit} · ${c.verdict} · ${c.title}${c.year ? ' · ' + c.year : ''} · ${c.cat}`;
   $$('#stripA .tile').forEach(t => t.classList.toggle('focus', t.dataset.id === c.id));
 }
 function stepB(d) { const list = pool(S.beat); const i = list.findIndex(c => c.id === S.B?.id); setB(list[(i + d + list.length) % list.length]); }
@@ -373,7 +418,7 @@ function render() {
 }
 function foot() {
   const n = Object.keys(S.seats).length, b = S.beat;
-  $('#fbeat').textContent = b ? `beat ${b.id} · ${b.title} · ${pool(b).length} clips` : '';
+  const R = b && S.R?.beats[b.id]; $('#fbeat').textContent = b ? `beat ${b.id} · ${b.title} · ${R ? `${R.strength} · keep ${R.keep} · maybe ${R.maybe} · floor ${R.floor}` : ''}` : '';
   $('#fseat').textContent = `${n} of ${S.D.beats.length} beats seated`;
   $('#flive').textContent = `${$$('.tile video').length} playing now`;
 }
@@ -394,7 +439,10 @@ document.addEventListener('click', e => {
   const d = e.target.closest('.tile'); if (!d || !d._c) return;
   if (S.mode === 'audition') setB(d._c); else seat(d._c);
 });
-$('#bSeat').onclick = () => S.B && seat(S.B); $('#bPrev').onclick = () => stepB(-1); $('#bNext').onclick = () => stepB(1);
+$('#bSeat').onclick = () => S.B && seat(S.B);
+$('#seatBest').onclick = () => { const c = pool(S.beat)[0]; if (c && S.seats[S.beat.id]?.id !== c.id) seat(c); };
+$('#seatAll').onclick = () => { let n = 0; S.D.beats.forEach(b => { const c = pool(b)[0]; if (c) { S.seats[b.id] = { id: c.id, title: c.title, year: c.year, thumb: c.thumb, video: c.video, in: c.in || 0, url: c.url }; n++; } }); store.set('floor.seats', S.seats); markSeats(); foot(); showProgram(); toast(`seated the best-ranked clip in ${n} beats · press play`); };
+$('#clearSeats').onclick = () => { if (!Object.keys(S.seats).length) return; if (confirm('Clear every seat?')) { S.seats = {}; store.set('floor.seats', S.seats); markSeats(); foot(); showProgram(); } }; $('#bPrev').onclick = () => stepB(-1); $('#bNext').onclick = () => stepB(1);
 addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.target.closest('input,select')) return;
   const k = e.key;
@@ -411,7 +459,7 @@ addEventListener('keydown', e => {
 let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (S.mode === 'wall') layoutWall(); else render(); }, 150); });
 
 (async () => {
-  S.D = await (await fetch('wygwyl/collage-data.json')).json();
+  [S.D, S.R] = await Promise.all([fetch('wygwyl/collage-data.json').then(r => r.json()), fetch('wygwyl/candidate-ranks.json').then(r => r.json())]);
   aud.src = S.D.audio;
   const h = /t=([\d.]+)/.exec(location.hash); S.t = h ? +h[1] : 0;
   S.beat = beatAt(S.t); lastBeat = null; update(true);
