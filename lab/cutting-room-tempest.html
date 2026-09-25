@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cutting Room Tempest</title>
+<meta name="description" content="Make the WYGWYL film one beat at a time in a room: the best clips for the scene lie on the table, playing; pick one up to audition it on the screen, seat it, and the room moves to the next beat.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b1216;--bg2:#101a1f;--bg3:#16232a;--line:#23343c;--ink:#e7efec;--dim:#8a9b98;--lime:#c9f25c;--blue:#7fb2ff;--red:#e0483a;--floor:#9fbcc4;
+  --perception:#f2a38a;--affect:#f4c07a;--action:#f0d67a;--reflection:#c9e08e;--mental:#9fd8c8;--break:#9fc6ee;--time:#b9a7ee;--read:#e3a9e0;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;--sans:Inter,system-ui,sans-serif;--bot:238px}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font:12px/1.4 var(--mono)}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:inherit}
+header{height:48px;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid var(--line)}
+header h1{margin:0;font:800 19px/1 var(--sans);letter-spacing:-.01em;white-space:nowrap}
+header h1 b{color:var(--lime);font-weight:800}
+header h1 small{font:500 12px var(--mono);color:var(--dim);letter-spacing:.14em;margin-left:10px}
+.prog{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:11px;white-space:nowrap}
+.prog i{display:block;width:160px;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.prog i u{display:block;height:100%;background:var(--lime)}
+.sp{flex:1}
+.hb{background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:7px 14px;white-space:nowrap}
+.hb:hover{border-color:var(--ink)}
+.hb.pri{background:var(--lime);color:#111;border-color:var(--lime);font-weight:600}
+header nav a{color:var(--dim);text-decoration:none;font-size:11px;margin-left:8px}
+
+/* ---------------- the room (CSS 3D: real <video> in space; the archive's clips cannot be WebGL textures) ---------------- */
+#room{position:relative;height:calc(100% - 48px - var(--bot));overflow:hidden;perspective:var(--persp,1150px);perspective-origin:50% 26%;
+  background:radial-gradient(ellipse at 50% 30%,#132028,#070c0f 75%)}
+.world{position:absolute;left:50%;top:45.5%;width:0;height:0;transform-style:preserve-3d;transform:translateZ(var(--z,0px)) rotateX(var(--tilt,-9deg)) rotateY(var(--yaw,0deg));transition:transform .5s ease}
+.wall{position:absolute;transform-style:preserve-3d;background-color:#0d171c;
+  background-image:linear-gradient(#2b4550 1px,transparent 1px),linear-gradient(90deg,#2b4550 1px,transparent 1px);background-size:40px 40px;border:1px solid #2d4a55}
+.floor{background-color:#86a6ae;background-image:linear-gradient(#ffffff2e 1px,transparent 1px),linear-gradient(90deg,#ffffff2e 1px,transparent 1px);background-size:40px 40px;
+  box-shadow:0 0 0 3px var(--lime) inset}
+.screen{position:absolute;background:#000;border:10px solid #05090b;box-shadow:0 0 0 1px #3b5560,0 10px 40px #000a;overflow:hidden}
+.screen video,.screen .ph{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000 center/cover no-repeat}
+.screen .tag{position:absolute;left:10px;top:8px;background:#000b;color:var(--lime);font-size:13px;padding:3px 8px;border-radius:3px;letter-spacing:.06em}
+.screen .tag.aud{color:var(--blue)}
+.banner{position:absolute;display:flex;align-items:center;gap:22px;background:#0a1114ee;border:1px solid #3b5560;padding:10px 22px;color:var(--lime);font-size:17px;letter-spacing:.06em;white-space:nowrap;overflow:hidden}
+.banner span{color:#d6e6c7;font-size:16px;letter-spacing:.04em;white-space:normal;line-height:1.35;max-height:2.7em;overflow:hidden}
+.side{position:absolute;background:#070c0f;border:8px solid #05090b;box-shadow:0 0 0 1px #3b5560}
+.side .hd{position:absolute;left:0;right:0;top:-44px;color:var(--dim);font-size:22px;letter-spacing:.08em;white-space:nowrap}
+.side .hd b{color:var(--ink);margin-right:10px}
+.side .ln{position:absolute;left:14px;right:14px;top:12px;color:#cfdcd8;font-size:19px;line-height:1.3;height:52px;overflow:hidden}
+.side .im{position:absolute;left:14px;right:14px;bottom:14px;top:76px;background:#000 center/cover no-repeat}
+.side .empty{position:absolute;left:14px;right:14px;bottom:14px;top:76px;border:2px dashed #3b5560;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:18px}
+/* cards on the table */
+.card{position:absolute;transform-style:preserve-3d;transform-origin:50% 100%;transform:translateZ(3px);transition:transform .28s ease,box-shadow .28s;cursor:pointer;
+  background:#000 center/cover no-repeat;box-shadow:0 6px 0 #0005,0 0 0 1px #0008}
+.card video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.card .cl{position:absolute;left:0;right:0;bottom:100%;margin-bottom:4px;display:flex;gap:4px;font-size:14px;white-space:nowrap}
+.card .cl b{background:#0a1114e6;color:var(--ink);padding:2px 6px;border-radius:3px}
+.card .cl b.k{background:var(--lime);color:#111}
+.card .cl b.m{background:#e3a600;color:#111}
+.card:hover,.card.hot{transform:translateZ(8px) rotateX(-58deg) scale(1.08);box-shadow:0 0 0 3px var(--lime)}
+.card.seated{box-shadow:0 0 0 4px var(--lime)}
+.card.held{opacity:.15}
+.slot{position:absolute;border:3px dashed var(--lime);background:#c9f25c14;display:flex;align-items:center;justify-content:center;color:var(--lime);font-size:22px;letter-spacing:.1em;transform:translateZ(2px)}
+.slot.full{border-style:solid;background:#c9f25c33}
+.bricks{position:absolute;transform-style:preserve-3d}
+.brick{position:absolute;width:44px;height:26px;border-radius:3px;transform-style:preserve-3d}
+/* the held card (2D, in front of the room) */
+#held{position:absolute;left:50%;bottom:10px;width:min(330px,27%);transform:translateX(-50%) rotate(-2deg);display:none;z-index:10}
+#held.on{display:block}
+#held .v{position:relative;aspect-ratio:4/3;background:#000 center/cover no-repeat;border:2px solid var(--lime);box-shadow:0 20px 60px #000c}
+#held video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#held .corner{position:absolute;width:12px;height:12px;background:var(--lime)}
+#held .ops{display:flex;justify-content:center;margin-top:-18px;position:relative}
+#held .ops button{background:#0a1114;border:1px solid #3b5560;padding:7px 18px;color:var(--ink)}
+#held .ops button:first-child{border-radius:5px 0 0 5px}#held .ops button:last-child{border-radius:0 5px 5px 0}
+#held .ops button.pri{background:var(--lime);color:#111;border-color:var(--lime);font-weight:600}
+#held .why{background:#0a1114ee;border:1px solid #3b5560;border-top:0;padding:8px 10px 6px;font-size:11px;color:var(--dim)}
+#held .why b{color:var(--ink)}
+#held .why .bars{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:5px}
+#held .why .bars span{display:block;font-size:9.5px}
+#held .why .bars i{display:block;height:5px;background:#23343c;border-radius:2px;overflow:hidden;margin-top:2px}
+#held .why .bars i u{display:block;height:100%;background:var(--lime)}
+.hand{position:absolute;bottom:-40px;width:170px;height:190px;opacity:.55;pointer-events:none;filter:blur(.3px)}
+.hand.l{left:-120px;transform:rotate(18deg)}.hand.r{right:-120px;transform:scaleX(-1) rotate(18deg)}
+.dpad{position:absolute;bottom:56px;width:96px;height:96px;border-radius:50%;border:1px solid #3b5560;background:#0a1114cc;z-index:6;display:grid;grid-template:1fr 1fr 1fr/1fr 1fr 1fr}
+.dpad.l{left:18px}.dpad.r{right:18px}
+.dpad button{background:none;border:0;color:var(--dim);font-size:12px}
+.dpad button:hover{color:var(--lime)}
+.dpad label{position:absolute;bottom:-18px;width:100%;text-align:center;color:var(--dim);font-size:10px;letter-spacing:.14em}
+.guide{position:absolute;left:18px;top:14px;z-index:6;background:#0a1114e6;border:1px solid #3b5560;border-radius:6px;padding:10px 12px;max-width:300px;font-size:11.5px;color:var(--dim)}
+.guide b{color:var(--lime)}
+.guide ol{margin:6px 0 0;padding-left:18px}
+.guide li{margin:2px 0}
+.guide kbd{border:1px solid #3b5560;border-radius:3px;padding:0 4px;color:var(--ink);font-size:10px}
+.guide .x{position:absolute;right:6px;top:4px;background:none;border:0;color:var(--dim)}
+.strength{display:inline-block;padding:0 6px;border-radius:3px;font-size:10.5px;font-weight:600;color:#111}
+.strength.strong{background:var(--lime)}.strength.thin{background:#e3a600}.strength.weak{background:var(--red);color:#fff}
+
+/* ---------------- the desk ---------------- */
+.desk{height:var(--bot);display:grid;grid-template-columns:minmax(360px,34%) minmax(0,1fr);border-top:1px solid var(--line);background:var(--bg2)}
+.signs{padding:10px 14px;border-right:1px solid var(--line);min-width:0}
+.signs h3,.film h3{margin:0 0 8px;font:500 13px/1 var(--mono);letter-spacing:.14em;color:var(--lime)}
+.signs h3 span,.film h3 span{color:var(--dim);letter-spacing:.06em}
+.sg{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:3px}
+.sg button{border:0;border-radius:3px;padding:6px 0 5px;color:#12181b;font-weight:600;font-size:11.5px;opacity:.55}
+.sg button.on{opacity:1;outline:2px solid var(--lime);outline-offset:1px;transform:scale(1.06)}
+.sg button.lit{opacity:1}
+.signs p{margin:8px 0 0;color:var(--dim);font-size:11px;min-height:2.8em}
+.film{padding:10px 14px;min-width:0;display:flex;flex-direction:column;gap:8px}
+.tp{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tp .pl{width:40px;height:34px;border-radius:6px;background:var(--lime);color:#111;border:0;font-size:15px}
+.tp .tc{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font-variant-numeric:tabular-nums}
+.tp .db{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 11px}
+.tp .db:hover{border-color:var(--ink)}
+.tp .db.on{border-color:var(--lime);color:var(--lime)}
+.lane{position:relative;height:22px;background:var(--bg);border:1px solid var(--line);border-radius:3px;cursor:pointer}
+.lane i{position:absolute;top:1px;bottom:1px;border-right:1px solid var(--bg);background:#27363d center/cover no-repeat;opacity:.45}
+.lane i.seat{opacity:1;box-shadow:inset 0 -3px 0 var(--lime)}
+.lane i.cur{outline:2px solid var(--lime);outline-offset:0;opacity:1;z-index:1}
+.lane .ph{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--lime);z-index:2}
+.chap{position:relative;flex:1;min-height:60px;display:flex;gap:4px}
+.chap .b{position:relative;flex:1;min-width:0;border:1px solid var(--line);border-radius:3px;background:#0a1114 center/cover no-repeat;cursor:pointer;overflow:hidden}
+.chap .b.cur{border:2px solid var(--lime)}
+.chap .b.seat::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--lime)}
+.chap .b span{position:absolute;left:4px;bottom:4px;background:#000c;color:#fff;font-size:10px;padding:0 4px;border-radius:2px}
+.chap .b em{position:absolute;right:4px;top:4px;font-style:normal;font-size:10px;color:#111;padding:0 4px;border-radius:2px}
+.chap .b.none{filter:grayscale(1) brightness(.45)}
+.chap .b.none:hover{filter:none}
+.chap .b span b{color:var(--lime)}
+.toast{position:fixed;left:50%;top:60px;transform:translateX(-50%);background:var(--lime);color:#111;padding:7px 14px;border-radius:5px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:40;font-size:12.5px}
+.toast.on{opacity:1}
+@media (max-height:760px){:root{--bot:200px}.chap{min-height:40px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>WAG <b>/</b> WYGWYL<small>— CUTTING ROOM · TEMPEST</small></h1>
+  <div class="prog" title="beats with a seated shot"><i><u id="progBar"></u></i><span id="progTxt"></span></div>
+  <span class="sp"></span>
+  <button class="hb" id="bestAll" title="seat the top-ranked clip in every empty beat">Fill the rest with the best</button>
+  <button class="hb" id="export" title="the film as an edit list (.json)">Export film</button>
+  <button class="hb pri" id="playCut" title="play the film from this beat, with the suite (space)">Play cut</button>
+  <nav><a href="cutting-room-floor.html">Floor</a><a href="./">Lab</a></nav>
+</header>
+
+<section id="room">
+  <div class="world" id="world"></div>
+  <div class="guide" id="guide"><button class="x" id="gx" title="hide">×</button>
+    <b>Make the film one beat at a time.</b>
+    <ol><li>The best clips for this scene lie on the table, best nearest you. Hover to lift one; press <kbd>1</kbd>–<kbd>9</kbd> or click to <b>audition</b> it on the screen.</li>
+      <li><b>Seat</b> it (<kbd>S</kbd> or <kbd>⏎</kbd>): it goes into the film and the room moves to the next beat.</li>
+      <li><b>Release</b> (<kbd>R</kbd>) puts it back. <kbd>←</kbd> <kbd>→</kbd> walk the beats. <kbd>space</kbd> plays the film.</li></ol></div>
+  <div id="held"><div class="v" id="heldV"><i class="corner" style="left:-6px;top:-6px"></i><i class="corner" style="right:-6px;top:-6px"></i><i class="corner" style="left:-6px;bottom:-6px"></i><i class="corner" style="right:-6px;bottom:-6px"></i></div>
+    <div class="ops"><button class="pri" id="hAud" title="it plays on the screen">Audition</button><button id="hSeat" title="into the film, then the next beat (S)">Seat ⏎</button><button id="hRel" title="back on the table (R)">Release</button></div>
+    <div class="why" id="heldWhy"></div>
+    <svg class="hand l" viewBox="0 0 100 110"><path d="M20 105 L18 60 Q16 40 28 38 L30 18 Q31 8 38 9 Q44 10 44 20 L45 40 L50 12 Q52 4 58 5 Q64 7 62 16 L58 42 L66 20 Q69 13 75 15 Q80 18 77 26 L70 48 L78 38 Q84 32 89 37 Q92 42 86 50 L66 80 Q60 92 58 105 Z" fill="#9dff5a" opacity=".55" stroke="#c9f25c" stroke-width="1.5"/></svg>
+    <svg class="hand r" viewBox="0 0 100 110"><path d="M20 105 L18 60 Q16 40 28 38 L30 18 Q31 8 38 9 Q44 10 44 20 L45 40 L50 12 Q52 4 58 5 Q64 7 62 16 L58 42 L66 20 Q69 13 75 15 Q80 18 77 26 L70 48 L78 38 Q84 32 89 37 Q92 42 86 50 L66 80 Q60 92 58 105 Z" fill="#8ec5ff" opacity=".5" stroke="#b7d8ff" stroke-width="1.5"/></svg>
+  </div>
+  <div class="dpad l" title="move"><span></span><button data-cam="z+" title="closer">▲</button><span></span><button data-cam="y-">◀</button><span></span><button data-cam="y+">▶</button><span></span><button data-cam="z-" title="back">▼</button><span></span><label>MOVE</label></div>
+  <div class="dpad r" title="look"><span></span><button data-cam="t-" title="look down">▲</button><span></span><button data-cam="b-" title="previous beat">◀</button><button data-cam="0" title="reset">•</button><button data-cam="b+" title="next beat">▶</button><span></span><button data-cam="t+" title="look up">▼</button><span></span><label>LOOK · BEAT</label></div>
+</section>
+
+<section class="desk">
+  <div class="signs"><h3>CINEOSIS <span>/ 44 SIGNS</span></h3><div class="sg" id="sg"></div><p id="signP"></p></div>
+  <div class="film">
+    <div class="tp"><button class="pl" id="play" title="play / pause (space)">▶</button><span class="tc" id="tc">00:00.0 / 24:00</span>
+      <button class="db" id="prevB" title="previous beat (←)">◀ beat</button><button class="db" id="nextB" title="next beat (→)">beat ▶</button>
+      <button class="db" id="seatBest" title="seat the top-ranked clip here and move on (B)">Seat the best ⏎B</button>
+      <button class="db" id="unseat" title="clear this beat (U)">Unseat</button>
+      <button class="db on" id="adv" title="after seating, move to the next beat">auto-advance</button>
+      <span class="sp"></span><span style="color:var(--dim)" id="beatInfo"></span></div>
+    <h3>THE FILM <span id="filmInfo"></span></h3>
+    <div class="lane" id="lane" title="all 88 beats on the 24-minute clock · click to go there"></div>
+    <div class="chap" id="chap"></div>
+  </div>
+</section>
+<div class="toast" id="toast"></div>
+<audio id="aud" preload="auto"></audio>
+
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const mm = t => { t = Math.max(0, t || 0); const m = Math.floor(t / 60); return String(m).padStart(2, '0') + ':' + (t - m * 60).toFixed(1).padStart(4, '0'); };
+const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* blocked */ } } };
+const DOM = { perception: '--perception', affect: '--affect', action: '--action', reflection: '--reflection', mental: '--mental', break: '--break', time: '--time', read: '--read' };
+const S = { D: null, R: null, i: 0, held: null, seats: store.get('floor.seats', {}), playing: false, t: 0, adv: true, cam: { z: -680, yaw: 0, tilt: -21 }, sign: null };
+const aud = $('#aud');
+let toastT; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 1800); };
+const beat = () => S.D.beats[S.i];
+const ranked = b => (S.R.beats[b.id]?.ranked || []).filter(c => c.verdict !== 'FLOOR');
+const cutAt = t => (S.D.cuts.suite || []).find(p => t >= p.t0 && t < p.t1);
+const cueFor = b => S.D.cues.filter(c => c.t1 > b.start && c.t0 < b.end && c.text).map(c => c.text).join(' ') || b.title;
+const film = b => S.D.films.find(f => f.n === b.chapter);
+function vid(src, t0, muted = true) {
+  const v = document.createElement('video'); v.muted = muted; v.loop = true; v.playsInline = true; v.preload = 'auto'; v.src = src;
+  v.addEventListener('loadedmetadata', () => { try { v.currentTime = Math.min(t0 || 0, Math.max(0, v.duration - .5)); } catch (e) { /* not seekable */ } v.play().catch(() => {}); }, { once: true });
+  return v;
+}
+
+/* ---------------- the room ---------------- */
+const RW = 1500, RH = 760, RD = 1500;                   // width, height, depth of the room (px in 3D)
+function box(cls, w, h, tf) { const d = document.createElement('div'); d.className = cls; d.style.width = w + 'px'; d.style.height = h + 'px'; d.style.transform = tf; return d; }
+function buildRoom() {
+  const W = $('#world'); W.innerHTML = '';
+  const back = box('wall', RW, RH, `translate(${-RW / 2}px,${-RH / 2}px) translateZ(${-RD / 2}px)`);
+  const left = box('wall', RD, RH, `translate(${-RD / 2}px,${-RH / 2}px) translateX(${-RW / 2}px) rotateY(90deg)`);
+  const right = box('wall', RD, RH, `translate(${-RD / 2}px,${-RH / 2}px) translateX(${RW / 2}px) rotateY(-90deg)`);
+  const floor = box('wall floor', RW, RD, `translate(${-RW / 2}px,${-RD / 2}px) translateY(${RH / 2}px) rotateX(90deg)`);
+  floor.id = 'floor';
+  back.innerHTML = `<div class="banner" id="banner" style="left:${RW * .13}px;width:${RW * .74}px;top:18px"></div>
+    <div class="screen" id="screen" style="left:${RW * .13}px;width:${RW * .74}px;top:118px;height:${Math.min(RH - 140, RW * .74 * .56)}px"></div>`;
+  left.innerHTML = `<div class="side" id="prevW" style="left:${RD * .3}px;width:${RD * .5}px;top:${RH * .22}px;height:${RD * .36}px"></div>`;
+  right.innerHTML = `<div class="side" id="nextW" style="left:${RD * .3}px;width:${RD * .5}px;top:${RH * .22}px;height:${RD * .36}px"></div>`;
+  floor.innerHTML = `<div class="slot" id="slot" style="left:${RW / 2 - 190}px;top:${RD * .755}px;width:380px;height:170px">SEAT</div>`;
+  const bricks = document.createElement('div'); bricks.className = 'bricks';
+  [['#3f7fe0', -70, 0], ['#d9453c', -30, 4], ['#f1c232', 10, 14], ['#f1c232', 48, 14], ['#3f7fe0', 110, 0], ['#f4f4f0', 160, -6]].forEach(([c, x, z]) => {
+    const b = document.createElement('i'); b.className = 'brick'; b.style.background = c; b.style.left = (RW / 2 + x) + 'px'; b.style.top = (RD * .14 + z) + 'px'; b.style.transform = 'translateZ(14px)'; b.style.boxShadow = '0 14px 0 ' + c + '99'; floor.appendChild(b);
+  });
+  W.append(back, left, right, floor);
+  cam();
+}
+function cam() {
+  const w = $('#world');
+  w.style.setProperty('--z', S.cam.z + 'px'); w.style.setProperty('--yaw', S.cam.yaw + 'deg'); w.style.setProperty('--tilt', S.cam.tilt + 'deg');
+}
+function fitRoom() { const r = $('#room'), s = Math.min(r.clientWidth / 1650, r.clientHeight / 820); $('#world').style.scale = s; }
+
+/* cards: the scene's best clips on the table, best nearest you */
+const LIVE = 9;
+function layCards() {
+  const F = $('#floor'); F.querySelectorAll('.card').forEach(c => c.remove());
+  const b = beat(), list = ranked(b).slice(0, 12), seat = S.seats[b.id];
+  const rows = [[RD * .6, 4], [RD * .42, 4], [RD * .26, 4]];     // front row first
+  let k = 0;
+  rows.forEach(([y, n], ri) => {
+    const cw = [300, 250, 210][ri], ch = cw * .72, gap = 34, total = n * cw + (n - 1) * gap, x0 = (RW - total) / 2;
+    for (let j = 0; j < n && k < list.length; j++, k++) {
+      const c = list[k], d = document.createElement('div'); d.className = 'card'; d.dataset.k = k;
+      d.style.cssText = `left:${x0 + j * (cw + gap)}px;top:${y - (ri === 0 ? 30 : 0)}px;width:${cw}px;height:${ch}px;background-image:url("${c.thumb}")`;
+      d.innerHTML = `<span class="cl"><b class="${c.verdict === 'KEEP' ? 'k' : 'm'}">${k + 1}</b><b>${c.score} · fit ${c.fit}</b><b>${esc(c.cat)}</b></span>`;
+      d.title = `${k + 1} · ${c.title}${c.year ? ' · ' + c.year : ''}\nscore ${c.score} · fit ${c.fit} · ${c.verdict} · ${c.cat}\nclick: audition · S: seat`;
+      if (k < LIVE) d.prepend(vid(c.video, c.in));
+      if (seat && seat.id === c.id) d.classList.add('seated');
+      d.onclick = e => { e.stopPropagation(); hold(k); };
+      d._c = c; F.appendChild(d);
+    }
+  });
+  $('#slot').classList.toggle('full', !!seat); $('#slot').textContent = seat ? 'SEATED · ' + seat.title.slice(0, 26) : 'SEAT';
+}
+function walls() {
+  const b = beat(), p = S.D.beats[S.i - 1], n = S.D.beats[S.i + 1], f = film(b);
+  const R = S.R.beats[b.id];
+  $('#banner').innerHTML = `${esc(f.n)} ${esc(f.title)} · ${b.id}<span>${esc(cueFor(b))}</span>`;
+  const side = (el, x, lab) => {
+    if (!x) { el.innerHTML = ''; return; }
+    const s = S.seats[x.id], fx = film(x);
+    el.innerHTML = `<div class="hd"><b>${esc(fx.n)}</b>${lab} · ${esc(x.title)}</div><div class="ln">${esc(cueFor(x))}</div>` + (s ? `<div class="im" style="background-image:url('${esc(s.thumb)}')"></div>` : `<div class="empty">not seated</div>`);
+  };
+  side($('#prevW'), p, 'BEFORE'); side($('#nextW'), n, 'AFTER');
+  $('#beatInfo').innerHTML = `beat ${b.id} of ${S.D.beats.length} · ${esc(b.title)} · <span class="strength ${R.strength}" title="best fit ${R.best_fit}">${R.strength}</span>`;
+}
+function screen(c, label, aud) {
+  const sc = $('#screen'); if (!sc) return;
+  const key = c ? c.video : '';
+  if (sc.dataset.k !== key) {
+    sc.dataset.k = key; sc.innerHTML = '';
+    if (c) sc.appendChild(vid(c.video, c.in || 0));
+    sc.insertAdjacentHTML('beforeend', `<span class="tag ${aud ? 'aud' : ''}" id="stag"></span>`);
+  }
+  const t = $('#stag'); if (t) { t.textContent = label; t.className = 'tag' + (aud ? ' aud' : ''); }
+  if (S.playing) sc.querySelectorAll('video').forEach(v => v.paused && v.play().catch(() => {}));
+}
+function showScreen() {
+  const b = beat();
+  if (S.held && !S.playing) return screen(S.held, `AUDITION · ${S.held.title}`, true);
+  const s = S.seats[b.id], p = cutAt(S.playing ? S.t : b.start + .05);
+  if (s) screen(s, `SEATED · ${s.title}`);
+  else if (p) screen({ video: p.video, in: p.in + Math.max(0, (S.playing ? S.t : b.start) - p.t0) }, `SUITE CUT · ${p.title}`);
+}
+
+/* holding a card: audition, seat, release */
+function hold(k) {
+  const card = $$('.card')[k]; if (!card) return;
+  $$('.card.held').forEach(c => c.classList.remove('held'));
+  const c = card._c; S.held = { ...c, beat: beat().id }; card.classList.add('held');
+  const H = $('#heldV'); H.querySelectorAll('video').forEach(v => v.remove()); H.style.backgroundImage = `url("${c.thumb}")`; H.prepend(vid(c.video, c.in));
+  const k2 = c.comp, bar = (l, v) => `<span>${l} ${v}<i><u style="width:${v}%"></u></i></span>`;
+  $('#heldWhy').innerHTML = `<b>${k + 1} · ${esc(c.title)}${c.year ? ' · ' + c.year : ''}</b> — ${c.verdict} · score ${c.score} · ${esc(c.cat)}${c.flags.length ? ' · <span style="color:var(--red)">' + esc(c.flags.join(', ')) + '</span>' : ''}
+    <div class="bars">${bar('fit', c.fit)}${bar('line', k2.line)}${bar('scene', k2.scene)}${bar('sign', k2.sign)}${bar('review', k2.review)}${bar('craft', k2.craft)}</div>${c.obs ? `<div style="margin-top:4px">${esc(c.obs)}</div>` : ''}`;
+  $('#held').classList.add('on');
+  showScreen();
+}
+function release() { S.held = null; $('#held').classList.remove('on'); $$('.card.held').forEach(c => c.classList.remove('held')); showScreen(); }
+function seatHeld() {
+  const b = beat(); const c = S.held || ranked(b)[0]; if (!c) return;
+  S.seats[b.id] = { id: c.id, title: c.title, year: c.year, thumb: c.thumb, video: c.video, in: c.in || 0, url: c.url, score: c.score, fit: c.fit };
+  store.set('floor.seats', S.seats); toast(`seated in beat ${b.id} · ${c.title}`);
+  release(); refreshFilm();
+  if (S.adv && S.i < S.D.beats.length - 1) setTimeout(() => go(S.i + 1), 350); else { layCards(); walls(); showScreen(); }
+}
+function unseat() { const b = beat(); if (!S.seats[b.id]) return; delete S.seats[b.id]; store.set('floor.seats', S.seats); toast('unseated'); layCards(); walls(); showScreen(); refreshFilm(); }
+
+/* ---------------- moving through the film ---------------- */
+function go(i, keepTime) {
+  S.i = Math.max(0, Math.min(S.D.beats.length - 1, i)); release();
+  const b = beat(); if (!keepTime) { S.t = b.start + .05; if (S.playing) aud.currentTime = S.t; }
+  layCards(); walls(); showScreen(); refreshFilm(); signs();
+  try { history.replaceState(null, '', '#b' + b.id); } catch (e) { /* file: */ }
+}
+function refreshFilm() {
+  const B = S.D.beats, D = S.D.duration, n = B.filter(b => S.seats[b.id]).length;
+  $('#progBar').style.width = (n / B.length * 100) + '%'; $('#progTxt').textContent = `${n} / ${B.length} beats seated`;
+  const f = film(beat());
+  $('#filmInfo').textContent = ` · 24:00 · ${n} seated, the rest plays the suite cut · chapter ${f.n} ${f.title} below`;
+  const th = b => (S.seats[b.id] || cutAt(b.start + .05) || {}).thumb;
+  $('#lane').innerHTML = B.map((b, i) => { const s = S.seats[b.id]; return `<i class="${s ? 'seat' : ''}${i === S.i ? ' cur' : ''}" data-i="${i}" style="left:${b.start / D * 100}%;width:${(b.end - b.start) / D * 100}%;background-image:url('${esc(th(b))}')" title="beat ${b.id} · ${esc(b.title)}${s ? ' · ' + esc(s.title) : ''}"></i>`; }).join('') + '<span class="ph" id="ph"></span>';
+  const inCh = B.map((b, i) => [b, i]).filter(([b]) => b.chapter === beat().chapter);
+  $('#chap').innerHTML = inCh.map(([b, i]) => { const s = S.seats[b.id], sg = S.D.signs[b.codes[0]];
+    return `<div class="b${s ? ' seat' : ' none'}${i === S.i ? ' cur' : ''}" data-i="${i}" style="background-image:url('${esc(th(b))}')" title="${esc(b.title)}${s ? ' · seated: ' + esc(s.title) : ' · suite cut (not seated yet)'}">${sg ? `<em style="background:var(${DOM[sg.dom]})">${esc(sg.symbol)} ${b.codes[0]}</em>` : ''}<span>${b.id} · ${esc(b.title.slice(0, 28))}</span></div>`; }).join('');
+  placePh();
+}
+function placePh() { const p = $('#ph'); if (p) p.style.left = (S.t / S.D.duration * 100) + '%'; $('#tc').textContent = `${mm(S.t)} / ${mm(S.D.duration).slice(0, 5)}`; }
+$('#lane').onclick = e => { const r = $('#lane').getBoundingClientRect(), t = (e.clientX - r.left) / r.width * S.D.duration, i = S.D.beats.findIndex(b => t >= b.start && t < b.end); if (i >= 0) { S.t = t; if (S.playing) aud.currentTime = t; go(i, true); } };
+$('#chap').onclick = e => { const b = e.target.closest('[data-i]'); if (b) go(+b.dataset.i); };
+
+function signs() {
+  const b = beat();
+  $('#sg').innerHTML = Object.entries(S.D.signs).map(([n, s]) => `<button data-n="${n}" class="${b.codes.includes(n) ? 'lit' : ''}${S.sign === n ? ' on' : ''}" style="background:var(${DOM[s.dom] || '--break'})" title="${n} ${esc(s.name)}">${esc(n)}</button>`).join('');
+  const cs = b.codes.map(n => S.D.signs[n]).filter(Boolean);
+  $('#signP').innerHTML = S.sign ? `<b>${S.sign} ${esc(S.D.signs[S.sign].name)}</b>: ${S.D.beats.filter(x => x.codes.includes(S.sign)).length} beats carry it — ← → now walk only those. Click it again to walk every beat.`
+    : `This beat reads ${cs.map(s => `<b>${esc(s.symbol)} ${esc(s.name)}</b>`).join(' and ') || 'no sign'}. Click a sign to walk only the beats that carry it.`;
+}
+$('#sg').onclick = e => { const x = e.target.closest('[data-n]'); if (!x) return; S.sign = S.sign === x.dataset.n ? null : x.dataset.n; signs(); if (S.sign && !beat().codes.includes(S.sign)) step(1); };
+function step(d) {
+  let i = S.i + d;
+  if (S.sign) { while (i >= 0 && i < S.D.beats.length && !S.D.beats[i].codes.includes(S.sign)) i += d; if (i < 0 || i >= S.D.beats.length) return toast('no more beats with this sign'); }
+  go(i);
+}
+
+/* ---------------- playing the film ---------------- */
+function play() {
+  if (S.playing) { aud.pause(); S.playing = false; $('#play').textContent = '▶'; $('#playCut').textContent = 'Play cut'; showScreen(); return; }
+  release(); try { aud.currentTime = S.t; } catch (e) { /* not ready */ }
+  aud.play().then(() => { S.playing = true; $('#play').textContent = '❚❚'; $('#playCut').textContent = 'Pause'; showScreen(); }).catch(() => toast('the suite audio did not load'));
+}
+(function loop() {
+  if (S.D && S.playing) {
+    S.t = aud.currentTime; placePh();
+    const i = S.D.beats.findIndex(b => S.t >= b.start && S.t < b.end);
+    if (i >= 0 && i !== S.i) { S.i = i; layCards(); walls(); refreshFilm(); signs(); }
+    showScreen();
+  }
+  requestAnimationFrame(loop);
+})();
+
+/* ---------------- controls ---------------- */
+$('#play').onclick = play; $('#playCut').onclick = play;
+$('#prevB').onclick = () => step(-1); $('#nextB').onclick = () => step(1);
+$('#seatBest').onclick = () => { S.held = null; seatHeld(); };
+$('#unseat').onclick = unseat;
+$('#adv').onclick = () => { S.adv = !S.adv; $('#adv').classList.toggle('on', S.adv); };
+$('#hAud').onclick = () => showScreen(); $('#hSeat').onclick = seatHeld; $('#hRel').onclick = release;
+$('#gx').onclick = () => { $('#guide').style.display = 'none'; store.set('tempest.guide', 0); };
+$('#room').addEventListener('click', e => { if (e.target.closest('#held,.dpad,.guide')) return; if (!e.target.closest('.card')) release(); });
+$$('.dpad button').forEach(b => b.onclick = e => {
+  e.stopPropagation(); const k = b.dataset.cam;
+  if (k === 'z+') S.cam.z = Math.min(200, S.cam.z + 90); if (k === 'z-') S.cam.z = Math.max(-1100, S.cam.z - 90);
+  if (k === 'y-') S.cam.yaw -= 8; if (k === 'y+') S.cam.yaw += 8; if (k === 't-') S.cam.tilt = Math.max(-40, S.cam.tilt - 4); if (k === 't+') S.cam.tilt = Math.min(6, S.cam.tilt + 4);
+  if (k === 'b-') step(-1); if (k === 'b+') step(1); if (k === '0') S.cam = { z: -680, yaw: 0, tilt: -21 };
+  cam();
+});
+$('#bestAll').onclick = () => { let n = 0; S.D.beats.forEach(b => { if (S.seats[b.id]) return; const c = ranked(b)[0]; if (c) { S.seats[b.id] = { id: c.id, title: c.title, year: c.year, thumb: c.thumb, video: c.video, in: c.in || 0, url: c.url, score: c.score, fit: c.fit }; n++; } }); store.set('floor.seats', S.seats); layCards(); walls(); showScreen(); refreshFilm(); toast(`filled ${n} empty beats with their best-ranked clip`); };
+$('#export').onclick = () => {
+  const edl = { title: 'WYGWYL · cutting room tempest', made: new Date().toISOString(), audio: 'lab/' + S.D.audio, duration: S.D.duration,
+    beats: S.D.beats.map(b => { const s = S.seats[b.id], p = cutAt(b.start + .05); return { beat: b.id, t0: b.start, t1: b.end, title: b.title, line: cueFor(b), signs: b.codes,
+      shot: s ? { ...s, from: 'seated' } : p ? { id: p.id, title: p.title, video: p.video, in: p.in, from: 'suite cut' } : null }; }) };
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(edl, null, 1)], { type: 'application/json' })); a.download = 'wygwyl-tempest.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.target.closest?.('input,select')) return;
+  const k = e.key;
+  if (k >= '1' && k <= '9') hold(+k - 1);
+  else if (k === 's' || k === 'S' || k === 'Enter') seatHeld();
+  else if (k === 'r' || k === 'R' || k === 'Escape') release();
+  else if (k === 'b' || k === 'B') { S.held = null; seatHeld(); }
+  else if (k === 'u' || k === 'U') unseat();
+  else if (k === 'ArrowLeft') step(-1); else if (k === 'ArrowRight') step(1);
+  else if (k === ' ') { e.preventDefault(); play(); }
+  else return;
+  e.preventDefault();
+});
+addEventListener('resize', fitRoom);
+
+(async () => {
+  [S.D, S.R] = await Promise.all([fetch('wygwyl/collage-data.json').then(r => r.json()), fetch('wygwyl/candidate-ranks.json').then(r => r.json())]);
+  aud.src = S.D.audio;
+  if (store.get('tempest.guide', 1) === 0) $('#guide').style.display = 'none';
+  buildRoom(); fitRoom();
+  const m = /#b(\d+)/.exec(location.hash), first = S.D.beats.findIndex(b => !S.seats[b.id]);
+  go(m ? Math.max(0, S.D.beats.findIndex(b => b.id === +m[1])) : Math.max(0, first));
+})();
+</script>
+</body>
+</html>
