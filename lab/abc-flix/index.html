@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>ABC FLIX · Cineosis</title>
+    <meta name="description" content="The ABC FLIX harness (ICARO-PRO engine + ARC-TUNNEL) fed with Cineosis Lab footage: rip a sign, a WYGWYL beat or your Videotext film onto four probability tracks.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%230a0a0a'/><circle cx='16' cy='16' r='8' fill='none' stroke='%2322c55e' stroke-width='2.5'/><circle cx='16' cy='16' r='2.5' fill='%23ef4444'/></svg>" />
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { width: 100%; height: 100%; height: 100dvh; overflow: hidden; background: #0a0a0a; font-family: ui-monospace, monospace; }
+        
+        #harness {
+            display: flex;
+            flex-direction: column;
+            width: 100%; height: 100%; height: 100dvh;
+        }
+        
+        #engine-frame {
+            flex: 0 0 55%; width: 100%; border: none;
+        }
+        #tunnel-frame {
+            flex: 1; width: 100%; border: none;
+        }
+        
+        /* Thin bus strip — minimal gap between instruments */
+        #bus-strip {
+            height: 18px; background: #0a0a0a;
+            font-size: 9px; font-weight: 900; text-transform: uppercase;
+            display: flex; align-items: center;
+            gap: 10px; padding: 0 8px;
+            letter-spacing: 0.05em; flex-shrink: 0;
+            cursor: row-resize; position: relative; z-index: 10;
+            border-top: 1px solid #1a1a1a;
+            border-bottom: 1px solid #1a1a1a;
+            user-select: none;
+        }
+        #bus-strip span { color: #555; }
+        
+        /* Pulse dot for bus activity */
+        .bus-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: #333; flex-shrink: 0;
+            transition: background 0.08s;
+        }
+        .bus-dot.live { background: #22c55e; }
+        .bus-dot.sync {
+            background: #ef4444;
+        }
+        @keyframes busPulse {
+            0% { transform: scale(1.8); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes busPulse2 {
+            0% { transform: scale(1.8); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        /* Sync bar — shows frame transfer progress */
+        #sync-bar {
+            position: absolute; left: 0; bottom: 0;
+            height: 2px; background: #22c55e;
+            width: 0%; transition: width 0.15s ease-out;
+            opacity: 0.8;
+        }
+        
+        .bus-btn {
+            background: none; border: 1px solid #333; color: #888;
+            padding: 0 6px; height: 14px; font: inherit;
+            font-size: 8px; font-weight: 900; cursor: pointer;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            transition: color 0.1s, border-color 0.1s;
+        }
+        .bus-btn:hover { color: #fff; border-color: #666; }
+        .bus-btn:active { color: #22c55e; border-color: #22c55e; }
+        
+        .bus-spacer { flex: 1; }
+        
+        /* Error state */
+        .bus-error { color: #ef4444 !important; }
+        
+        /* Clip info in strip */
+        #bus-clip {
+            color: #888; transition: color 0.3s;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            max-width: 120px;
+        }
+
+        /* Mobile toggle button */
+        .bus-toggle {
+            display: none; /* Hidden on desktop */
+            background: #222; border: 1px solid #444; color: #ccc;
+            padding: 0 10px; height: 18px; font: inherit;
+            font-size: 9px; font-weight: 900; cursor: pointer;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            transition: all 0.1s;
+        }
+        .bus-toggle:active { color: #22c55e; border-color: #22c55e; }
+        .bus-toggle.active { background: #22c55e; color: #000; border-color: #22c55e; }
+
+        /* ── MOBILE: both instruments visible in vertical split ── */
+        @media (max-width: 767px) {
+            #harness {
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+                height: 100dvh;
+                overflow: hidden;
+            }
+
+            /* Engine: top half — explicit height, not flex */
+            #engine-frame {
+                flex: none !important;
+                width: 100%;
+                height: calc(50dvh - 14px); /* half viewport minus half bus strip */
+                border: none;
+            }
+
+            /* Bus strip between the two */
+            #bus-strip {
+                flex-shrink: 0;
+                height: 28px;
+                font-size: 10px;
+                cursor: default;
+            }
+
+            /* Tunnel: bottom half — explicit height */
+            #tunnel-frame {
+                flex: none !important;
+                width: 100%;
+                height: calc(50dvh - 14px); /* half viewport minus half bus strip */
+                border: none;
+            }
+
+            /* Toggle: maximize one instrument to full height */
+            #harness.max-engine #engine-frame { height: calc(100dvh - 28px); }
+            #harness.max-engine #tunnel-frame { height: 0; overflow: hidden; }
+            #harness.max-tunnel #engine-frame { height: 0; overflow: hidden; }
+            #harness.max-tunnel #tunnel-frame { height: calc(100dvh - 28px); }
+
+            .bus-toggle { display: inline-block; }
+            .bus-btn { height: 18px; font-size: 9px; padding: 0 8px; }
+
+            /* Hide non-essential bus info on mobile */
+            #bus-clip { display: none; }
+        }
+
+        /* ── CINEOSIS REEL LOADER ── */
+        .bus-btn.reel { color: #0a0a0a; background: #22c55e; border-color: #22c55e; }
+        .bus-btn.reel:hover { color: #0a0a0a; background: #4ade80; }
+        #reel {
+            position: fixed; inset: 0; z-index: 50; display: none;
+            background: rgba(6,6,6,0.96); color: #ddd; overflow: auto;
+            font: 12px/1.5 ui-monospace, monospace; -webkit-overflow-scrolling: touch;
+        }
+        #reel.on { display: block; }
+        .rl-wrap { max-width: 1080px; margin: 0 auto; padding: 16px 16px 90px; }
+        .rl-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid #222; padding-bottom: 10px; }
+        .rl-head h1 { font: 900 18px/1 ui-monospace, monospace; letter-spacing: .06em; color: #fff; }
+        .rl-head h1 b { color: #22c55e; }
+        .rl-head p { color: #777; font-size: 11px; flex: 1; min-width: 240px; }
+        .rl-x { background: none; border: 1px solid #333; color: #aaa; font: inherit; padding: 4px 10px; cursor: pointer; }
+        .rl-x:hover { color: #fff; border-color: #777; }
+        .rl-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+        .rl-lab { color: #666; font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; min-width: 64px; }
+        .rl-seg { display: inline-flex; border: 1px solid #333; }
+        .rl-seg button { background: none; border: 0; border-right: 1px solid #333; color: #888; font: 900 10px ui-monospace, monospace; letter-spacing: .06em; padding: 6px 10px; cursor: pointer; text-transform: uppercase; }
+        .rl-seg button:last-child { border-right: 0; }
+        .rl-seg button[aria-pressed=true] { background: #22c55e; color: #000; }
+        #reel select { background: #111; color: #ddd; border: 1px solid #333; font: inherit; padding: 5px 6px; max-width: 100%; }
+        .rl-tracks { border-top: 1px solid #222; margin-top: 6px; }
+        .rl-tr { display: grid; grid-template-columns: 150px minmax(0,1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid #1a1a1a; align-items: start; }
+        .rl-tr .nm { font: 900 11px ui-monospace, monospace; letter-spacing: .08em; display: flex; gap: 8px; align-items: center; }
+        .rl-tr .nm input { accent-color: #22c55e; }
+        .rl-tr .nm i { width: 10px; height: 10px; display: inline-block; flex: none; }
+        .rl-tr small { display: block; color: #666; font-size: 10px; margin-top: 3px; }
+        .rl-shots { display: flex; gap: 6px; flex-wrap: wrap; }
+        .rl-shot { position: relative; width: 92px; }
+        .rl-shot img { width: 92px; height: 69px; object-fit: cover; display: block; background: #151515; border: 1px solid #2a2a2a; }
+        .rl-shot span { display: block; font-size: 9.5px; line-height: 1.2; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+        .rl-shot em { position: absolute; left: 3px; top: 3px; font: 900 8px ui-monospace, monospace; font-style: normal; padding: 1px 3px; background: #000c; letter-spacing: .05em; }
+        .rl-shot em.local { color: #22c55e; } .rl-shot em.server { color: #3b82f6; } .rl-shot em.cdn { color: #f59e0b; } .rl-shot em.blocked { color: #ef4444; }
+        .rl-empty { color: #555; font-size: 11px; padding: 4px 0; }
+        .rl-go { position: sticky; bottom: 0; background: linear-gradient(transparent, #060606 30%); padding: 18px 0 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .rl-go button { background: #22c55e; color: #000; border: 0; font: 900 13px ui-monospace, monospace; letter-spacing: .08em; padding: 12px 20px; cursor: pointer; }
+        .rl-go button:disabled { background: #333; color: #777; cursor: default; }
+        .rl-go span { color: #888; font-size: 11px; flex: 1; min-width: 200px; }
+        .rl-note { color: #777; font-size: 11px; border: 1px solid #222; padding: 10px 12px; margin-top: 14px; }
+        .rl-note b { color: #ccc; }
+        .rl-report { margin-top: 10px; font-size: 11px; color: #aaa; }
+        .rl-report li { margin: 2px 0 2px 16px; }
+        #reel a { color: #22c55e; }
+        @media (max-width: 767px) {
+            .rl-tr { grid-template-columns: 1fr; gap: 6px; }
+            .rl-shot, .rl-shot img { width: 74px; } .rl-shot img { height: 56px; }
+            .bus-btn.reel { order: -1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="harness">
+        <iframe id="engine-frame" src="icaro-pro-bus.html"></iframe>
+        <div id="bus-strip">
+            <div class="bus-dot" id="bus-dot"></div>
+            <span id="bus-msg">IDLE</span>
+            <span id="bus-clip"></span>
+            <span id="bus-frames">0 FR</span>
+            <span id="bus-cursor">CUR 0</span>
+            <div class="bus-spacer"></div>
+            <button class="bus-btn reel" id="bus-reel">REEL</button>
+            <button class="bus-btn" id="bus-view">BARREL</button>
+            <button class="bus-toggle" id="bus-toggle">SPLIT</button>
+            <div id="sync-bar"></div>
+        </div>
+        <iframe id="tunnel-frame" loading="lazy"></iframe>
+    </div>
+
+    <script>
+    (() => {
+        'use strict';
+
+        // ── ELEMENT REFS ──
+        const engine = document.getElementById('engine-frame');
+        const tunnel = document.getElementById('tunnel-frame');
+        const strip = document.getElementById('bus-strip');
+        const busMsg = document.getElementById('bus-msg');
+        const busFrames = document.getElementById('bus-frames');
+        const busCursor = document.getElementById('bus-cursor');
+        const busClip = document.getElementById('bus-clip');
+        const busDot = document.getElementById('bus-dot');
+        const busViewBtn = document.getElementById('bus-view');
+        const syncBar = document.getElementById('sync-bar');
+
+        // ── PERFORMANCE LOGGING ──
+        const _t0 = performance.now();
+        console.log('[HARNESS] Boot at', _t0.toFixed(0) + 'ms');
+
+        // Defer tunnel load — engine loads first for better LCP
+        engine.onload = () => {
+            const loadTime = (performance.now() - _t0).toFixed(0);
+            console.log('[HARNESS] Engine loaded in ' + loadTime + 'ms — now loading tunnel');
+            engineReady = false;
+            tunnel.src = 'c-bus.html';
+        };
+
+        // ── STATE ──
+        const VIEWS = ['BARREL', 'INSIDE', 'OUTSIDE', 'SIDE', 'BENCH'];
+        let currentView = 0;
+        let msgCount = 0;
+        let lastEngineMsg = 0;
+        let lastTunnelMsg = 0;
+        let engineReady = false;
+        let tunnelReady = false;
+        let framesSynced = 0;
+        let syncPulseTimer = null;
+
+        // ── BUS ACTIVITY ANIMATION (no forced reflow) ──
+        let _pulseFrame = 0;
+        function pulseSync(direction, type) {
+            // Animation restart via name swap — no forced reflow
+            _pulseFrame++;
+            busDot.style.animationName = (_pulseFrame % 2) ? 'busPulse' : 'busPulse2';
+            busDot.classList.add('live');
+
+            // Sync bar animation for FRAMES_SYNC
+            if (type === 'FRAMES_SYNC') {
+                syncBar.style.width = '100%';
+                syncBar.style.background = '#22c55e';
+                clearTimeout(syncPulseTimer);
+                syncPulseTimer = setTimeout(() => {
+                    syncBar.style.width = '0%';
+                }, 600);
+            } else if (type === 'CURSOR_MOVE') {
+                syncBar.style.width = '30%';
+                syncBar.style.background = '#3b82f6';
+                clearTimeout(syncPulseTimer);
+                syncPulseTimer = setTimeout(() => {
+                    syncBar.style.width = '0%';
+                }, 200);
+            }
+        }
+
+        // ── VIEW CYCLE ──
+        busViewBtn.onclick = () => {
+            currentView = (currentView + 1) % VIEWS.length;
+            busViewBtn.textContent = VIEWS[currentView];
+            safeSend(tunnel, { type: 'VIEW_CYCLE', view: currentView });
+        };
+
+        // ── MOBILE TOGGLE (3 modes: SPLIT → MAX ENGINE → MAX TUNNEL) ──
+        const harness = document.getElementById('harness');
+        const busToggle = document.getElementById('bus-toggle');
+        const MODES = ['split', 'max-engine', 'max-tunnel'];
+        let mobileMode = 0; // 0=split, 1=max-engine, 2=max-tunnel
+
+        busToggle.onclick = () => {
+            mobileMode = (mobileMode + 1) % MODES.length;
+            harness.classList.remove('max-engine', 'max-tunnel');
+            if (MODES[mobileMode] !== 'split') {
+                harness.classList.add(MODES[mobileMode]);
+            }
+            const labels = ['SPLIT', 'ENGINE ▣', 'TUNNEL ▣'];
+            busToggle.textContent = labels[mobileMode];
+            busToggle.classList.toggle('active', mobileMode !== 0);
+        };
+
+        // ── SAFE SEND — wraps postMessage with error boundary ──
+        function safeSend(iframe, data) {
+            try {
+                if (iframe.contentWindow) {
+                    iframe.contentWindow.postMessage(data, '*');
+                    return true;
+                }
+            } catch (e) {
+                console.warn('[HARNESS] Send failed:', e.message);
+                busMsg.textContent = 'SEND ERR';
+                busMsg.classList.add('bus-error');
+                setTimeout(() => busMsg.classList.remove('bus-error'), 2000);
+            }
+            return false;
+        }
+
+        // ── rAF MESSAGE DEDUPLICATION ──
+        // Pool CURSOR_MOVE and GOTO_FRAME — only forward latest per render frame
+        let _pendingCursorToTunnel = null;
+        let _pendingGotoToEngine = null;
+        let _rafPooled = false;
+
+        function _flushPooledMessages() {
+            _rafPooled = false;
+            if (_pendingCursorToTunnel) {
+                safeSend(tunnel, _pendingCursorToTunnel);
+                _pendingCursorToTunnel = null;
+            }
+            if (_pendingGotoToEngine) {
+                safeSend(engine, _pendingGotoToEngine);
+                _pendingGotoToEngine = null;
+            }
+        }
+
+        function poolMessage(target, data) {
+            if (target === 'tunnel' && data.type === 'CURSOR_MOVE') {
+                _pendingCursorToTunnel = data;
+            } else if (target === 'engine' && data.type === 'GOTO_FRAME') {
+                _pendingGotoToEngine = data;
+            } else {
+                // Non-poolable: send immediately
+                safeSend(target === 'tunnel' ? tunnel : engine, data);
+                return;
+            }
+            if (!_rafPooled) {
+                _rafPooled = true;
+                requestAnimationFrame(_flushPooledMessages);
+            }
+        }
+
+        // ── MESSAGE ROUTER (Hardened — Error Elimination) ──
+        // STRUCTURAL GUARANTEES:
+        // 1. Only messages from known sources are processed
+        // 2. Messages must be {type: string} — malformed payloads rejected
+        // 3. Router NEVER forwards back to origin — echo impossible
+        // 4. _origin tags preserved for downstream validation
+        const VALID_TYPES = new Set([
+            'FRAMES_SYNC', 'FRAME_PATCH', 'CURSOR_MOVE', 'GOTO_FRAME',
+            'PLAY_SYNC', 'CLIP_SELECT', 'CLIP_ARRANGE', 'STRIP_REORDER', 'REQUEST_SYNC', 'RIP_PROGRESS',
+            'VIEW_CYCLE', 'REEL_STATUS'
+        ]);
+
+        window.addEventListener('message', e => {
+            const d = e.data;
+
+            // ── GATE 1: Shape validation (rejects malformed messages) ──
+            if (!d || typeof d !== 'object' || typeof d.type !== 'string') return;
+
+            // ── GATE 2: Known type validation ──
+            if (!VALID_TYPES.has(d.type)) return;
+
+            msgCount++;
+
+            // ── GATE 3: Source identification (rejects unknown sources) ──
+            const fromEngine = e.source === engine.contentWindow;
+            const fromTunnel = e.source === tunnel.contentWindow;
+            if (!fromEngine && !fromTunnel) return; // Unknown source — drop
+
+            if (fromEngine) {
+                // ENGINE → TUNNEL (never back to engine)
+                lastEngineMsg = Date.now();
+                engineReady = true;
+
+                // Pool high-frequency cursor messages, send others immediately
+                if (d.type === 'CURSOR_MOVE') {
+                    poolMessage('tunnel', d);
+                } else {
+                    safeSend(tunnel, d);
+                }
+                pulseSync('down', d.type);
+
+                // Update status
+                if (d.type === 'FRAMES_SYNC') {
+                    framesSynced = d.total;
+                    busFrames.textContent = d.total + ' FR';
+                    busMsg.textContent = 'SYNC ' + d.total;
+                }
+                if (d.type === 'CURSOR_MOVE' || d.type === 'FRAMES_SYNC') {
+                    busCursor.textContent = 'CUR ' + (d.cursor + 1);
+                }
+                if (d.type === 'CURSOR_MOVE') {
+                    busMsg.textContent = 'CUR ' + (d.cursor + 1);
+                }
+                if (d.type === 'FRAME_PATCH') {
+                    busMsg.textContent = 'PATCH F' + (d.index + 1);
+                }
+                // Route loading progress to tunnel + show in bus strip
+                if (d.type === 'RIP_PROGRESS') {
+                    if (d.phase === 'START') {
+                        busMsg.textContent = 'RIP 0/' + d.total;
+                        syncBar.style.background = '#ef4444';
+                        syncBar.style.width = '0%';
+                        syncBar.style.transition = 'width 0.3s';
+                    } else if (d.phase === 'CHUNK') {
+                        const pct = Math.round((d.done / d.total) * 100);
+                        busMsg.textContent = 'RIP ' + d.done + '/' + d.total;
+                        busFrames.textContent = d.done + ' FR';
+                        syncBar.style.width = pct + '%';
+                    } else if (d.phase === 'DONE') {
+                        busMsg.textContent = 'RIP DONE';
+                        busFrames.textContent = d.total + ' FR';
+                        syncBar.style.width = '100%';
+                        syncBar.style.background = '#22c55e';
+                        setTimeout(() => { syncBar.style.width = '0%'; }, 1500);
+                    }
+                }
+
+            } else if (fromTunnel) {
+                // TUNNEL → ENGINE (never back to tunnel)
+                lastTunnelMsg = Date.now();
+                tunnelReady = true;
+
+                // Pool high-frequency goto messages
+                if (d.type === 'GOTO_FRAME') {
+                    poolMessage('engine', d);
+                } else {
+                    safeSend(engine, d);
+                }
+                pulseSync('up', d.type);
+
+                if (d.type === 'GOTO_FRAME') {
+                    busCursor.textContent = 'CUR ' + (d.cursor + 1);
+                    busMsg.textContent = 'GOTO ' + (d.cursor + 1);
+                }
+                if (d.type === 'CLIP_SELECT') {
+                    busClip.textContent = d.name || '';
+                    busClip.style.color = '#fff';
+                    setTimeout(() => { busClip.style.color = ''; }, 800);
+                }
+            }
+        });
+
+        // ── DIVIDER RESIZE (strip itself is the drag handle) ──
+        let dragging = false, startY = 0, startFlex = 55;
+
+        strip.addEventListener('pointerdown', e => {
+            dragging = true; startY = e.clientY;
+            const flex = engine.style.flex;
+            startFlex = flex ? parseFloat(flex.split(' ')[2]) || 55 : 55;
+            strip.style.cursor = 'grabbing';
+            e.preventDefault();
+        });
+        window.addEventListener('pointermove', e => {
+            if (!dragging) return;
+            const dy = e.clientY - startY;
+            const pct = Math.max(20, Math.min(80, startFlex + (dy / window.innerHeight) * 100));
+            engine.style.flex = `0 0 ${pct}%`;
+        });
+        window.addEventListener('pointerup', () => {
+            dragging = false;
+            strip.style.cursor = 'row-resize';
+        });
+
+        // ── FAILURE RESILIENCE ──
+
+        // 1. Heartbeat — detect stale connections
+        setInterval(() => {
+            const now = Date.now();
+            const engineStale = engineReady && (now - lastEngineMsg > 10000);
+            const tunnelStale = tunnelReady && (now - lastTunnelMsg > 15000);
+
+            if (engineStale && tunnelStale) {
+                busDot.classList.remove('live');
+                busMsg.textContent = 'STALE';
+            } else if (!engineReady && !tunnelReady && msgCount === 0) {
+                busMsg.textContent = 'WAIT';
+            }
+        }, 3000);
+
+        // 2. Iframe error handler — detect load failures
+        engine.onerror = () => {
+            busMsg.textContent = 'ENGINE ERR';
+            busMsg.classList.add('bus-error');
+        };
+        tunnel.onerror = () => {
+            busMsg.textContent = 'TUNNEL ERR';
+            busMsg.classList.add('bus-error');
+        };
+
+        // 3. Ping on load — request initial frame sync after iframes boot
+        tunnel.onload = () => {
+            const totalBoot = (performance.now() - _t0).toFixed(0);
+            console.log('[HARNESS] Tunnel loaded — total boot: ' + totalBoot + 'ms');
+            busMsg.textContent = 'BOOT ' + totalBoot + 'ms';
+            tunnelReady = false;
+            setTimeout(() => {
+                safeSend(engine, { type: 'REQUEST_SYNC' });
+            }, 500);
+        };
+        // engine.onload handled above (deferred tunnel loading)
+
+        // 4. Window visibility — re-sync when tab comes back into focus
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && framesSynced > 0) {
+                safeSend(engine, { type: 'REQUEST_SYNC' });
+            }
+        });
+
+        // 5. Global error boundary
+        window.addEventListener('error', e => {
+            console.error('[HARNESS] Uncaught:', e.message);
+        });
+
+    })();
+    </script>
+    <div id="reel" role="dialog" aria-label="Load a reel">
+        <div class="rl-wrap">
+            <div class="rl-head">
+                <h1>ABC FLIX <b>×</b> CINEOSIS · REEL</h1>
+                <p>Rip archive footage into the engine. Each shot becomes a run of frames; the tunnel files it on the probability track its evidence earns.</p>
+                <button class="rl-x" id="rl-close">CLOSE ✕</button>
+            </div>
+            <div class="rl-row"><span class="rl-lab">source</span>
+                <div class="rl-seg" id="rl-src"><button data-s="sign" aria-pressed="true">Cineosis sign</button><button data-s="beat" aria-pressed="false">WYGWYL beat</button><button data-s="film" aria-pressed="false">My Videotext film</button></div>
+            </div>
+            <div class="rl-row" id="rl-pick"></div>
+            <div class="rl-tracks" id="rl-tracks"></div>
+            <div class="rl-row"><span class="rl-lab">frames</span>
+                <div class="rl-seg" id="rl-per"><button data-n="6" aria-pressed="false">6 / shot</button><button data-n="12" aria-pressed="true">12 / shot</button><button data-n="24" aria-pressed="false">24 / shot</button></div>
+                <span class="rl-lab" style="margin-left:10px">order</span>
+                <div class="rl-seg" id="rl-ord"><button data-o="weave" aria-pressed="true">weave the tracks</button><button data-o="strong" aria-pressed="false">strongest first</button></div>
+            </div>
+            <div class="rl-note" id="rl-where"></div>
+            <div class="rl-report" id="rl-report"></div>
+            <div class="rl-go"><button id="rl-rip">RIP</button><span id="rl-sum"></span></div>
+        </div>
+    </div>
+    <script>
+    // ── CINEOSIS REEL LOADER ──
+    // Picks archive shots from reels.json (built by build_reels.py), resolves each to a URL the engine can read pixels
+    // from, and sends LOAD_REEL. Resolution: a clip that ships with the lab (same origin) → the lab's local server
+    // (/media/<id>.mp4, a same-origin copy of any shot) → the archive's CDN, which only works if it sends CORS headers.
+    (() => {
+        'use strict';
+        const engine = document.getElementById('engine-frame');
+        const $ = s => document.querySelector(s);
+        const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const TR = [
+            { name: 'POSSIBLE', color: '#ec4899', sign: 'reading under 40', beat: 'unreviewed candidate or forage', film: 'forage and unreviewed shots at those beats' },
+            { name: 'PLAUSIBLE', color: '#3b82f6', sign: 'reading 40–54', beat: 'another cut’s pick (scenes · cineosis · drift)', film: 'reviewed candidates at those beats' },
+            { name: 'PROBABLE', color: '#22c55e', sign: 'reading 55–69', beat: 'reviewed candidate (graded F or P)', film: 'what the suite cut or the review chose there' },
+            { name: 'PREFERRED', color: '#f59e0b', sign: 'reading 70 and over', beat: 'the review’s choice, or the suite cut’s pick', film: 'your couplings' }
+        ];
+        const R = { data: null, local: new Set(), server: false, cors: null, src: 'sign', sel: {}, per: 12, ord: 'weave', on: [true, true, true, true], segs: [] };
+        window.REEL = R;
+
+        function thumbOf(s) { return s.v ? (s.v.startsWith('http') ? s.v : R.data.cdn + s.v).replace('/clips/', '/thumbnails/').replace(/\.mp4$/, '.jpg') : ''; }
+        function where(s) { return R.local.has(s.id) ? 'local' : R.server ? 'server' : R.cors === false ? 'blocked' : 'cdn'; }
+        const TAG = { local: 'LOCAL', server: 'SERVER', cdn: 'CDN', blocked: 'CDN ✕' };
+        // one small ranged request tells us whether the CDN lets a page read its pixels (CORS)
+        function probeCors() {
+            const s = R.data.beats[0].tiers.flat().find(x => x.v && !R.local.has(x.id));
+            if (!s || R.server) return Promise.resolve(null);
+            return fetch(R.data.cdn + s.v, { mode: 'cors', headers: { Range: 'bytes=0-1' } }).then(r => r.ok || r.status === 206).catch(() => false);
+        }
+        function urlOf(s) {
+            const w = where(s);
+            const rel = w === 'local' ? '../clips/' + s.id + '.mp4' : w === 'server' ? '/media/' + s.id + '.mp4' : (s.v.startsWith('http') ? s.v : R.data.cdn + s.v);
+            return new URL(rel, location.href).href;
+        }
+
+        // the film made in Videotext: same origin, so its couplings are in this browser's storage
+        function filmTiers() {
+            let work = null; try { work = JSON.parse(localStorage.getItem('videotext.work') || 'null'); } catch (e) { /* private mode */ }
+            const binds = (work && work.binds) || [];
+            const tiers = [[], [], [], []], seen = new Set();
+            const add = (t, s) => { if (s && !seen.has(s.id) && tiers[t].length < 12) { seen.add(s.id); tiers[t].push(s); } };
+            binds.slice().sort((a, b) => a.t0 - b.t0).forEach(b => {
+                const v = b.shot.video || '';
+                add(3, { id: b.shot.id, title: b.shot.title, year: b.shot.year, v: v.startsWith(R.data.cdn) ? v.slice(R.data.cdn.length) : v, in: b.in || 0, why: 'your coupling' });
+                const beat = R.data.beats.find(x => x.start <= b.t0 + 0.01 && x.end > b.t0);
+                if (beat) { add(2, beat.tiers[3][0]); add(1, beat.tiers[2][0]); add(0, beat.tiers[0][0]); }
+            });
+            return { tiers, n: binds.length };
+        }
+        function current() {
+            if (R.src === 'sign') { const g = R.data.signs.find(x => x.n === R.sel.sign) || R.data.signs[0]; return { tiers: g.tiers, label: g.symbol + ' ' + g.name }; }
+            if (R.src === 'beat') { const b = R.data.beats.find(x => String(x.id) === String(R.sel.beat)) || R.data.beats[0]; return { tiers: b.tiers, label: 'beat ' + b.id + ' · ' + b.title }; }
+            const f = filmTiers(); return { tiers: f.tiers, label: 'your Videotext film', n: f.n };
+        }
+        function items() {
+            const c = current(), max = Math.floor(144 / R.per);
+            const lists = c.tiers.map((l, t) => R.on[t] ? l.filter(s => where(s) !== 'blocked').map(s => ({ ...s, tier: t })) : []);
+            let out = [];
+            if (R.ord === 'strong') out = [3, 2, 1, 0].flatMap(t => lists[t]);
+            else { for (let k = 0; out.length < 200 && lists.some(l => l[k]); k++) [3, 2, 1, 0].forEach(t => { if (lists[t][k]) out.push(lists[t][k]); }); }
+            return out.slice(0, max);
+        }
+
+        function drawPick() {
+            const box = $('#rl-pick');
+            if (R.src === 'sign') {
+                box.innerHTML = '<span class="rl-lab">sign</span><select id="rl-sign">' + R.data.signs.map(g => { const n = g.tiers.reduce((a, t) => a + t.length, 0); return `<option value="${g.n}"${g.n === R.sel.sign ? ' selected' : ''}>${esc(g.symbol)} · ${esc(g.name)} (${n} read shot${n === 1 ? '' : 's'})</option>`; }).join('') + '</select>';
+                $('#rl-sign').onchange = e => { R.sel.sign = e.target.value; draw(); };
+            } else if (R.src === 'beat') {
+                const film = R.sel.film || R.data.films[0].n;
+                box.innerHTML = '<span class="rl-lab">passage</span><select id="rl-film">' + R.data.films.map(f => `<option value="${f.n}"${f.n === film ? ' selected' : ''}>${f.n} ${esc(f.title)}</option>`).join('') + '</select>'
+                    + '<span class="rl-lab" style="margin-left:6px">beat</span><select id="rl-beat">' + R.data.beats.filter(b => b.film === film).map(b => `<option value="${b.id}"${String(b.id) === String(R.sel.beat) ? ' selected' : ''}>${b.id} · ${esc(b.title)}</option>`).join('') + '</select>';
+                $('#rl-film').onchange = e => { R.sel.film = e.target.value; R.sel.beat = (R.data.beats.find(b => b.film === e.target.value) || {}).id; draw(); };
+                $('#rl-beat').onchange = e => { R.sel.beat = e.target.value; draw(); };
+            } else {
+                const f = filmTiers();
+                box.innerHTML = f.n ? `<span class="rl-lab">film</span><span>${f.n} coupling${f.n === 1 ? '' : 's'} saved in this browser by <a href="../videotext.html" target="_top">Videotext</a>, set against what the beats had there.</span>`
+                    : `<span class="rl-lab">film</span><span>Nothing coupled yet in this browser. Make a film in <a href="../videotext.html" target="_top">Videotext</a> (grip words, couple shots), then come back.</span>`;
+            }
+        }
+        function draw() {
+            drawPick();
+            const c = current(), picked = new Set(items().map(s => s.id));
+            $('#rl-tracks').innerHTML = [3, 2, 1, 0].map(t => `<div class="rl-tr"><div><label class="nm"><input type="checkbox" data-t="${t}" ${R.on[t] ? 'checked' : ''}><i style="background:${TR[t].color}"></i><span style="color:${TR[t].color}">${TR[t].name}</span></label><small>${esc(TR[t][R.src])}</small></div><div class="rl-shots">${c.tiers[t].length ? c.tiers[t].map(s => `<div class="rl-shot" title="${esc(s.title)}${s.year ? ' · ' + s.year : ''}${s.why ? '\n' + esc(s.why) : ''}${s.note ? '\n' + esc(s.note) : ''}" style="opacity:${picked.has(s.id) ? 1 : .35}"><img loading="lazy" src="${esc(thumbOf(s))}" alt=""><em class="${where(s)}">${TAG[where(s)]}</em><span>${esc(s.title)}</span></div>`).join('') : '<div class="rl-empty">nothing on this track</div>'}</div></div>`).join('');
+            $$('#rl-tracks [data-t]').forEach(x => x.onchange = () => { R.on[+x.dataset.t] = x.checked; draw(); });
+            const it = items(), cdn = it.filter(s => where(s) === 'cdn').length;
+            $('#rl-rip').textContent = it.length ? 'RIP ' + it.length + ' SHOT' + (it.length === 1 ? '' : 'S') + ' · ' + it.length * R.per + ' FRAMES' : 'NOTHING HERE CAN BE RIPPED';
+            $('#rl-rip').disabled = !it.length;
+            $('#rl-sum').textContent = c.label + ' · ' + R.per + ' frames a shot, about ' + (R.per / 12).toFixed(R.per % 12 ? 1 : 0) + ' s of each, from the frame its reading or cut starts on' + (cdn ? ' · ' + cdn + ' from the CDN' : '');
+            $('#rl-where').innerHTML = R.server
+                ? '<b>Local server found.</b> Every shot loads through <code>/media/</code> as a same-origin copy, so the engine can read all of them.'
+                : `<b>Static site.</b> ${R.local.size} read shots ship with the lab (LOCAL) and always rip. Other shots stream from the archive’s CDN, and the engine can only read their pixels if the CDN sends CORS headers: `
+                  + (R.cors === true ? '<b style="color:#22c55e">it does</b>, so CDN shots rip too.' : R.cors === false ? '<b style="color:#ef4444">it does not</b>, so CDN shots (CDN ✕) are left out of the reel. The Cineosis signs work in full; for the WYGWYL beats and your Videotext film, run the lab locally.' : 'checking…')
+                  + ` Every shot, anywhere: <code>python3 lab/server.py</code>, then open <code>localhost:8765/lab/abc-flix/</code>.`;
+        }
+        const $$ = s => [...document.querySelectorAll(s)];
+        function seg(id, key, fn) { $(id).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; $$(id + ' button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); fn(b.dataset[key]); draw(); }); }
+        seg('#rl-src', 's', v => { R.src = v; });
+        seg('#rl-per', 'n', v => { R.per = +v; });
+        seg('#rl-ord', 'o', v => { R.ord = v; });
+        $('#rl-close').onclick = () => $('#reel').classList.remove('on');
+        document.getElementById('bus-reel').onclick = () => { $('#reel').classList.add('on'); if (R.data) draw(); };
+        $('#rl-rip').onclick = () => {
+            const it = items().map(s => ({ url: urlOf(s), in: s.in || 0, title: s.title, tier: s.tier, id: s.id, year: s.year, why: s.why || (s.conf != null ? 'reading ' + s.conf : '') }));
+            if (!it.length || !engine.contentWindow) return;
+            engine.contentWindow.postMessage({ type: 'LOAD_REEL', items: it, perShot: R.per }, '*');
+            $('#rl-report').textContent = ''; $('#reel').classList.remove('on');
+            document.getElementById('bus-msg').textContent = 'REEL ' + it.length;
+        };
+
+        // after the rip: which shots made it, which were skipped and why
+        window.addEventListener('message', e => {
+            const d = e.data;
+            if (!d || e.source !== engine.contentWindow) return;
+            if (d.type === 'REEL_STATUS') {
+                R.segs = d.segments || [];
+                const f = d.failed || [];
+                $('#rl-report').innerHTML = `<b style="color:#ccc">Last rip:</b> ${R.segs.length} shot${R.segs.length === 1 ? '' : 's'}, ${d.total} frames.` + (f.length ? ` ${f.length} skipped:<ul>${f.map(x => `<li>${esc(x.title)} — ${esc(x.why)}</li>`).join('')}</ul>` : '');
+                if (f.length) { $('#reel').classList.add('on'); draw(); }
+            }
+            if ((d.type === 'CURSOR_MOVE' || d.type === 'FRAMES_SYNC') && R.segs.length) {
+                const s = R.segs.find(x => d.cursor >= x.from && d.cursor <= x.to);
+                const el = document.getElementById('bus-clip');
+                if (s) { el.textContent = TR[s.tier].name + ' · ' + s.title; el.style.color = TR[s.tier].color; }
+            }
+        });
+
+        // boot: reel index, local server probe, then open with a default the static site can always rip
+        Promise.all([
+            fetch('reels.json').then(r => r.json()),
+            fetch('/api/assignments').then(r => r.ok ? r.json() : null).then(j => Array.isArray(j)).catch(() => false)
+        ]).then(([data, server]) => {
+            R.data = data; R.local = new Set(data.local); R.server = server;
+            const q = new URLSearchParams(location.search);
+            const best = data.signs.slice().sort((a, b) => b.tiers.reduce((s, t) => s + t.length, 0) - a.tiers.reduce((s, t) => s + t.length, 0))[0];
+            R.sel.sign = q.get('sign') || best.n;
+            const beat = data.beats.find(b => String(b.id) === q.get('beat')) || data.beats[5];
+            R.sel.beat = beat.id; R.sel.film = beat.film;
+            if (q.get('beat')) R.src = 'beat'; else if (q.has('film')) R.src = 'film';
+            $$('#rl-src button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.s === R.src)));
+            draw();
+            probeCors().then(ok => { R.cors = ok; draw(); });
+            if (q.has('rip')) { const go = () => $('#rl-rip').click(); if (document.readyState === 'complete') setTimeout(go, 1500); else window.addEventListener('load', () => setTimeout(go, 1500)); }
+            else $('#reel').classList.add('on');
+        }).catch(err => { document.getElementById('bus-msg').textContent = 'NO REEL INDEX'; console.error(err); });
+    })();
+    </script>
+</body>
+</html>
