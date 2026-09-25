@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sound Table</title>
+<meta name="description" content="The periodic table of sound for the Cineosis Lab: every kind of sound in the WYGWYL atlas and the archive footage, by where it stands to the image. Hover to hear; press a pad to play.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#e6e5e1;--panel:#f3f2ee;--ink:#141414;--dim:#6b6a66;--line:#c9c7c1;--key:#fbfaf7;
+  --voice:#ff5a1f;--music:#1d6bff;--field:#1f9d57;--signal:#e3262d;--ground:#8b8a86}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#121212;--panel:#1b1b1a;--ink:#ecebe6;--dim:#9a9994;--line:#34332f;--key:#232321}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:13px/1.45 "IBM Plex Mono",ui-monospace,Menlo,monospace}
+a{color:inherit}
+button{font:inherit;color:inherit;cursor:pointer}
+header{display:flex;align-items:baseline;gap:14px;padding:14px 18px 8px;flex-wrap:wrap}
+header h1{font:800 22px/1 Inter,system-ui,sans-serif;letter-spacing:-.01em;margin:0}
+header h1 i{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--voice);margin-right:8px;vertical-align:1px}
+header p{margin:0;color:var(--dim);max-width:70ch}
+header nav{margin-left:auto;display:flex;gap:12px}
+.dev{margin:0 18px 18px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 14px 16px;box-shadow:0 1px 0 #fff8 inset}
+.fams{display:grid;grid-template-columns:44px repeat(16,minmax(0,1fr)) 64px;gap:6px;margin-bottom:4px}
+.fams span{font:600 10.5px/1 Inter,sans-serif;letter-spacing:.14em;text-transform:uppercase;padding:6px 0 5px;border-top:3px solid currentColor}
+.wrap{overflow-x:auto;padding-bottom:4px}
+.grid{display:grid;grid-template-columns:44px repeat(16,minmax(52px,1fr)) 64px;gap:6px;min-width:1040px}
+.rowl{display:flex;flex-direction:column;justify-content:center;font:600 11px/1.1 Inter,sans-serif;letter-spacing:.08em}
+.rowl small{font:400 9.5px/1.2 "IBM Plex Mono",monospace;color:var(--dim);letter-spacing:0;margin-top:3px}
+.cell{position:relative;aspect-ratio:1/1.05;background:var(--key);border:1px solid var(--line);border-radius:9px;padding:6px 6px 5px;text-align:left;display:flex;flex-direction:column;justify-content:space-between;transition:transform .08s ease,box-shadow .08s ease;box-shadow:0 2px 0 var(--line)}
+.cell:hover,.cell:focus-visible{transform:translateY(1px);box-shadow:0 1px 0 var(--line);outline:none;border-color:var(--c)}
+.cell.on{background:var(--c);color:#fff;border-color:var(--c)}
+.cell .dot{position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:var(--c)}
+.cell.on .dot{background:#fff}
+.cell.playing .dot{animation:pulse .5s ease-in-out infinite alternate}
+@keyframes pulse{to{transform:scale(1.8);opacity:.5}}
+.cell b{font:800 19px/1 Inter,sans-serif;letter-spacing:-.02em}
+.cell small{font-size:9.5px;line-height:1.15;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell.on small{color:#fffc}
+.cell > span{display:flex;flex-direction:column;min-width:0}
+.cell em{font-style:normal;font-size:9px;color:var(--dim)}
+.cell.on em{color:#fffc}
+.si{grid-row:span 3;aspect-ratio:auto}
+.row-hi{background:color-mix(in srgb,var(--c) 10%,var(--key))}
+main{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;margin:0 18px 18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.card h2{font:800 18px/1.15 Inter,sans-serif;margin:0 0 2px;display:flex;align-items:center;gap:10px}
+.card h2 .sym{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:9px;background:var(--c);color:#fff;font-size:19px}
+.card h3{font:600 10.5px/1 Inter,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:16px 0 7px}
+.card p{margin:0 0 6px}
+.rowsel{display:flex;gap:6px;margin:10px 0 4px}
+.rowsel button{border:1px solid var(--line);background:var(--key);border-radius:18px;padding:4px 12px}
+.rowsel button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.reading{font:400 16px/1.4 Inter,sans-serif;margin:6px 0 2px}
+.src{color:var(--dim);font-size:11px}
+.law{border-left:3px solid var(--c);padding:4px 10px;background:var(--key);border-radius:0 8px 8px 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.stat{background:var(--key);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.stat span{display:block;color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+.stat b{font:600 15px/1.2 Inter,sans-serif}
+.ex{display:grid;grid-template-columns:30px 42px minmax(0,1fr);gap:8px;align-items:center;padding:5px 0;border-top:1px solid var(--line)}
+.ex .pl{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--key)}
+.ex .pl.on{background:var(--c);color:#fff;border-color:var(--c)}
+.ex img{width:42px;height:32px;object-fit:cover;border-radius:4px;background:#0002}
+.ex .nt{display:block;min-width:0}
+.ex .nt b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ex .nt small{color:var(--dim)}
+.links a{display:block;padding:5px 0;border-top:1px solid var(--line);text-decoration:none}
+.links a b{font-weight:600}
+.links a small{display:block;color:var(--dim)}
+ol.laws{margin:0;padding:0;list-style:none;counter-reset:l}
+ol.laws li{counter-increment:l;display:grid;grid-template-columns:26px minmax(0,1fr);gap:8px;padding:6px 0;border-top:1px solid var(--line)}
+ol.laws li::before{content:counter(l);display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--bg);font-size:11px}
+ol.laws b{font-weight:600}
+.moves{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.moves div{background:var(--key);border:1px solid var(--line);border-radius:8px;padding:8px}
+.moves b{display:block}
+.moves small{color:var(--dim)}
+.pads{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;margin-top:6px}
+.pad{aspect-ratio:1;border-radius:10px;border:1px solid var(--line);background:var(--key);box-shadow:0 3px 0 var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.pad:active,.pad.hit{transform:translateY(2px);box-shadow:0 1px 0 var(--line);background:var(--c);color:#fff}
+.pad b{font:800 16px/1 Inter,sans-serif}
+.pad kbd{font-size:9.5px;color:var(--dim)}
+.pad.hit kbd{color:#fffc}
+.caveat{color:var(--dim);font-size:11px;margin:10px 18px 24px;max-width:110ch}
+@media (max-width:900px){main{grid-template-columns:1fr}.pads{grid-template-columns:repeat(4,1fr)}.moves{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1><i></i>Sound Table</h1>
+  <p>Every kind of sound we have, by where it stands to the image. Hover a key to hear it; click to open it; play the pads from the keyboard.</p>
+  <nav><a href="../periodic-table.html">Picture table</a><a href="tools/cut.html">CUT · Sound desk</a><a href="./">Lab</a></nav>
+</header>
+<section class="dev">
+  <div class="wrap">
+    <div class="fams" id="fams"></div>
+    <div class="grid" id="grid"></div>
+  </div>
+</section>
+<main>
+  <section class="card" id="insp"></section>
+  <section class="card">
+    <h3 style="margin-top:0">Pads · keys 1–8 and Q–I</h3>
+    <div class="pads" id="pads"></div>
+    <h3>The mix law</h3>
+    <ol class="laws" id="laws"></ol>
+    <h3>Four moves toward the time-image · Deamer after Chion, p.168</h3>
+    <div class="moves" id="moves"></div>
+  </section>
+</main>
+<p class="caveat" id="caveat"></p>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const FAM = { voice: '--voice', music: '--music', field: '--field', signal: '--signal', ground: '--ground' };
+const KEYS = '12345678qwertyui';
+const S = { T: null, col: 'Po', row: 'OUT', audio: new Audio(), playing: null };
+S.audio.volume = .8;
+const colOf = sym => S.T.columns.find(c => c.sym === sym);
+const cv = c => `var(${FAM[c.family]})`;
+const fmt = (k, v) => v == null ? '—' : k === 'dur' ? v.toFixed(1) + ' s' : k === 'cent' || k === 'centroid' ? Math.round(v) + ' Hz' : k === 'f0' ? Math.round(v) + ' Hz'
+  : k === 'loud' ? v.toFixed(1) + ' dB' : k === 'lufs' ? v.toFixed(1) + ' LUFS' : k === 'flat' ? v.toFixed(3) : typeof v === 'number' ? v.toLocaleString() : esc(JSON.stringify(v));
+
+function play(ex, el) {
+  if (!ex || !ex.file) return;
+  if (S.playing === el) { S.audio.pause(); stopMark(); return; }
+  S.audio.src = ex.file; S.audio.currentTime = 0;
+  S.audio.play().catch(() => {});
+  stopMark(); S.playing = el; el?.classList.add('playing', 'on');
+}
+function stopMark() { if (S.playing) { S.playing.classList.remove('playing'); if (S.playing.classList.contains('pl')) S.playing.classList.remove('on'); } S.playing = null; }
+S.audio.addEventListener('ended', stopMark);
+const pick = c => { const L = (c.examples || []).filter(e => e.file); return L[Math.floor(Math.random() * L.length)]; };
+
+function grid() {
+  const T = S.T, cols = T.columns.filter(c => c.sym !== 'Si'), si = colOf('Si');
+  const fams = []; cols.forEach(c => { const f = fams[fams.length - 1]; if (f && f.f === c.family) f.n++; else fams.push({ f: c.family, n: 1 }); });
+  $('#fams').innerHTML = '<span style="border:0"></span>' + fams.map(f => `<span style="grid-column:span ${f.n};color:var(${FAM[f.f]})">${f.f}</span>`).join('') + `<span style="color:var(--ground)">zero</span>`;
+  let h = '';
+  T.rows.forEach((r, ri) => {
+    h += `<div class="rowl" title="${esc(r.deamer)}">${esc(r.name.toUpperCase())}<small>${esc(r.gloss)}</small></div>`;
+    cols.forEach(c => {
+      h += `<button class="cell" data-c="${c.sym}" data-r="${r.id}" style="--c:${cv(c)}" title="${esc(c.name)} · ${esc(r.name)}: ${esc(c.rows[r.id] || '')}">
+        <i class="dot"></i><b>${esc(c.sym)}</b><span><small>${esc(c.name)}</small><em>${ri === 0 ? (c.stats.count ?? '') : ''}</em></span></button>`;
+    });
+    if (ri === 0) h += `<button class="cell si" data-c="Si" data-r="OUT" style="--c:var(--ground)" title="${esc(si.what)}"><i class="dot"></i><b>Si</b><span><small>Silence</small><em>zero</em></span></button>`;
+  });
+  $('#grid').innerHTML = h;
+  $('#grid').querySelectorAll('.cell').forEach(b => {
+    let t = 0;
+    b.addEventListener('mouseenter', () => { t = setTimeout(() => play(pick(colOf(b.dataset.c)), b), 220); });
+    b.addEventListener('mouseleave', () => { clearTimeout(t); if (S.playing === b) { S.audio.pause(); stopMark(); } });
+    b.onclick = () => { S.col = b.dataset.c; S.row = b.dataset.r; select(); };
+  });
+}
+function select() {
+  document.querySelectorAll('.cell').forEach(b => b.classList.toggle('on', b.dataset.c === S.col && (b.dataset.r === S.row || S.col === 'Si')));
+  const c = colOf(S.col), row = S.T.rows.find(r => r.id === S.row);
+  try { history.replaceState(null, '', `#${S.col}-${S.row}`); } catch (e) { /* file: */ }
+  const st = Object.entries(c.stats).filter(([k, v]) => typeof v === 'number');
+  const obj = Object.entries(c.stats).filter(([k, v]) => v && typeof v === 'object');
+  $('#insp').style.setProperty('--c', cv(c));
+  $('#insp').innerHTML = `<h2><span class="sym">${esc(c.sym)}</span>${esc(c.name)} <small class="src">${esc(c.family)}</small></h2>
+    <p>${esc(c.what)}</p>
+    <div class="rowsel">${S.T.rows.map(r => `<button data-r="${r.id}" class="${r.id === S.row ? 'on' : ''}">${esc(r.name)} · ${esc(r.gloss)}</button>`).join('')}</div>
+    <p class="reading">${esc(c.rows[S.row] || '')}</p>
+    <p class="src">Row: ${esc(row.deamer)}. The reading of this cell is the editor's.</p>
+    <h3>In the mix</h3><p class="law">${esc(c.law)}${c.priority ? ` <span class="src">· voice priority ${c.priority}</span>` : ''}</p>
+    <h3>Measured</h3><div class="stats">${st.map(([k, v]) => `<div class="stat"><span>${esc(k)}</span><b>${fmt(k, v)}</b></div>`).join('')}
+      ${obj.map(([k, v]) => `<div class="stat" style="grid-column:1/-1"><span>${esc(k)}</span><b style="font-size:12px">${Object.entries(v).map(([a, b]) => `${esc(a)} ${b}`).join(' · ')}</b></div>`).join('')}</div>
+    <h3>Hear it · ${(c.examples || []).length} examples</h3>
+    <div>${(c.examples || []).map((e, i) => `<div class="ex"><button class="pl" data-i="${i}" aria-label="play">▶</button>${e.thumb ? `<img src="${esc(e.thumb)}" alt="">` : '<span></span>'}
+      <span class="nt"><b>${esc(e.label)}</b><small>${e.dur ? (+e.dur).toFixed(1) + ' s · ' : ''}${esc(e.meta || '')}</small></span></div>`).join('') || '<p class="src">Nothing to play: this element is an absence.</p>'}</div>
+    ${c.links.length ? `<h3>Pushes the picture toward</h3><div class="links">${c.links.map(l => `<a href="../periodic-table.html#${esc(l.n)}"><b>${esc(l.n)}</b> · ${esc(l.why)}${l.deamer ? `<small>Deamer: ${esc(l.deamer)}</small>` : '<small>Deamer gives this element no sound of its own; the link is inference.</small>'}</a>`).join('')}</div>` : ''}`;
+  $('#insp').querySelectorAll('.rowsel button').forEach(b => b.onclick = () => { S.row = b.dataset.r; select(); });
+  $('#insp').querySelectorAll('.pl').forEach(b => b.onclick = () => play(c.examples[+b.dataset.i], b));
+}
+function pads() {
+  const cols = S.T.columns.filter(c => c.sym !== 'Si');
+  $('#pads').innerHTML = cols.map((c, i) => `<button class="pad" data-c="${c.sym}" style="--c:${cv(c)}"><b>${esc(c.sym)}</b><kbd>${KEYS[i].toUpperCase()}</kbd></button>`).join('');
+  const hit = sym => { const p = $(`.pad[data-c="${sym}"]`); p.classList.add('hit'); setTimeout(() => p.classList.remove('hit'), 160);
+    const ex = pick(colOf(sym)); if (ex) { const a = new Audio(ex.file); a.volume = .8; a.play().catch(() => {}); setTimeout(() => a.pause(), 6000); } };
+  $('#pads').querySelectorAll('.pad').forEach(p => p.onclick = () => hit(p.dataset.c));
+  addEventListener('keydown', e => { if (e.metaKey || e.ctrlKey || e.target.closest('input')) return; const i = KEYS.indexOf(e.key.toLowerCase()); if (i >= 0 && cols[i]) hit(cols[i].sym); });
+}
+(async () => {
+  S.T = await (await fetch('sound-table.json')).json();
+  const h = /^#(\w+)-(IN|OFF|OUT)$/.exec(location.hash); if (h && colOf(h[1])) { S.col = h[1]; S.row = h[2]; }
+  grid(); select(); pads();
+  $('#laws').innerHTML = S.T.laws.map(l => `<li><span><b>${esc(l.name)}.</b> ${esc(l.rule)}</span></li>`).join('');
+  $('#moves').innerHTML = S.T.moves.map(m => `<div><b>${esc(m.name)}</b><small>${esc(m.does)}</small></div>`).join('');
+  $('#caveat').textContent = S.T.caveat + ' Sources: ' + Object.values(S.T.sources).join(' · ');
+})();
+</script>
+</body>
+</html>
