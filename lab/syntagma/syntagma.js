@@ -134,6 +134,7 @@
   }
   function pick(i) {
     vi = (i + V.length) % V.length; $('#mv')._k = null;
+    $('#bench').disabled = !D.versions.some(v => v.slug === V[vi].code);
     document.querySelectorAll('.mon').forEach((b, k) => b.classList.toggle('on', k === vi));
     drawTable(); drawFreq();
   }
@@ -257,8 +258,15 @@
     const pn = $('#poems'); D.films.forEach((f, i) => { const b = h('button', '', f.n); b.title = f.title; b.onclick = () => seek(f.t0 + .01); pn.append(b); });
     $('#play').onclick = () => playing ? pause() : play();
     $('#exp').onclick = outline; $('#helpBtn').onclick = e => { e.stopPropagation(); help(); };
+    $('#bench').onclick = () => {
+      const v = V[vi], b = D.beats[beatAt(t)];
+      if (!D.versions.some(x => x.slug === v.code)) return;
+      pause();
+      location.href = 'syntagm.html?' + new URLSearchParams({ cut: v.code, start: b[2], end: b[3] });
+    };
     A.addEventListener('ended', pause);
     const q = new URLSearchParams(location.search); if (q.get('t')) t = +q.get('t') || 0;
+    const requestedCut = V.findIndex(v => v.code === q.get('cut')); if (requestedCut >= 0) vi = requestedCut;
     fi = filmAt(t); bi = beatAt(t);
     drawMons(); drawTable(); drawFreq(); requestAnimationFrame(frame);
   }).catch(() => { document.querySelector('main').innerHTML = '<p style="color:#8a8378">The data did not load. Reload in a moment.</p>'; });
