@@ -110,3 +110,7 @@ To re-run the Python pipeline: `sh setup.sh` (creates `lab/.venv`, installs SAM 
 - Gilles Deleuze, *Cinema 1: The Movement-Image* (1983) and *Cinema 2: The Time-Image* (1985).
 - Shots from [movingimagearchive.com](https://www.movingimagearchive.com), largely public-domain educational, industrial, amateur and newsreel film (Prelinger and similar collections). Each shot links back to its page there; rights remain with their holders. Open an issue to have any item removed.
 - [SAM 2.1](https://github.com/facebookresearch/sam2) (Meta, Apache-2.0), [OpenCLIP](https://github.com/mlfoundations/open_clip) ViT-B/32 LAION-2B weights, OpenCV, ffmpeg.
+
+### Operative Syntagm Lab
+
+[Film ↔ Structure](https://hartswf0.github.io/cineosis-lab/lab/syntagm.html) now opens six timed readings on playable source footage. The formula controls the cut: group, reverse, trim, substitute and compare exact joins. Source provenance and scope are in [the operative method](lab/syntagm/operative/README.md). The earlier candidate atlas remains at `lab/source-audit.html`.

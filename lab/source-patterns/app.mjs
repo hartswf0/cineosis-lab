@@ -20,7 +20,7 @@ function renderList(){
 function select(id){
   const p=D.passages.find(x=>x.id===id);if(!p)return;current=p;location.hash=p.id;continuous=false;clipIndex=Math.max(0,p.members.findIndex(id=>D.shots[id].preview));
   $('#filmName').textContent=D.sources.find(s=>s.slug===p.slug).title;$('#title').textContent=p.title;
-  $('#bench').href='syntagm.html?'+new URLSearchParams({source:p.slug,first:p.first,count:p.members.length});
+  $('#bench').href='syntagm-bench.html?'+new URLSearchParams({source:p.slug,first:p.first,count:p.members.length});
   $('#observation').textContent=p.reading.evidence;$('#counter').textContent=p.reading.counterevidence;
   $('#limits').textContent=`Sampled ${p.inspection.clipsSampled.length}/${p.members.length} silent cropped excerpts at 0%, 40%, 80% of each excerpt. Full clips, audio and autonomous boundaries were not reviewed. Exact excerpt offsets within source clips were not recorded.`;
   $('#facts').innerHTML=`SOURCE INTERVAL ${fmt(p.interval[0])}–${fmt(p.interval[1])}<br>${p.members.length} archive clips · camera-shot count unverified<br>${p.audit.gaps.length} missing intervals inside this window<br>TEST ${p.questionsToTest.map(t=>types.find(x=>x[0]===t)?.[1]).join(' / ')}<br>Seed type: UNRESOLVED`;
@@ -56,7 +56,7 @@ function exportFile(){
   const a=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify(obj,null,2)],{type:'application/json'}));a.href=url;a.download='cineosis-source-patterns-review.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function auditRows(){
-  const q=$('#auditSearch').value.toLowerCase();$('#auditRows').innerHTML=D.sources.filter(s=>s.title.toLowerCase().includes(q)).map(s=>`<div class="audit-row"><div><b>${esc(s.title)}</b><small>${s.audit.interval?fmt(s.audit.interval[0])+'–'+fmt(s.audit.interval[1]):'No clips'}</small><details><summary>Inspect intervals</summary>${s.audit.gaps.map(g=>`<p>Missing ${fmt(g[0])}–${fmt(g[1])}</p>`).join('')||'<p>No timestamp gaps inside the cached span.</p>'}<p>${s.audit.positionGaps.length} nonconsecutive position joins; ${s.audit.overlaps.length} overlaps.</p></details></div><span>${s.count} clips</span><span>${s.audit.coverage===null?'Unknown':(100*s.audit.coverage).toFixed(1)+'%'} coverage</span><span>${s.audit.gaps.length} gaps</span><a href="syntagm.html?${esc(new URLSearchParams({source:s.slug,first:1,count:3}))}">Inspect source ↗</a></div>`).join('');
+  const q=$('#auditSearch').value.toLowerCase();$('#auditRows').innerHTML=D.sources.filter(s=>s.title.toLowerCase().includes(q)).map(s=>`<div class="audit-row"><div><b>${esc(s.title)}</b><small>${s.audit.interval?fmt(s.audit.interval[0])+'–'+fmt(s.audit.interval[1]):'No clips'}</small><details><summary>Inspect intervals</summary>${s.audit.gaps.map(g=>`<p>Missing ${fmt(g[0])}–${fmt(g[1])}</p>`).join('')||'<p>No timestamp gaps inside the cached span.</p>'}<p>${s.audit.positionGaps.length} nonconsecutive position joins; ${s.audit.overlaps.length} overlaps.</p></details></div><span>${s.count} clips</span><span>${s.audit.coverage===null?'Unknown':(100*s.audit.coverage).toFixed(1)+'%'} coverage</span><span>${s.audit.gaps.length} gaps</span><a href="syntagm-bench.html?${esc(new URLSearchParams({source:s.slug,first:1,count:3}))}">Inspect source ↗</a></div>`).join('');
 }
 async function boot(){
   try{

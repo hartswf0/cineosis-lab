@@ -1,73 +1,13 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>Syntagm Lab · Cineosis</title>
-  <meta name="description" content="Read and rearrange archive passages. Test what an edit establishes about time, space and action.">
-  <link rel="icon" href="favicon.svg"><link rel="stylesheet" href="syntagm/style.css">
-</head>
-<body>
-  <header><a href="../" class="brand">CINEOSIS <span>SYNTAGM LAB</span></a><div class="head-actions"><button id="undo" disabled>Undo</button><button id="save">Save</button><button id="more" aria-label="Import, export and method">•••</button></div></header>
-  <div class="loader" id="loader" role="status">Loading the passage bench…</div>
-  <main id="app" hidden>
-    <section class="selection" aria-label="Passage selection">
-      <label class="origin"><span>Material</span><select id="origin" aria-label="Material"></select></label>
-      <label class="chapter"><span>Passage</span><select id="chapter" aria-label="Poem"></select></label>
-      <label><span>From</span><input id="from" type="number" value="1" min="1" aria-label="First occurrence"></label>
-      <label><span>Shots</span><input id="count" type="number" value="6" min="1" max="24" aria-label="Number of occurrences"></label>
-      <button id="load">Load</button>
-    </section>
-    <section class="screen" aria-label="Passage playback">
-      <video id="video" playsinline preload="metadata" muted></video>
-      <div class="screen-head"><span id="version">Original arrangement</span><span id="position"></span></div>
-      <div class="screen-foot"><a id="sourceLink" target="_blank" rel="noopener"></a><span id="sourceTime"></span></div>
-      <div id="mediaError" class="media-error" hidden><b>This clip could not play.</b><span id="mediaReason"></span><button id="retry">Retry clip</button><button id="skip">Next clip</button></div>
-      <button id="bigPlay" aria-label="Play passage">▶</button>
-    </section>
-    <section class="transport" aria-label="Playback controls">
-      <button id="prev" aria-label="Previous shot">←</button><button id="play">Play</button><button id="next" aria-label="Next shot">→</button>
-      <input id="scrub" type="range" min="0" max="1" step="0.02" value="0" aria-label="Passage playhead">
-      <output id="clock">0:00 / 0:00</output><button id="sound" aria-pressed="false">Sound off</button>
-    </section>
-    <section class="ribbon-wrap" aria-label="Ordered shot occurrences"><div id="ribbon"></div></section>
-    <nav class="tabs" aria-label="Workspace"><button data-tab="arrange" class="on">Arrange</button><button data-tab="read">Read relations</button><button data-tab="table">Signs & sources</button><span id="status" role="status" aria-live="polite"></span></nav>
-    <section class="workspace" data-active="arrange">
-      <article id="arrange" class="pane">
-        <div class="pane-head"><h1 id="passageTitle">Passage</h1><button id="compare">Compare original</button></div>
-        <div class="operations"><button data-op="group">Group strands</button><button data-op="alternate">Alternate</button><button data-op="reverse">Reverse</button><button data-op="shuffle">Shuffle</button></div>
-        <p class="hint">These operations change order. A syntagm reading still needs evidence.</p>
-        <div id="occurrence"></div>
-        <div id="measurements" class="measurements"></div>
-        <details><summary>Inspect every join</summary><div id="joins"></div></details>
-      </article>
-      <article id="read" class="pane">
-        <div class="pane-head"><h2>What does this passage establish?</h2><span id="reviewStatus" class="badge">Unreviewed</span></div>
-        <div class="reading-top"><label>Intended construction<select id="intended"></select></label><label>Scope<select id="scope"><option value="candidate">Candidate passage</option><option value="autonomous">Autonomous segment</option><option value="subsegment">Subsegment</option></select></label></div>
-        <div id="questions" class="questions"></div>
-        <div class="suggestion"><div><b id="suggestion"></b><p id="suggestionReason"></p></div><button id="useSuggestion">Use reading</button></div>
-        <div class="reading-top"><label>Recorded reading<select id="readingType"></select></label><label>Rival reading<select id="rival"></select></label></div>
-        <label>Evidence <textarea id="evidence" rows="2" placeholder="Which moments establish the relation? Include times."></textarea></label>
-        <label>Counterevidence / what would change your reading <textarea id="counterevidence" rows="2" placeholder="An alternative explanation, missing context, or a deciding test."></textarea></label>
-        <div class="reading-top"><label>Reader<input id="analyst" placeholder="Name or initials"></label><button id="review">Mark reviewed</button></div>
-      </article>
-      <article id="table" class="pane">
-        <div class="pane-head"><h2>The periodic table in this passage</h2><span class="badge">45 signs</span></div>
-        <div id="periodic" aria-label="Cinematic signs"></div>
-        <div id="signDetail" class="sign-detail">Select an element to inspect its test and read examples.</div>
-        <div id="examples" class="examples"></div>
-        <div class="pane-head"><h2>Original neighborhood</h2><button id="inspectSource">Inspect source</button></div>
-        <div id="sourceContext" class="source-context">Inspect the selected shot's source for missing intervals and neighboring clips.</div>
-      </article>
-    </section>
-  </main>
-  <dialog id="menu"><form method="dialog"><button class="close" aria-label="Close">×</button></form><h2>Keep, compare, release</h2>
-    <p>Saved passages stay in this browser. Export a passage to preserve its evidence and source records. <a id="fullFilm" href="syntagma.html">Compare the full WYGWYL film ↗</a></p>
-    <div class="menu-actions"><button id="exportPassage">Export passage JSON</button><button id="exportEDL">Export Cineosis EDL</button><button id="import">Import passage JSON</button><input id="file" type="file" accept=".json,application/json" hidden></div>
-    <label>EDL record offset (seconds)<input id="offset" type="number" min="0" step="0.001"></label><p class="hint">WYGWYL passages retain their suite position. Other passages start at zero. The EDL imports through Videotext Studio’s Review → import, where its times must overlap spoken words.</p>
-    <p><a href="source-patterns.html">Source Pattern Atlas · original-film passages and coverage ↗</a></p>
-    <h3>Saved passages</h3><div id="saved"></div>
-    <details><summary>The method and eight categories</summary><div id="typeGuide"></div><p>Based on Metz’s revised eight-type classification in <i>Film Language</i>, “Problems of Denotation in the Fiction Film,” pp. 119–133. His 1966 article presents an earlier six-type scheme. A proposal is derived from your answers, never from affinity scores. Unknown is a valid result.</p><p>Source file gaps are not story ellipses. A source clip is not a verified shot boundary. Scope and autonomy require surrounding context. Visual and audio playback are supporting evidence, not automated verification.</p><a href="syntagm/README.md">Data model and experiment protocol</a></details>
-  </dialog>
-  <script type="module" src="syntagm/app.mjs"></script>
-</body>
-</html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Syntagm Lab · Film ↔ Structure</title><meta name="description" content="Play a real syntagm, read its timed structure, change the edit and test the difference."><link rel="icon" href="favicon.svg"><link rel="stylesheet" href="syntagm/operative/style.css"></head><body>
+<header><a href="../">CINEOSIS <span>SYNTAGM</span></a><nav aria-label="Stages"><button data-stage="find">FIND</button><button data-stage="bond">BOND</button><button data-stage="cut">CUT</button><button data-stage="test">TEST</button></nav><button id="more" aria-label="Sources, method and export">•••</button></header>
+<main><section class="screen"><video id="film" playsinline preload="metadata"></video><div class="film-top"><span id="filmSource"></span><span id="version">ORIGINAL</span></div><div class="film-bottom"><span id="shotLabel"></span><time id="clock"></time></div><div id="failure" hidden role="alert">The film could not load. <button id="retry">Retry</button><a id="external" target="_blank" rel="noopener">Open source</a></div><button id="bigPlay" aria-label="Play passage">▶</button></section>
+<section class="reading"><div class="eyebrow">READING ON THE ORIGINAL <span id="scope"></span></div><h1 id="readingTitle">Loading footage…</h1><h2 id="exampleTitle"></h2><p id="claim"></p><button id="why">Evidence / rival ↗</button><div class="relation-live"><small>AT THIS CUT</small><p id="cutRelation"></p></div></section>
+<div class="transport"><button id="play" aria-label="Play or pause">▶ Play</button><input id="scrub" type="range" min="0" max="1" step="0.01" value="0" aria-label="Position in edit"><span id="elapsed"></span><button id="mute" aria-label="Toggle sound">Sound on</button><button id="restore">Original</button></div>
+<section class="formula" aria-label="Playable structural formula"><div class="formula-label"><b id="formulaName">STRANDS + SIGNS</b><span>Tap a block to play it</span></div><div id="nodes"></div></section>
+<section id="workspace" aria-label="Editing stage"><div id="find" class="stage"><div class="stage-title"><b>Choose a construction</b><button id="toggleTable">45-sign palette</button></div><div id="specimens"></div><div id="palette" hidden><div id="signs"></div><div id="signMatches"></div></div></div>
+<div id="bond" class="stage" hidden><div class="stage-title"><b id="selection"></b><span>Changes act on the film</span></div><div class="actions"><button data-op="group">Group strands</button><button data-op="reverse">Reverse</button><button data-op="shuffle">Shuffle</button><button id="left">← Move</button><button id="right">Move →</button><button id="duplicate">Repeat</button><button id="remove">Remove</button><button id="undo">Undo</button></div><div class="edit-detail"><p id="blockEvidence"></p><label>Duration <input id="length" type="range" min="0.15" step="0.05"><output id="lengthValue"></output></label></div></div>
+<div id="cut" class="stage" hidden><div class="stage-title"><b>Play the notation</b><button id="exportCut">Export cut</button></div><p id="cutSummary"></p><div class="actions"><button id="playOriginal">Play original</button><button id="playVariant">Play your cut</button><button id="importCut">Import cut</button></div><p class="small">Each node resolves to a real source interval. Sound travels with its footage. A changed order creates a new reading to judge.</p></div>
+<div id="test" class="stage" hidden><div class="stage-title"><b id="question"></b><button id="suggested">Make the test cut</button></div><div id="metrics"></div><div class="actions"><button id="compareA">Play A</button><button id="compareB">Play B</button><button id="reveal">Reveal A / B</button></div><div id="differences"></div></div></section>
+<footer><span id="status" role="status" aria-live="polite">Loading annotated examples…</span><span id="stageHint">Swipe stages ↔</span></footer></main>
+<dialog id="details"><button class="close" aria-label="Close">×</button><div id="detailsBody"></div></dialog>
+<dialog id="menu"><button class="close" aria-label="Close">×</button><h2>Film ↔ structure</h2><p>Six editorial readings attached to playable source intervals. Signs describe image operations; relations describe joins; Metz’s category describes the passage. One level does not calculate the others.</p><div class="actions"><button id="exportMenu">Export cut + readings</button><button id="importMenu">Import cut</button></div><p><a href="source-audit.html">60-source coverage audit and earlier candidate notes</a></p><p><a href="syntagm-bench.html">Open archive passage bench</a> · <a href="chemistry.html">Narrative Chemistry</a></p><details><summary>Method, scope and missing examples</summary><p>The revised eight-type scheme distinguishes autonomous shot, parallel, bracket, descriptive, alternate, scene, episodic and ordinary sequence. This selection has six types. Descriptive and episodic remain unfilled: no extra label is awarded just to fill the grid.</p><p>The silent fiction examples are working interpretations of the films, not examples claimed to have been selected by Metz. Duck and Cover is a didactic extension beyond his original fiction corpus. Source files were retrieved in full, frame sequences and cut boundaries inspected, and the Duck and Cover archive transcript consulted. Readings remain contestable.</p><p>Displayed signs are editorial proposals with stated reasons. Reordering does not prove a new syntagm. Shuffles preserve blocks, durations and strand inventory; their switch counts test arrangement only, not cinematic meaning.</p><p>The movies are short, uncropped access copies of specified Internet Archive editions, with audio retained. A Moving Image Archive title link does not imply timestamp alignment between editions.</p><a href="syntagm/operative/README.md">Provenance and implementation</a><p><a href="https://tile.loc.gov/storage-services/master/gdc/gdcebookspublic/20/19/66/69/24/2019666924/2019666924.pdf#page=91" target="_blank" rel="noopener">Metz / Bellour, Interview on Film Semiology, pp. 90–92</a></p></details></dialog><input id="importFile" type="file" accept="application/json,.json" hidden><script type="module" src="syntagm/operative/app.mjs"></script></body></html>
