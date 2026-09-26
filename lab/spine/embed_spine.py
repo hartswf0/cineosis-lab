@@ -91,7 +91,7 @@ def main():
                       "near": [[ids[j], round(float(v @ E[j]), 3)] for j in near[k]]})
         out.append(o)
     np.save(os.path.join(H, "spine-emb.npy"), X.astype(np.float16))
-    shots = {i: {"title": lab[i]["title"], "year": lab[i].get("year"), "thumb": lab[i]["thumb"], "video": lab[i]["video"], "read_t": lab[i].get("read_t"), "aff_top": lab[i].get("aff_top", [])[:3]}
+    shots = {i: {"title": lab[i]["title"], "year": lab[i].get("year"), "thumb": lab[i]["video"].replace("/clips/", "/thumbnails/")[:-4] + ".jpg", "video": lab[i]["video"], "read_t": lab[i].get("read_t"), "aff_top": lab[i].get("aff_top", [])[:3]}
              for o in out for i, _ in o.get("near", []) if i in lab}
     signs = [{k: s[k] for k in ("n", "symbol", "name", "dom", "col", "row", "image")} for s in json.load(open(os.path.join(LAB, "lab-data.json")))["signs"]]
     json.dump({"model": "ViT-B-32 laion2b_s34b_b79k", "images": len(files), "signs": signs, "records": out, "archive": shots},
