@@ -42,6 +42,12 @@ It exports the lab's `cineosis-edl/1` (every event, your couplings, the text car
   - **Natural compounds** are measured: `chemistry/build_chemistry.py` builds them from each poem's beat pools and suite cut.
   - **Syntheses:** each natural compound has a name and reading, plus one new synthesis per poem, in `chemistry/author.py`, which checks every bond and valence.
   - **The bench** makes new compounds and saves them in `cineosis.compounds.v1`. A synthesis lays a compound over the poem's lines with a shot for each sign. Screen it, send it to the Studio as a branch, add it to the CHEM film the Bets can take from, or export an EDL. **Write-up** (`W`) prints all 28.
+- **Chemistry trials** (`lab/chemistry-trials.html`, `lab/chemistry/trials.py`, `TRIALS.md`) — Narrative Chemistry v1 (frozen in `ONTOLOGY-v1.md`) put to the test.
+  - **Method:** one instrument reads every film. Seven films per poem are synthesised blind to the four human cuts and measured against them, with random and ordinary-taxonomy baselines and pre-registered predictions.
+  - **Refuted:** the bond preferences. Chemistry films sit farther from the human cuts than random ones, and editors avoid v1's rhyme.
+  - **Holds:** isomers. The same atoms in a different order make a different film.
+  - **Found:** the strongest editorial signal is the same sign held across a cut, which v1 has no bond for.
+  - **The screening room:** a blind room where people rate eight films per poem, one of them the human cut.
 - **One clock** (`lab/clock.js`) — the Studio, ABC FLIX · Whole Film and the Bets share her clock. Open another tool while the film plays and it carries on at the same moment (muted until a tap, if the browser insists). With several open side by side, the one you play leads and the rest follow it in silence.
 - **ABC FLIX · Whole Film** (`lab/abc-flix/film.html`) — ABC FLIX rebuilt on the kernel clock: the whole film as a tunnel under her voice, a POSSIBLE → PREFERRED decision ladder (pool, machine draft, audition, film), a BEFLIX lens ripping ±6 s around the playhead, and the film out as `cineosis-edl/1` and `cineosis.film.FLIX.v1`.
 - **The cineosis reel** — `cineosis-reel.mp4` (10 min) in [Releases](https://github.com/hartswf0/cineosis-lab/releases/tag/v0.1): every sign as a title card with its deciding test, then its strongest shots.
