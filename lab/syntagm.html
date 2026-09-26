@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Syntagm Lab · Cineosis</title>
+  <meta name="description" content="Read and rearrange archive passages. Test what an edit establishes about time, space and action.">
+  <link rel="icon" href="favicon.svg"><link rel="stylesheet" href="syntagm/style.css">
+</head>
+<body>
+  <header><a href="../" class="brand">CINEOSIS <span>SYNTAGM LAB</span></a><div class="head-actions"><button id="undo" disabled>Undo</button><button id="save">Save</button><button id="more" aria-label="Import, export and method">•••</button></div></header>
+  <div class="loader" id="loader" role="status">Loading the passage bench…</div>
+  <main id="app" hidden>
+    <section class="selection" aria-label="Passage selection">
+      <label class="origin"><span>Material</span><select id="origin" aria-label="Material"></select></label>
+      <label class="chapter"><span>Passage</span><select id="chapter" aria-label="Poem"></select></label>
+      <label><span>From</span><input id="from" type="number" value="1" min="1" aria-label="First occurrence"></label>
+      <label><span>Shots</span><input id="count" type="number" value="6" min="1" max="24" aria-label="Number of occurrences"></label>
+      <button id="load">Load</button>
+    </section>
+    <section class="screen" aria-label="Passage playback">
+      <video id="video" playsinline preload="metadata" muted></video>
+      <div class="screen-head"><span id="version">Original arrangement</span><span id="position"></span></div>
+      <div class="screen-foot"><a id="sourceLink" target="_blank" rel="noopener"></a><span id="sourceTime"></span></div>
+      <div id="mediaError" class="media-error" hidden><b>This clip could not play.</b><span id="mediaReason"></span><button id="retry">Retry clip</button><button id="skip">Next clip</button></div>
+      <button id="bigPlay" aria-label="Play passage">▶</button>
+    </section>
+    <section class="transport" aria-label="Playback controls">
+      <button id="prev" aria-label="Previous shot">←</button><button id="play">Play</button><button id="next" aria-label="Next shot">→</button>
+      <input id="scrub" type="range" min="0" max="1" step="0.02" value="0" aria-label="Passage playhead">
+      <output id="clock">0:00 / 0:00</output><button id="sound" aria-pressed="false">Sound off</button>
+    </section>
+    <section class="ribbon-wrap" aria-label="Ordered shot occurrences"><div id="ribbon"></div></section>
+    <nav class="tabs" aria-label="Workspace"><button data-tab="arrange" class="on">Arrange</button><button data-tab="read">Read relations</button><button data-tab="table">Signs & sources</button><span id="status" role="status" aria-live="polite"></span></nav>
+    <section class="workspace" data-active="arrange">
+      <article id="arrange" class="pane">
+        <div class="pane-head"><h1 id="passageTitle">Passage</h1><button id="compare">Compare original</button></div>
+        <div class="operations"><button data-op="group">Group strands</button><button data-op="alternate">Alternate</button><button data-op="reverse">Reverse</button><button data-op="shuffle">Shuffle</button></div>
+        <p class="hint">These operations change order. A syntagm reading still needs evidence.</p>
+        <div id="occurrence"></div>
+        <div id="measurements" class="measurements"></div>
+        <details><summary>Inspect every join</summary><div id="joins"></div></details>
+      </article>
+      <article id="read" class="pane">
+        <div class="pane-head"><h2>What does this passage establish?</h2><span id="reviewStatus" class="badge">Unreviewed</span></div>
+        <div class="reading-top"><label>Intended construction<select id="intended"></select></label><label>Scope<select id="scope"><option value="candidate">Candidate passage</option><option value="autonomous">Autonomous segment</option><option value="subsegment">Subsegment</option></select></label></div>
+        <div id="questions" class="questions"></div>
+        <div class="suggestion"><div><b id="suggestion"></b><p id="suggestionReason"></p></div><button id="useSuggestion">Use reading</button></div>
+        <div class="reading-top"><label>Recorded reading<select id="readingType"></select></label><label>Rival reading<select id="rival"></select></label></div>
+        <label>Evidence <textarea id="evidence" rows="2" placeholder="Which moments establish the relation? Include times."></textarea></label>
+        <label>Counterevidence / what would change your reading <textarea id="counterevidence" rows="2" placeholder="An alternative explanation, missing context, or a deciding test."></textarea></label>
+        <div class="reading-top"><label>Reader<input id="analyst" placeholder="Name or initials"></label><button id="review">Mark reviewed</button></div>
+      </article>
+      <article id="table" class="pane">
+        <div class="pane-head"><h2>The periodic table in this passage</h2><span class="badge">45 signs</span></div>
+        <div id="periodic" aria-label="Cinematic signs"></div>
+        <div id="signDetail" class="sign-detail">Select an element to inspect its test and read examples.</div>
+        <div id="examples" class="examples"></div>
+        <div class="pane-head"><h2>Original neighborhood</h2><button id="inspectSource">Inspect source</button></div>
+        <div id="sourceContext" class="source-context">Inspect the selected shot's source for missing intervals and neighboring clips.</div>
+      </article>
+    </section>
+  </main>
+  <dialog id="menu"><form method="dialog"><button class="close" aria-label="Close">×</button></form><h2>Keep, compare, release</h2>
+    <p>Saved passages stay in this browser. Export a passage to preserve its evidence and source records. <a id="fullFilm" href="syntagma.html">Compare the full WYGWYL film ↗</a></p>
+    <div class="menu-actions"><button id="exportPassage">Export passage JSON</button><button id="exportEDL">Export Cineosis EDL</button><button id="import">Import passage JSON</button><input id="file" type="file" accept=".json,application/json" hidden></div>
+    <label>EDL record offset (seconds)<input id="offset" type="number" min="0" step="0.001"></label><p class="hint">WYGWYL passages retain their suite position. Other passages start at zero. The EDL imports through Videotext Studio’s Review → import, where its times must overlap spoken words.</p>
+    <h3>Saved passages</h3><div id="saved"></div>
+    <details><summary>The method and eight categories</summary><div id="typeGuide"></div><p>Based on Metz’s revised eight-type classification in <i>Film Language</i>, “Problems of Denotation in the Fiction Film,” pp. 119–133. His 1966 article presents an earlier six-type scheme. A proposal is derived from your answers, never from affinity scores. Unknown is a valid result.</p><p>Source file gaps are not story ellipses. A source clip is not a verified shot boundary. Scope and autonomy require surrounding context. Visual and audio playback are supporting evidence, not automated verification.</p><a href="syntagm/README.md">Data model and experiment protocol</a></details>
+  </dialog>
+  <script type="module" src="syntagm/app.mjs"></script>
+</body>
+</html>
