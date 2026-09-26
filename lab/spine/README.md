@@ -45,13 +45,13 @@ The records that steered the generated images for the WYGWYL poems, copied from 
 
 ```bash
 pip install torch open_clip_torch pillow numpy
-python3 lab/spine/embed_spine.py /path/to/the/images      # several folders allowed
+python3 lab/spine/embed_readings.py /path/to/the/images      # several folders allowed
 python3 lab/spine/spine_test.py                            # → spine.json
 python3 lab/syntagm/swap_test.py                           # now with the word terms
 git add lab/spine/*.npy lab/spine/*-keys.json lab/spine/spine.json lab/syntagm/words-* lab/syntagm/swap.json
 ```
 
-`embed_spine.py` finds the images by filename, embeds them with the lab's CLIP (the model of `lab/cache/emb.npy`), and
+`embed_readings.py` finds the images by filename, embeds them with the lab's CLIP (the model of `lab/cache/emb.npy`), and
 embeds every line and prompt, plus the words under each shot of the poem cuts (which the cloud session cannot fetch).
 Unfound images are listed in `img-missing.json`. The outputs are float16 and small.
 

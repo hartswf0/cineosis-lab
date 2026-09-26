@@ -1,4 +1,4 @@
-"""Readings of the prompt spine, once embed_spine.py has run.
+"""Readings of the prompt spine, once embed_readings.py has run.
 
 Each image was generated from its words: "<syntagma code> · <cineosisFunction> · <operativeEkphrasis> · <style>". So the
 labels are causes, not readings, and the tests ask what of the words reached the picture.

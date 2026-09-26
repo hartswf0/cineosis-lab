@@ -55,6 +55,12 @@ It exports the lab's `cineosis-edl/1` (every event, your couplings, the text car
 
 Static site limits: only the 253 read shots ship as local clips; every other shot plays from the archive's CDN. Chrome and Firefox stream the WYGWYL films from the release; if Safari refuses, the page offers the file to download.
 
+## Syntagm Lab
+
+Open [Syntagm Lab](https://hartswf0.github.io/cineosis-lab/lab/syntagm.html) to screen and rearrange passages from the four WYGWYL cuts or 60 cached source-film manifests. Keep playback above the timeline, inspect source coverage and neighboring clips, and compare edits while preserving occurrence identities and trims. The 45-sign table remains available with its deciding tests and read examples.
+
+Metz's eight categories are proposed from explicit judgements about autonomy, chronology, coexistence, progression and ellipsis. Intended construction, recorded interpretation, rival reading and evidence stay separate. Rearranging a reviewed passage marks it for review. Save locally, round-trip passage JSON, or export the existing `cineosis-edl/1` format for the Studio. Source sound can be auditioned; this bench does not mix the poem soundtrack. [Method, data model and verification](lab/syntagm/README.md).
+
 ## Run it locally
 
 ```bash

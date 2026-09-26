@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Spine-Cut</title>
+<meta name="description" content="Four films cut from the prompt spine to her voice: echo (the nearest archive shot), clean (no repeats, continuity and a sheet review), quad (the top four at once) and blend (two archive shots composited toward her image).">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ color-scheme:dark; --bg:#0b0b0a; --panel:#131311; --ink:#ece6da; --dim:#8a8378; --rule:#282622; --hi:#ff6b4a;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; }
+*{ box-sizing:border-box; } html,body{ margin:0; background:var(--bg); color:var(--ink); font:12px/1.4 var(--mono); }
+body{ padding:0 clamp(10px,1.4vw,20px) 30px; }
+button{ font:inherit; color:inherit; background:transparent; border:1px solid var(--rule); padding:2px 8px; cursor:pointer; }
+button:hover{ border-color:var(--ink); } button.on{ background:var(--ink); color:var(--bg); border-color:var(--ink); }
+button:focus-visible{ outline:2px solid var(--hi); outline-offset:2px; }
+.top{ position:sticky; top:0; z-index:5; background:var(--bg); display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:8px 0; border-bottom:1px solid var(--rule); }
+.ttl{ font:600 18px var(--serif); } .row{ display:flex; gap:2px; flex-wrap:wrap; } .grow{ flex:1; }
+.clock{ color:var(--dim); min-width:44px; font-variant-numeric:tabular-nums; }
+.poems button{ border:0; border-bottom:2px solid transparent; color:var(--dim); padding:2px 5px; } .poems button.on{ background:transparent; color:var(--ink); border-bottom-color:var(--hi); }
+.stage{ display:grid; grid-template-columns:minmax(0,1fr) minmax(220px,300px); gap:10px; margin-top:10px; align-items:start; }
+.screen{ position:relative; background:#000; aspect-ratio:16/9; height:min(58vh,calc((100vw - 360px) * 9 / 16)); max-width:100%; justify-self:center; overflow:hidden; isolation:isolate; }
+.layer{ position:absolute; inset:0; visibility:hidden; isolation:isolate; background:#000; }
+.layer.on{ visibility:visible; }
+.layer video,.layer img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:none; }
+.layer img{ object-fit:contain; }
+.layer[data-f="hers"] img{ display:block; }
+.layer[data-f="echo"] .v0,.layer[data-f="clean"] .v0,.layer[data-f="blend"] .v0,.layer[data-f="blend"] .v1{ display:block; }
+.layer[data-f="quad"] video{ display:block; width:50%; height:50%; }
+.layer[data-f="quad"] .v1{ left:50%; } .layer[data-f="quad"] .v2{ top:50%; } .layer[data-f="quad"] .v3{ left:50%; top:50%; }
+.sub{ position:absolute; left:0; right:0; bottom:0; z-index:3; padding:22px 14px 10px; background:linear-gradient(transparent,#000d); font:600 clamp(14px,1.5vw,20px)/1.3 var(--serif); text-align:center; }
+.ref{ background:var(--panel); padding:8px; display:flex; flex-direction:column; gap:6px; }
+.ref img{ width:100%; aspect-ratio:1; object-fit:cover; background:#000; display:block; }
+.ref .vars{ display:flex; gap:2px; } .ref .vars img{ width:25%; aspect-ratio:1; opacity:.7; }
+.ref .w{ font:600 15px/1.3 var(--serif); } .ref dl{ display:grid; grid-template-columns:auto 1fr; gap:1px 8px; margin:0; font-size:11px; } .ref dt{ color:var(--dim); } .ref dd{ margin:0; }
+.ref .note{ color:var(--hi); font-size:11px; }
+.cmp{ position:relative; margin-top:10px; user-select:none; }
+.cr{ display:flex; align-items:stretch; margin-bottom:2px; }
+.cr > b{ flex:0 0 64px; font-weight:400; font-size:11px; color:var(--dim); display:flex; align-items:center; cursor:pointer; }
+.cr.on > b{ color:var(--ink); } .cr.on > b::before{ content:'▸'; color:var(--hi); margin-right:3px; }
+.cells{ flex:1; display:flex; gap:1px; min-width:0; position:relative; }
+.c{ flex:1 1 0; min-width:0; height:40px; position:relative; overflow:hidden; background:#000; cursor:pointer; isolation:isolate; }
+.c img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.c.q img{ width:50%; height:50%; } .c.q img:nth-child(2){ left:50%; } .c.q img:nth-child(3){ top:50%; } .c.q img:nth-child(4){ left:50%; top:50%; }
+.c.bd{ outline:1px dashed #555; outline-offset:-1px; }
+.c.now{ outline:2px solid var(--hi); outline-offset:-2px; z-index:2; }
+.ph{ position:absolute; top:0; bottom:0; width:2px; background:var(--hi); pointer-events:none; z-index:4; }
+.help{ color:var(--dim); font-size:11px; margin-top:8px; }
+@media (max-width:900px){ .stage{ grid-template-columns:1fr; } .screen{ height:auto; width:100%; } .cr > b{ flex-basis:44px; } }
+</style></head>
+<body>
+<header class="top">
+  <b class="ttl">Spine-Cut</b>
+  <button id="play" title="Play / pause (space)">▶</button>
+  <span class="clock" id="clock">0:00</span>
+  <div class="row" id="films"></div>
+  <nav class="row poems" id="poems"></nav>
+</header>
+<section class="stage">
+  <div class="screen" id="screen"><div class="sub" id="sub"></div></div>
+  <aside class="ref" id="ref"></aside>
+</section>
+<section class="cmp" id="cmp"></section>
+<p class="help">space play · 0–4 film · ← → section · [ ] poem · click any cell to play that film from there · dashed = storyboard beat between spoken lines</p>
+<script>
+(() => {
+  const $ = s => document.querySelector(s), h = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  const FILMS = [['hers', 'her spine'], ['echo', 'echo'], ['clean', 'clean'], ['quad', 'quad'], ['blend', 'blend']];
+  const TIP = { hers: 'her generated images, as the spine made them', echo: 'the nearest archive shot to each of her images and words; repeats allowed', clean: 'no shot twice, no two neighbours from one film, then an editor’s review of every row', quad: 'the four nearest archive shots at once', blend: 'two archive shots composited with a blend mode, chosen so the result sits closest to her image' };
+  const fmt = s => { s = Math.max(0, s | 0); return (s / 60 | 0) + ':' + String(s % 60).padStart(2, '0'); };
+  let D, S, film = 'blend', t = 0, playing = false, si = -1, fi = 0, layers = [], act = 0;
+  const A = new Audio(); A.preload = 'auto';
+  const q = new URLSearchParams(location.search); if (FILMS.some(f => f[0] === q.get('film'))) film = q.get('film');
+  const secAt = x => { let lo = 0, hi = S.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (S[m].t0 <= x) lo = m; else hi = m - 1; } return lo; };
+  const filmAt = x => { for (let i = 0; i < D.films.length; i++) if (x < D.films[i].t1) return i; return D.films.length - 1; };
+  const shotsFor = (f, s) => f === 'echo' ? [s.echo] : f === 'clean' ? [s.clean] : f === 'quad' ? s.quad : f === 'blend' ? [s.blend.a, s.blend.b].filter(Boolean) : [];
+  const inpt = id => { const x = D.shots[id]; return Math.max(0, (x.read_t || 0) - .6); };
+
+  function mkLayer() {
+    const L = h('div', 'layer'); const im = h('img'); L.append(im);
+    for (let i = 0; i < 4; i++) { const v = h('video', 'v' + i); v.muted = true; v.playsInline = true; v.preload = 'auto'; L.append(v); }
+    $('#screen').insertBefore(L, $('#sub')); return L;
+  }
+  // put section s of film f into a layer (the hidden one preloads the next section)
+  function load(L, f, i) {
+    const s = S[i], key = f + '|' + i; if (L._key === key) return; L._key = key; L._i = i; L.dataset.f = f;
+    L.querySelector('img').src = s.hers[0];
+    const ids = shotsFor(f, s), vs = L.querySelectorAll('video');
+    vs.forEach((v, k) => {
+      const id = ids[k]; v.style.mixBlendMode = ''; v.style.opacity = '';
+      if (!id) { v._id = null; v.removeAttribute('src'); return; }
+      if (v._id !== id) { v._id = id; v.poster = D.shots[id].thumb; v.src = D.shots[id].video; v.addEventListener('loadedmetadata', () => { try { v.currentTime = inpt(id); } catch (e) { } }, { once: true }); }
+    });
+    if (f === 'blend' && s.blend.b) { vs[1].style.mixBlendMode = s.blend.mode; vs[1].style.opacity = s.blend.alpha; }
+  }
+  function sync(L, x) {
+    const s = S[L._i], ids = shotsFor(L.dataset.f, s);
+    L.querySelectorAll('video').forEach((v, k) => {
+      const id = ids[k]; if (!id || v.readyState < 1) return;
+      const d = v.duration || 1e9; let want = inpt(id) + (x - s.t0); if (want >= d - .05) want = Math.min(inpt(id), d / 2) + (want - inpt(id)) % Math.max(.5, d - Math.min(inpt(id), d / 2));
+      if (Math.abs(v.currentTime - want) > (playing ? .5 : .05)) try { v.currentTime = Math.min(want, d - .05); } catch (e) { }
+      if (playing && v.paused) v.play().catch(() => { }); if (!playing && !v.paused) v.pause();
+    });
+  }
+  function frame() {
+    if (playing) t = A.currentTime;
+    const i = secAt(t);
+    if (i !== si) { si = i; onSection(); }
+    const cur = layers[act]; load(cur, film, i); cur.classList.add('on'); layers[1 - act].classList.remove('on');
+    sync(cur, t);
+    if (i + 1 < S.length) load(layers[1 - act], film, i + 1);    // preload
+    $('#clock').textContent = fmt(t); playhead();
+    requestAnimationFrame(frame);
+  }
+  function onSection() {
+    // the preloaded layer becomes the visible one
+    if (layers[1 - act]._i === si && layers[1 - act].dataset.f === film) { layers[act].querySelectorAll('video').forEach(v => v.pause()); act = 1 - act; }
+    const s = S[si]; $('#sub').textContent = s.board ? '' : (s.line || '');
+    const f2 = filmAt(t); if (f2 !== fi) { fi = f2; drawCmp(); }
+    document.querySelectorAll('.c.now').forEach(c => c.classList.remove('now'));
+    document.querySelectorAll(`.cr[data-f="${film}"] .c[data-i="${si}"]`).forEach(c => c.classList.add('now'));
+    const b = s.blend;
+    $('#ref').innerHTML = `<img src="${s.hers[0]}" alt="her image">${s.hers.length > 1 ? `<div class="vars">${s.hers.slice(1, 5).map(x => `<img src="${x}" alt="">`).join('')}</div>` : ''}
+      <div class="w">${s.line || ''}</div>
+      <dl><dt>id</dt><dd>${s.id}${s.board ? ' · storyboard' : ''}</dd><dt>declared</dt><dd>${s.declared || '—'}</dd><dt>syntagma</dt><dd>${s.syntagma || '—'}</dd>
+      ${film === 'blend' && b ? `<dt>blend</dt><dd>${b.b ? `${b.mode} · ${b.alpha}` : 'single'} · ${b.single} → ${b.score}</dd>` : ''}
+      ${film !== 'hers' && film !== 'blend' ? `<dt>shot</dt><dd>${(D.shots[shotsFor(film, s)[0]] || {}).title || ''}</dd>` : ''}</dl>
+      ${film === 'clean' && s.note ? `<div class="note">${s.note}</div>` : ''}`;
+  }
+  function span() { const f = D.films[fi]; const a = secAt(f.t0 + .01); let z = a; while (z + 1 < S.length && S[z + 1].t0 < f.t1 - .05) z++; return [a, z, f.t0, f.t1]; }
+  function cellImgs(f, s) {
+    if (f === 'hers') return `<img src="${s.hers[0]}" alt="">`;
+    if (f === 'blend') { const b = s.blend; return `<img src="${D.shots[b.a].thumb}" alt="">` + (b.b ? `<img src="${D.shots[b.b].thumb}" style="mix-blend-mode:${b.mode};opacity:${b.alpha}" alt="">` : ''); }
+    return shotsFor(f, s).map(id => `<img src="${D.shots[id].thumb}" loading="lazy" alt="">`).join('');
+  }
+  function drawCmp() {
+    const [a, z, t0, t1] = span(), c = $('#cmp'); c.innerHTML = '';
+    document.querySelectorAll('.poems button').forEach((b, k) => b.classList.toggle('on', k === fi));
+    FILMS.forEach(([f, name]) => {
+      const r = h('div', 'cr' + (f === film ? ' on' : '')); r.dataset.f = f; const lb = h('b', '', name); lb.title = TIP[f]; lb.onclick = () => pick(f);
+      const cs = h('div', 'cells');
+      for (let i = a; i <= z; i++) {
+        const s = S[i], e = h('div', 'c' + (f === 'quad' ? ' q' : '') + (s.board ? ' bd' : '')); e.dataset.i = i;
+        e.style.flexGrow = Math.max(.3, Math.min(s.t1, t1) - Math.max(s.t0, t0)); e.innerHTML = cellImgs(f, s); e.title = s.line || '';
+        e.onclick = () => { pick(f); seek(s.t0 + .01); }; cs.append(e);
+      }
+      r.append(lb, cs); c.append(r);
+    });
+    const ph = h('div', 'ph'); ph.id = 'ph'; c.append(ph); si = -1;
+  }
+  function playhead() {
+    const ph = $('#ph'), cs = $('.cr .cells'); if (!ph || !cs) return; const [, , t0, t1] = span();
+    const r = cs.getBoundingClientRect(), c = $('#cmp').getBoundingClientRect();
+    ph.style.left = (r.left - c.left + r.width * Math.min(1, Math.max(0, (t - t0) / (t1 - t0)))) + 'px';
+  }
+  function pick(f) { film = f; document.querySelectorAll('#films button').forEach(b => b.classList.toggle('on', b.dataset.f === f)); document.querySelectorAll('.cr').forEach(r => r.classList.toggle('on', r.dataset.f === f)); layers.forEach(L => L._key = null); si = -1; }
+  function seek(x) { t = Math.max(0, Math.min(D.duration - .05, x)); A.currentTime = t; }
+  function play() { playing = true; A.currentTime = t; A.play().catch(() => { playing = false; }); $('#play').textContent = '❚❚'; }
+  function pause() { playing = false; A.pause(); $('#play').textContent = '▶'; }
+  addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return; const k = e.key;
+    if (k === ' ') { e.preventDefault(); playing ? pause() : play(); }
+    else if (/^[0-4]$/.test(k)) pick(FILMS[+k][0]);
+    else if (k === 'ArrowRight' || k === 'ArrowLeft') { e.preventDefault(); const i = Math.max(0, Math.min(S.length - 1, secAt(t) + (k === 'ArrowRight' ? 1 : -1))); seek(S[i].t0 + .01); }
+    else if (k === ']' || k === '[') { const f = Math.max(0, Math.min(D.films.length - 1, fi + (k === ']' ? 1 : -1))); seek(D.films[f].t0 + .01); }
+  });
+  addEventListener('resize', playhead);
+  fetch('spinecut/spinecut-data.json').then(r => r.json()).then(d => {
+    D = d; S = d.sections; A.src = d.audio;
+    const fb = $('#films'); FILMS.forEach(([f, n], k) => { const b = h('button', f === film ? 'on' : '', k + ' ' + n); b.dataset.f = f; b.title = TIP[f]; b.onclick = () => pick(f); fb.append(b); });
+    const pn = $('#poems'); D.films.forEach(f => { const b = h('button', '', f.n); b.title = f.title; b.onclick = () => seek(f.t0 + .01); pn.append(b); });
+    $('#play').onclick = () => playing ? pause() : play(); A.addEventListener('ended', pause);
+    layers = [mkLayer(), mkLayer()];
+    t = +q.get('t') || S.find(s => !s.board).t0 + .01; fi = filmAt(t);
+    drawCmp(); requestAnimationFrame(frame);
+  });
+})();
+</script>
+</body></html>
