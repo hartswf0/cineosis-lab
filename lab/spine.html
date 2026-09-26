@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Spine on the Table</title>
+<meta name="description" content="The prompt spine's generated images encoded with the same CLIP as the archive shots and placed on the cineosis periodic table; each poem's path through the signs; each image beside the archive footage nearest to it.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ color-scheme:dark; --bg:#0b0b0a; --panel:#131311; --ink:#ece6da; --dim:#8a8378; --rule:#282622; --hi:#ff6b4a;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; }
+*{ box-sizing:border-box; } html,body{ margin:0; background:var(--bg); color:var(--ink); font:12px/1.4 var(--mono); }
+body{ padding:0 clamp(10px,1.4vw,20px) 30px; }
+button{ font:inherit; color:inherit; background:transparent; border:1px solid var(--rule); padding:1px 7px; cursor:pointer; }
+button:hover{ border-color:var(--ink); } button.on{ background:var(--ink); color:var(--bg); border-color:var(--ink); }
+button:focus-visible{ outline:2px solid var(--hi); outline-offset:2px; }
+.top{ position:sticky; top:0; z-index:5; background:var(--bg); display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:8px 0; border-bottom:1px solid var(--rule); }
+.ttl{ font:600 18px var(--serif); } .row{ display:flex; gap:2px; flex-wrap:wrap; } .grow{ flex:1; } .dim{ color:var(--dim); }
+.board{ position:relative; margin-top:10px; }
+.grid{ display:grid; grid-template-columns:repeat(16,minmax(0,1fr)); gap:2px; }
+.fam{ font-size:10px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 2px 2px; border-bottom:3px solid var(--c); }
+.cell{ background:var(--panel); min-height:118px; position:relative; padding:14px 2px 2px; border-top:2px solid var(--c); }
+.cell.z{ opacity:.35; } .cell.lit{ outline:1px solid var(--c); }
+.cell .sy{ position:absolute; left:3px; top:1px; font-size:10px; } .cell .sy b{ color:var(--c); font-weight:500; }
+.cell .ct{ position:absolute; right:3px; top:1px; font-size:10px; color:var(--dim); }
+.ims{ display:flex; flex-wrap:wrap; gap:1px; }
+.ims img{ width:calc(33.33% - 1px); aspect-ratio:1; object-fit:cover; cursor:pointer; display:block; }
+.ims img:hover{ outline:1px solid #fff; } .ims img.now{ outline:2px solid var(--hi); outline-offset:-1px; }
+.ims .more{ font-size:10px; color:var(--dim); padding:2px; }
+svg.path{ position:absolute; inset:0; pointer-events:none; overflow:visible; }
+.low{ display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1.4fr); gap:10px; margin-top:10px; }
+.hers{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; background:var(--panel); padding:8px; }
+.hers img{ width:100%; aspect-ratio:1; object-fit:contain; background:#000; display:block; }
+.hers .line{ font:600 16px/1.3 var(--serif); margin:0 0 6px; }
+.kv{ display:grid; grid-template-columns:auto 1fr; gap:2px 10px; font-size:11px; } .kv dt{ color:var(--dim); } .kv dd{ margin:0; }
+.prompt{ color:var(--dim); font-size:11px; margin-top:6px; }
+.bars{ margin-top:8px; display:flex; flex-direction:column; gap:2px; }
+.bars div{ display:flex; gap:6px; align-items:center; font-size:10px; } .bars i{ height:6px; background:var(--c); display:block; }
+.arch{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; align-content:start; }
+.arch figure{ margin:0; position:relative; background:#000; aspect-ratio:4/3; overflow:hidden; }
+.arch video{ width:100%; height:100%; object-fit:cover; display:block; }
+.arch figcaption{ position:absolute; left:0; right:0; bottom:0; padding:1px 4px; background:#000b; font-size:10px; display:flex; justify-content:space-between; gap:4px; }
+.arch figcaption b{ color:var(--c); font-weight:500; white-space:nowrap; }
+.strip{ display:flex; gap:1px; margin-top:10px; overflow:hidden; }
+.strip img{ flex:1 1 0; min-width:0; height:44px; object-fit:cover; cursor:pointer; border-bottom:3px solid var(--c); opacity:.75; }
+.strip img.now{ opacity:1; outline:2px solid var(--hi); outline-offset:-2px; }
+@media (max-width:900px){ .grid{ grid-template-columns:repeat(8,minmax(0,1fr)); } .low,.hers{ grid-template-columns:1fr; } svg.path{ display:none; } }
+</style></head>
+<body>
+<header class="top">
+  <b class="ttl">Spine on the Table</b>
+  <div class="row" id="poems"></div>
+  <span class="grow"></span>
+  <div class="row" id="types"></div>
+</header>
+<div class="board"><div class="grid" id="grid"></div><svg class="path" id="path"></svg></div>
+<div class="strip" id="strip"></div>
+<div class="low"><section class="hers" id="hers"></section><section class="arch" id="arch"></section></div>
+<script>
+(() => {
+  const $ = s => document.querySelector(s), h = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  const DOM = { perception: '#e9d9a8', affect: '#f0b9a4', action: '#e7a37c', reflection: '#b9cfa0', mental: '#a9c9c9', break: '#d9d3c7', time: '#b8b3d8', read: '#d9b8d2' };
+  let S, L, SG = {}, poem = null, type = null, cur = null, POEMS = [];
+  const code = r => (r.id || '').replace(/\d+$/, '');
+  const num = r => +((r.id || '').match(/\d+$/) || [0])[0];
+  const col = n => DOM[SG[n]?.dom] || '#666';
+  const vis = r => r.k != null && (!poem || code(r) === poem) && (!type || r.image === type);
+
+  function grid() {
+    const g = $('#grid'); g.innerHTML = '';
+    const fams = []; L.signs.forEach(s => { fams[s.col] = fams[s.col] || s; });
+    fams.forEach(s => { const f = h('div', 'fam', s.image); f.style.setProperty('--c', DOM[s.dom]); f.title = s.image; g.append(f); });
+    const by = {}; S.records.filter(vis).forEach(r => { const n = r.aff[0][0]; (by[n] = by[n] || []).push(r); });
+    for (let row = 0; row < 3; row++) for (let c = 0; c < 16; c++) {
+      const s = L.signs.find(x => x.col === c && x.row === row), e = h('div', 'cell');
+      if (!s) { e.style.visibility = 'hidden'; g.append(e); continue; }
+      const rs = (by[s.n] || []).sort((a, b) => b.aff[0][1] - a.aff[0][1]);
+      e.style.setProperty('--c', DOM[s.dom]); e.dataset.n = s.n; if (!rs.length) e.classList.add('z');
+      e.innerHTML = `<span class="sy"><b>${s.symbol}</b> ${s.n}</span><span class="ct">${rs.length || ''}</span>`; e.title = s.name;
+      const ims = h('div', 'ims'), cap = 12;
+      rs.slice(0, cap).forEach(r => { const i = h('img'); i.loading = 'lazy'; i.src = r.thumb; i.alt = r.line || ''; i.title = `${r.id} · ${r.line || ''}`; i.dataset.k = S.records.indexOf(r); i.onclick = () => open(r); ims.append(i); });
+      if (rs.length > cap) { const m = h('span', 'more', '+' + (rs.length - cap)); m.style.cursor = 'pointer'; m.onclick = () => open(rs[cap]); ims.append(m); }
+      e.append(ims); g.append(e);
+    }
+    strip(); mark(); requestAnimationFrame(trail);
+  }
+  // the chosen poem in its own order, and its path through the signs
+  function seq() { return poem ? S.records.filter(vis).sort((a, b) => num(a) - num(b)) : []; }
+  function strip() {
+    const st = $('#strip'); st.innerHTML = '';
+    seq().forEach(r => { const i = h('img'); i.src = r.thumb; i.title = `${r.id} · ${r.line || ''}`; i.style.setProperty('--c', col(r.aff[0][0])); i.onclick = () => open(r); i.dataset.k = S.records.indexOf(r); st.append(i); });
+  }
+  function trail() {
+    const svg = $('#path'), b = $('.board').getBoundingClientRect(); svg.innerHTML = '';
+    const q = seq(); if (q.length < 2) return;
+    const pts = q.map(r => { const c = document.querySelector(`.cell[data-n="${r.aff[0][0]}"]`).getBoundingClientRect(); return [c.left - b.left + c.width / 2, c.top - b.top + c.height / 2]; });
+    const jit = pts.map(([x, y], i) => [x + Math.sin(i * 2.3) * 14, y + Math.cos(i * 1.7) * 18]);
+    svg.innerHTML = `<polyline points="${jit.map(p => p.join(',')).join(' ')}" fill="none" stroke="#ff6b4a" stroke-opacity=".55" stroke-width="1.2"/>` +
+      jit.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${i === 0 ? 4 : 2}" fill="${i === 0 ? '#fff' : '#ff6b4a'}"/>`).join('');
+  }
+  function mark() {
+    const k = cur ? String(S.records.indexOf(cur)) : null;
+    document.querySelectorAll('img[data-k]').forEach(i => i.classList.toggle('now', i.dataset.k === k));
+    document.querySelectorAll('.cell').forEach(c => c.classList.toggle('lit', !!cur && cur.aff.some(a => a[0] === c.dataset.n)));
+  }
+  function open(r) {
+    cur = r; mark();
+    const top = r.aff.slice(0, 6), mx = top[0][1];
+    $('#hers').innerHTML = `<img src="${r.thumb}" alt="">
+      <div><p class="line">${r.line || '—'}</p>
+      <dl class="kv"><dt>id</dt><dd>${r.id} · ${r.poem || '—'}</dd><dt>declared</dt><dd>${r.image || '—'}</dd><dt>syntagma</dt><dd>${r.syntagma || '—'}</dd><dt>function</dt><dd>${r.function || '—'}</dd>
+      <dt>read as</dt><dd style="color:${col(top[0][0])}">${SG[top[0][0]].symbol} ${SG[top[0][0]].name}</dd><dt>prompt fit</dt><dd>${r.fit}</dd></dl>
+      <div class="bars">${top.map(([n, p]) => `<div style="--c:${col(n)}"><span style="width:26px">${SG[n].symbol}</span><i style="width:${Math.round(110 * p / mx)}px"></i><span class="dim">${p}%</span></div>`).join('')}</div>
+      <div class="prompt">${r.prompt || ''}</div></div>`;
+    const a = $('#arch'); a.innerHTML = '';
+    r.near.forEach(([id, s]) => {
+      const x = S.archive[id]; if (!x) return;
+      const f = h('figure'), v = h('video'); v.muted = true; v.loop = true; v.playsInline = true; v.autoplay = true; v.poster = x.thumb; v.src = x.video;
+      v.addEventListener('loadedmetadata', () => { if (x.read_t != null) v.currentTime = Math.max(0, x.read_t - .6); }, { once: true });
+      const n = (x.aff_top[0] || [])[0], cap = h('figcaption'); cap.innerHTML = `<span>${(x.title || '').slice(0, 28)}${x.year ? ' ' + x.year : ''}</span><b style="--c:${col(n)}">${n ? SG[n].symbol : ''} ${s}</b>`;
+      f.append(v, cap); a.append(f);
+    });
+  }
+  function chips() {
+    const p = $('#poems'); p.innerHTML = '';
+    [[null, 'all'], ...POEMS].forEach(([c, t]) => { const b = h('button', poem === c ? 'on' : '', c || 'all'); b.title = t; b.onclick = () => { poem = c; chips(); grid(); const q = seq(); if (q.length) open(q[0]); }; p.append(b); });
+    const tp = $('#types'); tp.innerHTML = '';
+    const ts = [...new Set(S.records.map(r => r.image).filter(Boolean))].sort();
+    [null, ...ts].forEach(t => { const b = h('button', type === t ? 'on' : '', t ? t.replace(/-Image$/, '').replace(' Image', '') : 'every type'); b.title = t ? 'images she declared ' + t : ''; b.onclick = () => { type = t; chips(); grid(); }; tp.append(b); });
+  }
+  addEventListener('keydown', e => {
+    const q = seq(); if (!q.length || !cur) return; const i = q.indexOf(cur);
+    if (e.key === 'ArrowRight' && i < q.length - 1) open(q[i + 1]); if (e.key === 'ArrowLeft' && i > 0) open(q[i - 1]);
+  });
+  addEventListener('resize', () => requestAnimationFrame(trail));
+  fetch('spine/spine-data.json').then(r => r.json()).then(s => {
+    S = s; L = { signs: s.signs }; L.signs.forEach(x => SG[x.n] = x);
+    const names = {}; S.records.forEach(r => { const c = code(r); if (c && !names[c] && r.poem && r.poem.length > 6) names[c] = r.poem; });
+    POEMS = [...new Set(S.records.map(code).filter(Boolean))].map(c => [c, names[c] || c]);
+    chips(); grid(); open(S.records.find(r => r.k != null));
+  });
+})();
+</script>
+</body></html>
