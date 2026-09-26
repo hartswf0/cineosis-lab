@@ -596,7 +596,7 @@
     splitters();
     if (q.get('screen')) setTimeout(() => K.screen(K.film.t0), 50);
     // one clock for the lab: arrive from another tool mid-film and carry on; open side by side and follow the one playing
-    else { const cs = document.createElement('script'); cs.src = U('../clock.js?v=1'); cs.onload = () => window.LabClock && LabClock.attach({ name: o.code + ' ' + o.name, audio: A, play: () => K.play(), pause: () => K.pause(), seek: t => K.goto(t) }); document.head.append(cs); }
+    else { const cs = document.createElement('script'); cs.src = U('../clock.js?v=2'); cs.onload = () => window.LabClock && LabClock.attach({ name: o.code + ' ' + o.name, audio: A, play: () => K.play(), pause: () => K.pause(), seek: t => K.goto(t) }); document.head.append(cs); }
     K.on('tick', t => { const f = K.film, p = document.querySelector(`#strip button[data-n="${f.n}"] .mph`); if (p) p.style.left = (100 * (t - f.t0) / (f.t1 - f.t0)) + '%'; });
     requestAnimationFrame(tick);
     return K;

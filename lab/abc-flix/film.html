@@ -149,7 +149,8 @@ dialog::backdrop{background:#000a}
   <p style="margin-top:10px;color:var(--dim);font-size:10.5px">BEFLIX needs the picture’s pixels, which a browser only gives for same-origin video: the Tempest loops and the lab’s clips always, every shot under <code>python3 lab/server.py</code>. Other shots play as pictures and show as stills in the lens. Your film is kept in this browser and shared with the other instruments as <code>cineosis.film.FLIX.v1</code>.</p>
   <p style="margin-top:10px;text-align:right"><button class="btn" onclick="this.closest('dialog').close()">close</button></p>
 </dialog>
-<script src="../clock.js?v=1"></script>
+<script src="../clock.js?v=2"></script>
+<script src="../feel.js?v=1"></script>
 <script>
 'use strict';
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -157,7 +158,7 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&a
 const fmt = t => { t = Math.max(0, t || 0); const m = Math.floor(t / 60); return `${String(m).padStart(2, '0')}:${(t - m * 60).toFixed(1).padStart(4, '0')}`; };
 const store = { get(k, d) { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage blocked */ } } };
 let toastT; function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2600); }
-const buzz = p => { if (navigator.vibrate) try { navigator.vibrate(p); } catch (e) { /* no haptics */ } };
+const buzz = (p, kind) => { if (window.Feel) Feel.play(kind || 'tap'); else if (navigator.vibrate) try { navigator.vibrate(p); } catch (e) { /* no haptics */ } };
 
 const RUNGS = [
   { name: 'POSSIBLE', col: '#ec4899' }, { name: 'PLAUSIBLE', col: '#3b82f6' },
@@ -248,7 +249,7 @@ function promote(seat, to) {
   S.probable = S.probable.filter(x => x.key !== n.key); S.preferred = S.preferred.filter(x => x.key !== n.key);
   if (target === 3) placePreferred(n); else S.probable.push(n);
   S.sel = n.key; changed();
-  buzz(target === 3 ? [8, 30, 14] : 8);
+  buzz(target === 3 ? [8, 30, 14] : 8, target === 3 ? 'couple' : 'drop');
   toast(`${RUNGS[target].name} · ${n.clip.title} · “${textOf(n.t0, n.t1).slice(0, 44)}”`);
 }
 function demote(seat) {
@@ -257,7 +258,7 @@ function demote(seat) {
   remember();
   if (seat.rung === 3) { S.preferred = S.preferred.filter(x => x.key !== seat.key); S.probable.push({ ...seat, rung: 2, at: Date.now() }); toast('Back to PROBABLE: ' + seat.clip.title); }
   else { S.probable = S.probable.filter(x => x.key !== seat.key); S.sel = null; toast('Off the ladder: ' + seat.clip.title); }
-  changed(); buzz(6);
+  changed(); buzz(6, 'undo');
 }
 function lift(seat) { if (!seat || seat.rung < 2) return; remember(); S.probable = S.probable.filter(x => x.key !== seat.key); S.preferred = S.preferred.filter(x => x.key !== seat.key); S.sel = null; changed(); toast('Lifted ' + seat.clip.title); }
 function undo() { const h = S.hist.pop(); if (!h) { toast('Nothing to undo.'); return; } [S.probable, S.preferred] = JSON.parse(h); changed(false); toast('Undone.'); }
@@ -271,7 +272,7 @@ function dropAt(seat, rung, t) {
   S.probable = S.probable.filter(x => x.key !== keep); S.preferred = S.preferred.filter(x => x.key !== keep);
   const n = { key: keep, rung, t0, t1: Math.max(t0 + 0.3, t1), clip: slim(seat.clip), by: 'ABC FLIX', why: 'placed in the tunnel', at: Date.now() };
   if (rung === 3) placePreferred(n); else S.probable.push(n);
-  S.sel = keep; changed(); buzz([6, 20, 6]);
+  S.sel = keep; changed(); buzz([6, 20, 6], 'drop');
   toast(`${RUNGS[rung].name} at ${fmt(n.t0)} · ${n.clip.title} · “${textOf(n.t0, n.t1).slice(0, 40)}”`);
 }
 function takeDraft() {
@@ -285,7 +286,7 @@ function takeDraft() {
     pieces.forEach(([a, b]) => { placePreferred({ key: newKey(), rung: 3, t0: a, t1: b, clip: slim({ ...s.clip, in: (s.clip.in || 0) + (a - s.t0) }), by: 'ABC FLIX', why: 'taken from the ' + S.draft + ' draft', at: Date.now() }); n++; });
   });
   if (!n) { S.hist.pop(); toast('The film already covers ' + f.n + '.'); return; }
-  changed(); buzz([8, 30, 8, 30, 14]);
+  changed(); buzz([8, 30, 8, 30, 14], 'success');
   toast(`The ${S.draft} draft filled ${n} gaps in ${f.n} ${f.title}; what you had placed stays. Now decide: demote what doesn’t hold.`);
 }
 function nextUnmade() {
@@ -538,11 +539,11 @@ tv.addEventListener('pointerdown', e => {
   const r = tv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, h = hitAt(x, y);
   drag = { x, y, x0: x, y0: y, T0: S.T, card: h ? h.s : null, moved: false, id: e.pointerId };
   tv.setPointerCapture(e.pointerId); tv.classList.add('drag');
-  if (h) { S.sel = h.s.key; renderCard(); }
+  if (h) { S.sel = h.s.key; renderCard(); buzz(8, 'select'); }
 });
 tv.addEventListener('pointermove', e => {
   if (!drag) return; const r = tv.getBoundingClientRect(); drag.x = e.clientX - r.left; drag.y = e.clientY - r.top;
-  if (!drag.moved && Math.hypot(drag.x - drag.x0, drag.y - drag.y0) > 6) { drag.moved = true; if (drag.card) buzz(6); }
+  if (!drag.moved && Math.hypot(drag.x - drag.x0, drag.y - drag.y0) > 6) { drag.moved = true; if (drag.card) buzz(6, 'grab'); }
   if (drag.moved && !drag.card) { seek(drag.T0 + (drag.y - drag.y0) / Math.max(40, view.h) * -30); if (S.playing) aud.currentTime = S.T; }
 });
 tv.addEventListener('pointerup', e => {

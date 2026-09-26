@@ -23,7 +23,16 @@ Deleuze's 44 cinematic signs, after David Deamer: a periodic table to read them,
 - the film's fingerprint, and whether it has changed since the last export;
 - every cut in order, clickable to screen from.
 
-It exports the lab's `cineosis-edl/1` (every event, your couplings, the text cards), CMX 3600 for an editor, and markers. An EDL imports back onto a branch you can screen before merging. ⌘Z / ⌘⇧Z undo and redo any change to the film. Kept in `vtstudio.*` storage, separate from Videotext's.
+It exports the lab's `cineosis-edl/1` (every event, your couplings, the text cards), CMX 3600 for an editor, and markers. An EDL imports back onto a branch you can screen before merging. ⌘Z / ⌘⇧Z undo and redo any change to the film.
+
+**On the wall, the phone first:**
+- Every touch shows a ring.
+- A shot you touch opens big in the **peek** (couple, stack, like, tray, full screen).
+- The player comes small, medium or large (`B`).
+- The timeline under the title zooms from the whole poem to the passage to 36 s with her words under the shots (pinch, ⌘/Ctrl-scroll, or − / +). Drag along it to scrub, and it ticks at each word.
+- Views zoom from 50% to 300% (pinch, ⌘/Ctrl-scroll, − / +).
+
+**Feel (`lab/feel.js`, shared with ABC FLIX):** short synthesised sounds and haptics for select, grab, snap, drop, couple, like, merge, undo and warnings. On iPhone it uses Safari's switch haptic. The sounds step back under her voice. `S` cycles sound + touch, touch only, or off. Kept in `vtstudio.*` storage, separate from Videotext's.
 - **ABC FLIX** (`lab/abc-flix/`) — the ABC FLIX harness (ICARO-PRO engine + ARC-TUNNEL) ripping lab footage: a sign's read shots, a WYGWYL beat or the Studio film, each shot filed on the probability track its evidence earns. See `lab/abc-flix/README.md`.
 - **One clock** (`lab/clock.js`) — the Studio, ABC FLIX · Whole Film and the Bets share her clock. Open another tool while the film plays and it carries on at the same moment (muted until a tap, if the browser insists). With several open side by side, the one you play leads and the rest follow it in silence.
 - **ABC FLIX · Whole Film** (`lab/abc-flix/film.html`) — ABC FLIX rebuilt on the kernel clock: the whole film as a tunnel under her voice, a POSSIBLE → PREFERRED decision ladder (pool, machine draft, audition, film), a BEFLIX lens ripping ±6 s around the playhead, and the film out as `cineosis-edl/1` and `cineosis.film.FLIX.v1`.
