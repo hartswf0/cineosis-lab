@@ -1,4 +1,7 @@
-"""Two readings of the prompt spine, once embed_spine.py has run.
+"""Readings of the prompt spine, once embed_spine.py has run.
+
+Each image was generated from its words: "<syntagma code> · <cineosisFunction> · <operativeEkphrasis> · <style>". So the
+labels are causes, not readings, and the tests ask what of the words reached the picture.
 
     python3 lab/spine/spine_test.py            # → lab/spine/spine.json
 
@@ -12,7 +15,11 @@
      V  visual continuity across the cuts;
      W  image · text of the line each shot sets (content);
      D  cut direction: cos(e_b − e_a, t_b − t_a) against the lines.
-NM (no labels) is left out of 1 and kept in 2.
+3. Which words the image followed. Zero-shot, image against text: is each image nearer its own label (among all
+   syntagmaType strings; among all cineosisFunction strings) and its own scene (operativeEkphrasis, among all the
+   poem's ekphrases) than the others? And how alike are the variants of one prompt (the generator's own spread),
+   against images of other prompts with the same label and with a different label.
+NM (no labels) is left out of 1 and 3 and kept in 2.
 """
 import json, math, os, random, re, sys
 from collections import Counter, defaultdict
@@ -39,8 +46,45 @@ def load():
         r = sorted(rs, key=lambda r: r["image_path"])[0]
         shots.append({"id": i, "poem": re.match(r"[A-Z]+", i).group(), "n": int(re.search(r"\d+", i).group()),
                       "syn": r.get("syntagmaType"), "img_type": r.get("imageType"), "e": img[r["image_path"]],
-                      "t_line": txt.get((r.get("content") or "").strip()), "t_prompt": txt.get((r.get("operativeEkphrasis") or "").strip())})
-    return shots
+                      "t_line": txt.get((r.get("content") or "").strip()), "t_prompt": txt.get((r.get("operativeEkphrasis") or "").strip()),
+                      "fn": r.get("cineosisFunction"), "ekph": (r.get("operativeEkphrasis") or "").strip() or None,
+                      "variants": [img[x["image_path"]] for x in sorted(rs, key=lambda r: r["image_path"])]})
+    return shots, txt
+
+
+def followed(shots, txt):
+    out = {}
+    for field, key in (("syntagmaType", "syn"), ("cineosisFunction", "fn")):
+        S = [s for s in shots if s[key] and txt.get(s[key]) is not None]
+        if not S: continue
+        names = sorted({s[key] for s in S}); L = np.stack([txt[n] for n in names])
+        hit = sum(names[int(np.argmax(L @ s["e"]))] == s[key] for s in S)
+        maj = Counter(s[key] for s in S).most_common(1)[0][1]
+        out[f"own {field} among {len(names)}"] = {"n": len(S), "acc": round(hit / len(S), 3), "majority": round(maj / len(S), 3)}
+    by = defaultdict(list)
+    for s in shots:
+        if s["ekph"] and txt.get(s["ekph"]) is not None: by[s["poem"]].append(s)
+    hit = n = 0; ranks = []
+    for S in by.values():
+        names = sorted({s["ekph"] for s in S})
+        if len(names) < 2: continue
+        L = np.stack([txt[x] for x in names])
+        for s in S:
+            sc = L @ s["e"]; own = sc[names.index(s["ekph"])]
+            r = int((sc > own).sum()); ranks.append(r / (len(names) - 1)); hit += r == 0; n += 1
+    out["own scene among the poem's ekphrases"] = {"n": n, "top1": round(hit / n, 3) if n else None,
+                                                    "mean_rank_pct": round(float(np.mean(ranks)), 3) if ranks else None,
+                                                    "chance_rank_pct": 0.5}
+    within = [float(a @ b) for s in shots for i, a in enumerate(s["variants"]) for b in s["variants"][i + 1:]]
+    rng = random.Random(5); same = []; diff = []
+    L = [s for s in shots if s["syn"]]
+    for _ in range(4000):
+        a, b = rng.sample(L, 2)
+        (same if a["syn"] == b["syn"] else diff).append(float(a["e"] @ b["e"]))
+    out["image similarity"] = {"variants of one prompt": round(float(np.mean(within)), 3) if within else None,
+                               "other prompt, same syntagmaType": round(float(np.mean(same)), 3),
+                               "other prompt, other syntagmaType": round(float(np.mean(diff)), 3), "variant pairs": len(within)}
+    return out
 
 
 def listener(shots, label, feat, rng):
@@ -104,9 +148,9 @@ def flips(shots):
 
 
 def main():
-    shots = load()
+    shots, txt = load()
     rng = random.Random(3)
-    report = {"shots": len(shots), "listener": {}, "flip": flips(shots)}
+    report = {"shots": len(shots), "listener": {}, "flip": flips(shots), "followed": followed(shots, txt)}
     for label in ("syn", "img_type"):
         for feat in ("e", "t_prompt"):
             report["listener"][f"{label} from {'image' if feat == 'e' else 'prompt'}"] = listener(shots, label, feat, rng)
@@ -114,6 +158,7 @@ def main():
     print(f"{len(shots)} shots with an image")
     for k, r in report["listener"].items():
         print(f"  {k:24} acc {r['acc']:.3f}  majority {r['majority']:.3f}  shuffled {r['null_mean']:.3f}±{r['null_sd']:.3f}  ({r['n']} shots, {r['classes']} classes)")
+    for k, r in report["followed"].items(): print(f"  {k}: {r}")
     for t, r in report["flip"].items():
         print(f"  flip {t}  {r['acc']} {r['ci95']} n={r['decided']} p={r['p']}")
 

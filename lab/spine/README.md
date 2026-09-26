@@ -29,7 +29,7 @@ The records that steered the generated images for the WYGWYL poems, copied from 
   - HT records here are "How To Win My Heart" (4), plus line fragments misfiled into the `poem` field.
 - **Missing labels:** the 90 NM (Nevermore) records have no `poem` or labels.
 - **Duplicate ids:** 210 ids appear more than once in `total-cinome.json`. They are not errors: in all 210 the record is identical and only the image differs (`…_0.png`, `…_3.png`), i.e. 2–4 generated variants of one prompt. Each slot is a small set of alternatives.
-- **Provenance unknown:** nothing on disk shows whether a person or a model set the order and the `syntagmaType` of each record. Settle that before using these as examples of human judgment.
+- **The labels are the prompts.** Each image was generated from its words: `<syntagma code> · <cineosisFunction> · <operativeEkphrasis> · <style>` (the form `full_prompt` takes in the storyboard). So `syntagmaType`, `imageType` and `cineosisFunction` are causes of the image, not readings of it. Use them as the intended function, the director's side of the cut, and ask what of them reached the picture.
 
 ## What the records already show (no images needed)
 
@@ -58,5 +58,7 @@ Unfound images are listed in `img-missing.json`. The outputs are float16 and sma
 `spine_test.py` asks two things:
 1. **The listener:** can the label a shot was made under be read back from the picture alone, on a poem held out?
    Also from the prompt text alone, to see how much of the label the prompt already carried.
-2. **The flip:** along each poem, does the real order of two neighbouring shots beat the swap (visual continuity, the
+2. **What the words did:** is each image nearer its own label text and its own scene (ekphrasis) than the others',
+   and how far apart are the variants of one prompt (the generator's own spread)?
+3. **The flip:** along each poem, does the real order of two neighbouring shots beat the swap (visual continuity, the
    line each shot sets, the cut's direction against the lines)?

@@ -6,7 +6,8 @@
 Walks the folders for .png/.jpg, keeps the files whose name is an image_path in lab/spine/*.json, and embeds them with
 ViT-B-32 laion2b_s34b_b79k (the model of lab/cache/emb.npy, so spine images and archive shots share one space).
 It also embeds, with the same model's text tower:
-  - every record's content (the line) and operativeEkphrasis (the prompt);
+  - every record's content (the line), its labels, its operativeEkphrasis, and its whole prompt (full_prompt where the
+    record has it, else rebuilt as "<code> · <cineosisFunction> · <operativeEkphrasis>", the form full_prompt takes);
   - the words under each shot of the poem cuts (lab/syntagm/embed_words.py), which the cloud session cannot fetch.
 
 Writes (commit these; they are small):
@@ -19,6 +20,14 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LAB = os.path.dirname(HERE)
+
+
+def prompt_of(r):
+    """The words the image was generated from."""
+    if r.get("full_prompt"): return r["full_prompt"].strip()
+    if not (r.get("syntagmaType") and r.get("operativeEkphrasis")): return None
+    code = r["syntagmaType"].rsplit("(", 1)[-1].rstrip(")") if "(" in r["syntagmaType"] else r["syntagmaType"]
+    return f"{code} · {r.get('cineosisFunction') or ''} · {r['operativeEkphrasis'].strip().rstrip('.')}"
 
 
 def main(folders):
@@ -66,7 +75,10 @@ def main(folders):
                 out.append((t / t.norm(dim=-1, keepdim=True)).cpu().numpy())
         return np.concatenate(out).astype(np.float16)
 
-    texts = sorted({r[k].strip() for r in records for k in ("content", "operativeEkphrasis") if isinstance(r.get(k), str) and r[k].strip()})
+    fields = ("content", "operativeEkphrasis", "syntagmaType", "cineosisFunction", "imageType", "full_prompt")
+    texts = {r[k].strip() for r in records for k in fields if isinstance(r.get(k), str) and r[k].strip()}
+    texts |= {p for r in records if (p := prompt_of(r))}      # the prompt as the generator read it
+    texts = sorted(texts)
     np.save(os.path.join(HERE, "text-emb.npy"), encode_texts(texts))
     json.dump(texts, open(os.path.join(HERE, "text-keys.json"), "w"), ensure_ascii=False)
     print(f"\n{len(texts)} spine texts embedded")
