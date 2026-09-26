@@ -2,355 +2,276 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Syzygy Spine</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#060606;--panel:#0f0e0d;--panel2:#161513;--ink:#ece6da;--dim:#b9b2a5;--faint:#8a8479;--rule:#262420;--rule2:#3a3833;
+  --bg:#060606;--panel:#0f0e0d;--ink:#ece6da;--dim:#b3ac9f;--faint:#7f796f;--rule:#23211e;--rule2:#3a3833;
   --red:#ff3b2f;--words:#b9cfa0;--ts:#d8c08a;--span:#e7a37c;--board:#5e5a52;
   --serif:"Fraunces",Georgia,serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{background:var(--bg);color:var(--ink);margin:0}
-body{font:400 13px/1.5 var(--mono);-webkit-font-smoothing:antialiased;padding-inline:0}
-button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
-button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--red);outline-offset:2px}
-.app{max-width:760px;margin:0 auto;display:flex;flex-direction:column;min-height:100%;min-width:0}
+body{font:400 12px/1.45 var(--mono);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.app{max-width:720px;margin:0 auto;min-width:0}
 .app>*{min-width:0}
 
-/* status bar: what a carrier shows in the top line */
-.status{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:rgba(6,6,6,.94);backdrop-filter:blur(6px);
-  border-bottom:1px solid var(--rule);padding:8px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center}
-.status .where{min-width:0}
-.status .poem{font-weight:600;font-size:12px;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.status .clk{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
+.status{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:rgba(6,6,6,.95);border-bottom:1px solid var(--rule);
+  padding:8px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center}
+.poem{font-weight:600;font-size:12px;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clk{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
+.badge{font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:1px 6px;border:1px solid currentColor;border-radius:2px;white-space:nowrap}
 .bars{display:flex;align-items:flex-end;gap:2px;height:18px}
 .bars i{width:4px;background:var(--rule2);border-radius:1px}
 .bars i.on{background:var(--ink)}
-.lay{font-size:11px;color:var(--dim);text-align:right;line-height:1.25;font-variant-numeric:tabular-nums}
-.lay b{color:var(--ink);font-weight:600}
-.badge{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:2px;border:1px solid currentColor;white-space:nowrap}
-.badge i{width:7px;height:7px;border-radius:50%;background:currentColor}
-.p-words{color:var(--words)} .p-ts{color:var(--ts)} .p-span{color:var(--span)} .p-board{color:#a39d92}
 
-/* coverage map */
-.map{padding:14px 16px 6px;display:flex;flex-direction:column;gap:6px}
-.maphead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-.lbl{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.map{padding:10px 16px 4px;display:flex;flex-direction:column;gap:4px}
+.mh{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .seg{display:inline-flex;border:1px solid var(--rule2);border-radius:3px;overflow:hidden}
 .seg button{padding:4px 10px;font-size:11px;color:var(--dim)}
 .seg button+button{border-left:1px solid var(--rule2)}
 .seg button[aria-pressed="true"]{background:var(--ink);color:#0a0a0a}
-.stripwrap{position:relative;touch-action:none;user-select:none;-webkit-user-select:none;cursor:ew-resize}
-#strip{display:block;width:100%;height:78px}
-.poems{position:relative;height:18px}
-.poems button{position:absolute;top:0;font-size:10px;color:var(--faint);padding:0 2px;transform:translateX(-1px);border-left:1px solid var(--rule2);height:16px;line-height:16px}
+.fbtn{font-size:11px;padding:4px 10px;border:1px solid var(--rule2);border-radius:3px;color:var(--dim)}
+.fbtn[aria-expanded="true"],.fbtn.active{border-color:var(--ink);color:var(--ink)}
+.sw{position:relative;touch-action:none;user-select:none;-webkit-user-select:none;cursor:ew-resize}
+#strip{display:block;width:100%;height:64px}
+.poems{position:relative;height:16px;overflow:hidden}
+.poems button{position:absolute;top:0;font-size:10px;color:var(--faint);padding:0 2px;border-left:1px solid var(--rule2);line-height:14px;white-space:nowrap}
 .poems button.cur{color:var(--ink)}
-.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:10.5px;color:var(--dim)}
-.legend span{display:inline-flex;align-items:center;gap:5px}
-.legend i{width:10px;height:10px;border-radius:1px;display:inline-block}
-.cov{display:grid;grid-template-columns:repeat(14,1fr);gap:3px}
-.cov button{display:flex;flex-direction:column;gap:2px;padding:0}
-.cov .stack{height:22px;display:flex;flex-direction:column-reverse;background:var(--panel);border-radius:1px;overflow:hidden}
-.cov .stack i{display:block}
-.cov small{font-size:9.5px;color:var(--faint);text-align:center}
-.cov button.cur small{color:var(--ink)}
+.key{display:flex;gap:12px;font-size:10px;color:var(--faint);flex-wrap:wrap}
+.key i{display:inline-block;width:8px;height:8px;margin-right:4px;border-radius:1px;vertical-align:-1px}
 
-/* lens */
-.lens{padding:8px 16px;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.filter{padding:8px 16px;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--rule)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{font-size:11px;padding:3px 9px;border:1px solid var(--rule2);border-radius:14px;color:var(--dim);white-space:nowrap}
-.chip[aria-pressed="true"]{border-color:var(--ink);color:var(--ink);background:var(--panel2)}
-.lensfoot{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px;color:var(--dim);flex-wrap:wrap}
-.lensfoot b{color:var(--ink);font-variant-numeric:tabular-nums}
-.nav{display:flex;gap:6px}
-.nav button{border:1px solid var(--rule2);border-radius:3px;padding:4px 10px;font-size:12px}
-.nav button:disabled{opacity:.35;cursor:default}
+.chip{font-size:11px;padding:3px 9px;border:1px solid var(--rule2);border-radius:14px;color:var(--dim)}
+.chip[aria-pressed="true"]{border-color:var(--ink);color:var(--ink)}
+.fr{display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--dim)}
+.fr b{color:var(--ink);font-variant-numeric:tabular-nums}
+.fr .sp{flex:1}
+.fr button{border:1px solid var(--rule2);border-radius:3px;padding:3px 9px}
 
-/* the vertebra */
-.card{padding:16px;display:flex;flex-direction:column;gap:14px;touch-action:pan-y}
-.frame{position:relative;width:100%;aspect-ratio:16/9;background:#000 no-repeat;border:1px solid var(--rule);border-radius:2px;overflow:hidden}
-.frame .tag{position:absolute;left:8px;top:8px;font-size:11px;background:rgba(0,0,0,.72);padding:2px 7px;border-radius:2px}
-.frame .var{position:absolute;right:8px;top:8px;font-size:11px;background:rgba(0,0,0,.72);padding:2px 7px;border-radius:2px;color:var(--dim)}
-.frame .none{position:absolute;inset:0;display:grid;place-items:center;color:var(--faint);font-size:12px}
-.words{font-family:var(--serif);font-size:clamp(22px,5.4vw,30px);line-height:1.2;text-wrap:balance;margin:0}
-.words.quiet{font-style:italic;color:var(--faint);font-size:18px}
-.meta{font-size:11.5px;color:var(--dim);font-variant-numeric:tabular-nums}
-.why{background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:10px 12px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start}
-.why p{margin:0;color:var(--dim);font-size:12px;max-width:62ch}
-.conf{display:flex;gap:3px;padding-top:4px}
-.conf i{width:14px;height:5px;background:var(--rule2);border-radius:1px}
+.card{padding:12px 16px 20px;display:flex;flex-direction:column;gap:12px;touch-action:pan-y}
+.hero{position:relative;width:100%;aspect-ratio:16/9;border-radius:2px;overflow:hidden;background:#000}
+.hero .sprite{position:absolute;inset:0}
+.hero .arr{position:absolute;top:0;bottom:0;width:22%;display:flex;align-items:center;font-size:22px;color:rgba(255,255,255,.75);text-shadow:0 1px 3px #000}
+.hero .arr.l{left:0;justify-content:flex-start;padding-left:8px}.hero .arr.r{right:0;justify-content:flex-end;padding-right:8px}
+.hero .arr:disabled{visibility:hidden}
+.hero .reads{position:absolute;left:8px;bottom:8px;display:flex;gap:3px}
+.hero .id{position:absolute;right:8px;bottom:8px;font-size:10px;color:rgba(255,255,255,.8);text-shadow:0 1px 2px #000}
+.vars{display:flex;gap:6px;overflow-x:auto}
+.vars button{flex:0 0 72px;aspect-ratio:16/9;border-radius:2px;overflow:hidden;position:relative;opacity:.6}
+.vars button[aria-pressed="true"]{opacity:1;outline:1.5px solid var(--ink)}
+.words{font-family:var(--serif);font-size:clamp(22px,5.6vw,30px);line-height:1.18;text-wrap:balance;margin:0}
+.intent{font-size:11px;color:var(--dim)}
+.prompt{font-family:var(--serif);font-style:italic;font-size:13.5px;color:var(--faint);margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-align:left}
+.prompt.open{-webkit-line-clamp:unset}
+.warn{font-size:11px;color:var(--dim);display:flex;gap:8px;align-items:baseline}
+.warn i{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}
+.hear{align-self:flex-start;font-size:11px;border:1px solid var(--rule2);border-radius:14px;padding:3px 10px}
 
-/* layer stack: the towers this vertebra is connected to */
-.layers{display:flex;flex-direction:column;border-top:1px solid var(--rule)}
-.row{border-bottom:1px solid var(--rule)}
-.row>button{width:100%;display:grid;grid-template-columns:14px 84px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 2px;text-align:left}
-.dot{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--faint)}
-.dot.on{background:var(--dim);border-color:var(--dim)}
-.dot.agree{background:var(--words);border-color:var(--words)}
-.row .nm{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
-.row .sm{font-size:12.5px;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.row .sm.off{color:var(--faint)}
-.row .ok{font-size:11px;color:var(--words);white-space:nowrap}
-.row .ok.no{color:var(--faint)}
-.row .det{display:none;padding:0 2px 12px 26px;font-size:12px;line-height:1.7;color:var(--dim);overflow-wrap:anywhere}
-.row.open .det{display:block}
-.det .src{display:block;margin-top:6px}
-.det .src{font-size:10.5px;color:var(--faint)}
-.det b{color:var(--ink);font-weight:500}
-.sg{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:17px;padding:0 4px;border-radius:2px;font:600 10.5px/1 var(--serif);color:#16130f;margin-right:3px;vertical-align:middle}
-.sg.hit{box-shadow:0 0 0 2px var(--words)}
-.play{display:inline-block;margin-top:6px;border:1px solid var(--rule2);border-radius:3px;padding:3px 9px;font-size:11.5px}
+.strip2{display:flex;flex-direction:column;gap:5px}
+.strip2 .h{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);display:flex;gap:8px;align-items:center}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
+.tile{position:relative;aspect-ratio:16/9;border-radius:2px;overflow:hidden;background:var(--panel)}
+.tile .sprite,.tile video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.tile .lab{position:absolute;left:0;right:0;bottom:0;padding:10px 4px 2px;font-size:9.5px;background:linear-gradient(transparent,rgba(0,0,0,.85));display:flex;justify-content:space-between;gap:4px}
+.tile .tr{position:absolute;right:3px;top:3px}
+.tile.hit{outline:2px solid var(--words);outline-offset:-2px}
+.tile.hit::after{content:'';position:absolute;inset:0;border:2px solid var(--words);border-radius:2px;pointer-events:none}
+.tile .pl{position:absolute;left:4px;top:3px;font-size:11px;text-shadow:0 1px 2px #000}
+.sg{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:15px;padding:0 3px;border-radius:2px;font:600 9.5px/1 var(--serif);color:#16130f}
+.sg.hit{box-shadow:0 0 0 1.5px var(--words)}
+.beat{font-size:11.5px;color:var(--dim)}
 
-/* layers matrix */
-.matrix{padding:16px;display:flex;flex-direction:column;gap:10px}
-.mx{overflow-x:auto}
-.mx table{border-collapse:separate;border-spacing:2px}
-.mx th{font:500 10px var(--mono);color:var(--faint);text-align:right;padding-right:6px;white-space:nowrap;letter-spacing:.04em;text-transform:uppercase;position:sticky;left:0;background:var(--bg)}
-.mx td{width:9px;min-width:9px;height:14px;border-radius:1px;background:var(--panel);cursor:pointer;padding:0}
-.mx td.on{background:#4c4841}
-.mx td.agree{background:var(--words)}
-.mx td.sel{outline:1.5px solid var(--red)}
-.foot{padding:18px 16px 36px;font-size:11px;color:var(--faint);border-top:1px solid var(--rule)}
-.foot code{color:var(--dim)}
-@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+.matrix{padding:12px 16px 24px;overflow-x:auto}
+.matrix table{border-collapse:separate;border-spacing:2px}
+.matrix th{font:500 9.5px var(--mono);color:var(--faint);text-align:right;padding-right:6px;white-space:nowrap;text-transform:uppercase;letter-spacing:.04em;position:sticky;left:0;background:var(--bg)}
+.matrix td{width:10px;min-width:10px;height:14px;border-radius:1px;background:var(--panel);cursor:pointer;padding:0}
+.matrix td.on{background:#4c4841}.matrix td.agree{background:var(--words)}
+.matrix td.sel{outline:1.5px solid var(--red)}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 </style>
 </head><body>
 
-<div class="app" id="app">
+<div class="app">
   <header class="status" aria-live="polite">
-    <div class="where"><div class="poem" id="sPoem">loading…</div><div class="clk" id="sClk"></div></div>
-    <div class="bars" id="sBars" title="agreement: how many layers confirm this vertebra"></div>
-    <div class="lay" id="sLay"></div>
+    <div style="min-width:0"><div class="poem" id="sPoem">loading…</div><div class="clk" id="sClk"></div></div>
+    <span id="sBadge"></span>
+    <div class="bars" id="sBars"></div>
   </header>
 
-  <section class="map" aria-label="Coverage map">
-    <div class="maphead">
-      <span class="lbl">Coverage · her 24 minutes</span>
-      <div class="seg" role="group" aria-label="Zoom"><button id="zSuite" aria-pressed="true">Suite</button><button id="zPoem" aria-pressed="false">Poem</button></div>
+  <section class="map">
+    <div class="mh">
+      <div class="seg" role="group" aria-label="Zoom"><button id="zS" aria-pressed="true">Suite</button><button id="zP" aria-pressed="false">Poem</button><button id="zG" aria-pressed="false">Grid</button></div>
+      <button class="fbtn" id="fBtn" aria-expanded="false" aria-controls="filter">Filter</button>
     </div>
-    <div class="stripwrap" id="stripwrap"><canvas id="strip" aria-label="Spine coverage strip; drag to move through the vertebrae"></canvas></div>
+    <div class="sw" id="sw"><canvas id="strip" aria-label="Her 24 minutes. Drag to move through the vertebrae."></canvas></div>
     <div class="poems" id="poems"></div>
-    <div class="legend">
-      <span><i style="background:var(--words)"></i>placed by her words</span>
-      <span><i style="background:var(--ts)"></i>by timestamp ±0.5 s</span>
-      <span><i style="background:var(--span)"></i>spread over the poem</span>
-      <span><i style="background:var(--board)"></i>storyboard between lines</span>
-      <span style="color:var(--faint)">height = layers joined</span>
-    </div>
-    <div class="cov" id="cov" aria-label="Per poem: share placed by words, by timestamp, spread"></div>
+    <div class="key"><span><i style="background:var(--words)"></i>her words</span><span><i style="background:var(--ts)"></i>timestamp</span><span><i style="background:var(--span)"></i>spread</span><span><i style="background:var(--board)"></i>storyboard</span><span>height = agreement</span></div>
   </section>
 
-  <section class="lens" aria-label="Lens">
-    <div class="chips" id="lens"></div>
-    <div class="lensfoot"><span id="lensN"></span>
-      <div class="nav"><button id="prev" aria-label="Previous match">←</button><button id="next" aria-label="Next match">→</button><button id="reset">reset</button></div>
-    </div>
+  <section class="filter" id="filter" hidden>
+    <div class="chips" id="chips"></div>
   </section>
-
-  <div class="seg" role="group" aria-label="View" style="margin:12px 16px 0;align-self:flex-start"><button id="mCard" aria-pressed="true">Vertebra</button><button id="mMx" aria-pressed="false">Poem matrix</button></div>
+  <section class="filter" id="fRow" hidden>
+    <div class="fr"><span><b id="fN"></b> match</span><span class="sp"></span><button id="fPrev" aria-label="Previous match">←</button><button id="fNext" aria-label="Next match">→</button><button id="fClear">clear</button></div>
+  </section>
 
   <section class="card" id="card" aria-live="polite"></section>
   <section class="matrix" id="matrix" hidden></section>
-
-  <footer class="foot">Built from <code>lab/syzygy/vertebrae.json</code>: 605 spine elements and 77 storyboard boards on her clock. Tap any layer to see its source and how it was joined. Keys: ← → move, Z zoom, M matrix.</footer>
 </div>
 
 <script>
 (function(){
 const DOMC={perception:'#e9d9a8',affect:'#f0b9a4',action:'#e7a37c',reflection:'#b9cfa0',mental:'#a9c9c9',break:'#d9d3c7',time:'#b8b3d8',read:'#d9b8d2'};
 const PC={words:'#b9cfa0',ts:'#d8c08a',span:'#e7a37c',board:'#5e5a52'};
-const CUTN=['suite','scenes','cineosis','drift'];
 const $=s=>document.querySelector(s);
 const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const mmss=t=>{const m=Math.floor(t/60),s=t-m*60;return m+':'+(s<10?'0':'')+s.toFixed(1)};
-let D,V,dur,sel=0,zoom='suite',mode='card',open=new Set(['intended','image']);
-const lens={place:new Set(['words','ts','span','board']),img:false,cut:false,metz:false};
+const mmss=t=>{const m=Math.floor(t/60),s=Math.floor(t-m*60);return m+':'+(s<10?'0':'')+s};
+let D,V,dur,sel=0,zoom='suite',varSel=0,promptOpen=false;
+const F={place:new Set(),img:false,cut:false,metz:false};
+const active=()=>F.place.size||F.img||F.cut||F.metz;
+const playable=new Map();   // url → true once it has actually loaded here
 
 fetch('view.json').then(r=>r.json()).then(d=>{
   D=d;V=d.v;dur=Math.max(...d.films.map(f=>f[3]));
-  const h=(location.hash||'').match(/^#v(\d+)$/); if(h){const k=V.findIndex(v=>v.v==+h[1]);if(k>=0)sel=k;}
-  else sel=V.findIndex(v=>v.id==='SH001');
-  buildLens();buildPoems();buildCov();wire();render();
-}).catch(e=>{$('#sPoem').textContent='Could not load view.json: '+e.message;});
+  const h=(location.hash||'').match(/^#v(\d+)$/);sel=h?Math.max(0,V.findIndex(v=>v.v==+h[1])):V.findIndex(v=>v.id==='SH001');
+  build();wire();render();
+}).catch(e=>{$('#sPoem').textContent='view.json did not load ('+e.message+').';});
 
-function layersOf(v){
-  return {clock:!!v.w,sound:!!v.snd,beat:true,intended:!!(v.it&&v.it[1]),image:!!(v.im&&v.im.length),cuts:true,spinecut:!!v.sc,pool:!!(v.po&&v.po.length),forage:!!v.fo,patch:!!v.pa};
-}
-const nLayers=v=>Object.values(layersOf(v)).filter(Boolean).length;
-const agreeN=v=>(v.ag[0]?1:0)+v.ag[1].length+(v.ag[2]&&v.ag[2].length?1:0);
+const agreeN=v=>v.k!=='spine'?0:(v.ag[0]?1:0)+v.ag[1].length+(v.ag[2]&&v.ag[2].length?1:0);
 function match(v){
-  if(!lens.place.has(v.p))return false;
-  if(lens.img&&!v.ag[0])return false;
-  if(lens.cut&&!v.ag[1].length)return false;
-  if(lens.metz&&!(v.ag[2]&&v.ag[2].length))return false;
-  return true;
+  if(F.place.size&&!F.place.has(v.p))return false;
+  if(F.img&&!v.ag[0])return false;if(F.cut&&!v.ag[1].length)return false;if(F.metz&&!(v.ag[2]&&v.ag[2].length))return false;return true;
 }
 const film=v=>D.films.find(f=>f[0]===v.f)||D.films[0];
+function sprite(set,k){const [n,w,h]=D.sheets[set],s=Math.floor(k/100),c=k%100;
+  return `background-image:url(sprites/${set}${s}.jpg);background-size:1000% 1000%;background-position:${(c%10)/9*100}% ${Math.floor(c/10)/9*100}%`;}
+function sign(n,asks){const s=D.signs[n];if(!s)return '';const hit=asks&&asks.includes(n);
+  return `<span class="sg${hit?' hit':''}" style="background:${DOMC[s[2]]||'#ccc'}" title="${esc(s[1])}${hit?' — the beat asks for it':''}">${esc(s[0])}</span>`;}
 
-// ---- lens
-function buildLens(){
-  const L=$('#lens');
-  const P=[['words','her words'],['ts','timestamp'],['span','spread'],['board','boards']];
-  P.forEach(([k,t])=>{const b=document.createElement('button');b.className='chip';b.dataset.p=k;b.textContent=t;L.append(b);});
-  [['img','image reads an asked sign'],['cut','a cut carries an asked sign'],['metz','Metz realises the intent']].forEach(([k,t])=>{const b=document.createElement('button');b.className='chip';b.dataset.f=k;b.textContent=t;L.append(b);});
-  L.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
-    if(b.dataset.p){lens.place.has(b.dataset.p)?lens.place.delete(b.dataset.p):lens.place.add(b.dataset.p);}
-    else lens[b.dataset.f]=!lens[b.dataset.f];
-    if(!match(V[sel])){const k=nearestMatch(sel);if(k>=0)sel=k;}
-    render();});
-}
-function nearestMatch(i){let best=-1,bd=1e9;V.forEach((v,k)=>{if(match(v)){const d=Math.abs(v.t0-V[i].t0);if(d<bd){bd=d;best=k;}}});return best;}
-function step(dir){for(let k=sel+dir;k>=0&&k<V.length;k+=dir){if(match(V[k])){sel=k;render();return;}}}
-
-// ---- poems row + per-poem coverage
-function buildPoems(){
-  const P=$('#poems');
-  D.films.forEach(f=>{const b=document.createElement('button');b.textContent=f[0];b.title=f[1];b.dataset.f=f[0];
-    b.onclick=()=>{const k=V.findIndex(v=>v.f===f[0]&&match(v));if(k>=0){sel=k;render();}};P.append(b);});
-}
-function buildCov(){
-  const C=$('#cov');
-  D.films.forEach(f=>{
-    const vs=V.filter(v=>v.f===f[0]),n=vs.length||1,c=p=>vs.filter(v=>v.p===p).length/n;
-    const b=document.createElement('button');b.dataset.f=f[0];b.title=`${f[1]}: ${vs.filter(v=>v.k==='spine').length} spine elements`;
-    b.innerHTML=`<span class="stack">${['words','ts','span','board'].map(p=>`<i style="height:${c(p)*100}%;background:${PC[p]}"></i>`).join('')}</span><small>${f[0]}</small>`;
-    b.onclick=()=>{const k=V.findIndex(v=>v.f===f[0]&&match(v));if(k>=0){sel=k;zoom='poem';render();}};
-    C.append(b);});
+function build(){
+  const P=$('#poems');D.films.forEach(f=>{const b=document.createElement('button');b.dataset.f=f[0];b.title=f[1];
+    b.onclick=()=>{const k=V.findIndex(v=>v.f===f[0]&&match(v));if(k>=0){sel=k;varSel=0;render();}};P.append(b);});
+  const C=$('#chips');
+  [['p','words','her words'],['p','ts','timestamp'],['p','span','spread'],['p','board','storyboard'],['f','img','image reads an asked sign'],['f','cut','a cut carries an asked sign'],['f','metz','Metz realises the intent']]
+    .forEach(([t,k,l])=>{const b=document.createElement('button');b.className='chip';b.dataset[t]=k;b.textContent=l;C.append(b);});
 }
 
 // ---- strip
 function range(){if(zoom==='suite')return[0,dur];const f=film(V[sel]);return[f[2],f[3]];}
 function drawStrip(){
-  const c=$('#strip'),r=c.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
-  c.width=Math.round(r.width*dpr);c.height=Math.round(r.height*dpr);
-  const g=c.getContext('2d');g.scale(dpr,dpr);const W=r.width,H=r.height;g.clearRect(0,0,W,H);
-  const [a,b]=range(),x=t=>(t-a)/(b-a)*W,base=H-4;
+  const c=$('#strip'),r=c.getBoundingClientRect(),dpr=window.devicePixelRatio||1;c.width=Math.round(r.width*dpr);c.height=Math.round(r.height*dpr);
+  const g=c.getContext('2d');g.scale(dpr,dpr);const W=r.width,H=r.height,[a,b]=range(),x=t=>(t-a)/(b-a)*W,base=H-2;
   g.fillStyle='#0f0e0d';g.fillRect(0,0,W,H);
-  D.films.forEach(f=>{if(f[2]>=a&&f[2]<=b){g.fillStyle='#262420';g.fillRect(Math.round(x(f[2])),0,1,H);}});
-  V.forEach((v,k)=>{
-    if(v.t1<a||v.t0>b)return;
-    const x0=x(v.t0),w=Math.max(zoom==='suite'?1:2,x(v.t1)-x0-(zoom==='suite'?0:1));
-    const h=v.k==='board'?10:8+(base-14)*nLayers(v)/10;
-    g.globalAlpha=match(v)?1:.16;g.fillStyle=PC[v.p];g.fillRect(x0,base-h,w,h);
-  });
-  g.globalAlpha=1;
-  const s=V[sel],px=x((s.t0+s.t1)/2);g.fillStyle='#ff3b2f';g.fillRect(Math.round(px)-1,0,2,H);
-  g.beginPath();g.moveTo(px-5,0);g.lineTo(px+5,0);g.lineTo(px,6);g.fill();
-  // poem labels
-  document.querySelectorAll('#poems button').forEach(el=>{const f=D.films.find(f=>f[0]===el.dataset.f);
-    const inside=f[2]>=a-.01&&f[2]<b;el.hidden=!inside||(zoom==='poem'&&f[0]!==s.f);el.style.left=Math.max(0,x(f[2]))+'px';el.classList.toggle('cur',f[0]===s.f);
-    if(zoom==='poem'&&f[0]===s.f)el.textContent=f[0]+' · '+f[1];else el.textContent=f[0];});
-  document.querySelectorAll('#cov button').forEach(el=>el.classList.toggle('cur',el.dataset.f===s.f));
+  D.films.forEach(f=>{if(f[2]>a&&f[2]<b){g.fillStyle='#23211e';g.fillRect(Math.round(x(f[2])),0,1,H);}});
+  V.forEach(v=>{if(v.t1<a||v.t0>b)return;const x0=x(v.t0),w=Math.max(zoom==='suite'?1:2,x(v.t1)-x0-(zoom==='suite'?0:1));
+    const h=v.k==='board'?6:10+(base-12)*agreeN(v)/6;g.globalAlpha=match(v)?1:.14;g.fillStyle=PC[v.p];g.fillRect(x0,base-h,w,h);});
+  g.globalAlpha=1;const s=V[sel],px=x((s.t0+s.t1)/2);g.fillStyle='#ff3b2f';g.fillRect(Math.round(px)-1,0,2,H);
+  document.querySelectorAll('#poems button').forEach(el=>{const f=D.films.find(f=>f[0]===el.dataset.f),cur=f[0]===s.f;
+    el.hidden=!(f[2]>=a-.01&&f[2]<b)||(zoom!=='suite'&&!cur);el.style.left=Math.max(0,x(f[2]))+'px';el.classList.toggle('cur',cur);
+    el.textContent=zoom!=='suite'&&cur?f[0]+' · '+f[1]:f[0];});
 }
-function pickAt(clientX){
-  const r=$('#strip').getBoundingClientRect(),[a,b]=range(),t=a+(clientX-r.left)/r.width*(b-a);
-  let best=-1,bd=1e9;V.forEach((v,k)=>{if(!match(v))return;const d=t<v.t0?v.t0-t:t>v.t1?t-v.t1:-(v.k==='spine'?1:0);if(d<bd){bd=d;best=k;}});
-  if(best>=0&&best!==sel){sel=best;render();}
-}
+function pickAt(cx){const r=$('#strip').getBoundingClientRect(),[a,b]=range(),t=a+(cx-r.left)/r.width*(b-a);
+  let best=-1,bd=1e9;V.forEach((v,k)=>{if(!match(v))return;const d=t<v.t0?v.t0-t:t>v.t1?t-v.t1:(v.k==='spine'?-1:0);if(d<bd){bd=d;best=k;}});
+  if(best>=0&&best!==sel){sel=best;varSel=0;render();}}
+function step(dir){for(let k=sel+dir;k>=0&&k<V.length;k+=dir)if(match(V[k])){sel=k;varSel=0;promptOpen=false;render();return;}}
 
-// ---- status bar
-function renderStatus(v){
-  const f=film(v);
-  $('#sPoem').textContent=`${f[0]} · ${f[1]}`;
-  $('#sClk').innerHTML=`${mmss(v.t0)} · <span class="badge p-${v.p}"><i></i>${{words:'her words',ts:'timestamp',span:'spread',board:'storyboard'}[v.p]}</span>`;
-  const n=v.k==='spine'?agreeN(v):0;
-  $('#sBars').innerHTML=[0,1,2,3,4,5].map(i=>`<i style="height:${6+i*2.4}px" class="${i<n?'on':''}"></i>`).join('');
-  $('#sBars').title=v.k==='spine'?`${n} of 6 agreements: image sign, four cuts' signs, Metz`:'storyboard board: no agreements scored';
-  $('#sLay').innerHTML=`<b>${nLayers(v)}</b>/10 layers<br>${v.k==='spine'?'agree '+n+'/6':'board'}`;
+// ---- a tile: an archive shot, playable in place only where its video actually loads here
+function tile(id,label,hit,metz,asks){
+  const a=D.arch[id];if(!a)return '';
+  return `<div class="tile${hit?' hit':''}" data-id="${esc(id)}"><div class="sprite" style="${sprite('a',a[0])}"></div>${a[3]?`<span class="tr">${sign(a[3],asks)}</span>`:''}<span class="pl" hidden>▶</span><div class="lab"><span>${esc(label)}</span><span>${esc(metz||'')}</span></div></div>`;
 }
+function probeVideos(){
+  document.querySelectorAll('.tile[data-id]').forEach(t=>{const a=D.arch[t.dataset.id],u=a&&a[4];if(!u)return;
+    const show=()=>{t.querySelector('.pl').hidden=false;t.tabIndex=0;t.setAttribute('role','button');t.setAttribute('aria-label','play '+(a[1]||'shot'));};
+    if(playable.get(u)===true)return show();if(playable.has(u))return;playable.set(u,false);
+    const v=document.createElement('video');v.preload='metadata';v.muted=true;v.src=u;
+    v.onloadedmetadata=()=>{playable.set(u,true);document.querySelectorAll(`.tile[data-id="${CSS.escape(t.dataset.id)}"]`).forEach(x=>{x.querySelector('.pl').hidden=false;x.tabIndex=0;});};});
+}
+function probeAudio(v){const u=v.au,b=$('#hear');if(!u||!b)return;
+  if(playable.get(u)===true){b.hidden=false;return;}if(playable.has(u))return;playable.set(u,false);
+  const a=new Audio();a.preload='metadata';a.onloadedmetadata=()=>{playable.set(u,true);const h=$('#hear');if(h&&V[sel].au===u)h.hidden=false;};a.src=u;}
 
-// ---- the card
-const PLACE={
-  words:['Placed by her words.','This prompt’s line was found in her word timings, so its start and end are hers.',3],
-  ts:['Placed by timestamp.','No word match. Its timestamp on the other master sits between matched neighbours in the same poem, so it is interpolated between them. Tested on matched elements, the error is about half a second.',2],
-  span:['Spread over the poem.','This poem has too few matched elements (Nevermore has no line text). Its timestamps are scaled across her voice in this poem, through any anchors it has. Position is approximate.',1],
-  board:['Storyboard between lines.','A WGY storyboard shot holding the time between her lines, from Spine-Cut.',0]};
-function sign(n,asks){const s=D.signs[n];if(!s)return '';return `<span class="sg${asks&&asks.includes(n)?' hit':''}" style="background:${DOMC[s[2]]||'#ccc'}" title="${esc(s[1])}${asks&&asks.includes(n)?' · asked by the beat':''}">${esc(s[0])}</span>`;}
-function row(key,name,present,agree,summary,detail,src){
-  const d=open.has(key);
-  return `<div class="row${d?' open':''}" data-k="${key}"><button aria-expanded="${d}"><span class="dot${present?(agree?' agree':' on'):''}"></span><span class="nm">${name}</span><span class="sm${present?'':' off'}">${summary}</span><span class="ok${agree?'':' no'}">${agree===null||agree===undefined?'':agree?'agrees':'—'}</span></button><div class="det">${detail}<span class="src">${src}</span></div></div>`;
-}
+// ---- the vertebra
 function renderCard(v){
-  const L=layersOf(v),asks=v.b[2],it=v.it||[];
-  const sheet=v.px==null?null:Math.floor(v.px/D.cell[2]),cell=v.px%D.cell[2];
-  const bg=sheet==null?'':`background-image:url(sprites/s${sheet}.jpg);background-size:1000% 1000%;background-position:${(cell%10)/9*100}% ${Math.floor(cell/10)/9*100}%`;
-  const [pt,pd,pc]=PLACE[v.p];
-  let h=`<div class="frame" style="${bg}">${sheet==null?'<div class="none">no image</div>':''}<span class="tag">V${v.v} · ${esc(v.id)}</span>${v.im&&v.im.length>1?`<span class="var">×${v.im.length} variants</span>`:''}</div>`;
-  h+=v.w?`<p class="words">“${esc(v.w)}”</p>`:`<p class="words quiet">${v.k==='board'?esc(it[0]||'between her lines'):'no words under it'}</p>`;
-  h+=`<div class="meta">${mmss(v.t0)}–${mmss(v.t1)} · ${(v.t1-v.t0).toFixed(1)} s · beat ${v.b[0]} · ${esc(v.b[3])}</div>`;
-  h+=`<div class="why"><div class="conf">${[0,1,2].map(i=>`<i style="background:${i<pc?PC[v.p]:''}"></i>`).join('')}</div><p><b style="color:var(--ink)">${pt}</b> ${pd}${v.re?' This one was matched to the wrong repeat of a word, so it was moved.':''}</p></div>`;
-  h+='<div class="layers">';
-  h+=row('clock','Her words',L.clock,null,v.w?esc(v.w):'—',`Line <b>${esc(v.ln||'—')}</b>. Words whose midpoint falls inside ${mmss(v.t0)}–${mmss(v.t1)}.`,'bets/kernel-data.json · joined by time');
-  h+=row('sound','Her voice',L.sound,null,v.snd?(v.snd.ev.length?esc(v.snd.ev.join(' · ')):'no pause or pitch event here'):'—',
-    v.snd?`Events inside: <b>${esc(v.snd.ev.join(', ')||'none')}</b>. Hooks: <b>${esc(v.snd.ch.join(', ')||'none')}</b>.<button class="play" data-a="${esc(v.snd.r)}">▶ hear her line</button><span class="msg"></span>`:'No spoken line here.','sound-cineosis.json · joined by time');
-  h+=row('beat','Beat',true,null,`${v.b[0]} · ${esc(v.b[1])}`,`Asks for ${asks.map(n=>sign(n)).join('')} · Save the Cat: <b>${esc(v.b[3])}</b> · storyboard: <b>${esc(v.b[4].join(', ')||'—')}</b>`,'syntagma-data.json beats · matrix/align.py · joined by time');
-  h+=row('intended','Asked for',L.intended,null,it[1]?`${esc(it[1])} · ${esc(it[2]||'')}`:'no label (Nevermore records carry none)',
-    `Syntagma <b>${esc(it[1]||'—')}</b> · function <b>${esc(it[2]||'—')}</b><br>Prompt: “${esc(it[3]||'—')}”<br>Line fragment: “${esc(it[0]||'—')}”`,'spine/total-cinome.json · the words that generated the image');
-  const im=(v.im||[])[0];
-  h+=row('image','Reads as',L.image,v.k==='spine'?!!v.ag[0]:null,im&&im[0]?im[0].map(n=>sign(n,asks)).join('')+(v.ag[0]?'':' <span style="color:var(--faint)">no asked sign</span>'):'—',
-    (v.im||[]).map((x,i)=>`Variant ${i+1}: ${x[0]?x[0].map(n=>sign(n,asks)).join(''):'—'} fit ${x[1]??'—'}${x[2]&&x[2].length?'<br>&nbsp;&nbsp;nearest archive: '+x[2].map(n=>`<b>${esc(n[0])}</b> (${n[1]||'n.d.'}) ${n[3].toFixed(2)}`).join(' · '):''}`).join('<br>')||'—',
-    'spine/spine-data.json · CLIP read on the archive’s scale · a ring marks a sign the beat asks for');
-  v.cu.forEach((c,i)=>{const sa=v.ag[1].includes(i),ma=v.ag[2]&&v.ag[2].includes(i);
-    h+=row('cut'+i,CUTN[i],true,v.k==='spine'?(sa||ma):null,`${c[0]?esc(c[0]):'—'} ${c[2]?sign(c[2],asks):''}<span style="color:var(--faint)">${esc(c[3])}</span>`,
-      `Shot: <b>${esc(c[0]||'—')}</b> (${c[1]||'n.d.'}), sign ${c[2]?sign(c[2],asks):'—'}${sa?' · <b>carries an asked sign</b>':''}<br>Metz reads the beat as <b>${esc(c[3])}</b>: ${esc(c[4])}${ma?' · <b>realises the intended syntagma</b>':''}`,'syntagma-data.json · syntagma/metz.js · a plan.py cut · joined by time');});
-  h+=row('spinecut','Spine-Cut',L.spinecut,null,v.sc?esc(v.sc[0]||'picked, no note'):'not in Spine-Cut',v.sc?`Review note: <b>${esc(v.sc[0]||'—')}</b> · blend mode <b>${esc(v.sc[1]||'—')}</b>`:'Only elements matched to her words are in Spine-Cut.','spinecut/spinecut-data.json');
-  h+=row('pool','Pool',L.pool,null,v.po&&v.po.length?esc(v.po[0][0]):'—',(v.po||[]).map(p=>`<b>${esc(p[0])}</b> ${esc(p[1]||'')}`).join('<br>')||'—','wygwyl/candidate-ranks.json · the beat’s top candidates');
-  h+=row('forage','Forage cut',L.forage,null,v.fo?esc(v.fo[1]||v.fo[0]||'—'):'—',v.fo?`Mode <b>${esc(v.fo[0]||'—')}</b> · ${esc(v.fo[1]||'')}`:'—','wygwyl/WYGWYL_Forage_Cut.json · joined by time');
-  h+=row('patch','Genome',L.patch,null,esc(v.pa||'—'),`Suite patch <b>${esc(v.pa||'—')}</b>`,'wygwyl/cuts/suite/patches.json · joined by time');
-  h+='</div>';
-  $('#card').innerHTML=h;
+  const asks=v.b[2],g=v.g.length?v.g:v.b[3],it=v.it;
+  const k=g[Math.min(varSel,g.length-1)];
+  const prev=V.slice(0,sel).some(match),next=V.slice(sel+1).some(match);
+  let h=`<div class="hero">${k!=null?`<div class="sprite" style="${sprite('g',k)}"></div>`:''}
+    <button class="arr l" id="aL" aria-label="Previous vertebra" ${prev?'':'disabled'}>‹</button><button class="arr r" id="aR" aria-label="Next vertebra" ${next?'':'disabled'}>›</button>
+    ${v.rd.length?`<div class="reads" title="what the image reads as; a ring marks a sign the beat asks for">${v.rd.map(n=>sign(n,asks)).join('')}</div>`:''}<span class="id">${esc(v.id)}</span></div>`;
+  if(g.length>1)h+=`<div class="vars" role="group" aria-label="Variants">${g.map((x,i)=>`<button data-var="${i}" aria-pressed="${i===varSel}" aria-label="variant ${i+1}"><div class="sprite" style="position:absolute;inset:0;${sprite('g',x)}"></div></button>`).join('')}</div>`;
+  if(v.w)h+=`<p class="words">“${esc(v.w)}”</p>`;
+  if(v.au)h+=`<button class="hear" id="hear" hidden>▶ her line</button>`;
+  if(it&&(it[0]||it[1]))h+=`<div class="intent">asked: ${esc([it[0],it[1]].filter(Boolean).join(' · '))}</div>`;
+  if(it&&it[2])h+=`<button class="prompt${promptOpen?' open':''}" id="prompt" aria-expanded="${promptOpen}">${esc(it[2])}</button>`;
+  const warn={ts:[PC.ts,'Placed by timestamp: no word match; about ±0.5 s.'+(v.re?' Its word match was out of order and was moved.':'')],
+    span:[PC.span,'Spread over the poem: no matched words nearby. Position approximate.'],board:[PC.board,'Storyboard, between her lines.']}[v.p];
+  if(warn)h+=`<div class="warn"><i style="background:${warn[0]}"></i>${warn[1]}</div>`;
+  const cuts=v.cu.map((c,i)=>c[0]?tile(c[0],D.cuts[i],v.ag[1].includes(i)||(v.ag[2]&&v.ag[2].includes(i)),c[1],asks):'').join('');
+  const extra=(v.sp?tile(v.sp,'spine-cut',false,'',asks):'')+(v.fo?tile(v.fo,'forage',false,'',asks):'');
+  if(cuts||extra)h+=`<div class="strip2"><div class="h">played here <span style="letter-spacing:0;text-transform:none">· green edge = agrees</span></div><div class="tiles">${cuts}${extra}</div></div>`;
+  if(v.nr.length)h+=`<div class="strip2"><div class="h">looks like</div><div class="tiles">${v.nr.map(id=>tile(id,(D.arch[id][1]||'').slice(0,18),false,'',asks)).join('')}</div></div>`;
+  h+=`<div class="strip2"><div class="h">beat ${v.b[0]}</div>${v.b[3].length&&v.g.length?`<div class="tiles">${v.b[3].map(x=>`<div class="tile"><div class="sprite" style="${sprite('g',x)}"></div><div class="lab"><span>storyboard</span></div></div>`).join('')}</div>`:''}<div class="beat">${esc(v.b[1])} ${asks.map(n=>sign(n)).join('')}</div></div>`;
+  $('#card').innerHTML=h;probeVideos();probeAudio(v);
 }
 
-// ---- matrix (semantic zoom: the poem)
-const MROWS=[['clock','words',v=>v.w?1:0],['sound','voice',v=>v.snd?1:0],['intended','asked',v=>v.it&&v.it[1]?1:0],['image','reads',v=>v.im&&v.im.length?(v.ag[0]?2:1):0],
-  ...[0,1,2,3].map(i=>['cut'+i,CUTN[i],v=>v.k!=='spine'?1:((v.ag[1].includes(i)||(v.ag[2]&&v.ag[2].includes(i)))?2:1)]),
-  ['spinecut','spine-cut',v=>v.sc?1:0],['pool','pool',v=>v.po&&v.po.length?1:0],['forage','forage',v=>v.fo?1:0],['patch','genome',v=>v.pa?1:0]];
+const MROWS=[['words',v=>v.w?1:0],['reads asked',v=>v.k!=='spine'?0:v.ag[0]?2:1],...[0,1,2,3].map(i=>[D&&D.cuts?D.cuts[i]:'',v=>v.k!=='spine'?1:((v.ag[1].includes(i)||(v.ag[2]&&v.ag[2].includes(i)))?2:1)])];
 function renderMatrix(v){
   const f=film(v),vs=V.map((x,k)=>[x,k]).filter(([x])=>x.f===f[0]);
-  let h=`<div class="lbl">${esc(f[0]+' · '+f[1])} · ${vs.length} vertebrae × 12 layers · green = the layer agrees</div><div class="mx"><table><tbody>`;
-  h+=`<tr><th>placed</th>${vs.map(([x,k])=>`<td data-k="${k}" class="${k===sel?'sel':''}" style="background:${PC[x.p]};opacity:${match(x)?1:.25}" title="V${x.v} ${esc(x.id)}"></td>`).join('')}</tr>`;
-  MROWS.forEach(([key,nm,fn])=>{h+=`<tr><th>${nm}</th>${vs.map(([x,k])=>{const s=fn(x);return `<td data-k="${k}" class="${s===2?'agree':s?'on':''}${k===sel?' sel':''}" style="opacity:${match(x)?1:.25}"></td>`;}).join('')}</tr>`;});
-  h+='</tbody></table></div><p class="meta">Tap a column to open that vertebra.</p>';
-  $('#matrix').innerHTML=h;
+  let h=`<table><tbody><tr><th>placed</th>${vs.map(([x,k])=>`<td data-k="${k}" class="${k===sel?'sel':''}" style="background:${PC[x.p]};opacity:${match(x)?1:.2}" title="${esc(x.id)}"></td>`).join('')}</tr>`;
+  MROWS.forEach(([nm,fn],r)=>{h+=`<tr><th>${esc(r>=2?D.cuts[r-2]:nm)}</th>${vs.map(([x,k])=>{const s=fn(x);return `<td data-k="${k}" class="${s===2?'agree':s?'on':''}${k===sel?' sel':''}" style="opacity:${match(x)?1:.2}"></td>`;}).join('')}</tr>`;});
+  $('#matrix').innerHTML=h+'</tbody></table>';
 }
 
-// ---- render
 function render(){
-  const v=V[sel];
-  renderStatus(v);drawStrip();
-  if(mode==='card')renderCard(v);else renderMatrix(v);
-  const m=V.filter(match).length;$('#lensN').innerHTML=`<b>${m}</b> of ${V.length} vertebrae in the lens`;
-  document.querySelectorAll('#lens .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.p?lens.place.has(b.dataset.p):lens[b.dataset.f]));
-  $('#zSuite').setAttribute('aria-pressed',zoom==='suite');$('#zPoem').setAttribute('aria-pressed',zoom==='poem');
-  $('#mCard').setAttribute('aria-pressed',mode==='card');$('#mMx').setAttribute('aria-pressed',mode==='mx');
-  $('#card').hidden=mode!=='card';$('#matrix').hidden=mode!=='mx';
-  $('#prev').disabled=!V.slice(0,sel).some(match);$('#next').disabled=!V.slice(sel+1).some(match);
+  const v=V[sel],f=film(v);
+  $('#sPoem').textContent=`${f[0]} · ${f[1]}`;$('#sClk').textContent=mmss(v.t0);
+  $('#sBadge').innerHTML=v.p==='words'?'':`<span class="badge" style="color:${PC[v.p]==='#5e5a52'?'#a39d92':PC[v.p]}">${{ts:'timestamp',span:'spread',board:'storyboard'}[v.p]}</span>`;
+  const n=agreeN(v);$('#sBars').hidden=v.k!=='spine';$('#sBars').innerHTML=[0,1,2,3,4,5].map(i=>`<i style="height:${6+i*2.4}px" class="${i<n?'on':''}"></i>`).join('');
+  $('#sBars').title=`${n} of 6 agree: the image's sign, the four cuts' signs, Metz`;
+  drawStrip();
+  const grid=zoom==='grid';$('#card').hidden=grid;$('#matrix').hidden=!grid;grid?renderMatrix(v):renderCard(v);
+  ['zS','zP','zG'].forEach((id,i)=>$('#'+id).setAttribute('aria-pressed',zoom===['suite','poem','grid'][i]));
+  document.querySelectorAll('#chips .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.p?F.place.has(b.dataset.p):F[b.dataset.f]));
+  $('#fBtn').classList.toggle('active',!!active());
+  $('#fRow').hidden=!active();if(active()){$('#fN').textContent=V.filter(match).length;$('#fPrev').disabled=!V.slice(0,sel).some(match);$('#fNext').disabled=!V.slice(sel+1).some(match);}
   try{history.replaceState(null,'','#v'+v.v);}catch(e){}
 }
 
 function wire(){
-  const sw=$('#stripwrap');let drag=false;
+  const sw=$('#sw');let drag=false;
   sw.addEventListener('pointerdown',e=>{drag=true;sw.setPointerCapture(e.pointerId);pickAt(e.clientX);});
   sw.addEventListener('pointermove',e=>{if(drag)pickAt(e.clientX);});
-  sw.addEventListener('pointerup',()=>drag=false);sw.addEventListener('pointercancel',()=>drag=false);
-  $('#zSuite').onclick=()=>{zoom='suite';render();};$('#zPoem').onclick=()=>{zoom='poem';render();};
-  $('#mCard').onclick=()=>{mode='card';render();};$('#mMx').onclick=()=>{mode='mx';render();};
-  $('#prev').onclick=()=>step(-1);$('#next').onclick=()=>step(1);
-  $('#reset').onclick=()=>{lens.place=new Set(['words','ts','span','board']);lens.img=lens.cut=lens.metz=false;render();};
+  ['pointerup','pointercancel'].forEach(t=>sw.addEventListener(t,()=>drag=false));
+  $('#zS').onclick=()=>{zoom='suite';render();};$('#zP').onclick=()=>{zoom='poem';render();};$('#zG').onclick=()=>{zoom='grid';render();};
+  $('#fBtn').onclick=()=>{const o=$('#filter').hidden;$('#filter').hidden=!o;$('#fBtn').setAttribute('aria-expanded',o);};
+  $('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.p){F.place.has(b.dataset.p)?F.place.delete(b.dataset.p):F.place.add(b.dataset.p);}else F[b.dataset.f]=!F[b.dataset.f];
+    if(!match(V[sel])){let best=-1,bd=1e9;V.forEach((v,k)=>{if(match(v)){const d=Math.abs(v.t0-V[sel].t0);if(d<bd){bd=d;best=k;}}});if(best>=0){sel=best;varSel=0;}}
+    render();});
+  $('#fPrev').onclick=()=>step(-1);$('#fNext').onclick=()=>step(1);
+  $('#fClear').onclick=()=>{F.place.clear();F.img=F.cut=F.metz=false;$('#filter').hidden=true;$('#fBtn').setAttribute('aria-expanded','false');render();};
   $('#card').addEventListener('click',e=>{
-    const p=e.target.closest('.play');
-    if(p){const a=new Audio(p.dataset.a),msg=p.nextElementSibling;p.textContent='… loading';
-      a.play().then(()=>{p.textContent='■ playing';a.onended=()=>p.textContent='▶ hear her line';}).catch(()=>{p.textContent='▶ hear her line';msg.textContent=' Her recording can’t load here. It plays in the lab (lab/syzygy/).';});return;}
-    const r=e.target.closest('.row>button');if(!r)return;const k=r.parentElement.dataset.k;open.has(k)?open.delete(k):open.add(k);renderCard(V[sel]);});
-  $('#matrix').addEventListener('click',e=>{const td=e.target.closest('td[data-k]');if(!td)return;sel=+td.dataset.k;mode='card';render();window.scrollTo({top:0,behavior:'smooth'});});
+    if(e.target.closest('#aL'))return step(-1);if(e.target.closest('#aR'))return step(1);
+    const vb=e.target.closest('[data-var]');if(vb){varSel=+vb.dataset.var;renderCard(V[sel]);return;}
+    if(e.target.closest('#prompt')){promptOpen=!promptOpen;renderCard(V[sel]);return;}
+    const hb=e.target.closest('#hear');if(hb){const a=new Audio(V[sel].au);hb.textContent='■ playing';a.onended=()=>{hb.textContent='▶ her line';};a.play().catch(()=>{hb.hidden=true;});return;}
+    const t=e.target.closest('.tile[data-id]');if(t&&!t.querySelector('.pl').hidden){const a=D.arch[t.dataset.id],ex=t.querySelector('video');
+      if(ex){ex.remove();t.querySelector('.pl').hidden=false;return;}
+      const vd=document.createElement('video');vd.src=a[4];vd.muted=true;vd.playsInline=true;vd.loop=true;vd.autoplay=true;t.append(vd);t.querySelector('.pl').hidden=true;}});
+  $('#matrix').addEventListener('click',e=>{const td=e.target.closest('td[data-k]');if(!td)return;sel=+td.dataset.k;varSel=0;zoom='poem';render();});
   let sx=null;const card=$('#card');
   card.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse')sx=e.clientX;});
   card.addEventListener('pointerup',e=>{if(sx!=null&&Math.abs(e.clientX-sx)>60)step(e.clientX<sx?1:-1);sx=null;});
-  document.addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,textarea'))return;
+  document.addEventListener('keydown',e=>{
     if(e.key==='ArrowRight'){step(1);e.preventDefault();}else if(e.key==='ArrowLeft'){step(-1);e.preventDefault();}
-    else if(e.key==='z'||e.key==='Z'){zoom=zoom==='suite'?'poem':'suite';render();}
-    else if(e.key==='m'||e.key==='M'){mode=mode==='card'?'mx':'card';render();}});
+    else if(e.key==='Escape'){if(!$('#filter').hidden){$('#filter').hidden=true;$('#fBtn').setAttribute('aria-expanded','false');}}
+    else if(e.key==='Enter'&&document.activeElement&&document.activeElement.classList.contains('tile'))document.activeElement.click();});
   window.addEventListener('resize',drawStrip);
 }
 })();
