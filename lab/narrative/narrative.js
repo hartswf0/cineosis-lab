@@ -227,6 +227,8 @@
     requestAnimationFrame(tick);
   }
 
+  N.api = { A, line, wordAt, film, inSpan, atT, setLine: (i, seek) => setLine(i, seek), tryShot: s => tryShot(s), keep: s => keep(s), verb: k => verb(k), nowShot: t => nowShot(t), colorOf: s => colorOf(s), get KD() { return KD; }, get LOOPS() { return LOOPS; }, get nowEl() { return document.getElementById('nNow'); } };   // for precog.js
+
   async function start() {
     [KD, ND] = await Promise.all([fetch('bets/kernel-data.json').then(r => r.json()), fetch('narrative/narrative-data.json').then(r => r.json())]);
     KD.films.forEach(f => { const ls = KD.lines.filter(l => l.film === f.n); f.p0 = ls.length ? ls[0].t0 : f.t0; f.p1 = ls.length ? ls.at(-1).t1 : f.t1; });
