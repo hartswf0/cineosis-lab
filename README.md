@@ -34,6 +34,14 @@ It exports the lab's `cineosis-edl/1` (every event, your couplings, the text car
 
 **Feel (`lab/feel.js`, shared with ABC FLIX):** short synthesised sounds and haptics for select, grab, snap, drop, couple, like, merge, undo and warnings. On iPhone it uses Safari's switch haptic. The sounds step back under her voice. `S` cycles sound + touch, touch only, or off. Kept in `vtstudio.*` storage, separate from Videotext's.
 - **ABC FLIX** (`lab/abc-flix/`) — the ABC FLIX harness (ICARO-PRO engine + ARC-TUNNEL) ripping lab footage: a sign's read shots, a WYGWYL beat or the Studio film, each shot filed on the probability track its evidence earns. See `lab/abc-flix/README.md`.
+- **Narrative Chemistry** (`lab/chemistry.html`, `lab/chemistry/`) — each poem as a compound.
+  - **Atoms and valence:** the 45 signs are the atoms. Composition holds 2, genesis holds 3, opsign and sonsign hold 1, and the lectosign holds 4.
+  - **Bonds are cuts:** − a cut, = shared time, ≡ a rhyme within one image type, ⇌ resonance between signs a shot can flip between (the confusion table), → the break from movement-image into time-image, ··· a loose association.
+  - **Ligands** are the sound table's elements, bound IN, OFF or OUT; her voice binds OUT.
+  - **Reactions:** flip (the table's conditions), condense (composition into genesis), break (a sound move from Deamer p.168 as catalyst), crystallise and read.
+  - **Natural compounds** are measured: `chemistry/build_chemistry.py` builds them from each poem's beat pools and suite cut.
+  - **Syntheses:** each natural compound has a name and reading, plus one new synthesis per poem, in `chemistry/author.py`, which checks every bond and valence.
+  - **The bench** makes new compounds and saves them in `cineosis.compounds.v1`. A synthesis lays a compound over the poem's lines with a shot for each sign. Screen it, send it to the Studio as a branch, add it to the CHEM film the Bets can take from, or export an EDL. **Write-up** (`W`) prints all 28.
 - **One clock** (`lab/clock.js`) — the Studio, ABC FLIX · Whole Film and the Bets share her clock. Open another tool while the film plays and it carries on at the same moment (muted until a tap, if the browser insists). With several open side by side, the one you play leads and the rest follow it in silence.
 - **ABC FLIX · Whole Film** (`lab/abc-flix/film.html`) — ABC FLIX rebuilt on the kernel clock: the whole film as a tunnel under her voice, a POSSIBLE → PREFERRED decision ladder (pool, machine draft, audition, film), a BEFLIX lens ripping ±6 s around the playhead, and the film out as `cineosis-edl/1` and `cineosis.film.FLIX.v1`.
 - **The cineosis reel** — `cineosis-reel.mp4` (10 min) in [Releases](https://github.com/hartswf0/cineosis-lab/releases/tag/v0.1): every sign as a title card with its deciding test, then its strongest shots.
