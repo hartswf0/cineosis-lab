@@ -440,11 +440,20 @@ function drawAll(tabs = true) {
   if (tabs !== false) drawTabs(); else drawTabs();
   drawSpectrum(); drawFingerprint(); drawChroma(); drawFragments(); drawPhase(); drawValence(); drawSeeds(); drawBench(); drawPress(); drawConformers(); drawMicroscope();
 }
-fetch('compounds/compounds-data.json').then(r => r.json()).then(d => {
+// the data is revalidated on every visit (usually a quick 304) and checked to really be JSON, with two retries:
+// a stale cached page, or a load during a deploy, can otherwise get an HTML "not found" page in its place
+function loadData(tries = 0) {
+  return fetch('compounds/compounds-data.json', { cache: tries ? 'reload' : 'no-cache' }).then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status + ' for compounds/compounds-data.json');
+    if (/html/i.test(r.headers.get('content-type') || '')) throw new Error('the site sent a page instead of the data (it may be updating)');
+    return r.json();
+  }).catch(e => tries < 2 ? new Promise(res => setTimeout(res, 1500 * (tries + 1))).then(() => loadData(tries + 1)) : Promise.reject(e));
+}
+loadData().then(d => {
   D = d; T = d.theory; SIGNS = Object.keys(d.signs);
   Object.values(d.cand).forEach(v => v.forEach(c => CM.set(c[0], c)));
   const q = new URLSearchParams(location.search).get('poem'); if (q && d.films.some(f => f.n === q)) S.film = q;
   writeSystem(); mineSpecies(); drawAll(); drawResiduals(); drawRoundTrip(); drawSpecies();
   $('#tabs').addEventListener('click', () => { drawRoundTrip(); });
-}).catch(e => { document.body.insertAdjacentHTML('beforeend', `<p class="empty">Could not load the apparatus data: ${esc(e.message)}</p>`); console.error(e); });
+}).catch(e => { document.body.insertAdjacentHTML('beforeend', `<p class="empty">Could not load the apparatus data: ${esc(e.message)}. If the site was just updated, <button type="button" onclick="location.reload()">reload the page</button>.</p>`); console.error(e); });
 })();
