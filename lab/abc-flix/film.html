@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ABC FLIX · Whole Film</title>
+<meta name="description" content="ABC FLIX rebuilt on the lab's clock: the whole WYGWYL film as a tunnel you fly through under her voice, four rungs from POSSIBLE to PREFERRED, a BEFLIX lens on the playhead, and the film out as a cineosis EDL.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%230a0a0a'/><circle cx='16' cy='16' r='9' fill='none' stroke='%23f59e0b' stroke-width='3'/><circle cx='16' cy='16' r='3' fill='%23ec4899'/></svg>">
+<style>
+:root{--bg:#0a0a0a;--panel:#111;--rule:#222;--ink:#e8e6e1;--dim:#777;--faint:#444;--P:#ec4899;--L:#3b82f6;--B:#22c55e;--F:#f59e0b;--red:#ef4444;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--ink);font:12px/1.35 var(--mono)}
+body{display:grid;grid-template-rows:auto 1fr auto auto;height:100vh;height:100dvh;overflow:hidden}
+button,select{font:inherit;color:inherit}
+header{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--rule);flex-wrap:wrap;min-width:0}
+header h1{font:900 13px var(--mono);letter-spacing:.06em;white-space:nowrap}
+header h1 em{font-style:normal;color:var(--F)}
+header a{color:var(--dim);text-decoration:none;font-size:11px}
+header a:hover{color:var(--ink)}
+.sp{flex:1}
+.btn{background:#161616;border:1px solid #2a2a2a;border-radius:3px;padding:3px 8px;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
+.btn:hover{border-color:#555}
+.btn.pri{background:var(--F);color:#0a0a0a;border-color:var(--F)}
+.btn.on{border-color:var(--ink)}
+.btn:disabled{opacity:.35;cursor:default}
+select.btn{padding:2px 4px}
+#clock{font:700 12px var(--mono);color:var(--F);min-width:88px}
+main{display:grid;grid-template-columns:minmax(300px,420px) 1fr;min-height:0}
+.lens{display:flex;flex-direction:column;border-right:1px solid var(--rule);min-height:0;overflow:auto}
+.screen{position:relative;background:#000;aspect-ratio:4/3;flex:none}
+.screen video,.screen canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.screen canvas{image-rendering:pixelated;image-rendering:crisp-edges}
+.screen .tag{position:absolute;left:6px;top:6px;z-index:2;font:700 10px var(--mono);padding:1px 5px;border-radius:2px;background:#000c}
+.screen .note{position:absolute;left:0;right:0;bottom:0;z-index:2;font:500 10.5px var(--mono);padding:4px 6px;background:linear-gradient(transparent,#000d);color:#ccc}
+.screen .words{position:absolute;left:6%;right:6%;bottom:22%;z-index:2;text-align:center;font:700 clamp(13px,2vw,18px)/1.2 var(--mono);color:#fff;text-shadow:0 0 6px #000,0 0 2px #000}
+.screen .words b{color:var(--red)}
+.lmodes{display:flex;gap:4px;padding:6px 8px;align-items:center;flex-wrap:wrap}
+.lmodes small{color:var(--dim);font-size:10px}
+#strip{display:block;width:100%;height:auto;background:#050505;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);cursor:pointer;flex:none}
+.card{padding:8px 10px;display:grid;grid-template-columns:96px 1fr;gap:8px;align-items:start;border-bottom:1px solid var(--rule)}
+.card img{width:96px;aspect-ratio:4/3;object-fit:cover;background:#222;border:2px solid var(--faint)}
+.card h3{font:700 11.5px/1.25 var(--mono);margin-bottom:3px}
+.card p{color:var(--dim);font-size:10.5px;margin-bottom:5px}
+.card .rung{font:800 10px var(--mono);letter-spacing:.06em}
+.card .acts{display:flex;gap:4px;flex-wrap:wrap}
+.card.empty{display:block;color:var(--dim);font-size:11px}
+.ladderkey{padding:8px 10px;color:var(--dim);font-size:10.5px;line-height:1.5}
+.ladderkey b{font-weight:800}
+.tunnelwrap{position:relative;min-height:0;min-width:0}
+#tunnel{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab;display:block}
+#tunnel.drag{cursor:grabbing}
+.hud{position:absolute;left:8px;top:6px;right:8px;pointer-events:none;display:flex;justify-content:space-between;gap:8px;font:700 10.5px var(--mono);color:#aaa;text-shadow:0 0 4px #000}
+.hud b{color:var(--ink)}
+.lanes{position:absolute;left:0;right:0;bottom:6px;display:flex;justify-content:center;gap:10px;pointer-events:none;font:800 9.5px var(--mono);letter-spacing:.06em}
+footer{border-top:1px solid var(--rule)}
+#over{display:block;width:100%;height:118px;cursor:pointer;touch-action:none}
+.bar{display:flex;gap:6px;align-items:center;padding:5px 10px;flex-wrap:wrap;border-top:1px solid var(--rule)}
+.bar .grp{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.bar small{color:var(--dim);font-size:10px}
+#toast{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);background:#fafafa;color:#0a0a0a;font:700 11.5px var(--mono);padding:6px 10px;border-radius:3px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50;max-width:92vw;text-align:center}
+#toast.on{opacity:1}
+dialog{margin:auto;background:#111;color:var(--ink);border:1px solid #333;border-radius:4px;padding:14px 16px;max-width:560px;width:92vw}
+dialog h3{font:900 13px var(--mono);margin-bottom:8px}
+dialog td{padding:2px 8px 2px 0;vertical-align:top;font-size:11px}
+dialog td:first-child{white-space:nowrap;color:var(--F)}
+dialog::backdrop{background:#000a}
+.hidden{display:none}
+@media (max-width:860px){
+  body{grid-template-rows:auto auto 1fr auto auto;overflow:auto;height:auto;min-height:100dvh}
+  main{display:contents}
+  .lens{border-right:0;overflow:visible}
+  .screen{aspect-ratio:auto;height:min(38vh,72vw)}
+  .card{grid-template-columns:72px 1fr}
+  .card img{width:72px}
+  .ladderkey{display:none}
+  .tunnelwrap{height:min(46vh,380px);border-top:1px solid var(--rule)}
+  #over{height:104px}
+  header h1{font-size:12px}
+  #toast{bottom:120px}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>ABC FLIX · <em>WHOLE FILM</em></h1>
+  <button class="btn pri" id="play" title="play / pause (space)">▶ PLAY</button>
+  <span id="clock">00:00.0</span>
+  <span id="where" style="color:var(--dim);font-size:11px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40vw"></span>
+  <span class="sp"></span>
+  <a href="./" title="the original ABC FLIX: engine and tunnel on the bus">ABC FLIX (reel) ↗</a>
+  <a href="../videotext-studio.html">Studio ↗</a>
+  <a href="../bets/">Bets ↗</a>
+  <button class="btn" id="help" title="keys (?)">?</button>
+</header>
+<main>
+  <section class="lens" aria-label="The lens">
+    <div class="screen" id="screen">
+      <video id="scr" muted playsinline preload="auto"></video>
+      <canvas id="bfx" width="128" height="96"></canvas>
+      <span class="tag" id="stag">—</span>
+      <div class="words" id="words"></div>
+      <div class="note" id="snote"></div>
+    </div>
+    <div class="lmodes">
+      <button class="btn on" data-mode="beflix" title="the picture as BEFLIX: 128 × 96, 7 levels (B)">BEFLIX</button>
+      <button class="btn" data-mode="picture" title="the picture as it is (B)">PICTURE</button>
+      <span class="sp"></span><small id="lensInfo">lens · ±6 s at 12 fps</small>
+    </div>
+    <canvas id="strip" width="840" height="60" title="the lens: 12 seconds around the playhead, ripped to BEFLIX at 12 fps. Click to go there."></canvas>
+    <div class="card empty" id="card">Click a clip in the tunnel to hold it. <b>↑</b> promotes it one rung, <b>↓</b> demotes it.</div>
+    <div class="ladderkey">
+      <b style="color:var(--P)">POSSIBLE</b> the beat’s pool (16 per beat) ·
+      <b style="color:var(--L)">PLAUSIBLE</b> a machine draft (one of the four cuts, a bet’s film or your Studio film) ·
+      <b style="color:var(--B)">PROBABLE</b> what you’re auditioning ·
+      <b style="color:var(--F)">PREFERRED</b> the film: one clip per instant, snapped to her words.<br>
+      The machine drafts, you decide: promote a clip up the ladder, or drag it onto the floor where and when you want it.
+    </div>
+  </section>
+  <section class="tunnelwrap" aria-label="The tunnel: the whole film">
+    <canvas id="tunnel"></canvas>
+    <div class="hud"><span id="hudL"></span><span id="hudR"></span></div>
+    <div class="lanes"><span style="color:var(--P)">POSSIBLE</span><span style="color:var(--L)">PLAUSIBLE</span><span style="color:var(--B)">PROBABLE</span><span style="color:var(--F)">PREFERRED</span></div>
+  </section>
+</main>
+<footer>
+  <canvas id="over" title="the whole film: 14 poems, four rungs, your film. Click or drag to go there."></canvas>
+</footer>
+<div class="bar">
+  <div class="grp"><small>draft</small><select class="btn" id="draft" title="the PLAUSIBLE rung: which machine draft"></select><button class="btn" id="take" title="take the draft for this poem into the film (D)">TAKE DRAFT · POEM</button></div>
+  <div class="grp"><button class="btn" id="up" title="promote the held clip (↑)">↑ PROMOTE</button><button class="btn" id="down" title="demote the held clip (↓)">↓ DEMOTE</button><button class="btn" id="next" title="the next line with no film under it (N)">N NEXT UNMADE</button><button class="btn" id="screenF" title="screen the film from the start of this poem (F)">F SCREEN POEM</button><button class="btn" id="zoom" title="the strip below: the whole film or this poem (Z)">Z POEM</button></div>
+  <span class="sp"></span>
+  <div class="grp"><small id="made"></small><button class="btn" id="edl" title="the film as a cineosis EDL (E)">EDL ↓</button><button class="btn" id="edlIn" title="read a cineosis EDL into the film">EDL ↑</button><input type="file" id="edlFile" accept=".json,application/json" class="hidden"></div>
+</div>
+<audio id="aud" preload="auto"></audio>
+<div id="toast"></div>
+<dialog id="keys">
+  <h3>ABC FLIX · Whole Film · keys</h3>
+  <table>
+    <tr><td>space</td><td>play / pause. Her voice is the clock; the film plays under it and is never re-timed</td></tr>
+    <tr><td>wheel · drag</td><td>fly through the tunnel (drag the empty floor forward or back); the strip below scrubs the whole film</td></tr>
+    <tr><td>click a clip</td><td>hold it · double-click: promote it · drag it onto a lane of the floor: put it there, then</td></tr>
+    <tr><td>↑ ↓ · ⌫</td><td>promote / demote the clip you hold · take it off the ladder</td></tr>
+    <tr><td>← →</td><td>previous / next line of the poem</td></tr>
+    <tr><td>[ ]</td><td>the previous / next clip on the held clip’s rung</td></tr>
+    <tr><td>N · F</td><td>the next line with no film under it · screen the film from the start of this poem</td></tr>
+    <tr><td>D</td><td>take the draft’s clips for this poem into the film</td></tr>
+    <tr><td>B · Z · E</td><td>BEFLIX or picture · strip: film or poem · the film as a cineosis EDL</td></tr>
+  </table>
+  <p style="margin-top:10px;color:var(--dim);font-size:10.5px">BEFLIX needs the picture’s pixels, which a browser only gives for same-origin video: the Tempest loops and the lab’s clips always, every shot under <code>python3 lab/server.py</code>. Other shots play as pictures and show as stills in the lens. Your film is kept in this browser and shared with the other instruments as <code>cineosis.film.FLIX.v1</code>.</p>
+  <p style="margin-top:10px;text-align:right"><button class="btn" onclick="this.closest('dialog').close()">close</button></p>
+</dialog>
+<script>
+'use strict';
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = t => { t = Math.max(0, t || 0); const m = Math.floor(t / 60); return `${String(m).padStart(2, '0')}:${(t - m * 60).toFixed(1).padStart(4, '0')}`; };
+const store = { get(k, d) { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage blocked */ } } };
+let toastT; function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2600); }
+const buzz = p => { if (navigator.vibrate) try { navigator.vibrate(p); } catch (e) { /* no haptics */ } };
+
+const RUNGS = [
+  { name: 'POSSIBLE', col: '#ec4899' }, { name: 'PLAUSIBLE', col: '#3b82f6' },
+  { name: 'PROBABLE', col: '#22c55e' }, { name: 'PREFERRED', col: '#f59e0b' }];
+const DOM = { perception: '#e9d9a8', affect: '#f0b9a4', action: '#e7a37c', reflection: '#b9cfa0', mental: '#a9c9c9', break: '#d9d3c7', time: '#b8b3d8', read: '#d9b8d2' };
+const FILMKEY = 'cineosis.film.FLIX.v1', WORKKEY = 'abcflix.film.v1';
+
+/* ============ the clock and the text: her voice, the 14 poems, 267 lines, every word ============ */
+const K = { D: 0, films: [], lines: [], words: [], beats: [], pool: {}, signs: {}, clips: new Map(), cuts: {}, media: { loops: new Set(), local: new Set() }, server: false };
+const S = { T: 0, playing: false, draft: 'suite', sel: null, probable: [], preferred: [], zoom: 'film', mode: 'beflix', hist: [] };
+const aud = $('#aud');
+function wordAt(t) { const a = K.words; let lo = 0, hi = a.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (a[m].t0 <= t) lo = m; else hi = m - 1; } return a[lo] && t >= a[lo].t0 && t < a[lo].t1 + 0.25 ? a[lo] : null; }
+function lineAt(t) { return K.lines.find(l => t >= l.t0 && t < l.t1 + 0.3) || null; }
+function filmAt(t) { for (let i = K.films.length - 1; i >= 0; i--) if (t >= K.films[i].t0) return K.films[i]; return K.films[0]; }
+function beatAt(t) { return K.beats.find(b => t >= b.t0 && t < b.t1) || null; }
+function textOf(t0, t1) { return K.words.filter(w => w.t1 > t0 + 0.02 && w.t0 < t1 - 0.02).map(w => w.w).join(' '); }
+function snap(t, tol = 0.45) { let best = t, bd = tol; for (const w of K.words) { if (w.t0 > t + tol) break; if (w.t1 < t - tol) continue; for (const x of [w.t0, w.t1]) { const d = Math.abs(x - t); if (d < bd) { bd = d; best = x; } } } return best; }
+function signOf(c) { const g = c && c.sg && K.signs[c.sg]; return g ? { symbol: g.symbol, name: g.name, col: DOM[g.dom] || '#bbb' } : { symbol: '·', name: '', col: '#9a9a9a' }; }
+function slim(c) { const k = K.clips.get(c.id) || {}; return { id: c.id, title: c.title, year: c.year, thumb: c.thumb, video: c.video, in: +(c.in || 0), dur: c.dur || k.dur, sg: c.sg || k.sg, loop: c.loop != null ? c.loop : k.loop }; }
+
+/* ============ where the pixels come from: same origin, or only a picture ============ */
+function srcOf(c) {
+  if (!c) return null;
+  if (K.media.local.has(c.id)) return { url: '../clips/' + c.id + '.mp4', px: true, loop: false, where: 'LOCAL' };
+  if (K.server) return { url: '/media/' + c.id + '.mp4', px: true, loop: false, where: 'SERVER' };
+  if (K.media.loops.has(c.id)) return { url: '../wygwyl/tempest/' + c.id + '.mp4', px: true, loop: true, where: 'LOOP' };
+  return c.video ? { url: c.video, px: false, loop: false, where: 'CDN' } : null;
+}
+// where in the source a moment of the film falls: a loop wraps, a clip starts at its in-point and wraps at its end
+function srcTime(seat, src, t, dur) { let v = (src.loop ? 0 : seat.clip.in || 0) + Math.max(0, t - seat.t0); if (dur > 0.5 && v > dur - 0.04) v = v % dur; return Math.max(0, v); }
+
+/* ============ the four rungs ============ */
+// POSSIBLE and PLAUSIBLE are the machine's: the pool of each beat, and a draft. PROBABLE and PREFERRED are yours.
+function poolSeats(a, b) {
+  const out = [];
+  K.beats.forEach(bt => {
+    if (bt.t1 <= a || bt.t0 >= b) return;
+    const L = K.pool[bt.id] || [], n = L.length; if (!n) return;
+    const w = (bt.t1 - bt.t0) / n;
+    L.forEach((c, i) => out.push({ key: 'p' + bt.id + '.' + i, rung: 0, t0: bt.t0 + i * w, t1: bt.t0 + (i + 1) * w, clip: c, beat: bt.id }));
+  });
+  return out;
+}
+function draftSeats(a = 0, b = 1e9) { return (K.cuts[S.draft] || []).filter(s => s.t1 > a && s.t0 < b); }
+function seatsOf(rung, a = 0, b = 1e9) {
+  if (rung === 0) return poolSeats(a, b);
+  if (rung === 1) return draftSeats(a, b);
+  return (rung === 2 ? S.probable : S.preferred).filter(s => s.t1 > a && s.t0 < b);
+}
+function allSeats(a, b) { return [0, 1, 2, 3].flatMap(r => seatsOf(r, a, b)); }
+function byKey(key) { if (!key) return null; for (const r of [3, 2]) { const s = (r === 3 ? S.preferred : S.probable).find(x => x.key === key); if (s) return s; } const d = (K.cuts[S.draft] || []).find(x => x.key === key); if (d) return d; if (key[0] === 'p') { const [bid, i] = key.slice(1).split('.'); const bt = K.beats.find(x => String(x.id) === bid); if (bt) return poolSeats(bt.t0, bt.t1).find(x => x.key === key) || null; } return null; }
+// what plays at a moment: your film, else what you're auditioning, else the draft
+function playingAt(t) {
+  const f = S.preferred.find(s => t >= s.t0 && t < s.t1); if (f) return f;
+  const p = S.probable.filter(s => t >= s.t0 && t < s.t1).sort((x, y) => (y.at || 0) - (x.at || 0))[0]; if (p) return p;
+  return draftSeats(t, t + 0.001).find(s => t >= s.t0 && t < s.t1) || null;
+}
+let seatSeq = 0;
+const newKey = () => 'u' + Date.now().toString(36) + (seatSeq++);
+// one clip per instant: what the new seat covers is cut out of the film
+function placePreferred(seat) {
+  const out = [];
+  S.preferred.forEach(s => {
+    if (s.t1 <= seat.t0 || s.t0 >= seat.t1) { out.push(s); return; }
+    if (s.t0 < seat.t0 - 0.05) out.push({ ...s, t1: seat.t0 });
+    if (s.t1 > seat.t1 + 0.05) out.push({ ...s, key: newKey(), t0: seat.t1, clip: { ...s.clip, in: +((s.clip.in || 0) + (seat.t1 - s.t0)).toFixed(3) } });
+  });
+  out.push(seat); S.preferred = out.sort((x, y) => x.t0 - y.t0);
+}
+function spanFor(seat) {
+  // a clip from the pool has no time of its own: it takes the line (or the beat) it sits in, snapped to her words
+  if (seat.rung !== 0) return [seat.t0, seat.t1];
+  const bt = K.beats.find(b => b.id === seat.beat), inBt = l => l && (!bt || (l.t1 > bt.t0 && l.t0 < bt.t1));
+  const mid = (seat.t0 + seat.t1) / 2;
+  const l = [lineAt(mid), lineAt(S.T), K.lines.find(x => x.t0 >= S.T && inBt(x)), K.lines.find(inBt)].find(inBt);
+  if (l) return [l.t0, l.t1];
+  const a = bt ? Math.max(bt.t0, Math.min(S.T, bt.t1 - 2)) : seat.t0;
+  return [a, bt ? Math.min(bt.t1, a + 4) : seat.t1];
+}
+function remember() { S.hist.push(JSON.stringify([S.probable, S.preferred])); if (S.hist.length > 60) S.hist.shift(); }
+function promote(seat, to) {
+  if (!seat) { toast('Hold a clip first: click one in the tunnel.'); return; }
+  const r = seat.rung, target = to != null ? to : Math.min(3, Math.max(2, r + 1));
+  if (target === r && r === 3) { toast('Already in the film.'); return; }
+  remember();
+  const [t0, t1] = seat.rung >= 2 ? [seat.t0, seat.t1] : spanFor(seat);
+  const n = { key: seat.rung >= 2 ? seat.key : newKey(), rung: target, t0, t1, clip: slim(seat.clip), by: 'ABC FLIX', why: seat.why || (r === 0 ? 'from the pool of beat ' + seat.beat : r === 1 ? 'from the ' + S.draft + ' draft' : 'auditioned'), at: Date.now() };
+  S.probable = S.probable.filter(x => x.key !== n.key); S.preferred = S.preferred.filter(x => x.key !== n.key);
+  if (target === 3) placePreferred(n); else S.probable.push(n);
+  S.sel = n.key; changed();
+  buzz(target === 3 ? [8, 30, 14] : 8);
+  toast(`${RUNGS[target].name} · ${n.clip.title} · “${textOf(n.t0, n.t1).slice(0, 44)}”`);
+}
+function demote(seat) {
+  if (!seat) { toast('Hold a clip first.'); return; }
+  if (seat.rung < 2) { toast('That rung is the machine’s: promote from it, or pick another draft.'); return; }
+  remember();
+  if (seat.rung === 3) { S.preferred = S.preferred.filter(x => x.key !== seat.key); S.probable.push({ ...seat, rung: 2, at: Date.now() }); toast('Back to PROBABLE: ' + seat.clip.title); }
+  else { S.probable = S.probable.filter(x => x.key !== seat.key); S.sel = null; toast('Off the ladder: ' + seat.clip.title); }
+  changed(); buzz(6);
+}
+function lift(seat) { if (!seat || seat.rung < 2) return; remember(); S.probable = S.probable.filter(x => x.key !== seat.key); S.preferred = S.preferred.filter(x => x.key !== seat.key); S.sel = null; changed(); toast('Lifted ' + seat.clip.title); }
+function undo() { const h = S.hist.pop(); if (!h) { toast('Nothing to undo.'); return; } [S.probable, S.preferred] = JSON.parse(h); changed(false); toast('Undone.'); }
+// drop a clip on the floor: its lane is its rung, its depth is its time
+function dropAt(seat, rung, t) {
+  if (rung < 2) { toast('The two far rungs are the machine’s. Drop on PROBABLE or PREFERRED.'); return; }
+  const len = seat.rung === 0 ? (lineAt(t) ? lineAt(t).t1 - lineAt(t).t0 : 4) : seat.t1 - seat.t0;
+  const l = lineAt(t), t0 = l && seat.rung === 0 ? l.t0 : snap(t), t1 = l && seat.rung === 0 ? l.t1 : Math.min(K.D, snap(t0 + len));
+  remember();
+  const keep = seat.rung >= 2 ? seat.key : newKey();
+  S.probable = S.probable.filter(x => x.key !== keep); S.preferred = S.preferred.filter(x => x.key !== keep);
+  const n = { key: keep, rung, t0, t1: Math.max(t0 + 0.3, t1), clip: slim(seat.clip), by: 'ABC FLIX', why: 'placed in the tunnel', at: Date.now() };
+  if (rung === 3) placePreferred(n); else S.probable.push(n);
+  S.sel = keep; changed(); buzz([6, 20, 6]);
+  toast(`${RUNGS[rung].name} at ${fmt(n.t0)} · ${n.clip.title} · “${textOf(n.t0, n.t1).slice(0, 40)}”`);
+}
+function takeDraft() {
+  const f = filmAt(S.T), d = draftSeats(f.t0, f.t1); if (!d.length) { toast('This draft has nothing in ' + f.n + '.'); return; }
+  remember();
+  let n = 0;
+  d.forEach(s => {
+    // only the gaps: what you already decided stands
+    let pieces = [[Math.max(f.t0, s.t0), Math.min(f.t1, s.t1)]];
+    S.preferred.forEach(p => { pieces = pieces.flatMap(([a, b]) => p.t1 <= a || p.t0 >= b ? [[a, b]] : [[a, p.t0], [p.t1, b]].filter(([x, y]) => y - x > 0.4)); });
+    pieces.forEach(([a, b]) => { placePreferred({ key: newKey(), rung: 3, t0: a, t1: b, clip: slim({ ...s.clip, in: (s.clip.in || 0) + (a - s.t0) }), by: 'ABC FLIX', why: 'taken from the ' + S.draft + ' draft', at: Date.now() }); n++; });
+  });
+  if (!n) { S.hist.pop(); toast('The film already covers ' + f.n + '.'); return; }
+  changed(); buzz([8, 30, 8, 30, 14]);
+  toast(`The ${S.draft} draft filled ${n} gaps in ${f.n} ${f.title}; what you had placed stays. Now decide: demote what doesn’t hold.`);
+}
+function nextUnmade() {
+  const from = S.T + 0.3, covered = l => { let c = 0; S.preferred.forEach(s => { c += Math.max(0, Math.min(s.t1, l.t1) - Math.max(s.t0, l.t0)); }); return c / (l.t1 - l.t0) > 0.6; };
+  const l = K.lines.find(l => l.t0 >= from && !covered(l)) || K.lines.find(l => !covered(l));
+  if (!l) { toast('Every line has film under it.'); return; }
+  seek(l.t0 - 0.2); toast(`Unmade: ${l.id} · “${l.text.slice(0, 50)}”`);
+}
+function changed(save = true) {
+  S.preferred.forEach(s => s.rung = 3); S.probable.forEach(s => s.rung = 2);
+  if (save) {
+    store.set(WORKKEY, { probable: S.probable, preferred: S.preferred, draft: S.draft, T: S.T });
+    // the film, as a seat list the other instruments read (the Bets' format)
+    store.set(FILMKEY, S.preferred.map(s => ({ t0: s.t0, t1: s.t1, clip: s.clip, text: textOf(s.t0, s.t1), by: s.by, bet: 'FLIX', why: s.why })));
+  }
+  cur.key = null; renderCard(); drawOver(); rip.kick();
+  const made = S.preferred.reduce((a, s) => a + (s.t1 - s.t0), 0);
+  $('#made').textContent = `${S.preferred.length} in the film · ${Math.round(made / K.D * 100)}% · ${S.probable.length} probable`;
+}
+
+/* ============ the EDL: the lab's one record format ============ */
+const FPS = 25;
+function edlJSON() {
+  return { format: 'cineosis-edl/1', title: 'WYGWYL', bet: 'FLIX', made: new Date().toISOString(), clock: { audio: 'WYGWYL_Suite_Audio.mp3', duration: K.D, fps: FPS },
+    events: S.preferred.map((s, i) => ({ n: i + 1, rec: [+s.t0.toFixed(3), +s.t1.toFixed(3)], words: textOf(s.t0, s.t1), clip: s.clip, src: [+(s.clip.in || 0).toFixed(3), +((s.clip.in || 0) + s.t1 - s.t0).toFixed(3)], by: s.by, bet: 'FLIX', why: s.why, flag: false, mute: true })),
+    probable: S.probable.map(s => ({ rec: [+s.t0.toFixed(3), +s.t1.toFixed(3)], clip: s.clip, why: s.why })) };
+}
+function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+$('#edl').onclick = () => { if (!S.preferred.length) { toast('The film is empty: promote something to PREFERRED first.'); return; } download('wygwyl-flix-edl.json', JSON.stringify(edlJSON(), null, 1), 'application/json'); toast(`EDL: ${S.preferred.length} events.`); };
+$('#edlIn').onclick = () => $('#edlFile').click();
+$('#edlFile').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  f.text().then(txt => {
+    try {
+      const j = JSON.parse(txt); if (j.format !== 'cineosis-edl/1') throw new Error('not a cineosis EDL');
+      remember();
+      j.events.forEach(ev => placePreferred({ key: newKey(), rung: 3, t0: ev.rec[0], t1: ev.rec[1], clip: slim(ev.clip), by: ev.by || j.bet, why: 'from ' + (j.bet || 'an') + ' EDL', at: Date.now() }));
+      changed(); toast(`Read ${j.events.length} events from ${f.name} into the film.`);
+    } catch (err) { toast('Could not read ' + f.name + ': ' + err.message); }
+    e.target.value = '';
+  });
+};
+
+/* ============ the player: her voice is master; the picture follows ============ */
+const scr = $('#scr');
+const cur = { key: null, src: null, seat: null };
+function seek(t) { S.T = Math.max(0, Math.min(K.D - 0.05, t)); try { aud.currentTime = S.T; } catch (e) { /* not ready */ } rip.kick(); }
+function play() { aud.play().then(() => { S.playing = true; $('#play').textContent = '❚❚ PAUSE'; }).catch(() => toast('Tap play again to start the sound.')); }
+function pause() { aud.pause(); S.playing = false; $('#play').textContent = '▶ PLAY'; scr.pause(); }
+$('#play').onclick = () => S.playing ? pause() : play();
+aud.addEventListener('ended', pause);
+function syncScreen() {
+  const seat = playingAt(S.T);
+  const key = seat ? seat.key + '|' + (seat.rung != null ? seat.rung : 1) : null;
+  if (key !== cur.key) {
+    cur.key = key; cur.seat = seat; cur.src = seat ? srcOf(seat.clip) : null;
+    const tag = $('#stag');
+    bctx.clearRect(0, 0, BW, BH);
+    if (!seat) { scr.removeAttribute('src'); scr.load(); tag.textContent = 'NO FILM HERE'; tag.style.color = '#888'; $('#snote').textContent = 'Nothing on any rung here. Promote a clip from the pool, or take the draft.'; }
+    else {
+      const r = seat.rung != null ? seat.rung : 1;
+      tag.textContent = RUNGS[r].name + ' · ' + (cur.src ? cur.src.where : '—'); tag.style.color = RUNGS[r].col;
+      $('#snote').textContent = `${seat.clip.title}${seat.clip.year ? ' · ' + seat.clip.year : ''}${r === 1 ? ' · the ' + S.draft + ' draft' : ''}${cur.src && !cur.src.px ? ' · picture only (the CDN sends no CORS headers; run lab/server.py for BEFLIX)' : ''}`;
+      if (cur.src && scr.dataset.src !== cur.src.url) { scr.src = cur.src.url; scr.dataset.src = cur.src.url; }
+    }
+    showMode();
+  }
+  if (cur.seat && cur.src && scr.readyState >= 1) {
+    const want = srcTime(cur.seat, cur.src, S.T, scr.duration || 0);
+    if (!S.playing || Math.abs(scr.currentTime - want) > 0.35) { try { scr.currentTime = want; } catch (e) { /* seeking */ } }
+    if (S.playing && scr.paused) scr.play().catch(() => {}); if (!S.playing && !scr.paused) scr.pause();
+  }
+}
+function showMode() {
+  const px = cur.src && cur.src.px, bf = S.mode === 'beflix' && px;
+  $('#bfx').style.display = bf ? '' : 'none';
+  $$('[data-mode]').forEach(b => b.classList.toggle('on', b.dataset.mode === S.mode));
+}
+$$('[data-mode]').forEach(b => b.onclick = () => { S.mode = b.dataset.mode; store.set('abcflix.mode', S.mode); showMode(); });
+
+/* ============ BEFLIX: a frame as a 128 × 96 grid of 7 levels ============ */
+const BW = 128, BH = 96, LV = 7;
+const LEVEL = Array.from({ length: LV }, (_, i) => Math.round(i * 255 / (LV - 1)));
+const grab = document.createElement('canvas'); grab.width = BW; grab.height = BH;
+const gctx = grab.getContext('2d', { willReadFrequently: true });
+function beflix(video) {   // → Uint8Array of levels, or null if the pixels are not ours to read
+  try { gctx.drawImage(video, 0, 0, BW, BH); const d = gctx.getImageData(0, 0, BW, BH).data, out = new Uint8Array(BW * BH); for (let i = 0, j = 0; j < out.length; i += 4, j++) out[j] = Math.min(LV - 1, ((d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000 * LV / 256) | 0); return out; }
+  catch (e) { return null; }
+}
+const tint = [236, 226, 206];
+function paintLevels(ctx, lv, x = 0, y = 0) { const im = ctx.createImageData(BW, BH), d = im.data; for (let j = 0, i = 0; j < lv.length; j++, i += 4) { const v = LEVEL[lv[j]] / 255; d[i] = tint[0] * v; d[i + 1] = tint[1] * v; d[i + 2] = tint[2] * v; d[i + 3] = 255; } ctx.putImageData(im, x, y); }
+const bctx = $('#bfx').getContext('2d');
+let lastLens = 0;
+function lensLive() {
+  if (performance.now() - lastLens < 1000 / 12) return; lastLens = performance.now();
+  if (S.mode !== 'beflix' || !cur.src || !cur.src.px || scr.readyState < 2) return;
+  const lv = beflix(scr); if (lv) paintLevels(bctx, lv); else { cur.src.px = false; showMode(); }
+}
+
+/* the lens strip: the 12 seconds around the playhead, ripped at 12 fps by seeking a hidden video, nearest first */
+const rip = (() => {
+  const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto';
+  const cache = new Map(), bad = new Set(); let busy = false, pend = false;
+  const R = 6, RATE = 12;
+  const keyOf = (src, vt) => src.url + '@' + vt.toFixed(2);
+  function wanted() {
+    const base = Math.round(S.T * RATE) / RATE, out = [];
+    for (let k = -R * RATE; k < R * RATE; k++) {
+      const t = base + k / RATE; if (t < 0 || t >= K.D) continue;
+      const seat = playingAt(t); if (!seat) continue;
+      const src = srcOf(seat.clip); if (!src || !src.px || bad.has(src.url)) continue;
+      out.push({ t, k, seat, src });
+    }
+    return out.sort((a, b) => Math.abs(a.k) - Math.abs(b.k));
+  }
+  const once = (el, ev, ms) => new Promise(res => { const f = () => { clearTimeout(tm); el.removeEventListener(ev, f); res(true); }; const tm = setTimeout(() => { el.removeEventListener(ev, f); res(false); }, ms); el.addEventListener(ev, f); });
+  async function run() {
+    if (busy) { pend = true; return; } busy = true;
+    try {
+      for (let guard = 0; guard < 400; guard++) {
+        const need = wanted().find(w => !cache.has(keyOf(w.src, srcTime(w.seat, w.src, w.t, durOf(w.src.url)))));
+        if (!need) break;
+        if (v.dataset.src !== need.src.url) { v.src = need.src.url; v.dataset.src = need.src.url; if (!(await once(v, 'loadeddata', 6000))) { bad.add(need.src.url); continue; } dur.set(need.src.url, v.duration || 0); }
+        const vt = srcTime(need.seat, need.src, need.t, v.duration || 0), k = keyOf(need.src, srcTime(need.seat, need.src, need.t, durOf(need.src.url)));
+        if (Math.abs(v.currentTime - vt) > 0.01) { v.currentTime = vt; await once(v, 'seeked', 2000); }
+        const lv = beflix(v); if (!lv) { bad.add(need.src.url); continue; }
+        cache.set(k, lv); if (cache.size > 900) cache.delete(cache.keys().next().value);
+        stripDirty = true;
+        if (guard % 6 === 5) await new Promise(r => setTimeout(r, 0));
+      }
+    } finally { busy = false; if (pend) { pend = false; setTimeout(run, 30); } }
+  }
+  const dur = new Map(); const durOf = u => dur.get(u) || 0;
+  let kickT; return { kick() { clearTimeout(kickT); kickT = setTimeout(run, 60); stripDirty = true; }, get(src, seat, t) { return cache.get(keyOf(src, srcTime(seat, src, t, durOf(src.url)))); }, bad, cache };
+})();
+let stripDirty = true, stripT = -1;
+const sctx = $('#strip').getContext('2d'), cell = document.createElement('canvas'); cell.width = BW; cell.height = BH; const cctx = cell.getContext('2d');
+const IMG = new Map();
+function img(url) { if (!url) return null; let i = IMG.get(url); if (!i) { i = new Image(); i.decoding = 'async'; i.src = url; i.onload = () => { stripDirty = true; }; IMG.set(url, i); if (IMG.size > 700) IMG.delete(IMG.keys().next().value); } return i.complete && i.naturalWidth ? i : null; }
+function drawStrip() {
+  const cv = $('#strip'), W = cv.clientWidth || 400;
+  if (cv.width !== Math.round(W * devicePixelRatio)) { cv.width = Math.round(W * devicePixelRatio); cv.height = Math.round(W / 16 * 0.75 * devicePixelRatio) + Math.round(14 * devicePixelRatio); stripDirty = true; }
+  const q = Math.round(S.T * 12) / 12; if (!stripDirty && q === stripT) return; stripDirty = false; stripT = q;
+  const c = sctx, dpr = devicePixelRatio, N = 16, cw = cv.width / N, ch = cw * 0.75, top = 12 * dpr;
+  c.fillStyle = '#050505'; c.fillRect(0, 0, cv.width, cv.height); c.imageSmoothingEnabled = false;
+  let prev = null;
+  for (let k = 0; k < N; k++) {
+    const t = q + (k - N / 2) * 0.75; const x = k * cw;
+    if (t < 0 || t >= K.D) continue;
+    const seat = playingAt(t); if (!seat) { prev = null; continue; }
+    const src = srcOf(seat.clip), lv = src && src.px ? rip.get(src, seat, t) : null;
+    if (lv) { paintLevels(cctx, lv); c.drawImage(cell, x, top, cw - 1, ch); }
+    else { const im = img(seat.clip.thumb); c.globalAlpha = 0.35; if (im) c.drawImage(im, x, top, cw - 1, ch); else { c.fillStyle = '#1a1a1a'; c.fillRect(x, top, cw - 1, ch); } c.globalAlpha = 1; }
+    const r = seat.rung != null ? seat.rung : 1;
+    c.fillStyle = RUNGS[r].col; c.fillRect(x, top + ch, cw - 1, 2 * dpr);
+    if (prev && prev !== seat.key) { c.fillStyle = '#fff'; c.fillRect(x - dpr, top - 3 * dpr, 2 * dpr, ch + 6 * dpr); }
+    prev = seat.key;
+  }
+  c.strokeStyle = '#ef4444'; c.lineWidth = 2 * dpr; c.strokeRect(N / 2 * cw, top - dpr, cw, ch + 2 * dpr);
+  c.fillStyle = '#888'; c.font = `${9 * dpr}px ui-monospace,monospace`; c.textBaseline = 'top';
+  c.fillText('−6 s', 3 * dpr, 1 * dpr); c.fillText('lens · ' + fmt(S.T), N / 2 * cw - 20 * dpr, 1 * dpr); c.textAlign = 'right'; c.fillText('+6 s', cv.width - 3 * dpr, 1 * dpr); c.textAlign = 'left';
+}
+$('#strip').addEventListener('click', e => { const r = e.currentTarget.getBoundingClientRect(), k = Math.floor((e.clientX - r.left) / r.width * 16); seek(Math.round(S.T * 12) / 12 + (k - 8) * 0.75); });
+
+/* ============ the tunnel: the whole film as a place; its length is her 24 minutes ============ */
+const tv = $('#tunnel'), tctx = tv.getContext('2d');
+const U = 0.55, NEAR = 1.25, FAR = 70;          // world units per second · the eye's distance · how far ahead it sees (s)
+const LANE_X = [-2, -1, 0, 1], LW = 1;          // four lanes across the floor, POSSIBLE to PREFERRED
+let hits = [], view = { w: 0, h: 0, cx: 0, cy: 0, f: 0 };
+function proj(x, y, t) { const d = (t - S.T) * U + NEAR; if (d <= 0.05) return null; return [view.cx + view.f * x / d, view.cy + view.f * y / d, view.f / d]; }
+function floorQuad(x0, x1, t0, t1) { const a = Math.max(t0, S.T - NEAR / U + 0.2), b = Math.min(t1, S.T + FAR); if (b <= a) return null; const p = [proj(x0, 1, a), proj(x1, 1, a), proj(x1, 1, b), proj(x0, 1, b)]; return p.some(q => !q) ? null : p; }
+function poly(c, p) { c.beginPath(); c.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) c.lineTo(p[i][0], p[i][1]); c.closePath(); }
+function drawTunnel() {
+  const dpr = devicePixelRatio, W = tv.clientWidth, H = tv.clientHeight; if (!W || !H) return;
+  if (tv.width !== Math.round(W * dpr) || tv.height !== Math.round(H * dpr)) { tv.width = Math.round(W * dpr); tv.height = Math.round(H * dpr); }
+  const c = tctx; c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  view = { w: W, h: H, cx: W / 2, cy: H * 0.3, f: Math.min(W / 5, H / 2.1) };
+  const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#07070a'); g.addColorStop(0.36, '#0d0d10'); g.addColorStop(1, '#141210'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+  hits = [];
+  const a = S.T - 1, b = S.T + FAR;
+  // the barrel's walls: vanishing lines
+  c.strokeStyle = '#1c1c20'; c.lineWidth = 1;
+  [[-2.5, 1], [2.5, 1], [-2.5, -1.4], [2.5, -1.4]].forEach(([x, y]) => { const p = proj(x, y, S.T), q = proj(x, y, b); if (p && q) { c.beginPath(); c.moveTo(p[0], p[1]); c.lineTo(q[0], q[1]); c.stroke(); } });
+  // beats: bands across the floor
+  K.beats.forEach((bt, i) => { if (bt.t1 < a || bt.t0 > b) return; const q = floorQuad(-2.5, 2.5, bt.t0, bt.t1); if (!q) return; poly(c, q); c.fillStyle = i % 2 ? '#15151a' : '#101014'; c.fill(); });
+  // lanes
+  LANE_X.forEach((x, r) => { const q = floorQuad(x + 0.04, x + LW - 0.04, a, b); if (!q) return; poly(c, q); c.strokeStyle = RUNGS[r].col + '33'; c.stroke(); });
+  // words: ticks on the floor's edge, and the words themselves floating up ahead
+  // far to near, so the near ones paint over
+  const items = [];
+  K.films.forEach(f => { if (f.t0 >= a - 1 && f.t0 <= b) items.push({ t: f.t0, kind: 'ring', f }); });
+  [0, 1, 2, 3].forEach(r => seatsOf(r, a, b).forEach(s => items.push({ t: Math.max(s.t0, S.T + 0.15), kind: 'seat', s, r })));
+  K.words.forEach(w => { if (w.t0 >= S.T - 0.3 && w.t0 <= S.T + 9) items.push({ t: w.t0, kind: 'word', w }); });
+  items.sort((p, q) => q.t - p.t);
+  // seat floors first (flat), then the upright things
+  [0, 1, 2, 3].forEach(r => seatsOf(r, a, b).forEach(s => {
+    const q = floorQuad(LANE_X[r] + 0.06, LANE_X[r] + LW - 0.06, s.t0 + 0.03, s.t1 - 0.03); if (!q) return;
+    poly(c, q); c.fillStyle = (r < 2 ? signOf(s.clip).col : RUNGS[r].col) + (r < 2 ? '30' : '55'); c.fill();
+    if (s.key === S.sel) { c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); c.lineWidth = 1; }
+  }));
+  const now = wordAt(S.T);
+  items.forEach(it => {
+    if (it.kind === 'ring') {
+      const p0 = proj(-2.5, -1.4, it.t), p1 = proj(2.5, 1, it.t); if (!p0 || !p1) return;
+      const al = Math.max(0.15, Math.min(1, 1 - (it.t - S.T) / FAR));
+      c.strokeStyle = `rgba(245,158,11,${al * 0.8})`; c.lineWidth = Math.max(1, 3 * p0[2] / view.f); c.strokeRect(p0[0], p0[1], p1[0] - p0[0], p1[1] - p0[1]); c.lineWidth = 1;
+      const fs = Math.max(8, Math.min(26, p0[2] * 0.22)); c.fillStyle = `rgba(245,158,11,${al})`; c.font = `900 ${fs}px ui-monospace,monospace`; c.textAlign = 'center'; c.fillText(it.f.n + ' ' + it.f.title, (p0[0] + p1[0]) / 2, p0[1] + fs * 1.1); c.textAlign = 'left';
+    } else if (it.kind === 'word') {
+      const p = proj(Math.sin(it.w.i * 1.7) * 0.9, -0.95, it.w.t0); if (!p) return;
+      const fs = Math.min(34, p[2] * 0.16), on = now && now.i === it.w.i; if (fs < 8 && !on) return;
+      c.font = `${on ? 900 : 700} ${fs}px ui-monospace,monospace`; c.textAlign = 'center';
+      c.fillStyle = on ? '#ef4444' : `rgba(232,230,225,${Math.max(0.15, 1 - (it.w.t0 - S.T) / 9)})`; c.fillText(it.w.w, p[0], p[1]); c.textAlign = 'left';
+    } else {
+      const s = it.s, r = it.r, x = LANE_X[r] + 0.1, w = LW - 0.2, h = w * 0.75;
+      const p = proj(x, 1 - h, it.t), q = proj(x + w, 1, it.t); if (!p || !q) return;
+      const pw = q[0] - p[0], ph = q[1] - p[1]; if (pw < 2 || p[1] > view.h || q[1] < 0) return;
+      const im = img(s.clip.thumb), fade = Math.max(0.2, Math.min(1, 1 - (it.t - S.T) / FAR));
+      c.globalAlpha = fade * (r < 2 ? 0.8 : 1);
+      if (im) c.drawImage(im, p[0], p[1], pw, ph); else { c.fillStyle = '#222'; c.fillRect(p[0], p[1], pw, ph); }
+      c.globalAlpha = 1;
+      const sel = s.key === S.sel, playing = cur.seat && cur.seat.key === s.key;
+      c.strokeStyle = sel ? '#fff' : playing ? RUNGS[r].col : RUNGS[r].col + (r < 2 ? '88' : 'cc'); c.lineWidth = sel || playing ? 2.5 : 1; c.strokeRect(p[0], p[1], pw, ph); c.lineWidth = 1;
+      if (pw > 34) { c.fillStyle = signOf(s.clip).col; c.fillRect(p[0], p[1], Math.min(pw, 18), Math.min(ph, 11)); c.fillStyle = '#111'; c.font = `800 ${Math.min(9, ph * 0.8)}px ui-monospace,monospace`; c.fillText(signOf(s.clip).symbol, p[0] + 2, p[1] + Math.min(9, ph * 0.8)); }
+      hits.push({ x: p[0], y: p[1], w: pw, h: ph, s, r, t: it.t });
+    }
+  });
+  // the playhead plane
+  const hp0 = proj(-2.5, 1, S.T + 0.15), hp1 = proj(2.5, 1, S.T + 0.15); if (hp0 && hp1) { c.strokeStyle = '#ef4444'; c.lineWidth = 2; c.beginPath(); c.moveTo(hp0[0], hp0[1]); c.lineTo(hp1[0], hp1[1]); c.stroke(); c.lineWidth = 1; }
+  if (drag && drag.card && drag.moved) {
+    const fl = floorAt(drag.x, drag.y); c.globalAlpha = 0.85; const im = img(drag.card.clip.thumb); if (im) c.drawImage(im, drag.x - 36, drag.y - 27, 72, 54); c.globalAlpha = 1;
+    c.strokeStyle = fl && fl.rung >= 2 ? RUNGS[fl.rung].col : '#666'; c.lineWidth = 2; c.strokeRect(drag.x - 36, drag.y - 27, 72, 54); c.lineWidth = 1;
+    if (fl) { c.fillStyle = '#fff'; c.font = '700 11px ui-monospace,monospace'; c.fillText(`${RUNGS[fl.rung].name} · ${fmt(fl.t)}`, drag.x - 36, drag.y + 42); }
+  }
+  // hud
+  const f = filmAt(S.T), l = lineAt(S.T), bt = beatAt(S.T);
+  $('#hudL').innerHTML = `<b>${esc(f.n + ' ' + f.title)}</b>${bt ? ' · beat ' + bt.id + ': ' + esc(bt.title) : ''}`;
+  $('#hudR').textContent = l ? l.id : '';
+}
+// screen point → a place on the floor: its lane (rung) and its time
+function floorAt(x, y) {
+  if (y <= view.cy + 2) return null;
+  const d = view.f * 1 / (y - view.cy); const t = S.T + (d - NEAR) / U; const wx = (x - view.cx) * d / view.f;
+  const r = Math.floor(wx - LANE_X[0]); if (r < 0 || r > 3 || t < 0 || t > K.D) return null;
+  return { rung: r, t };
+}
+function hitAt(x, y) { for (let i = hits.length - 1; i >= 0; i--) { const h = hits[i]; if (x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h) return h; } return null; }
+let drag = null;
+tv.addEventListener('pointerdown', e => {
+  const r = tv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, h = hitAt(x, y);
+  drag = { x, y, x0: x, y0: y, T0: S.T, card: h ? h.s : null, moved: false, id: e.pointerId };
+  tv.setPointerCapture(e.pointerId); tv.classList.add('drag');
+  if (h) { S.sel = h.s.key; renderCard(); }
+});
+tv.addEventListener('pointermove', e => {
+  if (!drag) return; const r = tv.getBoundingClientRect(); drag.x = e.clientX - r.left; drag.y = e.clientY - r.top;
+  if (!drag.moved && Math.hypot(drag.x - drag.x0, drag.y - drag.y0) > 6) { drag.moved = true; if (drag.card) buzz(6); }
+  if (drag.moved && !drag.card) { seek(drag.T0 + (drag.y - drag.y0) / Math.max(40, view.h) * -30); if (S.playing) aud.currentTime = S.T; }
+});
+tv.addEventListener('pointerup', e => {
+  if (!drag) return; const d = drag; drag = null; tv.classList.remove('drag');
+  if (d.card && d.moved) { const fl = floorAt(d.x, d.y); if (fl) dropAt(d.card, fl.rung, fl.t); else toast('Drop it on the floor: a lane is a rung, the distance is the time.'); }
+  else if (!d.card && !d.moved) { const fl = floorAt(d.x, d.y); if (fl) seek(fl.t); }
+});
+tv.addEventListener('pointercancel', () => { drag = null; tv.classList.remove('drag'); });
+tv.addEventListener('dblclick', e => { const r = tv.getBoundingClientRect(), h = hitAt(e.clientX - r.left, e.clientY - r.top); if (h) promote(h.s); });
+tv.addEventListener('wheel', e => { e.preventDefault(); seek(S.T + (e.deltaY + e.deltaX) * 0.02); }, { passive: false });
+
+/* ============ the held clip ============ */
+function selSeat() { return byKey(S.sel); }
+function renderCard() {
+  const s = selSeat(), box = $('#card');
+  if (!s) { box.className = 'card empty'; box.innerHTML = 'Click a clip in the tunnel to hold it. <b>↑</b> promotes it one rung, <b>↓</b> demotes it. Drag it onto the floor to put it somewhere else.'; $('#up').disabled = $('#down').disabled = true; return; }
+  const r = s.rung != null ? s.rung : 1, g = signOf(s.clip), src = srcOf(s.clip);
+  box.className = 'card';
+  box.innerHTML = `<img src="${esc(s.clip.thumb)}" alt="" style="border-color:${RUNGS[r].col}"><div><span class="rung" style="color:${RUNGS[r].col}">${RUNGS[r].name}</span><h3>${esc(s.clip.title)}${s.clip.year ? ' · ' + s.clip.year : ''}</h3><p>${g.symbol !== '·' ? `<b style="color:${g.col}">${esc(g.symbol)}</b> ${esc(g.name)} · ` : ''}${r === 0 ? 'beat ' + s.beat + ' pool' : fmt(s.t0) + '–' + fmt(s.t1)} · ${src ? src.where : '—'}${r >= 1 ? '<br>“' + esc(textOf(s.t0, s.t1).slice(0, 90)) + '”' : ''}</p><div class="acts"><button class="btn" data-a="go">▷ GO</button>${r < 3 ? '<button class="btn pri" data-a="up">↑ ' + RUNGS[Math.min(3, Math.max(2, r + 1))].name + '</button>' : ''}${r === 2 ? '<button class="btn" data-a="film">⇈ FILM</button>' : ''}${r >= 2 ? '<button class="btn" data-a="down">↓</button><button class="btn" data-a="lift">✕</button>' : ''}</div></div>`;
+  $('#up').disabled = r === 3; $('#down').disabled = r < 2;
+}
+$('#card').addEventListener('click', e => {
+  const b = e.target.closest('[data-a]'); if (!b) return; const s = selSeat(); if (!s) return;
+  const a = b.dataset.a;
+  if (a === 'go') { seek(s.rung === 0 ? spanFor(s)[0] : s.t0); if (!S.playing) play(); }
+  else if (a === 'up') promote(s); else if (a === 'film') promote(s, 3); else if (a === 'down') demote(s); else if (a === 'lift') lift(s);
+});
+$('#up').onclick = () => promote(selSeat());
+$('#down').onclick = () => demote(selSeat());
+$('#take').onclick = takeDraft;
+$('#next').onclick = nextUnmade;
+$('#screenF').onclick = () => { seek(filmAt(S.T).t0); play(); };
+$('#zoom').onclick = () => { S.zoom = S.zoom === 'film' ? 'poem' : 'film'; $('#zoom').textContent = 'Z ' + (S.zoom === 'film' ? 'POEM' : 'FILM'); drawOver(); };
+$('#help').onclick = () => $('#keys').showModal();
+$('#draft').onchange = e => { S.draft = e.target.value; cur.key = null; changed(); toast('PLAUSIBLE is now the ' + $('#draft').selectedOptions[0].textContent + '.'); };
+function stepCard(d) {
+  const s = selSeat(); const r = s ? (s.rung != null ? s.rung : 1) : 3;
+  const list = seatsOf(r, 0, 1e9).sort((x, y) => x.t0 - y.t0); if (!list.length) return;
+  let i = s ? list.findIndex(x => x.key === s.key) : -1; i = i < 0 ? (d > 0 ? list.findIndex(x => x.t0 >= S.T) : list.length - 1) : i + d;
+  const n = list[Math.max(0, Math.min(list.length - 1, i))]; if (!n) return; S.sel = n.key; renderCard(); seek(n.rung === 0 ? n.t0 : n.t0);
+}
+
+/* ============ the whole film: 14 poems, four rungs, your film ============ */
+const ov = $('#over'), octx = ov.getContext('2d');
+function overWin() { if (S.zoom === 'poem') { const f = filmAt(S.T); return [f.t0, f.t1]; } return [0, K.D]; }
+function drawOver() {
+  if (!K.D) return;
+  const dpr = devicePixelRatio, W = ov.clientWidth, H = ov.clientHeight; if (ov.width !== Math.round(W * dpr) || ov.height !== Math.round(H * dpr)) { ov.width = Math.round(W * dpr); ov.height = Math.round(H * dpr); }
+  const c = octx; c.setTransform(dpr, 0, 0, dpr, 0, 0); c.fillStyle = '#0a0a0a'; c.fillRect(0, 0, W, H);
+  const [a, b] = overWin(), X = t => 60 + (t - a) / (b - a) * (W - 66), rowH = (H - 22) / 4;
+  // poems
+  K.films.forEach((f, i) => { if (f.t1 < a || f.t0 > b) return; const x0 = X(Math.max(a, f.t0)), x1 = X(Math.min(b, f.t1)); c.fillStyle = i % 2 ? '#1a1712' : '#221d14'; c.fillRect(x0, 0, x1 - x0 - 1, 14); c.fillStyle = '#f59e0b'; c.font = '800 9px ui-monospace,monospace'; c.save(); c.beginPath(); c.rect(x0, 0, x1 - x0 - 2, 14); c.clip(); c.fillText(f.n + (x1 - x0 > 90 ? ' ' + f.title : ''), x0 + 3, 10); c.restore(); });
+  // rungs, top to bottom PREFERRED → POSSIBLE
+  [3, 2, 1, 0].forEach((r, k) => {
+    const y = 18 + k * rowH;
+    c.fillStyle = '#111'; c.fillRect(60, y, W - 66, rowH - 3);
+    c.fillStyle = RUNGS[r].col; c.font = '800 9px ui-monospace,monospace'; c.fillText(RUNGS[r].name, 4, y + rowH / 2 + 3);
+    if (r === 0) { K.beats.forEach(bt => { if (bt.t1 < a || bt.t0 > b) return; const n = (K.pool[bt.id] || []).length; c.fillStyle = `rgba(236,72,153,${Math.min(0.7, n / 24)})`; c.fillRect(X(bt.t0), y, Math.max(1, X(bt.t1) - X(bt.t0) - 1), rowH - 3); }); return; }
+    seatsOf(r, a, b).forEach(s => { c.fillStyle = r === 1 ? signOf(s.clip).col + 'aa' : RUNGS[r].col; c.fillRect(X(Math.max(a, s.t0)), y + (r === 2 ? (s.at % 3) * (rowH - 3) / 3 : 0), Math.max(1.5, X(Math.min(b, s.t1)) - X(Math.max(a, s.t0)) - 0.5), r === 2 ? (rowH - 3) / 3 : rowH - 3); });
+  });
+  // lines she speaks, as ticks under the poems
+  c.fillStyle = '#555'; K.lines.forEach(l => { if (l.t1 < a || l.t0 > b) return; c.fillRect(X(l.t0), 14, Math.max(1, X(l.t1) - X(l.t0) - 1), 2); });
+  const x = X(S.T); c.fillStyle = '#ef4444'; c.fillRect(x - 1, 0, 2, H);
+}
+(() => {
+  let down = false; const at = e => { const r = ov.getBoundingClientRect(), [a, b] = overWin(); return a + Math.max(0, Math.min(1, (e.clientX - r.left - 60) / (r.width - 66))) * (b - a); };
+  ov.addEventListener('pointerdown', e => { down = true; ov.setPointerCapture(e.pointerId); seek(at(e)); });
+  ov.addEventListener('pointermove', e => { if (down) seek(at(e)); });
+  ov.addEventListener('pointerup', () => { down = false; });
+})();
+
+/* ============ keys ============ */
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input, select, textarea') || e.metaKey || e.ctrlKey || e.altKey) { if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); undo(); } return; }
+  const k = e.key;
+  if (k === ' ') S.playing ? pause() : play();
+  else if (k === 'ArrowUp') promote(selSeat());
+  else if (k === 'ArrowDown') demote(selSeat());
+  else if (k === 'ArrowRight' || k === 'ArrowLeft') { const l = lineAt(S.T), i = l ? K.lines.indexOf(l) : K.lines.findIndex(x => x.t0 > S.T) - (k === 'ArrowRight' ? 1 : 0); const n = K.lines[Math.max(0, Math.min(K.lines.length - 1, i + (k === 'ArrowRight' ? 1 : -1)))]; if (n) seek(n.t0 - 0.1); }
+  else if (k === 'Backspace' || k === 'Delete') lift(selSeat());
+  else if (k === '[' || k === ']') stepCard(k === ']' ? 1 : -1);
+  else if (k === 'n' || k === 'N') nextUnmade();
+  else if (k === 'f' || k === 'F') $('#screenF').click();
+  else if (k === 'd' || k === 'D') takeDraft();
+  else if (k === 'z' || k === 'Z') $('#zoom').click();
+  else if (k === 'e' || k === 'E') $('#edl').click();
+  else if (k === 'b' || k === 'B') { S.mode = S.mode === 'beflix' ? 'picture' : 'beflix'; showMode(); }
+  else if (k === 'u' || k === 'U') undo();
+  else if (k === '?') $('#keys').showModal();
+  else if (k === 'Escape') { S.sel = null; renderCard(); }
+  else return;
+  e.preventDefault();
+});
+
+/* ============ the loop ============ */
+let lastOver = 0;
+function tick() {
+  if (S.playing && !aud.paused) S.T = aud.currentTime;
+  $('#clock').textContent = fmt(S.T);
+  const w = wordAt(S.T), l = lineAt(S.T);
+  $('#where').textContent = l ? l.text : '';
+  const wb = $('#words'); if (l) { const ws = l.words; wb.innerHTML = ws.map(x => x === (w && w.src) ? `<b>${esc(x.w)}</b>` : esc(x.w)).join(' '); } else wb.textContent = '';
+  syncScreen(); lensLive(); drawTunnel(); drawStrip();
+  if (performance.now() - lastOver > 120) { lastOver = performance.now(); drawOver(); }
+  if (S.playing && Math.floor(S.T * 2) !== Math.floor((S.T - 0.02) * 2)) rip.kick();
+  requestAnimationFrame(tick);
+}
+let saveT; setInterval(() => { if (S.playing) { const w = store.get(WORKKEY, null); if (w) { w.T = S.T; store.set(WORKKEY, w); } } }, 4000);
+
+/* ============ boot ============ */
+(async function boot() {
+  let kd, cd;
+  try { [kd, cd] = await Promise.all([fetch('../bets/kernel-data.json').then(r => r.json()), fetch('../wygwyl/collage-data.json').then(r => r.json()).catch(() => null)]); }
+  catch (e) { document.body.innerHTML = '<p style="padding:20px">The film’s data did not load (lab/bets/kernel-data.json). Open this page from the site, or run <code>python3 lab/server.py</code>.</p>'; return; }
+  K.D = kd.duration; K.films = kd.films; K.lines = kd.lines; K.beats = kd.beats; K.pool = kd.pool; K.signs = kd.signs;
+  K.lines.forEach(l => l.words.forEach(w => K.words.push({ i: K.words.length, w: w.w, t0: w.t0, t1: w.t1, line: l.id, src: w })));
+  Object.values(K.pool).forEach(L => L.forEach(c => K.clips.set(c.id, c)));
+  aud.src = kd.audio.replace(/^\.\.\//, '../');
+  // PLAUSIBLE: the four cuts of the WYGWYL suite, any bet's film in this browser, and your Studio film
+  const cuts = cd && cd.cuts ? cd.cuts : {};
+  const asSeats = (list, tag) => list.filter(s => s && s.clip ? s.clip.id : s && s.id).map((s, i) => { const c = s.clip || s; return { key: 'd' + tag + i, rung: 1, t0: s.t0, t1: s.t1, clip: slim({ ...c, in: c.in != null ? c.in : s.in }), why: 'the ' + tag + ' draft' }; });
+  const opts = [];
+  ['suite', 'scenes', 'cineosis', 'drift'].forEach(n => { if (cuts[n]) { K.cuts[n] = asSeats(cuts[n], n); opts.push([n, n + ' cut']); } });
+  ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9'].forEach(b => { const s = store.get('cineosis.film.' + b + '.v1', []); if (Array.isArray(s) && s.length) { K.cuts[b] = asSeats(s, b); opts.push([b, 'bet ' + b + ' film']); } });
+  const vw = store.get('vtstudio.work', null) || store.get('videotext.work', null);
+  const vb = vw && (vw.main || vw.binds);
+  if (Array.isArray(vb) && vb.length) { K.cuts.studio = vb.filter(b => b.shot && b.t1 > b.t0).map((b, i) => ({ key: 'dstudio' + i, rung: 1, t0: b.t0, t1: b.t1, clip: slim({ ...b.shot, in: b.in }), why: 'your Studio film' })); opts.push(['studio', 'Studio film']); }
+  $('#draft').innerHTML = opts.map(([v, n]) => `<option value="${v}">${esc(n)}</option>`).join('');
+  try { const m = await (await fetch('../videotext-studio/media.json')).json(); K.media.loops = new Set(m.loops); K.media.local = new Set(m.local); } catch (e) { /* no same-origin list: pictures only */ }
+  K.server = await fetch('/api/assignments').then(r => r.ok ? r.json() : null).then(j => Array.isArray(j)).catch(() => false);
+  const w = store.get(WORKKEY, null);
+  if (w) { S.probable = w.probable || []; S.preferred = w.preferred || []; if (w.draft && K.cuts[w.draft]) S.draft = w.draft; S.T = +w.T || 0; }
+  else S.T = K.lines[0].t0 - 0.5;
+  if (!K.cuts[S.draft] && opts[0]) S.draft = opts[0][0];
+  $('#draft').value = S.draft;
+  S.mode = store.get('abcflix.mode', 'beflix');
+  $('#lensInfo').textContent = K.server ? 'lens · ±6 s at 12 fps · every shot readable (server)' : `lens · ±6 s at 12 fps · ${K.media.loops.size + K.media.local.size} shots readable`;
+  seek(S.T); changed(false); showMode();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

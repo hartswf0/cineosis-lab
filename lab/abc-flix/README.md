@@ -1,5 +1,14 @@
 # ABC FLIX · Cineosis
 
+**`film.html` · ABC FLIX · Whole Film** is the rebuild from the bottom up, on the lab's clock rather than a pile of frames. It keeps the three things only ABC FLIX does (the picture as BEFLIX notation, four degrees of commitment, time as a place you fly through). This reel version stays alongside it.
+
+- **The tunnel is the whole film.** Its length is her 1,440 s. The 14 poems are rings, beats are bands on the floor, and the words she is about to say float ahead. Each clip stands in its lane as its thumbnail, so every shot shows, CDN or not. Playing is flying through it; wheel or drag the floor to fly by hand.
+- **The four tracks are a decision ladder.** POSSIBLE is the beat's pool (`bets/kernel-data.json`, 16 per beat). PLAUSIBLE is a machine draft: one of the four suite cuts, a bet's film, or your Studio film. PROBABLE is what you're auditioning. PREFERRED is the film: one clip per instant, snapped to her lines.
+  - ↑ promotes a clip and ↓ demotes it. Dragging a clip onto a lane of the floor puts it on that rung at that time.
+  - *Take draft* fills only the gaps in this poem, so what you placed stands. N finds the next line with no film.
+- **The engine is a lens on the playhead.** The screen shows what plays as BEFLIX (128 × 96, 7 levels) whenever its pixels are same-origin: the 474 Tempest loops, the 333 local clips, or every shot under `lab/server.py`. The strip rips the 12 s around the playhead at 12 fps by seeking, nearest first, so the old 144-frame ceiling no longer matters.
+- **Out:** the film saves in this browser (`abcflix.film.v1`), and is shared with the other instruments as the seat list `cineosis.film.FLIX.v1`. It exports and imports as a `cineosis-edl/1` EDL.
+
 [ABC FLIX](https://github.com/hartswf0/abc-flix) (the ICARO-PRO pixel engine and the ARC-TUNNEL clip editor on one message bus) fed with the lab's own footage instead of a video file from your disk.
 
 Open `lab/abc-flix/`. The **REEL** button on the bus strip opens the loader.
