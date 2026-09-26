@@ -228,7 +228,7 @@ async function boot(){
   try{
     D=await json('syntagm/data.json');shots={...D.shots};
     $('#origin').innerHTML='<optgroup label="WYGWYL edits">'+Object.entries(D.cuts).map(([k,c])=>`<option value="${k}">${esc('WYGWYL · '+c.title)}</option>`).join('')+'</optgroup><optgroup label="Original source films">'+D.sources.map(s=>`<option value="source:${esc(s.slug)}">${esc(s.title)} · ${s.count}</option>`).join('')+'</optgroup>';
-    bindReadings();wire();fillChapters();$('#loader').hidden=true;$('#app').hidden=false;if(!linkedPassage())await load();
+    bindReadings();wire();fillChapters();$('#loader').hidden=true;$('#app').hidden=false;if(!linkedPassage()){const q=new URLSearchParams(location.search);if(q.has('source')&&D.sources.some(s=>s.slug===q.get('source'))){$('#origin').value='source:'+q.get('source');fillChapters();$('#from').value=Math.max(1,Number(q.get('first'))||1);$('#count').value=Math.min(24,Math.max(1,Number(q.get('count'))||3));}await load();}
   }catch(e){$('#loader').innerHTML=`Could not load the lab: ${esc(e.message)} <button id="reload">Retry</button>`;$('#reload').onclick=()=>location.reload();}
 }
 boot();

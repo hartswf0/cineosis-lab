@@ -54,6 +54,10 @@ It exports the lab's `cineosis-edl/1` (every event, your couplings, the text car
 
 Static site limits: only the 253 read shots ship as local clips; every other shot plays from the archive's CDN. Chrome and Firefox stream the WYGWYL films from the release; if Safari refuses, the page offers the file to download.
 
+## Source Pattern Atlas
+
+[Source Pattern Atlas](https://hartswf0.github.io/cineosis-lab/lab/source-patterns.html) indexes 24 candidate original-source passages, visual observations from 34 sampled silent excerpts, and coverage audits of 60 cached source manifests. Complete-passage seed readings remain unresolved. Readers can encode relations, rival interpretations and evidence, attest full-context review, export/import their annotations, and open an original passage in Syntagm Lab. [Method and access limits](lab/source-patterns/README.md).
+
 ## Syntagm Lab
 
 Open [Syntagm Lab](https://hartswf0.github.io/cineosis-lab/lab/syntagm.html) to screen and rearrange passages from the four WYGWYL cuts or 60 cached source-film manifests. Keep playback above the timeline, inspect source coverage and neighboring clips, and compare edits while preserving occurrence identities and trims. The 45-sign table remains available with its deciding tests and read examples.
