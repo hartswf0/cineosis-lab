@@ -2,7 +2,7 @@
 
     python3 lab/syzygy/build_view.py      # after build_vertebrae.py → lab/syzygy/view.json, lab/syzygy/sprites/*.jpg
 
-Two sheet sets: g* holds every generated image a vertebra can show (all variants, storyboard boards), 160×90;
+Two sheet sets: g* holds every generated image a vertebra can show (all variants, storyboard boards), 320×180;
 a* holds every archive shot the page can show that has a local thumb (lab/thumbs), 128×72. A picture without a local
 file is left out rather than stood in for. Archive clips keep their video URL so the lab page can play them where the
 host allows it.
@@ -44,7 +44,7 @@ def main():
     films = [[f["n"], f["title"], f["t0"], f["t1"]] for f in json.load(open(os.path.join(LAB, "bets", "kernel-data.json")))["films"]]
     os.makedirs(os.path.join(HERE, "sprites"), exist_ok=True)
     for f in os.listdir(os.path.join(HERE, "sprites")): os.remove(os.path.join(HERE, "sprites", f))
-    G, A = Sheets("g", 160, 90), Sheets("a", 128, 72)
+    G, A = Sheets("g", 320, 180), Sheets("a", 128, 72)
     arch = {}
 
     def shot(i):
@@ -78,7 +78,7 @@ def main():
             "ag": [a["image_sign"], [CUTS.index(c) for c in a["cut_sign"]], None if a["metz"] is None else [CUTS.index(c) for c in a["metz"]]],
             "re": 1 if v.get("replaced") else 0})
     ng, na = G.save(), A.save()
-    json.dump({"films": films, "signs": signs, "cuts": CUTS, "sheets": {"g": [ng, 160, 90], "a": [na, 128, 72]}, "arch": arch, "v": out},
+    json.dump({"films": films, "signs": signs, "cuts": CUTS, "sheets": {"g": [ng, 320, 180], "a": [na, 128, 72]}, "arch": arch, "v": out},
               open(os.path.join(HERE, "view.json"), "w"), ensure_ascii=False, separators=(",", ":"))
     print(len(out), "vertebrae ·", len(G.idx), "generated images in", ng, "sheets ·", len(A.idx), "archive shots in", na, "sheets")
 
