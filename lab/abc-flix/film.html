@@ -149,6 +149,7 @@ dialog::backdrop{background:#000a}
   <p style="margin-top:10px;color:var(--dim);font-size:10.5px">BEFLIX needs the picture’s pixels, which a browser only gives for same-origin video: the Tempest loops and the lab’s clips always, every shot under <code>python3 lab/server.py</code>. Other shots play as pictures and show as stills in the lens. Your film is kept in this browser and shared with the other instruments as <code>cineosis.film.FLIX.v1</code>.</p>
   <p style="margin-top:10px;text-align:right"><button class="btn" onclick="this.closest('dialog').close()">close</button></p>
 </dialog>
+<script src="../clock.js?v=1"></script>
 <script>
 'use strict';
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -353,8 +354,9 @@ function syncScreen() {
     showMode();
   }
   if (cur.seat && cur.src && scr.readyState >= 1) {
-    const want = srcTime(cur.seat, cur.src, S.T, scr.duration || 0);
-    if (!S.playing || Math.abs(scr.currentTime - want) > 0.35) { try { scr.currentTime = want; } catch (e) { /* seeking */ } }
+    const want = srcTime(cur.seat, cur.src, S.T, scr.duration || 0), d = scr.currentTime - want;
+    if ((!S.playing && Math.abs(d) > 0.04) || Math.abs(d) > 0.5) { if (!scr.seeking) try { scr.currentTime = want; } catch (e) { /* seeking */ } scr.playbackRate = 1; }
+    else if (S.playing && Math.abs(d) > 0.04) scr.playbackRate = Math.max(0.9, Math.min(1.1, 1 - d * 0.5)); else scr.playbackRate = 1;
     if (S.playing && scr.paused) scr.play().catch(() => {}); if (!S.playing && !scr.paused) scr.pause();
   }
 }
@@ -636,9 +638,9 @@ document.addEventListener('keydown', e => {
 });
 
 /* ============ the loop ============ */
-let lastOver = 0;
+let lastOver = 0; const clk = { a: -1, p: 0 };
 function tick() {
-  if (S.playing && !aud.paused) S.T = aud.currentTime;
+  if (S.playing && !aud.paused) { const a = aud.currentTime, p = performance.now(); if (a !== clk.a) { clk.a = a; clk.p = p; S.T = a; } else S.T = a + Math.min(0.3, (p - clk.p) / 1000 * (aud.playbackRate || 1)); }
   $('#clock').textContent = fmt(S.T);
   const w = wordAt(S.T), l = lineAt(S.T);
   $('#where').textContent = l ? l.text : '';
@@ -679,6 +681,7 @@ let saveT; setInterval(() => { if (S.playing) { const w = store.get(WORKKEY, nul
   S.mode = store.get('abcflix.mode', 'beflix');
   $('#lensInfo').textContent = K.server ? 'lens · ±6 s at 12 fps · every shot readable (server)' : `lens · ±6 s at 12 fps · ${K.media.loops.size + K.media.local.size} shots readable`;
   seek(S.T); changed(false); showMode();
+  if (window.LabClock) LabClock.attach({ name: 'ABC FLIX', audio: aud, play: () => { if (!S.playing) play(); }, pause: () => { if (S.playing) pause(); }, seek: t => seek(t) });
   requestAnimationFrame(tick);
 })();
 </script>
