@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chemistry Trials</title>
-<meta name="description" content="Trials of Narrative Chemistry v1: blind synthesis against the four human cuts, spectroscopy of every film, a permutation test of the bonds, and a blind screening room.">
+<meta name="description" content="Trials of Narrative Chemistry v1: blind synthesis against the four plan.py cuts, spectroscopy of every film, a permutation test of the bonds, and a blind screening room.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='5' fill='%23141414'/><path d='M12 5h8M14 5v8l-6 12a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3l-6-12V5' fill='none' stroke='%23fff' stroke-width='2'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -97,18 +97,18 @@ table.data td.n{text-align:right;font-variant-numeric:tabular-nums}
 <body>
 <header>
   <h1>Chemistry trials · v1</h1>
-  <p>Can Narrative Chemistry predict, generate or distinguish films that the ordinary Cineosis taxonomy cannot? The ontology is frozen as v1. Four predictions were fixed before any number was run. One instrument reads every film, and seven films per poem are synthesised blind to the four human cuts.</p>
+  <p>Can Narrative Chemistry predict, generate or distinguish films that the ordinary Cineosis taxonomy cannot? The ontology is frozen as v1. Four predictions were fixed before any number was run. One instrument reads every film, and seven films per poem are synthesised blind to the four WYGWYL cuts. Those cuts were made by <code>cutbastard/plan.py</code>, one CLIP-scored rule per cut, not by a person, so what follows measures agreement with plan.py’s strategies, not with human editing.</p>
   <nav><a href="chemistry.html">the compound bench</a><a href="chemistry/ONTOLOGY-v1.md">ontology v1</a><a href="chemistry/TRIALS.md">findings</a><a href="chemistry/trials.py">the trials script</a></nav>
 </header>
 <section><h2>Verdicts <small>as registered in chemistry/trials.py</small></h2><div class="verdicts" id="verdicts"></div></section>
 <section>
-  <h2>How near each film comes to the human cuts <small>mean over 14 poems × 4 human cuts · lower is nearer</small></h2>
+  <h2>How near each film comes to the plan.py cuts <small>mean over 14 poems × 4 plan.py cuts · lower is nearer</small></h2>
   <div class="controls"><span class="seg" id="metric"></span></div>
   <div class="bars" id="bars"></div>
   <p class="note" id="barsNote"></p>
 </section>
 <section>
-  <h2>Do editors bond the way v1 says? <small>adjacent pairs in each human cut against 2,000 shuffles of its own shots, z-score</small></h2>
+  <h2>Do the plan.py cuts bond the way v1 says? <small>adjacent pairs in each plan.py cut against 2,000 shuffles of its own shots, z-score</small></h2>
   <div id="heat"></div>
   <p class="note">Blue: fewer than chance · red: more than chance · gray: as chance. ▲ or ▼ marks p &lt; 0.05. “Same” is two shots of the same sign in a row; v1 has no bond for it and files it under rhyme.</p>
 </section>
@@ -121,11 +121,11 @@ table.data td.n{text-align:right;font-variant-numeric:tabular-nums}
   <div id="specTable" hidden></div>
 </section>
 <section>
-  <h2>Blind screening room <small>eight films, one of them the suite’s human cut; their names stay hidden until you have rated all eight</small></h2>
+  <h2>Blind screening room <small>eight films, one of them the suite cut from plan.py; their names stay hidden until you have rated all eight</small></h2>
   <div class="controls"><select id="roomPoem" aria-label="Poem"></select><button class="btn" id="exportBtn">export ratings</button></div>
   <div class="room">
     <div><div class="screen"><video id="rv" muted playsinline preload="auto"></video><span class="tag" id="rtag">choose a film</span><div class="sub" id="rsub"></div></div>
-      <p class="note">Each film plays under her voice for the whole poem. Rate each one from 1 to 5 on three questions, and mark the one you think a person cut. Reveal is enabled once all eight are rated.</p>
+      <p class="note">Each film plays under her voice for the whole poem. Rate each one from 1 to 5 on three questions, and mark the one you think is the suite cut. Reveal is enabled once all eight are rated.</p>
       <div id="reveal"></div></div>
     <div class="films" id="films"></div>
   </div>
@@ -161,30 +161,30 @@ function verdicts() {
 let metric = 'd_trans';
 function bars() {
   $('#metric').innerHTML = METRICS.map(([k, l]) => `<button data-m="${k}" aria-pressed="${k === metric}">${l}</button>`).join('');
-  const m = T.metrics[metric], rows = T.generators.map(g => [g, m[g]]), ceil = m['human ceiling'], max = Math.max(...rows.map(r => r[1]), ceil) * 1.08;
+  const m = T.metrics[metric], rows = T.generators.map(g => [g, m[g]]), ceil = m['cuts ceiling'], max = Math.max(...rows.map(r => r[1]), ceil) * 1.08;
   const pct = v => (v / max * 100).toFixed(1) + '%';
   $('#bars').innerHTML = rows.map(([g, v], i) => {
     const t = T.tests[g], w = t ? `nearer than random in ${t.vs_random[metric] ? t.vs_random[metric].wins : '–'}/14 poems · than the taxonomy in ${t.vs_taxonomy[metric] ? t.vs_taxonomy[metric].wins : '–'}/14` : g === 'B-random' ? 'the null: a random candidate per slot' : 'the ordinary taxonomy: the best-ranked candidate per slot';
-    return `<span class="lab">${esc(NAMES[g])}</span><span class="track">${i === 0 ? `<span class="ref" style="left:${pct(ceil)}"><span class="reflab">human cuts to each other ${ceil}</span></span>` : `<span class="ref" style="left:${pct(ceil)}"></span>`}<span class="bar${g.startsWith('B') ? ' base' : ''}" style="width:${pct(v)}" data-tip="<b>${esc(NAMES[g])}</b><br>${esc(METRICS.find(x => x[0] === metric)[2])}: ${v}<br>${esc(w)}"></span></span><span class="val">${v}</span>`;
+    return `<span class="lab">${esc(NAMES[g])}</span><span class="track">${i === 0 ? `<span class="ref" style="left:${pct(ceil)}"><span class="reflab">plan.py cuts to each other ${ceil}</span></span>` : `<span class="ref" style="left:${pct(ceil)}"></span>`}<span class="bar${g.startsWith('B') ? ' base' : ''}" style="width:${pct(v)}" data-tip="<b>${esc(NAMES[g])}</b><br>${esc(METRICS.find(x => x[0] === metric)[2])}: ${v}<br>${esc(w)}"></span></span><span class="val">${v}</span>`;
   }).join('');
-  $('#barsNote').textContent = 'Gray bars are the baselines, blue are the chemistry generators. The dashed line is how far the four human cuts sit from one another. ' + METRICS.find(x => x[0] === metric)[2] + '.';
+  $('#barsNote').textContent = 'Gray bars are the baselines, blue are the chemistry generators. The dashed line is how far the four plan.py cuts sit from one another. ' + METRICS.find(x => x[0] === metric)[2] + '.';
 }
 $('#metric').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (b) { metric = b.dataset.m; bars(); feel('tick'); } });
 function heat() {
   const cls = T.classes, col = z => { const a = Math.min(1, Math.abs(z) / 5); return z < 0 ? `color-mix(in oklab, var(--neg) ${Math.round(a * 85)}%, var(--mid))` : `color-mix(in oklab, var(--pos) ${Math.round(a * 85)}%, var(--mid))`; };
-  $('#heat').innerHTML = `<table class="heat"><tr><th></th>${cls.map(c => `<th>${esc(CLASSES.find(x => x[0] === c)[1])}</th>`).join('')}</tr>${T.human.map(cut => `<tr><td class="rowh">${esc(cut)}</td>${cls.map(c => { const d = T.adjacency[cut][c], sig = d.p_over < 0.05 ? ' ▲' : d.p_under < 0.05 ? ' ▼' : ''; return `<td style="background:${col(d.z)};color:${Math.abs(d.z) > 3 ? '#fff' : 'var(--text-primary)'}" data-tip="${esc(cut)} · ${esc(c)}: ${d.observed} observed, ${d.expected} expected<br>z ${d.z} · p(over) ${d.p_over} · p(under) ${d.p_under}">${d.z > 0 ? '+' : ''}${d.z}${sig}<small>${d.observed} / ${d.expected}</small></td>`; }).join('')}</tr>`).join('')}</table>`;
+  $('#heat').innerHTML = `<table class="heat"><tr><th></th>${cls.map(c => `<th>${esc(CLASSES.find(x => x[0] === c)[1])}</th>`).join('')}</tr>${T.cuts.map(cut => `<tr><td class="rowh">${esc(cut)}</td>${cls.map(c => { const d = T.adjacency[cut][c], sig = d.p_over < 0.05 ? ' ▲' : d.p_under < 0.05 ? ' ▼' : ''; return `<td style="background:${col(d.z)};color:${Math.abs(d.z) > 3 ? '#fff' : 'var(--text-primary)'}" data-tip="${esc(cut)} · ${esc(c)}: ${d.observed} observed, ${d.expected} expected<br>z ${d.z} · p(over) ${d.p_over} · p(under) ${d.p_under}">${d.z > 0 ? '+' : ''}${d.z}${sig}<small>${d.observed} / ${d.expected}</small></td>`; }).join('')}</tr>`).join('')}</table>`;
 }
 function reading() {
   const v = T.verdicts, m = T.metrics.d_trans, adj = T.adjacency;
-  const same = T.human.filter(c => adj[c].same.p_over < 0.05);
+  const same = T.cuts.filter(c => adj[c].same.p_over < 0.05);
   $('#reading').innerHTML = `<h2>What the trials say</h2>
-  <h3>Refuted: the bond rule predicts editing</h3><p>Every chemistry generator lands farther from the human cuts' transitions than random films do. Transition distance is ${m['G-bond']} for the strongest-bond rule and ${m['G-resonance']} for resonance, against ${m['B-random']} for random. Random films sit as near the human cuts as the human cuts sit to each other (${m['human ceiling']}). The bench's “strongest lawful bond” (rhyme, then resonance, then break) was asserted, and the edits do not bear it out.</p>
-  <h3>Refuted: editors favour v1's bonds</h3><p>Rhyme, meaning two different signs of one image type side by side, falls below chance in all four cuts. The break into time is no more common than chance, and the scenes cut avoids it (z ${adj.scenes.break.z}). Resonance is over-represented in one cut only: drift (z ${adj.drift.resonance.z}), the associative one.</p>
-  <h3>Found instead: the same sign held across a cut</h3><p>The strongest editorial signal is one v1 has no word for. Two shots carrying the <em>same</em> sign in a row are over-represented in ${same.length} of 4 cuts (${same.map(c => `${c} z ${adj[c].same.z}`).join(', ')}). v1 files this under rhyme, together with the different-sign rhyme that editors avoid, so it merges an editorial habit with its opposite.</p>
+  <h3>Refuted: the bond rule predicts the plan.py cuts</h3><p>Every chemistry generator lands farther from the plan.py cuts' transitions than random films do. Transition distance is ${m['G-bond']} for the strongest-bond rule and ${m['G-resonance']} for resonance, against ${m['B-random']} for random. Random films sit as near the plan.py cuts as those cuts sit to each other (${m['cuts ceiling']}). The bench's “strongest lawful bond” (rhyme, then resonance, then break) was asserted, and the four cuts do not bear it out.</p>
+  <h3>Refuted: the plan.py cuts favour v1's bonds</h3><p>Rhyme, meaning two different signs of one image type side by side, falls below chance in all four cuts. The break into time is no more common than chance, and the scenes cut avoids it (z ${adj.scenes.break.z}). Resonance is over-represented in one cut only: drift (z ${adj.drift.resonance.z}), the associative one.</p>
+  <h3>Found instead: the same sign held across a cut</h3><p>The strongest signal in the plan.py cuts is one v1 has no word for. Two shots carrying the <em>same</em> sign in a row are over-represented in ${same.length} of 4 cuts (${same.map(c => `${c} z ${adj[c].same.z}`).join(', ')}). v1 files this under rhyme, together with the different-sign rhyme these cuts avoid, so it merges one of their habits with its opposite. The habit is plan.py’s: in the archive films’ own order, cut by people, the same machine sign held across a cut is at chance (0.486, <code>lab/syntagm/SWAP.md</code>).</p>
   <h3>Holds: the same atoms make a different film</h3><p>G-isomer keeps G-compound's signs and reorders only their bonds. The reordering moves the transition spectrum as far as changing the inventory does (${v.P4.evidence['isomer transition distance']} vs ${v.P4.evidence['different-inventory transition distance']}), while the signs stay closer (${v.P4.evidence['isomer stoichiometry distance']} vs ${v.P4.evidence['different-inventory stoichiometry distance']}). Bonding is not decoration: order alone makes a measurably different film.</p>
-  <h3>Vacuity, stated plainly</h3><p>No adjacent pair in any human cut breaks v1 (${T.vacuity.forbidden} of ${T.vacuity.pairs}): a single cut may join any two signs. v1 can only speak through the bonds it prefers, and those are the preferences refuted above.</p>
-  <h3>What v2 would have to earn</h3><ul><li><b>A continuity bond</b> for the same sign held across a cut, kept apart from rhyme. It is measured in 3 of 4 cuts; the operation is to extend a sign through a new shot.</li><li><b>Bond strength learned from the edits</b>, not asserted: an affinity per class taken from these z-scores. The test is whether a generator using it beats random, which none does now.</li><li><b>Resonance as a signature of drift</b>, not a general law. The operation would be a drift mode that raises resonance and lowers within-regime cuts, as the drift cut does.</li></ul>
-  <p class="note">Limits of the instrument: one label per shot (its strongest sign affinity); generators pick only from the beat pools; slots are equal in length where the human cuts are not. The blind screening room below asks people, not the instrument.</p>`;
+  <h3>Vacuity, stated plainly</h3><p>No adjacent pair in any plan.py cut breaks v1 (${T.vacuity.forbidden} of ${T.vacuity.pairs}): a single cut may join any two signs. v1 can only speak through the bonds it prefers, and those are the preferences refuted above.</p>
+  <h3>What v2 would have to earn</h3><ul><li><b>A continuity bond</b> for the same sign held across a cut, kept apart from rhyme. It is measured in 3 of 4 cuts; the operation is to extend a sign through a new shot.</li><li><b>Bond strength learned from measured cuts</b>, not asserted. These z-scores describe plan.py, so strengths meant to model editing have to come from human order (the archive films' own, or people's choices). The test is whether a generator using them beats random, which none does now.</li><li><b>Resonance as a signature of drift</b>, not a general law. The operation would be a drift mode that raises resonance and lowers within-regime cuts, as the drift cut does.</li></ul>
+  <p class="note">Limits of the instrument: one label per shot (its strongest sign affinity); generators pick only from the beat pools; slots are equal in length where the plan.py cuts are not. The four cuts are plan.py’s, so every verdict here is about its strategies, not about human editing. The blind screening room below asks people, not the instrument.</p>`;
 }
 /* spectra */
 function sparkline(vals) {
@@ -194,7 +194,7 @@ function sparkline(vals) {
 function spectra() {
   const p = T.poems.find(x => x.n === $('#poemSel').value) || T.poems[0];
   $('#legend').innerHTML = CLASSES.map(([k, l, c]) => `<span><i style="background:${c}"></i>${esc(l)}</span>`).join('') + '<span style="color:var(--text-secondary)">line: pT across the poem (0 movement-image … 14 time-image)</span>';
-  const rows = T.generators.map(g => [g, NAMES[g], false]).concat(T.human.map(c => [c, 'human · ' + c, true]));
+  const rows = T.generators.map(g => [g, NAMES[g], false]).concat(T.cuts.map(c => [c, 'plan.py · ' + c, true]));
   $('#spec').innerHTML = rows.map(([k, nm, h]) => { const s = p.spectra[k]; return `<span class="nm${h ? ' h' : ''}">${esc(nm)}</span><span class="stack">${CLASSES.map(([c, l, col]) => s.trans[c] > 0 ? `<span style="width:${(s.trans[c] * 100).toFixed(1)}%;background:${col}" data-tip="${esc(nm)}<br>${esc(l)}: ${Math.round(s.trans[c] * 100)}% of ${s.shots - 1} cuts"></span>` : '').join('')}</span><span class="sp">${sparkline(s.pT10)}</span><span class="rc">pT ${s.pT} · ${s.shots} shots</span>`; }).join('');
   $('#specTable').innerHTML = `<table class="data"><tr><th>film</th>${CLASSES.map(c => `<th>${esc(c[1])}</th>`).join('')}<th>pT</th><th>recurrence</th><th>shots</th></tr>${rows.map(([k, nm]) => { const s = p.spectra[k]; return `<tr><td>${esc(nm)}</td>${CLASSES.map(c => `<td class="n">${Math.round(s.trans[c[0]] * 100)}%</td>`).join('')}<td class="n">${s.pT}</td><td class="n">${s.recurrence}</td><td class="n">${s.shots}</td></tr>`; }).join('')}</table>`;
 }
@@ -211,12 +211,12 @@ function roomState(n) {
 }
 function saveRoom(n, st) { const all = store.get(RKEY, {}); all[n] = st; store.set(RKEY, all); }
 let playing = null;
-function filmOf(p, k) { return k === 'suite' ? p.human.suite : p.films[k]; }
+function filmOf(p, k) { return k === 'suite' ? p.cuts.suite : p.films[k]; }
 function room() {
   const n = $('#roomPoem').value, p = T.poems.find(x => x.n === n), st = roomState(n), L = 'ABCDEFGH';
   const done = st.order.every(k => Q.every(([q]) => (st.ratings[k] || {})[q])) && st.guess;
-  $('#films').innerHTML = st.order.map((k, i) => { const r = st.ratings[k] || {}; return `<div class="film${playing && playing.k === k ? ' on' : ''}" data-k="${k}"><header><b>${L[i]}</b><button class="btn" data-play="${k}">▶ screen</button><span class="who">${st.revealed ? esc(k === 'suite' ? 'the human suite cut' : NAMES[k]) : ''}</span></header>${Q.map(([q, lab]) => `<div class="r"><span>${lab}</span>${[1, 2, 3, 4, 5].map(v => `<button data-q="${q}" data-v="${v}" aria-pressed="${r[q] === v}">${v}</button>`).join('')}</div>`).join('')}<label><input type="radio" name="guess" value="${k}" ${st.guess === k ? 'checked' : ''}> a person cut this one</label></div>`; }).join('');
-  $('#reveal').innerHTML = st.revealed ? `<p><b>${st.guess === 'suite' ? '✓ You picked out the human cut.' : '✕ The human cut was ' + L[st.order.indexOf('suite')] + '.'}</b></p>` : `<button class="btn pri" id="revealBtn" ${done ? '' : 'disabled'}>reveal the names</button>`;
+  $('#films').innerHTML = st.order.map((k, i) => { const r = st.ratings[k] || {}; return `<div class="film${playing && playing.k === k ? ' on' : ''}" data-k="${k}"><header><b>${L[i]}</b><button class="btn" data-play="${k}">▶ screen</button><span class="who">${st.revealed ? esc(k === 'suite' ? 'the plan.py suite cut' : NAMES[k]) : ''}</span></header>${Q.map(([q, lab]) => `<div class="r"><span>${lab}</span>${[1, 2, 3, 4, 5].map(v => `<button data-q="${q}" data-v="${v}" aria-pressed="${r[q] === v}">${v}</button>`).join('')}</div>`).join('')}<label><input type="radio" name="guess" value="${k}" ${st.guess === k ? 'checked' : ''}> this is the suite cut</label></div>`; }).join('');
+  $('#reveal').innerHTML = st.revealed ? `<p><b>${st.guess === 'suite' ? '✓ You picked out the suite cut.' : '✕ The suite cut was ' + L[st.order.indexOf('suite')] + '.'}</b></p>` : `<button class="btn pri" id="revealBtn" ${done ? '' : 'disabled'}>reveal the names</button>`;
   aggregate();
 }
 $('#films').addEventListener('click', e => {
@@ -254,7 +254,7 @@ function aggregate() {
   done.forEach(([, s]) => keys.forEach(k => { const r = s.ratings[k] || {}; Q.forEach(([q]) => r[q] && sum[k][q].push(r[q])); }));
   const m = xs => xs.length ? (xs.reduce((a, b) => a + b, 0) / xs.length).toFixed(2) : '–';
   const hit = done.filter(([, s]) => s.guess === 'suite').length;
-  $('#agg').innerHTML = `<h2 style="margin-top:14px">Ratings so far <small>${done.length} poem${done.length > 1 ? 's' : ''} revealed · the human cut picked out ${hit} of ${done.length} times (chance 1 in 8)</small></h2><table class="data"><tr><th>film</th><th>recognizable</th><th>surprising</th><th>usable</th></tr>${keys.map(k => `<tr><td>${esc(k === 'suite' ? 'human suite cut' : NAMES[k])}</td><td class="n">${m(sum[k].r)}</td><td class="n">${m(sum[k].s)}</td><td class="n">${m(sum[k].u)}</td></tr>`).join('')}</table>`;
+  $('#agg').innerHTML = `<h2 style="margin-top:14px">Ratings so far <small>${done.length} poem${done.length > 1 ? 's' : ''} revealed · the suite cut picked out ${hit} of ${done.length} times (chance 1 in 8)</small></h2><table class="data"><tr><th>film</th><th>recognizable</th><th>surprising</th><th>usable</th></tr>${keys.map(k => `<tr><td>${esc(k === 'suite' ? 'plan.py suite cut' : NAMES[k])}</td><td class="n">${m(sum[k].r)}</td><td class="n">${m(sum[k].s)}</td><td class="n">${m(sum[k].u)}</td></tr>`).join('')}</table>`;
 }
 $('#exportBtn').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ ontology: 'v1', made: new Date().toISOString(), ratings: store.get(RKEY, {}) }, null, 1)], { type: 'application/json' })); a.download = 'chemistry-trials-ratings.json'; document.body.append(a); a.click(); setTimeout(() => a.remove(), 500); };
 
