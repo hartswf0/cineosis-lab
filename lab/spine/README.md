@@ -24,10 +24,11 @@ The records that steered the generated images for the WYGWYL poems, copied from 
 - **`syntagmaType` mixes two vocabularies:**
   - Metz types: Descriptive 285, Chronological 29, Thematic Montage 4. (Crystal is not in Metz's table.)
   - Deleuze image types: Affection-Image 121, Action-Image 68, Perception-Image 64, Sonsign 62, Recollection-Image 52.
-- **Poem codes don't all match `extract_poem_content.py`:**
-  - BE records are "How to break off an engagement" (the script says BE = Bloodline, HT = the engagement).
-  - HT records here are "How To Win My Heart" (4), plus line fragments misfiled into the `poem` field.
-- **Missing labels:** the 90 NM (Nevermore) records have no `poem` or labels.
+- **Poem codes, settled by alignment** (`lab/syzygy/VERTEBRAE.md`): BE records set the words of *How to Break Off an
+  Engagement* (03) and HT records are *How To Win My Heart* (13). The `poem` field is right; `extract_poem_content.py`'s
+  BE = Bloodline is not. The records' timestamps come from another master that ran the poems in another order (SH, FL,
+  HT, NM, BE, AT, DJ, NS, YH, MR, RU, HM).
+- **Missing labels:** the 90 NM (Nevermore) records have no `poem`, line or labels; the vertebrae place them by timestamp over Nevermore's voice.
 - **Duplicate ids:** 210 ids appear more than once in `total-cinome.json`. They are not errors: in all 210 the record is identical and only the image differs (`…_0.png`, `…_3.png`), i.e. 2–4 generated variants of one prompt. Each slot is a small set of alternatives.
 - **The labels are the prompts.** Each image was generated from its words: `<syntagma code> · <cineosisFunction> · <operativeEkphrasis> · <style>` (the form `full_prompt` takes in the storyboard). So `syntagmaType`, `imageType` and `cineosisFunction` are causes of the image, not readings of it. Use them as the intended function, the director's side of the cut, and ask what of them reached the picture.
 
