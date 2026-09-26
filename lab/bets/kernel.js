@@ -55,7 +55,9 @@
   /* ---------- the voice ---------- */
   const A = K.audio = new Audio(); A.preload = 'auto';
   let range = null, passes = 0;
-  K.now = () => A.currentTime || 0;
+  // the voice's own time updates are coarse on some browsers; between them the clock runs on
+  let lastA = -1, lastP = 0;
+  K.now = () => { const a = A.currentTime || 0, p = performance.now(); if (a !== lastA) { lastA = a; lastP = p; return a; } return A.paused || A.readyState < 3 ? a : a + Math.min(.3, (p - lastP) / 1000 * (A.playbackRate || 1)); };
   K.playing = () => !A.paused;
   K.seek = t => { A.currentTime = Math.max(0, Math.min(K.duration - .05, t)); K.emit('tick', K.now()); };
   K.play = (t0, t1, o = {}) => {
@@ -227,8 +229,11 @@
     const dur = c.dur || v.duration || 10, into = preview != null ? preview : t - s.t0, want = (c.in || 0) + (((into % Math.max(.5, dur)) + dur) % dur);
     const play = K.playing();
     if (!v.dataset.fell && v.readyState >= 1 && !v.seeking) {
-      const drift = Math.abs((v.currentTime || 0) - want);
-      if (drift > (play ? 1.2 : .15)) try { v.currentTime = want; } catch (e) { /* not seekable yet */ }
+      // small drift is taken up by running the clip a touch faster or slower; only a big one jumps
+      const d = (v.currentTime || 0) - want, drift = Math.abs(d), rate = A.playbackRate || 1;
+      if (drift > (play ? .5 : .15)) { try { v.currentTime = want; } catch (e) { /* not seekable yet */ } v.playbackRate = rate; }
+      else if (play && drift > .05) v.playbackRate = rate * Math.max(.9, Math.min(1.1, 1 - d * .5));
+      else if (v.playbackRate !== rate) v.playbackRate = rate;
     }
     if (play && v.paused && !v._starting) { v._starting = true; v.play().catch(() => {}).finally(() => { v._starting = false; }); }
     if (!play && !v.paused) v.pause();
@@ -590,6 +595,8 @@
     K.log(o.code, `${o.claim} · ${Math.round(100 * L.whole())}% of this bet’s film is made · N next unmade line · F screen it`);
     splitters();
     if (q.get('screen')) setTimeout(() => K.screen(K.film.t0), 50);
+    // one clock for the lab: arrive from another tool mid-film and carry on; open side by side and follow the one playing
+    else { const cs = document.createElement('script'); cs.src = U('../clock.js?v=2'); cs.onload = () => window.LabClock && LabClock.attach({ name: o.code + ' ' + o.name, audio: A, play: () => K.play(), pause: () => K.pause(), seek: t => K.goto(t) }); document.head.append(cs); }
     K.on('tick', t => { const f = K.film, p = document.querySelector(`#strip button[data-n="${f.n}"] .mph`); if (p) p.style.left = (100 * (t - f.t0) / (f.t1 - f.t0)) + '%'; });
     requestAnimationFrame(tick);
     return K;

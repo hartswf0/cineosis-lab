@@ -584,6 +584,7 @@ dialog td{padding:3px 10px 3px 0;vertical-align:top}
   <form method="dialog"><button class="btn">Close</button></form>
 </dialog>
 
+<script src="clock.js?v=2"></script>
 <script>
 'use strict';
 const $ = s => document.querySelector(s);
@@ -648,6 +649,90 @@ function tokenize(D) {
     w.L = L; w.P = P;
   });
   return { films, words, stanzas };
+}
+
+/* the words as she speaks them: every word at the time it is heard (bets/kernel-data.json, aligned to the audio).
+   The screen cues only frame the stanzas and give them their headlines; they no longer set any word's time. */
+function tokenizeSpoken(D, KD) {
+  const films = D.films.map((f, i) => ({ ...f, i, world: D.worlds[i] || {}, stanzas: [], cards: [] }));
+  const filmAt = t => { for (let i = films.length - 1; i >= 0; i--) if (t >= films[i].container[0] - 0.01) return films[i]; return films[0]; };
+  const cues = D.cues.map((c, ci) => ({ ...c, ci })).filter(c => (c.text || '').trim());
+  const cueFor = l => {
+    const m = (l.t0 + l.t1) / 2, f = filmAt(m);
+    const inside = cues.find(c => m >= c.t0 && m < c.t1); if (inside) return inside;
+    let best = null, bd = 1e9;
+    cues.forEach(c => { if (filmAt(c.t0 + 0.05) !== f) return; const d = m < c.t0 ? c.t0 - m : m - c.t1; if (d < bd) { bd = d; best = c; } });
+    return best;
+  };
+  const words = [], stanzas = [];
+  let st = null, line = 0, phrase = 0;
+  KD.lines.slice().sort((a, b) => a.t0 - b.t0).forEach(l => {
+    const c = cueFor(l), f = filmAt((l.t0 + l.t1) / 2);
+    if (!st || st.ci !== (c ? c.ci : -1) || st.film !== f.i) {
+      if (st) { st.b = words.length - 1; st.t1 = words[st.b].t1; st.text = words.slice(st.a).map(w => w.text).join(' '); }
+      st = { i: stanzas.length, ci: c ? c.ci : -1, film: f.i, t0: l.words[0] ? l.words[0].t0 : l.t0, t1: l.t1, screen: c && !stanzas.some(s => s.ci === c.ci) ? c.screen : '', a: words.length, b: 0, lineId: l.id };
+      stanzas.push(st); f.stanzas.push(st.i); line = 0; phrase = 0;
+    } else { line++; phrase++; }
+    l.words.forEach(w => {
+      const text = w.w, dash = text === '—' || text === '-' || text === '–';
+      words.push({ i: words.length, s: st.i, film: st.film, text, t0: w.t0, t1: Math.max(w.t1, w.t0 + 0.05), line, phrase, dash, key: text.toLowerCase().replace(/[’]/g, "'").replace(/[^a-z']/g, ''), lid: l.id });
+      if (dash || /[,:;—]$/.test(text)) phrase++;
+    });
+  });
+  if (st) { st.b = words.length - 1; st.t1 = words[st.b].t1; st.text = words.slice(st.a).map(w => w.text).join(' '); }
+  // the text cards (cues with no words) sit between stanzas by time
+  D.cues.forEach((c, ci) => { if ((c.text || '').trim()) return; const f = filmAt(c.t0 + 0.05); f.cards.push({ ci, t0: c.t0, t1: c.t1, screen: c.screen, after: f.stanzas.filter(si => stanzas[si].t0 < c.t0).length }); });
+  let L = -1, P = -1, lastKey = '', lastP = '';
+  words.forEach(w => { const lk = w.s + ':' + w.line, pk = w.s + ':' + w.phrase; if (lk !== lastKey) { L++; lastKey = lk; } if (pk !== lastP) { P++; lastP = pk; } w.L = L; w.P = P; });
+  return { films, words, stanzas };
+}
+
+/* work saved before the spoken grid pointed at words by their place in the screen text. Each coupling is carried to
+   the same words as spoken (matched by their text and neighbours), else to what was heard at its time. */
+function migrateGrid(work, D) {
+  const old = tokenize(D).words, now = S.words, pos = new Map();
+  now.forEach(w => { if (!w.key) return; if (!pos.has(w.key)) pos.set(w.key, []); pos.get(w.key).push(w.i); });
+  const keys = (a, b) => old.slice(Math.max(0, a), Math.max(0, b + 1)).map(w => w.key).filter(Boolean);
+  const walk = (toks, s) => { let i = 0, j = s, hit = 0, first = -1; while (i < toks.length && j < now.length) { const k = now[j] && now[j].key; if (!k) { j++; continue; } if (k === toks[i]) { if (first < 0) first = j; hit++; i++; j++; } else if (now[j + 1] && now[j + 1].key === toks[i]) j++; else if (toks[i + 1] === k) i++; else { i++; j++; } } return { hit, end: j - 1, first }; };
+  const byTime = (t0, t1) => { const ws = now.filter(w => (w.t0 + w.t1) / 2 >= t0 && (w.t0 + w.t1) / 2 <= t1); if (ws.length) return [ws[0].i, ws[ws.length - 1].i]; const w = now.find(x => x.t0 >= t0) || now[now.length - 1]; return [w.i, w.i]; };
+  const cache = new Map();
+  function span(a, b) {
+    const ck = a + ':' + b; if (cache.has(ck)) return cache.get(ck);
+    const core = keys(a, b), pre = keys(a - 2, a - 1), post = keys(b + 1, b + 2), oa = old[a], ob = old[b];
+    let best = null;
+    if (core.length) {
+      const starts = new Set();
+      core.slice(0, 3).forEach((k, j) => (pos.get(k) || []).forEach(p => starts.add(p - j)));
+      starts.forEach(s => {
+        if (s < 0) return;
+        const m = walk(core, s); if (!m.hit) return;
+        const ctx = walk(pre, Math.max(0, s - pre.length - 1)).hit + walk(post, m.end + 1).hit;
+        const score = m.hit / core.length + ctx * 0.08, dist = oa ? Math.abs(now[s].t0 - oa.t0) : 0;
+        if (!best || score > best.score + 1e-6 || (Math.abs(score - best.score) < 1e-6 && dist < best.dist)) best = { score, dist, a: m.first, b: Math.max(m.first, m.end) };
+      });
+    }
+    const out = best && best.score >= 0.5 ? [best.a, Math.min(now.length - 1, best.b)] : byTime(oa ? oa.t0 : 0, ob ? ob.t1 : 0);
+    cache.set(ck, out); return out;
+  }
+  const fixBind = x => {
+    if (!x || !old[x.a] || !old[x.b]) return x;
+    const [a, b] = span(x.a, x.b), n = { ...x, a, b };
+    if (x.slid) { const d = now[a].t0 - old[x.a].t0; n.t0 = Math.max(0, x.t0 + d); n.t1 = Math.min(D.duration, x.t1 + d); } else { n.t0 = now[a].t0; n.t1 = now[b].t1; }
+    return n;
+  };
+  const fixList = l => (l || []).map(fixBind);
+  let moved = 0;
+  const countMoved = (before, after) => before.forEach((x, k) => { if (after[k] && (Math.abs(after[k].t0 - x.t0) > 0.5)) moved++; });
+  if (work) {
+    const m0 = work.binds || [];
+    work.binds = fixList(m0); countMoved(m0, work.binds);
+    if (work.sel && old[work.sel[0]] && old[work.sel[1]]) work.sel = span(work.sel[0], work.sel[1]);
+    work.grid = 'spoken/1';
+  }
+  const vs = store.get('videotext.versions', null);
+  if (Array.isArray(vs) && vs.length && store.get('videotext.grid', '') !== 'spoken/1') store.set('videotext.versions', vs.map(v => v.grid === 'spoken/1' ? v : { ...v, binds: fixList(v.binds), grid: 'spoken/1' }));
+  store.set('videotext.grid', 'spoken/1');
+  return moved;
 }
 
 function indexShots(D) {
@@ -1215,6 +1300,24 @@ function load(v, seg, t) {
   const set = () => { try { v.currentTime = vTime(seg, t); } catch (e) { /* not ready */ } };
   if (v.readyState >= 1) set(); else v.addEventListener('loadedmetadata', set, { once: true });
 }
+/* her voice is master: between the audio's coarse time updates the clock runs on; while the audio buffers the
+   picture waits; small drift is taken up by running the picture a touch faster or slower, only a big one jumps */
+const CLK = { a: -1, p: 0, stall: false };
+function audNow() {
+  const a = aud.currentTime, now = performance.now();
+  if (a !== CLK.a) { CLK.a = a; CLK.p = now; return a; }
+  if (CLK.stall || aud.paused) return a;
+  return a + Math.min(0.3, (now - CLK.p) / 1000 * aud.playbackRate);
+}
+aud.addEventListener('waiting', () => { CLK.stall = true; vids.forEach(v => v.pause()); });
+aud.addEventListener('playing', () => { CLK.stall = false; });
+function follow(v, want) {
+  const rate = aud.playbackRate || 1, d = v.currentTime - want;
+  if (!S.playing || CLK.stall) { if (Math.abs(d) > 0.04 && !v.seeking) { try { v.currentTime = want; } catch (e) { /* seeking */ } } v.playbackRate = rate; return; }
+  if (Math.abs(d) > 0.5) { if (!v.seeking) { try { v.currentTime = want + 0.04; } catch (e) { /* seeking */ } } v.playbackRate = rate; }
+  else if (Math.abs(d) > 0.04) v.playbackRate = rate * Math.max(0.9, Math.min(1.1, 1 - d * 0.5));
+  else if (v.playbackRate !== rate) v.playbackRate = rate;
+}
 function show(t) {
   const seg = segAt(t); if (!seg) return;
   const tc = $('#textcard');
@@ -1247,8 +1350,8 @@ function show(t) {
     const fv = vids[front];
     if (fv.readyState >= 1) {
       const want = vTime(seg, t);
-      if (!S.playing || Math.abs(fv.currentTime - want) > 0.45) { try { fv.currentTime = want; } catch (e) { /* seeking */ } }
-      if (S.playing && fv.paused) fv.play().catch(() => {});
+      follow(fv, want);
+      if (S.playing && !CLK.stall && fv.paused) fv.play().catch(() => {});
     }
   }
 }
@@ -1281,7 +1384,7 @@ function paintNow(t) {
 }
 function tick() {
   if (S.playing) {
-    S.t = aud.currentTime;
+    S.t = audNow();
     if (S.stopAt != null && S.t >= S.stopAt.t1) {
       if (S.loop) { aud.currentTime = S.stopAt.t0; S.t = S.stopAt.t0; curKey = null; }
       else { pause(); S.stopAt = null; }
@@ -1368,7 +1471,7 @@ $('#zoom').addEventListener('click', e => { const b = e.target.closest('button')
 function setZoom(z) { S.zoom = z; $$('#zoom button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.z === z))); renderTimeline(); }
 
 /* ============ release ============ */
-function saveWork() { if (!S.D) return; store.set('videotext.work', { base: S.base, binds: S.binds, sel: S.sel ? [S.sel.a, S.sel.b] : null, grain: S.grain }); }
+function saveWork() { if (!S.D) return; store.set('videotext.work', { base: S.base, binds: S.binds, sel: S.sel ? [S.sel.a, S.sel.b] : null, grain: S.grain, grid: 'spoken/1' }); }
 function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
 function edl() {
   return {
@@ -1379,7 +1482,7 @@ function edl() {
 }
 function shareHash() {
   const b = S.binds.map(x => [x.a, x.b, x.shot.id, x.in.toFixed(1)].join('.') + (x.tr && x.tr !== 'cut' ? '_' + x.tr : '')).join('~');
-  return '#u=' + S.base + (b ? '&b=' + b : '') + (S.sel ? '&s=' + S.sel.a + '.' + S.sel.b : '');
+  return '#g=2&u=' + S.base + (b ? '&b=' + b : '') + (S.sel ? '&s=' + S.sel.a + '.' + S.sel.b : '');
 }
 function readHash() {
   const h = new URLSearchParams(location.hash.slice(1));
@@ -1389,10 +1492,10 @@ function readHash() {
     const [a, b, id, inp] = p.split('.').length > 4 ? (() => { const q = p.split('.'); return [q[0], q[1], q[2], q.slice(3).join('.')]; })() : p.split('.');
     const s = S.shots.get(id); const A = +a, B = +b;
     if (!s || !S.words[A] || !S.words[B]) return null;
-    return { id: 'h' + k, a: A, b: B, t0: S.words[A].t0, t1: S.words[B].t1, shot: slimShot(s), in: +inp || 0, at: k, tr: TRANSITIONS.includes(tr) ? tr : undefined };
+    return { id: 'h' + k, a: A, b: B, t0: 0, t1: 0, shot: slimShot(s), in: +inp || 0, at: k, tr: TRANSITIONS.includes(tr) ? tr : undefined };
   }).filter(Boolean);
   const sel = (h.get('s') || '').split('.').map(Number);
-  return { base: h.get('u') || 'suite', binds, sel: sel.length === 2 && !isNaN(sel[0]) ? sel : null };
+  return { grid: h.get('g') === '2' ? 'spoken/1' : '', base: h.get('u') || 'suite', binds, sel: sel.length === 2 && !isNaN(sel[0]) ? sel : null };
 }
 $('#rPlay').onclick = () => { S.loop = false; S.stopAt = null; seek(0); if (!S.playing) play(); showTab('film'); };
 $('#rLink').onclick = async () => {
@@ -1413,7 +1516,7 @@ $('#rClear').onclick = () => { if (!S.binds.length) return; if (confirm('Lift al
 $('#rSave').onclick = () => {
   const vs = store.get('videotext.versions', []);
   const n = (vs.length ? Math.max(...vs.map(v => v.n)) : 0) + 1;
-  vs.push({ n, at: Date.now(), base: S.base, binds: S.binds });
+  vs.push({ n, at: Date.now(), base: S.base, binds: S.binds, grid: 'spoken/1' });
   store.set('videotext.versions', vs); renderVersions(); toast('Archived as v' + n);
 };
 function renderVersions() {
@@ -1636,11 +1739,11 @@ function liveTick(t) {
 
 /* ============ boot ============ */
 (async function boot() {
-  let D;
-  try { D = await (await fetch('wygwyl/collage-data.json')).json(); }
-  catch (e) { $('#poem').innerHTML = '<div class="loading">The poem data did not load (wygwyl/collage-data.json). Open this page from the site or <code>python3 lab/server.py</code>.</div>'; return; }
+  let D, KD;
+  try { [D, KD] = await Promise.all([fetch('wygwyl/collage-data.json').then(r => r.json()), fetch('bets/kernel-data.json').then(r => r.json())]); }
+  catch (e) { $('#poem').innerHTML = '<div class="loading">The poem data did not load (wygwyl/collage-data.json, bets/kernel-data.json). Open this page from the site or <code>python3 lab/server.py</code>.</div>'; return; }
   S.D = D;
-  const tk = tokenize(D); S.films = tk.films; S.words = tk.words; S.stanzas = tk.stanzas;
+  S.KD = KD; const tk = tokenizeSpoken(D, KD); S.films = tk.films; S.words = tk.words; S.stanzas = tk.stanzas;
   S.shots = indexShots(D);
   aud.src = D.audio;
   aud.addEventListener('ended', pause);
@@ -1649,6 +1752,8 @@ function liveTick(t) {
   wireePoem();
   const fromHash = readHash();
   const work = fromHash || store.get('videotext.work', null);
+  let migrated = -1;
+  if ((work && work.grid !== 'spoken/1') || store.get('videotext.grid', '') !== 'spoken/1') migrated = migrateGrid(work && work.grid !== 'spoken/1' ? work : null, D);
   if (work) {
     S.base = ['suite', 'scenes', 'cineosis', 'drift', 'text'].includes(work.base) ? work.base : 'suite';
     S.binds = (work.binds || []).filter(b => S.words[b.a] && S.words[b.b] && b.shot && b.shot.video).map(b => ({ ...b, t0: S.words[b.a].t0, t1: S.words[b.b].t1 }));
@@ -1667,12 +1772,15 @@ function liveTick(t) {
   setSel(sel, { scroll: true });
   if (window.matchMedia('(max-width:900px)').matches) showTab('poem');
   measureProg();
+  if (migrated >= 0 && work) saveWork();
+  if (migrated > 0) setTimeout(() => toast(`The words now keep her real timing. ${migrated} of your couplings moved to where those words are actually spoken.`), 600);
+  if (window.LabClock) LabClock.attach({ name: 'Videotext', audio: aud, play: () => { if (!S.playing) { S.stopAt = null; play(); } }, pause: () => { if (S.playing) pause(); }, seek: t => seek(t) });
   requestAnimationFrame(tick);
 })();
 </script>
-<script src="videotext/views-archive.js?v=1"></script>
+<script src="videotext/views-archive.js?v=2"></script>
 <script src="videotext/views-couple.js?v=1"></script>
-<script src="videotext/views-time.js?v=1"></script>
+<script src="videotext/views-time.js?v=2"></script>
 <script src="videotext/views-assemble.js?v=1"></script>
 </body>
 </html>
