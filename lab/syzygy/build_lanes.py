@@ -16,8 +16,10 @@ Beats carry the signs they ask for; a body is in line when its sign is one of th
 Sprites keep each source's own aspect: lg* generated frames 320×180, la* archive shots with a local thumb 128×72,
 lh* Halfworld frames 240×180. A shot without a local thumb takes a frame from its local clip or Tempest loop
 (lab/clips, lab/wygwyl/tempest); only a shot with neither stays dark.
-Motion: every lane shot with a Tempest loop or a local clip gets a small looping video, listed in "vids"
-(1 = lab/wygwyl/tempest/<id>.mp4, 2 = cut from lab/clips/<id>.mp4 into lab/syzygy/loops/<id>.mp4, 240×135, 3 s).
+Motion: every lane shot with a Tempest loop or a local clip gets a flipbook: 24 frames at 8 fps (3 s), 128×72,
+one row per shot in lf* sheets (16 shots × 24 frames each), listed in "flips" as [sheet, row]. The page shows the
+frame for the playhead's time inside the shot, so scrubbing moves the picture exactly and nothing needs decoding.
+Sources: lab/wygwyl/tempest/<id>.mp4, else lab/clips/<id>.mp4 (a 3 s loop cut into lab/syzygy/loops/, git-ignored).
 Gaps: the spine lane holds storyboard boards between her lines (as Spine-Cut does), and each storyboard frame
 holds until the next beat that has one. Spine-Cut sections whose clean pick has no local picture show Spine-Cut's
 next-ranked candidate that has one (marked "alt").
@@ -151,15 +153,33 @@ def main():
     T = J("chemistry", "trials.json")
     for lane, film in (("taxonomy", "B-taxonomy"), ("compound", "G-compound")):
         lanes[lane] = sorted([[x["t0"], x["t1"], arch(x["id"]), x.get("sg"), x["id"]] for p in T["poems"] for x in p["films"][film]])
+    # flipbooks: the frame at any moment of a shot, for scrubbing
+    for f in os.listdir(os.path.join(HERE, "sprites")):
+        if f.startswith("lf"): os.remove(os.path.join(HERE, "sprites", f))
+    FW, FH, NF, ROWS = 128, 72, 24, 16
+    flips, fsheets = {}, []
+    for i, kind in sorted(vids.items()):
+        src = os.path.join(LAB, "wygwyl", "tempest", f"{i}.mp4") if kind == 1 else os.path.join(LO, f"{i}.mp4")
+        r = subprocess.run([FF, "-v", "error", "-i", src, "-vf", f"fps=8,scale={FW}:{FH}:force_original_aspect_ratio=increase,crop={FW}:{FH}",
+                            "-frames:v", str(NF), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True)
+        n = len(r.stdout) // (FW * FH * 3)
+        if n < 2: continue
+        k = len(flips)
+        if k % ROWS == 0: fsheets.append(Image.new("RGB", (FW * NF, FH * ROWS), (0, 0, 0)))
+        for j in range(NF):   # a short clip repeats its frames to fill the row
+            fr = Image.frombytes("RGB", (FW, FH), r.stdout[(j % n) * FW * FH * 3:((j % n) + 1) * FW * FH * 3])
+            fsheets[-1].paste(fr, (j * FW, (k % ROWS) * FH))
+        flips[i] = [k // ROWS, k % ROWS]
+    for n, sh in enumerate(fsheets): sh.save(os.path.join(HERE, "sprites", f"lf{n}.jpg"), quality=70)
     ng, na, nh = G.save(), A.save(), HW.save()
     signs = {s["n"]: [s["symbol"], s["name"], s["dom"]] for s in LDd["signs"]}
     out = {"dur": SD["duration"], "films": [[f["n"], f["title"], f["t0"], f["t1"]] for f in K["films"]],
            "beats": [[b["t0"], b["t1"], b["codes"], b["title"], b["id"]] for b in K["beats"]],
            "order": ["voice", "spine", "halfworld", "board", "suite", "scenes", "cineosis", "drift", "spinecut", "forage", "taxonomy", "compound"],
-           "lanes": lanes, "sheets": {"lg": [ng, 320, 180], "la": [na, 128, 72], "lh": [nh, 240, 180]}, "meta": meta, "prompts": prompts, "signs": signs, "vids": vids}
+           "lanes": lanes, "sheets": {"lg": [ng, 320, 180], "la": [na, 128, 72], "lh": [nh, 240, 180]}, "meta": meta, "prompts": prompts, "signs": signs, "flips": flips, "flip": [len(fsheets), FW, FH, NF, 8]}
     json.dump(out, open(os.path.join(HERE, "lanes.json"), "w"), ensure_ascii=False, separators=(",", ":"))
     dark = {k: sum(1 for x in v if x[2] is None) for k, v in lanes.items() if k != "voice"}
-    print({k: len(v) for k, v in lanes.items()}, "·", len(G.idx), "generated,", len(A.idx), "archive pictures,", len(vids), "loops · dark:", dark)
+    print({k: len(v) for k, v in lanes.items()}, "·", len(G.idx), "generated,", len(A.idx), "archive pictures,", len(flips), "flipbooks in", len(fsheets), "sheets · dark:", dark)
 
 
 if __name__ == "__main__":
