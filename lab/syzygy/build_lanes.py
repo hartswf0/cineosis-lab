@@ -13,13 +13,16 @@ Bodies (lanes), each a list of [t0, t1, sprite cell | null, sign | null, id]:
   taxonomy · compound   two films from the chemistry trials: the ordinary taxonomy's best pick per slot, and a blind
              compound laid over the slots                chemistry/trials.json
 Beats carry the signs they ask for; a body is in line when its sign is one of them.
-Sprites keep each source's own aspect: lg* generated frames 320×180, la* archive shots with a local thumb 128×72,
+Sprites keep each source's own aspect: lg* generated frames 240×135, la* archive shots with a local thumb 128×72,
 lh* Halfworld frames 240×180. A shot without a local thumb takes a frame from its local clip or Tempest loop
 (lab/clips, lab/wygwyl/tempest); only a shot with neither stays dark.
 Motion: every lane shot with a Tempest loop or a local clip gets a flipbook: 24 frames at 8 fps (3 s), 128×72,
-one row per shot in lf* sheets (16 shots × 24 frames each), listed in "flips" as [sheet, row]. The page shows the
+96×54, one row per shot in lf* sheets (16 shots × 24 frames each), listed in "flips" as [sheet, row]. The page shows the
 frame for the playhead's time inside the shot, so scrubbing moves the picture exactly and nothing needs decoding.
 Sources: lab/wygwyl/tempest/<id>.mp4, else lab/clips/<id>.mp4 (a 3 s loop cut into lab/syzygy/loops/, git-ignored).
+Halfworld motion: the author's Halfworld pages rendered at 4 frames a second on her clock by render_halfworld.mjs
+(window.__hw.renderAt, the pages' own renderer) into lab/syzygy/.halfworld-frames/<clock×4>.jpg, packed here into
+lw* sheets of 20×20 frames at 128×96 and listed in "hw": [[first frame index, last, rank of first], …] per poem.
 Gaps: the spine lane holds storyboard boards between her lines (as Spine-Cut does), and each storyboard frame
 holds until the next beat that has one. Spine-Cut sections whose clean pick has no local picture show Spine-Cut's
 next-ranked candidate that has one (marked "alt").
@@ -68,7 +71,7 @@ def main():
     sign_of = lambda i: ((LD.get(i) or {}).get("aff_top") or [[(SC["shots"].get(i) or {}).get("sg")]])[0][0]
     for f in os.listdir(os.path.join(HERE, "sprites")):
         if f.startswith("l"): os.remove(os.path.join(HERE, "sprites", f))
-    G, A, HW = Sheets("lg", 320, 180), Sheets("la", 128, 72), Sheets("lh", 240, 180)
+    G, A, HW = Sheets("lg", 240, 135), Sheets("la", 128, 72), Sheets("lh", 240, 180)
     meta = {}
 
     FR = os.path.join(HERE, ".frames"); LO = os.path.join(HERE, "loops"); os.makedirs(FR, exist_ok=True); os.makedirs(LO, exist_ok=True)
@@ -156,7 +159,7 @@ def main():
     # flipbooks: the frame at any moment of a shot, for scrubbing
     for f in os.listdir(os.path.join(HERE, "sprites")):
         if f.startswith("lf"): os.remove(os.path.join(HERE, "sprites", f))
-    FW, FH, NF, ROWS = 128, 72, 24, 16
+    FW, FH, NF, ROWS = 96, 54, 24, 16
     flips, fsheets = {}, []
     for i, kind in sorted(vids.items()):
         src = os.path.join(LAB, "wygwyl", "tempest", f"{i}.mp4") if kind == 1 else os.path.join(LO, f"{i}.mp4")
@@ -171,12 +174,25 @@ def main():
             fsheets[-1].paste(fr, (j * FW, (k % ROWS) * FH))
         flips[i] = [k // ROWS, k % ROWS]
     for n, sh in enumerate(fsheets): sh.save(os.path.join(HERE, "sprites", f"lf{n}.jpg"), quality=70)
+    # Halfworld: the rendered pages, frame by frame on her clock
+    for f in os.listdir(os.path.join(HERE, "sprites")):
+        if f.startswith("lw"): os.remove(os.path.join(HERE, "sprites", f))
+    HWD, hw_runs, hw_sheets = os.path.join(HERE, ".halfworld-frames"), [], []
+    if os.path.isdir(HWD):
+        idxs = sorted(int(f[:-4]) for f in os.listdir(HWD) if f.endswith(".jpg"))
+        for rank, i in enumerate(idxs):
+            if hw_runs and hw_runs[-1][1] == i - 1: hw_runs[-1][1] = i
+            else: hw_runs.append([i, i, rank])
+            if rank % 400 == 0: hw_sheets.append(Image.new("RGB", (128 * 20, 96 * 20)))
+            im = Image.open(os.path.join(HWD, f"{i:05d}.jpg")).convert("RGB").resize((128, 96))
+            hw_sheets[-1].paste(im, ((rank % 400) % 20 * 128, (rank % 400) // 20 * 96))
+        for n, sh in enumerate(hw_sheets): sh.save(os.path.join(HERE, "sprites", f"lw{n}.jpg"), quality=72)
     ng, na, nh = G.save(), A.save(), HW.save()
     signs = {s["n"]: [s["symbol"], s["name"], s["dom"]] for s in LDd["signs"]}
     out = {"dur": SD["duration"], "films": [[f["n"], f["title"], f["t0"], f["t1"]] for f in K["films"]],
            "beats": [[b["t0"], b["t1"], b["codes"], b["title"], b["id"]] for b in K["beats"]],
            "order": ["voice", "spine", "halfworld", "board", "suite", "scenes", "cineosis", "drift", "spinecut", "forage", "taxonomy", "compound"],
-           "lanes": lanes, "sheets": {"lg": [ng, 320, 180], "la": [na, 128, 72], "lh": [nh, 240, 180]}, "meta": meta, "prompts": prompts, "signs": signs, "flips": flips, "flip": [len(fsheets), FW, FH, NF, 8]}
+           "lanes": lanes, "sheets": {"lg": [ng, 240, 135], "la": [na, 128, 72], "lh": [nh, 240, 180]}, "meta": meta, "prompts": prompts, "signs": signs, "flips": flips, "flip": [len(fsheets), FW, FH, NF, 8], "hw": hw_runs, "hwf": [len(hw_sheets), 128, 96, 4]}
     json.dump(out, open(os.path.join(HERE, "lanes.json"), "w"), ensure_ascii=False, separators=(",", ":"))
     dark = {k: sum(1 for x in v if x[2] is None) for k, v in lanes.items() if k != "voice"}
     print({k: len(v) for k, v in lanes.items()}, "·", len(G.idx), "generated,", len(A.idx), "archive pictures,", len(flips), "flipbooks in", len(fsheets), "sheets · dark:", dark)
