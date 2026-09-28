@@ -9,8 +9,12 @@ Bodies (lanes), each a list of [t0, t1, sprite cell | null, sign | null, id]:
   suite · scenes · cineosis · drift   the plan.py cuts   syntagma/syntagma-data.json
   spinecut   Spine-Cut's clean film                      spinecut/spinecut-data.json
   forage     the forage cut                              wygwyl/WYGWYL_Forage_Cut.json
+  halfworld  the author's Halfworld reference frames, one per movement of each poem (4:3)   wygwyl/collage-data.json
+  taxonomy · compound   two films from the chemistry trials: the ordinary taxonomy's best pick per slot, and a blind
+             compound laid over the slots                chemistry/trials.json
 Beats carry the signs they ask for; a body is in line when its sign is one of them.
-Sprites: lg* generated frames 320×180, la* archive shots with a local thumb 128×72. No local thumb, no picture.
+Sprites keep each source's own aspect: lg* generated frames 320×180, la* archive shots with a local thumb 128×72,
+lh* Halfworld frames 240×180. No local picture, no picture.
 """
 import json, os
 from PIL import Image
@@ -52,7 +56,7 @@ def main():
     sign_of = lambda i: ((LD.get(i) or {}).get("aff_top") or [[(SC["shots"].get(i) or {}).get("sg")]])[0][0]
     for f in os.listdir(os.path.join(HERE, "sprites")):
         if f.startswith("l"): os.remove(os.path.join(HERE, "sprites", f))
-    G, A = Sheets("lg", 320, 180), Sheets("la", 128, 72)
+    G, A, HW = Sheets("lg", 320, 180), Sheets("la", 128, 72), Sheets("lh", 240, 180)
     meta = {}
 
     def arch(i):
@@ -87,12 +91,21 @@ def main():
     lanes["spinecut"] = [[s["t0"], s["t1"], arch(s.get("clean")), sign_of(s.get("clean")), s.get("clean")] for s in SC["sections"] if s.get("clean")]
     lanes["forage"] = [[s["start"], s["end"], arch(s.get("selected")), sign_of(s.get("selected")), s.get("selected")] for s in FC if s.get("selected")]
 
-    ng, na = G.save(), A.save()
+    CD = J("wygwyl", "collage-data.json"); hw = []
+    for wd in CD["worlds"]:
+        for m in wd.get("movements", []):
+            k = HW.add(m["frame"], os.path.join(LAB, m["frame"]))
+            hw.append([m["t0"], m["t1"], k, None, m["frame"]]); prompts[m["frame"]] = [wd["title"], m.get("label"), m.get("line"), None]
+    lanes["halfworld"] = sorted(hw)
+    T = J("chemistry", "trials.json")
+    for lane, film in (("taxonomy", "B-taxonomy"), ("compound", "G-compound")):
+        lanes[lane] = sorted([[x["t0"], x["t1"], arch(x["id"]), x.get("sg"), x["id"]] for p in T["poems"] for x in p["films"][film]])
+    ng, na, nh = G.save(), A.save(), HW.save()
     signs = {s["n"]: [s["symbol"], s["name"], s["dom"]] for s in LDd["signs"]}
     out = {"dur": SD["duration"], "films": [[f["n"], f["title"], f["t0"], f["t1"]] for f in K["films"]],
            "beats": [[b["t0"], b["t1"], b["codes"], b["title"], b["id"]] for b in K["beats"]],
-           "order": ["voice", "spine", "board", "suite", "scenes", "cineosis", "drift", "spinecut", "forage"],
-           "lanes": lanes, "sheets": {"lg": [ng, 320, 180], "la": [na, 128, 72]}, "meta": meta, "prompts": prompts, "signs": signs}
+           "order": ["voice", "spine", "halfworld", "board", "suite", "scenes", "cineosis", "drift", "spinecut", "forage", "taxonomy", "compound"],
+           "lanes": lanes, "sheets": {"lg": [ng, 320, 180], "la": [na, 128, 72], "lh": [nh, 240, 180]}, "meta": meta, "prompts": prompts, "signs": signs}
     json.dump(out, open(os.path.join(HERE, "lanes.json"), "w"), ensure_ascii=False, separators=(",", ":"))
     print({k: len(v) for k, v in lanes.items()}, "·", len(G.idx), "generated,", len(A.idx), "archive pictures")
 
