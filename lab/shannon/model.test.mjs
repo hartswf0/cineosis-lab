@@ -39,3 +39,11 @@ test('path trace retains alternatives instead of only the winning class',()=>{
  assert.ok(trace[0].chosen.id);
  assert.ok(Number.isFinite(trace[0].chosenScore));
 });
+
+test('called operation overrides lexical inference at the selected beat',()=>{
+ const p=splitSource('A new room appears.');
+ const sets=[[c('a','ROOM',.3,1),c('b','OTHER',.29,1)]];
+ const plan=compose(p,sets,{literal:.7,continuity:.5,intercut:.2,surprise:.2,directives:{0:{operation:'HOLD'}}});
+ assert.equal(plan.picks[0].operation,OPERATIONS.HOLD);
+ assert.match(plan.picks[0].reason,/called operation/);
+});
