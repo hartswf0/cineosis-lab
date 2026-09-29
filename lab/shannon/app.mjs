@@ -190,7 +190,8 @@ function parseCallText(text){
   if(m)return {type:'FORCE_OPERATION',operation:m[1].toUpperCase()};
   return null;
 }
-function releaseDirective(root=current){
+function releaseDirective(at=current){
+  const root=directives.get(at)?.root??at;
   for(const [i,d] of [...directives])if((d.root??i)===root)directives.delete(i);
   calls.delete(root);
   renderDirectCall();renderPath();
@@ -209,7 +210,7 @@ async function makeCall(type,payload={}){
 function renderDirectCall(){
   const p=plan?.picks?.[current];$('callBeat').textContent=p?('beat '+(current+1)+' · '+p.phrase.text):'compose, then select a beat';
   const call=calls.get(current),d=directives.get(current);
-  const msg=call?(callLabel(call.type)+(call.operation?' '+call.operation:'')+' · '+call.status.toUpperCase()+' · '+call.observed):(d?'constraint active':'A call is a constraint, not a suggestion.');
+  const msg=call?(callLabel(call.type)+(call.operation?' '+call.operation:'')+' · '+call.status.toUpperCase()+' · '+call.observed):(d?('constraint active'+(d.failed?' · '+d.failed:'')):'A call is a constraint, not a suggestion.');
   $('directCallResult').className='directCallResult'+(call?.status?' '+call.status:'');$('directCallResult').textContent=msg;
 }
 function renderPath(){
