@@ -1,8 +1,8 @@
-import {splitSource,rankOffline,compose as composePath,metricsFor,evaluateBenchmark,normalizeCandidate} from './model.mjs';
+import {splitSource,rankOffline,compose as composePath,metricsFor,evaluateBenchmark,normalizeCandidate,tracePlan} from './model.mjs';
 import {BENCHMARKS} from './benchmarks.mjs';
 const $=id=>document.getElementById(id); const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const LAB=new URL('./',location.href);
-let catalog=null,local=false,plan=null,candidateSets=[],phrases=[],activeTest=null,current=0,playing=false,startedAt=0,recordAt=0,raf=0,recognition=null,listening=false,manual=new Map(),corrections=0;
+let catalog=null,local=false,plan=null,candidateSets=[],phrases=[],activeTest=null,current=0,playing=false,startedAt=0,recordAt=0,raf=0,recognition=null,listening=false,manual=new Map(),corrections=0,calls=new Map(),runHistory=[],runSerial=0,interventions=[];
 const video=$('film');
 const status=s=>$('status').textContent=s;
 
@@ -30,6 +30,29 @@ async function getCandidates(ps){
 }
 
 function applyManual(sets){return sets.map((set,i)=>{const c=manual.get(i);return c?[normalizeCandidate(c)]:set;});}
+function relationResult(call,pick){
+  if(!call||!pick)return {status:'pending',observed:'no outcome yet'};
+  const c=pick.candidate;
+  if(call.type==='KEEP_SOURCE_CHANGE_SHOT')return {status:c.sourceKey===call.baselineSource&&c.id!==call.baselineId?'hit':'miss',observed:c.sourceKey===call.baselineSource?(c.id===call.baselineId?'same shot survived':'source held, shot changed'):'source changed'};
+  if(call.type==='LEAVE_SOURCE')return {status:c.sourceKey!==call.baselineSource?'hit':'miss',observed:c.sourceKey!==call.baselineSource?'source changed':'source held'};
+  if(call.type==='RETURN_PRIOR')return {status:call.priorSources.includes(c.sourceKey)&&c.sourceKey!==call.baselineSource?'hit':'miss',observed:call.priorSources.includes(c.sourceKey)?'earlier source selected':'no earlier source selected'};
+  if(call.type==='KEEP_SHOT')return {status:c.id===call.baselineId?'hit':'miss',observed:c.id===call.baselineId?'shot survived':'shot changed'};
+  if(call.type==='AVOID_SHOT')return {status:c.id!==call.baselineId?'hit':'miss',observed:c.id!==call.baselineId?'shot avoided':'shot survived'};
+  return {status:'pending',observed:'unknown call'};
+}
+function evaluateCalls(){
+  for(const call of calls.values()){
+    if(call.run>=runSerial||call.phrase>=plan.picks.length)continue;
+    const r=relationResult(call,plan.picks[call.phrase]);call.status=r.status;call.observed=r.observed;call.judgedRun=runSerial;
+  }
+}
+function recordRun(text){
+  runHistory.push({run:runSerial,time:new Date().toISOString(),source:text,options:options(),
+    manual:[...manual.entries()].map(([phrase,c])=>({phrase,id:c.id,title:c.title,sourceKey:c.sourceKey})),
+    calls:[...calls.values()].map(x=>({...x})),metrics:{...plan.metrics},
+    picks:plan.picks.map((p,i)=>({phrase:i,text:p.phrase.text,speaker:p.phrase.speaker||null,operation:p.operation,reason:p.reason,id:p.candidate.id,title:p.candidate.title,sourceKey:p.candidate.sourceKey,sourceStart:p.candidate.sourceStart,manual:!!p.manual})),
+    trace:plan.trace});
+}
 
 async function runCompose(){
   const text=$('sourceText').value.trim(); if(!text){status('Add a source first.');return;}
@@ -39,7 +62,7 @@ async function runCompose(){
     candidateSets=await getCandidates(phrases); const constrained=applyManual(candidateSets);
     plan=composePath(phrases,constrained,options());
     for(const i of manual.keys())if(plan.picks[i])plan.picks[i].manual=true;
-    plan.metrics=metricsFor(plan.picks,phrases); current=0;prepareTimeline();renderPlan();loadPick(0);status(`Film ready · ${plan.metrics.scenes} scenes from ${phrases.length} phrases`);
+    plan.metrics=metricsFor(plan.picks,phrases);plan.trace=tracePlan(plan,phrases,candidateSets,options());runSerial++;evaluateCalls();recordRun(text);current=0;prepareTimeline();renderPlan();loadPick(0);status(`Film ready · ${plan.metrics.scenes} scenes from ${phrases.length} phrases`);
   }catch(e){status(e.message);$('composeStatus').textContent=e.message;}
   finally{$('compose').disabled=false;}
 }
