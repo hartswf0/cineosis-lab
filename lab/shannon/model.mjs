@@ -148,10 +148,41 @@ function updateState(state,candidate,phrase,opInfo,scoreParts){
   return s;
 }
 
+
+function emptyState(){
+  return {currentSource:null,currentSourceStart:0,currentId:null,anchors:{},strands:{},used:{},sourceWear:{},picks:[],score:0};
+}
+
+export function tracePlan(plan,phrases,candidateSets,options={}){
+  let state=emptyState();
+  const trace=[];
+  for(let step=0;step<(plan?.picks||[]).length;step++){
+    const pick=plan.picks[step], phrase=phrases[step]||pick.phrase;
+    const opInfo=inferOperation(phrase,phrases[step-1],phrases[step+1],state);
+    const pool=(candidateSets[step]||[]).slice(0,Math.max(8,Math.min(48,Number(options.pool)||28)));
+    const scored=pool.map(c=>({candidate:normalizeCandidate(c),parts:scoreCandidate(c,phrase,step,candidateSets,state,options,opInfo)}))
+      .sort((a,b)=>b.parts.score-a.parts.score);
+    const chosen=normalizeCandidate(pick.candidate);
+    const chosenRow=scored.find(x=>x.candidate.id===chosen.id)||{candidate:chosen,parts:scoreCandidate(chosen,phrase,step,candidateSets,state,options,opInfo)};
+    const alternatives=scored.filter(x=>x.candidate.id!==chosen.id).slice(0,5);
+    const localRank=Math.max(1,scored.findIndex(x=>x.candidate.id===chosen.id)+1);
+    trace.push({
+      step, operation:pick.operation, reason:pick.reason, chosen,
+      chosenScore:+chosenRow.parts.score.toFixed(4), localRank,
+      alternatives:alternatives.map(x=>({candidate:x.candidate,score:+x.parts.score.toFixed(4),semantic:+x.parts.semantic.toFixed(4),structural:+x.parts.structural.toFixed(4),toward:+x.parts.toward.toFixed(4)})),
+      semantic:+chosenRow.parts.semantic.toFixed(4), structural:+chosenRow.parts.structural.toFixed(4),
+      toward:+chosenRow.parts.toward.toFixed(4), future:+chosenRow.parts.future.toFixed(4),
+      manual:!!pick.manual
+    });
+    state=updateState(state,chosen,phrase,opInfo,chosenRow.parts);
+  }
+  return trace;
+}
+
 export function compose(phrases,candidateSets,options={}){
   if(!phrases.length)return {picks:[],scenes:[],metrics:metricsFor([],phrases)};
   const width=Math.max(4,Math.min(24,Number(options.beam)||12));
-  let beam=[{currentSource:null,currentSourceStart:0,currentId:null,anchors:{},strands:{},used:{},sourceWear:{},picks:[],score:0}];
+  let beam=[emptyState()];
   for(let step=0;step<phrases.length;step++){
     const phrase=phrases[step], pool=(candidateSets[step]||[]).slice(0,Math.max(8,Math.min(48,Number(options.pool)||28)));
     if(!pool.length)continue;
