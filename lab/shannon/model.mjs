@@ -222,6 +222,7 @@ export function evaluateBenchmark(plan,benchmark){
   if(want.minContinuity!=null&&m.continuity!=null)test('continuity',m.continuity,m.continuity>=want.minContinuity);
   if(want.minReturnAccuracy!=null&&m.returnAccuracy!=null)test('return',m.returnAccuracy,m.returnAccuracy>=want.minReturnAccuracy);
   if(want.minStrandPurity!=null&&m.strandPurity!=null)test('strand purity',m.strandPurity,m.strandPurity>=want.minStrandPurity);
-  if(want.requireOps?.length){const got=new Set((plan.picks||[]).map(p=>p.operation));for(const op of want.requireOps)test(op,got.has(op)?'present':'missing',got.has(op));}
+  const required=want.requireOps?.length?want.requireOps:(benchmark?.ops||[]);
+  if(required.length){const got=new Set((plan.picks||[]).map(p=>p.operation));for(const op of required)test(op,got.has(op)?'present':'missing',got.has(op));}
   return {checks,passed:checks.length?checks.every(x=>x.pass):null};
 }
