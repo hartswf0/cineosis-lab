@@ -134,18 +134,87 @@ function renderInside(){
   $('insideState').innerHTML=[['phrases',m.phrases??0],['scenes',m.scenes??0],['scene yield',m.sceneYield??0],['coverage',m.coverage!=null?Math.round(m.coverage*100)+'%':'—'],['now',p?.operation||'—'],['look-ahead',p?(p.parts?.future||0).toFixed(3):'—'],['corrections',corrections],['mode',local?'local embeddings':'hosted fallback']].map(([a,b])=>`<div><b>${a}</b><span>${esc(b)}</span></div>`).join('');
   $('diagnostics').innerHTML=[['continuity',m.continuity??'n/a'],['return',m.returnAccuracy??'n/a'],['strand purity',m.strandPurity??'n/a'],['singleton rate',m.singletonRate??'n/a'],['path score',plan?.score?.toFixed(2)??'n/a'],['candidate pool',options().pool]].map(([a,b])=>`<div><b>${a}</b><span>${esc(b)}</span></div>`).join('');
 }
-function callLabel(type){return ({KEEP_SOURCE_CHANGE_SHOT:'same source, different shot',LEAVE_SOURCE:'leave this source',RETURN_PRIOR:'return to an earlier source',KEEP_SHOT:'keep this shot',AVOID_SHOT:'avoid this shot'})[type]||type;}
-function makeCall(type){
+function callLabel(type){return ({
+  KEEP_SOURCE_CHANGE_SHOT:'same source, different shot',LATER_SOURCE:'same source, later shot',EARLIER_SOURCE:'same source, earlier shot',
+  LEAVE_SOURCE:'leave this source',RETURN_PRIOR:'return to an earlier source',RETURN_SCENE:'return to scene',
+  KEEP_SHOT:'keep this shot',AVOID_SHOT:'avoid this shot',HOLD_NEXT:'hold this shot through next phrase',
+  STAY_SOURCE_SPAN:'stay in this source',HOLD_SPAN:'hold this shot',FORCE_OPERATION:'force operation'
+})[type]||type;}
+function mostRecentPriorSource(){
+  if(!plan?.picks?.length)return null;
+  const here=plan.picks[current].candidate.sourceKey;
+  for(let i=current-1;i>=0;i--){const k=plan.picks[i].candidate.sourceKey;if(k!==here)return k;}
+  return null;
+}
+function installDirective(type,payload={}){
+  const p=plan.picks[current],c=p.candidate,base={root:current,type};
+  const set=(i,d)=>{manual.delete(i);directives.set(i,{...d,...base,root:current});};
+  if(type==='KEEP_SOURCE_CHANGE_SHOT')set(current,{sourceEq:c.sourceKey,avoidId:c.id});
+  else if(type==='LATER_SOURCE')set(current,{sourceEq:c.sourceKey,avoidId:c.id,startGt:c.sourceStart+.01});
+  else if(type==='EARLIER_SOURCE')set(current,{sourceEq:c.sourceKey,avoidId:c.id,startLt:c.sourceStart-.01});
+  else if(type==='LEAVE_SOURCE')set(current,{sourceNe:c.sourceKey});
+  else if(type==='RETURN_PRIOR'){const k=payload.sourceKey||mostRecentPriorSource();if(!k)throw Error('No earlier distinct source exists yet.');set(current,{sourceEq:k});payload.targetSource=k;}
+  else if(type==='RETURN_SCENE'){const scene=plan.scenes[(payload.scene||1)-1];if(!scene)throw Error('That scene does not exist.');set(current,{sourceEq:scene.sourceKey});payload.targetSource=scene.sourceKey;}
+  else if(type==='KEEP_SHOT')set(current,{exactId:c.id,inject:c});
+  else if(type==='AVOID_SHOT')set(current,{avoidId:c.id});
+  else if(type==='HOLD_NEXT'){
+    set(current,{exactId:c.id,inject:c,operation:'HOLD'});
+    if(current+1<phrases.length)set(current+1,{exactId:c.id,inject:c,operation:'HOLD'});
+  }else if(type==='STAY_SOURCE_SPAN'){
+    const count=Math.max(2,Math.min(12,Number(payload.count)||2));payload.count=count;
+    for(let i=current;i<Math.min(phrases.length,current+count);i++)set(i,{sourceEq:c.sourceKey});
+  }else if(type==='HOLD_SPAN'){
+    const count=Math.max(2,Math.min(12,Number(payload.count)||2));payload.count=count;
+    for(let i=current;i<Math.min(phrases.length,current+count);i++)set(i,{exactId:c.id,inject:c,operation:'HOLD'});
+  }else if(type==='FORCE_OPERATION'){
+    const op=String(payload.operation||'').toUpperCase();if(!['OPEN','CONTINUE','HOLD','REPEAT','RETURN','ALTERNATE','SUSPEND','COMPLETE','ABSENCE','INSERT'].includes(op))throw Error('Unknown operation.');
+    payload.operation=op;set(current,{operation:op});
+  }
+  return payload;
+}
+function parseCallText(text){
+  const s=String(text||'').trim().toLowerCase();if(!s)return null;
+  let m;
+  if((m=s.match(/(?:return|go back)\s+(?:to\s+)?scene\s*(\d+)/)))return {type:'RETURN_SCENE',scene:+m[1]};
+  if((m=s.match(/(?:stay|keep|remain).*?(?:source|scene).*?(?:next|for)\s*(\d+)/)))return {type:'STAY_SOURCE_SPAN',count:+m[1]};
+  if((m=s.match(/(?:hold|keep).*?(?:shot|image).*?(?:next|for)\s*(\d+)/)))return {type:'HOLD_SPAN',count:+m[1]};
+  if(/later.*source|same source.*later|forward.*source/.test(s))return {type:'LATER_SOURCE'};
+  if(/earlier.*source|same source.*earlier|backward.*source/.test(s))return {type:'EARLIER_SOURCE'};
+  if(/same source.*different|different shot.*same source/.test(s))return {type:'KEEP_SOURCE_CHANGE_SHOT'};
+  if(/leave.*source|new source|different source/.test(s))return {type:'LEAVE_SOURCE'};
+  if(/return.*prior|return.*earlier|go back.*source/.test(s))return {type:'RETURN_PRIOR'};
+  if(/hold.*next|through.*next/.test(s))return {type:'HOLD_NEXT'};
+  if(/keep.*shot|keep.*image|same shot/.test(s))return {type:'KEEP_SHOT'};
+  if(/avoid.*shot|not this shot|different shot/.test(s))return {type:'AVOID_SHOT'};
+  m=s.match(/\b(open|continue|hold|repeat|return|alternate|suspend|complete|absence|insert)\b/);
+  if(m)return {type:'FORCE_OPERATION',operation:m[1].toUpperCase()};
+  return null;
+}
+function releaseDirective(root=current){
+  for(const [i,d] of [...directives])if((d.root??i)===root)directives.delete(i);
+  calls.delete(root);
+  renderDirectCall();renderPath();
+}
+async function makeCall(type,payload={}){
   if(!plan?.picks[current]){status('Compose a film before calling a shot.');return;}
-  const p=plan.picks[current];
-  const call={type,phrase:current,run:runSerial,created:new Date().toISOString(),baselineId:p.candidate.id,baselineTitle:p.candidate.title,baselineSource:p.candidate.sourceKey,priorSources:[...new Set(plan.picks.slice(0,current).map(x=>x.candidate.sourceKey))],status:'pending',observed:'change the film, then recompose'};
-  calls.set(current,call);
-  interventions.push({kind:'call',run:runSerial,phrase:current,type,time:call.created,baselineId:call.baselineId,baselineSource:call.baselineSource});
-  renderPath();status('Call recorded before the next outcome.');
+  const target=current,p=plan.picks[target],c=p.candidate;
+  try{payload=installDirective(type,payload);}catch(e){status(e.message);return;}
+  const call={type,phrase:target,run:runSerial,created:new Date().toISOString(),baselineId:c.id,baselineTitle:c.title,baselineSource:c.sourceKey,baselineStart:c.sourceStart,
+    priorSources:[...new Set(plan.picks.slice(0,target).map(x=>x.candidate.sourceKey))],targetSource:payload.targetSource||null,operation:payload.operation||null,count:payload.count||null,status:'pending',observed:'constraint installed'};
+  calls.set(target,call);
+  interventions.push({kind:'called-shot',run:runSerial,phrase:target,type,time:call.created,baselineId:call.baselineId,baselineSource:call.baselineSource,payload:{...payload}});
+  renderDirectCall();status('Calling '+callLabel(type));
+  await runCompose({target});
+}
+function renderDirectCall(){
+  const p=plan?.picks?.[current];$('callBeat').textContent=p?('beat '+(current+1)+' · '+p.phrase.text):'compose, then select a beat';
+  const call=calls.get(current),d=directives.get(current);
+  const msg=call?(callLabel(call.type)+(call.operation?' '+call.operation:'')+' · '+call.status.toUpperCase()+' · '+call.observed):(d?'constraint active':'A call is a constraint, not a suggestion.');
+  $('directCallResult').className='directCallResult'+(call?.status?' '+call.status:'');$('directCallResult').textContent=msg;
 }
 function renderPath(){
   renderInside();
-  const call=calls.get(current);
+  const call=calls.get(current);renderDirectCall();
   $('callResult').className='callResult'+(call?.status?' '+call.status:'');
   $('callResult').textContent=call?callLabel(call.type)+' · '+call.status.toUpperCase()+' · '+call.observed:'No call made.';
   const t=plan?.trace?.[current];
@@ -169,7 +238,7 @@ function loadPick(i,offset=0){
   if(!plan?.picks?.length)return; current=Math.max(0,Math.min(plan.picks.length-1,i)); const p=plan.picks[current],c=p.candidate;
   $('caption').textContent=p.phrase.text;$('sourceTitle').textContent=c.title;$('opTag').textContent=p.operation;
   document.querySelectorAll('.node').forEach((n,j)=>n.classList.toggle('active',j===current)); const node=document.querySelector(`.node[data-i="${current}"]`);node?.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
-  renderState();renderRail();renderInside();renderPath();
+  renderState();renderRail();renderInside();renderPath();renderDirectCall();
   video.pause();video.muted=$('sound').getAttribute('aria-pressed')!=='true'; const url=mediaUrl(c); if(!url){video.removeAttribute('src');video.load();return;}
   if(video.src!==url)video.src=url; const seek=()=>{try{video.currentTime=(c.mediaIn||0)+Math.min(offset,Math.max(0,c.duration-.05));}catch{}};
   if(video.readyState>=1)seek();else video.addEventListener('loadedmetadata',seek,{once:true});
@@ -179,7 +248,7 @@ function updateClock(){$('clock').textContent=`${recordAt.toFixed(1)} / ${(plan?
 function play(){if(!plan?.picks?.length)return;if(recordAt>=plan.duration-.05)loadPick(0);playing=true;$('play').textContent='Pause';startedAt=performance.now()-Math.max(0,recordAt-plan.picks[current].recordIn)*1000;video.play().catch(()=>{});cancelAnimationFrame(raf);raf=requestAnimationFrame(tick);}
 function pause(){playing=false;$('play').textContent='Play';video.pause();cancelAnimationFrame(raf);}
 function tick(now){if(!playing)return;const p=plan.picks[current];let localT=(now-startedAt)/1000;recordAt=p.recordIn+localT;if(recordAt>=p.recordOut-.02){if(current>=plan.picks.length-1){recordAt=plan.duration;updateClock();pause();return;}loadPick(current+1);startedAt=performance.now();video.play().catch(()=>{});}else{const c=p.candidate,max=(c.mediaIn||0)+Math.min(c.duration,p.recordDuration);if(video.currentTime>=max-.04)video.pause();updateClock();}raf=requestAnimationFrame(tick);}
-function replaceCurrent(c){if(!plan?.picks[current])return;const from=plan.picks[current].candidate;manual.set(current,c);corrections++;interventions.push({kind:'replacement',run:runSerial,phrase:current,time:new Date().toISOString(),from:{id:from.id,title:from.title,sourceKey:from.sourceKey},to:{id:c.id,title:c.title,sourceKey:c.sourceKey}});status(`Replacement fixed at phrase ${current+1}. Recompose to propagate it.`);runCompose();}
+function replaceCurrent(c){if(!plan?.picks[current])return;const target=current,from=plan.picks[target].candidate;releaseDirective(target);manual.set(target,c);corrections++;interventions.push({kind:'replacement',run:runSerial,phrase:target,time:new Date().toISOString(),from:{id:from.id,title:from.title,sourceKey:from.sourceKey},to:{id:c.id,title:c.title,sourceKey:c.sourceKey}});status(`Replacement fixed at phrase ${target+1}. Recompose to propagate it.`);runCompose({target});}
 
 async function runSearch(){const q=$('searchText').value.trim();if(!q)return;status('Searching');try{const ps=splitSource(q)||[];const p=ps[0]||{text:q};const set=(await getCandidates([p]))[0]||[];$('searchResults').innerHTML=set.slice(0,18).map(c=>`<div class="result"><img alt="" src="${esc(imageUrl(c))}"><div><b>${esc(c.title)}</b><small>${c.raw.toFixed(3)} · ${esc(c.sourceKey)}</small></div><button data-id="${esc(c.id)}">Preview</button></div>`).join('');$('searchResults').querySelectorAll('button').forEach(b=>b.onclick=()=>preview(set.find(c=>c.id===b.dataset.id)));status(`${set.length} candidates`);}catch(e){status(e.message)}}
 function preview(c){if(!c)return;$('sourceTitle').textContent=c.title;$('opTag').textContent='SEARCH';$('caption').textContent=$('searchText').value;video.pause();video.src=mediaUrl(c);video.muted=true;video.addEventListener('loadedmetadata',()=>{video.currentTime=c.mediaIn||0;video.play().catch(()=>{});},{once:true});}
@@ -190,11 +259,15 @@ function selectTab(name){document.querySelectorAll('[data-tab]').forEach(b=>b.se
 $('compose').onclick=runCompose;$('find').onclick=runSearch;$('play').onclick=()=>playing?pause():play();$('previous').onclick=()=>{pause();loadPick(current-1)};$('next').onclick=()=>{pause();loadPick(current+1)};$('sound').onclick=()=>{const on=$('sound').getAttribute('aria-pressed')!=='true';$('sound').setAttribute('aria-pressed',String(on));$('sound').textContent=on?'Sound on':'Sound off';video.muted=!on;};
 $('scrub').oninput=()=>{if(!plan)return;pause();const t=+$('scrub').value;let i=plan.picks.findIndex(p=>t<p.recordOut);if(i<0)i=plan.picks.length-1;loadPick(i,Math.max(0,t-plan.picks[i].recordIn));};
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
-for(const id of ['literal','continuity','intercut','surprise']){$(id).onchange=()=>{interventions.push({kind:'tuning',run:runSerial,time:new Date().toISOString(),control:id,value:+$(id).value});if(plan)runCompose();};}
+for(const id of ['literal','continuity','intercut','surprise']){$(id).onchange=()=>{interventions.push({kind:'tuning',run:runSerial,time:new Date().toISOString(),control:id,value:+$(id).value});if(plan)runCompose({target:current});};}
 $('loadText').onclick=()=>$('textFile').click();$('textFile').onchange=async()=>{const f=$('textFile').files?.[0];if(!f)return;$('sourceText').value=await f.text();status(`Loaded ${f.name}`);};
 $('testFilter').oninput=()=>renderTests($('testFilter').value);
 document.querySelectorAll('[data-call]').forEach(b=>b.onclick=()=>makeCall(b.dataset.call));
-$('clearCalls').onclick=()=>{calls.clear();renderPath();status('Calls cleared.');};
+document.querySelectorAll('[data-call-now]').forEach(b=>b.onclick=()=>makeCall(b.dataset.callNow));
+$('callApply').onclick=()=>{const x=parseCallText($('callText').value);if(!x){status('Call not understood. Try “same source, later shot”, “return to scene 2”, “hold shot for next 3”, or an operation name.');return;}makeCall(x.type,x);};
+$('callText').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('callApply').click();}};
+$('releaseCall').onclick=()=>{const target=current;releaseDirective(target);status('Released call on beat '+(target+1));if(plan)runCompose({target});};
+$('clearCalls').onclick=()=>{calls.clear();directives.clear();renderPath();renderDirectCall();status('Calls cleared.');if(plan)runCompose({target:current});};
 $('exportPath').onclick=exportPath;
 
 const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -202,4 +275,4 @@ if(!Recognition){$('listen').disabled=true;$('listen').textContent='Speech unava
 $('listen').onclick=()=>{if(!Recognition)return;if(listening){recognition.stop();return;}recognition=new Recognition();recognition.continuous=true;recognition.interimResults=true;recognition.lang=navigator.language||'en-US';let fixed=$('sourceText').value.trim();recognition.onstart=()=>{listening=true;$('listen').textContent='Stop';status('Listening');};recognition.onresult=e=>{let interim='',done='';for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript;if(e.results[i].isFinal)done+=t+' ';else interim+=t;}if(done){fixed=(fixed+' '+done).trim();$('sourceText').value=fixed;}if(interim)status('Hearing: '+interim);};recognition.onerror=e=>status('Speech: '+e.error);recognition.onend=()=>{listening=false;$('listen').textContent='Listen';status('Speech stopped');};try{recognition.start()}catch{status('Speech could not start')}};
 window.addEventListener('pagehide',()=>{recognition?.stop();pause();});
 
-await Promise.all([checkLocal(),loadCatalog()]);renderTests();renderInside();renderPath();status(local?'Local archive ready':'Hosted fallback ready');
+await Promise.all([checkLocal(),loadCatalog()]);renderTests();renderInside();renderPath();renderDirectCall();status(local?'Local archive ready':'Hosted fallback ready');
