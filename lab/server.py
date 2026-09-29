@@ -152,10 +152,22 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         n = int(self.headers.get("content-length", 0))
+        if n < 0 or n > 1000000:
+            return self._json(413, {"error": "request too large"})
         try:
             body = json.loads(self.rfile.read(n) or b"{}")
         except json.JSONDecodeError:
             return self._json(400, {"error": "bad json"})
+        if self.path == "/api/shannon/retrieve":
+            texts = body.get("texts")
+            if not isinstance(texts, list) or not 1 <= len(texts) <= 121 or any(not isinstance(t, str) or not t.strip() or len(t) > 4000 for t in texts):
+                return self._json(400, {"error": "Provide 1–121 nonempty phrases, at most 4000 characters each."})
+            try:
+                from shannon.retrieval import retrieve
+                return self._json(200, {"model": "ViT-B-32/laion2b_s34b_b79k", "rows": retrieve(texts)})
+            except Exception as error:
+                sys.stderr.write("Shannon retrieval: %s\n" % error)
+                return self._json(503, {"error": "Text encoder unavailable. Install open_clip_torch and its matching model; cached studies remain available."})
         if self.path == "/api/search":
             q = str(body.get("query", "")).strip()[:200]
             if not q:
