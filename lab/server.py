@@ -87,6 +87,49 @@ def shannon_search(phrases, limit=64):
     return out
 
 
+
+def shannon_source(source_key, phrase="", limit=96):
+    shannon_load()
+    source_key = str(source_key or "")
+    if not source_key:
+        return []
+    rows = []
+    for idx, sid in enumerate(_shannon["ids"]):
+        c = _shannon["corpus"].get(sid) or {}
+        key = c.get("sourceSlug") or c.get("sourceTitle") or sid
+        if key == source_key:
+            rows.append((idx, sid, c))
+    if not rows:
+        return []
+    sims = None
+    phrase = str(phrase or "").strip()[:500]
+    if phrase:
+        torch, model, tok = _shannon["torch"], _shannon["model"], _shannon["tok"]
+        with torch.no_grad():
+            t = model.encode_text(tok([phrase]).to(_shannon["device"])).float()
+            t /= t.norm(dim=-1, keepdim=True)
+            sims = (t.cpu().numpy() @ _shannon["emb"].T)[0]
+    found = []
+    for idx, sid, c in rows:
+        a = float(c.get("startSeconds") or 0)
+        b = float(c.get("endSeconds") or a + 4)
+        found.append({
+            "id": sid,
+            "title": c.get("sourceTitle") or c.get("title") or "Archive source",
+            "source": c.get("sourceTitle") or "",
+            "sourceKey": source_key,
+            "sourceStart": a,
+            "sourceEnd": b,
+            "duration": max(.4, b - a),
+            "mediaIn": 0,
+            "poster": c.get("thumbnailUrl") or "",
+            "media": "/media/" + sid + ".mp4",
+            "description": c.get("description") or c.get("transcript") or "",
+            "raw": round(float(sims[idx]), 6) if sims is not None else 0.0
+        })
+    found.sort(key=lambda x: (-x["raw"], x["sourceStart"]))
+    return found[:max(1, min(160, int(limit or 96)))]
+
 def corpus_url(sid):
     if not _corpus:
         try:
@@ -228,6 +271,11 @@ class Handler(SimpleHTTPRequestHandler):
             body = json.loads(self.rfile.read(n) or b"{}")
         except json.JSONDecodeError:
             return self._json(400, {"error": "bad json"})
+        if self.path == "/api/shannon/source":
+            try:
+                return self._json(200, {"results": shannon_source(body.get("sourceKey"), body.get("phrase", ""), body.get("limit", 96))})
+            except Exception as e:
+                return self._json(503, {"error": "Shannon source lookup unavailable: " + str(e)})
         if self.path == "/api/shannon/search":
             phrases = body.get("phrases")
             if not isinstance(phrases, list):
