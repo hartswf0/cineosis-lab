@@ -158,7 +158,8 @@ export function tracePlan(plan,phrases,candidateSets,options={}){
   const trace=[];
   for(let step=0;step<(plan?.picks||[]).length;step++){
     const pick=plan.picks[step], phrase=phrases[step]||pick.phrase;
-    const opInfo=inferOperation(phrase,phrases[step-1],phrases[step+1],state);
+    const forced=options.directives?.[step]?.operation;
+    const opInfo=forced?{op:forced,reason:'called operation: '+forced}:inferOperation(phrase,phrases[step-1],phrases[step+1],state);
     const pool=(candidateSets[step]||[]).slice(0,Math.max(8,Math.min(48,Number(options.pool)||28)));
     const scored=pool.map(c=>({candidate:normalizeCandidate(c),parts:scoreCandidate(c,phrase,step,candidateSets,state,options,opInfo)}))
       .sort((a,b)=>b.parts.score-a.parts.score);
@@ -188,7 +189,8 @@ export function compose(phrases,candidateSets,options={}){
     if(!pool.length)continue;
     const next=[];
     for(const state of beam){
-      const opInfo=inferOperation(phrase,phrases[step-1],phrases[step+1],state);
+      const forced=options.directives?.[step]?.operation;
+      const opInfo=forced?{op:forced,reason:'called operation: '+forced}:inferOperation(phrase,phrases[step-1],phrases[step+1],state);
       for(const c of pool){
         const parts=scoreCandidate(c,phrase,step,candidateSets,state,options,opInfo);
         next.push(updateState(state,c,phrase,opInfo,parts));
