@@ -1,7 +1,7 @@
 // A deliberately inspectable compiler: lexical cues propose operations, never certify readings.
 export const METZ = {
  alternate:['Alternate','Two developing strands, proposed as simultaneous. Alternation alone cannot prove simultaneity.'],
- ordinary:['Ordinary sequence','One progression with omitted intervals. Source order is preserved within each strand.'],
+ ordinary:['Ordinary sequence','One proposed progression with omitted intervals. Chronology needs source or editorial evidence.'],
  scene:['Scene','A continuous source passage. Continuity is supported only when neighbouring source blocks are retained.'],
  parallel:['Parallel','Compare two strands without asserting that they share a clock.'],
  bracket:['Bracket','Examples gathered under a common idea; their chronology is left unspecified.'],
@@ -27,7 +27,7 @@ export function infer(text,engine){
   if(/\b(for example|such as|some|others)\b/.test(s))return ['bracket','example cue → a collection'];
   return ['autonomous','no relation cue → one interval; choose a structure to develop it'];
  }
- if(/\b(cannot|can't|never|nothing|wait|waits|waiting|still)\b/.test(s))return ['suspend','blocked action / waiting → withhold the response'];
+ if(/\b(cannot|can't|not|never|nothing|wait|waits|waiting|still)\b/.test(s))return ['suspend','blocked action / waiting → withhold the response'];
  if(/\b(remember|remembered|again|return|returned|past)\b/.test(s))return ['return','return / memory → repeat an interval after a difference'];
  if(/\b(voice|hear|heard|silence|sound|unseen)\b/.test(s))return ['disjoin','sound cue → separate the voice from the image'];
  if(/\b(face|fear|love|cry|tears)\b/.test(s))return ['affect','intensity cue → attend to face or space'];
@@ -61,7 +61,8 @@ export function compile(text,engine,catalog,opts={}){
   items.push({id:s.id,media:s.media,poster:s.poster,in:s.offset||0,out:(s.offset||0)+mediaDuration,hold:extra,duration:mediaDuration+extra,role,strand:s.strand||role,title:s.title,description:s.description,source:s.source,sourceIn:s.sourceIn,signs:s.signs});
  };
  const split=()=>{
-  const a=pool.filter(x=>x.strand==='A'),b=pool.filter(x=>x.strand==='B');
+  const ordered=xs=>xs.length&&xs.every(x=>x.example===xs[0].example)?xs.sort((x,y)=>x.sourceIn-y.sourceIn):xs;
+  const a=ordered(pool.filter(x=>x.strand==='A')),b=ordered(pool.filter(x=>x.strand==='B'));
   return a.length&&b.length?[a,b]:[pool.filter((_,i)=>i%2===0),pool.filter((_,i)=>i%2===1)];
  };
  if(engine==='metz'){
