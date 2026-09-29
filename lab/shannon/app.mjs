@@ -2,11 +2,12 @@ import {splitSource,rankOffline,compose as composePath,metricsFor,evaluateBenchm
 import {BENCHMARKS} from './benchmarks.mjs';
 const $=id=>document.getElementById(id); const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const LAB=new URL('./',location.href);
-let catalog=null,local=false,plan=null,candidateSets=[],phrases=[],activeTest=null,current=0,playing=false,startedAt=0,recordAt=0,raf=0,recognition=null,listening=false,manual=new Map(),corrections=0,calls=new Map(),runHistory=[],runSerial=0,interventions=[];
+let catalog=null,local=false,plan=null,candidateSets=[],phrases=[],activeTest=null,current=0,playing=false,startedAt=0,recordAt=0,raf=0,recognition=null,listening=false,manual=new Map(),directives=new Map(),corrections=0,calls=new Map(),runHistory=[],runSerial=0,interventions=[];
 const video=$('film');
 const status=s=>$('status').textContent=s;
 
 function options(){return {literal:+$('literal').value,continuity:+$('continuity').value,intercut:+$('intercut').value,surprise:+$('surprise').value,beam:12,pool:28};}
+function composeOptions(){return {...options(),directives:Object.fromEntries([...directives.entries()].map(([i,d])=>[i,{operation:d.operation||null}]))};}
 function mediaUrl(c){if(!c)return ''; if(c.media?.startsWith('/'))return c.media; try{return new URL(c.media||'',LAB).href}catch{return c.media||''}}
 function imageUrl(c){if(!c?.poster)return ''; try{return new URL(c.poster,LAB).href}catch{return c.poster}}
 async function checkLocal(){
@@ -30,7 +31,43 @@ async function getCandidates(ps){
 }
 
 function applyManual(sets){return sets.map((set,i)=>{const c=manual.get(i);return c?[normalizeCandidate(c)]:set;});}
-function relationResult(call,pick){
+function mergeCandidates(a,b){const m=new Map();for(const c of [...a,...b])m.set(c.id,normalizeCandidate(c));return [...m.values()];}
+async function sourceField(sourceKey,phrase){
+  if(!sourceKey)return [];
+  if(local){
+    const r=await fetch('/api/shannon/source',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sourceKey,phrase,limit:128})});
+    if(r.ok){const d=await r.json();return (d.results||[]).map(normalizeCandidate);}
+  }
+  return (catalog?.shots||[]).filter(x=>(x.example||x.source||x.title)===sourceKey).map(normalizeCandidate);
+}
+async function expandDirectiveFields(sets){
+  const out=sets.map(x=>x.slice());
+  for(const [i,d] of directives){
+    if(i<0||i>=out.length)continue;
+    if(d.sourceEq)out[i]=mergeCandidates(out[i],await sourceField(d.sourceEq,phrases[i]?.text||''));
+    if(d.inject)out[i]=mergeCandidates([d.inject],out[i]);
+  }
+  return out;
+}
+function applyDirectives(sets){
+  const out=sets.map(x=>x.slice());
+  for(const [i,d] of directives){
+    if(i<0||i>=out.length)continue;
+    let a=out[i];
+    if(d.inject&&!a.some(c=>c.id===d.inject.id))a=[normalizeCandidate(d.inject),...a];
+    if(d.exactId)a=a.filter(c=>c.id===d.exactId);
+    if(d.avoidId)a=a.filter(c=>c.id!==d.avoidId);
+    if(d.sourceEq)a=a.filter(c=>c.sourceKey===d.sourceEq);
+    if(d.sourceNe)a=a.filter(c=>c.sourceKey!==d.sourceNe);
+    if(d.sourceIn?.length)a=a.filter(c=>d.sourceIn.includes(c.sourceKey));
+    if(Number.isFinite(d.startGt))a=a.filter(c=>c.sourceStart>d.startGt);
+    if(Number.isFinite(d.startLt))a=a.filter(c=>c.sourceStart<d.startLt);
+    d.failed=a.length?null:'no candidate satisfies this call';
+    if(a.length)out[i]=a;
+  }
+  return applyManual(out);
+}
+function relationResult(call,pick,fullPlan=plan){
   if(!call||!pick)return {status:'pending',observed:'no outcome yet'};
   const c=pick.candidate;
   if(call.type==='KEEP_SOURCE_CHANGE_SHOT')return {status:c.sourceKey===call.baselineSource&&c.id!==call.baselineId?'hit':'miss',observed:c.sourceKey===call.baselineSource?(c.id===call.baselineId?'same shot survived':'source held, shot changed'):'source changed'};
@@ -38,31 +75,38 @@ function relationResult(call,pick){
   if(call.type==='RETURN_PRIOR')return {status:call.priorSources.includes(c.sourceKey)&&c.sourceKey!==call.baselineSource?'hit':'miss',observed:call.priorSources.includes(c.sourceKey)?'earlier source selected':'no earlier source selected'};
   if(call.type==='KEEP_SHOT')return {status:c.id===call.baselineId?'hit':'miss',observed:c.id===call.baselineId?'shot survived':'shot changed'};
   if(call.type==='AVOID_SHOT')return {status:c.id!==call.baselineId?'hit':'miss',observed:c.id!==call.baselineId?'shot avoided':'shot survived'};
+  if(call.type==='LATER_SOURCE')return {status:c.sourceKey===call.baselineSource&&c.sourceStart>call.baselineStart?'hit':'miss',observed:c.sourceKey===call.baselineSource&&c.sourceStart>call.baselineStart?'later shot in source':'later-source target missed'};
+  if(call.type==='EARLIER_SOURCE')return {status:c.sourceKey===call.baselineSource&&c.sourceStart<call.baselineStart?'hit':'miss',observed:c.sourceKey===call.baselineSource&&c.sourceStart<call.baselineStart?'earlier shot in source':'earlier-source target missed'};
+  if(call.type==='RETURN_SCENE')return {status:c.sourceKey===call.targetSource?'hit':'miss',observed:c.sourceKey===call.targetSource?'target scene returned':'target scene missed'};
+  if(call.type==='FORCE_OPERATION')return {status:pick.operation===call.operation?'hit':'miss',observed:pick.operation===call.operation?'operation executed':'operation not executed'};
+  if(call.type==='HOLD_NEXT'){const n=fullPlan?.picks?.[call.phrase+1];const ok=c.id===call.baselineId&&n?.candidate?.id===call.baselineId;return {status:ok?'hit':'miss',observed:ok?'shot held through next phrase':'hold broke'};}
+  if(call.type==='STAY_SOURCE_SPAN'){const xs=(fullPlan?.picks||[]).slice(call.phrase,call.phrase+call.count);const ok=xs.length===call.count&&xs.every(x=>x.candidate.sourceKey===call.baselineSource);return {status:ok?'hit':'miss',observed:ok?'source held across span':'source changed inside span'};}
+  if(call.type==='HOLD_SPAN'){const xs=(fullPlan?.picks||[]).slice(call.phrase,call.phrase+call.count);const ok=xs.length===call.count&&xs.every(x=>x.candidate.id===call.baselineId);return {status:ok?'hit':'miss',observed:ok?'shot held across span':'shot changed inside span'};}
   return {status:'pending',observed:'unknown call'};
 }
 function evaluateCalls(){
   for(const call of calls.values()){
     if(call.run>=runSerial||call.phrase>=plan.picks.length)continue;
-    const r=relationResult(call,plan.picks[call.phrase]);call.status=r.status;call.observed=r.observed;call.judgedRun=runSerial;
+    const r=relationResult(call,plan.picks[call.phrase],plan);call.status=r.status;call.observed=r.observed;call.judgedRun=runSerial;
   }
 }
 function recordRun(text){
   runHistory.push({run:runSerial,time:new Date().toISOString(),source:text,options:options(),
     manual:[...manual.entries()].map(([phrase,c])=>({phrase,id:c.id,title:c.title,sourceKey:c.sourceKey})),
-    calls:[...calls.values()].map(x=>({...x})),metrics:{...plan.metrics},
+    calls:[...calls.values()].map(x=>({...x})),directives:[...directives.entries()].map(([phrase,d])=>({phrase,...d,inject:d.inject?{id:d.inject.id,title:d.inject.title,sourceKey:d.inject.sourceKey}:null})),metrics:{...plan.metrics},
     picks:plan.picks.map((p,i)=>({phrase:i,text:p.phrase.text,speaker:p.phrase.speaker||null,operation:p.operation,reason:p.reason,id:p.candidate.id,title:p.candidate.title,sourceKey:p.candidate.sourceKey,sourceStart:p.candidate.sourceStart,manual:!!p.manual})),
     trace:plan.trace});
 }
 
-async function runCompose(){
+async function runCompose({target=null}={}){
   const text=$('sourceText').value.trim(); if(!text){status('Add a source first.');return;}
   phrases=splitSource(text); if(!phrases.length){status('No phrases found.');return;}
   $('compose').disabled=true;$('composeStatus').textContent=`Reading ${phrases.length} phrases across the archive.`;status('Building candidate fields');
   try{
-    candidateSets=await getCandidates(phrases); const constrained=applyManual(candidateSets);
-    plan=composePath(phrases,constrained,options());
+    candidateSets=await getCandidates(phrases); const expanded=await expandDirectiveFields(candidateSets); const constrained=applyDirectives(expanded);
+    plan=composePath(phrases,constrained,composeOptions());
     for(const i of manual.keys())if(plan.picks[i])plan.picks[i].manual=true;
-    plan.metrics=metricsFor(plan.picks,phrases);plan.trace=tracePlan(plan,phrases,candidateSets,options());runSerial++;evaluateCalls();recordRun(text);current=0;prepareTimeline();renderPlan();loadPick(0);status(`Film ready · ${plan.metrics.scenes} scenes from ${phrases.length} phrases`);
+    plan.metrics=metricsFor(plan.picks,phrases);plan.trace=tracePlan(plan,phrases,expanded,composeOptions());runSerial++;evaluateCalls();recordRun(text);current=target==null?0:Math.max(0,Math.min(plan.picks.length-1,target));prepareTimeline();renderPlan();loadPick(current);status(`Film ready · ${plan.metrics.scenes} scenes from ${phrases.length} phrases`);
   }catch(e){status(e.message);$('composeStatus').textContent=e.message;}
   finally{$('compose').disabled=false;}
 }
