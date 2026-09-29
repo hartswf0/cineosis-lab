@@ -16,6 +16,76 @@ ASSIGN = os.path.join(LAB, "assignments.json")
 EDITS = os.path.join(LAB, "edits")            # montages saved back from CUT / the Cutting Room
 REMOTE = os.path.join(LAB, "cache", "remote") # archive shots fetched on demand for editing
 _corpus = {}
+_shannon = {}
+_shannon_lock = threading.Lock()
+
+def shannon_status():
+    try:
+        ids = _shannon.get("ids")
+        if ids is None:
+            ids = json.load(open(os.path.join(LAB, "cache", "emb_ids.json")))
+        return {"embedded": len(ids), "model": "ViT-B-32 laion2b_s34b_b79k", "loaded": bool(_shannon)}
+    except Exception as e:
+        return {"embedded": 0, "model": "unavailable", "loaded": False, "error": str(e)}
+
+def shannon_load():
+    if _shannon:
+        return
+    with _shannon_lock:
+        if _shannon:
+            return
+        import numpy as np, torch, open_clip
+        ids = json.load(open(os.path.join(LAB, "cache", "emb_ids.json")))
+        emb = np.load(os.path.join(LAB, "cache", "emb.npy")).astype(np.float32)
+        emb /= np.linalg.norm(emb, axis=1, keepdims=True) + 1e-9
+        corpus = json.load(open(os.path.join(LAB, "cache", "corpus.json")))
+        device = "mps" if torch.backends.mps.is_available() else "cpu"
+        model, _, _ = open_clip.create_model_and_transforms("ViT-B-32", pretrained="laion2b_s34b_b79k")
+        model = model.to(device).eval()
+        tok = open_clip.get_tokenizer("ViT-B-32")
+        _shannon.update({"np": np, "torch": torch, "ids": ids, "emb": emb, "corpus": corpus,
+                         "device": device, "model": model, "tok": tok})
+
+def shannon_search(phrases, limit=64):
+    shannon_load()
+    import numpy as np
+    phrases = [str(x).strip()[:500] for x in phrases if str(x).strip()]
+    if not phrases:
+        return []
+    limit = max(1, min(96, int(limit or 64)))
+    torch, model, tok = _shannon["torch"], _shannon["model"], _shannon["tok"]
+    with torch.no_grad():
+        t = model.encode_text(tok(phrases).to(_shannon["device"])).float()
+        t /= t.norm(dim=-1, keepdim=True)
+        sims = t.cpu().numpy() @ _shannon["emb"].T
+    out = []
+    for row in sims:
+        k = min(limit, len(row))
+        idx = np.argpartition(-row, k - 1)[:k]
+        idx = idx[np.argsort(-row[idx])]
+        found = []
+        for j in idx:
+            sid = _shannon["ids"][int(j)]
+            c = _shannon["corpus"].get(sid) or {}
+            a = float(c.get("startSeconds") or 0)
+            b = float(c.get("endSeconds") or a + 4)
+            found.append({
+                "id": sid,
+                "title": c.get("sourceTitle") or c.get("title") or "Archive source",
+                "source": c.get("sourceTitle") or "",
+                "sourceKey": c.get("sourceSlug") or c.get("sourceTitle") or sid,
+                "sourceStart": a,
+                "sourceEnd": b,
+                "duration": max(.4, b - a),
+                "mediaIn": 0,
+                "poster": c.get("thumbnailUrl") or "",
+                "media": "/media/" + sid + ".mp4",
+                "description": c.get("description") or c.get("transcript") or "",
+                "raw": round(float(row[int(j)]), 6)
+            })
+        out.append(found)
+    return out
+
 
 def corpus_url(sid):
     if not _corpus:
@@ -71,6 +141,8 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
+        if self.path == "/api/shannon/status":
+            return self._json(200, shannon_status())
         if self.path == "/api/assignments":
             return self._json(200, json.load(open(ASSIGN)) if os.path.exists(ASSIGN) else [])
         if self.path == "/api/edits":
@@ -156,6 +228,16 @@ class Handler(SimpleHTTPRequestHandler):
             body = json.loads(self.rfile.read(n) or b"{}")
         except json.JSONDecodeError:
             return self._json(400, {"error": "bad json"})
+        if self.path == "/api/shannon/search":
+            phrases = body.get("phrases")
+            if not isinstance(phrases, list):
+                q = str(body.get("query", "")).strip()
+                phrases = [q] if q else []
+            try:
+                return self._json(200, {"results": shannon_search(phrases, body.get("limit", 64)),
+                                        "embedded": shannon_status().get("embedded", 0)})
+            except Exception as e:
+                return self._json(503, {"error": "Shannon search unavailable: " + str(e)})
         if self.path == "/api/search":
             q = str(body.get("query", "")).strip()[:200]
             if not q:
