@@ -5,11 +5,15 @@ const ROOT=window.CINEOSIS_BASE||new URL('./',location.href).href;
 const media=p=>new URL(p,ROOT).href;
 let catalog,plan,pending=null,playing=false,index=0,record=0,holdElapsed=0,lastTick=0,seeking=false,generation=0,loadedKey='',debounce,recognition,listening=false,exampleIndex=0;
 const film=$('film'),specs=engine==='metz'?METZ:DELEUZE,chosenSigns=new Set();
-const examples=[['telephone','She calls while he listens. The line breaks.'],['telephone','She calls. After the call, he listens again.'],['feast','Some feast, whereas others wait for bread.'],['sower','Every evening, the field remembers. Nothing is resolved.'],['fire','He descends, then boards the engine, then leaves.'],['all','A face watches the water. The voice continues after the image disappears.']];
+const examples=[['telephone','She calls while he listens.'],['telephone','She calls. After the call, he listens again.'],['feast','Some feast, whereas others wait for bread.'],['sower','Every evening, the field remembers. Nothing is resolved.'],['fire','He descends, then boards the engine, then leaves.'],['all','A face watches the water. The voice continues after the image disappears.']];
 $('heading').textContent=engine==='metz'?'Make a relation.':'Change what the image does.';
 $('operation').innerHTML='<option value="auto">From the words · visible rules</option>'+Object.entries(specs).map(([k,v])=>`<option value="${k}">${esc(v[0])}</option>`).join('');
 if(engine==='deleuze'){$('text').value='She waits. The call cannot become an answer.';document.documentElement.style.setProperty('--accent','#a5c8ff');}
-let importedText=new URLSearchParams(location.search).get('text');if(importedText)$('text').value=importedText.slice(0,10000);
+const params=new URLSearchParams(location.search);let importedText=params.get('text');if(importedText)$('text').value=importedText.slice(0,10000);
+for(const key of ['material','span','duration'])if(params.has(key))$(key).value=params.get(key);
+if(!$('material').value)$('material').value='telephone';
+for(const n of (params.get('signs')||'').split(','))if(n)chosenSigns.add(n);
+$('budget').textContent=$('duration').value+' s';$('window').textContent=$('span').value+' s';
 $('tableLink').href=new URL('../periodic-table.html',ROOT).href;
 const status=s=>$('status').textContent=s;
 const options=()=>({mode:$('operation').value,material:$('material').value,span:+$('span').value,duration:+$('duration').value,signs:[...chosenSigns]});
@@ -18,7 +22,7 @@ function synthesize({immediate=false}={}){
  const text=$('text').value.trim();if(!text){status('Write or speak a phrase first.');return;}
  try{
   const next=compile(text,engine,catalog,options());
-  $('other').href=(window.CINEOSIS_OTHER||`${other}-synthesis.html`)+(window.CINEOSIS_OTHER?.includes('?')?'&':'?')+'text='+encodeURIComponent(text);
+  const shared=new URLSearchParams({text,material:$('material').value,span:$('span').value,duration:$('duration').value,signs:[...chosenSigns].join(',')});$('other').href=(window.CINEOSIS_OTHER||`${other}-synthesis.html`)+'?'+shared;
   if(playing&&!immediate){pending=next;status('New score queued · enters at next interval');return;}
   setPlaying(false);pending=null;plan=next;record=0;render();loadInterval(0,0);status('Score ready · '+plan.items.length+' intervals');
  }catch(e){status(e.message);}
