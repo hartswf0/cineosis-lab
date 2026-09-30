@@ -14,7 +14,9 @@
       const prog = p => { if (p.status === 'progress' && p.total) { seen[p.file] = [p.loaded, p.total]; const a = Object.values(seen).reduce((s, x) => [s[0] + x[0], s[1] + x[1]], [0, 0]);
           onStatus && onStatus({ stage: 'loading', text: 'learning to read', frac: a[0] / a[1] }); } };
       let model;
-      try { model = await T.CLIPTextModelWithProjection.from_pretrained(id, { dtype: 'fp16', progress_callback: prog }); }
+      // phones keep little memory for a page: they take the lighter reader (8-bit, ~65 MB) so the listener fits beside it
+      const small = /iP(hone|ad|od)|Android/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform)) || (navigator.deviceMemory && navigator.deviceMemory <= 4);
+      try { model = await T.CLIPTextModelWithProjection.from_pretrained(id, { dtype: small ? 'q8' : 'fp16', progress_callback: prog }); }
       catch (e) { // a phone that cannot hold the exact reader gets the lighter one (8-bit): slightly different choices, but it runs
         for (const k in seen) delete seen[k]; model = await T.CLIPTextModelWithProjection.from_pretrained(id, { dtype: 'q8', progress_callback: prog }); }
       onStatus && onStatus({ stage: 'ready', text: 'reading' });

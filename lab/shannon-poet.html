@@ -105,12 +105,12 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
 <div id="veil" hidden><div><b>Touch to watch</b><span id="veilSub"></span></div></div>
 <audio id="aud"></audio>
 <script src="markov/engine.js?v=6"></script>
-<script src="markov/clip-text.js?v=3"></script>
+<script src="markov/clip-text.js?v=4"></script>
 <script src="markov/shared.js?v=3"></script>
 <script src="markov/film.js?v=1"></script>
 <script src="markov/guide.js?v=4"></script>
 <script src="markov/export.js?v=4"></script>
-<script src="markov/hear.js?v=1"></script>
+<script src="markov/hear.js?v=2"></script>
 <script src="markov/ui.js?v=2"></script>
 <script>
 (() => {
@@ -236,21 +236,32 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
   function undo() { const h = history.pop(); if (!h) return; lines = h.lines; locks = h.locks; store.set('poet.lines', lines); drawPoem(); toast('undone'); recompose(wallShot, clock.running); }
 
   // ------------------------------------------------------------ hearing: the page records the microphone itself and Whisper, in this browser, finds the words
-  const hearStatus = d => SH.status(d.status === 'ready' ? 'hearing' : 'loading', d.status === 'ready' ? 'finding your words' : 'fetching the listener (once)', d.frac);
+  const hearStatus = d => { if (d.status === 'error') { SH.status('rest', d.message); toast(d.message); return; } SH.status(d.status === 'ready' ? 'hearing' : 'loading', d.status === 'ready' ? 'finding your words' : 'fetching the listener (once)', d.frac); };
+  // the microphone check: every step on screen, so a failure names itself
+  function openCheck() {
+    let el = document.getElementById('chk'); if (el) el.remove(); el = document.createElement('div'); el.id = 'chk';
+    el.style.cssText = 'position:fixed;inset:0;z-index:40;background:#050505f5;display:grid;place-items:center;padding:20px';
+    el.innerHTML = '<div style="width:min(520px,100%)"><div style="font:300 26px Fraunces,Georgia,serif;margin-bottom:6px">Microphone check</div><div style="color:#8a8378;margin-bottom:14px">Say a few words now. Each step reports below; if one fails, that line is the reason.</div><div id="chkRows" style="display:grid;gap:8px"></div><button class="pill" id="chkX" style="margin-top:18px">CLOSE</button></div>';
+    document.body.append(el); el.querySelector('#chkX').onclick = () => el.remove(); const rows = {};
+    const row = (name, ok, detail) => { let r = rows[name]; if (!r) { r = rows[name] = document.createElement('div'); r.style.cssText = 'display:grid;grid-template-columns:96px 1fr;gap:10px;padding:8px 0;border-top:1px solid #1f1d1a'; el.querySelector('#chkRows').append(r); }
+      r.innerHTML = `<span style="letter-spacing:.08em;color:${ok === true ? '#9bd69f' : ok === false ? '#e8786e' : '#e8c070'}">${ok === true ? 'OK' : ok === false ? 'FAILED' : '…'} · ${name}</span><span style="color:#cfc8bc;overflow-wrap:anywhere">${esc(detail)}</span>`; };
+    pause(); unlockVoice(); MPHear.check(row).then(ok => row('result', ok, ok ? 'everything works: use the mic or the red dot' : 'tell us the FAILED line and your phone and browser'));
+  }
   const micError = e => toast(/NotAllowed|Permission|denied/i.test(e.name + e.message) ? 'the microphone is not allowed: allow it for this site in the browser settings' : /NotFound/i.test(e.name) ? 'no microphone was found' : 'could not listen: ' + e.message);
   // say one line: tap, speak, stop speaking (or tap again); the words appear in the prompt and join the film
   let saying = null;
   $('#bMic').onclick = async () => {
     if (saying) { saying.stop(); return; }
     if (!MPHear.supported()) { toast('this browser cannot record; type the line instead'); return; }
-    pause(); unlockVoice(); let t;
-    try { t = await MPHear.take({ autoStop: true, onLevel: lv => { $('#bMic').style.boxShadow = `0 0 0 ${Math.round(2 + lv * 22)}px #e8c07033`; } }); } catch (e) { micError(e); return; }
+    pause(); unlockVoice(); let t; $('#bMic').classList.add('on'); SH.status('listening', 'asking for the microphone');
+    try { t = await MPHear.take({ autoStop: true, onLevel: lv => { $('#bMic').style.boxShadow = `0 0 0 ${Math.round(2 + lv * 22)}px #e8c07033`; } }); } catch (e) { $('#bMic').classList.remove('on'); SH.status('rest', 'the microphone did not start'); micError(e); return; }
     saying = t; $('#bMic').classList.add('on'); SH.status('listening', 'listening · say one line, then pause'); MPHear.warm(hearStatus);
     const done = r => { if (done.ran) return; done.ran = true; saying = null; $('#bMic').classList.remove('on'); $('#bMic').style.boxShadow = ''; heard(r); };
     t.auto.then(done); const stop = t.stop; t.stop = () => stop().then(done);
   };
   async function heard(r) {
     if (!r || r.seconds < .5) { SH.status('rest', 'nothing was heard'); return; }
+    if (r.peak < .03) { SH.status('rest', 'the microphone gave no sound'); toast('no sound came from the microphone: check it in ⋯ · Check the microphone'); return; }
     SH.status('hearing', 'finding your words');
     try { const out = await MPHear.words(r.pcm, hearStatus), text = out.text.replace(/\[[^\]]*\]|\([^)]*\)/g, '').trim();
       if (!text) { SH.status('rest', 'no words were found; tap the mic and try again'); return; }
@@ -310,6 +321,7 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
       { icon: 'full', label: 'Full screen', act: () => { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => { }); } }] },
     { title: 'MAKE', items: [
       { icon: 'mic', label: 'Say a line', hint: 'speak one line; it joins the film', act: () => $('#bMic').click() },
+      { icon: 'info', label: 'Check the microphone', hint: 'if speaking does nothing: shows each step and what fails', act: () => openCheck() },
       { icon: 'rec', label: 'Record your voice', hint: () => lines.length ? 'read the poem; the film follows your timing' : 'say the poem; each sentence becomes a line', act: () => openRec() },
       { icon: 'undo', label: 'Undo', hidden: () => !history.length, act: () => undo() },
       { icon: 'close', label: 'Remove the selected line', hidden: () => sel < 0, act: () => { history.push({ lines: [...lines], locks: { ...locks } }); lines.splice(sel, 1); sel = -1; locks = {}; marks = null; if (voice === 'mine') voice = fallbackVoice(); $('#prompt').value = ''; store.set('poet.lines', lines); drawPoem(); recompose(null, false); } },
