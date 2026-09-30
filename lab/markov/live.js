@@ -11,16 +11,32 @@
   const get = () => { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } };
   const api = { active: null, hasKey: () => !!get(), setKey: k => { try { k ? localStorage.setItem(KEY, k.trim()) : localStorage.removeItem(KEY); } catch (e) { } } };
 
+  // The microphone. A browser's default input is often a virtual or muted device (a light-sync driver, a loopback, a meeting app) that
+  // gives only silence, so a stream from one of those is swapped for a real microphone before anything listens to it.
+  const VIRTUAL = /virtual|hue sync|blackhole|loopback|soundflower|aggregate|zoomaudio|teams audio|krisp|obs|ndi|vb-?audio|cable|stereo mix/i;
+  const Mic = { id: () => { try { return localStorage.getItem('mp.mic') || ''; } catch (e) { return ''; } }, set: id => { try { id ? localStorage.setItem('mp.mic', id) : localStorage.removeItem('mp.mic'); } catch (e) { } },
+    audio: id => { const a = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }; id = id == null ? Mic.id() : id; if (id) a.deviceId = { exact: id }; return a; },
+    label: s => { const t = s && s.getAudioTracks()[0]; return t ? (t.label || 'microphone') : ''; },
+    bad: s => { const t = s && s.getAudioTracks()[0]; return !t || t.muted || VIRTUAL.test(t.label || ''); },
+    list: async () => (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput' && d.deviceId),
+    open() { const first = navigator.mediaDevices.getUserMedia({ audio: Mic.audio() }).catch(e => { if (Mic.id() && /Overconstrained|NotFound/.test(e.name)) { Mic.set(''); return navigator.mediaDevices.getUserMedia({ audio: Mic.audio('') }); } throw e; });
+      return first.then(async s => { if (Mic.id() || !Mic.bad(s)) return s;
+        const real = (await Mic.list()).filter(d => d.deviceId !== 'default' && d.deviceId !== 'communications' && !VIRTUAL.test(d.label)), rank = d => /macbook|built-?in|internal|iphone/i.test(d.label) ? 0 : /microphone|mic|airpods|headset|usb/i.test(d.label) ? 1 : 2;
+        real.sort((a, b) => rank(a) - rank(b));
+        for (const d of real) { try { const t = await navigator.mediaDevices.getUserMedia({ audio: Mic.audio(d.deviceId) }); if (!t.getAudioTracks()[0].muted) { s.getTracks().forEach(x => x.stop()); Mic.set(d.deviceId); return t; } t.getTracks().forEach(x => x.stop()); } catch (e) { } }
+        return s; }); } };
+  window.MPMic = Mic;
+
   api.start = async function (o) {
     const on = o.on || {}, tell = (k, ...a) => { try { on[k] && on[k](...a); } catch (e) { } };
     if (api.active) api.active.stop();
     const key = get(); if (!key) throw new Error('no OpenAI key in this browser');
     tell('state', 'asking');
     // asked for first and synchronously in the tap, before any other await
-    const micP = navigator.mediaDevices.getUserMedia({ audio: window.MPMic ? MPMic.audio() : { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    const micP = Mic.open();
     const out = new Audio(); out.autoplay = true; out.playsInline = true; out.play().catch(() => { });
     let AC = null, levelT = null; try { AC = new (window.AudioContext || window.webkitAudioContext)(); AC.resume(); } catch (e) { }
-    const mic = await micP; tell('mic', window.MPMic ? MPMic.label(mic) : '');
+    const mic = await micP; tell('mic', Mic.label(mic) + (Mic.bad(mic) ? ' (silent: choose another in the menu)' : ''));
     const pc = new RTCPeerConnection(); let closed = false, dc = null;
     const stop = why => { if (closed) return; closed = true; clearInterval(levelT); try { mic.getTracks().forEach(t => t.stop()); } catch (e) { } try { dc && dc.close(); } catch (e) { } try { pc.close(); } catch (e) { } try { AC && AC.close(); } catch (e) { } out.srcObject = null; if (api.active === h) api.active = null; tell('state', 'closed', why); };
     const send = m => { if (dc && dc.readyState === 'open') dc.send(JSON.stringify(m)); };
@@ -66,14 +82,16 @@
     const w = document.createElement('div'); w.style.cssText = 'position:fixed;inset:0;z-index:120;background:#000c;display:grid;place-items:end center';
     w.innerHTML = `<form style="width:min(460px,100%);background:#0e0d0c;border:1px solid #2a2723;border-radius:14px 14px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));font:12px 'IBM Plex Mono',monospace;color:#efe9dd">
       <div style="letter-spacing:.2em;font-size:10px;color:#6f695f;margin-bottom:10px">LIVE VOICE · OPENAI KEY</div>
-      <input type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-..." style="width:100%;box-sizing:border-box;background:#161412;border:1px solid #2e2b27;border-radius:8px;padding:12px;color:#efe9dd;font:16px 'IBM Plex Mono',monospace">
+      <input type="text" name="mp-live-note" inputmode="text" autocorrect="off" data-lpignore="true" data-1p-ignore autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-..." style="width:100%;box-sizing:border-box;background:#161412;border:1px solid #2e2b27;border-radius:8px;padding:12px;color:#efe9dd;font:16px 'IBM Plex Mono',monospace;-webkit-text-security:disc">
       <p style="color:#8a8378;line-height:1.5;margin:10px 0 14px">Kept only in this browser and sent only to api.openai.com. Speaking is billed to this key by the minute. For testing: use a key with a spending limit, and remove it on a shared device.</p>
       <div style="display:flex;gap:8px"><button type="submit" style="flex:1;min-height:44px;border-radius:8px;border:0;background:#e8c070;color:#14110c;font:inherit;cursor:pointer">SAVE</button>
       <button type="button" data-x="rm" style="min-height:44px;padding:0 14px;border-radius:8px;border:1px solid #2e2b27;background:none;color:#efe9dd;font:inherit;cursor:pointer">REMOVE</button>
       <button type="button" data-x="no" style="min-height:44px;padding:0 14px;border-radius:8px;border:1px solid #2e2b27;background:none;color:#efe9dd;font:inherit;cursor:pointer">CLOSE</button></div></form>`;
     const inp = w.querySelector('input'), end = () => { w.remove(); done && done(api.hasKey()); };
     if (api.hasKey()) inp.placeholder = 'a key is saved · paste a new one to replace it';
-    w.querySelector('form').onsubmit = e => { e.preventDefault(); if (inp.value.trim()) api.setKey(inp.value); end(); };
+    // saved the moment it is pasted or typed: no way to close the sheet and lose it
+    const keep = () => { const v = inp.value.trim(); if (v.length > 20) api.setKey(v); }; inp.addEventListener('input', keep); inp.addEventListener('change', keep);
+    w.querySelector('form').onsubmit = e => { e.preventDefault(); keep(); if (inp.value.trim() && !api.hasKey()) { inp.value = ''; inp.placeholder = 'that does not look like a key · paste the whole sk-... key'; return; } end(); };
     w.querySelector('[data-x=rm]').onclick = () => { api.setKey(''); end(); }; w.querySelector('[data-x=no]').onclick = end;
     w.onclick = e => { if (e.target === w) end(); };
     document.body.append(w); setTimeout(() => inp.focus(), 50);

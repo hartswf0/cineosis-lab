@@ -15,13 +15,12 @@
   const ICON = n => `<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><use href="#i-${n}"/></svg>`;
   const ROOMS = {
     poet: { title: 'The Poet', lede: 'An empty room. Words in, a film out.',
-      steps: [['Type a line and press Return, or tap the mic and say it.', 'The mic takes one line: speak, then pause. The page finds your words itself (the first time it fetches its listener, about 45 MB).'],
+      steps: [['Type a line and press Return, or tap the mic and talk.', 'The mic is a live voice: the first tap asks for an OpenAI key, kept in this browser only. After that, speak a line and it joins the film; say "play", "change line two", "remove the last line" or "undo" and it does it.'],
               ['Watch the archive answer.', 'About twenty shots rise around your words, sized by their chance. One is taken; the film plays with your line.'],
               ['Add lines.', 'Each line joins the same film. Lines in one stanza share a world.'],
               ['Tap CHOOSE to replace a shot.', 'The drawer shows every shot the engine weighed for that moment. Tap one to keep it. ⌘Z undoes.'],
-              ['Tap the red dot to record your voice.', 'Read the whole poem at your own pace, then STOP. The page finds where you read each line, and the film follows your timing.'],
               ['Tap SEND.', 'Share a link: it plays at once on a friend\'s phone, and they can remix it. Or send a small file with your own voice inside.']],
-      ctl: [['mic', 'say one line'], ['rec', 'record your voice reading the poem'], ['play', 'play or pause · space'], ['wall', 'choose among the shots'], ['send', 'send or open a project'], ['more', 'calm, film sound, voice, undo, more']] },
+      ctl: [['mic', 'talk to the film: lines and instructions'], ['play', 'play or pause · space'], ['wall', 'choose among the shots'], ['send', 'send or open a project'], ['more', 'calm, film sound, voice, undo, more']] },
     narrative: { title: 'Narrative', lede: 'A poem plays line by line. The wall shows every shot weighed for the line.',
       steps: [['Pick a poem at the top. Tap play.', 'The suite plays against the poet\'s recorded voice; other poems against a Piper voice.'],
               ['Read the wall.', 'Each tile is a shot the engine weighed; the number is its chance. Gold frame: the shot on screen.'],

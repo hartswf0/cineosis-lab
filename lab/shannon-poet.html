@@ -39,7 +39,7 @@ body.collapsed{ --dock:40px; }
 #prompt{ flex:1; min-width:0; height:48px; border-radius:24px; border:1px solid #2e2b27; background:#0d0c0bdd; padding:0 18px; font:300 17px var(--serif); color:var(--ink); outline:none; }
 #prompt:focus{ border-color:#5a4e33; } #prompt::placeholder{ color:#5f5a52; font-style:italic; }
 #bMic.on{ color:var(--hi); background:#e8c07022; animation:pulse 1.2s infinite; }
-#bRec{ width:48px; height:48px; border:1px solid #3a2a28; } #bRec svg{ width:22px; height:22px; } #bRec.on{ background:#e0453a22; border-color:var(--rec); }
+#bRec[hidden]{ display:none; } #bRec{ width:48px; height:48px; border:1px solid #3a2a28; } #bRec svg{ width:22px; height:22px; } #bRec.on{ background:#e0453a22; border-color:var(--rec); }
 body.collapsed #prompt, body.collapsed #bMic, body.collapsed #bRec, body.collapsed #bWall, body.collapsed #bSend{ display:none; } body.collapsed #row{ justify-content:flex-end; } body.collapsed #poem, body.collapsed #dna{ display:none; }
 body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0; } body.quiet{ cursor:none; }
 /* the wall of shots weighed */
@@ -90,7 +90,7 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
     <button class="ico" id="bFold" aria-label="Fold the controls"><svg><use href="#i-down"/></svg></button>
     <input id="prompt" autocomplete="off" autocapitalize="sentences" spellcheck="false" enterkeyhint="done" placeholder="type a line, then Return" aria-label="Type a line">
     <button class="ico" id="bMic" aria-label="Say a line"><svg><use href="#i-mic"/></svg></button>
-    <button class="ico" id="bRec" aria-label="Record your voice reading the poem"><svg><use href="#i-rec"/></svg></button>
+    <button class="ico" id="bRec" hidden aria-label="Record your voice reading the poem"><svg><use href="#i-rec"/></svg></button>
     <button class="ico" id="bPlay" aria-label="Play"><svg><use href="#i-play"/></svg></button>
     <button class="ico" id="bWall" aria-label="Choose a different shot"><svg><use href="#i-wall"/></svg></button>
     <button class="ico" id="bSend" aria-label="Send"><svg><use href="#i-send"/></svg></button>
@@ -113,10 +113,10 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
 <script src="markov/clip-text.js?v=5"></script>
 <script src="markov/shared.js?v=4"></script>
 <script src="markov/film.js?v=1"></script>
-<script src="markov/guide.js?v=4"></script>
+<script src="markov/guide.js?v=5"></script>
 <script src="markov/export.js?v=4"></script>
-<script src="markov/hear.js?v=4"></script>
-<script src="markov/live.js?v=2"></script>
+<script src="markov/live.js?v=3"></script>
+<script src="markov/hear.js?v=5"></script>
 <script src="markov/ui.js?v=2"></script>
 <script>
 (() => {
@@ -300,7 +300,8 @@ If you cannot tell whether something is a line or an instruction, treat it as a 
     catch (e) { $('#bMic').classList.remove('on'); if (e.name === 'NotAllowedError' || e.name === 'NotFoundError') micError(e); else { SH.status('rest', 'live voice could not start: ' + e.message); toast('live voice could not start: ' + e.message); } }
   }
   $('#bMic').onclick = async () => {
-    if (live || (window.MPLive && MPLive.hasKey())) return liveToggle();
+    if (live || MPLive.hasKey()) return liveToggle();
+    MPLive.keySheet(ok => toast(ok ? 'key saved · tap the microphone and speak' : 'live voice needs an OpenAI key · tap the microphone to add one')); return;
     if (saying) { saying.stop(); return; }
     if (!MPHear.supported()) { toast('this browser cannot record; type the line instead'); return; }
     pause(); unlockVoice(); let t; $('#bMic').classList.add('on'); SH.status('listening', 'asking for the microphone');
@@ -370,11 +371,11 @@ If you cannot tell whether something is a line or an instruction, treat it as a 
         act: () => { const o = [...(voiceRec && marks ? ['mine'] : []), ...(SH.server ? ['piper'] : []), ...(canSpeak ? ['device'] : []), 'none']; voice = o[(o.indexOf(voice) + 1) % o.length]; store.set('poet.voice', voice === 'mine' ? 'auto' : voice); if (canSpeak) speechSynthesis.cancel(); if (cur) recompose(shown, clock.running); return true; } },
       { icon: 'full', label: 'Full screen', act: () => { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => { }); } }] },
     { title: 'MAKE', items: [
-      { icon: 'mic', label: 'Say a line', hint: 'speak one line; it joins the film', act: () => $('#bMic').click() },
-      { icon: 'voice', label: 'Live voice · OpenAI key', hint: 'paste a key to talk to the film live; kept in this browser only', state: () => MPLive.hasKey() ? 'SET' : '', act: () => MPLive.keySheet(ok => toast(ok ? 'key saved · tap the microphone to talk' : 'no key · the microphone uses the built-in listener')) },
+      { icon: 'mic', label: () => live ? 'Stop live voice' : 'Talk to the film', hint: 'speak lines, or say what to change', act: () => $('#bMic').click() },
+      { icon: 'voice', label: 'Live voice · OpenAI key', hint: 'paste a key to talk to the film live; kept in this browser only', state: () => MPLive.hasKey() ? 'SET' : '', act: () => MPLive.keySheet(ok => toast(ok ? 'key saved · tap the microphone and speak' : 'no key saved')) },
       { icon: 'mic', label: 'Microphone', hint: 'choose which microphone listens', act: () => { micSheet(); } },
-      { icon: 'info', label: 'Check the microphone', hint: 'if speaking does nothing: shows each step and what fails', act: () => openCheck() },
-      { icon: 'rec', label: 'Record your voice', hint: () => lines.length ? 'read the poem; the film follows your timing' : 'say the poem; each sentence becomes a line', act: () => openRec() },
+      { hidden: true, icon: 'info', label: 'Check the microphone', hint: 'if speaking does nothing: shows each step and what fails', act: () => openCheck() },
+      { hidden: true, icon: 'rec', label: 'Record your voice', hint: () => lines.length ? 'read the poem; the film follows your timing' : 'say the poem; each sentence becomes a line', act: () => openRec() },
       { icon: 'undo', label: 'Undo', hidden: () => !history.length, act: () => undo() },
       { icon: 'close', label: 'Remove the selected line', hidden: () => sel < 0, act: () => { history.push({ lines: [...lines], locks: { ...locks } }); lines.splice(sel, 1); sel = -1; locks = {}; marks = null; if (voice === 'mine') voice = fallbackVoice(); $('#prompt').value = ''; store.set('poet.lines', lines); drawPoem(); recompose(null, false); } },
       { icon: 'take', label: 'Begin again', hint: 'an empty room', hidden: () => !lines.length, act: () => again() }] },
@@ -408,7 +409,7 @@ If you cannot tell whether something is a line or an instruction, treat it as a 
   SH.onReady(r => { const bar = $('#ready'); bar.style.width = Math.round(r.frac * 100) + '%'; setPlaceholder();
     if (!r.all && !cur && !/playing|recording|listening|hearing/.test($('#sys').className + $('#sysText').textContent)) SH.status('loading', r.failed || `getting ready · ${r.archive ? 'archive in' : 'archive'} · reader ${Math.round((window.ClipText ? ClipText.frac : 1) * 100)}%` + (r.eta ? ` · about ${Math.ceil(r.eta)} s` : ''));
     if (r.all && !wasReady) { wasReady = true; bar.style.opacity = 0; if (!cur) SH.status('rest', 'ready · type or say a line'); setPlaceholder();
-      setTimeout(() => { if (MPLive.hasKey()) return; if (/iP(hone|ad|od)|Android/.test(navigator.userAgent)) MPHear.prefetch(); else if (!SH.isLab() || true) MPHear.warm(() => { }); }, 1200); } });   // the listener is fetched behind the scenes, ready before the mic is tapped
+    } });   // the listener is fetched behind the scenes, ready before the mic is tapped
   SH.load({ light: true }).then(async d => { D = d; F = MPFilm($('#film'), { signs: d.K.signs }); MPGuide.first('poet'); drawStarters();
     const m = location.hash.match(/#p=([\w-]+)/);
     if (m) { try { const o = await MPExport.unpack(m[1]); lines = o.l || []; locks = o.k || {}; drawPoem(); SH.status('reading', 'reading a poem someone sent');

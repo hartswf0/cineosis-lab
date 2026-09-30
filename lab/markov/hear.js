@@ -28,12 +28,7 @@
   function decode(ac, buf) { return new Promise((ok, no) => { try { const p = ac.decodeAudioData(buf, ok, no); if (p && p.catch) p.catch(no); } catch (e) { no(e); } }); }
   // Call take() directly inside a tap: Safari and iPhones only start audio that begins in the tap itself, so the audio context is
   // created and resumed here, before anything is awaited.
-  // which microphone: the browser's default is often the wrong one (a display, a headset left paired, a virtual device) and gives silence
-  const Mic = { id: () => { try { return localStorage.getItem('mp.mic') || ''; } catch (e) { return ''; } }, set: id => { try { id ? localStorage.setItem('mp.mic', id) : localStorage.removeItem('mp.mic'); } catch (e) { } },
-    audio: () => { const a = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }; if (Mic.id()) a.deviceId = { ideal: Mic.id() }; return a; },
-    label: s => { const t = s && s.getAudioTracks()[0]; return t ? (t.label || 'microphone') + (t.muted ? ' (muted by the system)' : '') : ''; },
-    list: async () => (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput' && d.deviceId) };
-  window.MPMic = Mic;
+  const Mic = window.MPMic || { audio: () => ({ echoCancellation: true, noiseSuppression: true }), label: () => 'microphone' };
   function take(opts = {}) {
     const ac = new AC(), resumed = ac.resume ? ac.resume().catch(() => { }) : Promise.resolve();
     return (async () => {
