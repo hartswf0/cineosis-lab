@@ -116,6 +116,7 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
 <script src="markov/guide.js?v=4"></script>
 <script src="markov/export.js?v=4"></script>
 <script src="markov/hear.js?v=3"></script>
+<script src="markov/live.js?v=1"></script>
 <script src="markov/ui.js?v=2"></script>
 <script>
 (() => {
@@ -258,7 +259,39 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
   const micError = e => toast(/NotAllowed|Permission|denied/i.test(e.name + e.message) ? 'the microphone is not allowed: allow it for this site in the browser settings' : /NotFound/i.test(e.name) ? 'no microphone was found' : 'could not listen: ' + e.message);
   // say one line: tap, speak, stop speaking (or tap again); the words appear in the prompt and join the film
   let saying = null;
+  // live voice: with an OpenAI key in this browser the mic button opens a realtime session that hears lines and acts on the film
+  let live = null, liveT = null;
+  const lineArg = { type: 'object', properties: { line: { type: 'integer', description: 'line number, 1 is the first' }, text: { type: 'string' } } };
+  const poemNow = () => ({ lines: lines.map((t, i) => `${i + 1}. ${t}`), playing: clock.running });
+  const LIVE_TOOLS = [
+    { name: 'add_line', description: 'Add one line to the poem, in the speaker\'s exact words. The film grows by that line and plays it.', parameters: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] }, run: a => { commit(String(a.text || '').trim()); return poemNow(); } },
+    { name: 'change_line', description: 'Replace the words of an existing line.', parameters: { ...lineArg, required: ['line', 'text'] }, run: a => { const i = a.line - 1; if (!(i >= 0 && i < lines.length)) return { error: 'no such line' }; history.push({ lines: [...lines], locks: { ...locks } }); lines[i] = String(a.text).trim(); locks = {}; marks = null; if (voice === 'mine') voice = fallbackVoice(); store.set('poet.lines', lines); drawPoem(); recompose(null, true, i); return poemNow(); } },
+    { name: 'remove_line', description: 'Remove a line from the poem.', parameters: { ...lineArg, required: ['line'] }, run: a => { const i = a.line - 1; if (!(i >= 0 && i < lines.length)) return { error: 'no such line' }; history.push({ lines: [...lines], locks: { ...locks } }); lines.splice(i, 1); locks = {}; marks = null; store.set('poet.lines', lines); drawPoem(); if (lines.length) recompose(null, false); else again(); return poemNow(); } },
+    { name: 'play', description: 'Play the film, from the start or from a given line.', parameters: lineArg, run: a => { if (!cur) return { error: 'there is no film yet' }; if (a.line) jumpLine(a.line - 1); else seekTo(cur.T0); play(); return { ok: true }; } },
+    { name: 'pause', description: 'Pause the film.', run: () => { pause(); return { ok: true }; } },
+    { name: 'undo', description: 'Undo the last change to the poem.', run: () => { undo(); return poemNow(); } },
+    { name: 'begin_again', description: 'Clear the whole poem and the film. Only when plainly asked.', run: () => { again(); return poemNow(); } },
+    { name: 'calm', description: 'Turn calm mode (slower pictures and dissolves) on or off.', parameters: { type: 'object', properties: { on: { type: 'boolean' } }, required: ['on'] }, run: a => { if (!!a.on !== !!F.isCalm) F.calm(!!a.on); return { ok: true }; } },
+    { name: 'read_poem', description: 'Get the poem as it stands, with line numbers.', run: poemNow } ];
+  const LIVE_RULES = `You operate the Markov Poet, a room where spoken lines of a poem become a film cut from an archive. The person is a poet speaking aloud.
+When they speak a line of poetry, a sentence, an image or a fragment, call add_line with exactly their words: do not improve, complete or answer it. One spoken sentence or breath is one line.
+When they give an instruction about the film or the poem (play, pause, change line two, remove the last line, undo, start over, calm), call the matching tool.
+Say almost nothing. After a tool call stay silent or say at most two or three words. Never recite the poem back, never comment on it, never ask questions unless an instruction cannot be carried out.
+If you cannot tell whether something is a line or an instruction, treat it as a line.`;
+  function liveEnd(why) { clearInterval(liveT); live = null; $('#bMic').classList.remove('on'); $('#bMic').style.boxShadow = ''; if (why) { SH.status('rest', 'live voice stopped: ' + why); toast('live voice stopped: ' + why); } else SH.status('rest', 'live voice off'); }
+  async function liveToggle() {
+    if (live) { const l = live; live = null; l.stop(); return; }
+    pause(); unlockVoice(); $('#bMic').classList.add('on'); SH.status('listening', 'asking for the microphone');
+    const p = MPLive.start({ instructions: LIVE_RULES + '\nThe poem so far:\n' + (lines.map((t, i) => `${i + 1}. ${t}`).join('\n') || '(empty)'), tools: LIVE_TOOLS, on: {
+      state: (st, why) => { if (st === 'connecting') SH.status('listening', 'connecting the live voice'); else if (st === 'live') { SH.status('listening', 'live · speak a line, or say what to change'); toast('live voice is on · tap the microphone to stop'); } else if (st === 'closed') liveEnd(why); },
+      partial: t => { if (!t || clock.running) return; clearTimeout(pleaT); $('#starters').hidden = true; $('#say').className = ''; $('#say').innerHTML = `<span style="color:var(--dim)">${esc(t)}</span>`; },
+      level: lv => { $('#bMic').style.boxShadow = `0 0 0 ${Math.round(2 + lv * 22)}px #e8c07033`; },
+      error: m => toast(m) } });
+    try { live = await p; liveT = setInterval(() => { if (live) live.mute(clock.running && voice !== 'none'); }, 200); }   // the film's own voice must not be heard as a new line
+    catch (e) { $('#bMic').classList.remove('on'); if (e.name === 'NotAllowedError' || e.name === 'NotFoundError') micError(e); else { SH.status('rest', 'live voice could not start: ' + e.message); toast('live voice could not start: ' + e.message); } }
+  }
   $('#bMic').onclick = async () => {
+    if (live || (window.MPLive && MPLive.hasKey())) return liveToggle();
     if (saying) { saying.stop(); return; }
     if (!MPHear.supported()) { toast('this browser cannot record; type the line instead'); return; }
     pause(); unlockVoice(); let t; $('#bMic').classList.add('on'); SH.status('listening', 'asking for the microphone');
@@ -329,6 +362,7 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
       { icon: 'full', label: 'Full screen', act: () => { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => { }); } }] },
     { title: 'MAKE', items: [
       { icon: 'mic', label: 'Say a line', hint: 'speak one line; it joins the film', act: () => $('#bMic').click() },
+      { icon: 'voice', label: 'Live voice · OpenAI key', hint: 'paste a key to talk to the film live; kept in this browser only', state: () => MPLive.hasKey() ? 'SET' : '', act: () => MPLive.keySheet(ok => toast(ok ? 'key saved · tap the microphone to talk' : 'no key · the microphone uses the built-in listener')) },
       { icon: 'info', label: 'Check the microphone', hint: 'if speaking does nothing: shows each step and what fails', act: () => openCheck() },
       { icon: 'rec', label: 'Record your voice', hint: () => lines.length ? 'read the poem; the film follows your timing' : 'say the poem; each sentence becomes a line', act: () => openRec() },
       { icon: 'undo', label: 'Undo', hidden: () => !history.length, act: () => undo() },
@@ -364,7 +398,7 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
   SH.onReady(r => { const bar = $('#ready'); bar.style.width = Math.round(r.frac * 100) + '%'; setPlaceholder();
     if (!r.all && !cur && !/playing|recording|listening|hearing/.test($('#sys').className + $('#sysText').textContent)) SH.status('loading', r.failed || `getting ready · ${r.archive ? 'archive in' : 'archive'} · reader ${Math.round((window.ClipText ? ClipText.frac : 1) * 100)}%` + (r.eta ? ` · about ${Math.ceil(r.eta)} s` : ''));
     if (r.all && !wasReady) { wasReady = true; bar.style.opacity = 0; if (!cur) SH.status('rest', 'ready · type or say a line'); setPlaceholder();
-      setTimeout(() => { if (/iP(hone|ad|od)|Android/.test(navigator.userAgent)) MPHear.prefetch(); else if (!SH.isLab() || true) MPHear.warm(() => { }); }, 1200); } });   // the listener is fetched behind the scenes, ready before the mic is tapped
+      setTimeout(() => { if (MPLive.hasKey()) return; if (/iP(hone|ad|od)|Android/.test(navigator.userAgent)) MPHear.prefetch(); else if (!SH.isLab() || true) MPHear.warm(() => { }); }, 1200); } });   // the listener is fetched behind the scenes, ready before the mic is tapped
   SH.load({ light: true }).then(async d => { D = d; F = MPFilm($('#film'), { signs: d.K.signs }); MPGuide.first('poet'); drawStarters();
     const m = location.hash.match(/#p=([\w-]+)/);
     if (m) { try { const o = await MPExport.unpack(m[1]); lines = o.l || []; locks = o.k || {}; drawPoem(); SH.status('reading', 'reading a poem someone sent');
