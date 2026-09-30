@@ -32,6 +32,7 @@
     more: '<circle cx="4.5" cy="10" r="1.6" fill="currentColor"/><circle cx="10" cy="10" r="1.6" fill="currentColor"/><circle cx="15.5" cy="10" r="1.6" fill="currentColor"/>',
     open: '<path d="M3 6h5l2 2h7v8H3z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
     down: '<path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>', up: '<path d="M5 12l5-5 5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+    hand: '<path d="M7 10V4.5a1.2 1.2 0 0 1 2.4 0V9m0-5.5a1.2 1.2 0 0 1 2.4 0V9m0-4a1.2 1.2 0 0 1 2.4 0v5m0-3a1.2 1.2 0 0 1 2.4 0v4.5c0 3-2 5.5-5.2 5.5-2.6 0-3.7-1.2-5-3.4L4.2 11a1.2 1.2 0 0 1 2-1.3L7 11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>',
     home: '<path d="M3 10l7-6 7 6M5 9v8h10V9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
     book: '<path d="M3 4h5a2 2 0 0 1 2 2v10a2 2 0 0 0-2-2H3zM17 4h-5a2 2 0 0 0-2 2v10a2 2 0 0 1 2-2h5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>',
     wrench: '<path d="M12.5 3.5a3.5 3.5 0 0 0-3.3 4.7L3.5 13.9l2.6 2.6 5.7-5.7a3.5 3.5 0 0 0 4.7-3.3l-2 .6-1.6-1.6.6-2z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>' };

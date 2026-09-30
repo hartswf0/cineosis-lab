@@ -45,6 +45,14 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
 #board .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr)); gap:16px 12px; max-width:1500px; margin:0 auto; }
 #board figure{ margin:0; cursor:pointer; } #board figcaption{ padding:6px 2px 0; font:300 15px/1.25 var(--serif); } #board figcaption b{ font:10px var(--mono); color:var(--dim); margin-right:6px; font-weight:400; }
 #board .top{ position:fixed; left:0; right:0; top:0; display:flex; align-items:center; gap:8px; padding:calc(6px + env(safe-area-inset-top)) 12px 6px; background:#050505ee; z-index:2; letter-spacing:.2em; font-size:10.5px; color:var(--dim); } #board .top span{ flex:1; }
+.fig.aim{ outline:1px solid #c4f46a; outline-offset:3px; }
+#tools button.tx{ background:none; border:1px solid var(--faint); border-radius:14px; min-height:32px; padding:0 10px; margin:0 2px; cursor:pointer; color:#a59e93; font-size:10px; letter-spacing:.1em; } #tools button.tx:hover{ color:var(--ink); border-color:#5a4e33; }
+#tools{ flex-wrap:wrap; }
+#handCam{ position:absolute; left:6px; top:6px; width:112px; height:84px; border:1px solid var(--faint); border-radius:4px; background:#0008; z-index:5; pointer-events:none; }
+.hcur{ position:fixed; z-index:200; width:26px; height:26px; margin:-13px 0 0 -13px; border-radius:50%; border:2px solid #c4f46a; pointer-events:none; transition:width .12s,height .12s,margin .12s,background .12s; } .hcur.tool{ border-color:#85bdff; }
+.hcur.closed{ width:14px; height:14px; margin:-7px 0 0 -7px; background:#c4f46a; } .hcur.tool.closed{ background:#85bdff; } .hcur b{ position:absolute; left:18px; top:-16px; font:500 9.5px var(--mono); letter-spacing:.1em; color:#c4f46a; white-space:nowrap; text-shadow:0 1px 3px #000; } .hcur.tool b{ color:#85bdff; }
+.hcur i{ position:absolute; inset:-7px; border-radius:50%; border:2px solid transparent; border-top-color:currentColor; color:#fff; opacity:0; } .hcur.arm i{ opacity:.9; animation:arm linear forwards; } @keyframes arm{ from{ transform:rotate(0); } to{ transform:rotate(360deg); } }
+#bHand.on{ color:#c4f46a; background:#c4f46a1c; }
 #toast{ position:fixed; left:50%; top:calc(56px + env(safe-area-inset-top)); transform:translateX(-50%); background:#14120f; border:1px solid var(--faint); border-radius:18px; padding:8px 14px; z-index:90; max-width:92vw; opacity:0; transition:opacity .3s; pointer-events:none; text-align:center; } #toast.on{ opacity:1; }
 @media (max-height:560px){ header{ padding-top:2px; padding-bottom:2px; } #strip .panel{ width:72px; } #tray{ height:60px; padding:3px 0; } #tray button{ height:54px; } #tray img{ max-height:46px; } #tray button.gr img{ height:54px; width:96px; } #tools{ min-height:30px; } #tools .ico{ width:30px; height:30px; } footer{ padding-top:2px; } #stageWrap{ min-height:120px; } }
 @media (min-width:900px) and (min-height:561px){ main{ padding:0 18px; } #tray{ height:112px; } #tray button{ height:100px; } #tray img{ max-height:90px; } #tray button.gr img{ height:100px; width:178px; } }
@@ -55,12 +63,13 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
   <button class="ico" id="bMore" aria-label="Menu"><svg><use href="#i-more"/></svg></button></header>
 <main>
   <div id="stageWrap"><div id="empty"><h1>a line is a panel</h1><p>Type a line. The archive gives it a ground, and figures SAM has cut out of other films step in. Drag them where the story needs them.</p><div id="starters"></div></div>
-    <div class="panel" id="stage" hidden></div></div>
+    <div class="panel" id="stage" hidden></div><canvas id="handCam" hidden></canvas></div>
   <div id="tools" hidden></div>
   <div id="strip"></div>
   <div id="trayBox" hidden><div id="trayHead"><button id="tFig" class="on">FIGURES</button><button id="tGr">GROUNDS</button><input id="find" placeholder="find a figure: a dog, hands, a cloud" enterkeyhint="search" autocomplete="off"></div><div id="tray"></div></div>
 </main>
 <footer><input id="prompt" placeholder="type a line, then Return" autocomplete="off" enterkeyhint="send">
+  <button class="ico" id="bHand" aria-label="Hands: move figures through the camera"><svg><use href="#i-hand"/></svg></button>
   <button class="ico" id="bMic" aria-label="Talk to the board"><svg><use href="#i-mic"/></svg></button>
   <button class="ico" id="bPlay" aria-label="Play the board"><svg><use href="#i-play"/></svg></button>
   <button class="ico" id="bDeal" aria-label="Deal this panel again"><svg><use href="#i-take"/></svg></button></footer>
@@ -71,7 +80,8 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
 <script src="markov/shared.js?v=4"></script>
 <script src="markov/export.js?v=4"></script>
 <script src="markov/live.js?v=4"></script>
-<script src="markov/ui.js?v=2"></script>
+<script src="markov/hands.js?v=1"></script>
+<script src="markov/ui.js?v=3"></script>
 <script>
 (function () {
   const $ = s => document.querySelector(s), esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -95,7 +105,7 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
   const key = (i, t) => i + '|' + t;
   const persist = () => { store.set('sam.lines', lines); const o = {}; panels.forEach(p => o[p.key] = { bg: p.bg, figs: p.figs }); saved = o; store.set('sam.panels', o); };
   // a figure enters where it stood in its own film, at its own size: the first guess at a composition
-  function placeFig(f, n) { const F = SAM.figs[f], [x, y, w, h] = F.box; return { f, x: Math.min(.9, Math.max(.1, x + w / 2 + (n ? (n % 2 ? .12 : -.12) : 0))), y: Math.min(.9, Math.max(.12, y + h / 2)), s: Math.min(.42, Math.max(.12, w * .7)), flip: 0 }; }
+  function placeFig(f, n) { const F = SAM.figs[f], [x, y, w, h] = F.box; return { z: .5, f, x: Math.min(.9, Math.max(.1, x + w / 2 + (n ? (n % 2 ? .12 : -.12) : 0))), y: Math.min(.9, Math.max(.12, y + h / 2)), s: Math.min(.42, Math.max(.12, w * .7)), flip: 0 }; }
   function deal(p, n = 2) {   // sample figures by their chance for this line: the Markov step, over cut-outs
     const top = p.cands.slice(0, 10), T = .02, w = top.map(i => Math.exp((p.fsims[i] - p.fsims[top[0]]) / T)), out = [], shots = new Set();
     for (let k = 0; k < n; k++) { let tot = 0; top.forEach((i, j) => { if (!shots.has(SAM.figs[i].shot)) tot += w[j]; }); if (!tot) break; let r = Math.random() * tot, pick = -1;
@@ -116,7 +126,13 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
 
   /* drawing a panel: live (video ground, moving figures) on the stage, still everywhere else */
   const frames = new Map();
-  function figEl(g, live) { const F = SAM.figs[g.f], d = document.createElement('div'); d.className = 'fig' + (g.flip ? ' flip' : ''); d.style.left = g.x * 100 + '%'; d.style.top = g.y * 100 + '%'; d.style.width = g.s * 100 + '%';
+  // depth: near figures stand in front, sharp and full; far ones sit behind, a little soft and dim, the way a lens would give them
+  const zOf = g => g.z == null ? .5 : g.z;
+  function depth(d, g) { const z = zOf(g); d.style.zIndex = Math.round(z * 100); d.style.filter = `drop-shadow(0 3px 10px #000a) blur(${(Math.max(0, .5 - z) * 3).toFixed(2)}px) brightness(${(.72 + .28 * Math.min(1, z * 2)).toFixed(2)})`; }
+  const undoStack = [];
+  function snap() { const p = panels[sel]; if (!p) return; undoStack.push({ i: sel, bg: p.bg, figs: JSON.stringify(p.figs) }); if (undoStack.length > 60) undoStack.shift(); }
+  function undo() { const u = undoStack.pop(); if (!u || !panels[u.i]) { toast('nothing to undo'); return false; } panels[u.i].bg = u.bg; panels[u.i].figs = JSON.parse(u.figs); sel = u.i; selFig = -1; persist(); draw(); toast('undone'); return true; }
+  function figEl(g, live) { const F = SAM.figs[g.f], d = document.createElement('div'); d.className = 'fig' + (g.flip ? ' flip' : ''); d.style.left = g.x * 100 + '%'; d.style.top = g.y * 100 + '%'; d.style.width = g.s * 100 + '%'; depth(d, g);
     const still = () => { d.style.aspectRatio = F.w + ' / ' + F.h; d.style.backgroundImage = `url("${url(F.png)}")`; }; still();
     if (live && F.sprite && F.sw) { const go = n => { if (n < 2) return; d.style.aspectRatio = F.sw + ' / ' + F.sh; d.style.backgroundImage = `url("${url(F.sprite)}")`; d.style.backgroundSize = n * 100 + '% 100%'; d.style.animation = `spr ${(n / (F.fps || 6)).toFixed(2)}s steps(${n}, jump-none) infinite alternate`; };
       if (frames.has(F.sprite)) go(frames.get(F.sprite)); else { const im = new Image(); im.onload = () => { const n = Math.round(im.naturalWidth / (im.naturalHeight * F.sw / F.sh)); frames.set(F.sprite, n); if (d.isConnected) go(n); }; im.src = url(F.sprite); } }
@@ -138,19 +154,22 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
   addEventListener('resize', fit);
   function drawTools() { const t = $('#tools'), p = panels[sel]; if (!p) return; const g = p.figs[selFig];
     const B = (ic, lab, f) => `<button class="ico" data-a="${f}" aria-label="${lab}" title="${lab}"><svg><use href="#i-${ic}"/></svg></button>`;
-    t.innerHTML = g ? `<em>${esc(SAM.figs[g.f].desc)}</em>` + B('down', 'Smaller', 'sm') + B('up', 'Larger', 'lg') + B('take', 'Flip', 'flip') + B('full', 'Bring to front', 'front') + B('close', 'Remove', 'rm')
+    const X = (lab, f) => `<button class="tx" data-a="${f}">${lab}</button>`;
+    t.innerHTML = g ? `<em>${esc(SAM.figs[g.f].desc)}</em>` + B('down', 'Smaller', 'sm') + B('up', 'Larger', 'lg') + X('NEAR', 'near') + X('FAR', 'far') + X('COPY', 'copy') + X('FLIP', 'flip') + B('close', 'Remove', 'rm')
       : `<span>${p.figs.length ? 'tap a figure to select it · drag to move · pinch or scroll to size' : 'tap a figure below to bring it in'}</span>`;
     t.querySelectorAll('button').forEach(b => b.onclick = () => act(b.dataset.a)); }
-  function act(a) { const p = panels[sel], g = p.figs[selFig]; if (!g) return;
-    if (a === 'sm') g.s = Math.max(.04, g.s / 1.15); else if (a === 'lg') g.s = Math.min(1.6, g.s * 1.15); else if (a === 'flip') g.flip = g.flip ? 0 : 1;
-    else if (a === 'front') { p.figs.splice(selFig, 1); p.figs.push(g); selFig = p.figs.length - 1; } else if (a === 'rm') { p.figs.splice(selFig, 1); selFig = -1; }
-    persist(); drawStage(); restrip(); }
+  function act(a) { const p = panels[sel], g = p.figs[selFig]; if (!g) return false; snap();
+    if (a === 'near') { g.z = Math.min(1, zOf(g) + .17); g.s = Math.min(1.6, g.s * 1.14); } else if (a === 'far') { g.z = Math.max(0, zOf(g) - .17); g.s = Math.max(.04, g.s / 1.14); }
+    else if (a === 'copy') { p.figs.push({ ...g, x: Math.min(1.05, g.x + .08), y: Math.min(1.05, g.y + .04) }); selFig = p.figs.length - 1; }
+    else if (a === 'sm') g.s = Math.max(.04, g.s / 1.15); else if (a === 'lg') g.s = Math.min(1.6, g.s * 1.15); else if (a === 'flip') g.flip = g.flip ? 0 : 1;
+    else if (a === 'front') g.z = 1; else if (a === 'back') g.z = 0; else if (a === 'rm') { p.figs.splice(selFig, 1); selFig = -1; }
+    persist(); drawStage(); restrip(); return true; }
   function drawTray() { const p = panels[sel], t = $('#tray'); t.innerHTML = ''; $('#tFig').classList.toggle('on', tab === 'fig'); $('#tGr').classList.toggle('on', tab === 'gr'); $('#find').placeholder = tab === 'fig' ? 'find a figure: a dog, hands, a cloud' : 'find a ground: a road at night';
     if (tab === 'fig') (found || p.cands).slice(0, 40).forEach(i => { const F = SAM.figs[i], b = document.createElement('button'); b.innerHTML = `<img loading="lazy" src="${url(F.png)}" alt=""><small>${esc(F.desc)}</small>`; b.title = `${F.desc} · ${F.title || ''} ${F.year || ''}`;
-      b.onclick = () => { p.figs.push({ ...placeFig(i, p.figs.length), x: .5, y: .55 }); selFig = p.figs.length - 1; persist(); drawStage(); restrip(); }; t.append(b); });
-    else { const none = document.createElement('button'); none.className = 'gr' + (p.bg == null ? ' on' : ''); none.style.minWidth = '64px'; none.innerHTML = '<small>no ground</small>'; none.onclick = () => { p.bg = null; persist(); drawStage(); restrip(); drawTray(); }; t.append(none);
+      b.onclick = () => { snap(); p.figs.push({ ...placeFig(i, p.figs.length), x: .5, y: .55 }); selFig = p.figs.length - 1; persist(); drawStage(); restrip(); }; t.append(b); });
+    else { const none = document.createElement('button'); none.className = 'gr' + (p.bg == null ? ' on' : ''); none.style.minWidth = '64px'; none.innerHTML = '<small>no ground</small>'; none.onclick = () => { snap(); p.bg = null; persist(); drawStage(); restrip(); drawTray(); }; t.append(none);
       (found || p.alts).slice(0, 24).forEach(a => { const s = D.LIB.shots[a.k], b = document.createElement('button'); b.className = 'gr' + (a.k === p.bg ? ' on' : ''); b.innerHTML = `<img loading="lazy" src="${s.thumb}" alt=""><small>${a.p != null ? Math.round(a.p * 100) + '% · ' : ''}${esc(s.title || '')}</small>`;
-        b.onclick = () => { p.bg = a.k; persist(); drawStage(); restrip(); drawTray(); }; t.append(b); }); } }
+        b.onclick = () => { snap(); p.bg = a.k; persist(); drawStage(); restrip(); drawTray(); }; t.append(b); }); } }
   $('#tFig').onclick = () => { tab = 'fig'; found = null; $('#find').value = ''; drawTray(); }; $('#tGr').onclick = () => { tab = 'gr'; found = null; $('#find').value = ''; drawTray(); };
   $('#find').addEventListener('keydown', async e => { if (e.key !== 'Enter') return; const q = e.target.value.trim(); if (!q) { found = null; drawTray(); return; } e.target.blur();
     try { const [v] = await SH.embed([q]); if (tab === 'fig') found = rank(figSims(v)); else { const s = D.LIB.sims(v); found = rank(s).slice(0, 24).map(k => ({ k, p: null })); } drawTray(); $('#tray').scrollLeft = 0; SH.status('rest', 'found for "' + q + '"'); } catch (x) { toast('could not read that: ' + x.message); } });
@@ -159,7 +178,7 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
   const st = $('#stage'), pts = new Map(); let drag = null;
   st.addEventListener('pointerdown', e => { const f = e.target.closest('.fig'); pts.set(e.pointerId, [e.clientX, e.clientY]);
     if (pts.size === 2 && selFig >= 0) { const [a, b] = [...pts.values()]; drag = { pinch: Math.hypot(a[0] - b[0], a[1] - b[1]), s0: panels[sel].figs[selFig].s }; return; }
-    if (!f) { if (selFig >= 0) { selFig = -1; markSel(); } return; } e.preventDefault(); stop(); selFig = +f.dataset.n; markSel(); const g = panels[sel].figs[selFig], r = st.getBoundingClientRect();
+    if (!f) { if (selFig >= 0) { selFig = -1; markSel(); } return; } e.preventDefault(); stop(); snap(); selFig = +f.dataset.n; markSel(); const g = panels[sel].figs[selFig], r = st.getBoundingClientRect();
     drag = { el: f, dx: g.x - (e.clientX - r.left) / r.width, dy: g.y - (e.clientY - r.top) / r.height }; try { st.setPointerCapture(e.pointerId); } catch (x) { } });
   st.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, [e.clientX, e.clientY]); const g = panels[sel] && panels[sel].figs[selFig]; if (!drag || !g) return;
     const el = st.querySelector(`.fig[data-n="${selFig}"]`);
@@ -169,6 +188,7 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
   st.addEventListener('pointerup', up); st.addEventListener('pointercancel', up);
   st.addEventListener('wheel', e => { const g = panels[sel] && panels[sel].figs[selFig]; if (!g) return; e.preventDefault(); g.s = Math.min(1.6, Math.max(.04, g.s * (e.deltaY < 0 ? 1.06 : 1 / 1.06))); st.querySelector(`.fig[data-n="${selFig}"]`).style.width = g.s * 100 + '%'; clearTimeout(st._w); st._w = setTimeout(() => { persist(); restrip(); }, 250); }, { passive: false });
   addEventListener('keydown', e => { if (/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return; const g = panels[sel] && panels[sel].figs[selFig];
+    if (e.key === 'z' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); undo(); return; } if (g && e.key === 'd') return act('copy');
     if (e.key === 'ArrowRight') go(sel + 1); else if (e.key === 'ArrowLeft') go(sel - 1); else if (e.key === ' ') { e.preventDefault(); $('#bPlay').click(); }
     else if (g && (e.key === 'Backspace' || e.key === 'Delete')) act('rm'); else if (g && e.key === ']') act('lg'); else if (g && e.key === '[') act('sm'); else if (g && e.key === 'f') act('flip'); });
 
@@ -177,7 +197,7 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
   $('#prompt').addEventListener('keydown', e => { if (e.key === 'Enter') { const t = e.target.value; e.target.value = ''; addLine(t); } });
   function removeLine(i) { if (!(i >= 0 && i < lines.length)) return; lines.splice(i, 1); saved = {}; persist(); store.set('sam.panels', {}); rebuild(true); }
   function lineOf(pi) { let n = 0; for (let i = 0; i < lines.length; i++) { n += Shannon.parse(lines[i]).length; if (pi < n) return i; } return lines.length - 1; }
-  $('#bDeal').onclick = () => { const p = panels[sel]; if (!p) return; p.figs = deal(p, 1 + Math.floor(Math.random() * 3)); selFig = -1; persist(); drawStage(); restrip(); };
+  $('#bDeal').onclick = () => { const p = panels[sel]; if (!p) return; snap(); p.figs = deal(p, 1 + Math.floor(Math.random() * 3)); selFig = -1; persist(); drawStage(); restrip(); };
   function drawStarters() { const b = $('#starters'); b.innerHTML = ''; ((D && D.starters) || []).forEach(ls => { const x = document.createElement('button'); x.textContent = ls[0]; x.onclick = () => { lines = [...ls]; saved = {}; rebuild().then(() => go(0)); }; b.append(x); }); }
 
   /* play: the board read through, one panel a line */
@@ -199,6 +219,57 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
     const bin = { id: 'sam-' + Date.now().toString(36), title: 'Markov SAM · ' + (lines[0] || '').slice(0, 40), layout: 'sequence', items }; try { localStorage.setItem('cineosis.bin', JSON.stringify(bin)); } catch (e) { }
     try { new BroadcastChannel('cineosis').postMessage({ type: 'bin', bin }); } catch (e) { } window.open('tools/hand-butter.html', 'cineosis-room'); toast(items.length + ' grounds sent to the Cutting Room, a line on each'); }
 
+  /* hands, through the camera: hand-butter's language. One hand is GRIP (pinch a figure to hold it, open to let go); while it holds,
+     the other is TOOL (open palm: raise it to bring the figure nearer, lower it to push it back · V: copy · thumb down: remove).
+     With nothing held: pinch a tray figure to pull it onto the panel · pinch empty ground and sweep to turn the page · hold a fist to undo. */
+  let hands = null; const HS = { owner: null, tool: null, prev: {}, cmd: {}, swipe: null, lost: 0, tracks: [] }, curs = {};
+  const figAt = (x, y) => { const els = document.elementsFromPoint(x, y); const f = els.find(e => e.classList && e.classList.contains('fig') && e.closest('#stage')); return f ? +f.dataset.n : -1; };
+  const stageXY = t => { const r = st.getBoundingClientRect(); return { x: (t.x - r.left) / r.width, y: (t.y - r.top) / r.height, in: t.x >= r.left && t.x <= r.right && t.y >= r.top && t.y <= r.bottom }; };
+  const figDom = n => st.querySelector(`.fig[data-n="${n}"]`);
+  function release(why) { if (HS.owner == null) return; HS.owner = null; HS.tool = null; persist(); restrip(); markSel(); if (why) SH.status('rest', why); }
+  // a pose held long enough is a command; the ring on the cursor fills while it arms
+  function held(t, pose, ms, now) { const c = HS.cmd[t.id] || (HS.cmd[t.id] = {}); if (t.pose !== pose) { if (c.pose === pose) { c.pose = null; curs[t.id] && curs[t.id].classList.remove('arm'); } return false; }
+    if (c.pose !== pose) { c.pose = pose; c.t0 = now; c.fired = false; const el = curs[t.id]; if (el) { el.classList.remove('arm'); void el.offsetWidth; el.querySelector('i').style.animationDuration = ms + 'ms'; el.classList.add('arm'); } }
+    if (!c.fired && now - c.t0 >= ms) { c.fired = true; curs[t.id] && curs[t.id].classList.remove('arm'); return true; } return false; }
+  function onHands(tracks) { const now = performance.now(); HS.tracks = tracks; const p = panels[sel];
+    for (const id in curs) if (!tracks.find(t => t.id === id)) { curs[id].remove(); delete curs[id]; delete HS.cmd[id]; }
+    tracks.forEach(t => { let c = curs[t.id]; if (!c) { c = curs[t.id] = document.createElement('div'); c.className = 'hcur'; c.innerHTML = '<i></i><b></b>'; document.body.append(c); }
+      const tool = HS.owner != null && t.id !== HS.owner; c.style.left = t.x + 'px'; c.style.top = t.y + 'px'; c.classList.toggle('closed', t.closed); c.classList.toggle('tool', tool);
+      c.querySelector('b').textContent = HS.owner === t.id ? 'GRIP' : tool ? 'TOOL · ' + t.pose : t.pose; });
+    if (!p) { HS.prev = Object.fromEntries(tracks.map(t => [t.id, t.closed])); return; }
+    const own = tracks.find(t => t.id === HS.owner);
+    if (HS.owner != null) { const g = p.figs[selFig];
+      if (!own) { if (!HS.lost) HS.lost = now; if (now - HS.lost > 700 || !g) release('hand lost · placed'); }
+      else if (!g) release();
+      else { HS.lost = 0; const el = figDom(selFig);
+        if (!own.closed) release('placed');
+        else { const q = stageXY(own); g.x = Math.min(1.1, Math.max(-.1, q.x + HS.dx)); g.y = Math.min(1.1, Math.max(-.1, q.y + HS.dy)); if (el) { el.style.left = g.x * 100 + '%'; el.style.top = g.y * 100 + '%'; }
+          const tl = tracks.find(t => t.id !== HS.owner);
+          if (tl) {
+            if (tl.pose === 'open') { if (!HS.tool) HS.tool = { y0: tl.y, z0: zOf(g), s0: g.s }; const dz = (HS.tool.y0 - tl.y) / innerHeight * 2.4; g.z = Math.min(1, Math.max(0, HS.tool.z0 + dz)); g.s = Math.min(1.6, Math.max(.04, HS.tool.s0 * Math.pow(2, (g.z - HS.tool.z0) * 1.5))); if (el) { el.style.width = g.s * 100 + '%'; depth(el, g); }
+              SH.status('listening', `depth ${Math.round(g.z * 100)} · raise the open hand for nearer, lower for farther`); } else HS.tool = null;
+            if (held(tl, 'V', 700, now)) { p.figs.push({ ...g }); const me = p.figs.length - 1; drawStage(); selFig = me; markSel(); toast('copied · the copy stays, you hold the new one'); }
+            if (held(tl, 'down', 1300, now)) { p.figs.splice(selFig, 1); selFig = -1; HS.owner = null; HS.tool = null; persist(); drawStage(); restrip(); toast('removed'); }
+          } else HS.tool = null; } } }
+    else { let aim = -1;
+      tracks.forEach(t => { const was = HS.prev[t.id];
+        if (t.closed && !was) { const top = document.elementFromPoint(t.x, t.y), n = figAt(t.x, t.y);
+          if (n >= 0) { stop(); snap(); selFig = n; HS.owner = t.id; HS.lost = 0; const q = stageXY(t), g = p.figs[n]; HS.dx = g.x - q.x; HS.dy = g.y - q.y; markSel(); SH.status('listening', 'GRIP holds ' + SAM.figs[g.f].desc + ' · other hand: open = depth · V = copy · thumb down = remove'); }
+          else if (top && top.closest('#tray button') && tab === 'fig') { top.closest('#tray button').click(); HS.owner = t.id; HS.lost = 0; HS.dx = 0; HS.dy = 0; HS.pull = true; SH.status('listening', 'pulled from the tray · carry it onto the panel, open the hand to place'); }
+          else if (top && top.closest('#stage')) HS.swipe = { id: t.id, x0: t.x };
+          else if (top && top.closest('button')) top.closest('button').click(); }
+        if (HS.swipe && HS.swipe.id === t.id) { if (!t.closed) HS.swipe = null; else { const dx = (t.x - HS.swipe.x0) / st.clientWidth; if (Math.abs(dx) > .22) { HS.swipe = null; go(sel + (dx < 0 ? 1 : -1)); } } }
+        if (!t.closed && HS.owner == null) { const n = figAt(t.x, t.y); if (n >= 0) aim = n; if (held(t, 'fist', 900, now)) undo(); } });
+      st.querySelectorAll('.fig').forEach(d => d.classList.toggle('aim', +d.dataset.n === aim && HS.owner == null)); }
+    HS.prev = Object.fromEntries(tracks.map(t => [t.id, t.closed])); }
+  $('#bHand').onclick = async () => { if (hands) { const h = hands; hands = null; h.stop(); $('#bHand').classList.remove('on'); $('#handCam').hidden = true; release(); return; }
+    $('#bHand').classList.add('on'); $('#handCam').hidden = false;
+    try { hands = await MPHands.start({ preview: $('#handCam'), on: { frame: onHands, state: t => SH.status('listening', t), error: m => { toast('hands stopped: ' + m); hands = null; $('#bHand').classList.remove('on'); $('#handCam').hidden = true; } } }); toast('hands on · pinch a figure to hold it, open to let go'); }
+    catch (e) { hands = null; $('#bHand').classList.remove('on'); $('#handCam').hidden = true; SH.status('rest', 'hands could not start: ' + e.message); toast(/NotAllowed/.test(e.name) ? 'allow the camera for this site to use hands' : 'hands could not start: ' + e.message); } };
+  // what "this" and "here" mean to the voice: the figure a hand holds or points at, and the place a hand is over the panel
+  function pointer() { for (const t of HS.tracks) { const q = stageXY(t); if (q.in) return q; } return null; }
+  function target() { if (HS.owner != null && selFig >= 0) return selFig; for (const t of HS.tracks) { const n = figAt(t.x, t.y); if (n >= 0) return n; } return selFig; }
+
   /* live voice, when a key is in this browser */
   let live = null;
   const poemNow = () => ({ lines: lines.map((t, i) => `${i + 1}. ${t}`) });
@@ -206,10 +277,19 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
     { name: 'remove_line', description: 'Remove a line (1 is the first).', parameters: { type: 'object', properties: { line: { type: 'integer' } }, required: ['line'] }, run: a => { removeLine(a.line - 1); return poemNow(); } },
     { name: 'deal_again', description: 'Deal new figures for the panel on screen.', run: () => { $('#bDeal').click(); return { ok: true }; } },
     { name: 'show_panel', description: 'Show a panel by number.', parameters: { type: 'object', properties: { panel: { type: 'integer' } }, required: ['panel'] }, run: a => { go(a.panel - 1); return { ok: true }; } },
+    { name: 'place_figure', description: 'Bring a cut-out figure into the panel on screen, found by a few words (for example "a dog", "hands", "a cloud"). It lands where the person\'s hand is pointing, or in the middle if no hand is up. Use for "put a dog here", "add a cloud there", "I need a man".', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+      run: async a => { const p = panels[sel]; if (!p) return { error: 'no panel yet: add a line first' }; const [v] = await SH.embed([a.query]), i = rank(figSims(v))[0], at = pointer(); snap(); p.figs.push({ ...placeFig(i, 0), x: at ? at.x : .5, y: at ? at.y : .55 }); selFig = p.figs.length - 1; persist(); drawStage(); restrip(); return { placed: SAM.figs[i].desc, at: at ? 'the hand' : 'the middle' }; } },
+    { name: 'edit_figure', description: 'Change the figure the hand is holding or pointing at (or the selected one). Use for "copy that", "remove this", "flip it", "bigger", "smaller", "bring it nearer", "push it back", "to the front", "to the back".', parameters: { type: 'object', properties: { action: { type: 'string', enum: ['copy', 'remove', 'flip', 'bigger', 'smaller', 'nearer', 'farther', 'front', 'back'] }, times: { type: 'integer', description: 'repeat, for "much bigger" or "three copies"' } }, required: ['action'] },
+      run: a => { const n = target(); if (n < 0 || !panels[sel] || !panels[sel].figs[n]) return { error: 'no figure is held, pointed at or selected' }; const was = HS.owner, M = { copy: 'copy', remove: 'rm', flip: 'flip', bigger: 'lg', smaller: 'sm', nearer: 'near', farther: 'far', front: 'front', back: 'back' }; selFig = n; const name = SAM.figs[panels[sel].figs[n].f].desc;
+        for (let k = 0; k < Math.min(6, a.times || 1); k++) { act(M[a.action]); if (a.action === 'copy' && was != null) selFig = n; } if (a.action === 'remove') HS.owner = null; return { done: a.action, figure: name }; } },
+    { name: 'change_ground', description: 'Replace the background footage of the panel on screen with a shot found by a few words. Use for "make it a beach", "put this at night on a road".', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+      run: async a => { const p = panels[sel]; if (!p) return { error: 'no panel yet' }; const [v] = await SH.embed([a.query]), k = rank(D.LIB.sims(v))[0]; snap(); p.bg = k; persist(); drawStage(); restrip(); return { ground: D.LIB.shots[k].title }; } },
+    { name: 'turn_page', description: 'Go to the next or previous panel.', parameters: { type: 'object', properties: { to: { type: 'string', enum: ['next', 'previous'] } }, required: ['to'] }, run: a => { go(sel + (a.to === 'next' ? 1 : -1)); return { panel: sel + 1, of: panels.length }; } },
+    { name: 'undo', description: 'Undo the last change to a panel.', run: () => ({ undone: undo() }) },
     { name: 'play', description: 'Read the board through from the start.', run: () => { stop(); sel = 0; $('#bPlay').click(); return { ok: true }; } }, { name: 'pause', description: 'Stop reading.', run: () => { stop(); return { ok: true }; } }];
   $('#bMic').onclick = async () => { if (live) { const l = live; live = null; l.stop(); return; } if (!MPLive.hasKey()) { MPLive.keySheet(ok => toast(ok ? 'key saved · tap the microphone and speak' : 'live voice needs an OpenAI key')); return; }
     stop(); $('#bMic').classList.add('on'); SH.status('listening', 'asking for the microphone'); let mic = '';
-    try { live = await MPLive.start({ tools: TOOLS, instructions: 'You operate a storyboard. The person speaks lines of a story or poem aloud. For each spoken line call add_line with exactly their words. For instructions (remove a line, deal again, show panel three, play, pause) call the matching tool. Say almost nothing: at most two or three words. If unsure, treat speech as a line.', on: {
+    try { live = await MPLive.start({ tools: TOOLS, instructions: 'You operate a storyboard. The person builds panels with their voice and their hands together: a camera follows their hands, so words like this, that, it, here and there mean the figure a hand is holding or pointing at and the place the hand is; the tools resolve that themselves, you never need to ask where. Requests to bring something in (put a dog here, add a cloud) are place_figure. Requests about a figure (copy that, remove it, flip it, bigger, push it back, bring it nearer) are edit_figure. Requests about the background are change_ground. Next and back are turn_page. Anything that sounds like a line of a story or poem, not an instruction, is add_line with exactly their words. Say almost nothing: at most two or three words, and nothing at all after a tool succeeds.', on: {
       mic: l => mic = l, state: (s, why) => { if (s === 'live') SH.status('listening', 'live on ' + mic + ' · speak a line'); else if (s === 'connecting') SH.status('listening', 'connecting the live voice'); else if (s === 'closed') { live = null; $('#bMic').classList.remove('on'); SH.status('rest', why ? 'live voice stopped: ' + why : 'live voice off'); } },
       partial: t => { if (t) SH.status('listening', t); }, error: m => toast(m) } }); } catch (e) { $('#bMic').classList.remove('on'); SH.status('rest', 'live voice could not start: ' + e.message); toast('live voice could not start: ' + e.message); } };
 
@@ -226,7 +306,8 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
       { icon: 'open', label: 'Bring the poem from the Poet', hint: 'the lines now in the Poet room', act: () => { const l = store.get('poet.lines', []); if (!l.length) return toast('the Poet room is empty'); lines = [...l]; saved = {}; rebuild().then(() => go(0)); } },
       { icon: 'wrench', label: 'Send the grounds to the Cutting Room', hint: 'hand-butter · WAG, with the lab server', hidden: () => !panels.length, act: toRoom },
       { icon: 'undo', label: 'Begin again', hidden: () => !lines.length, act: () => { stop(); lines = []; saved = {}; panels = []; store.set('sam.lines', []); store.set('sam.panels', {}); draw(); SH.status('rest', 'empty board'); } }] },
-    { title: 'VOICE', items: [{ icon: 'voice', label: 'Live voice · OpenAI key', state: () => MPLive.hasKey() ? 'SET' : '', act: () => MPLive.keySheet(ok => toast(ok ? 'key saved' : 'no key saved')) }] },
+    { title: 'HANDS AND VOICE', items: [{ icon: 'hand', label: () => hands ? 'Hands off' : 'Hands on', hint: 'move figures through the camera: pinch to hold, open to let go', on: () => !!hands, act: () => $('#bHand').click() },
+      { icon: 'undo', label: 'Undo', hint: 'or hold a fist', act: () => { undo(); } }, { icon: 'voice', label: 'Live voice · OpenAI key', state: () => MPLive.hasKey() ? 'SET' : '', act: () => MPLive.keySheet(ok => toast(ok ? 'key saved' : 'no key saved')) }] },
     { title: 'GO', items: [{ icon: 'home', label: 'The Poet', act: () => location.href = 'shannon-poet.html' }, { icon: 'info', label: 'How the Markov Poet works', act: () => location.href = 'markov-poet.html' }] }]);
 
   Promise.all([SH.load({ light: true }), loadCast()]).then(async ([d]) => { D = d; drawStarters();
