@@ -8,6 +8,7 @@
   const subs = []; let last = { stage: 'idle', text: '' };
   SH.onStatus = f => { subs.push(f); f(last); };
   SH.status = (stage, text, frac) => { last = { stage, text, frac }; subs.forEach(f => f(last)); };
+  SH.isLab = () => /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
   SH.load = async () => {
     if (SH.data) return SH.data;
     SH.status('waking', 'waking the archive');
@@ -15,7 +16,8 @@
     const [J, B, E, T, K, PO, V] = await Promise.all([get('markov/library.json'), get('markov/emb.bin', 1), get('markov/events.json'), get('markov/texts.json'),
       get('bets/kernel-data.json'), get('markov/tests/poems.json'), get('markov/voice/index.json').catch(() => ({ poems: {}, wygwyl: {} }))]);
     SH.data = { LIB: new S.Library(J, new Int8Array(B), E.events), TX: T, K, POEMS: PO.poems, VOICE: V, hasPoet: J.shots.some(s => s.kind === 'poet') };
-    fetch('/api/embed', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texts: ['a door'] }) })
+    if (!SH.isLab()) SH.server = false;                                  // the published site has no lab server: do not ask it
+    else fetch('/api/embed', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texts: ['a door'] }) })
       .then(r => SH.server = r.ok).catch(() => SH.server = false).finally(() => SH.status('rest', 'at rest'));
     SH.status('rest', `${J.n.toLocaleString()} shots at rest`);
     return SH.data;

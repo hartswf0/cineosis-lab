@@ -38,8 +38,9 @@ body.collapsed{ --dock:40px; }
 #row{ display:flex; align-items:center; gap:4px; max-width:900px; margin:0 auto; }
 #prompt{ flex:1; min-width:0; height:48px; border-radius:24px; border:1px solid #2e2b27; background:#0d0c0bdd; padding:0 18px; font:300 17px var(--serif); color:var(--ink); outline:none; }
 #prompt:focus{ border-color:#5a4e33; } #prompt::placeholder{ color:#5f5a52; font-style:italic; }
+#bMic.on{ color:var(--hi); background:#e8c07022; animation:pulse 1.2s infinite; }
 #bRec{ width:48px; height:48px; border:1px solid #3a2a28; } #bRec svg{ width:22px; height:22px; } #bRec.on{ background:#e0453a22; border-color:var(--rec); }
-body.collapsed #prompt, body.collapsed #bRec, body.collapsed #bWall, body.collapsed #bSend{ display:none; } body.collapsed #row{ justify-content:flex-end; } body.collapsed #poem, body.collapsed #dna{ display:none; }
+body.collapsed #prompt, body.collapsed #bMic, body.collapsed #bRec, body.collapsed #bWall, body.collapsed #bSend{ display:none; } body.collapsed #row{ justify-content:flex-end; } body.collapsed #poem, body.collapsed #dna{ display:none; }
 body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0; } body.quiet{ cursor:none; }
 /* the wall of shots weighed */
 #wall{ position:fixed; left:0; right:0; bottom:0; z-index:10; background:#0b0a09f2; backdrop-filter:blur(8px); border-top:1px solid #24211d; padding:10px 14px calc(14px + env(safe-area-inset-bottom)); transform:translateY(100%); transition:transform .45s cubic-bezier(.2,.7,.2,1); max-height:64dvh; display:flex; flex-direction:column; }
@@ -83,7 +84,8 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
   <div id="row">
     <button class="ico" id="bFold" aria-label="Fold the controls"><svg><use href="#i-down"/></svg></button>
     <input id="prompt" autocomplete="off" autocapitalize="sentences" spellcheck="false" enterkeyhint="done" placeholder="type a line, then Return" aria-label="Type a line">
-    <button class="ico" id="bRec" aria-label="Record your voice"><svg><use href="#i-rec"/></svg></button>
+    <button class="ico" id="bMic" aria-label="Say a line"><svg><use href="#i-mic"/></svg></button>
+    <button class="ico" id="bRec" aria-label="Record your voice reading the poem"><svg><use href="#i-rec"/></svg></button>
     <button class="ico" id="bPlay" aria-label="Play"><svg><use href="#i-play"/></svg></button>
     <button class="ico" id="bWall" aria-label="Choose a different shot"><svg><use href="#i-wall"/></svg></button>
     <button class="ico" id="bSend" aria-label="Send"><svg><use href="#i-send"/></svg></button>
@@ -104,9 +106,9 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
 <audio id="aud"></audio>
 <script src="markov/engine.js?v=6"></script>
 <script src="markov/clip-text.js?v=2"></script>
-<script src="markov/shared.js?v=2"></script>
+<script src="markov/shared.js?v=3"></script>
 <script src="markov/film.js?v=1"></script>
-<script src="markov/guide.js?v=2"></script>
+<script src="markov/guide.js?v=3"></script>
 <script src="markov/export.js?v=3"></script>
 <script src="markov/ui.js?v=2"></script>
 <script>
@@ -234,6 +236,21 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
   const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
   let R = null;                                                           // the live take: {stream, media, chunks, t0, marks, line, ac, an, recog, level[]}
   $('#bRec').onclick = () => openRec();
+  const HEAR = { 'not-allowed': 'the microphone is not allowed for this site: allow it in the browser settings', 'service-not-allowed': 'this browser does not allow speech recognition here: try Safari on iPhone or Chrome on Android',
+    'audio-capture': 'no microphone was found', 'no-speech': 'nothing was heard; tap the mic and speak', network: 'speech recognition needs a connection' };
+  let dict = null;
+  $('#bMic').onclick = () => {
+    if (!Rec) { toast('this browser cannot turn speech into words: use Safari (iPhone) or Chrome (Android, desktop), or type'); return; }
+    if (dict) { try { dict.stop(); } catch (e) { } return; }
+    pause(); const rg = new Rec(); rg.lang = navigator.language || 'en-US'; rg.interimResults = true; rg.continuous = false; let said = '';
+    rg.onresult = e => { let fin = '', inter = ''; for (let i = e.resultIndex; i < e.results.length; i++) (e.results[i].isFinal ? fin += e.results[i][0].transcript : inter += e.results[i][0].transcript);
+      $('#prompt').value = (fin || inter).trim(); if (!cur) { clearTimeout(pleaT); $('#say').innerHTML = `<span class="heard">${esc((fin || inter).trim())}</span>`; } if (fin.trim()) said = fin.trim(); };
+    rg.onerror = e => { toast(HEAR[e.error] || 'could not hear: ' + e.error); };
+    rg.onend = () => { dict = null; $('#bMic').classList.remove('on'); SH.status('rest', cur ? 'the film waits' : 'at rest');
+      const t = (said || $('#prompt').value).trim(); if (t) { $('#prompt').value = ''; const line = t.replace(/^\w/, c => c.toUpperCase());
+        if (sel >= 0) { $('#prompt').value = line; $('#prompt').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); } else commit(line); } };
+    try { rg.start(); dict = rg; $('#bMic').classList.add('on'); SH.status('listening', 'listening · say one line'); } catch (e) { toast('could not start listening: ' + e.message); }
+  };
   function recButtons(state) {
     const b = $('#recBtns'); b.innerHTML = '';
     const add = (label, cls, fn) => { const x = document.createElement('button'); x.className = 'pill ' + cls; x.textContent = label; x.onclick = fn; b.append(x); };
@@ -258,7 +275,10 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
         if (lines.length) { const want = (lines[R.line] || '').toLowerCase().replace(/[^\w\s']/g, '').split(/\s+/).filter(Boolean), got = txt.toLowerCase().split(/\s+/);
           if (want.length && got.length && want.slice(-2).every(w => got.slice(-4).includes(w)) && r.isFinal) nextLine(); }
         else if (r.isFinal && txt) { R.dict.push([R.lineStart, t, txt.replace(/^\w/, c => c.toUpperCase())]); R.lineStart = t; const p = $('#prompter'); if (R.dict.length === 1) p.innerHTML = ''; const d = document.createElement('div'); d.className = 'done'; d.textContent = txt; p.append(d); d.scrollIntoView({ block: 'center' }); } } };
-      rg.onend = () => { if (R && R.rolling) try { rg.start(); } catch (e) { } }; try { rg.start(); } catch (e) { } }
+      rg.onerror = e => { if (!R) return; R.noWords = true; if (lines.length) $('#recHint').textContent = 'the words are not being heard here, but your voice is recording: tap each line (or NEXT LINE) when you finish it';
+        else { toast(HEAR[e.error] || 'words cannot be heard in this browser'); $('#recHint').textContent = 'this browser records but cannot hear words: stop, type your lines, then record reading them'; } };
+      rg.onend = () => { if (R && R.rolling && !R.noWords) try { rg.start(); } catch (e) { } }; try { rg.start(); } catch (e) { R.noWords = true; } }
+    else if (!lines.length) { $('#recHint').textContent = 'this browser records but cannot hear words: stop, type your lines, then record reading them'; }
   }
   function highlight(i) { document.querySelectorAll('#prompter div').forEach((d, j) => { d.className = j === i ? 'now' : j < i ? 'done' : ''; if (j === i) d.scrollIntoView({ block: 'center' }); }); }
   function nextLine() { if (!R || !R.rolling || !lines.length) return; const t = (performance.now() - R.t0) / 1000; R.marks.push([R.lineStart, t]); R.lineStart = t; R.line++;

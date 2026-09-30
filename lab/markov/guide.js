@@ -15,12 +15,13 @@
   const ICON = n => `<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><use href="#i-${n}"/></svg>`;
   const ROOMS = {
     poet: { title: 'The Poet', lede: 'An empty room. Words in, a film out.',
-      steps: [['Type a line. Press Return.', 'On a phone, tap the middle of the screen first. Or tap the circle and speak.'],
+      steps: [['Type a line and press Return, or tap the mic and say it.', 'The mic takes one line at a time. Speaking needs Safari on iPhone or Chrome on Android and desktop.'],
               ['Watch the archive answer.', 'About twenty shots rise around your words, sized by their chance. One is taken; the film plays with your line.'],
               ['Add lines.', 'Each line joins the same film. Lines in one stanza share a world.'],
               ['Tap CHOOSE to replace a shot.', 'The drawer shows every shot the engine weighed for that moment. Tap one to keep it. ⌘Z undoes.'],
-              ['Tap SEND.', 'Download a project file a friend can watch and remix, a finished MP4 (on the lab machine), or copy a link.']],
-      ctl: [['play', 'play or pause · space'], ['calm', 'calm: slower dissolves'], ['mute', 'the films\' own sound'], ['voice', 'voice: Piper, yours, or silence'], ['wall', 'choose among the shots'], ['send', 'send or open a project']] },
+              ['Tap the red dot to record your voice.', 'The poem becomes a teleprompter. Read it; each line lights up and moves on when you finish it (or tap). Your voice becomes the film\'s clock.'],
+              ['Tap SEND.', 'Download a project file a friend can watch and remix (it carries your voice), a finished MP4 (on the lab machine), or copy a link.']],
+      ctl: [['mic', 'say one line'], ['rec', 'record your voice reading the poem'], ['play', 'play or pause · space'], ['wall', 'choose among the shots'], ['send', 'send or open a project'], ['more', 'calm, film sound, voice, undo, more']] },
     narrative: { title: 'Narrative', lede: 'A poem plays line by line. The wall shows every shot weighed for the line.',
       steps: [['Pick a poem at the top. Tap play.', 'The suite plays against the poet\'s recorded voice; other poems against a Piper voice.'],
               ['Read the wall.', 'Each tile is a shot the engine weighed; the number is its chance. Gold frame: the shot on screen.'],
