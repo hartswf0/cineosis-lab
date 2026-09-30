@@ -63,6 +63,10 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
 .pill{ min-height:52px; padding:0 22px; border-radius:26px; border:1px solid #3a3631; background:none; color:var(--ink); letter-spacing:.1em; cursor:pointer; }
 .pill.red{ background:var(--rec); border-color:var(--rec); color:#fff; } .pill.gold{ background:var(--hi); border-color:var(--hi); color:#1a1408; }
 #recHint{ text-align:center; color:var(--dim); font-size:11px; }
+#ready{ position:fixed; left:0; top:0; height:2px; background:var(--hi); z-index:30; width:0; transition:width .4s, opacity 1s; }
+#starters{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:26px; pointer-events:auto; }
+#starters button{ border:1px solid #2e2b27; background:#0d0c0bcc; border-radius:20px; padding:9px 14px; min-height:40px; cursor:pointer; color:#a59e93; font:italic 300 15px var(--serif); }
+#starters button:hover{ color:var(--ink); border-color:#5a4e33; } #starters small{ display:block; flex-basis:100%; text-align:center; color:#5f5a52; font:11px var(--mono); letter-spacing:.06em; }
 #toast{ position:fixed; left:50%; top:calc(58px + env(safe-area-inset-top)); transform:translateX(-50%); z-index:30; background:#0e0d0c; border:1px solid #24211d; border-radius:20px; padding:8px 14px; opacity:0; transition:opacity .4s; pointer-events:none; white-space:nowrap; max-width:92vw; overflow:hidden; text-overflow:ellipsis; } #toast.on{ opacity:1; }
 #veil{ position:fixed; inset:0; z-index:12; display:grid; place-items:center; background:#000c; cursor:pointer; text-align:center; padding:20px; } #veil b{ display:block; font:300 clamp(26px,4vw,48px)/1.2 var(--serif); } #veil span{ color:var(--dim); }
 @media (max-width:640px){ :root{ --dock:150px; } body.collapsed{ --dock:40px; } #row{ flex-wrap:wrap; justify-content:space-between; row-gap:6px; } #prompt{ order:-1; flex-basis:100%; } #top a.mark span{ display:none; } #poem{ font-size:14px; max-height:24vh; } #dna{ top:auto; bottom:calc(var(--dock) + 4px); left:14px; right:auto; justify-content:flex-start; max-width:92vw; font-size:9px; }
@@ -78,7 +82,8 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
 </header>
 <div id="poem" aria-label="The poem: tap a line to edit it or play from it"></div>
 <div id="dna" class="mpdna" aria-label="The shot's Cineosis signs"></div>
-<div id="room"><div id="say" aria-live="polite"></div></div>
+<div id="ready" aria-hidden="true"></div>
+<div id="room"><div><div id="say" aria-live="polite"></div><div id="starters" hidden></div></div></div>
 <footer id="dock">
   <div id="strip" aria-label="The poem, line by line"></div>
   <div id="row">
@@ -105,12 +110,12 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
 <div id="veil" hidden><div><b>Touch to watch</b><span id="veilSub"></span></div></div>
 <audio id="aud"></audio>
 <script src="markov/engine.js?v=6"></script>
-<script src="markov/clip-text.js?v=4"></script>
-<script src="markov/shared.js?v=3"></script>
+<script src="markov/clip-text.js?v=5"></script>
+<script src="markov/shared.js?v=4"></script>
 <script src="markov/film.js?v=1"></script>
 <script src="markov/guide.js?v=4"></script>
 <script src="markov/export.js?v=4"></script>
-<script src="markov/hear.js?v=2"></script>
+<script src="markov/hear.js?v=3"></script>
 <script src="markov/ui.js?v=2"></script>
 <script>
 (() => {
@@ -127,20 +132,23 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
   ['mousemove', 'touchstart', 'keydown'].forEach(e => addEventListener(e, wake));
 
   // ------------------------------------------------------------ the words
-  function plea() { if (cur || $('#prompt').value) return; const say = $('#say'); say.className = ''; say.innerHTML = `<span class="plea" style="opacity:0">${esc(PLEAS[pleaI % PLEAS.length])}</span>`;
+  function drawStarters() { const b = $('#starters'); if (!D || !D.starters.length || cur || lines.length) { b.hidden = true; return; } b.hidden = false; b.innerHTML = '<small>OR START FROM ONE OF THESE: THEY PLAY AT ONCE</small>';
+    D.starters.forEach(ls => { const x = document.createElement('button'); x.textContent = ls[0]; x.onclick = async () => { b.hidden = true; lines = [...ls]; store.set('poet.lines', lines); drawPoem(); unlockVoice(); const my = ++composing; try { const c = await build(); if (my !== composing) return; await see(c, 0); setFilm(c); play(c.T0); } catch (e) { SH.status('rest', e.message); } }; b.append(x); }); }
+  function plea() { if (cur || $('#prompt').value) return; drawStarters(); const say = $('#say'); say.className = ''; say.innerHTML = `<span class="plea" style="opacity:0">${esc(PLEAS[pleaI % PLEAS.length])}</span>`;
     requestAnimationFrame(() => { const p = say.querySelector('.plea'); if (p) p.style.opacity = 1; });
     pleaT = setTimeout(() => { const p = say.querySelector('.plea'); if (p) p.style.opacity = 0; pleaI++; pleaT = setTimeout(plea, 1300); }, 4200); }
-  function sayLine(t) { clearTimeout(pleaT); const say = $('#say'); say.className = 'playing'; say.innerHTML = t.split(/(\s+)/).map((w, i) => /^\s+$/.test(w) ? w : `<span class="w" style="animation-delay:${i * 45}ms">${esc(w)}</span>`).join(''); }
+  function sayLine(t) { clearTimeout(pleaT); $('#starters').hidden = true; const say = $('#say'); say.className = 'playing'; say.innerHTML = t.split(/(\s+)/).map((w, i) => /^\s+$/.test(w) ? w : `<span class="w" style="animation-delay:${i * 45}ms">${esc(w)}</span>`).join(''); }
   function drawPoem() { const p = $('#poem'); p.innerHTML = ''; lines.forEach((l, i) => { const d = document.createElement('div'); d.textContent = l; if (i === sel) d.className = 'sel';
       d.onclick = () => { if (sel === i) { sel = -1; $('#prompt').value = ''; setPlaceholder(); } else { sel = i; $('#prompt').value = l; setPlaceholder(); if (cur) jumpLine(i); } drawPoem(); }; p.append(d); }); }
-  function setPlaceholder() { $('#prompt').placeholder = sel >= 0 ? `edit line ${sel + 1}, Return to change the film, Esc to leave it` : cur ? 'add a line, then Return' : 'type a line, then Return'; }
+  function setPlaceholder() { if (!SH.ready.all && sel < 0) { $('#prompt').placeholder = SH.ready.failed ? 'the reader could not load; reload to try again' : `getting ready ${Math.round(SH.ready.frac * 100)}%` + (SH.ready.eta ? ` · about ${Math.ceil(SH.ready.eta)} s` : '') + ' · you can type now'; return; }
+    $('#prompt').placeholder = sel >= 0 ? `edit line ${sel + 1}, Return to change the film, Esc to leave it` : cur ? 'add a line, then Return' : 'type a line, then Return'; }
   $('#prompt').addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); const t = e.target.value.trim(); if (!t) return; e.target.value = '';
       if (sel >= 0) { history.push({ lines: [...lines], locks: { ...locks } }); lines[sel] = t; locks = {}; marks = null; if (voice === 'mine') voice = fallbackVoice(); const i = sel; sel = -1; setPlaceholder(); store.set('poet.lines', lines); drawPoem(); recompose(null, true, i); toast('line ' + (i + 1) + ' changed'); }
       else commit(t); }
     else if (e.key === 'Escape') { sel = -1; e.target.value = ''; setPlaceholder(); drawPoem(); e.target.blur(); }
   });
-  $('#prompt').addEventListener('input', () => { if (cur && clock.running) pause(); if (!cur) { clearTimeout(pleaT); $('#say').innerHTML = esc($('#prompt').value); } });
+  $('#prompt').addEventListener('input', () => { if (cur && clock.running) pause(); if (!cur) { clearTimeout(pleaT); $('#starters').hidden = true; $('#say').innerHTML = esc($('#prompt').value); } });
   addEventListener('keydown', e => {                                     // on a desktop, typing anywhere goes to the prompt; space and arrows steer the film
     if (document.activeElement === $('#prompt') || !$('#rec').hidden) return;
     if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); undo(); return; }
@@ -351,12 +359,17 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
 
   // ------------------------------------------------------------ waking
   if (store.get('poet.fold', false)) { document.body.classList.add('collapsed'); $('#bFold').innerHTML = '<svg><use href="#i-up"/></svg>'; }
-  SH.load().then(async d => { D = d; F = MPFilm($('#film'), { signs: d.K.signs }); MPGuide.first('poet');
+  // readiness: one line under the top edge, the prompt saying how long, and a clear moment when it is ready
+  let wasReady = false;
+  SH.onReady(r => { const bar = $('#ready'); bar.style.width = Math.round(r.frac * 100) + '%'; setPlaceholder();
+    if (!r.all && !cur && !/playing|recording|listening|hearing/.test($('#sys').className + $('#sysText').textContent)) SH.status('loading', r.failed || `getting ready · ${r.archive ? 'archive in' : 'archive'} · reader ${Math.round((window.ClipText ? ClipText.frac : 1) * 100)}%` + (r.eta ? ` · about ${Math.ceil(r.eta)} s` : ''));
+    if (r.all && !wasReady) { wasReady = true; bar.style.opacity = 0; if (!cur) SH.status('rest', 'ready · type or say a line'); setPlaceholder();
+      setTimeout(() => { if (/iP(hone|ad|od)|Android/.test(navigator.userAgent)) MPHear.prefetch(); else if (!SH.isLab() || true) MPHear.warm(() => { }); }, 1200); } });   // the listener is fetched behind the scenes, ready before the mic is tapped
+  SH.load({ light: true }).then(async d => { D = d; F = MPFilm($('#film'), { signs: d.K.signs }); MPGuide.first('poet'); drawStarters();
     const m = location.hash.match(/#p=([\w-]+)/);
     if (m) { try { const o = await MPExport.unpack(m[1]); lines = o.l || []; locks = o.k || {}; drawPoem(); SH.status('reading', 'reading a poem someone sent');
         const c = await build(); setFilm(c); seekTo(c.T0); $('#veilSub').textContent = lines.join(' / ').slice(0, 160); $('#veil').hidden = false; $('#veil').onclick = () => play(c.T0); if (/rec=1/.test(location.hash)) openRec(); } catch (e) { toast('the link could not be read'); plea(); } }
     else { lines = store.get('poet.lines', []); drawPoem(); setPlaceholder(); if (lines.length) { SH.status('rest', 'your poem is here · play it, add a line, or record your voice'); build().then(c => { setFilm(c); seekTo(c.T0); }).catch(() => { }); } else { SH.status('rest', `${d.LIB.n.toLocaleString()} shots at rest`); plea(); } }
-    if (window.ClipText) setTimeout(() => { if (SH.server === false) window.ClipText.warm(s => SH.status(s.stage === 'ready' ? 'rest' : 'loading', s.stage === 'ready' ? 'ready to read' : s.text, s.frac)); }, 1500);
   }).catch(e => SH.status('rest', 'the archive could not wake: ' + e.message));
 })();
 </script>

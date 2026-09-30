@@ -10,11 +10,12 @@
   let worker = null, nextId = 1; const waiting = new Map(); let onStat = null;
   function W() {
     if (!worker) { worker = new Worker(new URL('markov/hear-worker.js', document.baseURI), { type: 'module' });
-      worker.onmessage = e => { const d = e.data; if (d.status) { onStat && onStat(d); return; } const w = waiting.get(d.id); if (!w) return; waiting.delete(d.id); d.error ? w.no(new Error(d.error)) : w.ok(d); };
+      worker.onmessage = e => { const d = e.data; if (d.status === 'cached') return; if (d.status) { onStat && onStat(d); return; } const w = waiting.get(d.id); if (!w) return; waiting.delete(d.id); d.error ? w.no(new Error(d.error)) : w.ok(d); };
       worker.onerror = e => { const err = new Error('the listener could not start: ' + (e.message || 'it could not be loaded')); waiting.forEach(w => w.no(err)); waiting.clear(); worker = null; onStat && onStat({ status: 'error', message: err.message }); }; }
     return worker;
   }
   const warm = cb => { onStat = cb || onStat; W().postMessage({ warm: true }); };
+  const prefetch = () => { try { if (navigator.connection && navigator.connection.saveData) return; W().postMessage({ prefetch: true }); } catch (e) { } };
   function words(pcm, cb) { onStat = cb || onStat; return new Promise((ok, no) => { const id = nextId++; waiting.set(id, { ok, no }); const copy = new Float32Array(pcm); W().postMessage({ id, pcm: copy }, [copy.buffer]);
     setTimeout(() => { if (waiting.has(id)) { waiting.delete(id); no(new Error('the listener took too long')); } }, 180000); }); }
   const AC = window.AudioContext || window.webkitAudioContext, OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
@@ -90,5 +91,5 @@
       if (end || !nx) { const t = cur.map(x => x.w).join(' ').replace(/\s+([,.!?;:])/g, '$1').trim(); if (t) out.push({ text: t.replace(/^\w/, c => c.toUpperCase()), t0: cur[0].t0, t1: cur[cur.length - 1].t1 }); cur = []; } });
     return out;
   }
-  window.MPHear = { warm, take, words, align, sentences, check, supported: () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.Worker) };
+  window.MPHear = { warm, prefetch, take, words, align, sentences, check, supported: () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.Worker) };
 })();

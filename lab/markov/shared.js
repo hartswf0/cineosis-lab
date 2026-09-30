@@ -9,16 +9,25 @@
   SH.onStatus = f => { subs.push(f); f(last); };
   SH.status = (stage, text, frac) => { last = { stage, text, frac }; subs.forEach(f => f(last)); };
   SH.isLab = () => /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
-  SH.load = async () => {
+  // readiness: two things must arrive before new words can become a film: the archive, and (away from the lab) the reader
+  SH.ready = { archive: false, reader: false, frac: 0, eta: null }; const readySubs = [];
+  SH.onReady = f => { readySubs.push(f); f(SH.ready); };
+  const tellReady = () => { const r = SH.ready; r.frac = (r.archive ? .2 : 0) + .8 * (r.reader ? 1 : (window.ClipText ? ClipText.frac || 0 : 0)); r.all = r.archive && r.reader; readySubs.forEach(f => f(r)); };
+  function startReader() { if (!window.ClipText) { SH.ready.reader = true; return; }
+    ClipText.warm(s => { if (s.stage === 'ready') SH.ready.reader = true; SH.ready.eta = s.eta; SH.ready.failed = s.stage === 'failed' ? s.text : null; tellReady(); }); }
+  // load({light: true}) fetches only what a room needs to answer a line: the shots, their vectors, the signs, a few starter lines
+  SH.load = async (opts = {}) => {
     if (SH.data) return SH.data;
     SH.status('waking', 'waking the archive');
     const get = (u, bin) => fetch(u).then(r => { if (!r.ok) throw new Error(u + ' ' + r.status); return bin ? r.arrayBuffer() : r.json(); });
-    const [J, B, E, T, K, PO, V] = await Promise.all([get('markov/library.json'), get('markov/emb.bin', 1), get('markov/events.json'), get('markov/texts.json'),
-      get('bets/kernel-data.json'), get('markov/tests/poems.json'), get('markov/voice/index.json').catch(() => ({ poems: {}, wygwyl: {} }))]);
-    SH.data = { LIB: new S.Library(J, new Int8Array(B), E.events), TX: T, K, POEMS: PO.poems, VOICE: V, hasPoet: J.shots.some(s => s.kind === 'poet') };
-    if (!SH.isLab()) SH.server = false;                                  // the published site has no lab server: do not ask it
-    else fetch('/api/embed', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texts: ['a door'] }) })
-      .then(r => SH.server = r.ok).catch(() => SH.server = false).finally(() => SH.status('rest', 'at rest'));
+    if (!SH.isLab()) { SH.server = false; startReader(); }                 // the published site: the reader starts downloading at once, beside the archive
+    const light = !!opts.light;
+    const [J, B, K, ST, E, T, PO, V] = await Promise.all([get('markov/library.json'), get('markov/emb.bin', 1), get('bets/kernel-data.json'), get('markov/starters.json').catch(() => ({ starters: [], emb: {} })),
+      light ? { events: [] } : get('markov/events.json'), light ? {} : get('markov/texts.json'), light ? { poems: [] } : get('markov/tests/poems.json'), light ? { poems: {}, wygwyl: {} } : get('markov/voice/index.json').catch(() => ({ poems: {}, wygwyl: {} }))]);
+    SH.data = { LIB: new S.Library(J, new Int8Array(B), E.events), TX: Object.assign(T, ST.emb), K, POEMS: PO.poems, VOICE: V, starters: ST.starters, hasPoet: J.shots.some(s => s.kind === 'poet') };
+    SH.ready.archive = true; tellReady();
+    if (SH.isLab()) fetch('/api/embed', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texts: ['a door'] }) })
+      .then(r => SH.server = r.ok).catch(() => SH.server = false).finally(() => { if (SH.server) { SH.ready.reader = true; tellReady(); } else startReader(); });
     SH.status('rest', `${J.n.toLocaleString()} shots at rest`);
     return SH.data;
   };
@@ -33,7 +42,7 @@
       }
       const still = miss.filter(t => !TX[t]);
       if (still.length && window.ClipText) {
-        const v = await window.ClipText.encode(still, s => SH.status(s.stage === 'ready' ? 'reading' : 'loading', s.text, s.frac)); still.forEach((t, k) => TX[t] = v[k]);
+        const v = await window.ClipText.encode(still, s => { if (s.stage !== 'ready') SH.status('loading', 'your words are waiting for the reader' + (s.eta != null ? ' · about ' + Math.ceil(s.eta) + ' s' : ''), s.frac); }); still.forEach((t, k) => TX[t] = v[k]); SH.status('reading', 'reading');
       }
     }
     return texts.map(t => TX[t] || null);

@@ -10,8 +10,13 @@ async function load() {
     pipe.then(() => postMessage({ status: 'ready' })).catch(() => { }); }
   return pipe;
 }
+// fetch the listener's files into the browser's cache without starting it (phones: no memory used until the mic is tapped)
+async function prefetch() {
+  const base = 'https://huggingface.co/onnx-community/whisper-tiny.en_timestamped/resolve/main/', files = ['onnx/encoder_model.onnx', 'onnx/decoder_model_merged_quantized.onnx'];
+  try { const c = await caches.open('transformers-cache'); for (const f of files) { if (!(await c.match(base + f))) { const r = await fetch(base + f); if (r.ok) await c.put(base + f, r); } } postMessage({ status: 'cached' }); } catch (e) { }
+}
 onmessage = async e => {
-  const { id, pcm, warm } = e.data;
+  const { id, pcm, warm } = e.data; if (e.data.prefetch) return prefetch();
   try { const p = await load(); if (warm) return;
     const out = await p(pcm, { return_timestamps: 'word', chunk_length_s: 29, stride_length_s: 4 });
     postMessage({ id, text: (out.text || '').trim(), words: (out.chunks || []).map(c => ({ w: c.text.trim(), t0: c.timestamp[0], t1: c.timestamp[1] == null ? c.timestamp[0] + .3 : c.timestamp[1] })) });
