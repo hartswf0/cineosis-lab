@@ -28,11 +28,18 @@
   function decode(ac, buf) { return new Promise((ok, no) => { try { const p = ac.decodeAudioData(buf, ok, no); if (p && p.catch) p.catch(no); } catch (e) { no(e); } }); }
   // Call take() directly inside a tap: Safari and iPhones only start audio that begins in the tap itself, so the audio context is
   // created and resumed here, before anything is awaited.
+  // which microphone: the browser's default is often the wrong one (a display, a headset left paired, a virtual device) and gives silence
+  const Mic = { id: () => { try { return localStorage.getItem('mp.mic') || ''; } catch (e) { return ''; } }, set: id => { try { id ? localStorage.setItem('mp.mic', id) : localStorage.removeItem('mp.mic'); } catch (e) { } },
+    audio: () => { const a = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }; if (Mic.id()) a.deviceId = { ideal: Mic.id() }; return a; },
+    label: s => { const t = s && s.getAudioTracks()[0]; return t ? (t.label || 'microphone') + (t.muted ? ' (muted by the system)' : '') : ''; },
+    list: async () => (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput' && d.deviceId) };
+  window.MPMic = Mic;
   function take(opts = {}) {
     const ac = new AC(), resumed = ac.resume ? ac.resume().catch(() => { }) : Promise.resolve();
     return (async () => {
       let stream;
-      try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); } catch (e) { try { ac.close(); } catch (x) { } throw e; }
+      try { stream = await navigator.mediaDevices.getUserMedia({ audio: Mic.audio() }); } catch (e) { try { ac.close(); } catch (x) { } throw e; }
+      const label = Mic.label(stream);
       await Promise.race([resumed, sleep(1200)]);
       const src = ac.createMediaStreamSource(stream), an = ac.createAnalyser(); an.fftSize = 1024; src.connect(an);
       // two copies of the sound: the browser's own recording (made off the page's thread: the reliable one), and raw samples as a fallback
@@ -50,22 +57,23 @@
           let pcm = null, via = '';
           if (blob && blob.size > 800) { try { const d = await decode(ac, await blob.arrayBuffer()); if (d.duration > seconds * .5) { pcm = await resample(d.getChannelData(0).slice(), d.sampleRate); via = 'recorder'; } } catch (e) { } }
           if (!pcm) { const n = chunks.reduce((a, c) => a + c.length, 0), raw = new Float32Array(n); let o = 0; chunks.forEach(c => { raw.set(c, o); o += c.length; }); pcm = await resample(raw, ac.sampleRate); via = 'samples'; }
+          let pk = 0; for (let i = 0; i < pcm.length; i += 3) { const v = pcm[i] < 0 ? -pcm[i] : pcm[i]; if (v > pk) pk = v; } peak = Math.max(peak, pk);   // the recording itself is the evidence; the live meter can be asleep
           try { ac.close(); } catch (e) { }
-          return { blob, pcm, seconds, peak, via, mime: blob ? blob.type : '', bytes: blob ? blob.size : 0, state: ac.state };
+          return { label, blob, pcm, seconds, peak, via, mime: blob ? blob.type : '', bytes: blob ? blob.size : 0, state: ac.state };
         })();
         return done;
       }
       let resolveAuto; const auto = new Promise(r => resolveAuto = r);
-      timer = setInterval(() => { an.getByteTimeDomainData(buf); let m = 0; for (const v of buf) m = Math.max(m, Math.abs(v - 128)); const lv = m / 128; peak = Math.max(peak, lv); opts.onLevel && opts.onLevel(lv, (performance.now() - t0) / 1000);
-        if (opts.autoStop) { if (lv > .06) { spoke++; quiet = 0; } else if (spoke > 3) quiet++; const t = (performance.now() - t0) / 1000; if ((spoke > 3 && quiet > 26) || t > 25 || (!spoke && t > 8)) resolveAuto(finish()); } }, 50);
-      return { stop: finish, auto, state: () => ac.state, cancel() { stopped = true; clearInterval(timer); try { media && media.state !== 'inactive' && media.stop(); } catch (e) { } try { proc.disconnect(); stream.getTracks().forEach(t => t.stop()); ac.close(); } catch (e) { } } };
+      timer = setInterval(() => { if (ac.state !== 'running' && ac.resume) ac.resume().catch(() => { }); an.getByteTimeDomainData(buf); let m = 0; for (const v of buf) m = Math.max(m, Math.abs(v - 128)); const lv = m / 128; peak = Math.max(peak, lv); opts.onLevel && opts.onLevel(lv, (performance.now() - t0) / 1000);
+        if (opts.autoStop) { if (lv > .035) { spoke++; quiet = 0; } else if (spoke > 3) quiet++; const t = (performance.now() - t0) / 1000; if ((spoke > 3 && quiet > 26) || t > 25 || (!spoke && t > 8)) resolveAuto(finish()); } }, 50);
+      return { label, stop: finish, auto, state: () => ac.state, cancel() { stopped = true; clearInterval(timer); try { media && media.state !== 'inactive' && media.stop(); } catch (e) { } try { proc.disconnect(); stream.getTracks().forEach(t => t.stop()); ac.close(); } catch (e) { } } };
     })();
   }
   // A microphone check that says what happens at each step, on screen: row(name, ok, detail)
   async function check(row, speakMs = 4000) {
     row('browser', !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && AC && window.Worker), `${window.isSecureContext ? 'secure page' : 'NOT a secure page (needs https)'} · recorder ${window.MediaRecorder ? 'yes' : 'no'}`);
     let t; try { t = await take({ onLevel: lv => row('level', null, 'speak now… ' + '▮'.repeat(Math.round(lv * 20))) }); } catch (e) { row('microphone', false, (e.name || '') + ': ' + e.message + (/NotAllowed/.test(e.name) ? ' — allow the microphone for this site in the browser or phone settings' : '')); return false; }
-    row('microphone', true, 'allowed · audio ' + t.state()); await sleep(speakMs);
+    row('microphone', true, 'allowed · ' + t.label + ' · audio ' + t.state()); await sleep(speakMs);
     const r = await t.stop(); row('level', r.peak > .04, r.peak > .04 ? 'heard sound (peak ' + r.peak.toFixed(2) + ')' : 'silence: the microphone gave no sound (peak ' + r.peak.toFixed(2) + ')');
     row('recording', r.pcm.length > 8000, `${(r.pcm.length / 16000).toFixed(1)} s from the ${r.via} · ${r.mime || 'no file'} ${Math.round(r.bytes / 1024)} KB`);
     if (r.pcm.length < 8000) return false;

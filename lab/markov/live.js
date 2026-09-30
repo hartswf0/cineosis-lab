@@ -17,10 +17,10 @@
     const key = get(); if (!key) throw new Error('no OpenAI key in this browser');
     tell('state', 'asking');
     // asked for first and synchronously in the tap, before any other await
-    const micP = navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    const micP = navigator.mediaDevices.getUserMedia({ audio: window.MPMic ? MPMic.audio() : { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     const out = new Audio(); out.autoplay = true; out.playsInline = true; out.play().catch(() => { });
     let AC = null, levelT = null; try { AC = new (window.AudioContext || window.webkitAudioContext)(); AC.resume(); } catch (e) { }
-    const mic = await micP;
+    const mic = await micP; tell('mic', window.MPMic ? MPMic.label(mic) : '');
     const pc = new RTCPeerConnection(); let closed = false, dc = null;
     const stop = why => { if (closed) return; closed = true; clearInterval(levelT); try { mic.getTracks().forEach(t => t.stop()); } catch (e) { } try { dc && dc.close(); } catch (e) { } try { pc.close(); } catch (e) { } try { AC && AC.close(); } catch (e) { } out.srcObject = null; if (api.active === h) api.active = null; tell('state', 'closed', why); };
     const send = m => { if (dc && dc.readyState === 'open') dc.send(JSON.stringify(m)); };

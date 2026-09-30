@@ -115,8 +115,8 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
 <script src="markov/film.js?v=1"></script>
 <script src="markov/guide.js?v=4"></script>
 <script src="markov/export.js?v=4"></script>
-<script src="markov/hear.js?v=3"></script>
-<script src="markov/live.js?v=1"></script>
+<script src="markov/hear.js?v=4"></script>
+<script src="markov/live.js?v=2"></script>
 <script src="markov/ui.js?v=2"></script>
 <script>
 (() => {
@@ -260,7 +260,16 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
   // say one line: tap, speak, stop speaking (or tap again); the words appear in the prompt and join the film
   let saying = null;
   // live voice: with an OpenAI key in this browser the mic button opens a realtime session that hears lines and acts on the film
-  let live = null, liveT = null;
+  let live = null, liveT = null, liveMic = '';
+  async function micSheet() { let list = []; try { list = await MPMic.list(); } catch (e) { }
+    if (!list.length || !list[0].label) { toast('tap the microphone once and allow it; then the microphones can be listed here'); return; }
+    const w = document.createElement('div'); w.style.cssText = 'position:fixed;inset:0;z-index:120;background:#000c;display:grid;place-items:end center';
+    const f = document.createElement('div'); f.style.cssText = "width:min(460px,100%);background:#0e0d0c;border:1px solid #2a2723;border-radius:14px 14px 0 0;padding:14px 10px calc(14px + env(safe-area-inset-bottom));font:12px 'IBM Plex Mono',monospace;color:#efe9dd";
+    f.innerHTML = '<div style="letter-spacing:.2em;font-size:10px;color:#6f695f;margin:4px 8px 8px">MICROPHONE</div>';
+    [{ deviceId: '', label: 'Let the browser choose' }, ...list.filter(d => d.deviceId !== 'default')].forEach(d => { const b = document.createElement('button'); b.textContent = d.label; const on = d.deviceId === MPMic.id();
+      b.style.cssText = 'display:block;width:100%;text-align:left;min-height:44px;padding:10px;border:0;border-radius:8px;background:' + (on ? '#e8c07022' : 'none') + ';color:' + (on ? '#e8c070' : '#efe9dd') + ';font:inherit;cursor:pointer';
+      b.onclick = () => { MPMic.set(d.deviceId); w.remove(); toast('microphone: ' + d.label); }; f.append(b); });
+    w.append(f); w.onclick = e => { if (e.target === w) w.remove(); }; document.body.append(w); }
   const lineArg = { type: 'object', properties: { line: { type: 'integer', description: 'line number, 1 is the first' }, text: { type: 'string' } } };
   const poemNow = () => ({ lines: lines.map((t, i) => `${i + 1}. ${t}`), playing: clock.running });
   const LIVE_TOOLS = [
@@ -283,10 +292,10 @@ If you cannot tell whether something is a line or an instruction, treat it as a 
     if (live) { const l = live; live = null; l.stop(); return; }
     pause(); unlockVoice(); $('#bMic').classList.add('on'); SH.status('listening', 'asking for the microphone');
     const p = MPLive.start({ instructions: LIVE_RULES + '\nThe poem so far:\n' + (lines.map((t, i) => `${i + 1}. ${t}`).join('\n') || '(empty)'), tools: LIVE_TOOLS, on: {
-      state: (st, why) => { if (st === 'connecting') SH.status('listening', 'connecting the live voice'); else if (st === 'live') { SH.status('listening', 'live · speak a line, or say what to change'); toast('live voice is on · tap the microphone to stop'); } else if (st === 'closed') liveEnd(why); },
+      state: (st, why) => { if (st === 'connecting') SH.status('listening', 'connecting the live voice'); else if (st === 'live') { SH.status('listening', 'live on ' + liveMic + ' · speak a line, or say what to change'); toast('live voice is on · tap the microphone to stop'); } else if (st === 'closed') liveEnd(why); },
       partial: t => { if (!t || clock.running) return; clearTimeout(pleaT); $('#starters').hidden = true; $('#say').className = ''; $('#say').innerHTML = `<span style="color:var(--dim)">${esc(t)}</span>`; },
       level: lv => { $('#bMic').style.boxShadow = `0 0 0 ${Math.round(2 + lv * 22)}px #e8c07033`; },
-      error: m => toast(m) } });
+      mic: l => { liveMic = l; }, error: m => toast(m) } });
     try { live = await p; liveT = setInterval(() => { if (live) live.mute(clock.running && voice !== 'none'); }, 200); }   // the film's own voice must not be heard as a new line
     catch (e) { $('#bMic').classList.remove('on'); if (e.name === 'NotAllowedError' || e.name === 'NotFoundError') micError(e); else { SH.status('rest', 'live voice could not start: ' + e.message); toast('live voice could not start: ' + e.message); } }
   }
@@ -296,13 +305,13 @@ If you cannot tell whether something is a line or an instruction, treat it as a 
     if (!MPHear.supported()) { toast('this browser cannot record; type the line instead'); return; }
     pause(); unlockVoice(); let t; $('#bMic').classList.add('on'); SH.status('listening', 'asking for the microphone');
     try { t = await MPHear.take({ autoStop: true, onLevel: lv => { $('#bMic').style.boxShadow = `0 0 0 ${Math.round(2 + lv * 22)}px #e8c07033`; } }); } catch (e) { $('#bMic').classList.remove('on'); SH.status('rest', 'the microphone did not start'); micError(e); return; }
-    saying = t; $('#bMic').classList.add('on'); SH.status('listening', 'listening · say one line, then pause'); MPHear.warm(hearStatus);
+    saying = t; $('#bMic').classList.add('on'); SH.status('listening', 'listening to ' + t.label + ' · say one line, then pause'); MPHear.warm(hearStatus);
     const done = r => { if (done.ran) return; done.ran = true; saying = null; $('#bMic').classList.remove('on'); $('#bMic').style.boxShadow = ''; heard(r); };
     t.auto.then(done); const stop = t.stop; t.stop = () => stop().then(done);
   };
   async function heard(r) {
     if (!r || r.seconds < .5) { SH.status('rest', 'nothing was heard'); return; }
-    if (r.peak < .03) { SH.status('rest', 'the microphone gave no sound'); toast('no sound came from the microphone: check it in ⋯ · Check the microphone'); return; }
+    if (r.peak < .012) { SH.status('rest', 'no sound from ' + r.label); toast('“' + r.label + '” gave only silence · pick another in ⋯ · Microphone, or check the input in system sound settings'); return; }
     SH.status('hearing', 'finding your words');
     try { const out = await MPHear.words(r.pcm, hearStatus), text = out.text.replace(/\[[^\]]*\]|\([^)]*\)/g, '').trim();
       if (!text) { SH.status('rest', 'no words were found; tap the mic and try again'); return; }
@@ -363,6 +372,7 @@ If you cannot tell whether something is a line or an instruction, treat it as a 
     { title: 'MAKE', items: [
       { icon: 'mic', label: 'Say a line', hint: 'speak one line; it joins the film', act: () => $('#bMic').click() },
       { icon: 'voice', label: 'Live voice · OpenAI key', hint: 'paste a key to talk to the film live; kept in this browser only', state: () => MPLive.hasKey() ? 'SET' : '', act: () => MPLive.keySheet(ok => toast(ok ? 'key saved · tap the microphone to talk' : 'no key · the microphone uses the built-in listener')) },
+      { icon: 'mic', label: 'Microphone', hint: 'choose which microphone listens', act: () => { micSheet(); } },
       { icon: 'info', label: 'Check the microphone', hint: 'if speaking does nothing: shows each step and what fails', act: () => openCheck() },
       { icon: 'rec', label: 'Record your voice', hint: () => lines.length ? 'read the poem; the film follows your timing' : 'say the poem; each sentence becomes a line', act: () => openRec() },
       { icon: 'undo', label: 'Undo', hidden: () => !history.length, act: () => undo() },
