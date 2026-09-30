@@ -105,11 +105,12 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
 <div id="veil" hidden><div><b>Touch to watch</b><span id="veilSub"></span></div></div>
 <audio id="aud"></audio>
 <script src="markov/engine.js?v=6"></script>
-<script src="markov/clip-text.js?v=2"></script>
+<script src="markov/clip-text.js?v=3"></script>
 <script src="markov/shared.js?v=3"></script>
 <script src="markov/film.js?v=1"></script>
-<script src="markov/guide.js?v=3"></script>
-<script src="markov/export.js?v=3"></script>
+<script src="markov/guide.js?v=4"></script>
+<script src="markov/export.js?v=4"></script>
+<script src="markov/hear.js?v=1"></script>
 <script src="markov/ui.js?v=2"></script>
 <script>
 (() => {
@@ -118,7 +119,8 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
   const PLEAS = ['say a line', 'or type one', 'the archive is listening', 'sixteen thousand shots are waiting for a word', 'a poem does not exist before it is said', 'read it aloud: your voice becomes the clock'];
   const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
   let D, F, lines = [], locks = {}, history = [], cur = null, composing = 0, sel = -1, pleaI = 0, pleaT = 0;
-  let voice = store.get('poet.voice', 'piper'), voiceRec = null, marks = null;           // voice: piper | mine | none; marks: [[t0,t1] per line] from a reading
+  let voice = store.get('poet.voice', 'auto'), voiceRec = null, marks = null;            // voice: mine | piper (the lab) | device (this phone's own) | none; marks: [[t0,t1] per line] from a reading
+  const fallbackVoice = () => SH.server ? 'piper' : 'device';
   const toast = t => { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('on'), 2600); };
   SH.onStatus(s => { $('#sys').className = /rest|idle/.test(s.stage) ? '' : s.stage === 'playing' ? 'play' : s.stage === 'recording' ? 'rec' : 'busy'; $('#sysText').textContent = s.text + (s.frac != null ? ' ' + Math.round(s.frac * 100) + '%' : ''); });
   let wakeT; const wake = () => { document.body.classList.remove('quiet'); clearTimeout(wakeT); wakeT = setTimeout(() => { if (clock.running && !$('#wall').classList.contains('open') && document.activeElement !== $('#prompt')) document.body.classList.add('quiet'); }, 3500); };
@@ -134,7 +136,7 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
   function setPlaceholder() { $('#prompt').placeholder = sel >= 0 ? `edit line ${sel + 1}, Return to change the film, Esc to leave it` : cur ? 'add a line, then Return' : 'type a line, then Return'; }
   $('#prompt').addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); const t = e.target.value.trim(); if (!t) return; e.target.value = '';
-      if (sel >= 0) { history.push({ lines: [...lines], locks: { ...locks } }); lines[sel] = t; locks = {}; marks = null; if (voice === 'mine') voice = 'piper'; const i = sel; sel = -1; setPlaceholder(); store.set('poet.lines', lines); drawPoem(); recompose(null, true, i); toast('line ' + (i + 1) + ' changed'); }
+      if (sel >= 0) { history.push({ lines: [...lines], locks: { ...locks } }); lines[sel] = t; locks = {}; marks = null; if (voice === 'mine') voice = fallbackVoice(); const i = sel; sel = -1; setPlaceholder(); store.set('poet.lines', lines); drawPoem(); recompose(null, true, i); toast('line ' + (i + 1) + ' changed'); }
       else commit(t); }
     else if (e.key === 'Escape') { sel = -1; e.target.value = ''; setPlaceholder(); drawPoem(); e.target.blur(); }
   });
@@ -158,11 +160,12 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
       ph.forEach((p, i) => { if (ph[i + 1]) p.t1 = ph[i + 1].t0; }); ph[0].t0 = 0; const end = marks[marks.length - 1][1] + .6; ph[ph.length - 1].t1 = end;
       return Promise.resolve({ ph, audio: { src: URL.createObjectURL(voiceRec), offset: 0 }, second: null, T0: 0, T1: end });
     }
-    return SH.phrases('own', voice === 'piper' && SH.server ? 'ryan' : 'none', text);
+    if (voice === 'auto' || (voice === 'piper' && !SH.server) || (voice === 'mine' && !voiceRec)) voice = fallbackVoice();
+    return SH.phrases('own', voice === 'piper' ? 'ryan' : 'none', text);
   }
   async function build() { const P = await phrasesFor(lines.join('\n')); return SH.compose(P, { wOp: 1, wHome: .09, gap: .045, close: lines.length > 2, locks }); }
   async function commit(text) {
-    lines.push(text); store.set('poet.lines', lines); if (voice === 'mine') { voice = 'piper'; marks = null; toast('a new line: your recording no longer fits; record again to use your voice'); }
+    lines.push(text); store.set('poet.lines', lines); if (voice === 'mine') { voice = fallbackVoice(); marks = null; toast('a new line: your recording no longer fits; record again to use your voice'); }
     drawPoem(); setPlaceholder(); const my = ++composing; pause(); $('#say').className = ''; $('#say').innerHTML = `<span style="color:var(--dim)">${esc(text)}</span>`;
     try { const c = await build(); if (my !== composing) return; const nNew = S.parse(text).length, from = Math.max(0, c.cut.findIndex(s => s.phrase >= c.ph.length - nNew));
       await see(c, from); if (my !== composing) return; setFilm(c); play(c.cut[from] ? c.cut[from].t0 : c.T0);
@@ -191,20 +194,20 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
     if (i >= 0 && i !== shown) { const s = c.cut[i], x = D.LIB.shots[s.k]; F.show(x, (s.in || 0) + Math.max(0, t - s.t0), null, shown === -1 && !clock.running); shown = i;
       const nx = c.cut[i + 1]; if (nx) F.preload(D.LIB.shots[nx.k], nx.in || 0); $('#dna').innerHTML = F.dna(x, { op: s.op, p: s.p }); if ($('#wall').classList.contains('open') && !wallPinned) drawWall(); }
     const li = c.ph.findIndex(p => t >= p.t0 && t < p.t1);
-    if (li >= 0 && li !== lineShown) { lineShown = li; sayLine(c.ph[li].text); document.querySelectorAll('#strip i').forEach((e, j) => { e.classList.toggle('now', j === li); e.classList.toggle('done', j < li); });
+    if (li >= 0 && li !== lineShown) { lineShown = li; sayLine(c.ph[li].text); if (clock.running) speakLine(c.ph[li].text); document.querySelectorAll('#strip i').forEach((e, j) => { e.classList.toggle('now', j === li); e.classList.toggle('done', j < li); });
       const L = lineOf(li); document.querySelectorAll('#poem div').forEach((d, j) => { d.classList.toggle('now', j === L); if (j === L) d.scrollIntoView({ block: 'nearest' }); }); } }
   function lineOf(pi) { let n = 0; for (let L = 0; L < lines.length; L++) { n += S.parse(lines[L]).length; if (pi < n) return L; } return lines.length - 1; }
-  function play(at) { if (!cur) return; if (at != null) seekTo(at); $('#veil').hidden = true; clock.play(); F.play(); clearInterval(timer); $('#bPlay').innerHTML = '<svg><use href="#i-pause"/></svg>'; document.body.classList.add('playing');
+  function play(at) { if (!cur) return; unlockVoice(); if (at != null) seekTo(at); $('#veil').hidden = true; lineShown = -1; clock.play(); F.play(); clearInterval(timer); $('#bPlay').innerHTML = '<svg><use href="#i-pause"/></svg>'; document.body.classList.add('playing');
     timer = setInterval(() => { const t = clock.now(); if (t >= cur.T1) { pause(); SH.status('rest', 'the film rests · add a line, record your voice, or send it'); seekTo(cur.T0); return; } frame(t); F.tick(); }, 40);
-    SH.status('playing', `${cur.cut.length} shot${cur.cut.length > 1 ? 's' : ''} · ${voice === 'mine' ? 'your voice' : cur.audio ? 'Piper' : 'silence'}`); wake(); }
-  function pause() { clearInterval(timer); clock.pause(); if (F) F.pause(); $('#bPlay').innerHTML = '<svg><use href="#i-play"/></svg>'; document.body.classList.remove('quiet', 'playing'); }
+    SH.status('playing', `${cur.cut.length} shot${cur.cut.length > 1 ? 's' : ''} · ${({ mine: 'your voice', piper: 'Piper', device: 'this device\'s voice', none: 'silence' })[voice] || ''}`); wake(); }
+  function pause() { clearInterval(timer); if (canSpeak) try { speechSynthesis.cancel(); } catch (e) { } clock.pause(); if (F) F.pause(); $('#bPlay').innerHTML = '<svg><use href="#i-play"/></svg>'; document.body.classList.remove('quiet', 'playing'); }
   function toggle() { if (!cur) { toast('type a line first'); return; } clock.running ? pause() : play(); }
   function seekTo(t) { clock.seek(t); shown = -1; lineShown = -1; frame(t); }
   function drawStrip() { const L = $('#strip'); L.innerHTML = ''; cur.ph.forEach((p, i) => { const e = document.createElement('i'), s = cur.cut.find(x => x.phrase === i || (x.held || []).includes(i));
     e.style.flex = `${Math.max(.2, p.t1 - p.t0)} 1 0`; e.style.setProperty('--dc', s ? dom(D.LIB.shots[s.k]) : '#555'); e.title = p.text; e.onclick = () => seekTo(p.t0 + .01); L.append(e); }); }
   function jumpLine(L) { if (!cur) return; let n = 0; for (let j = 0; j < L; j++) n += S.parse(lines[j]).length; const p = cur.ph[n]; if (p) seekTo(p.t0 + .01); }
   function stepLine(d) { const t = clock.now(), li = Math.max(0, cur.ph.findIndex(p => t >= p.t0 && t < p.t1)), p = cur.ph[Math.max(0, Math.min(cur.ph.length - 1, li + d))]; seekTo(p.t0 + .01); }
-  function again() { pause(); cur = null; lines = []; locks = {}; history = []; marks = null; voiceRec = null; if (voice === 'mine') voice = 'piper'; sel = -1; store.set('poet.lines', []);
+  function again() { pause(); cur = null; lines = []; locks = {}; history = []; marks = null; voiceRec = null; if (voice === 'mine') voice = fallbackVoice(); sel = -1; store.set('poet.lines', []);
     $('#film').classList.remove('on'); $('#dna').innerHTML = ''; $('#strip').innerHTML = ''; drawPoem(); closeWall(); setPlaceholder(); try { history_clear(); } catch (e) { } SH.status('rest', 'the room is empty again'); plea(); }
   function history_clear() { window.history.replaceState(null, '', location.pathname); }
   $('#bPlay').onclick = toggle; $('#bFold').onclick = () => { const c = document.body.classList.toggle('collapsed'); $('#bFold').innerHTML = `<svg><use href="#i-${c ? 'up' : 'down'}"/></svg>`; store.set('poet.fold', c); };
@@ -232,73 +235,69 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
   }
   function undo() { const h = history.pop(); if (!h) return; lines = h.lines; locks = h.locks; store.set('poet.lines', lines); drawPoem(); toast('undone'); recompose(wallShot, clock.running); }
 
-  // ------------------------------------------------------------ recording: read your poem, or dictate it; your voice becomes the film's clock
-  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let R = null;                                                           // the live take: {stream, media, chunks, t0, marks, line, ac, an, recog, level[]}
-  $('#bRec').onclick = () => openRec();
-  const HEAR = { 'not-allowed': 'the microphone is not allowed for this site: allow it in the browser settings', 'service-not-allowed': 'this browser does not allow speech recognition here: try Safari on iPhone or Chrome on Android',
-    'audio-capture': 'no microphone was found', 'no-speech': 'nothing was heard; tap the mic and speak', network: 'speech recognition needs a connection' };
-  let dict = null;
-  $('#bMic').onclick = () => {
-    if (!Rec) { toast('this browser cannot turn speech into words: use Safari (iPhone) or Chrome (Android, desktop), or type'); return; }
-    if (dict) { try { dict.stop(); } catch (e) { } return; }
-    pause(); const rg = new Rec(); rg.lang = navigator.language || 'en-US'; rg.interimResults = true; rg.continuous = false; let said = '';
-    rg.onresult = e => { let fin = '', inter = ''; for (let i = e.resultIndex; i < e.results.length; i++) (e.results[i].isFinal ? fin += e.results[i][0].transcript : inter += e.results[i][0].transcript);
-      $('#prompt').value = (fin || inter).trim(); if (!cur) { clearTimeout(pleaT); $('#say').innerHTML = `<span class="heard">${esc((fin || inter).trim())}</span>`; } if (fin.trim()) said = fin.trim(); };
-    rg.onerror = e => { toast(HEAR[e.error] || 'could not hear: ' + e.error); };
-    rg.onend = () => { dict = null; $('#bMic').classList.remove('on'); SH.status('rest', cur ? 'the film waits' : 'at rest');
-      const t = (said || $('#prompt').value).trim(); if (t) { $('#prompt').value = ''; const line = t.replace(/^\w/, c => c.toUpperCase());
-        if (sel >= 0) { $('#prompt').value = line; $('#prompt').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); } else commit(line); } };
-    try { rg.start(); dict = rg; $('#bMic').classList.add('on'); SH.status('listening', 'listening · say one line'); } catch (e) { toast('could not start listening: ' + e.message); }
+  // ------------------------------------------------------------ hearing: the page records the microphone itself and Whisper, in this browser, finds the words
+  const hearStatus = d => SH.status(d.status === 'ready' ? 'hearing' : 'loading', d.status === 'ready' ? 'finding your words' : 'fetching the listener (once)', d.frac);
+  const micError = e => toast(/NotAllowed|Permission|denied/i.test(e.name + e.message) ? 'the microphone is not allowed: allow it for this site in the browser settings' : /NotFound/i.test(e.name) ? 'no microphone was found' : 'could not listen: ' + e.message);
+  // say one line: tap, speak, stop speaking (or tap again); the words appear in the prompt and join the film
+  let saying = null;
+  $('#bMic').onclick = async () => {
+    if (saying) { saying.stop(); return; }
+    if (!MPHear.supported()) { toast('this browser cannot record; type the line instead'); return; }
+    pause(); unlockVoice(); let t;
+    try { t = await MPHear.take({ autoStop: true, onLevel: lv => { $('#bMic').style.boxShadow = `0 0 0 ${Math.round(2 + lv * 22)}px #e8c07033`; } }); } catch (e) { micError(e); return; }
+    saying = t; $('#bMic').classList.add('on'); SH.status('listening', 'listening · say one line, then pause'); MPHear.warm(hearStatus);
+    const done = r => { if (done.ran) return; done.ran = true; saying = null; $('#bMic').classList.remove('on'); $('#bMic').style.boxShadow = ''; heard(r); };
+    t.auto.then(done); const stop = t.stop; t.stop = () => stop().then(done);
   };
+  async function heard(r) {
+    if (!r || r.seconds < .5) { SH.status('rest', 'nothing was heard'); return; }
+    SH.status('hearing', 'finding your words');
+    try { const out = await MPHear.words(r.pcm, hearStatus), text = out.text.replace(/\[[^\]]*\]|\([^)]*\)/g, '').trim();
+      if (!text) { SH.status('rest', 'no words were found; tap the mic and try again'); return; }
+      const line = text.replace(/^\w/, c => c.toUpperCase());
+      if (sel >= 0) { $('#prompt').value = line; $('#prompt').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); } else commit(line);
+    } catch (e) { SH.status('rest', 'the listener could not run: ' + e.message); toast('could not find the words; type the line instead'); }
+  }
+
+  // ------------------------------------------------------------ recording a reading: one take, then the words are found and each line is placed where you read it
+  let R = null;
+  $('#bRec').onclick = () => openRec();
   function recButtons(state) {
     const b = $('#recBtns'); b.innerHTML = '';
     const add = (label, cls, fn) => { const x = document.createElement('button'); x.className = 'pill ' + cls; x.textContent = label; x.onclick = fn; b.append(x); };
-    if (state === 'ready') { add('RECORD', 'red', () => startTake()); $('#recHint').textContent = lines.length ? 'the words will light up one line at a time; read each, and it moves on (or tap to move on)' : 'no poem yet: speak, and each sentence you say becomes a line'; }
-    if (state === 'rolling') { if (lines.length) add('NEXT LINE', '', () => nextLine()); add('STOP', 'red', () => stopTake()); $('#recHint').textContent = lines.length ? 'read the bright line · tap it or NEXT LINE when you finish it' : 'speaking · each sentence becomes a line'; }
-    if (state === 'review') { add('RETAKE', '', () => { discardTake(); showPrompter(); recButtons('ready'); }); add('KEEP MY VOICE', 'gold', () => keepTake()); $('#recHint').textContent = 'listen back with the film, then keep it or take it again'; }
+    if (state === 'ready') { add('RECORD', 'red', () => startTake()); $('#recHint').textContent = lines.length ? 'read the poem at your own pace; the film will follow your timing' : 'no poem yet: just speak; each sentence becomes a line'; }
+    if (state === 'rolling') { add('STOP', 'red', () => stopTake()); $('#recHint').textContent = lines.length ? 'recording · read the poem, then STOP' : 'recording · say your poem, then STOP'; }
+    if (state === 'working') { $('#recHint').textContent = 'finding your words and where each line falls…'; }
+    if (state === 'review') { add('RETAKE', '', () => { discardTake(); showPrompter(); recButtons('ready'); }); add('KEEP MY VOICE', 'gold', () => keepTake()); $('#recHint').textContent = 'listen back with the film; keep it, or take it again'; }
   }
-  function showPrompter() { const p = $('#prompter'); p.innerHTML = ''; (lines.length ? lines : ['(speak; your lines appear here)']).forEach((l, i) => { const d = document.createElement('div'); d.textContent = l; d.onclick = () => { if (R && R.rolling && lines.length && i === R.line) nextLine(); }; p.append(d); }); }
-  function openRec() { pause(); closeWall(); $('#rec').hidden = false; $('#recTitle').textContent = lines.length ? 'READ YOUR POEM ALOUD' : 'SAY YOUR POEM'; $('#recTime').textContent = '0:00'; showPrompter(); recButtons('ready'); drawSpark([]); }
+  function showPrompter() { const p = $('#prompter'); p.innerHTML = ''; (lines.length ? lines : ['Say your poem.', 'Pause between lines.']).forEach(l => { const d = document.createElement('div'); d.textContent = l; d.className = lines.length ? 'now' : ''; p.append(d); }); }
+  function openRec() { if (!MPHear.supported()) { toast('this browser cannot record'); return; } pause(); closeWall(); $('#rec').hidden = false; $('#rec').style.background = ''; $('#recTitle').textContent = lines.length ? 'READ YOUR POEM ALOUD' : 'SAY YOUR POEM'; $('#recTime').textContent = '0:00'; showPrompter(); recButtons('ready'); drawSpark([]); MPHear.warm(hearStatus); }
   $('#recX').onclick = () => { discardTake(); $('#rec').hidden = true; };
   async function startTake() {
-    let stream; try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); } catch (e) { toast('the microphone was not allowed'); return; }
-    const ac = new AudioContext(), an = ac.createAnalyser(); an.fftSize = 1024; ac.createMediaStreamSource(stream).connect(an);
-    R = { stream, ac, an, chunks: [], marks: [], line: 0, level: [], rolling: false, dict: [] };
-    const cnt = $('#count'); cnt.hidden = false; for (const n of ['3', '2', '1']) { cnt.textContent = n; await new Promise(r => setTimeout(r, 650)); } cnt.hidden = true;
-    try { R.media = new MediaRecorder(stream); R.media.ondataavailable = e => R.chunks.push(e.data); R.media.start(250); } catch (e) { toast('this browser cannot record audio'); return; }
-    R.t0 = performance.now(); R.rolling = true; R.lineStart = 0; SH.status('recording', 'recording'); recButtons('rolling'); highlight(0);
-    const buf = new Uint8Array(an.fftSize); R.raf = setInterval(() => { if (!R || !R.rolling) return; an.getByteTimeDomainData(buf); let m = 0; for (const v of buf) m = Math.max(m, Math.abs(v - 128)); R.level.push(m / 128);
-      const t = (performance.now() - R.t0) / 1000; $('#recTime').textContent = `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`; drawSpark(R.level); }, 50);
-    if (Rec) { const rg = new Rec(); rg.continuous = true; rg.interimResults = true; rg.lang = navigator.language || 'en-US'; R.recog = rg;
-      rg.onresult = e => { for (let i = e.resultIndex; i < e.results.length; i++) { const r = e.results[i], txt = r[0].transcript.trim(), t = (performance.now() - R.t0) / 1000;
-        if (lines.length) { const want = (lines[R.line] || '').toLowerCase().replace(/[^\w\s']/g, '').split(/\s+/).filter(Boolean), got = txt.toLowerCase().split(/\s+/);
-          if (want.length && got.length && want.slice(-2).every(w => got.slice(-4).includes(w)) && r.isFinal) nextLine(); }
-        else if (r.isFinal && txt) { R.dict.push([R.lineStart, t, txt.replace(/^\w/, c => c.toUpperCase())]); R.lineStart = t; const p = $('#prompter'); if (R.dict.length === 1) p.innerHTML = ''; const d = document.createElement('div'); d.className = 'done'; d.textContent = txt; p.append(d); d.scrollIntoView({ block: 'center' }); } } };
-      rg.onerror = e => { if (!R) return; R.noWords = true; if (lines.length) $('#recHint').textContent = 'the words are not being heard here, but your voice is recording: tap each line (or NEXT LINE) when you finish it';
-        else { toast(HEAR[e.error] || 'words cannot be heard in this browser'); $('#recHint').textContent = 'this browser records but cannot hear words: stop, type your lines, then record reading them'; } };
-      rg.onend = () => { if (R && R.rolling && !R.noWords) try { rg.start(); } catch (e) { } }; try { rg.start(); } catch (e) { R.noWords = true; } }
-    else if (!lines.length) { $('#recHint').textContent = 'this browser records but cannot hear words: stop, type your lines, then record reading them'; }
+    unlockVoice(); let take; const level = [];
+    try { take = await MPHear.take({ onLevel: (lv, t) => { level.push(lv); $('#recTime').textContent = `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`; drawSpark(level); } }); } catch (e) { micError(e); return; }
+    R = { take, level }; SH.status('recording', 'recording'); recButtons('rolling');
   }
-  function highlight(i) { document.querySelectorAll('#prompter div').forEach((d, j) => { d.className = j === i ? 'now' : j < i ? 'done' : ''; if (j === i) d.scrollIntoView({ block: 'center' }); }); }
-  function nextLine() { if (!R || !R.rolling || !lines.length) return; const t = (performance.now() - R.t0) / 1000; R.marks.push([R.lineStart, t]); R.lineStart = t; R.line++;
-    if (R.line >= lines.length) stopTake(); else highlight(R.line); }
-  function stopTake() {
-    if (!R) return; const t = (performance.now() - R.t0) / 1000; R.rolling = false; clearInterval(R.raf); if (R.recog) try { R.recog.stop(); } catch (e) { }
-    if (lines.length && R.marks.length < lines.length) R.marks.push([R.lineStart, t]);
-    while (lines.length && R.marks.length < lines.length) R.marks.push([t, t + 1.5]);                 // lines not read get a moment each
-    R.media.onstop = async () => { R.blob = new Blob(R.chunks, { type: R.media.mimeType || 'audio/webm' }); R.stream.getTracks().forEach(x => x.stop()); R.ac.close();
-      if (!lines.length) { if (!R.dict.length) { toast('nothing was heard; try again'); recButtons('ready'); return; } lines = R.dict.map(d => d[2]); R.marks = R.dict.map(d => [d[0], d[1]]); store.set('poet.lines', lines); drawPoem(); }
-      voiceRec = R.blob; marks = R.marks; voice = 'mine'; locks = {}; SH.status('composing', 'composing with your voice'); const c = await build(); setFilm(c); recButtons('review');
-      $('#rec').style.background = '#050505aa'; play(c.T0); };
-    R.media.stop();
+  async function stopTake() {
+    if (!R || !R.take) return; recButtons('working'); const r = await R.take.stop(); R.take = null;
+    if (r.seconds < 1) { toast('that was too short; try again'); recButtons('ready'); return; }
+    let ws = []; try { ws = (await MPHear.words(r.pcm, hearStatus)).words.filter(w => w.w && !/^[\[(]/.test(w.w)); } catch (e) { toast('the words could not be found; the lines are spread evenly'); }
+    if (!lines.length) { const sent = MPHear.sentences(ws); if (!sent.length) { toast('no words were found; try again'); recButtons('ready'); return; }
+      lines = sent.map(x => x.text); marks = sent.map(x => [x.t0, x.t1]); store.set('poet.lines', lines); drawPoem(); showPrompter(); }
+    else marks = ws.length ? MPHear.align(ws, lines) : lines.map((l, i) => [r.seconds * i / lines.length, r.seconds * (i + 1) / lines.length]);
+    marks[marks.length - 1][1] = Math.max(marks[marks.length - 1][1], r.seconds - .1);
+    voiceRec = r.blob; voice = 'mine'; locks = {}; SH.status('composing', 'composing with your voice'); const c = await build(); setFilm(c); recButtons('review'); $('#rec').style.background = '#05050599'; play(c.T0);
   }
-  function keepTake() { $('#rec').hidden = true; $('#rec').style.background = ''; toast('your voice is the film\'s clock now; SEND carries it'); R = null; }
-  function discardTake() { if (R) { R.rolling = false; clearInterval(R.raf); try { R.recog && R.recog.stop(); } catch (e) { } try { R.media && R.media.state !== 'inactive' && R.media.stop(); } catch (e) { } try { R.stream.getTracks().forEach(x => x.stop()); R.ac.close(); } catch (e) { } }
-    R = null; pause(); $('#rec').style.background = ''; if (voice === 'mine' && !voiceRec) voice = 'piper'; }
+  function keepTake() { $('#rec').hidden = true; $('#rec').style.background = ''; toast('your voice keeps the film\'s time now'); R = null; }
+  function discardTake() { if (R && R.take) R.take.cancel(); R = null; pause(); $('#rec').style.background = ''; }
   function drawSpark(level) { const c = $('#spark'), w = c.clientWidth || 300, h = c.clientHeight || 44, x = c.getContext('2d'); c.width = w * devicePixelRatio; c.height = h * devicePixelRatio; x.scale(devicePixelRatio, devicePixelRatio);
     x.clearRect(0, 0, w, h); x.fillStyle = '#2a2723'; x.fillRect(0, h / 2, w, 1); const n = Math.min(level.length, w); x.fillStyle = '#e0453a';
     for (let i = 0; i < n; i++) { const v = level[level.length - n + i], y = Math.max(1, v * h * .9); x.fillRect(w - n + i, (h - y) / 2, 1, y); } }
+
+  // ------------------------------------------------------------ the device's own voice: what speaks when there is no recording and no lab
+  const canSpeak = 'speechSynthesis' in window; let unlocked = false;
+  function unlockVoice() { if (unlocked || !canSpeak) return; unlocked = true; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) { } }
+  function speakLine(t) { if (voice !== 'device' || !canSpeak) return; try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.rate = .92; speechSynthesis.speak(u); } catch (e) { } }
 
   // ------------------------------------------------------------ the menu: everything that is not needed every second
   const toggleCalm = () => { F.calm(!F.isCalm); return true; }, toggleSound = () => { F.sound(!F.isSound); return true; };
@@ -306,13 +305,14 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
     { title: 'WATCH', items: [
       { icon: 'calm', label: 'Calm', hint: 'slower dissolves and pictures', on: () => F.isCalm, state: () => F.isCalm ? 'ON' : '', act: toggleCalm },
       { icon: () => F.isSound ? 'sound' : 'mute', label: 'Films\' own sound', on: () => F.isSound, state: () => F.isSound ? 'ON' : '', act: toggleSound },
-      { icon: 'voice', label: 'Voice', hint: () => voice === 'mine' ? 'your recording' : voice === 'piper' ? (SH.server ? 'Piper (Ryan)' : 'Piper needs the lab machine') : 'silence', state: () => ({ mine: 'YOURS', piper: 'PIPER', none: 'OFF' })[voice],
-        act: () => { const o = ['piper', ...(voiceRec && marks ? ['mine'] : []), 'none']; voice = o[(o.indexOf(voice) + 1) % o.length]; store.set('poet.voice', voice === 'mine' ? 'piper' : voice); if (cur) recompose(shown, clock.running); return true; } },
+      { icon: 'voice', label: 'Voice', hint: () => ({ mine: 'your recording', piper: 'Piper (Ryan), from the lab', device: 'this device reads the lines', none: 'silence' })[voice] || '', state: () => ({ mine: 'YOURS', piper: 'PIPER', device: 'DEVICE', none: 'OFF' })[voice],
+        act: () => { const o = [...(voiceRec && marks ? ['mine'] : []), ...(SH.server ? ['piper'] : []), ...(canSpeak ? ['device'] : []), 'none']; voice = o[(o.indexOf(voice) + 1) % o.length]; store.set('poet.voice', voice === 'mine' ? 'auto' : voice); if (canSpeak) speechSynthesis.cancel(); if (cur) recompose(shown, clock.running); return true; } },
       { icon: 'full', label: 'Full screen', act: () => { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => { }); } }] },
     { title: 'MAKE', items: [
+      { icon: 'mic', label: 'Say a line', hint: 'speak one line; it joins the film', act: () => $('#bMic').click() },
       { icon: 'rec', label: 'Record your voice', hint: () => lines.length ? 'read the poem; the film follows your timing' : 'say the poem; each sentence becomes a line', act: () => openRec() },
       { icon: 'undo', label: 'Undo', hidden: () => !history.length, act: () => undo() },
-      { icon: 'close', label: 'Remove the selected line', hidden: () => sel < 0, act: () => { history.push({ lines: [...lines], locks: { ...locks } }); lines.splice(sel, 1); sel = -1; locks = {}; marks = null; if (voice === 'mine') voice = 'piper'; $('#prompt').value = ''; store.set('poet.lines', lines); drawPoem(); recompose(null, false); } },
+      { icon: 'close', label: 'Remove the selected line', hidden: () => sel < 0, act: () => { history.push({ lines: [...lines], locks: { ...locks } }); lines.splice(sel, 1); sel = -1; locks = {}; marks = null; if (voice === 'mine') voice = fallbackVoice(); $('#prompt').value = ''; store.set('poet.lines', lines); drawPoem(); recompose(null, false); } },
       { icon: 'take', label: 'Begin again', hint: 'an empty room', hidden: () => !lines.length, act: () => again() }] },
     { title: 'SEND', items: [
       { icon: 'send', label: 'Send this film', hint: 'project file, MP4, link', hidden: () => !cur, act: () => { $('#bSend').click(); } },
@@ -325,9 +325,9 @@ body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0;
 
   // ------------------------------------------------------------ sending and opening
   const blobURL = b => new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(b); });
-  $('#bSend').onclick = async e => { e.stopPropagation(); if (!cur) { MPExport.menu($('#bSend'), () => ({}), { open: loadProject }); return; }
+  $('#bSend').onclick = async e => { e.stopPropagation(); if (!cur) { MPExport.sheet($('#bSend'), () => null, { open: loadProject }); return; }
     const pr = MPExport.project(D, cur, { room: 'poet', lines: [...lines], voice, locks: { ...locks }, calm: F.isCalm, sound: F.isSound, audioData: voice === 'mine' && voiceRec ? await blobURL(voiceRec) : null });
-    MPExport.menu($('#bSend'), () => pr, { open: loadProject }); };
+    MPExport.sheet($('#bSend'), () => pr, { open: loadProject }); };
   function openFile() { const i = document.createElement('input'); i.type = 'file'; i.accept = '.html,.json'; i.onchange = async () => { try { loadProject(await MPExport.read(i.files[0])); } catch (err) { toast(err.message); } }; i.click(); }
   async function loadProject(pr) {
     pause(); lines = pr.lines || [...new Set(pr.film.ph.map(p => p[2]))]; locks = pr.locks || {}; history = []; store.set('poet.lines', lines); drawPoem();
