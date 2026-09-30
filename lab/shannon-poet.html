@@ -54,13 +54,10 @@ body.quiet #bar, body.quiet #sys, body.quiet #nav, body.quiet #dna{ opacity:0; }
 .tile .p{ position:absolute; left:0; right:0; bottom:0; height:3px; background:#0008; } .tile .p u{ display:block; height:100%; background:var(--hi); }
 .tile .n{ position:absolute; right:5px; top:4px; font-size:10px; text-shadow:0 0 4px #000; } .tile .s{ position:absolute; left:5px; bottom:7px; display:flex; gap:2px; }
 .tile .s i{ font-style:normal; font-size:8.5px; color:#15120d; padding:1px 3px; border-radius:2px; }
-#share{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(86px + env(safe-area-inset-bottom)); z-index:10; background:#0e0d0c; border:1px solid #24211d; border-radius:10px; padding:6px; min-width:280px; max-width:92vw; }
-#share button{ display:block; width:100%; text-align:left; background:none; border:0; padding:11px 12px; border-radius:6px; cursor:pointer; color:var(--ink); } #share button:hover{ background:#ffffff0c; }
-#share button small{ display:block; color:var(--dim); font-size:10.5px; margin-top:2px; } #share button:disabled{ opacity:.35; cursor:default; }
 #toast{ position:fixed; left:50%; top:22px; transform:translateX(-50%); z-index:11; background:#0e0d0c; border:1px solid #24211d; border-radius:20px; padding:8px 14px; color:var(--ink); opacity:0; transition:opacity .4s; pointer-events:none; } #toast.on{ opacity:1; }
 #veil{ position:fixed; inset:0; z-index:12; display:grid; place-items:center; background:#000c; cursor:pointer; text-align:center; padding:20px; } #veil b{ display:block; font:300 clamp(26px,4vw,48px)/1.2 var(--serif); } #veil span{ color:var(--dim); }
 input#type{ position:fixed; opacity:0; pointer-events:none; left:0; top:0; width:1px; height:1px; }
-@media (max-width:640px){ #sys{ max-width:50vw; bottom:calc(92px + env(safe-area-inset-bottom)); } #nav{ top:16px; bottom:auto; gap:12px; } #poem{ top:56px; font-size:13px; } #dna{ top:auto; bottom:calc(92px + env(safe-area-inset-bottom)); right:12px; max-width:48vw; } #bar{ gap:0; } #bar .ico{ width:38px; } #say.playing{ bottom:calc(150px + env(safe-area-inset-bottom)); } }
+@media (max-width:640px){ #sys{ max-width:50vw; bottom:calc(92px + env(safe-area-inset-bottom)); } #nav{ top:14px; bottom:auto; left:12px; right:12px; gap:10px; justify-content:flex-end; white-space:nowrap; font-size:10px; } #poem{ top:52px; } #poem{ top:56px; font-size:13px; } #dna{ top:auto; bottom:calc(92px + env(safe-area-inset-bottom)); right:12px; max-width:48vw; } #bar{ gap:0; } #bar .ico:not(#mic){ width:38px; } #say.playing{ bottom:calc(150px + env(safe-area-inset-bottom)); } }
 </style></head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -93,7 +90,7 @@ input#type{ position:fixed; opacity:0; pointer-events:none; left:0; top:0; width
   <button class="ico" id="bSend" aria-label="Keep or send the film"><svg><use href="#i-send"/></svg><span class="tip">SEND</span></button>
 </div>
 <div id="sys" aria-live="polite"><i></i><span id="sysText">waking</span></div>
-<nav id="nav"><button id="again">BEGIN AGAIN</button><a href="shannon-narrative.html">NARRATIVE</a><a href="markov-poet.html">MARKOV POET</a></nav>
+<nav id="nav"><button id="help">HOW IT WORKS</button><button id="again">BEGIN AGAIN</button><a href="shannon-narrative.html">NARRATIVE</a><a href="markov-poet.html">MARKOV POET</a></nav>
 <div id="line" aria-label="The poem, line by line"></div>
 <section id="wall" aria-label="The shots the engine weighed">
   <header>
@@ -105,11 +102,7 @@ input#type{ position:fixed; opacity:0; pointer-events:none; left:0; top:0; width
   </header>
   <div class="tiles" id="tiles"></div>
 </section>
-<div id="share" hidden>
-  <button id="sMp4">Download the film (MP4)<small id="sMp4Note">rendered on the lab machine: shots, dissolves, words, voice</small></button>
-  <button id="sCard">Download a film card (.html)<small>one file: your words, your voice, the cut; plays anywhere with a connection</small></button>
-  <button id="sLink">Copy a link<small>the words and your choices; the film recomposes when it is opened</small></button>
-</div>
+
 <div id="toast"></div>
 <div id="veil" hidden><div><b>Touch to watch</b><span id="veilSub"></span></div></div>
 <input id="type" autocomplete="off" autocapitalize="sentences" spellcheck="false" aria-hidden="true">
@@ -118,6 +111,8 @@ input#type{ position:fixed; opacity:0; pointer-events:none; left:0; top:0; width
 <script src="markov/clip-text.js?v=2"></script>
 <script src="markov/shared.js?v=2"></script>
 <script src="markov/film.js?v=1"></script>
+<script src="markov/guide.js?v=2"></script>
+<script src="markov/export.js?v=2"></script>
 <script>
 (() => {
   const $ = s => document.querySelector(s), esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -129,7 +124,7 @@ input#type{ position:fixed; opacity:0; pointer-events:none; left:0; top:0; width
   const toast = t => { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('on'), 2600); };
 
   SH.onStatus(s => { $('#sys').className = /rest|idle/.test(s.stage) ? '' : s.stage === 'playing' ? 'play' : 'busy'; $('#sysText').textContent = s.text + (s.frac != null ? ' ' + Math.round(s.frac * 100) + '%' : ''); });
-  let wakeT; const wake = () => { document.body.classList.remove('quiet'); clearTimeout(wakeT); wakeT = setTimeout(() => { if (clock.running && !$('#wall').classList.contains('open') && $('#share').hidden) document.body.classList.add('quiet'); }, 3200); };
+  let wakeT; const wake = () => { document.body.classList.remove('quiet'); clearTimeout(wakeT); wakeT = setTimeout(() => { if (clock.running && !$('#wall').classList.contains('open')) document.body.classList.add('quiet'); }, 3200); };
   ['mousemove', 'touchstart', 'keydown'].forEach(e => addEventListener(e, wake));
 
   // ------------------------------------------------------------ the plea and the draft
@@ -150,7 +145,7 @@ input#type{ position:fixed; opacity:0; pointer-events:none; left:0; top:0; width
     if (!draft && cur) {
       if (k === ' ') { e.preventDefault(); toggle(); return; }
       if (k === 'ArrowRight' || k === 'ArrowLeft') { e.preventDefault(); stepLine(k === 'ArrowRight' ? 1 : -1); return; }
-      if (k === 'Escape') { if ($('#wall').classList.contains('open')) closeWall(); else $('#share').hidden = true; return; }
+      if (k === 'Escape') { if ($('#wall').classList.contains('open')) closeWall(); return; }
     }
     if (k === 'Enter') { e.preventDefault(); if (draft.trim()) commit(draft.trim()); return; }
     if (k === 'Escape') { draft = ''; showDraft(); return; }
@@ -251,7 +246,7 @@ input#type{ position:fixed; opacity:0; pointer-events:none; left:0; top:0; width
   function again() { pause(); cur = null; lines = []; locks = {}; history = []; store.set('poet.lines', []); draft = ''; voiceRec = null; recTimes = null; if (voice === 'mine') voice = 'piper'; drawVoice();
     $('#film').classList.remove('on'); $('#dna').innerHTML = ''; $('#line').innerHTML = ''; drawPoem(); closeWall(); if (location.hash) history_clear(); SH.status('rest', 'the room is empty again'); showDraft(); }
   function history_clear() { try { window.history.replaceState(null, '', location.pathname); } catch (e) { } }
-  $('#again').onclick = again;
+  $('#again').onclick = again; $('#help').onclick = () => MPGuide.open('poet');
   $('#bPlay').onclick = () => { if (cur) toggle(); else toast('say or type a line first'); };
   $('#bCalm').onclick = () => { const on = F.calm(!F.isCalm); $('#bCalm').classList.toggle('on', on); toast(on ? 'calm: slower dissolves, slower pictures' : 'calm off'); };
   $('#bSound').onclick = () => { const on = F.sound(!F.isSound); $('#bSound').classList.toggle('on', on); $('#bSound').querySelector('use').setAttribute('href', on ? '#i-sound' : '#i-mute'); toast(on ? 'the films\' own sound is on' : 'the films are silent'); };
@@ -285,78 +280,30 @@ input#type{ position:fixed; opacity:0; pointer-events:none; left:0; top:0; width
   }
   function undo() { if (!history.length) return; locks = history.pop(); toast('undone'); recompose(wallShot, clock.running); }
 
-  // ------------------------------------------------------------ sending: a real video, a film card, a link
-  $('#bSend').onclick = e => { e.stopPropagation(); if (!cur) { toast('say or type a line first'); return; } $('#share').hidden = !$('#share').hidden; $('#sMp4').disabled = !SH.server;
-    $('#sMp4Note').textContent = SH.server ? 'rendered on the lab machine: shots, dissolves, words, voice' + (F.isSound ? ', film sound' : '') : 'needs the lab machine; the film card works everywhere'; };
-  document.addEventListener('click', e => { if (!e.target.closest('#share') && !e.target.closest('#bSend')) $('#share').hidden = true; });
-  const slug = () => (lines[0] || 'markov-poet').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'markov-poet';
-  const dnaText = x => [(x.signs || []).slice(0, 3).map(c => (D.K.signs[c] || {}).symbol).filter(Boolean).join(' '), x.scale, x.title, x.year].filter(Boolean).join(' · ');
+  // ------------------------------------------------------------ sending: a project file to remix, a finished MP4, a link; and opening one
   const blobURL = b => new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(b); });
-  async function voiceData() { if (voice === 'mine' && voiceRec) return blobURL(voiceRec); if (cur.audio) { try { return blobURL(await (await fetch(cur.audio.src)).blob()); } catch (e) { } } return null; }
-  function download(href, name) { const a = document.createElement('a'); a.href = href; a.download = name; document.body.append(a); a.click(); a.remove(); }
-  $('#sMp4').onclick = async () => {
-    $('#share').hidden = true; SH.status('rendering', 'rendering the film on the lab machine'); toast('rendering: a minute or two');
-    const job = { cut: cur.cut.map(s => { const x = D.LIB.shots[s.k]; return { video: x.video, in: s.in || 0, t0: s.t0, t1: s.t1, dna: dnaText(x) }; }), phrases: cur.ph.map(p => ({ t0: p.t0, t1: p.t1, text: p.text })),
-      T0: cur.T0, T1: cur.T1, audio: voice === 'mine' ? null : cur.audio, audio_b64: voice === 'mine' && voiceRec ? await blobURL(voiceRec) : null, sound: F.isSound, calm: F.isCalm };
-    try { const r = await fetch('/api/render', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(job) }); const j = await r.json(); if (!r.ok) throw new Error(j.error);
-      download(j.video, slug() + '.mp4'); SH.status('rest', 'the film is yours'); toast('downloaded: ' + slug() + '.mp4');
-    } catch (e) { SH.status('rest', 'could not render: ' + e.message); toast('could not render'); }
-  };
-  $('#sCard').onclick = async () => {
-    $('#share').hidden = true; SH.status('rendering', 'folding the film into one page');
-    const data = { title: lines[0] || 'The Markov Poet', lines, T0: cur.T0, T1: cur.T1, calm: F.isCalm, sound: F.isSound, audio: await voiceData(),
-      cut: cur.cut.map(s => { const x = D.LIB.shots[s.k]; return { v: x.video, in: s.in || 0, t0: s.t0, t1: s.t1, els: (x.signs || []).slice(0, 3).map(c => D.K.signs[c]).filter(Boolean).map(g => [g.symbol, MPFilm.DOM[g.dom] || '#ccc', g.name]), cap: [x.scale, x.title, x.year].filter(Boolean).join(' · '), edit: EDIT[s.op] || '' }; }),
-      ph: cur.ph.map(p => [p.t0, p.t1, p.text]) };
-    const html = CARD.replace('/*DATA*/null', JSON.stringify(data).replace(/</g, '\\u003c'));
-    download(URL.createObjectURL(new Blob([html], { type: 'text/html' })), slug() + '.html'); SH.status('rest', 'the film card is yours'); toast('downloaded: ' + slug() + '.html');
-  };
-  const b64u = u8 => { let s = ''; u8.forEach(c => s += String.fromCharCode(c)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
-  const ub64 = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
-  async function pack(obj) { const s = new Blob([JSON.stringify(obj)]).stream().pipeThrough(new CompressionStream('deflate-raw')); return b64u(new Uint8Array(await new Response(s).arrayBuffer())); }
-  async function unpack(t) { const s = new Blob([ub64(t)]).stream().pipeThrough(new DecompressionStream('deflate-raw')); return JSON.parse(await new Response(s).text()); }
-  $('#sLink').onclick = async () => { $('#share').hidden = true; const u = location.origin + location.pathname + '#p=' + await pack({ l: lines, k: locks });
-    try { await navigator.clipboard.writeText(u); toast('link copied'); } catch (e) { prompt('Copy this link', u); } };
+  async function currentProject() { return MPExport.project(D, cur, { room: 'poet', lines: [...lines], voice, locks: { ...locks }, calm: F.isCalm, sound: F.isSound,
+    audioData: voice === 'mine' && voiceRec ? await blobURL(voiceRec) : null }); }
+  let prCache = null;
+  $('#bSend').onclick = async e => { e.stopPropagation(); if (!cur) { $('#bSend').blur(); MPExport.menu($('#bSend'), () => ({}), { open: loadProject }); return; }
+    prCache = await currentProject(); MPExport.menu($('#bSend'), () => prCache, { open: loadProject }); };
+  async function loadProject(pr) {
+    pause(); lines = pr.lines || [...new Set(pr.film.ph.map(p => p[2]))]; locks = pr.locks || {}; history = []; store.set('poet.lines', lines); drawPoem();
+    if (pr.film.audioData && /^data:audio\/(webm|ogg|mp4)/.test(pr.film.audioData)) { voiceRec = await (await fetch(pr.film.audioData)).blob(); recTimes = null; if (SH.server) voice = 'mine'; drawVoice(); }
+    if (pr.calm !== F.isCalm) $('#bCalm').click(); SH.status('reading', 'opening ' + (pr.title || 'a project'));
+    const c = await build(); setFilm(c); shown = -1; frame(c.T0); $('#veilSub').textContent = (pr.title || '') + ' · ' + (pr.score ? 'their score ' + pr.score.total + ': beat it' : ''); $('#veil').hidden = false; $('#veil').onclick = () => play(c.T0);
+  }
+  addEventListener('dragover', e => { e.preventDefault(); }); addEventListener('drop', async e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (!f) return; try { await loadProject(await MPExport.read(f)); } catch (err) { toast(err.message); } });
 
   // ------------------------------------------------------------ waking
-  SH.load().then(async d => { D = d; F = MPFilm($('#film'), { signs: d.K.signs }); drawVoice();
-    const m = location.hash.match(/#p=([\w-]+)/);
+  SH.load().then(async d => { D = d; F = MPFilm($('#film'), { signs: d.K.signs }); drawVoice(); MPGuide.first('poet');
+    const m = location.hash.match(/#p=([\w-]+)/), unpack = MPExport.unpack;
     if (m) { try { const o = await unpack(m[1]); lines = o.l || []; locks = o.k || {}; drawPoem(); SH.status('reading', 'reading a poem someone sent');
         const c = await build(); setFilm(c); frame(c.T0); $('#veilSub').textContent = lines.join(' / ').slice(0, 160); $('#veil').hidden = false; $('#veil').onclick = () => play(c.T0); } catch (e) { toast('the link could not be read'); plea(); } }
     else { lines = store.get('poet.lines', []); drawPoem(); if (lines.length) { SH.status('rest', 'your poem is here · play it, or add a line'); build().then(c => { setFilm(c); frame(c.T0); }).catch(() => { }); } else { SH.status('rest', `${d.LIB.n.toLocaleString()} shots at rest`); plea(); } }
     if (window.ClipText) setTimeout(() => { if (SH.server === false) window.ClipText.warm(s => SH.status(s.stage === 'ready' ? 'rest' : 'loading', s.stage === 'ready' ? 'ready to read' : s.text, s.frac)); }, 1500);
   }).catch(e => SH.status('rest', 'the archive could not wake: ' + e.message));
 
-  // ------------------------------------------------------------ the film card: one self-contained page
-  const CARD = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>The Markov Poet</title>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;1,9..144,300&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
-<style>html,body{margin:0;height:100%;background:#050505;color:#efe9dd;overflow:hidden;font:12px 'IBM Plex Mono',monospace}
-.lay{position:fixed;inset:0;opacity:0}.lay video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:d 40s ease-in-out infinite alternate}
-.lay.cur{opacity:1}.lay.in{opacity:1;mix-blend-mode:screen;animation:i var(--d,1.5s) cubic-bezier(.3,.6,.2,1) both;z-index:2}.lay.out{animation:o var(--d,1.5s) ease both;z-index:1}
-@keyframes i{0%{opacity:0;filter:blur(16px) brightness(1.7) saturate(.4);transform:scale(1.07)}45%{opacity:.9;filter:blur(5px) brightness(1.2)}100%{opacity:1;filter:none;transform:none}}
-@keyframes o{to{opacity:0;filter:blur(20px) brightness(.55);transform:scale(1.035)}}@keyframes d{to{transform:scale(1.045) translate(-.6%,.4%)}}
-.shade{position:fixed;inset:0;background:linear-gradient(180deg,#0008,transparent 22%,transparent 55%,#000b);z-index:3;pointer-events:none}
-#say{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);width:min(1150px,90vw);text-align:center;font:300 clamp(26px,4vw,56px)/1.16 Fraunces,Georgia,serif;text-shadow:0 0 22px #000;z-index:5}
-#say span{display:inline-block;opacity:0;filter:blur(10px);animation:w .9s cubic-bezier(.2,.7,.2,1) forwards;white-space:pre}@keyframes w{to{opacity:1;filter:none}}
-#poem{position:fixed;left:24px;top:22px;max-width:60vw;font:300 16px/1.55 Fraunces,Georgia,serif;color:#7d776f;z-index:5}
-#dna{position:fixed;right:22px;top:20px;z-index:5;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;color:#efe9ddaa;font-size:10px;letter-spacing:.06em;max-width:60vw}
-#dna .el{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 4px;border-radius:3px;color:#15120d}#dna .ed{color:#e8c070}
-#go{position:fixed;inset:0;z-index:9;display:grid;place-items:center;background:#000c;cursor:pointer;text-align:center;padding:20px}#go b{display:block;font:300 clamp(26px,4vw,48px)/1.2 Fraunces,serif}#go span{color:#7d776f}
-#ctl{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);display:flex;gap:18px;z-index:6;letter-spacing:.1em}#ctl button{background:none;border:0;color:#7d776f;font:inherit;cursor:pointer}#ctl button:hover{color:#efe9dd}
-#bar{position:fixed;left:0;right:0;bottom:0;height:3px;background:#ffffff14;z-index:6}#bar i{display:block;height:100%;background:#e8c070;width:0}
-</style></head><body><div class="lay"><video playsinline muted></video></div><div class="lay"><video playsinline muted></video></div><div class="shade"></div>
-<div id="poem"></div><div id="dna"></div><div id="say"></div><div id="ctl"><button id="pp">PAUSE</button><button id="snd">FILM SOUND: OFF</button></div><div id="bar"><i></i></div>
-<div id="go"><div><b></b><span>touch to watch · a Markov Poet film card</span></div></div><audio id="au"></audio>
-<script>const D=/*DATA*/null;const $=s=>document.querySelector(s),L=[...document.querySelectorAll('.lay')],V=L.map(l=>l.firstChild),au=$('#au');let on=0,run=!1,t=D.T0,last=0,shown=-1,ls=-1,snd=D.sound,dur=D.calm?2.6:1.5;
-$('#go b').textContent=D.title;$('#poem').innerHTML=D.lines.map(l=>'<div>'+l.replace(/</g,'&lt;')+'</div>').join('');if(D.audio)au.src=D.audio;$('#snd').textContent='FILM SOUND: '+(snd?'ON':'OFF');
-function ld(v,u,a){if(v.dataset.u!==u){v.dataset.u=u;v.src=u}const s=()=>{try{v.currentTime=a}catch(e){}};v.readyState>=1?s():v.addEventListener('loadedmetadata',s,{once:!0})}
-function show(c,a){const n=1-on;ld(V[n],c.v,a);V[n].playbackRate=D.calm?.8:1;L.forEach(l=>l.style.setProperty('--d',dur+'s'));L[n].className='lay in';L[on].className='lay out';V[n].muted=!snd;if(run)V[n].play().catch(()=>{});const w=on;on=n;setTimeout(()=>{if(on!==n)return;L[n].className='lay cur';L[w].className='lay';V[w].pause()},dur*1e3+60);
-$('#dna').innerHTML='<span>'+c.els.map(e=>'<span class="el" style="background:'+e[1]+'" title="'+e[2]+'">'+e[0]+'</span>').join(' ')+'</span><span>'+c.cap+'</span><span class="ed">'+c.edit+'</span>'}
-function frame(){const i=D.cut.findIndex(c=>t>=c.t0&&t<c.t1);if(i>=0&&i!==shown){shown=i;show(D.cut[i],D.cut[i].in+Math.max(0,t-D.cut[i].t0))}const li=D.ph.findIndex(p=>t>=p[0]&&t<p[1]);if(li>=0&&li!==ls){ls=li;$('#say').innerHTML=D.ph[li][2].split(/(\\s+)/).map((w,k)=>/^\\s+$/.test(w)?w:'<span style="animation-delay:'+k*45+'ms">'+w.replace(/</g,'&lt;')+'</span>').join('')}
-$('#bar i').style.width=((t-D.T0)/(D.T1-D.T0)*100)+'%';const v=V[on];if(run){if(v.ended||(v.duration&&v.currentTime>=v.duration-.12))v.pause();else if(v.paused&&v.readyState>=2)v.play().catch(()=>{})}}
-setInterval(()=>{if(!run)return;const n=performance.now();if(D.audio&&!au.paused)t=au.currentTime+D.T0;else t+=(n-last)/1e3;last=n;if(t>=D.T1){run=!1;au.pause();V.forEach(v=>v.pause());t=D.T0;shown=-1;ls=-1;$('#go').hidden=!1;$('#go span').textContent='touch to watch again';return}frame()},40);
-function play(){run=!0;last=performance.now();$('#go').hidden=!0;if(D.audio){au.currentTime=t-D.T0;au.play().catch(()=>{})}frame();V[on].play().catch(()=>{});$('#pp').textContent='PAUSE'}
-function pause(){run=!1;au.pause();V.forEach(v=>v.pause());$('#pp').textContent='PLAY'}
-$('#go').onclick=play;$('#pp').onclick=()=>run?pause():play();$('#snd').onclick=()=>{snd=!snd;V[on].muted=!snd;$('#snd').textContent='FILM SOUND: '+(snd?'ON':'OFF')};frame();<\/script></body></html>`;
 })();
 </script>
 </body></html>

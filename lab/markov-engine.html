@@ -89,7 +89,7 @@ h2{ font:600 17px var(--serif); margin:0 0 10px; } h3{ font:500 12px var(--mono)
 <body>
 <header class="top">
   <div class="brand"><b>The Engine</b><span><a href="markov-poet.html" style="color:inherit">The Markov Poet</a> · any voice, transcript or recording, composed into a film</span></div>
-  <nav class="tabs" role="tablist" aria-label="Sections"><button class="on" data-tab="film">Film</button><button data-tab="search">Search</button><button data-tab="tests">Tests</button><button data-tab="about">About</button><a href="shannon-narrative.html" style="padding:10px 14px;color:var(--dim);text-decoration:none;white-space:nowrap">Narrative</a></nav>
+  <nav class="tabs" role="tablist" aria-label="Sections"><button class="on" data-tab="film">Film</button><button data-tab="search">Search</button><button data-tab="tests">Tests</button><button data-tab="about">About</button><a href="shannon-narrative.html" style="padding:10px 14px;color:var(--dim);text-decoration:none;white-space:nowrap">Narrative</a><button id="howBtn">How it works</button></nav>
   <div class="status" id="status">Loading the archive…</div>
 </header>
 
@@ -125,7 +125,7 @@ h2{ font:600 17px var(--serif); margin:0 0 10px; } h3{ font:500 12px var(--mono)
         <div class="tag" id="tag" hidden></div><div class="sub" id="sub"></div><div class="idle" id="idle">The film plays here.</div></div>
       <div class="transport"><button id="play" class="primary">Play</button><button id="restart" class="ghost">From the start</button><span class="time" id="time"></span></div>
       <div class="lane" id="lane" title="Tap to move through the film"></div>
-      <div class="card" style="margin-top:12px"><h2>What the film kept</h2><div class="kept" id="kept"></div></div>
+      <div class="card" style="margin-top:12px"><div class="row"><h2 class="grow" style="margin:0">What the film kept</h2><button id="exportBtn" class="primary">Send</button></div><div class="kept" id="kept" style="margin-top:8px"></div></div>
     </div>
   </div>
 </section>
@@ -191,6 +191,8 @@ h2{ font:600 17px var(--serif); margin:0 0 10px; } h3{ font:500 12px var(--mono)
 <script src="syntagma/metz.js"></script>
 <script src="markov/engine.js?v=5"></script>
 <script src="markov/clip-text.js?v=2"></script>
+<script src="markov/guide.js?v=2"></script>
+<script src="markov/export.js?v=2"></script>
 <script>
 (() => {
   const $ = s => document.querySelector(s), h = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
@@ -233,6 +235,11 @@ h2{ font:600 17px var(--serif); margin:0 0 10px; } h3{ font:500 12px var(--mono)
     $('#lane').onclick = e => { if (!cur) return; const r = e.currentTarget.getBoundingClientRect(); player.seek(cur.T0 + (e.clientX - r.left) / r.width * (cur.T1 - cur.T0)); };
     $('#mic').onclick = live.toggle; $('#recBtn').onclick = () => $('#rec').click(); $('#rec').onchange = e => e.target.files[0] && ingest(e.target.files[0]);
     $('#sheetClose').onclick = () => $('#sheet').hidden = true;
+    window.SH = window.SH || { get server() { return serverOK; } };
+    $('#howBtn').onclick = () => MPGuide.open('engine'); MPGuide.first('engine');
+    $('#exportBtn').onclick = e => { e.stopPropagation(); if (!cur) return; const c = { ...cur, audio: cur.audio ? (typeof cur.audio === 'string' ? { src: cur.audio, offset: 0 } : cur.audio) : null };
+      const v = $('#src').value, lines = v[0] === 'w' ? null : $('#text').value.split('\n').map(x => x.trim()).filter(Boolean);
+      MPExport.menu($('#exportBtn'), () => MPExport.project({ LIB, K }, c, { room: 'engine', lines, poem: v[0] === 'w' || v.startsWith('t:') ? v : null, title: lines ? lines[0] : $('#src').selectedOptions[0].textContent, locks: { ...locks }, take })); };
     $('#qgo').onclick = search; $('#qwide').onclick = wide; $('#runAll').onclick = runTests;
     renderTests(); load();
   }

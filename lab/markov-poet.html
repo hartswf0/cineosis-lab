@@ -1,60 +1,121 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>The Markov Poet</title>
-<meta name="description" content="A class is not a path. Films assembled from a finite archive one choice at a time, with the path kept: what was offered, what was taken, what somebody refused.">
+<meta name="description" content="Type or say words; get a film cut from sixteen thousand public archive shots; change it; send it. How it works, step by step, on a real sentence.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{ color-scheme:dark; --bg:#070706; --ink:#efe9dd; --dim:#8a8378; --faint:#3a3631; --rule:#201e1b; --hi:#e8c070; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; }
-*{ box-sizing:border-box; } html,body{ margin:0; background:var(--bg); color:var(--ink); font:17px/1.65 var(--serif); }
-body{ padding:0 20px 80px; } main{ max-width:760px; margin:0 auto; }
-header{ padding:12vh 0 8vh; }
-h1{ font:300 clamp(44px,8vw,92px)/1 var(--serif); margin:0 0 22px; letter-spacing:-.01em; }
-.tag{ font:300 italic clamp(20px,2.6vw,28px)/1.3 var(--serif); color:var(--hi); margin:0; }
-p{ margin:0 0 18px; } .dim{ color:var(--dim); } a{ color:inherit; }
-h2{ font:400 12px var(--mono); letter-spacing:.22em; text-transform:uppercase; color:var(--dim); margin:64px 0 18px; }
-.rooms{ display:grid; gap:10px; }
-.room{ display:grid; grid-template-columns:44px 1fr auto; gap:16px; align-items:center; padding:20px 18px; border:1px solid var(--rule); border-radius:10px; text-decoration:none; transition:border-color .3s, background .3s; }
-.room:hover{ border-color:var(--faint); background:#0e0d0c; } .room svg{ width:28px; height:28px; color:var(--hi); }
-.room b{ display:block; font:400 24px/1.2 var(--serif); } .room span{ color:var(--dim); font-size:15px; } .room em{ font:12px var(--mono); color:var(--faint); font-style:normal; letter-spacing:.1em; }
-blockquote{ margin:26px 0; padding-left:18px; border-left:1px solid var(--hi); font-style:italic; color:#d9d2c5; }
-.path{ display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:8px; overflow:hidden; margin:24px 0; }
-.path div{ background:var(--bg); padding:14px; font-size:14px; line-height:1.45; } .path b{ display:block; font:400 11px var(--mono); letter-spacing:.14em; text-transform:uppercase; color:var(--hi); margin-bottom:6px; }
-@media (max-width:640px){ .path{ grid-template-columns:1fr 1fr; } .room{ grid-template-columns:32px 1fr; } .room em{ display:none; } }
-footer{ margin-top:80px; font:12px var(--mono); color:var(--faint); letter-spacing:.06em; }
-</style></head>
-<body><main>
+:root{ color-scheme:dark; --bg:#070706; --panel:#0f0e0d; --ink:#efe9dd; --dim:#8d867b; --faint:#3a3631; --rule:#1f1d1a; --hi:#e8c070; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; }
+*{ box-sizing:border-box; } html,body{ margin:0; background:var(--bg); color:var(--ink); font:15px/1.6 var(--mono); -webkit-text-size-adjust:100%; }
+body{ padding:0 16px calc(60px + env(safe-area-inset-bottom)); overflow-x:hidden; } .step .viz{ min-width:0; overflow:hidden; } main{ max-width:880px; margin:0 auto; }
+a{ color:inherit; } [hidden]{ display:none !important; }
+header{ padding:9vh 0 5vh; }
+h1{ font:300 clamp(40px,8vw,84px)/1 var(--serif); margin:0 0 16px; }
+.lede{ font:300 clamp(19px,2.6vw,26px)/1.35 var(--serif); margin:0 0 26px; max-width:720px; }
+.go{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; } @media (max-width:720px){ .go{ grid-template-columns:1fr; } }
+.go a{ display:block; text-decoration:none; padding:16px; border:1px solid var(--faint); border-radius:12px; min-height:44px; transition:border-color .3s, background .3s; }
+.go a:hover{ border-color:var(--hi); background:#0f0d0a; } .go a.p{ background:var(--hi); color:#1a1408; border-color:var(--hi); }
+.go b{ display:block; font:400 20px/1.2 var(--serif); margin-bottom:4px; } .go span{ font-size:12.5px; color:var(--dim); } .go a.p span{ color:#3d3218; }
+h2{ font:500 11px var(--mono); letter-spacing:.2em; text-transform:uppercase; color:var(--dim); margin:64px 0 6px; }
+.h2l{ font:300 clamp(24px,3.4vw,34px)/1.2 var(--serif); margin:0 0 22px; }
+.step{ display:grid; grid-template-columns:44px 1fr; gap:4px 14px; padding:22px 0; border-top:1px solid var(--rule); }
+.step .n{ grid-row:span 3; width:34px; height:34px; border-radius:50%; border:1px solid var(--hi); color:var(--hi); display:grid; place-items:center; font-size:13px; }
+.step > b{ font:400 22px/1.25 var(--serif); } .step p{ margin:0; color:var(--dim); font-size:13.5px; } .step .viz{ margin-top:12px; min-width:0; }
+.chips{ display:flex; flex-wrap:wrap; gap:6px; } .chips button{ font:inherit; font-size:13px; color:var(--ink); background:var(--panel); border:1px solid var(--faint); border-radius:18px; padding:7px 12px; cursor:pointer; min-height:36px; text-align:left; }
+.chips button.on{ border-color:var(--hi); color:var(--hi); } .chips .sc{ border-left:3px solid var(--sc,#555); }
+.cands{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; } @media (max-width:560px){ .cands{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+.cand{ position:relative; border-radius:4px; overflow:hidden; aspect-ratio:16/10; background:#000; outline:2px solid transparent; outline-offset:-2px; }
+.cand img{ width:100%; height:100%; object-fit:cover; display:block; } .cand.on{ outline-color:var(--hi); }
+.cand .pc{ position:absolute; right:5px; top:4px; font-size:11px; text-shadow:0 0 4px #000; } .cand .bar{ position:absolute; left:0; bottom:0; height:4px; background:var(--hi); }
+.cand .sg{ position:absolute; left:4px; bottom:8px; display:flex; gap:2px; } .cand .sg i{ font-style:normal; font-size:9px; color:#15120d; padding:1px 3px; border-radius:2px; }
+.ribbon{ display:flex; height:12px; border-radius:2px; overflow:hidden; background:var(--rule); margin-top:10px; } .ribbon i{ height:100%; border-right:1px solid var(--bg); }
+.note{ font-size:12.5px; color:var(--dim); margin-top:8px; } .note b{ color:var(--ink); font-weight:500; }
+.worlds{ display:grid; gap:6px; } .worlds div{ display:grid; grid-template-columns:auto 1fr; gap:12px; align-items:center; padding:10px; background:var(--panel); border-radius:8px; }
+.worlds img{ width:120px; aspect-ratio:16/10; object-fit:cover; border-radius:4px; } .worlds b{ font:400 17px var(--serif); display:block; } .worlds span{ color:var(--dim); font-size:12.5px; }
+.edits{ display:grid; gap:4px; } .edits div{ display:grid; grid-template-columns:1fr auto; gap:10px; padding:8px 10px; border-left:2px solid var(--faint); background:var(--panel); border-radius:0 6px 6px 0; }
+.edits .op{ color:var(--hi); font-size:12px; letter-spacing:.06em; white-space:nowrap; } .edits .why{ grid-column:1/-1; color:var(--dim); font-size:12px; }
+.cut{ display:flex; gap:4px; overflow-x:auto; padding-bottom:6px; scroll-snap-type:x mandatory; } .cut figure{ margin:0; flex:0 0 150px; scroll-snap-align:start; }
+.cut img{ width:150px; aspect-ratio:16/10; object-fit:cover; border-radius:4px; display:block; border-bottom:3px solid var(--dc,#555); } .cut figcaption{ font-size:11px; color:var(--dim); margin-top:4px; } .cut figcaption b{ color:var(--hi); font-weight:500; display:block; }
+.score{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; } @media (max-width:560px){ .score{ grid-template-columns:repeat(2,1fr); } }
+.score div{ background:var(--panel); border-radius:8px; padding:12px; } .score b{ display:block; font:300 30px/1.1 var(--serif); } .score span{ font-size:11px; color:var(--dim); letter-spacing:.04em; }
+.score .tot{ grid-column:1/-1; display:flex; justify-content:space-between; align-items:baseline; } .score .tot b{ color:var(--hi); font-size:44px; }
+.try{ display:inline-flex; margin-top:14px; min-height:44px; align-items:center; padding:0 18px; border-radius:22px; background:var(--hi); color:#1a1408; text-decoration:none; font-weight:500; letter-spacing:.04em; }
+.loading{ color:var(--dim); font-size:12.5px; } .loading i{ display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--hi); margin-right:8px; animation:p 1s infinite; } @keyframes p{ 50%{ opacity:.2; } }
+.coda{ font:300 18px/1.6 var(--serif); color:#cfc8bc; } .coda p{ margin:0 0 14px; }
+footer{ margin-top:64px; font-size:12px; color:var(--faint); letter-spacing:.06em; display:flex; gap:18px; flex-wrap:wrap; }
+</style></head><body><main>
 <header>
   <h1>The Markov Poet</h1>
-  <p class="tag">A class is not a path.</p>
+  <p class="lede">Type or say some words. Get a film cut from 16,153 shots of the public Moving Image Archive. Change any shot. Send the film.</p>
+  <div class="go">
+    <a class="p" href="shannon-poet.html"><b>Write a film</b><span>The Poet: an empty screen; type a line, press Return</span></a>
+    <a href="shannon-narrative.html"><b>Watch a poem</b><span>Narrative: a poem line by line, every shot weighed beside it</span></a>
+    <a href="markov-engine.html"><b>Open the workshop</b><span>The Engine: any text, a transcript, a recording; tests</span></a>
+  </div>
 </header>
 
-<p>In a courtyard in the Moroccan countryside, a poet builds a poem while he sings it, out of a bounded inherited stock and strict schemes of rhyme, aimed at the people close enough to hear themselves become the poem. Clifford Geertz, describing it, reaches for a comparison: the poet works molecularly, "like some artistic Markov process." The formula is inherited. The poem is still an event. Somebody whistles; the poet hears him; the next line changes.</p>
-<p>This project makes films the same way. A finite archive of moving images, sixteen thousand shots, is the stock. Language arrives, a poem, a nursery rhyme, a meeting, a voice, and each line narrows what can follow, one choice pressing on the next. The machinery is Markov's and Shannon's: a repertoire, a state, a distribution over what comes next. The interest is in what the machinery cannot say about itself: what was offered, what was taken, what somebody saw and refused.</p>
+<h2>How it works</h2>
+<p class="h2l">One sentence, through the engine, live.</p>
+<div id="demoLoading" class="loading"><i></i>loading the archive to run the example (about 20 MB, once)</div>
+<section id="demo" hidden>
+  <div class="step"><span class="n">1</span><b>Split the words into lines.</b><p>A line break, a comma, "while", "but", "after" start a new line. A blank line starts a new scene.</p><div class="viz"><div class="chips" id="lines"></div></div></div>
+  <div class="step"><span class="n">2</span><b>Weigh every shot against each line.</b><p>CLIP reads the line and all 16,153 shots. Each shot gets a chance. Tap a line above to see what it weighs.</p>
+    <div class="viz"><div class="cands" id="cands"></div><div class="ribbon" id="ribbon"></div><div class="note" id="candNote"></div></div></div>
+  <div class="step"><span class="n">3</span><b>Give each scene a world.</b><p>The engine picks the one film that can play the most of the scene's lines, and cuts inside it, forward in its time.</p><div class="viz"><div class="worlds" id="worlds"></div></div></div>
+  <div class="step"><span class="n">4</span><b>Let the grammar pick the edit.</b><p>"Every evening" returns to the same place. "While" and "across the city" cut between two people. "Cannot leave" never shows the leaving. "But" holds the shot.</p><div class="viz"><div class="edits" id="edits"></div></div></div>
+  <div class="step"><span class="n">5</span><b>Play the cut.</b><p>The coloured line under each shot is its Cineosis sign: the kind of image it is (colours below).</p><div class="viz"><div class="cut" id="cut"></div><a class="try" id="tryIt" href="shannon-poet.html">PLAY IT IN THE POET</a></div></div>
+  <div class="step"><span class="n">6</span><b>Change a shot. Beat the score. Send it.</b><p>In any room, tap CHOOSE (or a tile) to replace a shot, then SEND: a project file a friend opens and remixes, a finished MP4, or a link.</p>
+    <div class="viz"><div class="score" id="score"></div><div class="note">Score = 50 × relations kept + 30 × worlds held + 20 × daring. <b>Relations kept</b>: what the words say that the cut shows (a return, an alternation, a refusal). <b>Worlds held</b>: how often a cut stays inside its scene's film. <b>Daring</b>: the surprise of your own choices, in bits (a shot the engine gave 3% is 5 bits). Choose shots the engine did not expect, and keep the relations.</div></div></div>
+</section>
 
-<h2>Three rooms</h2>
-<div class="rooms">
-  <a class="room" href="shannon-poet.html"><svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="11" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="14" cy="14" r="3" fill="currentColor"/></svg>
-    <div><b>The Poet</b><span>An empty room. Say a line, or type one. The archive weighs it in front of you and answers with a film.</span></div><em>THE COURTYARD</em></a>
-  <a class="room" href="shannon-narrative.html"><svg viewBox="0 0 28 28" aria-hidden="true"><rect x="3" y="5" width="13" height="18" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M19 5h6v5h-6zM19 12h6v5h-6zM19 19h6v4h-6z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
-    <div><b>Narrative</b><span>A poem played line by line against its voice, recorded or Piper or both, with every shot the engine weighed moving beside the one it took. For the gallery wall.</span></div><em>THE WALL</em></a>
-  <a class="room" href="markov-engine.html"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M4 22l8-8 4 4 8-10" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="14" r="1.6" fill="currentColor"/><circle cx="16" cy="18" r="1.6" fill="currentColor"/></svg>
-    <div><b>The Engine</b><span>The workshop. Scenes and worlds, search, recordings and transcripts, and a library of poems the engine is tested against.</span></div><em>THE WORKSHOP</em></a>
+<h2>The colour of a shot</h2>
+<p class="h2l">Eight kinds of image, from the Cineosis periodic table.</p>
+<div id="legend"></div>
+
+<h2>Why "Markov"</h2>
+<div class="coda">
+  <p>In 1913 Andrey Markov counted which letter follows which in Pushkin's <i>Eugene Onegin</i>. Each choice here works the same way: the next shot depends on the line and on the shots already cut. The machinery says which shots were possible. It does not say which one you kept.</p>
+  <p>So every room keeps the path: what was offered, how sure the engine was, and where somebody chose otherwise. A class is not a path.</p>
 </div>
 
-<h2>The path, not the class</h2>
-<p>"AI-generated" names machinery. It says nothing about what happened. These rooms keep the path instead, at every line:</p>
-<div class="path">
-  <div><b>Offered</b>the shots in contention, and how many were really in play</div>
-  <div><b>Weighed</b>the confidence, spread across them: decisive, or open</div>
-  <div><b>Taken</b>the edit made: stay in the scene's world, cut away, return, hold</div>
-  <div><b>Refused</b>every shot a person tried and kept instead, counted</div>
-</div>
-<p>And one test borrowed from pinball: call the shot. Before the film is made, say what must survive from the words (a thing that happens every evening, one person waiting while another leaves, someone who cannot leave) and let the film fail it. The engine reports what survived. It does not decide what mattered.</p>
-<blockquote>A mechanism tells us how possibilities became available. It does not tell us what somebody did with them.</blockquote>
-
-<h2>Lineage</h2>
-<p class="dim">The Markov Poet grew out of the Cineosis Lab, where a periodic table of cinematic signs and Christian Metz's grand syntagmatique were built to describe how films hold together. Its engine was first cut against the fourteen poems of <i>Where You Go When You Leave</i>, and it is being tuned toward the work of Mark Anthony Thomas. The archive is the Moving Image Archive's public film collection. Voices are the poet's recordings and Piper. Words are read by CLIP, in the browser.</p>
-
-<footer><a href="index.html">CINEOSIS LAB</a> · <a href="markov/tests/poems.json">THE TEST LIBRARY</a></footer>
-</main></body></html>
+<footer><a href="index.html">CINEOSIS LAB</a><a href="markov/tests/poems.json">THE TEST POEMS</a><span>began with the lab's periodic table and Metz's syntagmas, cut first against the poems of Where You Go When You Leave, tuned toward the work of Mark Anthony Thomas</span></footer>
+</main>
+<script src="markov/engine.js?v=6"></script>
+<script src="markov/clip-text.js?v=2"></script>
+<script src="markov/shared.js?v=2"></script>
+<script src="markov/guide.js?v=2"></script>
+<script src="markov/export.js?v=2"></script>
+<script>
+(() => {
+  const $ = s => document.querySelector(s), esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  $('#legend').innerHTML = MPGuide.legend();
+  const TEXT = 'Every evening, he waited at the window. Across the city, she was already leaving.';
+  const EDIT = { OPEN: 'opens the scene', CONTINUE: 'stays in the world', HOLD: 'holds', REPEAT: 'returns again', RETURN: 'returns', ALTERNATE: 'meanwhile: cuts back', SUSPEND: 'held back', COMPLETE: 'completes', ABSENCE: 'emptied', INSERT: 'insert', CUTAWAY: 'cuts away' };
+  let D, cur, sel = 0;
+  const dom = x => { const g = x && (x.signs || [])[0] && D.K.signs[x.signs[0]]; return g ? MPGuide.color(g.dom) : '#6b655c'; };
+  const chips = x => (x.signs || []).slice(0, 3).map(c => D.K.signs[c]).filter(Boolean).map(g => `<i style="background:${MPGuide.color(g.dom)}" title="${esc(g.name)}">${g.symbol}</i>`).join('');
+  function start() {
+    // the page paints first; the archive loads after
+    SH.load().then(async d => { D = d; const P = await SH.phrases('own', 'none', TEXT); cur = await SH.compose(P, { close: false });
+      $('#demoLoading').hidden = true; $('#demo').hidden = false; draw(); }).catch(e => { $('#demoLoading').textContent = 'the example could not load: ' + e.message; });
+  }
+  function draw() {
+    $('#lines').innerHTML = ''; cur.ph.forEach((p, i) => { const s = cur.cut.find(x => x.phrase === i), b = document.createElement('button'); b.className = 'sc' + (i === sel ? ' on' : ''); b.style.setProperty('--sc', s ? dom(D.LIB.shots[s.k]) : '#555');
+      b.textContent = p.text; b.onclick = () => { sel = i; draw(); }; $('#lines').append(b); });
+    const s = cur.cut.find(x => x.phrase === sel), top = s.alts[0].p;
+    $('#cands').innerHTML = s.alts.slice(0, 8).map(a => { const x = D.LIB.shots[a.k]; return `<div class="cand${a.k === s.k ? ' on' : ''}"><img src="${esc(x.thumb)}" alt="" loading="lazy"><span class="pc">${Math.round(a.p * 100)}%</span><span class="sg">${chips(x)}</span><span class="bar" style="width:${a.p / top * 100}%;background:${dom(x)}"></span></div>`; }).join('');
+    let sum = 0; $('#ribbon').innerHTML = s.alts.map(a => { sum += a.p; return `<i style="width:${a.p * 100}%;background:${a.k === s.k ? '#e8c070' : dom(D.LIB.shots[a.k]) + '77'}"></i>`; }).join('');
+    const x = D.LIB.shots[s.k];
+    $('#candNote').innerHTML = `The engine took <b>${esc(x.title)}${x.year ? ', ' + x.year : ''}</b> at ${Math.round(s.p * 100)}%. About <b>${Math.max(1, Math.round(s.perp))}</b> shots were really in play; the ribbon shows how the chance is spread (gold: the one taken).`;
+    $('#worlds').innerHTML = Object.entries(cur.eng.scenes).map(([k, sc]) => { const i = D.LIB.bySrc[sc.home][0], y = D.LIB.shots[i], n = cur.cut.filter(c => c.scene === +k && c.src === sc.home).length;
+      return `<div><img src="${esc(y.thumb)}" alt=""><span><b>${esc(sc.title)}</b>scene ${+k + 1} · ${n} of ${cur.cut.filter(c => c.scene === +k).length} shots come from this film</span></div>`; }).join('');
+    $('#edits').innerHTML = cur.cut.map(c => `<div style="border-left-color:${dom(D.LIB.shots[c.k])}"><span>${esc(cur.ph[c.phrase].text)}</span><span class="op">${EDIT[c.op] || c.op} · ${esc(c.strand)}</span><span class="why">${esc(c.why)}</span></div>`).join('');
+    $('#cut').innerHTML = cur.cut.map(c => { const y = D.LIB.shots[c.k]; return `<figure><img src="${esc(y.thumb)}" alt="" style="--dc:${dom(y)}"><figcaption><b>${EDIT[c.op] || c.op}</b>${esc(y.title)}</figcaption></figure>`; }).join('');
+    const sc = MPExport.score(cur, {});
+    $('#score').innerHTML = `<div class="tot"><span>THIS CUT, UNTOUCHED</span><b>${sc.total}</b></div><div><b>${sc.kept}/${sc.required}</b><span>relations kept</span></div><div><b>${sc.held}%</b><span>worlds held</span></div><div><b>${sc.choices}</b><span>your choices</span></div><div><b>${sc.daring}</b><span>daring, bits</span></div>`;
+    MPExport.pack({ l: TEXT.match(/[^.]+\./g).map(x => x.trim()), k: {} }).then(h => $('#tryIt').href = 'shannon-poet.html#p=' + h).catch(() => { });
+  }
+  if ('requestIdleCallback' in window) requestIdleCallback(start, { timeout: 1500 }); else setTimeout(start, 300);
+})();
+</script>
+</body></html>
