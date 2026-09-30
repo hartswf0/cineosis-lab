@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Shannon Narrative</title>
+<meta name="description" content="The Markov Poet. A poem played line by line: the chosen shot large, and beside it every shot the engine weighed for that moment, moving, with its confidence.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ color-scheme:dark; --bg:#080807; --panel:#121110; --ink:#efe9dd; --dim:#8f887c; --faint:#4f4a43; --rule:#24221e; --hi:#e8c070; --try:#f4f1ea;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; }
+*{ box-sizing:border-box; } html{ -webkit-text-size-adjust:100%; }
+html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); font:13px/1.45 var(--mono); }
+button,select{ font:inherit; color:inherit; } [hidden]{ display:none !important; }
+.ico{ width:40px; height:40px; display:inline-grid; place-items:center; background:none; border:0; border-radius:50%; cursor:pointer; color:var(--ink); padding:0; text-decoration:none; }
+.ico:hover{ background:#ffffff12; } .ico svg{ width:20px; height:20px; } .ico.on{ color:var(--hi); }
+.ico.big{ width:48px; height:48px; background:var(--ink); color:var(--bg); } .ico.big:hover{ background:#fff; }
+:focus-visible{ outline:2px solid var(--hi); outline-offset:2px; }
+.app{ display:grid; grid-template-rows:auto 1fr auto; height:100dvh; }
+header{ display:flex; align-items:center; gap:4px; padding:8px 14px; border-bottom:1px solid var(--rule); transition:opacity .6s; position:relative; z-index:5; background:var(--bg); }
+.brand{ font:500 11px var(--mono); letter-spacing:.28em; margin-right:10px; white-space:nowrap; color:var(--dim); text-decoration:none; } .brand b{ font-weight:500; color:var(--hi); }
+header select{ background:transparent; border:1px solid var(--rule); border-radius:6px; padding:6px 8px; min-height:36px; min-width:0; width:min(40vw,360px); }
+header .sp{ flex:1; }
+.menu{ position:absolute; top:52px; right:14px; background:var(--panel); border:1px solid var(--rule); border-radius:8px; padding:6px; min-width:220px; box-shadow:0 12px 30px #000a; }
+.menu h4{ margin:4px 8px 6px; font:500 10px var(--mono); letter-spacing:.2em; color:var(--dim); }
+.menu button{ display:flex; width:100%; gap:10px; align-items:center; background:none; border:0; padding:9px 10px; border-radius:6px; cursor:pointer; text-align:left; }
+.menu button:hover{ background:#ffffff0d; } .menu button i{ width:8px; height:8px; border-radius:50%; border:1px solid var(--dim); } .menu button.on i{ background:var(--hi); border-color:var(--hi); }
+main{ display:grid; grid-template-columns:minmax(0,1.65fr) minmax(300px,1fr); min-height:0; }
+.stage{ display:flex; flex-direction:column; min-height:0; padding:18px 20px 12px; gap:14px; min-width:0; }
+.screen{ position:relative; flex:1; min-height:0; background:#000; border-radius:4px; overflow:hidden; }
+.screen video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; transition:opacity .35s; }
+.veil{ position:absolute; inset:0; display:grid; place-items:center; background:#000c; cursor:pointer; z-index:2; }
+.veil div{ text-align:center; } .veil b{ display:block; font:400 clamp(22px,3vw,38px)/1.2 var(--serif); margin-bottom:10px; } .veil span{ color:var(--dim); }
+.trying{ position:absolute; left:12px; top:12px; z-index:2; display:flex; gap:6px; align-items:center; background:#000b; border-radius:20px; padding:4px 6px 4px 12px; font-size:11px; letter-spacing:.08em; }
+.trying .ico{ width:32px; height:32px; }
+.line{ font:400 clamp(20px,2.4vw,34px)/1.28 var(--serif); min-height:2.6em; }
+.line .next{ color:var(--faint); font-size:.62em; display:block; margin-top:6px; font-style:italic; }
+.meta{ display:flex; gap:6px 14px; flex-wrap:wrap; color:var(--dim); font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
+.meta b{ color:var(--ink); font-weight:500; } .meta .edit{ color:var(--hi); }
+.ribbon{ display:flex; height:10px; border-radius:2px; overflow:hidden; background:var(--rule); cursor:pointer; }
+.ribbon i{ display:block; height:100%; background:#3a362f; border-right:1px solid var(--bg); transition:width .5s; } .ribbon i.c{ background:var(--hi); } .ribbon i.t{ background:var(--try); }
+.wall{ border-left:1px solid var(--rule); display:flex; flex-direction:column; min-height:0; min-width:0; }
+.wallhead{ display:flex; align-items:baseline; gap:4px 10px; padding:16px 16px 10px; flex-wrap:wrap; } .wallhead h2{ margin:0; font:400 20px var(--serif); } .wallhead .dim{ color:var(--dim); font-size:11px; }
+.seg{ margin-left:auto; display:flex; border:1px solid var(--rule); border-radius:6px; overflow:hidden; } .seg button{ background:none; border:0; padding:5px 9px; min-height:30px; cursor:pointer; color:var(--dim); font-size:11px; letter-spacing:.06em; white-space:nowrap; } .seg button.on{ background:var(--ink); color:var(--bg); }
+.tiles{ flex:1; min-height:0; overflow:auto; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; padding:0 16px 16px; align-content:start; }
+.tile{ position:relative; padding:0; border:0; background:#000; border-radius:3px; overflow:hidden; cursor:pointer; aspect-ratio:16/10; outline:2px solid transparent; outline-offset:-2px; animation:rise .5s both; }
+.tile img,.tile video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; opacity:.85; } .tile:hover img,.tile:hover video{ opacity:1; }
+.tile .p{ position:absolute; left:0; right:0; bottom:0; height:3px; background:#0008; } .tile .p u{ display:block; height:100%; background:var(--hi); }
+.tile .n{ position:absolute; right:4px; top:3px; font-size:10px; text-shadow:0 0 4px #000; } .tile .w{ position:absolute; left:5px; top:6px; width:6px; height:6px; border-radius:1px; background:var(--hi); }
+.tile.chosen{ outline-color:var(--hi); } .tile.tried{ outline-color:var(--try); }
+@keyframes rise{ from{ opacity:0; transform:scale(.96); } to{ opacity:1; transform:none; } }
+.wallfoot{ padding:10px 16px 14px; color:var(--dim); font-size:11px; border-top:1px solid var(--rule); } .wallfoot b{ color:var(--ink); font-weight:500; }
+footer{ border-top:1px solid var(--rule); padding:10px 14px calc(10px + env(safe-area-inset-bottom)); display:flex; gap:12px; align-items:center; transition:opacity .6s; background:var(--bg); }
+.status{ display:flex; align-items:center; gap:8px; color:var(--dim); font-size:11px; min-width:170px; white-space:nowrap; overflow:hidden; }
+.status i{ width:7px; height:7px; border-radius:50%; background:var(--faint); flex:none; } .status.busy i{ background:var(--hi); animation:beat 1s infinite; } .status.play i{ background:var(--ink); }
+.status u{ display:inline-block; width:56px; height:2px; background:var(--rule); text-decoration:none; position:relative; } .status u b{ position:absolute; left:0; top:0; bottom:0; background:var(--hi); }
+@keyframes beat{ 50%{ opacity:.25; } }
+.strip{ flex:1; position:relative; height:24px; display:flex; gap:1px; cursor:pointer; }
+.strip i{ display:block; height:100%; background:#2c2924; border-radius:1px; } .strip i.done{ background:#5b523f; } .strip i.now{ background:var(--hi); }
+.strip .head{ position:absolute; top:-3px; bottom:-3px; width:2px; background:#fff; pointer-events:none; }
+.clock{ color:var(--dim); font-size:11px; min-width:84px; text-align:right; }
+.info{ position:fixed; inset:0; background:#000d; display:grid; place-items:center; z-index:50; padding:20px; }
+.info article{ max-width:620px; background:var(--panel); border:1px solid var(--rule); border-radius:8px; padding:24px; font:16px/1.6 var(--serif); max-height:86vh; overflow:auto; position:relative; }
+.info h3{ font:500 11px var(--mono); letter-spacing:.2em; text-transform:uppercase; color:var(--hi); margin:0 0 10px; } .info p{ margin:0 0 12px; } .info .k{ font:12px var(--mono); color:var(--dim); }
+.info .x{ position:absolute; right:10px; top:10px; }
+body.quiet header, body.quiet footer{ opacity:0; } body.quiet{ cursor:none; }
+/* the museum grid: only moving pictures */
+body.grid .app{ grid-template-rows:auto 1fr auto; }
+body.grid main{ display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); grid-auto-rows:calc((100dvh - 110px) / 5); grid-auto-flow:dense; gap:4px; padding:4px; overflow:hidden; }
+body.grid .stage, body.grid .wall, body.grid .tiles{ display:contents; }
+body.grid .line, body.grid .meta, body.grid .ribbon, body.grid .wallhead, body.grid .wallfoot, body.grid .trying{ display:none; }
+body.grid .screen{ grid-column:span 3; grid-row:span 3; border-radius:2px; }
+body.grid .tile{ aspect-ratio:auto; border-radius:2px; } body.grid .tile .n, body.grid .tile .w{ display:none; }
+body.grid .screen .sub{ display:block; }
+.screen .sub{ display:none; position:absolute; left:4%; right:4%; bottom:5%; text-align:center; font:400 clamp(16px,1.8vw,26px)/1.3 var(--serif); text-shadow:0 0 8px #000; z-index:1; }
+body.grid.words .screen .sub{ display:block; } body.grid:not(.words) .screen .sub{ display:none; }
+@media (max-width:860px){
+  .app{ height:auto; min-height:100dvh; }
+  main{ grid-template-columns:minmax(0,1fr); } .meta span{ min-width:0; overflow-wrap:anywhere; }
+  .stage{ padding:12px; } .screen{ flex:none; aspect-ratio:16/9; }
+  .wall{ border-left:0; border-top:1px solid var(--rule); } .tiles{ grid-template-columns:repeat(3,minmax(0,1fr)); overflow:visible; }
+  footer{ position:sticky; bottom:0; flex-wrap:wrap; } .status{ min-width:0; flex-basis:100%; }
+  header{ flex-wrap:wrap; gap:2px; } header .brand{ flex:1; } header .sp{ display:none; }
+  header select{ order:9; width:100%; flex-basis:100%; margin-top:6px; } header .ico{ width:36px; height:36px; } header .ico.big{ width:42px; height:42px; }
+  body.grid main{ grid-template-columns:repeat(3,minmax(0,1fr)); grid-auto-rows:22vw; } body.grid .screen{ grid-column:span 3; grid-row:span 2; }
+}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-play" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z" fill="currentColor"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 20 20"><path d="M6 4h3v12H6zM11 4h3v12h-3z" fill="currentColor"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 20 20"><path d="M5 4v12M16 4l-8 6 8 6z" stroke="currentColor" stroke-width="1.6" fill="currentColor"/></symbol>
+  <symbol id="i-next" viewBox="0 0 20 20"><path d="M15 4v12M4 4l8 6-8 6z" stroke="currentColor" stroke-width="1.6" fill="currentColor"/></symbol>
+  <symbol id="i-take" viewBox="0 0 20 20"><path d="M3 6h3.5c3 0 4 8 7 8H17M3 14h3.5c1.3 0 2.2-1.6 3-3.4M13.6 6H17M15 4l2 2-2 2M15 12l2 2-2 2" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></symbol>
+  <symbol id="i-info" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M10 9v5M10 6.2v.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-full" viewBox="0 0 20 20"><path d="M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5" stroke="currentColor" stroke-width="1.6" fill="none"/></symbol>
+  <symbol id="i-keep" viewBox="0 0 20 20"><path d="M5 10.5l3.2 3.2L15 6.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-close" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 20 20"><path d="M4 16h3l8.5-8.5-3-3L4 13zM11 6l3 3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/></symbol>
+  <symbol id="i-voice" viewBox="0 0 20 20"><path d="M3 8v4h3l4 3.5v-11L6 8z" fill="currentColor"/><path d="M13 7.5c1 1.4 1 3.6 0 5M15.5 5.5c2 2.5 2 6.5 0 9" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 20 20"><path d="M3 3h8v8H3zM13 3h4v4h-4zM13 9h4v2h-4zM3 13h4v4H3zM9 13h8v4H9z" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
+</svg>
+<div class="app">
+  <header id="hdr">
+    <a class="brand" href="markov-poet.html" title="The Markov Poet">MARKOV POET <b>NARRATIVE</b></a>
+    <select id="src" aria-label="The poem"></select>
+    <span class="sp"></span>
+    <button class="ico" id="bPrev" title="Previous line (Left)" aria-label="Previous line"><svg><use href="#i-prev"/></svg></button>
+    <button class="ico big" id="bPlay" title="Play (Space)" aria-label="Play"><svg><use href="#i-play"/></svg></button>
+    <button class="ico" id="bNext" title="Next line (Right)" aria-label="Next line"><svg><use href="#i-next"/></svg></button>
+    <button class="ico" id="bVoice" title="Voice (V)" aria-label="Voice"><svg><use href="#i-voice"/></svg></button>
+    <button class="ico" id="bGrid" title="Only the moving pictures (G)" aria-label="Grid"><svg><use href="#i-grid"/></svg></button>
+    <button class="ico" id="bTake" title="Another take (T)" aria-label="Another take"><svg><use href="#i-take"/></svg></button>
+    <a class="ico" id="bEdit" href="markov-engine.html" title="Edit the words in the engine" aria-label="Edit"><svg><use href="#i-edit"/></svg></a>
+    <button class="ico" id="bInfo" title="About" aria-label="About"><svg><use href="#i-info"/></svg></button>
+    <button class="ico" id="bFull" title="Full screen (F)" aria-label="Full screen"><svg><use href="#i-full"/></svg></button>
+    <div class="menu" id="voiceMenu" hidden><h4>VOICE</h4><div id="voiceOpts"></div></div>
+  </header>
+  <main>
+    <section class="stage">
+      <div class="screen" id="screen">
+        <video id="va" playsinline muted preload="auto"></video><video id="vb" playsinline muted preload="auto"></video>
+        <div class="sub" id="sub"></div>
+        <div class="trying" id="trying" hidden><span>TRYING · THE LINE WAITS</span><button class="ico" id="bKeep" title="Keep this shot (K)" aria-label="Keep"><svg><use href="#i-keep"/></svg></button><button class="ico" id="bUntry" title="Back (Esc)" aria-label="Back"><svg><use href="#i-close"/></svg></button></div>
+        <div class="veil" id="veil"><div><b>Touch to begin</b><span id="veilSub">the poem plays line by line</span></div></div>
+      </div>
+      <div class="line" id="line"></div>
+      <div class="meta" id="meta"></div>
+      <div class="ribbon" id="ribbon" title="How the engine's confidence is spread across the shots it weighed"></div>
+    </section>
+    <aside class="wall">
+      <div class="wallhead"><h2>Possibilities</h2><span class="dim" id="wallN"></span>
+        <div class="seg" id="wallSeg" hidden><button data-v="engine" class="on">ENGINE</button><button data-v="forage">FORAGED</button></div></div>
+      <div class="tiles" id="tiles"></div>
+      <div class="wallfoot" id="wallFoot"></div>
+    </aside>
+  </main>
+  <footer id="ftr">
+    <div class="status" id="status"><i></i><span id="statusText">waking</span><u id="statusBar" hidden><b></b></u></div>
+    <div class="strip" id="strip" aria-label="The poem, line by line"></div>
+    <span class="clock" id="clock"></span>
+  </footer>
+</div>
+<div class="info" id="info" hidden><article>
+  <button class="ico x" id="bInfoClose" aria-label="Close"><svg><use href="#i-close"/></svg></button>
+  <h3>Narrative</h3>
+  <p>The poem plays line by line. The large image is the shot the engine chose for the moment; the wall is every shot it weighed, moving, ordered by confidence. The ribbon under the line shows how that confidence was spread: one long gold segment means the archive answered decisively; many small ones mean many shots could carry the line.</p>
+  <p>Touch a shot on the wall to try it. The line waits. Keep it, and the film is composed again around your choice: one place where the film went otherwise because somebody saw a difference and acted.</p>
+  <p>The voice can be the poet's recording, a Piper voice in step with it, or both at once.</p>
+  <p class="k">Space play · Left/Right line · V voice · G only the pictures · W words in the grid · K keep · Esc back · T another take · F full screen · ?museum=1 loops and lets the frame fall away · &amp;grid=1 opens on the pictures</p>
+  <p class="k">Part of the Markov Poet, from the Cineosis Lab.</p>
+</article></div>
+<audio id="aud" preload="auto"></audio><audio id="aud2" preload="auto"></audio>
+<script src="markov/engine.js?v=5"></script>
+<script src="markov/clip-text.js?v=2"></script>
+<script src="markov/shared.js?v=1"></script>
+<script>
+(() => {
+  const $ = s => document.querySelector(s), h = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  if (!window.Shannon || !window.SH) { $('#line').textContent = 'The engine did not load. Open this page from the lab (http://localhost:8765/lab/) or the published site.'; return; }
+  const S = window.Shannon, SH = window.SH, Q = new URLSearchParams(location.search), MUSEUM = Q.get('museum') === '1';
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
+  const EDIT = { OPEN: 'opens the scene', CONTINUE: 'stays in the world', HOLD: 'holds', REPEAT: 'returns again', RETURN: 'returns', ALTERNATE: 'meanwhile', SUSPEND: 'held back', COMPLETE: 'completes', ABSENCE: 'emptied', INSERT: 'insert', CUTAWAY: 'cuts away' };
+  let D, cur = null, locks = {}, take = 0, tried = null, wallMode = 'engine', voice = null, shotI = -1, lineI = -1;
+  const LIVE = () => document.body.classList.contains('grid') ? 15 : innerWidth < 860 ? 6 : 12;   // how many tiles move at once
+
+  SH.onStatus(s => { const e = $('#status'); e.className = 'status' + (/rest|idle/.test(s.stage) ? '' : s.stage === 'playing' ? ' play' : ' busy'); $('#statusText').textContent = s.text;
+    $('#statusBar').hidden = s.frac == null; if (s.frac != null) $('#statusBar b').style.width = Math.round(s.frac * 100) + '%'; });
+  SH.load().then(d => { D = d; setup(); }).catch(e => { $('#line').textContent = 'Could not load the archive: ' + e.message; });
+
+  function setup() {
+    const src = $('#src'), g = l => { const o = document.createElement('optgroup'); o.label = l; src.append(o); return o; };
+    const w = g('Where You Go When You Leave'); D.K.films.forEach(f => w.append(new Option(`${f.n}  ${f.title}`, 'w' + f.n)));
+    const t = g('The library'); D.POEMS.filter(p => p.id !== 'wygwyl' && SH.textOf(p)).forEach(p => t.append(new Option(`${p.title} · ${p.author}`, 't:' + p.id)));
+    if (store.get('shannon.own', '')) g('Your words').append(new Option('Your own words (from the engine)', 'own'));
+    src.value = Q.get('poem') || store.get('narr.src', 'w01'); if (!src.value) src.value = 'w01';
+    src.onchange = () => { store.set('narr.src', src.value); locks = {}; take = 0; voice = null; load(); };
+    $('#bPlay').onclick = () => player.toggle(); $('#bPrev').onclick = () => step(-1); $('#bNext').onclick = () => step(1);
+    $('#bTake').onclick = () => { take++; locks = {}; load(true); };
+    $('#bGrid').onclick = () => { document.body.classList.toggle('grid'); $('#bGrid').classList.toggle('on'); if (cur) drawWall(); };
+    $('#bVoice').onclick = e => { e.stopPropagation(); $('#voiceMenu').hidden = !$('#voiceMenu').hidden; };
+    document.addEventListener('click', e => { if (!e.target.closest('#voiceMenu')) $('#voiceMenu').hidden = true; });
+    $('#bFull').onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => { });
+    $('#bInfo').onclick = () => $('#info').hidden = false; $('#bInfoClose').onclick = () => $('#info').hidden = true; $('#info').onclick = e => { if (e.target.id === 'info') $('#info').hidden = true; };
+    $('#veil').onclick = () => { $('#veil').hidden = true; player.play(); };
+    $('#bKeep').onclick = keep; $('#bUntry').onclick = () => untry();
+    $('#strip').onclick = e => { if (!cur) return; const r = e.currentTarget.getBoundingClientRect(); player.seek(cur.T0 + (e.clientX - r.left) / r.width * (cur.T1 - cur.T0)); };
+    $('#ribbon').onclick = e => { const k = e.target.dataset && e.target.dataset.k; if (k != null) tryShot(+k); };
+    document.querySelectorAll('#wallSeg button').forEach(b => b.onclick = () => { wallMode = b.dataset.v; document.querySelectorAll('#wallSeg button').forEach(x => x.classList.toggle('on', x === b)); drawWall(); });
+    addEventListener('keydown', e => { if (e.target.tagName === 'SELECT') return; const k = e.key.toLowerCase();
+      if (e.key === ' ') { e.preventDefault(); $('#veil').hidden = true; player.toggle(); } else if (e.key === 'ArrowRight') step(1); else if (e.key === 'ArrowLeft') step(-1);
+      else if (k === 'k') keep(); else if (e.key === 'Escape') untry(); else if (k === 't') $('#bTake').click(); else if (k === 'f') $('#bFull').click();
+      else if (k === 'g') $('#bGrid').click(); else if (k === 'w') document.body.classList.toggle('words'); else if (k === 'v') $('#bVoice').click(); });
+    if (MUSEUM) { let idle; const wake = () => { document.body.classList.remove('quiet'); clearTimeout(idle); idle = setTimeout(() => document.body.classList.add('quiet'), 3500); }; ['mousemove', 'touchstart', 'keydown'].forEach(ev => addEventListener(ev, wake)); wake(); }
+    if (Q.get('grid') === '1') { document.body.classList.add('grid'); $('#bGrid').classList.add('on'); }
+    load();
+  }
+  function drawVoices() {
+    const box = $('#voiceOpts'); box.innerHTML = '';
+    SH.voicesFor($('#src').value).forEach(([v, label]) => { const b = h('button', v === voice ? 'on' : ''); b.innerHTML = `<i></i>${esc(label)}`; b.onclick = () => { voice = v; store.set('narr.voice.' + ($('#src').value[0] === 'w' ? 'w' : 't'), v); $('#voiceMenu').hidden = true; load(true); }; box.append(b); });
+  }
+
+  let busy = 0;
+  async function load(keepTime) {
+    const my = ++busy, src = $('#src').value, was = player.playing, at = player.t;
+    const opts = SH.voicesFor(src).map(x => x[0]); if (!voice || !opts.includes(voice)) voice = store.get('narr.voice.' + (src[0] === 'w' ? 'w' : 't'), opts[0]); if (!opts.includes(voice)) voice = opts[0];
+    drawVoices(); player.pause();
+    try {
+      const P = await SH.phrases(src, voice); if (my !== busy) return;
+      if (!P.ph.length) { $('#line').textContent = 'No words here yet: paste them in the engine.'; return; }
+      const c = await SH.compose(P, { wOp: 1, wHome: .09, gap: .045, seed: take ? take * 7919 : 0, close: true, poet: src[0] === 'w' && D.hasPoet ? 'I' : '', locks }); if (my !== busy) return;
+      cur = c; $('#wallSeg').hidden = src[0] !== 'w'; if ($('#wallSeg').hidden) wallMode = 'engine';
+      drawStrip(); tried = null; shotI = -1; lineI = -1; player.set(cur);
+      const tt = keepTime ? Math.min(at, cur.T1 - .05) : cur.T0; player.seek(tt);
+      $('#veilSub').textContent = `${cur.ph.length} lines · ${Object.keys(cur.eng.scenes).length} scenes · ${SH.voicesFor(src).find(x => x[0] === voice)[1]}`;
+      SH.status('rest', `${Object.keys(cur.eng.scenes).length} scenes composed`);
+      if (was || (MUSEUM && $('#veil').hidden)) player.play();
+    } catch (e) { $('#line').textContent = 'Could not compose: ' + e.message; SH.status('rest', 'waiting'); }
+  }
+
+  const title = x => `${x.title}${x.year ? ', ' + x.year : ''}`;
+  function moment(t) {
+    const i = cur.cut.findIndex(s => t >= s.t0 && t < s.t1), li = cur.ph.findIndex(p => t >= p.t0 && t < p.t1);
+    if (li !== lineI && li >= 0) { lineI = li; const p = cur.ph[li], nx = cur.ph[li + 1];
+      $('#line').innerHTML = esc(p.text) + (nx ? `<span class="next">${esc(nx.text)}</span>` : ''); $('#sub').textContent = p.text; markStrip(); }
+    if (i !== shotI && i >= 0) { shotI = i; if (tried != null) untry(true); drawMeta(); drawWall(); drawRibbon(); }
+  }
+  function drawMeta() {
+    const s = cur.cut[shotI], x = D.LIB.shots[tried != null && tried >= 0 ? tried : s.k], sc = cur.eng.scenes[s.scene] || {};
+    const a = s.alts.find(a => a.k === (tried != null ? tried : s.k)), p = a ? a.p : s.p;
+    $('#meta').innerHTML = `<span class="edit">${tried != null ? 'trying' : EDIT[s.op] || s.op}</span><span><b>${esc(title(x))}</b></span><span>scene ${s.scene + 1} · world: ${esc(sc.title || '')}</span><span>confidence <b>${Math.round(p * 100)}%</b> among ~${Math.max(1, Math.round(s.perp))}</span>`;
+  }
+  function drawRibbon() {
+    const s = cur.cut[shotI], rb = $('#ribbon'); rb.innerHTML = ''; let sum = 0;
+    s.alts.forEach(a => { sum += a.p; const i = h('i', a.k === s.k ? 'c' : a.k === tried ? 't' : ''); i.style.width = (a.p * 100) + '%'; i.dataset.k = a.k; i.title = `${Math.round(a.p * 100)}% · ${D.LIB.shots[a.k].title}`; rb.append(i); });
+    if (sum < 1) { const i = h('i'); i.style.width = ((1 - sum) * 100) + '%'; i.style.background = 'transparent'; rb.append(i); }
+  }
+  function tileMedia(t, video, poster, at, live) {
+    if (live && video) { const v = document.createElement('video'); v.muted = true; v.loop = true; v.playsInline = true; v.autoplay = true; v.preload = 'metadata'; v.poster = poster; v.src = video;
+      v.addEventListener('loadedmetadata', () => { try { v.currentTime = Math.min(at || 0, Math.max(0, v.duration - 1)); } catch (e) { } v.play().catch(() => { }); }, { once: true }); t.prepend(v); }
+    else { const im = document.createElement('img'); im.src = poster; im.alt = ''; im.loading = 'lazy'; t.prepend(im); }
+  }
+  function drawWall() {
+    const s = cur.cut[shotI]; if (!s) return; const box = $('#tiles'); box.querySelectorAll('video').forEach(v => { v.pause(); v.removeAttribute('src'); v.load(); }); box.innerHTML = ''; const live = LIVE();
+    if (wallMode === 'forage') {
+      const p = cur.ph[s.phrase], mid = (p.t0 + p.t1) / 2, b = D.K.beats.find(b => b.t0 <= mid && b.t1 > mid), pool = b ? (D.K.pool[b.id] || []) : [];
+      $('#wallN').textContent = `${pool.length} foraged for this beat`;
+      pool.slice(0, 24).forEach((c, j) => { const t = h('button', 'tile'); t.style.animationDelay = (j * 25) + 'ms'; t.innerHTML = `<span class="n">${c.fit || ''}</span><span class="p"><u style="width:${c.fit || 0}%"></u></span>`;
+        tileMedia(t, c.video, c.thumb, c.in || 0, j < live); t.title = `${c.title} ${c.year || ''} · fit ${c.fit}`;
+        t.onclick = () => { const k = D.LIB.shots.findIndex(x => x.id === c.id); if (k >= 0) tryShot(k); else tryUrl(c); }; box.append(t); });
+      $('#wallFoot').innerHTML = b ? `Beat ${b.id}: <b>${esc(b.title)}</b>. Gathered by hand for the suite; the number is its fit.` : '';
+      return;
+    }
+    const top = s.alts[0].p;
+    $('#wallN').textContent = `strongest ${s.alts.length} · about ${Math.max(1, Math.round(s.perp))} truly in play`;
+    s.alts.forEach((a, j) => { const x = D.LIB.shots[a.k], t = h('button', 'tile' + (a.k === s.k ? ' chosen' : '') + (a.k === tried ? ' tried' : '')); t.style.animationDelay = (j * 25) + 'ms';
+      t.innerHTML = `${x.src === s.home ? '<span class="w" title="in this scene\'s world"></span>' : ''}<span class="n">${Math.round(a.p * 100)}%</span><span class="p"><u style="width:${Math.min(100, a.p / top * 100)}%"></u></span>`;
+      tileMedia(t, x.video, x.thumb, x.in || 0, j < live); t.title = `${title(x)} · ${Math.round(a.p * 100)}%`; t.onclick = () => tryShot(a.k); box.append(t); });
+    $('#wallFoot').innerHTML = `Chosen: <b>${esc(title(D.LIB.shots[s.k]))}</b>. ${esc(s.why)}.` + (s.coverage < .258 ? ' The archive is thin for this line.' : '');
+  }
+  function drawStrip() { const st = $('#strip'); st.innerHTML = ''; cur.ph.forEach((p, i) => { const e = h('i'); e.style.flex = `${Math.max(.2, p.t1 - p.t0)} 1 0`; e.title = p.text; st.append(e); }); st.append(h('div', 'head')); }
+  function markStrip() { document.querySelectorAll('#strip i').forEach((e, i) => { e.classList.toggle('now', i === lineI); e.classList.toggle('done', i < lineI); }); }
+  function step(d) { if (!cur) return; const i = Math.max(0, Math.min(cur.ph.length - 1, (lineI < 0 ? 0 : lineI) + d)); player.seek(cur.ph[i].t0 + .01); }
+  function tryShot(k) { if (player.playing) player.pause(); tried = k; player.show(D.LIB.shots[k].video, D.LIB.shots[k].in || 0, true); $('#trying').hidden = false; $('#bKeep').hidden = false; drawMeta(); drawRibbon(); drawWall(); }
+  function tryUrl(c) { if (player.playing) player.pause(); tried = -1; player.show(c.video, c.in || 0, true); $('#trying').hidden = false; $('#bKeep').hidden = true; }
+  function untry(silent) { if (tried == null) return; tried = null; $('#trying').hidden = true; if (!silent) { player.reshow(); drawMeta(); drawRibbon(); drawWall(); } }
+  function keep() { if (tried == null || tried < 0 || !cur) return; const s = cur.cut[shotI], n0 = cur.cut.findIndex(x => x.phrase === s.phrase); locks[s.phrase + ':' + (s.i - n0)] = tried; tried = null; $('#trying').hidden = true; load(true).then(() => player.play()); }
+
+  const player = (() => {
+    const vids = [$('#va'), $('#vb')], clock = SH.Clock($('#aud'), $('#aud2')); let on = 0, playing = false, timer = 0, shown = -1;
+    const url = s => D.LIB.shots[s.k].video;
+    function load(v, u, at) { if (v.dataset.u !== u) { v.dataset.u = u; v.src = u; } const set = () => { try { v.currentTime = Math.min(at, (v.duration || 1e9) - .05); } catch (e) { } }; if (v.readyState >= 1) set(); else v.addEventListener('loadedmetadata', set, { once: true }); }
+    function front(u, at) { const nv = vids[1 - on]; if (nv.dataset.u === u) on = 1 - on; else load(vids[on], u, at); vids[on].style.opacity = 1; vids[1 - on].style.opacity = 0; if (playing || tried != null) vids[on].play().catch(() => { }); vids[1 - on].pause(); }
+    function sync(t) { const i = cur.cut.findIndex(s => t >= s.t0 && t < s.t1); if (i < 0 || tried != null) return;
+      if (i !== shown) { const s = cur.cut[i]; vids.forEach(v => v.loop = false); front(url(s), (s.in || 0) + Math.max(0, t - s.t0)); shown = i; const nx = cur.cut[i + 1]; if (nx) load(vids[1 - on], url(nx), nx.in || 0); } }
+    const fmt = x => `${Math.floor(x / 60)}:${String(Math.floor(Math.max(0, x) % 60)).padStart(2, '0')}`;
+    function head(t) { const e = document.querySelector('#strip .head'); if (e) e.style.left = ((t - cur.T0) / ((cur.T1 - cur.T0) || 1) * 100) + '%'; $('#clock').textContent = `${fmt(t - cur.T0)} / ${fmt(cur.T1 - cur.T0)}`; }
+    function tick() { const t = clock.now();
+      if (t >= cur.T1) { if (MUSEUM) { seek(cur.T0); clock.play(); return; } pause(); seek(cur.T0); return; }
+      sync(t); moment(t); head(t);
+      const v = vids[on], end = v.ended || (v.duration && v.currentTime >= v.duration - .12); if (end) { if (!v.paused) v.pause(); } else if (v.paused && v.readyState >= 2) v.play().catch(() => { }); }
+    function play() { if (!cur) return; if (tried != null) untry(true); playing = true; $('#veil').hidden = true; $('#bPlay').innerHTML = '<svg><use href="#i-pause"/></svg>';
+      shown = -1; sync(clock.now()); clock.play(); vids[on].play().catch(() => { }); clearInterval(timer); timer = setInterval(tick, 40); SH.status('playing', 'playing · ' + (cur.audio ? 'with a voice' : 'in silence')); }
+    function pause() { playing = false; $('#bPlay').innerHTML = '<svg><use href="#i-play"/></svg>'; clock.pause(); vids.forEach(v => v.pause()); clearInterval(timer); if (cur) SH.status('rest', 'paused'); }
+    function seek(t) { clock.seek(t); shown = -1; if (tried != null) untry(true); sync(t); moment(t); head(t); if (playing) vids[on].play().catch(() => { }); }
+    return { play, pause, seek, toggle() { playing ? pause() : play(); }, get playing() { return playing; }, get t() { return clock.now(); },
+      set(c) { clock.set(c); }, show(u, at, loop) { front(u, at); vids[on].loop = !!loop; vids[on].play().catch(() => { }); }, reshow() { shown = -1; sync(clock.now()); } };
+  })();
+})();
+</script>
+</body></html>
