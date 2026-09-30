@@ -24,18 +24,24 @@
   api.start = async function (o = {}) {
     const on = o.on || {}, tell = (k, ...a) => { try { on[k] && on[k](...a); } catch (e) { } };
     if (api.active) api.active.stop();
-    tell('state', 'asking for the camera');
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
-    const video = document.createElement('video'); video.muted = true; video.playsInline = true; video.srcObject = stream; await video.play().catch(() => { });
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('this browser gives pages no camera (it needs https)');
+    tell('step', 'camera', null, 'asking: allow the camera when the browser asks');
+    const want = id => ({ video: Object.assign({ width: { ideal: 640 }, height: { ideal: 480 } }, id ? { deviceId: { exact: id } } : { facingMode: 'user' }), audio: false });
+    let stream; try { stream = await navigator.mediaDevices.getUserMedia(want()); } catch (e) { tell('step', 'camera', false, /NotAllowed/.test(e.name) ? 'blocked: allow the camera for this site (the camera icon in the address bar), then tap the hand again' : /NotFound/.test(e.name) ? 'no camera was found' : /NotReadable/.test(e.name) ? 'the camera is in use by another app' : (e.name + ': ' + e.message)); throw e; }
+    // a virtual camera (a streaming or meeting driver) is often the default and shows nothing: take a real one instead
+    const VIRT = /virtual|obs|snap camera|ndi|mmhmm|camo|epoccam|droidcam|hue/i, lab = () => (stream.getVideoTracks()[0] || {}).label || 'camera';
+    if (VIRT.test(lab())) { try { const real = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput' && d.deviceId && !VIRT.test(d.label)); if (real.length) { const s2 = await navigator.mediaDevices.getUserMedia(want(real[0].deviceId)); stream.getTracks().forEach(t => t.stop()); stream = s2; } } catch (e) { } }
+    const video = o.view || document.createElement('video'); video.muted = true; video.playsInline = true; video.setAttribute('playsinline', ''); video.srcObject = stream; await video.play().catch(() => { });
+    tell('step', 'camera', true, lab());
     const url = URL.createObjectURL(new Blob([SRC], { type: 'text/javascript' })), worker = new Worker(url); URL.revokeObjectURL(url);
     let stopped = false, busy = false, timer = 0, ready = false, lastSeen = 0; const mem = {};
-    const h = { stop() { if (stopped) return; stopped = true; clearInterval(timer); worker.terminate(); stream.getTracks().forEach(t => t.stop()); if (api.active === h) api.active = null; if (o.preview) o.preview.getContext('2d').clearRect(0, 0, o.preview.width, o.preview.height); tell('frame', []); tell('state', 'hands off'); } };
-    api.active = h; tell('state', 'fetching the hand tracker');
+    const h = { stop() { if (stopped) return; stopped = true; clearInterval(timer); worker.terminate(); stream.getTracks().forEach(t => t.stop()); if (api.active === h) api.active = null; try { video.srcObject = null; } catch (e) { } if (o.preview) o.preview.getContext('2d').clearRect(0, 0, o.preview.width, o.preview.height); tell('frame', []); tell('state', 'hands off'); } };
+    api.active = h; tell('state', 'fetching the hand tracker'); tell('step', 'tracker', null, 'fetching the hand tracker (about 10 MB, once)'); const tLoad = performance.now(); let nRes = 0, tRes = performance.now(), seenEver = false;
     await new Promise((ok, no) => { const t = setTimeout(() => no(Error('the hand tracker took too long to download')), 45000);
-      worker.onerror = e => { clearTimeout(t); no(Error(e.message || 'the hand tracker could not start')); };
+      worker.onerror = e => { clearTimeout(t); tell('step', 'tracker', false, e.message || 'the hand tracker could not start'); no(Error(e.message || 'the hand tracker could not start')); };
       worker.onmessage = ({ data: d }) => {
-        if (d.type === 'ready') { ready = true; clearTimeout(t); ok(); }
-        else if (d.type === 'error') { clearTimeout(t); if (!ready) no(Error(d.message)); else { tell('error', d.message); h.stop(); } }
+        if (d.type === 'ready') { ready = true; clearTimeout(t); tell('step', 'tracker', true, 'ready in ' + ((performance.now() - tLoad) / 1000).toFixed(1) + ' s'); tell('step', 'hands', null, 'hold a hand up to the camera'); ok(); }
+        else if (d.type === 'error') { clearTimeout(t); tell('step', 'tracker', false, d.message); if (!ready) no(Error(d.message)); else { tell('error', d.message); h.stop(); } }
         else if (d.type === 'result') { busy = false; if (stopped) return; const aspect = video.videoWidth / video.videoHeight || 4 / 3, W = innerWidth, H = innerHeight, now = performance.now();
           const tracks = (d.landmarks || []).map((m, i) => { const hd = d.handedness && d.handedness[i] && d.handedness[i][0], id = hd ? hd.categoryName : 'Hand' + i, s = mem[id] || (mem[id] = { closed: false, x: null, y: null });
             const dist = (a, b) => Math.hypot((a.x - b.x) * aspect, a.y - b.y), span = Math.max(.025, dist(m[5], m[17])), pr = dist(m[4], m[8]) / span;
@@ -45,13 +51,15 @@
             s.x = s.x == null ? tx : s.x + (tx - s.x) * k; s.y = s.y == null ? ty : s.y + (ty - s.y) * k; s.seen = now;
             return { id, x: s.x, y: s.y, closed: s.closed, pose: poseOf(m, aspect, s.closed), span, marks: m }; });
           for (const k in mem) if (now - mem[k].seen > 600) delete mem[k];
-          if (tracks.length) lastSeen = now;
-          if (o.preview) { const c = o.preview, x = c.getContext('2d'); c.width = 160; c.height = 120; x.clearRect(0, 0, 160, 120); tracks.forEach((t, i) => { x.strokeStyle = x.fillStyle = i ? '#85bdff' : '#c4f46a'; x.lineWidth = 1.5;
+          if (tracks.length) lastSeen = now; nRes++;
+          if (now - tRes > 500) { const fps = Math.round(nRes * 1000 / (now - tRes)); nRes = 0; tRes = now; if (tracks.length) seenEver = true; tell('step', 'hands', tracks.length ? true : null, tracks.length ? tracks.map(t => t.id.toLowerCase() + ' ' + t.pose).join(' · ') + ' · ' + fps + '/s' : (seenEver ? 'no hand in view' : 'hold a hand up to the camera') + ' · looking ' + fps + '/s'); }
+          if (o.preview) { const c = o.preview, x = c.getContext('2d'); c.width = 160; c.height = 120; x.clearRect(0, 0, 160, 120); tracks.forEach((t, i) => { x.strokeStyle = x.fillStyle = i ? '#85bdff' : '#c4f46a'; x.lineWidth = 2.5;
             for (const [a, b] of LINKS) { x.beginPath(); x.moveTo((1 - t.marks[a].x) * 160, t.marks[a].y * 120); x.lineTo((1 - t.marks[b].x) * 160, t.marks[b].y * 120); x.stroke(); } }); }
           tell('frame', tracks); } };
       worker.postMessage({ type: 'init' }); }).catch(e => { h.stop(); throw e; });
     tell('state', 'hands on · show a hand to the camera');
-    timer = setInterval(async () => { if (busy || stopped || video.readyState < 2) return; busy = true; try { const f = await createImageBitmap(video); worker.postMessage({ type: 'frame', frame: f, time: performance.now() }, [f]); } catch (e) { busy = false; } }, 33);
+    let sent = 0; setTimeout(() => { if (!stopped && !sent) tell('step', 'camera', false, 'the camera opened but gives no picture: another app may hold it, or it is covered'); }, 4000);
+    timer = setInterval(async () => { if (busy || stopped || video.readyState < 2 || !video.videoWidth) return; busy = true; sent++; try { const f = await createImageBitmap(video); worker.postMessage({ type: 'frame', frame: f, time: performance.now() }, [f]); } catch (e) { busy = false; } }, 33);
     return h;
   };
   window.MPHands = api;

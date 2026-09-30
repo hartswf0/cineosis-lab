@@ -48,13 +48,17 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
 .fig.aim{ outline:1px solid #c4f46a; outline-offset:3px; }
 #tools button.tx{ background:none; border:1px solid var(--faint); border-radius:14px; min-height:32px; padding:0 10px; margin:0 2px; cursor:pointer; color:#a59e93; font-size:10px; letter-spacing:.1em; } #tools button.tx:hover{ color:var(--ink); border-color:#5a4e33; }
 #tools{ flex-wrap:wrap; }
-#handCam{ position:absolute; left:6px; top:6px; width:112px; height:84px; border:1px solid var(--faint); border-radius:4px; background:#0008; z-index:5; pointer-events:none; }
+#handBox{ position:fixed; left:8px; top:calc(54px + env(safe-area-inset-top)); z-index:60; width:min(190px,46vw); background:#0b0a09ee; border:1px solid var(--faint); border-radius:6px; overflow:hidden; font-size:10px; line-height:1.35; }
+#handBox .v{ position:relative; aspect-ratio:4/3; background:#000; } #handBox video,#handCam{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; } #handBox video{ transform:scaleX(-1); opacity:.85; }
+#handSteps{ padding:5px 7px 6px; display:grid; gap:2px; } #handSteps div{ display:grid; grid-template-columns:58px 1fr; gap:4px; color:var(--dim); } #handSteps b{ font-weight:500; letter-spacing:.1em; color:#8a8378; }
+#handSteps div.ok b{ color:#c4f46a; } #handSteps div.ok{ color:#d8d2c6; } #handSteps div.no b, #handSteps div.no{ color:#ff8a7a; }
+#handBox.min .v{ display:none; } #handBox button{ position:absolute; right:2px; top:2px; z-index:2; width:26px; height:26px; border:0; border-radius:50%; background:#000a; color:#ccc; cursor:pointer; }
 .hcur{ position:fixed; z-index:200; width:26px; height:26px; margin:-13px 0 0 -13px; border-radius:50%; border:2px solid #c4f46a; pointer-events:none; transition:width .12s,height .12s,margin .12s,background .12s; } .hcur.tool{ border-color:#85bdff; }
 .hcur.closed{ width:14px; height:14px; margin:-7px 0 0 -7px; background:#c4f46a; } .hcur.tool.closed{ background:#85bdff; } .hcur b{ position:absolute; left:18px; top:-16px; font:500 9.5px var(--mono); letter-spacing:.1em; color:#c4f46a; white-space:nowrap; text-shadow:0 1px 3px #000; } .hcur.tool b{ color:#85bdff; }
 .hcur i{ position:absolute; inset:-7px; border-radius:50%; border:2px solid transparent; border-top-color:currentColor; color:#fff; opacity:0; } .hcur.arm i{ opacity:.9; animation:arm linear forwards; } @keyframes arm{ from{ transform:rotate(0); } to{ transform:rotate(360deg); } }
 #bHand.on{ color:#c4f46a; background:#c4f46a1c; }
 #toast{ position:fixed; left:50%; top:calc(56px + env(safe-area-inset-top)); transform:translateX(-50%); background:#14120f; border:1px solid var(--faint); border-radius:18px; padding:8px 14px; z-index:90; max-width:92vw; opacity:0; transition:opacity .3s; pointer-events:none; text-align:center; } #toast.on{ opacity:1; }
-@media (max-height:560px){ header{ padding-top:2px; padding-bottom:2px; } #strip .panel{ width:72px; } #tray{ height:60px; padding:3px 0; } #tray button{ height:54px; } #tray img{ max-height:46px; } #tray button.gr img{ height:54px; width:96px; } #tools{ min-height:30px; } #tools .ico{ width:30px; height:30px; } footer{ padding-top:2px; } #stageWrap{ min-height:120px; } }
+@media (max-height:560px){ #handBox{ width:150px; top:40px; } #handBox .v{ aspect-ratio:16/9; }  header{ padding-top:2px; padding-bottom:2px; } #strip .panel{ width:72px; } #tray{ height:60px; padding:3px 0; } #tray button{ height:54px; } #tray img{ max-height:46px; } #tray button.gr img{ height:54px; width:96px; } #tools{ min-height:30px; } #tools .ico{ width:30px; height:30px; } footer{ padding-top:2px; } #stageWrap{ min-height:120px; } }
 @media (min-width:900px) and (min-height:561px){ main{ padding:0 18px; } #tray{ height:112px; } #tray button{ height:100px; } #tray img{ max-height:90px; } #tray button.gr img{ height:100px; width:178px; } }
 @media print{ html,body{ overflow:visible; height:auto; background:#fff; color:#000; display:block; } header,main,footer,#toast,#board .top{ display:none !important; } #board{ position:static; display:block !important; background:#fff; padding:0; } #board .grid{ grid-template-columns:repeat(3,1fr); } #board figure{ break-inside:avoid; } .panel{ print-color-adjust:exact; -webkit-print-color-adjust:exact; } }
 </style></head><body>
@@ -63,7 +67,7 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
   <button class="ico" id="bMore" aria-label="Menu"><svg><use href="#i-more"/></svg></button></header>
 <main>
   <div id="stageWrap"><div id="empty"><h1>a line is a panel</h1><p>Type a line. The archive gives it a ground, and figures SAM has cut out of other films step in. Drag them where the story needs them.</p><div id="starters"></div></div>
-    <div class="panel" id="stage" hidden></div><canvas id="handCam" hidden></canvas></div>
+    <div class="panel" id="stage" hidden></div><div id="handBox" hidden><button id="handMin" aria-label="Hide or show the camera picture">–</button><div class="v"><video id="handVid" muted playsinline></video><canvas id="handCam"></canvas></div><div id="handSteps"></div></div></div>
   <div id="tools" hidden></div>
   <div id="strip"></div>
   <div id="trayBox" hidden><div id="trayHead"><button id="tFig" class="on">FIGURES</button><button id="tGr">GROUNDS</button><input id="find" placeholder="find a figure: a dog, hands, a cloud" enterkeyhint="search" autocomplete="off"></div><div id="tray"></div></div>
@@ -80,7 +84,7 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
 <script src="markov/shared.js?v=4"></script>
 <script src="markov/export.js?v=4"></script>
 <script src="markov/live.js?v=4"></script>
-<script src="markov/hands.js?v=1"></script>
+<script src="markov/hands.js?v=2"></script>
 <script src="markov/ui.js?v=3"></script>
 <script>
 (function () {
@@ -262,10 +266,16 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
         if (!t.closed && HS.owner == null) { const n = figAt(t.x, t.y); if (n >= 0) aim = n; if (held(t, 'fist', 900, now)) undo(); } });
       st.querySelectorAll('.fig').forEach(d => d.classList.toggle('aim', +d.dataset.n === aim && HS.owner == null)); }
     HS.prev = Object.fromEntries(tracks.map(t => [t.id, t.closed])); }
-  $('#bHand').onclick = async () => { if (hands) { const h = hands; hands = null; h.stop(); $('#bHand').classList.remove('on'); $('#handCam').hidden = true; release(); return; }
-    $('#bHand').classList.add('on'); $('#handCam').hidden = false;
-    try { hands = await MPHands.start({ preview: $('#handCam'), on: { frame: onHands, state: t => SH.status('listening', t), error: m => { toast('hands stopped: ' + m); hands = null; $('#bHand').classList.remove('on'); $('#handCam').hidden = true; } } }); toast('hands on · pinch a figure to hold it, open to let go'); }
-    catch (e) { hands = null; $('#bHand').classList.remove('on'); $('#handCam').hidden = true; SH.status('rest', 'hands could not start: ' + e.message); toast(/NotAllowed/.test(e.name) ? 'allow the camera for this site to use hands' : 'hands could not start: ' + e.message); } };
+  // the hand panel: the camera's own picture with the tracked skeleton on it, and three plain lines that say what works and what does not
+  const STEPS = ['camera', 'tracker', 'hands'], stepState = {};
+  function step(k, ok, text) { stepState[k] = { ok, text }; $('#handSteps').innerHTML = STEPS.map(n => { const v = stepState[n] || { ok: undefined, text: 'waiting' }; return `<div class="${v.ok === true ? 'ok' : v.ok === false ? 'no' : ''}"><b>${n.toUpperCase()}</b><span>${esc(v.text)}</span></div>`; }).join(''); }
+  $('#handMin').onclick = () => $('#handBox').classList.toggle('min');
+  function handsOff() { const h = hands; hands = null; if (h) h.stop(); $('#bHand').classList.remove('on'); release(); for (const id in curs) { curs[id].remove(); delete curs[id]; } }
+  $('#bHand').onclick = async () => { if (hands || $('#bHand').classList.contains('on')) { handsOff(); $('#handBox').hidden = true; SH.status('rest', 'hands off'); return; }
+    $('#bHand').classList.add('on'); $('#handBox').hidden = false; $('#handBox').classList.remove('min'); STEPS.forEach(k => delete stepState[k]); step('camera', null, 'starting');
+    try { const h = await MPHands.start({ view: $('#handVid'), preview: $('#handCam'), on: { frame: onHands, step, state: () => { }, error: m => { step('tracker', false, m); handsOff(); } } });
+      if (!$('#bHand').classList.contains('on')) { h.stop(); return; } hands = h; SH.status('listening', 'hands on · pinch a figure to hold it, open the hand to let go'); }
+    catch (e) { hands = null; $('#bHand').classList.remove('on'); const k = stepState.camera && stepState.camera.ok === true ? 'tracker' : 'camera'; if (!stepState[k] || stepState[k].ok !== false) step(k, false, e.message || String(e)); SH.status('rest', 'hands did not start: see the panel'); } };   // the panel stays open so the reason stays readable
   // what "this" and "here" mean to the voice: the figure a hand holds or points at, and the place a hand is over the panel
   function pointer() { for (const t of HS.tracks) { const q = stageXY(t); if (q.in) return q; } return null; }
   function target() { if (HS.owner != null && selFig >= 0) return selFig; for (const t of HS.tracks) { const n = figAt(t.x, t.y); if (n >= 0) return n; } return selFig; }
