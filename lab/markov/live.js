@@ -8,8 +8,14 @@
    states: asking · connecting · live · closed */
 (function () {
   const KEY = 'mp.openai.key', MODEL = 'gpt-realtime', API = 'https://api.openai.com/v1/realtime';
-  const get = () => { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } };
-  const api = { active: null, hasKey: () => !!get(), setKey: k => { try { k ? localStorage.setItem(KEY, k.trim()) : localStorage.removeItem(KEY); } catch (e) { } } };
+  // the key lives in this browser's storage; when that storage is full or blocked (it is shared by every page on this site) it is
+  // held for this tab only, so a full disk never reads as "no key"
+  let mem = '';
+  const get = () => { try { return localStorage.getItem(KEY) || sessionStorage.getItem(KEY) || mem; } catch (e) { return mem; } };
+  const api = { active: null, hasKey: () => !!get(), kept: 'browser',
+    setKey: k => { k = (k || '').trim(); mem = k; api.kept = 'tab';
+      try { k ? sessionStorage.setItem(KEY, k) : sessionStorage.removeItem(KEY); } catch (e) { }
+      try { k ? localStorage.setItem(KEY, k) : localStorage.removeItem(KEY); if (!k || localStorage.getItem(KEY) === k) api.kept = 'browser'; } catch (e) { } } };
 
   // The microphone. A browser's default input is often a virtual or muted device (a light-sync driver, a loopback, a meeting app) that
   // gives only silence, so a stream from one of those is swapped for a real microphone before anything listens to it.
