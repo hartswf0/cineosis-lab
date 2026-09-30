@@ -104,7 +104,7 @@
   const CARD = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>A Markov Poet film</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;1,9..144,300&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
 <script type="application/json" id="markov-project">/*PROJECT*/<\/script>
-<style>html,body{margin:0;height:100%;background:#050505;color:#efe9dd;overflow:hidden;font:12px 'IBM Plex Mono',monospace}
+<style>[hidden]{display:none!important}html,body{margin:0;height:100%;background:#050505;color:#efe9dd;overflow:hidden;font:12px 'IBM Plex Mono',monospace}
 .lay{position:fixed;inset:0;opacity:0}.lay video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:d 40s ease-in-out infinite alternate}
 .lay.cur{opacity:1}.lay.in{opacity:1;mix-blend-mode:screen;animation:i var(--d,1.5s) cubic-bezier(.3,.6,.2,1) both;z-index:2}.lay.out{animation:o var(--d,1.5s) ease both;z-index:1}
 @keyframes i{0%{opacity:0;filter:blur(16px) brightness(1.7) saturate(.4);transform:scale(1.07)}45%{opacity:.9;filter:blur(5px) brightness(1.2)}100%{opacity:1;filter:none;transform:none}}

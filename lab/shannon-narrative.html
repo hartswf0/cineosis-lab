@@ -16,7 +16,7 @@ button,select{ font:inherit; color:inherit; } [hidden]{ display:none !important;
 :focus-visible{ outline:2px solid var(--hi); outline-offset:2px; }
 .app{ display:grid; grid-template-rows:auto 1fr auto; height:100dvh; }
 header{ display:flex; align-items:center; gap:4px; padding:8px 14px; border-bottom:1px solid var(--rule); transition:opacity .6s; position:relative; z-index:5; background:var(--bg); }
-.brand{ font:500 11px var(--mono); letter-spacing:.28em; margin-right:10px; white-space:nowrap; color:var(--dim); text-decoration:none; } .brand b{ font-weight:500; color:var(--hi); }
+.brand{ display:flex; align-items:center; gap:8px; font:500 10.5px var(--mono); letter-spacing:.2em; margin-right:10px; white-space:nowrap; color:var(--ink); text-decoration:none; } .brand span{ color:var(--dim); }
 header select{ background:transparent; border:1px solid var(--rule); border-radius:6px; padding:6px 8px; min-height:36px; min-width:0; width:min(28vw,360px); }
 header .sp{ flex:1; }
 .menu{ position:absolute; top:52px; right:14px; background:var(--panel); border:1px solid var(--rule); border-radius:8px; padding:6px; min-width:220px; box-shadow:0 12px 30px #000a; }
@@ -79,8 +79,9 @@ body.grid .screen .sub{ display:block; font-size:clamp(20px,2.8vw,42px); bottom:
   main{ grid-template-columns:minmax(0,1fr); } .meta span{ min-width:0; overflow-wrap:anywhere; }
   .stage{ padding:12px; } .screen{ flex:none; aspect-ratio:16/9; }
   .wall{ border-left:0; border-top:1px solid var(--rule); } .tiles{ grid-template-columns:repeat(3,minmax(0,1fr)); overflow:visible; }
-  footer{ position:sticky; bottom:0; flex-wrap:wrap; } .status{ min-width:0; flex-basis:100%; }
-  header{ flex-wrap:wrap; gap:2px; } header .brand{ flex:1; } header .sp{ display:none; }
+  footer{ position:sticky; bottom:0; gap:4px; padding-left:6px; padding-right:6px; } .status{ display:none; } .clock{ min-width:0; font-size:10px; }
+  header{ position:sticky; top:0; } .brand span{ display:none; }
+  header{ flex-wrap:wrap; gap:2px; } header .brand{ flex:1; } header .sp{ display:none; } header .ico.big{ width:42px; height:42px; }
   header select{ order:9; width:100%; flex-basis:100%; margin-top:6px; } header .ico{ width:36px; height:36px; } header .ico.big{ width:42px; height:42px; }
   body.grid main{ grid-template-columns:repeat(3,minmax(0,1fr)); grid-auto-rows:22vw; } body.grid .screen{ grid-column:span 3; grid-row:span 2; }
 }
@@ -107,21 +108,13 @@ body.grid .screen .sub{ display:block; font-size:clamp(20px,2.8vw,42px); bottom:
 </svg>
 <div class="app">
   <header id="hdr">
-    <a class="brand" href="markov-poet.html" title="The Markov Poet">MARKOV POET <b>NARRATIVE</b></a>
+    <a class="brand" href="markov-poet.html" title="The Markov Poet: how it works" id="markLink"></a>
     <select id="src" aria-label="The poem"></select>
     <span class="sp"></span>
-    <button class="ico" id="bPrev" title="Previous line (Left)" aria-label="Previous line"><svg><use href="#i-prev"/></svg></button>
-    <button class="ico big" id="bPlay" title="Play (Space)" aria-label="Play"><svg><use href="#i-play"/></svg></button>
-    <button class="ico" id="bNext" title="Next line (Right)" aria-label="Next line"><svg><use href="#i-next"/></svg></button>
-    <button class="ico" id="bVoice" title="Voice (V)" aria-label="Voice"><svg><use href="#i-voice"/></svg></button>
-    <button class="ico" id="bSound" title="The films' own sound (S)" aria-label="Film sound"><svg><use href="#i-mute"/></svg></button>
-    <button class="ico" id="bCalm" title="Calm: slower dissolves and pictures (M)" aria-label="Calm"><svg><use href="#i-calm"/></svg></button>
-    <button class="ico" id="bGrid" title="Only the moving pictures (G)" aria-label="Grid"><svg><use href="#i-grid"/></svg></button>
-    <button class="ico" id="bTake" title="Another take (T)" aria-label="Another take"><svg><use href="#i-take"/></svg></button>
+    <button class="ico" id="bGrid" title="Only the moving pictures (G)" aria-label="Gallery grid"><svg><use href="#i-grid"/></svg></button>
     <button class="ico" id="bSend" title="Send: project file, MP4, link" aria-label="Send"><svg><use href="#i-send"/></svg></button>
-    <a class="ico" id="bEdit" href="markov-engine.html" title="Edit the words in the engine" aria-label="Edit"><svg><use href="#i-edit"/></svg></a>
-    <button class="ico" id="bInfo" title="About" aria-label="About"><svg><use href="#i-info"/></svg></button>
-    <button class="ico" id="bFull" title="Full screen (F)" aria-label="Full screen"><svg><use href="#i-full"/></svg></button>
+    <button class="ico" id="bMore" title="More" aria-label="More"><svg><use href="#i-more"/></svg></button>
+    <span hidden><button id="bVoice"></button><button id="bSound"><svg><use href="#i-mute"/></svg></button><button id="bCalm"></button><button id="bTake"></button><button id="bInfo"></button><button id="bFull"></button></span>
     <div class="menu" id="voiceMenu" hidden><h4>VOICE</h4><div id="voiceOpts"></div></div>
   </header>
   <main>
@@ -145,6 +138,9 @@ body.grid .screen .sub{ display:block; font-size:clamp(20px,2.8vw,42px); bottom:
     </aside>
   </main>
   <footer id="ftr">
+    <button class="ico" id="bPrev" title="Previous line (Left)" aria-label="Previous line"><svg><use href="#i-prev"/></svg></button>
+    <button class="ico big" id="bPlay" title="Play (Space)" aria-label="Play"><svg><use href="#i-play"/></svg></button>
+    <button class="ico" id="bNext" title="Next line (Right)" aria-label="Next line"><svg><use href="#i-next"/></svg></button>
     <div class="status" id="status"><i></i><span id="statusText">waking</span><u id="statusBar" hidden><b></b></u></div>
     <div class="strip" id="strip" aria-label="The poem, line by line"></div>
     <span class="clock" id="clock"></span>
@@ -165,7 +161,8 @@ body.grid .screen .sub{ display:block; font-size:clamp(20px,2.8vw,42px); bottom:
 <script src="markov/shared.js?v=2"></script>
 <script src="markov/film.js?v=1"></script>
 <script src="markov/guide.js?v=2"></script>
-<script src="markov/export.js?v=2"></script>
+<script src="markov/export.js?v=3"></script>
+<script src="markov/ui.js?v=2"></script>
 <script>
 (() => {
   const $ = s => document.querySelector(s), h = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
@@ -179,6 +176,7 @@ body.grid .screen .sub{ display:block; font-size:clamp(20px,2.8vw,42px); bottom:
 
   SH.onStatus(s => { const e = $('#status'); e.className = 'status' + (/rest|idle/.test(s.stage) ? '' : s.stage === 'playing' ? ' play' : ' busy'); $('#statusText').textContent = s.text;
     $('#statusBar').hidden = s.frac == null; if (s.frac != null) $('#statusBar b').style.width = Math.round(s.frac * 100) + '%'; });
+  MPUI.sprite();
   let F = null;
   SH.load().then(d => { D = d; F = MPFilm($('#filmroot'), { signs: d.K.signs }); if (innerWidth > 860) F.el.classList.add('fit'); setup(); }).catch(e => { $('#line').textContent = 'Could not load the archive: ' + e.message; });
 
@@ -197,6 +195,22 @@ body.grid .screen .sub{ display:block; font-size:clamp(20px,2.8vw,42px); bottom:
     $('#bVoice').onclick = e => { e.stopPropagation(); $('#voiceMenu').hidden = !$('#voiceMenu').hidden; };
     document.addEventListener('click', e => { if (!e.target.closest('#voiceMenu')) $('#voiceMenu').hidden = true; });
     $('#bFull').onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => { });
+    $('#markLink').innerHTML = MPUI.mark(24) + 'MARKOV POET <span>· NARRATIVE</span>';
+    $('#bMore').onclick = e => { e.stopPropagation(); MPUI.menu($('#bMore'), [
+      { title: 'WATCH', items: [
+        { icon: 'voice', label: 'Voice', hint: () => (SH.voicesFor($('#src').value).find(x => x[0] === voice) || [0, ''])[1], act: () => { setTimeout(() => $('#bVoice').click(), 0); } },
+        { icon: () => F.isSound ? 'sound' : 'mute', label: 'Films\' own sound', state: () => F.isSound ? 'ON' : '', on: () => F.isSound, act: () => { $('#bSound').click(); return true; } },
+        { icon: 'calm', label: 'Calm', hint: 'slower dissolves and pictures', state: () => F.isCalm ? 'ON' : '', on: () => F.isCalm, act: () => { $('#bCalm').click(); return true; } },
+        { icon: 'grid', label: 'Words over the grid', hint: 'W', state: () => document.body.classList.contains('nowords') ? 'OFF' : 'ON', act: () => { document.body.classList.toggle('nowords'); return true; } },
+        { icon: 'full', label: 'Full screen', act: () => $('#bFull').click() }] },
+      { title: 'MAKE', items: [
+        { icon: 'rec', label: 'Read it yourself', hint: 'record your voice reading this poem in the Poet', act: async () => { const ls = cur ? [...new Set(cur.ph.map(p => p.text))] : []; const h = await MPExport.pack({ l: ls, k: {} }); location.href = 'shannon-poet.html#p=' + h + '&rec=1'; } },
+        { icon: 'take', label: 'Another take', hint: 'a different probable cut', act: () => $('#bTake').click() },
+        { icon: 'edit', label: 'Edit the words', hint: 'in the workshop', act: () => location.href = 'markov-engine.html' }] },
+      { title: 'GO', items: [
+        { icon: 'info', label: 'How this room works', act: () => MPGuide.open('narrative') },
+        { icon: 'mic', label: 'The Poet', hint: 'write or say your own', act: () => location.href = 'shannon-poet.html' },
+        { icon: 'home', label: 'The Markov Poet', act: () => location.href = 'markov-poet.html' }] }]); };
     $('#bSend').onclick = e => { e.stopPropagation(); if (!cur) return; MPExport.menu($('#bSend'), () => MPExport.project(D, cur, { room: 'narrative', poem: $('#src').value, title: $('#src').selectedOptions[0].textContent.trim(), voice, locks: { ...locks }, take, calm: F.isCalm, sound: F.isSound })); };
     $('#bInfo').onclick = () => MPGuide.open('narrative'); $('#bInfoClose').onclick = () => $('#info').hidden = true; $('#info').onclick = e => { if (e.target.id === 'info') $('#info').hidden = true; };
     $('#veil').onclick = () => { $('#veil').hidden = true; player.play(); };

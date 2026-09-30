@@ -1,309 +1,331 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <title>The Poet</title>
-<meta name="description" content="The Markov Poet. An empty room that waits for a line, typed or spoken, answers with the archive, and lets you choose, keep and send the film.">
+<meta name="description" content="The Markov Poet. Type or say a line; the archive answers with a film. Record your own voice reading it. Choose any shot. Send the film.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{ color-scheme:dark; --bg:#050505; --ink:#efe9dd; --dim:#7d776f; --faint:#3a3631; --hi:#e8c070; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; }
+:root{ color-scheme:dark; --bg:#050505; --ink:#efe9dd; --dim:#7d776f; --faint:#3a3631; --hi:#e8c070; --rec:#e0453a; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; --dock:118px; }
 *{ box-sizing:border-box; } html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); overflow:hidden; font:12px var(--mono); -webkit-tap-highlight-color:transparent; }
-[hidden]{ display:none !important; } button{ font:inherit; color:inherit; }
+[hidden]{ display:none !important; } button,input{ font:inherit; color:inherit; }
+body.collapsed{ --dock:40px; }
 #film{ position:fixed; inset:0; opacity:0; transition:opacity 1.8s ease; } #film.on{ opacity:1; }
-#film::after{ content:''; position:absolute; inset:0; pointer-events:none; background:linear-gradient(180deg, #0008 0%, transparent 22%, transparent 55%, #000b 100%); z-index:3; }
+#film::after{ content:''; position:absolute; inset:0; pointer-events:none; background:linear-gradient(180deg,#0009 0%,transparent 20%,transparent 50%,#000d 100%); z-index:3; }
 #ghosts{ position:fixed; inset:0; pointer-events:none; z-index:4; }
-#ghosts img{ position:absolute; border-radius:2px; opacity:0; transform:translate(-50%,-50%) scale(.9); transition:opacity .9s ease, transform 1.6s cubic-bezier(.2,.7,.2,1), left 1.6s cubic-bezier(.2,.7,.2,1), top 1.6s cubic-bezier(.2,.7,.2,1), width 1.6s, filter 1.2s; filter:grayscale(1) brightness(.8); }
+#ghosts img{ position:absolute; border-radius:2px; opacity:0; transform:translate(-50%,-50%) scale(.9); transition:opacity .9s, transform 1.6s cubic-bezier(.2,.7,.2,1), left 1.6s cubic-bezier(.2,.7,.2,1), top 1.6s cubic-bezier(.2,.7,.2,1), width 1.6s, filter 1.2s; filter:grayscale(1) brightness(.8); }
 #ghosts img.show{ opacity:.55; transform:translate(-50%,-50%) scale(1); } #ghosts img.gone{ opacity:0; transform:translate(-50%,-50%) scale(.6); } #ghosts img.take{ opacity:1; filter:none; }
-/* the words: always the most important thing on screen */
-#room{ position:fixed; inset:0; display:grid; place-items:center; padding:24px; z-index:5; }
-#say{ max-width:min(1100px,92vw); text-align:center; font:300 clamp(30px,5.4vw,72px)/1.16 var(--serif); min-height:1.2em; }
+/* top: the mark and the menu, nothing else */
+#top{ position:fixed; left:0; right:0; top:0; z-index:8; display:flex; align-items:center; gap:10px; padding:calc(10px + env(safe-area-inset-top)) 12px 8px; transition:opacity .6s; }
+#top a.mark{ display:flex; align-items:center; gap:8px; color:var(--ink); text-decoration:none; letter-spacing:.2em; font-size:10.5px; } #top a.mark span{ color:var(--dim); }
+#sys{ flex:1; min-width:0; display:flex; align-items:center; gap:8px; color:var(--dim); letter-spacing:.04em; font-size:11px; }
+#sys i{ width:6px; height:6px; border-radius:50%; background:var(--faint); flex:none; } #sys.busy i{ background:var(--hi); animation:pulse 1s infinite; } #sys.play i{ background:var(--ink); } #sys.rec i{ background:var(--rec); animation:pulse .8s infinite; }
+#sys span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } @keyframes pulse{ 50%{ opacity:.2; } }
+.ico{ width:44px; height:44px; display:grid; place-items:center; border:0; background:none; border-radius:50%; cursor:pointer; color:var(--dim); flex:none; }
+.ico:hover{ color:var(--ink); background:#ffffff10; } .ico svg{ width:20px; height:20px; } .ico.on{ color:var(--hi); } .ico:disabled{ opacity:.25; }
+/* the poem: the words are the reason for everything */
+#poem{ position:fixed; left:16px; top:calc(60px + env(safe-area-inset-top)); max-width:min(440px,70vw); max-height:34vh; overflow:auto; z-index:6; font:300 16px/1.5 var(--serif); color:var(--dim); scrollbar-width:none; }
+#poem div{ cursor:pointer; padding:1px 0; transition:color .3s; } #poem div:hover{ color:var(--ink); } #poem div.now{ color:var(--ink); } #poem div.sel{ color:var(--hi); }
+#dna{ position:fixed; right:14px; top:calc(62px + env(safe-area-inset-top)); z-index:6; max-width:min(460px,52vw); justify-content:flex-end; opacity:.78; }
+#room{ position:fixed; left:0; right:0; top:0; bottom:var(--dock); display:grid; place-items:center; padding:24px; z-index:5; pointer-events:none; transition:bottom .4s; }
+#say{ max-width:min(1100px,92vw); text-align:center; font:300 clamp(28px,5.2vw,70px)/1.15 var(--serif); }
 #say .plea{ color:#6a645c; transition:opacity 1.2s; } #say .heard{ color:var(--dim); font-style:italic; }
-#say .caret{ display:inline-block; width:.06em; height:.9em; background:var(--hi); margin-left:.08em; vertical-align:-.08em; animation:blink 1.1s steps(1) infinite; }
-@keyframes blink{ 50%{ opacity:0; } }
-#say.playing{ position:fixed; left:50%; bottom:calc(122px + env(safe-area-inset-bottom)); transform:translateX(-50%); width:min(1150px,90vw); font-size:clamp(26px,4vw,56px); text-shadow:0 0 22px #000, 0 0 4px #000; }
+#say.playing{ align-self:end; margin-bottom:14px; font-size:clamp(24px,3.8vw,54px); text-shadow:0 0 22px #000, 0 0 4px #000; }
 #say .w{ display:inline-block; opacity:0; filter:blur(10px); transform:translateY(.12em); animation:word .9s cubic-bezier(.2,.7,.2,1) forwards; white-space:pre; }
 @keyframes word{ to{ opacity:1; filter:none; transform:none; } }
-#poem{ position:fixed; left:24px; top:22px; max-width:min(420px,64vw); font:300 16px/1.55 var(--serif); color:var(--dim); z-index:6; }
-#poem div{ cursor:pointer; opacity:0; animation:settle 1.2s forwards; transition:color .4s; } #poem div:hover{ color:var(--ink); } #poem div.now{ color:var(--ink); }
-#poem div.now::before{ content:''; display:inline-block; width:14px; height:1px; background:var(--hi); vertical-align:middle; margin:0 8px 0 -22px; }
-@keyframes settle{ from{ opacity:0; transform:translateY(10px); } to{ opacity:.95; transform:none; } }
-#dna{ position:fixed; right:22px; top:20px; z-index:6; opacity:.8; transition:opacity .6s; max-width:min(520px,60vw); justify-content:flex-end; }
-#bar{ position:fixed; left:50%; bottom:calc(22px + env(safe-area-inset-bottom)); transform:translateX(-50%); display:flex; align-items:center; gap:10px; z-index:7; transition:opacity .7s; }
-.ico{ width:42px; height:42px; display:grid; place-items:center; border:0; background:none; border-radius:50%; cursor:pointer; color:var(--dim); position:relative; }
-.ico:hover{ color:var(--ink); background:#ffffff10; } .ico svg{ width:19px; height:19px; } .ico.on{ color:var(--hi); } .ico:disabled{ opacity:.25; cursor:default; }
-.ico .tip{ position:absolute; bottom:48px; left:50%; transform:translateX(-50%); white-space:nowrap; font-size:10px; letter-spacing:.08em; color:var(--dim); opacity:0; transition:opacity .3s; pointer-events:none; } .ico:hover .tip{ opacity:1; }
-#mic{ width:58px; height:58px; border:1px solid var(--faint); margin:0 8px; } #mic svg{ width:20px; height:20px; }
-#mic .ring{ position:absolute; inset:-1px; border-radius:50%; border:1px solid var(--hi); opacity:0; transition:transform .08s linear, opacity .3s; }
-#mic.on{ border-color:var(--hi); color:var(--hi); } #mic.on .ring{ opacity:.7; }
-#mic.on::before{ content:''; position:absolute; inset:-14px; border-radius:50%; border:1px solid #e8c07033; animation:breathe 2.6s ease-in-out infinite; }
-@keyframes breathe{ 0%,100%{ transform:scale(.9); opacity:.2; } 50%{ transform:scale(1.15); opacity:.7; } }
-#sys{ position:fixed; left:22px; bottom:calc(34px + env(safe-area-inset-bottom)); display:flex; align-items:center; gap:10px; color:var(--dim); letter-spacing:.06em; max-width:26vw; z-index:7; transition:opacity .7s; }
-#sys i{ width:6px; height:6px; border-radius:50%; background:var(--faint); flex:none; } #sys.busy i{ background:var(--hi); animation:pulse 1s ease-in-out infinite; } #sys.play i{ background:var(--ink); }
-@keyframes pulse{ 50%{ opacity:.2; transform:scale(.7); } } #sys span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-#line{ position:fixed; left:0; right:0; bottom:0; height:3px; display:flex; gap:1px; z-index:7; cursor:pointer; } #line i{ height:100%; background:#ffffff14; } #line i.done{ background:#e8c07055; } #line i.now{ background:var(--hi); }
-#nav{ position:fixed; right:18px; bottom:calc(34px + env(safe-area-inset-bottom)); display:flex; gap:16px; z-index:7; transition:opacity .7s; }
-#nav a,#nav button{ color:var(--dim); text-decoration:none; background:none; border:0; letter-spacing:.1em; cursor:pointer; padding:6px 0; } #nav a:hover,#nav button:hover{ color:var(--ink); }
-body.quiet #bar, body.quiet #sys, body.quiet #nav, body.quiet #dna{ opacity:0; } body.quiet{ cursor:none; }
-#wall{ position:fixed; left:0; right:0; bottom:0; z-index:9; background:#0b0a09ee; backdrop-filter:blur(8px); border-top:1px solid #24211d; padding:14px 18px calc(18px + env(safe-area-inset-bottom)); transform:translateY(100%); transition:transform .5s cubic-bezier(.2,.7,.2,1); max-height:62vh; display:flex; flex-direction:column; }
-#wall.open{ transform:none; }
-#wall header{ display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; } #wall header b{ font:300 20px/1.2 var(--serif); flex:1; min-width:200px; }
-#wall header span{ color:var(--dim); letter-spacing:.06em; }
-#wall .tiles{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:6px; overflow:auto; }
-.tile{ position:relative; padding:0; border:0; border-radius:3px; overflow:hidden; aspect-ratio:16/10; cursor:pointer; background:#000; outline:2px solid transparent; outline-offset:-2px; animation:settle .5s both; }
-.tile img{ width:100%; height:100%; object-fit:cover; display:block; opacity:.8; transition:opacity .3s; } .tile:hover img{ opacity:1; }
-.tile.chosen{ outline-color:var(--hi); } .tile.mine::after{ content:'kept'; position:absolute; left:6px; top:5px; font-size:9px; letter-spacing:.1em; color:var(--hi); }
-.tile .p{ position:absolute; left:0; right:0; bottom:0; height:3px; background:#0008; } .tile .p u{ display:block; height:100%; background:var(--hi); }
-.tile .n{ position:absolute; right:5px; top:4px; font-size:10px; text-shadow:0 0 4px #000; } .tile .s{ position:absolute; left:5px; bottom:7px; display:flex; gap:2px; }
-.tile .s i{ font-style:normal; font-size:8.5px; color:#15120d; padding:1px 3px; border-radius:2px; }
-#toast{ position:fixed; left:50%; top:22px; transform:translateX(-50%); z-index:11; background:#0e0d0c; border:1px solid #24211d; border-radius:20px; padding:8px 14px; color:var(--ink); opacity:0; transition:opacity .4s; pointer-events:none; } #toast.on{ opacity:1; }
+/* the dock: the operator's surface; it never scrolls away and folds to one line */
+#dock{ position:fixed; left:0; right:0; bottom:0; z-index:9; padding:0 10px calc(8px + env(safe-area-inset-bottom)); background:linear-gradient(180deg,transparent,#000c 30%); transition:transform .4s; }
+#strip{ display:flex; gap:1px; height:4px; margin:0 2px 8px; cursor:pointer; } #strip i{ height:100%; background:var(--dc,#ffffff22); opacity:.3; border-radius:1px; } #strip i.done{ opacity:.65; } #strip i.now{ opacity:1; }
+#row{ display:flex; align-items:center; gap:4px; max-width:900px; margin:0 auto; }
+#prompt{ flex:1; min-width:0; height:48px; border-radius:24px; border:1px solid #2e2b27; background:#0d0c0bdd; padding:0 18px; font:300 17px var(--serif); color:var(--ink); outline:none; }
+#prompt:focus{ border-color:#5a4e33; } #prompt::placeholder{ color:#5f5a52; font-style:italic; }
+#bRec{ width:48px; height:48px; border:1px solid #3a2a28; } #bRec svg{ width:22px; height:22px; } #bRec.on{ background:#e0453a22; border-color:var(--rec); }
+body.collapsed #prompt, body.collapsed #bRec, body.collapsed #bWall, body.collapsed #bSend{ display:none; } body.collapsed #row{ justify-content:flex-end; } body.collapsed #poem, body.collapsed #dna{ display:none; }
+body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0; } body.quiet{ cursor:none; }
+/* the wall of shots weighed */
+#wall{ position:fixed; left:0; right:0; bottom:0; z-index:10; background:#0b0a09f2; backdrop-filter:blur(8px); border-top:1px solid #24211d; padding:10px 14px calc(14px + env(safe-area-inset-bottom)); transform:translateY(100%); transition:transform .45s cubic-bezier(.2,.7,.2,1); max-height:64dvh; display:flex; flex-direction:column; }
+#wall.open{ transform:none; } #wall header{ display:flex; align-items:center; gap:4px; margin-bottom:8px; } #wall header b{ font:300 18px/1.2 var(--serif); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#wall .meta{ color:var(--dim); margin:0 0 8px 4px; letter-spacing:.04em; }
+#tiles{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:6px; overflow:auto; } @media (max-width:640px){ #tiles{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+.tile{ position:relative; padding:0; border:0; border-radius:3px; overflow:hidden; aspect-ratio:16/10; cursor:pointer; background:#000; outline:2px solid transparent; outline-offset:-2px; }
+.tile img{ width:100%; height:100%; object-fit:cover; display:block; opacity:.82; } .tile.chosen{ outline-color:var(--hi); } .tile.mine::after{ content:'kept'; position:absolute; left:5px; top:4px; font-size:9px; color:var(--hi); }
+.tile .p{ position:absolute; left:0; right:0; bottom:0; height:3px; } .tile .n{ position:absolute; right:4px; top:3px; font-size:10px; text-shadow:0 0 4px #000; }
+.tile .s{ position:absolute; left:4px; bottom:6px; display:flex; gap:2px; } .tile .s i{ font-style:normal; font-size:8.5px; color:#15120d; padding:1px 3px; border-radius:2px; }
+/* recording: a teleprompter */
+#rec{ position:fixed; inset:0; z-index:20; background:#050505; display:flex; flex-direction:column; }
+#rec header{ display:flex; align-items:center; gap:10px; padding:calc(12px + env(safe-area-inset-top)) 14px 8px; } #rec header b{ flex:1; letter-spacing:.14em; font-weight:500; font-size:11px; } #rec header span{ color:var(--rec); font-variant-numeric:tabular-nums; }
+#prompter{ flex:1; overflow:auto; padding:8vh 22px 30vh; font:300 clamp(26px,5vw,52px)/1.3 var(--serif); color:#4d4842; scroll-behavior:smooth; }
+#prompter div{ padding:6px 0; transition:color .4s; cursor:pointer; } #prompter div.now{ color:var(--ink); } #prompter div.done{ color:#8a8378; }
+#count{ position:absolute; inset:0; display:grid; place-items:center; font:300 30vw/1 var(--serif); color:var(--rec); pointer-events:none; }
+#rec footer{ padding:10px 14px calc(14px + env(safe-area-inset-bottom)); display:grid; gap:10px; }
+#spark{ width:100%; height:44px; display:block; }
+#recBtns{ display:flex; gap:10px; justify-content:center; align-items:center; }
+.pill{ min-height:52px; padding:0 22px; border-radius:26px; border:1px solid #3a3631; background:none; color:var(--ink); letter-spacing:.1em; cursor:pointer; }
+.pill.red{ background:var(--rec); border-color:var(--rec); color:#fff; } .pill.gold{ background:var(--hi); border-color:var(--hi); color:#1a1408; }
+#recHint{ text-align:center; color:var(--dim); font-size:11px; }
+#toast{ position:fixed; left:50%; top:calc(58px + env(safe-area-inset-top)); transform:translateX(-50%); z-index:30; background:#0e0d0c; border:1px solid #24211d; border-radius:20px; padding:8px 14px; opacity:0; transition:opacity .4s; pointer-events:none; white-space:nowrap; max-width:92vw; overflow:hidden; text-overflow:ellipsis; } #toast.on{ opacity:1; }
 #veil{ position:fixed; inset:0; z-index:12; display:grid; place-items:center; background:#000c; cursor:pointer; text-align:center; padding:20px; } #veil b{ display:block; font:300 clamp(26px,4vw,48px)/1.2 var(--serif); } #veil span{ color:var(--dim); }
-input#type{ position:fixed; opacity:0; pointer-events:none; left:0; top:0; width:1px; height:1px; }
-@media (max-width:640px){ #sys{ max-width:50vw; bottom:calc(92px + env(safe-area-inset-bottom)); } #nav{ top:14px; bottom:auto; left:12px; right:12px; gap:10px; justify-content:flex-end; white-space:nowrap; font-size:10px; } #poem{ top:52px; } #poem{ top:56px; font-size:13px; } #dna{ top:auto; bottom:calc(92px + env(safe-area-inset-bottom)); right:12px; max-width:48vw; } #bar{ gap:0; } #bar .ico:not(#mic){ width:38px; } #say.playing{ bottom:calc(150px + env(safe-area-inset-bottom)); } }
+@media (max-width:640px){ :root{ --dock:150px; } body.collapsed{ --dock:40px; } #row{ flex-wrap:wrap; justify-content:space-between; row-gap:6px; } #prompt{ order:-1; flex-basis:100%; } #top a.mark span{ display:none; } #poem{ font-size:14px; max-height:24vh; } #dna{ top:auto; bottom:calc(var(--dock) + 4px); left:14px; right:auto; justify-content:flex-start; max-width:92vw; font-size:9px; }
+  body.playing #poem{ display:none; } #say.playing{ margin-bottom:34px; } }
 </style></head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="i-play" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z" fill="currentColor"/></symbol>
-  <symbol id="i-pause" viewBox="0 0 20 20"><path d="M6 4h3v12H6zM11 4h3v12h-3z" fill="currentColor"/></symbol>
-  <symbol id="i-calm" viewBox="0 0 20 20"><path d="M14.5 13.5A6.5 6.5 0 0 1 7 4a6.5 6.5 0 1 0 7.5 9.5z" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
-  <symbol id="i-sound" viewBox="0 0 20 20"><path d="M3 8v4h3l4 3.5v-11L6 8z" fill="currentColor"/><path d="M13 7.5c1 1.4 1 3.6 0 5M15.5 5.5c2 2.5 2 6.5 0 9" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></symbol>
-  <symbol id="i-mute" viewBox="0 0 20 20"><path d="M3 8v4h3l4 3.5v-11L6 8z" fill="currentColor"/><path d="M13 7.5l4 5M17 7.5l-4 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
-  <symbol id="i-voice" viewBox="0 0 20 20"><path d="M3 10h1.5M6 7v6M9 4v12M12 6.5v7M15 8.5v3M17.5 10H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
-  <symbol id="i-wall" viewBox="0 0 20 20"><path d="M3 4h6v5H3zM11 4h6v5h-6zM3 11h6v5H3zM11 11h6v5h-6z" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
-  <symbol id="i-send" viewBox="0 0 20 20"><path d="M10 13V3M6 7l4-4 4 4M4 12v4h12v-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-  <symbol id="i-undo" viewBox="0 0 20 20"><path d="M7 5L3 9l4 4M3 9h9a4 4 0 0 1 0 8h-2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
-  <symbol id="i-prev" viewBox="0 0 20 20"><path d="M12 4l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
-  <symbol id="i-next" viewBox="0 0 20 20"><path d="M8 4l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
-  <symbol id="i-close" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
-  <symbol id="i-mic" viewBox="0 0 20 20"><rect x="7.2" y="2.5" width="5.6" height="10" rx="2.8" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
-</svg>
 <div id="film"></div>
 <div id="ghosts"></div>
+<header id="top">
+  <a class="mark" href="markov-poet.html" title="The Markov Poet: how it works" id="markLink"></a>
+  <div id="sys" aria-live="polite"><i></i><span id="sysText">waking</span></div>
+  <button class="ico" id="bMore" aria-label="More"><svg><use href="#i-more"/></svg></button>
+</header>
+<div id="poem" aria-label="The poem: tap a line to edit it or play from it"></div>
+<div id="dna" class="mpdna" aria-label="The shot's Cineosis signs"></div>
 <div id="room"><div id="say" aria-live="polite"></div></div>
-<div id="poem" aria-label="The poem so far"></div>
-<div id="dna" class="mpdna" aria-label="The shot's Cineosis DNA"></div>
-<div id="bar">
-  <button class="ico" id="bPlay" aria-label="Play or pause"><svg><use href="#i-play"/></svg><span class="tip">PLAY · SPACE</span></button>
-  <button class="ico" id="bCalm" aria-label="Calm"><svg><use href="#i-calm"/></svg><span class="tip">CALM</span></button>
-  <button class="ico" id="bSound" aria-label="Sound of the films"><svg><use href="#i-mute"/></svg><span class="tip">FILM SOUND</span></button>
-  <button class="ico" id="mic" aria-label="Speak"><span class="ring" id="ring"></span><svg><use href="#i-mic"/></svg><span class="tip">SPEAK</span></button>
-  <button class="ico" id="bVoice" aria-label="Voice"><svg><use href="#i-voice"/></svg><span class="tip" id="voiceTip">VOICE</span></button>
-  <button class="ico" id="bWall" aria-label="Choose among the shots"><svg><use href="#i-wall"/></svg><span class="tip">CHOOSE</span></button>
-  <button class="ico" id="bSend" aria-label="Keep or send the film"><svg><use href="#i-send"/></svg><span class="tip">SEND</span></button>
-</div>
-<div id="sys" aria-live="polite"><i></i><span id="sysText">waking</span></div>
-<nav id="nav"><button id="help">HOW IT WORKS</button><button id="again">BEGIN AGAIN</button><a href="shannon-narrative.html">NARRATIVE</a><a href="markov-poet.html">MARKOV POET</a></nav>
-<div id="line" aria-label="The poem, line by line"></div>
+<footer id="dock">
+  <div id="strip" aria-label="The poem, line by line"></div>
+  <div id="row">
+    <button class="ico" id="bFold" aria-label="Fold the controls"><svg><use href="#i-down"/></svg></button>
+    <input id="prompt" autocomplete="off" autocapitalize="sentences" spellcheck="false" enterkeyhint="done" placeholder="type a line, then Return" aria-label="Type a line">
+    <button class="ico" id="bRec" aria-label="Record your voice"><svg><use href="#i-rec"/></svg></button>
+    <button class="ico" id="bPlay" aria-label="Play"><svg><use href="#i-play"/></svg></button>
+    <button class="ico" id="bWall" aria-label="Choose a different shot"><svg><use href="#i-wall"/></svg></button>
+    <button class="ico" id="bSend" aria-label="Send"><svg><use href="#i-send"/></svg></button>
+  </div>
+</footer>
 <section id="wall" aria-label="The shots the engine weighed">
-  <header>
-    <button class="ico" id="wPrev" aria-label="Previous shot"><svg><use href="#i-prev"/></svg></button>
-    <b id="wTitle"></b><span id="wInfo"></span>
-    <button class="ico" id="wNext" aria-label="Next shot"><svg><use href="#i-next"/></svg></button>
-    <button class="ico" id="wUndo" aria-label="Undo"><svg><use href="#i-undo"/></svg><span class="tip">UNDO · ⌘Z</span></button>
-    <button class="ico" id="wClose" aria-label="Close"><svg><use href="#i-close"/></svg></button>
-  </header>
-  <div class="tiles" id="tiles"></div>
+  <header><button class="ico" id="wPrev" aria-label="Previous shot"><svg><use href="#i-left"/></svg></button><b id="wTitle"></b>
+    <button class="ico" id="wNext" aria-label="Next shot"><svg><use href="#i-right"/></svg></button><button class="ico" id="wUndo" aria-label="Undo"><svg><use href="#i-undo"/></svg></button><button class="ico" id="wClose" aria-label="Close"><svg><use href="#i-close"/></svg></button></header>
+  <div class="meta" id="wInfo"></div><div id="tiles"></div>
 </section>
-
+<section id="rec" hidden aria-label="Recording">
+  <header><b id="recTitle">READ YOUR POEM</b><span id="recTime">0:00</span><button class="ico" id="recX" aria-label="Cancel"><svg><use href="#i-close"/></svg></button></header>
+  <div id="prompter"></div><div id="count" hidden></div>
+  <footer><canvas id="spark" aria-hidden="true"></canvas><div id="recHint"></div><div id="recBtns"></div></footer>
+</section>
 <div id="toast"></div>
 <div id="veil" hidden><div><b>Touch to watch</b><span id="veilSub"></span></div></div>
-<input id="type" autocomplete="off" autocapitalize="sentences" spellcheck="false" aria-hidden="true">
 <audio id="aud"></audio>
 <script src="markov/engine.js?v=6"></script>
 <script src="markov/clip-text.js?v=2"></script>
 <script src="markov/shared.js?v=2"></script>
 <script src="markov/film.js?v=1"></script>
 <script src="markov/guide.js?v=2"></script>
-<script src="markov/export.js?v=2"></script>
+<script src="markov/export.js?v=3"></script>
+<script src="markov/ui.js?v=2"></script>
 <script>
 (() => {
   const $ = s => document.querySelector(s), esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const SH = window.SH, S = window.Shannon, EDIT = MPFilm.EDIT;
-  const PLEAS = ['say a line', 'or type one', 'the archive is listening', 'sixteen thousand shots are waiting for a word', 'a poem does not exist before it is said', 'anything spoken can become a film', 'say it again, differently'];
+  const SH = window.SH, S = window.Shannon, EDIT = MPFilm.EDIT; MPUI.sprite(); $('#markLink').innerHTML = MPUI.mark(26) + 'MARKOV POET <span>· THE POET</span>';
+  const PLEAS = ['say a line', 'or type one', 'the archive is listening', 'sixteen thousand shots are waiting for a word', 'a poem does not exist before it is said', 'read it aloud: your voice becomes the clock'];
   const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
-  let D, F, lines = [], locks = {}, history = [], draft = '', cur = null, voiceRec = null, recTimes = null, pleaI = 0, pleaTimer = 0, listening = false, composing = 0;
-  let voice = store.get('poet.voice', 'piper');                           // piper | mine | none
+  let D, F, lines = [], locks = {}, history = [], cur = null, composing = 0, sel = -1, pleaI = 0, pleaT = 0;
+  let voice = store.get('poet.voice', 'piper'), voiceRec = null, marks = null;           // voice: piper | mine | none; marks: [[t0,t1] per line] from a reading
   const toast = t => { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('on'), 2600); };
-
-  SH.onStatus(s => { $('#sys').className = /rest|idle/.test(s.stage) ? '' : s.stage === 'playing' ? 'play' : 'busy'; $('#sysText').textContent = s.text + (s.frac != null ? ' ' + Math.round(s.frac * 100) + '%' : ''); });
-  let wakeT; const wake = () => { document.body.classList.remove('quiet'); clearTimeout(wakeT); wakeT = setTimeout(() => { if (clock.running && !$('#wall').classList.contains('open')) document.body.classList.add('quiet'); }, 3200); };
+  SH.onStatus(s => { $('#sys').className = /rest|idle/.test(s.stage) ? '' : s.stage === 'playing' ? 'play' : s.stage === 'recording' ? 'rec' : 'busy'; $('#sysText').textContent = s.text + (s.frac != null ? ' ' + Math.round(s.frac * 100) + '%' : ''); });
+  let wakeT; const wake = () => { document.body.classList.remove('quiet'); clearTimeout(wakeT); wakeT = setTimeout(() => { if (clock.running && !$('#wall').classList.contains('open') && document.activeElement !== $('#prompt')) document.body.classList.add('quiet'); }, 3500); };
   ['mousemove', 'touchstart', 'keydown'].forEach(e => addEventListener(e, wake));
 
-  // ------------------------------------------------------------ the plea and the draft
-  function plea() {
-    if (draft || listening || cur) return;
-    const say = $('#say'); say.classList.remove('playing'); say.innerHTML = `<span class="plea" style="opacity:0">${esc(PLEAS[pleaI % PLEAS.length])}</span><span class="caret"></span>`;
+  // ------------------------------------------------------------ the words
+  function plea() { if (cur || $('#prompt').value) return; const say = $('#say'); say.className = ''; say.innerHTML = `<span class="plea" style="opacity:0">${esc(PLEAS[pleaI % PLEAS.length])}</span>`;
     requestAnimationFrame(() => { const p = say.querySelector('.plea'); if (p) p.style.opacity = 1; });
-    pleaTimer = setTimeout(() => { const p = say.querySelector('.plea'); if (p) p.style.opacity = 0; pleaI++; pleaTimer = setTimeout(plea, 1300); }, 4200);
-  }
-  function showDraft(interim) { clearTimeout(pleaTimer); const say = $('#say'); say.classList.remove('playing');
-    say.innerHTML = esc(draft) + (interim ? `<span class="heard">${draft ? ' ' : ''}${esc(interim)}</span>` : '') + '<span class="caret"></span>'; if (!draft && !interim) plea(); }
-  function sayLine(text) { const say = $('#say'); say.classList.add('playing'); say.innerHTML = text.split(/(\s+)/).map((w, i) => /^\s+$/.test(w) ? w : `<span class="w" style="animation-delay:${i * 45}ms">${esc(w)}</span>`).join(''); }
-
-  // ------------------------------------------------------------ typing anywhere; with a film on screen, single keys steer it
-  addEventListener('keydown', e => {
-    if (e.metaKey || e.ctrlKey || e.altKey) { if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); undo(); } return; }
-    const k = e.key;
-    if (!draft && cur) {
-      if (k === ' ') { e.preventDefault(); toggle(); return; }
-      if (k === 'ArrowRight' || k === 'ArrowLeft') { e.preventDefault(); stepLine(k === 'ArrowRight' ? 1 : -1); return; }
-      if (k === 'Escape') { if ($('#wall').classList.contains('open')) closeWall(); return; }
-    }
-    if (k === 'Enter') { e.preventDefault(); if (draft.trim()) commit(draft.trim()); return; }
-    if (k === 'Escape') { draft = ''; showDraft(); return; }
-    if (k === 'Backspace') { draft = draft.slice(0, -1); showDraft(); e.preventDefault(); return; }
-    if (k.length === 1) { if (cur && !draft) pause(); draft += k; showDraft(); e.preventDefault(); }
+    pleaT = setTimeout(() => { const p = say.querySelector('.plea'); if (p) p.style.opacity = 0; pleaI++; pleaT = setTimeout(plea, 1300); }, 4200); }
+  function sayLine(t) { clearTimeout(pleaT); const say = $('#say'); say.className = 'playing'; say.innerHTML = t.split(/(\s+)/).map((w, i) => /^\s+$/.test(w) ? w : `<span class="w" style="animation-delay:${i * 45}ms">${esc(w)}</span>`).join(''); }
+  function drawPoem() { const p = $('#poem'); p.innerHTML = ''; lines.forEach((l, i) => { const d = document.createElement('div'); d.textContent = l; if (i === sel) d.className = 'sel';
+      d.onclick = () => { if (sel === i) { sel = -1; $('#prompt').value = ''; setPlaceholder(); } else { sel = i; $('#prompt').value = l; setPlaceholder(); if (cur) jumpLine(i); } drawPoem(); }; p.append(d); }); }
+  function setPlaceholder() { $('#prompt').placeholder = sel >= 0 ? `edit line ${sel + 1}, Return to change the film, Esc to leave it` : cur ? 'add a line, then Return' : 'type a line, then Return'; }
+  $('#prompt').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); const t = e.target.value.trim(); if (!t) return; e.target.value = '';
+      if (sel >= 0) { history.push({ lines: [...lines], locks: { ...locks } }); lines[sel] = t; locks = {}; marks = null; if (voice === 'mine') voice = 'piper'; const i = sel; sel = -1; setPlaceholder(); store.set('poet.lines', lines); drawPoem(); recompose(null, true, i); toast('line ' + (i + 1) + ' changed'); }
+      else commit(t); }
+    else if (e.key === 'Escape') { sel = -1; e.target.value = ''; setPlaceholder(); drawPoem(); e.target.blur(); }
   });
-  $('#room').addEventListener('click', () => { if (matchMedia('(pointer:coarse)').matches) { const t = $('#type'); t.value = draft; t.focus(); } else if (cur && !draft) toggle(); });
-  $('#type').addEventListener('input', e => { draft = e.target.value; showDraft(); });
-  $('#type').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (draft.trim()) { commit(draft.trim()); e.target.value = ''; } } e.stopPropagation(); });
-
-  // ------------------------------------------------------------ speaking (and keeping the voice)
-  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition; let rec = null, stream = null, raf = 0, media = null, chunks = [];
-  $('#mic').onclick = async () => {
-    if (listening) { rec && rec.stop(); return; }
-    if (!Rec) { toast('this browser cannot hear; type instead (Chrome and Safari can)'); return; }
-    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch (e) { toast('the microphone was not allowed; type instead'); return; }
-    pause(); const ac = new AudioContext(), an = ac.createAnalyser(); an.fftSize = 512; ac.createMediaStreamSource(stream).connect(an); const buf = new Uint8Array(an.fftSize);
-    const level = () => { an.getByteTimeDomainData(buf); let m = 0; for (const v of buf) m = Math.max(m, Math.abs(v - 128)); $('#ring').style.transform = `scale(${1 + m / 40})`; raf = requestAnimationFrame(level); }; level();
-    try { media = new MediaRecorder(stream); chunks = []; media.ondataavailable = e => chunks.push(e.data); media.start(); } catch (e) { media = null; }
-    rec = new Rec(); rec.continuous = true; rec.interimResults = true; rec.lang = navigator.language || 'en-US';
-    rec.onresult = e => { let fin = '', inter = ''; for (let i = e.resultIndex; i < e.results.length; i++) (e.results[i].isFinal ? fin += e.results[i][0].transcript : inter += e.results[i][0].transcript);
-      if (fin.trim()) { const t = fin.trim().replace(/^\w/, c => c.toUpperCase()); draft = ''; commit(t, true); } else showDraft(inter.trim()); };
-    rec.onend = () => { listening = false; $('#mic').classList.remove('on'); cancelAnimationFrame(raf); $('#ring').style.transform = ''; stream.getTracks().forEach(t => t.stop()); ac.close();
-      if (media && media.state !== 'inactive') { media.onstop = () => { voiceRec = new Blob(chunks, { type: media.mimeType || 'audio/webm' }); recTimes = null;
-        if (SH.server) { voice = 'mine'; drawVoice(); toast('your voice is kept; the film will speak with it'); recompose(0, true); } else toast('your voice is kept for the film card'); }; media.stop(); }
-      showDraft(); };
-    rec.start(); listening = true; $('#mic').classList.add('on'); SH.status('listening', 'listening'); showDraft();
-  };
+  $('#prompt').addEventListener('input', () => { if (cur && clock.running) pause(); if (!cur) { clearTimeout(pleaT); $('#say').innerHTML = esc($('#prompt').value); } });
+  addEventListener('keydown', e => {                                     // on a desktop, typing anywhere goes to the prompt; space and arrows steer the film
+    if (document.activeElement === $('#prompt') || !$('#rec').hidden) return;
+    if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); undo(); return; }
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === ' ' && cur) { e.preventDefault(); toggle(); return; }
+    if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && cur) { e.preventDefault(); stepLine(e.key === 'ArrowRight' ? 1 : -1); return; }
+    if (e.key === 'Escape') { closeWall(); return; }
+    if (e.key.length === 1) { $('#prompt').focus(); }
+  });
 
   // ------------------------------------------------------------ composing
-  async function phrasesWithVoice(text) {
-    if (voice === 'mine' && voiceRec && SH.server) {                    // the person's own voice keeps the time (the lab transcribes it for word times)
-      try { if (!recTimes) { SH.status('listening', 'listening back to your voice'); const r = await fetch('/api/transcribe?ext=webm', { method: 'POST', body: voiceRec }); const j = await r.json(); if (r.ok) recTimes = j; }
-        if (recTimes && recTimes.segments.length) { const ph = S.parse(text), W = []; recTimes.segments.forEach(sg => sg.words.forEach(w => W.push([w.t0, w.t1])));
-          let w = 0; ph.forEach(p => { const n = p.text.split(/\s+/).length, a = W[Math.min(w, W.length - 1)], b = W[Math.min(w + n - 1, W.length - 1)]; p.t0 = a[0]; p.t1 = b[1]; w += n; p.timed = true; });
-          ph.forEach((p, i) => { if (ph[i + 1]) p.t1 = Math.max(p.t1, ph[i + 1].t0); }); ph[0].t0 = 0; ph[ph.length - 1].t1 += .8;
-          return { ph, audio: { src: recTimes.audio, offset: 0 }, second: null, T0: 0, T1: ph[ph.length - 1].t1 }; } } catch (e) { }
+  function phrasesFor(text) {
+    if (voice === 'mine' && voiceRec && marks && marks.length === lines.length) {       // your reading keeps the time: each line where you read it, phrases by word share
+      const ph = S.parse(text); let pi = 0;
+      lines.forEach((l, L) => { const n = S.parse(l).length, [a, b] = marks[L], ws = ph.slice(pi, pi + n).map(p => p.text.split(/\s+/).length), tot = ws.reduce((x, y) => x + y, 0) || 1; let t = a;
+        ph.slice(pi, pi + n).forEach((p, j) => { const d = (b - a) * ws[j] / tot; p.t0 = t; p.t1 = t + d; t += d; p.timed = true; }); pi += n; });
+      ph.forEach((p, i) => { if (ph[i + 1]) p.t1 = ph[i + 1].t0; }); ph[0].t0 = 0; const end = marks[marks.length - 1][1] + .6; ph[ph.length - 1].t1 = end;
+      return Promise.resolve({ ph, audio: { src: URL.createObjectURL(voiceRec), offset: 0 }, second: null, T0: 0, T1: end });
     }
     return SH.phrases('own', voice === 'piper' && SH.server ? 'ryan' : 'none', text);
   }
-  async function build() { const P = await phrasesWithVoice(lines.join('\n')); return SH.compose(P, { wOp: 1, wHome: .09, gap: .045, close: lines.length > 2, locks }); }
+  async function build() { const P = await phrasesFor(lines.join('\n')); return SH.compose(P, { wOp: 1, wHome: .09, gap: .045, close: lines.length > 2, locks }); }
   async function commit(text) {
-    draft = ''; lines.push(text); store.set('poet.lines', lines); drawPoem(); const my = ++composing; pause();
-    $('#say').classList.remove('playing'); $('#say').innerHTML = `<span style="color:var(--dim)">${esc(text)}</span>`;
-    try { const c = await build(); if (my !== composing) return;
-      const nNew = S.parse(text).length, from = Math.max(0, c.cut.findIndex(s => s.phrase >= c.ph.length - nNew));
+    lines.push(text); store.set('poet.lines', lines); if (voice === 'mine') { voice = 'piper'; marks = null; toast('a new line: your recording no longer fits; record again to use your voice'); }
+    drawPoem(); setPlaceholder(); const my = ++composing; pause(); $('#say').className = ''; $('#say').innerHTML = `<span style="color:var(--dim)">${esc(text)}</span>`;
+    try { const c = await build(); if (my !== composing) return; const nNew = S.parse(text).length, from = Math.max(0, c.cut.findIndex(s => s.phrase >= c.ph.length - nNew));
       await see(c, from); if (my !== composing) return; setFilm(c); play(c.cut[from] ? c.cut[from].t0 : c.T0);
-    } catch (e) { SH.status('rest', 'the words could not be read: ' + e.message); showDraft(); }
+    } catch (e) { SH.status('rest', 'the words could not be read: ' + e.message); }
   }
-  async function recompose(atShot, andPlay) {                          // after a choice on the wall, the film is composed again around it
-    if (!lines.length) return; const was = clock.running, t = clock.now(); pause(); const my = ++composing;
-    const c = await build(); if (my !== composing) return; setFilm(c);
-    const s = c.cut[atShot != null && atShot >= 0 ? Math.min(atShot, c.cut.length - 1) : 0]; const at = s ? s.t0 + .01 : t; clock.seek(at); shown = -1; lineShown = -1; frame(at);
-    if (was || andPlay) play(); if ($('#wall').classList.contains('open')) drawWall();
+  async function recompose(atShot, andPlay, atLine) {
+    if (!lines.length) { again(); return; } const was = clock.running; pause(); const my = ++composing; const c = await build(); if (my !== composing) return; setFilm(c);
+    let t = c.T0; if (atLine != null) { let n = 0; for (let j = 0; j < atLine; j++) n += S.parse(lines[j]).length; t = (c.ph[n] || c.ph[0]).t0 + .01; } else if (atShot != null && atShot >= 0 && c.cut[Math.min(atShot, c.cut.length - 1)]) t = c.cut[Math.min(atShot, c.cut.length - 1)].t0 + .01;
+    seekTo(t); if (was || andPlay) play(); if ($('#wall').classList.contains('open')) drawWall();
   }
-  function drawPoem() { const p = $('#poem'); p.innerHTML = ''; lines.forEach((l, i) => { const d = document.createElement('div'); d.textContent = l; d.onclick = () => jumpLine(i); p.append(d); }); }
-  function see(c, from) {                                              // the shots in contention surface, sized by their chance, then give way to the one taken
-    return new Promise(res => {
-      const s = c.cut[from], g = $('#ghosts'); g.innerHTML = ''; if (!s) return res(); const W = innerWidth, H = innerHeight, top = s.alts[0].p;
+  function see(c, from) {
+    return new Promise(res => { const s = c.cut[from], g = $('#ghosts'); g.innerHTML = ''; if (!s) return res(); const W = innerWidth, H = innerHeight, top = s.alts[0].p;
       SH.status('weighing', `about ${Math.max(1, Math.round(s.perp))} shots can carry this line`);
-      const imgs = s.alts.slice(0, 14).map((a, j) => { const im = new Image(); im.src = D.LIB.shots[a.k].thumb; const ang = j * 2.39996, r = .28 + .16 * ((j * 37) % 10) / 10;
-        im.style.left = (50 + Math.cos(ang) * r * 100 * (H / W) * 1.6) + '%'; im.style.top = (50 + Math.sin(ang) * r * 100) + '%'; im.style.width = Math.round(70 + 190 * Math.sqrt(a.p / top)) + 'px';
-        g.append(im); setTimeout(() => im.classList.add('show'), 80 + j * 90); return [im, a]; });
-      setTimeout(() => { imgs.forEach(([im, a]) => { if (a.k === s.k) { im.classList.add('take'); im.style.left = '50%'; im.style.top = '50%'; im.style.width = Math.max(W, H * 16 / 9) + 'px'; } else im.classList.add('gone'); });
-        const x = D.LIB.shots[s.k]; SH.status('choosing', `it takes ${x.title}${x.year ? ', ' + x.year : ''}`);
-        setTimeout(() => { res(); setTimeout(() => { g.innerHTML = ''; }, 1400); }, 1500); }, 2300);
-    });
+      const imgs = s.alts.slice(0, 14).map((a, j) => { const im = new Image(); im.src = D.LIB.shots[a.k].thumb; const ang = j * 2.39996, r = .26 + .15 * ((j * 37) % 10) / 10;
+        im.style.left = (50 + Math.cos(ang) * r * 100 * Math.min(1, H / W) * 1.5) + '%'; im.style.top = (45 + Math.sin(ang) * r * 90) + '%'; im.style.width = Math.round(56 + 170 * Math.sqrt(a.p / top) * Math.min(1, W / 900)) + 'px';
+        im.style.outline = '2px solid ' + dom(D.LIB.shots[a.k]); g.append(im); setTimeout(() => im.classList.add('show'), 80 + j * 90); return [im, a]; });
+      setTimeout(() => { imgs.forEach(([im, a]) => { if (a.k === s.k) { im.classList.add('take'); im.style.left = '50%'; im.style.top = '50%'; im.style.width = Math.max(W, H * 16 / 9) + 'px'; im.style.outline = 'none'; } else im.classList.add('gone'); });
+        const x = D.LIB.shots[s.k]; SH.status('choosing', `it takes ${x.title}${x.year ? ', ' + x.year : ''}`); setTimeout(() => { res(); setTimeout(() => g.innerHTML = '', 1400); }, 1500); }, 2300); });
   }
+  const dom = x => { const g = x && (x.signs || [])[0] && D.K.signs[x.signs[0]]; return g ? MPGuide.color(g.dom) : '#6b655c'; };
 
   // ------------------------------------------------------------ the film
   const clock = SH.Clock($('#aud'), null); let timer = 0, shown = -1, lineShown = -1;
-  function setFilm(c) { cur = c; clock.set(c); drawStrip(); $('#film').classList.add('on'); }
-  function frame(t) {
-    const c = cur; if (!c) return;
-    const i = c.cut.findIndex(s => t >= s.t0 && t < s.t1);
+  function setFilm(c) { cur = c; clock.set(c); drawStrip(); $('#film').classList.add('on'); setPlaceholder(); }
+  function frame(t) { const c = cur; if (!c) return; const i = c.cut.findIndex(s => t >= s.t0 && t < s.t1);
     if (i >= 0 && i !== shown) { const s = c.cut[i], x = D.LIB.shots[s.k]; F.show(x, (s.in || 0) + Math.max(0, t - s.t0), null, shown === -1 && !clock.running); shown = i;
-      const nx = c.cut[i + 1]; if (nx) F.preload(D.LIB.shots[nx.k], nx.in || 0);
-      $('#dna').innerHTML = F.dna(x, { op: s.op, p: s.p }); if ($('#wall').classList.contains('open') && !wallPinned) drawWall(); }
+      const nx = c.cut[i + 1]; if (nx) F.preload(D.LIB.shots[nx.k], nx.in || 0); $('#dna').innerHTML = F.dna(x, { op: s.op, p: s.p }); if ($('#wall').classList.contains('open') && !wallPinned) drawWall(); }
     const li = c.ph.findIndex(p => t >= p.t0 && t < p.t1);
-    if (li >= 0 && li !== lineShown) { lineShown = li; sayLine(c.ph[li].text); markStrip(li); const L = lineOf(li); document.querySelectorAll('#poem div').forEach((d, j) => d.classList.toggle('now', j === L)); }
-  }
+    if (li >= 0 && li !== lineShown) { lineShown = li; sayLine(c.ph[li].text); document.querySelectorAll('#strip i').forEach((e, j) => { e.classList.toggle('now', j === li); e.classList.toggle('done', j < li); });
+      const L = lineOf(li); document.querySelectorAll('#poem div').forEach((d, j) => { d.classList.toggle('now', j === L); if (j === L) d.scrollIntoView({ block: 'nearest' }); }); } }
   function lineOf(pi) { let n = 0; for (let L = 0; L < lines.length; L++) { n += S.parse(lines[L]).length; if (pi < n) return L; } return lines.length - 1; }
-  function play(at) {
-    if (!cur) return; if (at != null) { clock.seek(at); shown = -1; lineShown = -1; } $('#veil').hidden = true;
-    clock.play(); F.play(); clearInterval(timer); $('#bPlay').innerHTML = '<svg><use href="#i-pause"/></svg><span class="tip">PAUSE · SPACE</span>';
-    timer = setInterval(() => { const t = clock.now();
-      if (t >= cur.T1) { pause(); SH.status('rest', 'the film rests · say another line, or play it again'); clock.seek(cur.T0); return; }
-      frame(t); F.tick(); }, 40);
-    SH.status('playing', `${Object.keys(cur.eng.scenes).length} scene${Object.keys(cur.eng.scenes).length > 1 ? 's' : ''} · ${cur.cut.length} shot${cur.cut.length > 1 ? 's' : ''}`); wake();
-  }
-  function pause() { clearInterval(timer); clock.pause(); if (F) F.pause(); $('#bPlay').innerHTML = '<svg><use href="#i-play"/></svg><span class="tip">PLAY · SPACE</span>'; document.body.classList.remove('quiet'); }
-  function toggle() { if (!cur) return; clock.running ? pause() : play(); }
-  function drawStrip() { const L = $('#line'); L.innerHTML = ''; cur.ph.forEach((p, i) => { const e = document.createElement('i'); e.style.flex = `${Math.max(.2, p.t1 - p.t0)} 1 0`; e.onclick = () => seekTo(p.t0 + .01); L.append(e); }); }
-  function markStrip(li) { document.querySelectorAll('#line i').forEach((e, i) => { e.classList.toggle('now', i === li); e.classList.toggle('done', i < li); }); }
+  function play(at) { if (!cur) return; if (at != null) seekTo(at); $('#veil').hidden = true; clock.play(); F.play(); clearInterval(timer); $('#bPlay').innerHTML = '<svg><use href="#i-pause"/></svg>'; document.body.classList.add('playing');
+    timer = setInterval(() => { const t = clock.now(); if (t >= cur.T1) { pause(); SH.status('rest', 'the film rests · add a line, record your voice, or send it'); seekTo(cur.T0); return; } frame(t); F.tick(); }, 40);
+    SH.status('playing', `${cur.cut.length} shot${cur.cut.length > 1 ? 's' : ''} · ${voice === 'mine' ? 'your voice' : cur.audio ? 'Piper' : 'silence'}`); wake(); }
+  function pause() { clearInterval(timer); clock.pause(); if (F) F.pause(); $('#bPlay').innerHTML = '<svg><use href="#i-play"/></svg>'; document.body.classList.remove('quiet', 'playing'); }
+  function toggle() { if (!cur) { toast('type a line first'); return; } clock.running ? pause() : play(); }
   function seekTo(t) { clock.seek(t); shown = -1; lineShown = -1; frame(t); }
-  function jumpLine(L) { if (!cur) return; let n = 0; for (let j = 0; j < L; j++) n += S.parse(lines[j]).length; const p = cur.ph[n]; if (p) { seekTo(p.t0 + .01); if (!clock.running) play(); } }
-  function stepLine(d) { if (!cur) return; const t = clock.now(), li = Math.max(0, cur.ph.findIndex(p => t >= p.t0 && t < p.t1)), p = cur.ph[Math.max(0, Math.min(cur.ph.length - 1, li + d))]; seekTo(p.t0 + .01); }
-  function again() { pause(); cur = null; lines = []; locks = {}; history = []; store.set('poet.lines', []); draft = ''; voiceRec = null; recTimes = null; if (voice === 'mine') voice = 'piper'; drawVoice();
-    $('#film').classList.remove('on'); $('#dna').innerHTML = ''; $('#line').innerHTML = ''; drawPoem(); closeWall(); if (location.hash) history_clear(); SH.status('rest', 'the room is empty again'); showDraft(); }
-  function history_clear() { try { window.history.replaceState(null, '', location.pathname); } catch (e) { } }
-  $('#again').onclick = again; $('#help').onclick = () => MPGuide.open('poet');
-  $('#bPlay').onclick = () => { if (cur) toggle(); else toast('say or type a line first'); };
-  $('#bCalm').onclick = () => { const on = F.calm(!F.isCalm); $('#bCalm').classList.toggle('on', on); toast(on ? 'calm: slower dissolves, slower pictures' : 'calm off'); };
-  $('#bSound').onclick = () => { const on = F.sound(!F.isSound); $('#bSound').classList.toggle('on', on); $('#bSound').querySelector('use').setAttribute('href', on ? '#i-sound' : '#i-mute'); toast(on ? 'the films\' own sound is on' : 'the films are silent'); };
-  function drawVoice() { $('#voiceTip').textContent = 'VOICE: ' + ({ piper: 'PIPER', mine: 'YOURS', none: 'SILENCE' })[voice] + ''; $('#bVoice').classList.toggle('on', voice !== 'none'); store.set('poet.voice', voice === 'mine' ? 'piper' : voice); }
-  $('#bVoice').onclick = () => { const opts = ['piper', ...(voiceRec ? ['mine'] : []), 'none']; voice = opts[(opts.indexOf(voice) + 1) % opts.length]; drawVoice();
-    toast(voice === 'piper' && !SH.server ? 'a Piper voice for new words needs the lab machine' : 'voice: ' + ({ piper: 'Piper', mine: 'your own', none: 'silence' })[voice]); if (cur) recompose(shown, clock.running); };
+  function drawStrip() { const L = $('#strip'); L.innerHTML = ''; cur.ph.forEach((p, i) => { const e = document.createElement('i'), s = cur.cut.find(x => x.phrase === i || (x.held || []).includes(i));
+    e.style.flex = `${Math.max(.2, p.t1 - p.t0)} 1 0`; e.style.setProperty('--dc', s ? dom(D.LIB.shots[s.k]) : '#555'); e.title = p.text; e.onclick = () => seekTo(p.t0 + .01); L.append(e); }); }
+  function jumpLine(L) { if (!cur) return; let n = 0; for (let j = 0; j < L; j++) n += S.parse(lines[j]).length; const p = cur.ph[n]; if (p) seekTo(p.t0 + .01); }
+  function stepLine(d) { const t = clock.now(), li = Math.max(0, cur.ph.findIndex(p => t >= p.t0 && t < p.t1)), p = cur.ph[Math.max(0, Math.min(cur.ph.length - 1, li + d))]; seekTo(p.t0 + .01); }
+  function again() { pause(); cur = null; lines = []; locks = {}; history = []; marks = null; voiceRec = null; if (voice === 'mine') voice = 'piper'; sel = -1; store.set('poet.lines', []);
+    $('#film').classList.remove('on'); $('#dna').innerHTML = ''; $('#strip').innerHTML = ''; drawPoem(); closeWall(); setPlaceholder(); try { history_clear(); } catch (e) { } SH.status('rest', 'the room is empty again'); plea(); }
+  function history_clear() { window.history.replaceState(null, '', location.pathname); }
+  $('#bPlay').onclick = toggle; $('#bFold').onclick = () => { const c = document.body.classList.toggle('collapsed'); $('#bFold').innerHTML = `<svg><use href="#i-${c ? 'up' : 'down'}"/></svg>`; store.set('poet.fold', c); };
 
-  // ------------------------------------------------------------ the operator's wall: steer by choosing among what was weighed
+  // ------------------------------------------------------------ choosing among the shots weighed
   let wallShot = 0, wallPinned = false;
-  function openWall() { if (!cur) { toast('say or type a line first'); return; } wallShot = Math.max(0, shown); wallPinned = false; $('#wall').classList.add('open'); $('#bWall').classList.add('on'); drawWall(); wake(); }
-  function closeWall() { $('#wall').classList.remove('open'); $('#bWall').classList.remove('on'); }
+  function openWall() { if (!cur) { toast('type a line first'); return; } wallShot = Math.max(0, shown); wallPinned = false; $('#wall').classList.add('open'); drawWall(); }
+  function closeWall() { $('#wall').classList.remove('open'); }
   $('#bWall').onclick = () => $('#wall').classList.contains('open') ? closeWall() : openWall(); $('#wClose').onclick = closeWall;
-  $('#wPrev').onclick = () => { wallPinned = true; wallShot = Math.max(0, wallShot - 1); seekShot(wallShot); }; $('#wNext').onclick = () => { wallPinned = true; wallShot = Math.min(cur.cut.length - 1, wallShot + 1); seekShot(wallShot); };
-  $('#wUndo').onclick = undo;
-  function seekShot(i) { const s = cur.cut[i]; seekTo(s.t0 + .01); drawWall(); }
+  $('#wPrev').onclick = () => { wallPinned = true; wallShot = Math.max(0, wallShot - 1); seekTo(cur.cut[wallShot].t0 + .01); drawWall(); };
+  $('#wNext').onclick = () => { wallPinned = true; wallShot = Math.min(cur.cut.length - 1, wallShot + 1); seekTo(cur.cut[wallShot].t0 + .01); drawWall(); };
+  $('#wUndo').onclick = () => undo();
   const lockKey = s => { const n0 = cur.cut.findIndex(x => x.phrase === s.phrase); return s.phrase + ':' + (s.i - n0); };
   function drawWall() {
     if (!cur) return; if (!wallPinned) wallShot = Math.max(0, shown); const s = cur.cut[wallShot]; if (!s) return; const top = s.alts[0].p;
-    $('#wTitle').textContent = cur.ph[s.phrase].text;
-    $('#wInfo').textContent = `shot ${wallShot + 1} of ${cur.cut.length} · ${EDIT[s.op] || s.op} · about ${Math.max(1, Math.round(s.perp))} in play` + (history.length ? ` · ${history.length} choice${history.length > 1 ? 's' : ''}` : '');
-    $('#wUndo').disabled = !history.length;
-    const box = $('#tiles'); box.innerHTML = '';
-    s.alts.forEach((a, j) => { const x = D.LIB.shots[a.k], t = document.createElement('button'); t.className = 'tile' + (a.k === s.k ? ' chosen' : '') + (locks[lockKey(s)] === a.k ? ' mine' : ''); t.style.animationDelay = (j * 18) + 'ms';
-      const sg = (x.signs || []).slice(0, 3).map(c => D.K.signs[c]).filter(Boolean).map(g => `<i style="background:${MPFilm.DOM[g.dom] || '#ccc'}" title="${esc(g.name)}">${g.symbol}</i>`).join('');
-      t.innerHTML = `<img src="${esc(x.thumb)}" alt="" loading="lazy"><span class="n">${Math.round(a.p * 100)}%</span><span class="s">${sg}</span><span class="p"><u style="width:${Math.min(100, a.p / top * 100)}%"></u></span>`;
-      t.title = `${x.title}${x.year ? ', ' + x.year : ''} · ${Math.round(a.p * 100)}% · hover to preview, click to keep`;
-      t.onmouseenter = () => { if (!clock.running) F.show(x, x.in || 0, { loop: true }); };
-      t.onmouseleave = () => { if (!clock.running) { shown = -1; frame(clock.now()); } };
-      t.onclick = () => { if (a.k === s.k) return; history.push({ ...locks }); locks[lockKey(s)] = a.k; toast('kept: ' + x.title); recompose(wallShot, false); };
+    $('#wTitle').textContent = cur.ph[s.phrase].text; $('#wInfo').textContent = `shot ${wallShot + 1}/${cur.cut.length} · ${EDIT[s.op] || s.op} · ~${Math.max(1, Math.round(s.perp))} in play` + (history.length ? ` · ${history.length} change${history.length > 1 ? 's' : ''}` : '');
+    $('#wUndo').disabled = !history.length; const box = $('#tiles'); box.innerHTML = '';
+    s.alts.forEach(a => { const x = D.LIB.shots[a.k], t = document.createElement('button'); t.className = 'tile' + (a.k === s.k ? ' chosen' : '') + (locks[lockKey(s)] === a.k ? ' mine' : '');
+      const sg = (x.signs || []).slice(0, 3).map(c => D.K.signs[c]).filter(Boolean).map(g => `<i style="background:${MPGuide.color(g.dom)}" title="${esc(g.name)}">${g.symbol}</i>`).join('');
+      t.innerHTML = `<img src="${esc(x.thumb)}" alt="" loading="lazy"><span class="n">${Math.round(a.p * 100)}%</span><span class="s">${sg}</span><span class="p" style="width:${Math.min(100, a.p / top * 100)}%;background:${dom(x)}"></span>`;
+      t.title = `${x.title}${x.year ? ', ' + x.year : ''} · ${Math.round(a.p * 100)}%`;
+      t.onmouseenter = () => { if (!clock.running) F.show(x, x.in || 0, { loop: true }); }; t.onmouseleave = () => { if (!clock.running) { shown = -1; frame(clock.now()); } };
+      t.onclick = () => { if (a.k === s.k) return; history.push({ lines: [...lines], locks: { ...locks } }); locks[lockKey(s)] = a.k; toast('kept: ' + x.title); recompose(wallShot, false); };
       box.append(t); });
   }
-  function undo() { if (!history.length) return; locks = history.pop(); toast('undone'); recompose(wallShot, clock.running); }
+  function undo() { const h = history.pop(); if (!h) return; lines = h.lines; locks = h.locks; store.set('poet.lines', lines); drawPoem(); toast('undone'); recompose(wallShot, clock.running); }
 
-  // ------------------------------------------------------------ sending: a project file to remix, a finished MP4, a link; and opening one
+  // ------------------------------------------------------------ recording: read your poem, or dictate it; your voice becomes the film's clock
+  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let R = null;                                                           // the live take: {stream, media, chunks, t0, marks, line, ac, an, recog, level[]}
+  $('#bRec').onclick = () => openRec();
+  function recButtons(state) {
+    const b = $('#recBtns'); b.innerHTML = '';
+    const add = (label, cls, fn) => { const x = document.createElement('button'); x.className = 'pill ' + cls; x.textContent = label; x.onclick = fn; b.append(x); };
+    if (state === 'ready') { add('RECORD', 'red', () => startTake()); $('#recHint').textContent = lines.length ? 'the words will light up one line at a time; read each, and it moves on (or tap to move on)' : 'no poem yet: speak, and each sentence you say becomes a line'; }
+    if (state === 'rolling') { if (lines.length) add('NEXT LINE', '', () => nextLine()); add('STOP', 'red', () => stopTake()); $('#recHint').textContent = lines.length ? 'read the bright line · tap it or NEXT LINE when you finish it' : 'speaking · each sentence becomes a line'; }
+    if (state === 'review') { add('RETAKE', '', () => { discardTake(); showPrompter(); recButtons('ready'); }); add('KEEP MY VOICE', 'gold', () => keepTake()); $('#recHint').textContent = 'listen back with the film, then keep it or take it again'; }
+  }
+  function showPrompter() { const p = $('#prompter'); p.innerHTML = ''; (lines.length ? lines : ['(speak; your lines appear here)']).forEach((l, i) => { const d = document.createElement('div'); d.textContent = l; d.onclick = () => { if (R && R.rolling && lines.length && i === R.line) nextLine(); }; p.append(d); }); }
+  function openRec() { pause(); closeWall(); $('#rec').hidden = false; $('#recTitle').textContent = lines.length ? 'READ YOUR POEM ALOUD' : 'SAY YOUR POEM'; $('#recTime').textContent = '0:00'; showPrompter(); recButtons('ready'); drawSpark([]); }
+  $('#recX').onclick = () => { discardTake(); $('#rec').hidden = true; };
+  async function startTake() {
+    let stream; try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); } catch (e) { toast('the microphone was not allowed'); return; }
+    const ac = new AudioContext(), an = ac.createAnalyser(); an.fftSize = 1024; ac.createMediaStreamSource(stream).connect(an);
+    R = { stream, ac, an, chunks: [], marks: [], line: 0, level: [], rolling: false, dict: [] };
+    const cnt = $('#count'); cnt.hidden = false; for (const n of ['3', '2', '1']) { cnt.textContent = n; await new Promise(r => setTimeout(r, 650)); } cnt.hidden = true;
+    try { R.media = new MediaRecorder(stream); R.media.ondataavailable = e => R.chunks.push(e.data); R.media.start(250); } catch (e) { toast('this browser cannot record audio'); return; }
+    R.t0 = performance.now(); R.rolling = true; R.lineStart = 0; SH.status('recording', 'recording'); recButtons('rolling'); highlight(0);
+    const buf = new Uint8Array(an.fftSize); R.raf = setInterval(() => { if (!R || !R.rolling) return; an.getByteTimeDomainData(buf); let m = 0; for (const v of buf) m = Math.max(m, Math.abs(v - 128)); R.level.push(m / 128);
+      const t = (performance.now() - R.t0) / 1000; $('#recTime').textContent = `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`; drawSpark(R.level); }, 50);
+    if (Rec) { const rg = new Rec(); rg.continuous = true; rg.interimResults = true; rg.lang = navigator.language || 'en-US'; R.recog = rg;
+      rg.onresult = e => { for (let i = e.resultIndex; i < e.results.length; i++) { const r = e.results[i], txt = r[0].transcript.trim(), t = (performance.now() - R.t0) / 1000;
+        if (lines.length) { const want = (lines[R.line] || '').toLowerCase().replace(/[^\w\s']/g, '').split(/\s+/).filter(Boolean), got = txt.toLowerCase().split(/\s+/);
+          if (want.length && got.length && want.slice(-2).every(w => got.slice(-4).includes(w)) && r.isFinal) nextLine(); }
+        else if (r.isFinal && txt) { R.dict.push([R.lineStart, t, txt.replace(/^\w/, c => c.toUpperCase())]); R.lineStart = t; const p = $('#prompter'); if (R.dict.length === 1) p.innerHTML = ''; const d = document.createElement('div'); d.className = 'done'; d.textContent = txt; p.append(d); d.scrollIntoView({ block: 'center' }); } } };
+      rg.onend = () => { if (R && R.rolling) try { rg.start(); } catch (e) { } }; try { rg.start(); } catch (e) { } }
+  }
+  function highlight(i) { document.querySelectorAll('#prompter div').forEach((d, j) => { d.className = j === i ? 'now' : j < i ? 'done' : ''; if (j === i) d.scrollIntoView({ block: 'center' }); }); }
+  function nextLine() { if (!R || !R.rolling || !lines.length) return; const t = (performance.now() - R.t0) / 1000; R.marks.push([R.lineStart, t]); R.lineStart = t; R.line++;
+    if (R.line >= lines.length) stopTake(); else highlight(R.line); }
+  function stopTake() {
+    if (!R) return; const t = (performance.now() - R.t0) / 1000; R.rolling = false; clearInterval(R.raf); if (R.recog) try { R.recog.stop(); } catch (e) { }
+    if (lines.length && R.marks.length < lines.length) R.marks.push([R.lineStart, t]);
+    while (lines.length && R.marks.length < lines.length) R.marks.push([t, t + 1.5]);                 // lines not read get a moment each
+    R.media.onstop = async () => { R.blob = new Blob(R.chunks, { type: R.media.mimeType || 'audio/webm' }); R.stream.getTracks().forEach(x => x.stop()); R.ac.close();
+      if (!lines.length) { if (!R.dict.length) { toast('nothing was heard; try again'); recButtons('ready'); return; } lines = R.dict.map(d => d[2]); R.marks = R.dict.map(d => [d[0], d[1]]); store.set('poet.lines', lines); drawPoem(); }
+      voiceRec = R.blob; marks = R.marks; voice = 'mine'; locks = {}; SH.status('composing', 'composing with your voice'); const c = await build(); setFilm(c); recButtons('review');
+      $('#rec').style.background = '#050505aa'; play(c.T0); };
+    R.media.stop();
+  }
+  function keepTake() { $('#rec').hidden = true; $('#rec').style.background = ''; toast('your voice is the film\'s clock now; SEND carries it'); R = null; }
+  function discardTake() { if (R) { R.rolling = false; clearInterval(R.raf); try { R.recog && R.recog.stop(); } catch (e) { } try { R.media && R.media.state !== 'inactive' && R.media.stop(); } catch (e) { } try { R.stream.getTracks().forEach(x => x.stop()); R.ac.close(); } catch (e) { } }
+    R = null; pause(); $('#rec').style.background = ''; if (voice === 'mine' && !voiceRec) voice = 'piper'; }
+  function drawSpark(level) { const c = $('#spark'), w = c.clientWidth || 300, h = c.clientHeight || 44, x = c.getContext('2d'); c.width = w * devicePixelRatio; c.height = h * devicePixelRatio; x.scale(devicePixelRatio, devicePixelRatio);
+    x.clearRect(0, 0, w, h); x.fillStyle = '#2a2723'; x.fillRect(0, h / 2, w, 1); const n = Math.min(level.length, w); x.fillStyle = '#e0453a';
+    for (let i = 0; i < n; i++) { const v = level[level.length - n + i], y = Math.max(1, v * h * .9); x.fillRect(w - n + i, (h - y) / 2, 1, y); } }
+
+  // ------------------------------------------------------------ the menu: everything that is not needed every second
+  const toggleCalm = () => { F.calm(!F.isCalm); return true; }, toggleSound = () => { F.sound(!F.isSound); return true; };
+  $('#bMore').onclick = e => { e.stopPropagation(); MPUI.menu($('#bMore'), [
+    { title: 'WATCH', items: [
+      { icon: 'calm', label: 'Calm', hint: 'slower dissolves and pictures', on: () => F.isCalm, state: () => F.isCalm ? 'ON' : '', act: toggleCalm },
+      { icon: () => F.isSound ? 'sound' : 'mute', label: 'Films\' own sound', on: () => F.isSound, state: () => F.isSound ? 'ON' : '', act: toggleSound },
+      { icon: 'voice', label: 'Voice', hint: () => voice === 'mine' ? 'your recording' : voice === 'piper' ? (SH.server ? 'Piper (Ryan)' : 'Piper needs the lab machine') : 'silence', state: () => ({ mine: 'YOURS', piper: 'PIPER', none: 'OFF' })[voice],
+        act: () => { const o = ['piper', ...(voiceRec && marks ? ['mine'] : []), 'none']; voice = o[(o.indexOf(voice) + 1) % o.length]; store.set('poet.voice', voice === 'mine' ? 'piper' : voice); if (cur) recompose(shown, clock.running); return true; } },
+      { icon: 'full', label: 'Full screen', act: () => { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => { }); } }] },
+    { title: 'MAKE', items: [
+      { icon: 'rec', label: 'Record your voice', hint: () => lines.length ? 'read the poem; the film follows your timing' : 'say the poem; each sentence becomes a line', act: () => openRec() },
+      { icon: 'undo', label: 'Undo', hidden: () => !history.length, act: () => undo() },
+      { icon: 'close', label: 'Remove the selected line', hidden: () => sel < 0, act: () => { history.push({ lines: [...lines], locks: { ...locks } }); lines.splice(sel, 1); sel = -1; locks = {}; marks = null; if (voice === 'mine') voice = 'piper'; $('#prompt').value = ''; store.set('poet.lines', lines); drawPoem(); recompose(null, false); } },
+      { icon: 'take', label: 'Begin again', hint: 'an empty room', hidden: () => !lines.length, act: () => again() }] },
+    { title: 'SEND', items: [
+      { icon: 'send', label: 'Send this film', hint: 'project file, MP4, link', hidden: () => !cur, act: () => { $('#bSend').click(); } },
+      { icon: 'open', label: 'Open a project', hint: 'a .markov.html from a friend', act: () => openFile() }] },
+    { title: 'GO', items: [
+      { icon: 'info', label: 'How this room works', act: () => MPGuide.open('poet') },
+      { icon: 'book', label: 'Narrative', hint: 'poems line by line, every shot weighed', act: () => location.href = 'shannon-narrative.html' },
+      { icon: 'wrench', label: 'The workshop', hint: 'any text, recordings, tests', act: () => location.href = 'markov-engine.html' },
+      { icon: 'home', label: 'The Markov Poet', hint: 'how it works, step by step', act: () => location.href = 'markov-poet.html' }] }]); };
+
+  // ------------------------------------------------------------ sending and opening
   const blobURL = b => new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(b); });
-  async function currentProject() { return MPExport.project(D, cur, { room: 'poet', lines: [...lines], voice, locks: { ...locks }, calm: F.isCalm, sound: F.isSound,
-    audioData: voice === 'mine' && voiceRec ? await blobURL(voiceRec) : null }); }
-  let prCache = null;
-  $('#bSend').onclick = async e => { e.stopPropagation(); if (!cur) { $('#bSend').blur(); MPExport.menu($('#bSend'), () => ({}), { open: loadProject }); return; }
-    prCache = await currentProject(); MPExport.menu($('#bSend'), () => prCache, { open: loadProject }); };
+  $('#bSend').onclick = async e => { e.stopPropagation(); if (!cur) { MPExport.menu($('#bSend'), () => ({}), { open: loadProject }); return; }
+    const pr = MPExport.project(D, cur, { room: 'poet', lines: [...lines], voice, locks: { ...locks }, calm: F.isCalm, sound: F.isSound, audioData: voice === 'mine' && voiceRec ? await blobURL(voiceRec) : null });
+    MPExport.menu($('#bSend'), () => pr, { open: loadProject }); };
+  function openFile() { const i = document.createElement('input'); i.type = 'file'; i.accept = '.html,.json'; i.onchange = async () => { try { loadProject(await MPExport.read(i.files[0])); } catch (err) { toast(err.message); } }; i.click(); }
   async function loadProject(pr) {
     pause(); lines = pr.lines || [...new Set(pr.film.ph.map(p => p[2]))]; locks = pr.locks || {}; history = []; store.set('poet.lines', lines); drawPoem();
-    if (pr.film.audioData && /^data:audio\/(webm|ogg|mp4)/.test(pr.film.audioData)) { voiceRec = await (await fetch(pr.film.audioData)).blob(); recTimes = null; if (SH.server) voice = 'mine'; drawVoice(); }
-    if (pr.calm !== F.isCalm) $('#bCalm').click(); SH.status('reading', 'opening ' + (pr.title || 'a project'));
-    const c = await build(); setFilm(c); shown = -1; frame(c.T0); $('#veilSub').textContent = (pr.title || '') + ' · ' + (pr.score ? 'their score ' + pr.score.total + ': beat it' : ''); $('#veil').hidden = false; $('#veil').onclick = () => play(c.T0);
+    if (pr.film.audioData && pr.voice === 'mine') { voiceRec = await (await fetch(pr.film.audioData)).blob(); let pi = 0; marks = lines.map(l => { const n = S.parse(l).length, a = pr.film.ph[pi], b = pr.film.ph[pi + n - 1]; pi += n; return [a ? a[0] : 0, b ? b[1] : 0]; }); voice = 'mine'; }
+    if (!!pr.calm !== F.isCalm) F.calm(!!pr.calm); SH.status('reading', 'opening ' + (pr.title || 'a project'));
+    const c = await build(); setFilm(c); seekTo(c.T0); $('#veilSub').textContent = (pr.title || '') + (pr.score ? ` · their score ${pr.score.total}: change a shot and beat it` : ''); $('#veil').hidden = false; $('#veil').onclick = () => play(c.T0);
   }
-  addEventListener('dragover', e => { e.preventDefault(); }); addEventListener('drop', async e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (!f) return; try { await loadProject(await MPExport.read(f)); } catch (err) { toast(err.message); } });
+  addEventListener('dragover', e => e.preventDefault()); addEventListener('drop', async e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) try { await loadProject(await MPExport.read(f)); } catch (err) { toast(err.message); } });
 
   // ------------------------------------------------------------ waking
-  SH.load().then(async d => { D = d; F = MPFilm($('#film'), { signs: d.K.signs }); drawVoice(); MPGuide.first('poet');
-    const m = location.hash.match(/#p=([\w-]+)/), unpack = MPExport.unpack;
-    if (m) { try { const o = await unpack(m[1]); lines = o.l || []; locks = o.k || {}; drawPoem(); SH.status('reading', 'reading a poem someone sent');
-        const c = await build(); setFilm(c); frame(c.T0); $('#veilSub').textContent = lines.join(' / ').slice(0, 160); $('#veil').hidden = false; $('#veil').onclick = () => play(c.T0); } catch (e) { toast('the link could not be read'); plea(); } }
-    else { lines = store.get('poet.lines', []); drawPoem(); if (lines.length) { SH.status('rest', 'your poem is here · play it, or add a line'); build().then(c => { setFilm(c); frame(c.T0); }).catch(() => { }); } else { SH.status('rest', `${d.LIB.n.toLocaleString()} shots at rest`); plea(); } }
+  if (store.get('poet.fold', false)) { document.body.classList.add('collapsed'); $('#bFold').innerHTML = '<svg><use href="#i-up"/></svg>'; }
+  SH.load().then(async d => { D = d; F = MPFilm($('#film'), { signs: d.K.signs }); MPGuide.first('poet');
+    const m = location.hash.match(/#p=([\w-]+)/);
+    if (m) { try { const o = await MPExport.unpack(m[1]); lines = o.l || []; locks = o.k || {}; drawPoem(); SH.status('reading', 'reading a poem someone sent');
+        const c = await build(); setFilm(c); seekTo(c.T0); $('#veilSub').textContent = lines.join(' / ').slice(0, 160); $('#veil').hidden = false; $('#veil').onclick = () => play(c.T0); if (/rec=1/.test(location.hash)) openRec(); } catch (e) { toast('the link could not be read'); plea(); } }
+    else { lines = store.get('poet.lines', []); drawPoem(); setPlaceholder(); if (lines.length) { SH.status('rest', 'your poem is here · play it, add a line, or record your voice'); build().then(c => { setFilm(c); seekTo(c.T0); }).catch(() => { }); } else { SH.status('rest', `${d.LIB.n.toLocaleString()} shots at rest`); plea(); } }
     if (window.ClipText) setTimeout(() => { if (SH.server === false) window.ClipText.warm(s => SH.status(s.stage === 'ready' ? 'rest' : 'loading', s.stage === 'ready' ? 'ready to read' : s.text, s.frac)); }, 1500);
   }).catch(e => SH.status('rest', 'the archive could not wake: ' + e.message));
-
 })();
 </script>
 </body></html>
