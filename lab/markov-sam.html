@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<title>Markov SAM</title>
+<meta name="description" content="Markov SAM. Each line becomes a storyboard panel: a ground from the archive and figures cut out by SAM, which you move about by hand.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ color-scheme:dark; --bg:#050505; --ink:#efe9dd; --dim:#7d776f; --faint:#2a2723; --hi:#e8c070; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; }
+*{ box-sizing:border-box; } html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); font:12px var(--mono); -webkit-tap-highlight-color:transparent; overflow:hidden; }
+[hidden]{ display:none !important; } button,input{ font:inherit; color:inherit; }
+body{ display:grid; grid-template-rows:auto minmax(0,1fr) auto; grid-template-columns:minmax(0,1fr); height:100dvh; }
+header{ display:flex; align-items:center; gap:10px; padding:8px 12px; padding-top:calc(8px + env(safe-area-inset-top)); min-width:0; }
+#markLink{ display:flex; align-items:center; gap:8px; color:var(--ink); text-decoration:none; letter-spacing:.2em; font-size:10.5px; white-space:nowrap; } #markLink span{ color:var(--dim); }
+#sys{ flex:1; min-width:0; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:11px; }
+.ico{ width:44px; height:44px; display:grid; place-items:center; background:none; border:0; border-radius:50%; cursor:pointer; color:#a59e93; flex:none; } .ico:hover{ color:var(--ink); background:#ffffff0d; } .ico svg{ width:20px; height:20px; } .ico.on{ color:var(--hi); }
+main{ min-height:0; min-width:0; display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr) auto auto auto; gap:6px; padding:0 10px; }
+#stageWrap{ min-height:0; min-width:0; position:relative; display:grid; place-items:center; overflow:hidden; }
+.panel{ position:relative; aspect-ratio:16/9; background:#0c0b0a; overflow:hidden; border-radius:3px; container-type:size; }
+.panel.grade > .g{ filter:grayscale(1) contrast(1.06); }
+.panel .g{ position:absolute; inset:0; }
+.panel .bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.fig{ position:absolute; background-repeat:no-repeat; background-size:100% 100%; transform:translate(-50%,-50%); filter:drop-shadow(0 3px 10px #000a); touch-action:none; cursor:grab; }
+.fig.flip{ transform:translate(-50%,-50%) scaleX(-1); }
+.fig.sel{ outline:1px dashed var(--hi); outline-offset:3px; }
+@keyframes spr{ to{ background-position:100% 0; } }
+#stage{ position:absolute; left:50%; top:50%; translate:-50% -50%; box-shadow:0 0 0 1px var(--faint); }
+#stage .cap{ position:absolute; left:0; right:0; bottom:0; padding:22px 14px 10px; background:linear-gradient(#0000,#000c); font:300 clamp(15px,4.2cqw,30px)/1.2 var(--serif); text-align:center; pointer-events:none; text-wrap:balance; }
+#empty{ text-align:center; color:#5f5a52; padding:20px; } #empty h1{ font:300 clamp(26px,6vw,46px) var(--serif); color:#8f887c; margin:0 0 10px; } #empty p{ max-width:46ch; margin:0 auto 18px; line-height:1.6; }
+#starters{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; } #starters button{ border:1px solid #2e2b27; background:none; border-radius:20px; padding:9px 14px; min-height:40px; cursor:pointer; color:#a59e93; font:italic 300 15px var(--serif); }
+#tools{ display:flex; gap:2px; align-items:center; justify-content:center; min-height:44px; color:var(--dim); font-size:10.5px; letter-spacing:.06em; }
+#tools .ico{ width:40px; height:40px; } #tools em{ font-style:normal; margin-right:8px; max-width:34vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--hi); }
+#strip{ display:flex; gap:6px; overflow-x:auto; padding:2px 0 4px; scrollbar-width:none; } #strip::-webkit-scrollbar{ display:none; }
+#strip .panel{ flex:none; width:clamp(92px,15vw,150px); cursor:pointer; opacity:.62; } #strip .panel.cur{ opacity:1; box-shadow:0 0 0 1.5px var(--hi); } #strip .panel b{ position:absolute; left:4px; top:3px; font-weight:400; font-size:9.5px; color:#fffb; text-shadow:0 1px 2px #000; }
+#trayHead{ display:flex; gap:4px; align-items:center; } #trayHead button{ background:none; border:0; padding:8px 8px; min-height:36px; cursor:pointer; color:var(--dim); letter-spacing:.16em; font-size:10px; border-bottom:1px solid transparent; } #trayHead button.on{ color:var(--ink); border-color:var(--hi); }
+#find{ flex:1; min-width:0; background:#121110; border:1px solid var(--faint); border-radius:16px; padding:6px 12px; font-size:16px; height:34px; } #find::placeholder{ color:#57524b; font-size:12px; }
+#tray{ display:flex; gap:6px; overflow-x:auto; padding:6px 0; height:92px; scrollbar-width:none; } #tray::-webkit-scrollbar{ display:none; }
+#tray button{ flex:none; height:80px; min-width:64px; max-width:150px; padding:3px; background:#100f0e; border:1px solid var(--faint); border-radius:4px; cursor:pointer; position:relative; display:grid; place-items:center; } #tray button:hover{ border-color:#5a4e33; }
+#tray img{ max-height:72px; max-width:140px; display:block; } #tray button.gr{ padding:0; overflow:hidden; } #tray button.gr img{ height:80px; max-height:none; max-width:none; width:142px; object-fit:cover; }
+#tray small{ position:absolute; left:3px; bottom:2px; font-size:9px; color:#d8d2c6; text-shadow:0 1px 2px #000,0 0 4px #000; max-width:calc(100% - 6px); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+#tray button.on{ border-color:var(--hi); }
+footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + env(safe-area-inset-bottom)); }
+#prompt{ flex:1; min-width:0; background:#121110; border:1px solid var(--faint); border-radius:22px; padding:0 16px; height:44px; font:italic 300 17px var(--serif); } #prompt::placeholder{ color:#57524b; }
+#bMic.on{ color:var(--hi); background:#e8c07022; }
+#board{ position:fixed; inset:0; z-index:40; background:var(--bg); overflow:auto; padding:calc(54px + env(safe-area-inset-top)) 14px 40px; }
+#board .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr)); gap:16px 12px; max-width:1500px; margin:0 auto; }
+#board figure{ margin:0; cursor:pointer; } #board figcaption{ padding:6px 2px 0; font:300 15px/1.25 var(--serif); } #board figcaption b{ font:10px var(--mono); color:var(--dim); margin-right:6px; font-weight:400; }
+#board .top{ position:fixed; left:0; right:0; top:0; display:flex; align-items:center; gap:8px; padding:calc(6px + env(safe-area-inset-top)) 12px 6px; background:#050505ee; z-index:2; letter-spacing:.2em; font-size:10.5px; color:var(--dim); } #board .top span{ flex:1; }
+#toast{ position:fixed; left:50%; top:calc(56px + env(safe-area-inset-top)); transform:translateX(-50%); background:#14120f; border:1px solid var(--faint); border-radius:18px; padding:8px 14px; z-index:90; max-width:92vw; opacity:0; transition:opacity .3s; pointer-events:none; text-align:center; } #toast.on{ opacity:1; }
+@media (max-height:560px){ header{ padding-top:2px; padding-bottom:2px; } #strip .panel{ width:72px; } #tray{ height:60px; padding:3px 0; } #tray button{ height:54px; } #tray img{ max-height:46px; } #tray button.gr img{ height:54px; width:96px; } #tools{ min-height:30px; } #tools .ico{ width:30px; height:30px; } footer{ padding-top:2px; } #stageWrap{ min-height:120px; } }
+@media (min-width:900px) and (min-height:561px){ main{ padding:0 18px; } #tray{ height:112px; } #tray button{ height:100px; } #tray img{ max-height:90px; } #tray button.gr img{ height:100px; width:178px; } }
+@media print{ html,body{ overflow:visible; height:auto; background:#fff; color:#000; display:block; } header,main,footer,#toast,#board .top{ display:none !important; } #board{ position:static; display:block !important; background:#fff; padding:0; } #board .grid{ grid-template-columns:repeat(3,1fr); } #board figure{ break-inside:avoid; } .panel{ print-color-adjust:exact; -webkit-print-color-adjust:exact; } }
+</style></head><body>
+<header><a id="markLink" href="markov-poet.html"></a><div id="sys">waking</div>
+  <button class="ico" id="bBoard" aria-label="The whole storyboard"><svg><use href="#i-grid"/></svg></button>
+  <button class="ico" id="bMore" aria-label="Menu"><svg><use href="#i-more"/></svg></button></header>
+<main>
+  <div id="stageWrap"><div id="empty"><h1>a line is a panel</h1><p>Type a line. The archive gives it a ground, and figures SAM has cut out of other films step in. Drag them where the story needs them.</p><div id="starters"></div></div>
+    <div class="panel" id="stage" hidden></div></div>
+  <div id="tools" hidden></div>
+  <div id="strip"></div>
+  <div id="trayBox" hidden><div id="trayHead"><button id="tFig" class="on">FIGURES</button><button id="tGr">GROUNDS</button><input id="find" placeholder="find a figure: a dog, hands, a cloud" enterkeyhint="search" autocomplete="off"></div><div id="tray"></div></div>
+</main>
+<footer><input id="prompt" placeholder="type a line, then Return" autocomplete="off" enterkeyhint="send">
+  <button class="ico" id="bMic" aria-label="Talk to the board"><svg><use href="#i-mic"/></svg></button>
+  <button class="ico" id="bPlay" aria-label="Play the board"><svg><use href="#i-play"/></svg></button>
+  <button class="ico" id="bDeal" aria-label="Deal this panel again"><svg><use href="#i-take"/></svg></button></footer>
+<div id="board" hidden><div class="top"><span>STORYBOARD</span><button class="ico" id="bPrint" aria-label="Print or save as PDF"><svg><use href="#i-send"/></svg></button><button class="ico" id="bBoardX" aria-label="Close"><svg><use href="#i-close"/></svg></button></div><div class="grid"></div></div>
+<div id="toast"></div>
+<script src="markov/engine.js?v=6"></script>
+<script src="markov/clip-text.js?v=5"></script>
+<script src="markov/shared.js?v=4"></script>
+<script src="markov/export.js?v=4"></script>
+<script src="markov/live.js?v=4"></script>
+<script src="markov/ui.js?v=2"></script>
+<script>
+(function () {
+  const $ = s => document.querySelector(s), esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const SH = window.SH; MPUI.sprite(); $('#markLink').innerHTML = MPUI.mark(26) + 'MARKOV <span>· SAM</span>';
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
+  let tT; const toast = t => { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(tT); tT = setTimeout(() => e.classList.remove('on'), 3200); };
+  SH.onStatus(s => { $('#sys').textContent = s.text || ''; });
+
+  /* the cast: figures SAM cut out of the lab's read shots */
+  let D = null, SAM = null, EMB = null, EXT = '.png';
+  const url = (p, sprite) => (EXT === '.png' ? p : p.replace(/\.png$/, EXT));
+  const figSims = e => { const n = SAM.n, d = SAM.dim, o = new Float32Array(n); for (let i = 0; i < n; i++) { let s = 0, r = i * d; for (let j = 0; j < d; j++) s += e[j] * EMB[r + j]; o[i] = s * SAM.scale; } return o; };
+  const rank = sims => Array.from(sims.keys()).sort((a, b) => sims[b] - sims[a]);
+  async function loadCast() {
+    const [j, b] = await Promise.all([fetch('markov/sam.json').then(r => r.json()), fetch('markov/sam-emb.bin').then(r => r.arrayBuffer())]); SAM = j; EMB = new Int8Array(b);
+    EXT = await new Promise(r => { const i = new Image(); i.onload = () => r('.webp'); i.onerror = () => r('.png'); i.src = j.figs[0].png.replace(/\.png$/, '.webp'); });
+  }
+
+  /* the board: lines, and for each panel a ground and placed figures */
+  let lines = store.get('sam.lines', []), saved = store.get('sam.panels', {}), panels = [], sel = 0, selFig = -1, grade = store.get('sam.grade', true), tab = 'fig', found = null, composing = 0;
+  const key = (i, t) => i + '|' + t;
+  const persist = () => { store.set('sam.lines', lines); const o = {}; panels.forEach(p => o[p.key] = { bg: p.bg, figs: p.figs }); saved = o; store.set('sam.panels', o); };
+  // a figure enters where it stood in its own film, at its own size: the first guess at a composition
+  function placeFig(f, n) { const F = SAM.figs[f], [x, y, w, h] = F.box; return { f, x: Math.min(.9, Math.max(.1, x + w / 2 + (n ? (n % 2 ? .12 : -.12) : 0))), y: Math.min(.9, Math.max(.12, y + h / 2)), s: Math.min(.42, Math.max(.12, w * .7)), flip: 0 }; }
+  function deal(p, n = 2) {   // sample figures by their chance for this line: the Markov step, over cut-outs
+    const top = p.cands.slice(0, 10), T = .02, w = top.map(i => Math.exp((p.fsims[i] - p.fsims[top[0]]) / T)), out = [], shots = new Set();
+    for (let k = 0; k < n; k++) { let tot = 0; top.forEach((i, j) => { if (!shots.has(SAM.figs[i].shot)) tot += w[j]; }); if (!tot) break; let r = Math.random() * tot, pick = -1;
+      for (let j = 0; j < top.length; j++) { if (shots.has(SAM.figs[top[j]].shot)) continue; r -= w[j]; if (r <= 0) { pick = top[j]; break; } } if (pick < 0) break;
+      if (k && p.fsims[pick] < p.fsims[top[0]] - .035) break; shots.add(SAM.figs[pick].shot); out.push(placeFig(pick, k)); }
+    return out; }
+  async function rebuild(keepSel) {
+    const my = ++composing; if (!lines.length) { panels = []; draw(); return; }
+    // a storyboard wants each ground to answer its own line, so the ground is drawn straight from that line's own distribution over the archive
+    const texts = Shannon.parse(lines.join('\n')).map(p => p.text), E = await SH.embed(texts); if (my !== composing) return; if (E.some(x => !x)) throw new Error('some words could not be read');
+    const used = new Set(), cut = E.map(e => { const sm = D.LIB.sims(e), top = rank(sm).slice(0, 24), w = top.map(k => Math.exp((sm[k] - sm[top[0]]) / .018)), tot = w.reduce((a, b) => a + b, 0), alts = top.map((k, n) => ({ k, p: w[n] / tot }));
+      const pick = alts.find(a => !used.has(D.LIB.shots[a.k].src)) || alts[0]; used.add(D.LIB.shots[pick.k].src); return { k: pick.k, alts }; });
+    panels = cut.map((s, i) => { const fsims = figSims(E[i]), p = { key: key(i, texts[i]), text: texts[i], e: E[i], fsims, cands: rank(fsims).slice(0, 40), alts: s.alts.map(a => ({ k: a.k, p: a.p })), bg: s.k, figs: [] };
+      const was = saved[p.key]; if (was) { p.bg = was.bg; p.figs = (was.figs || []).filter(g => SAM.figs[g.f]); } else p.figs = deal(p); return p; });
+    if (!keepSel) sel = panels.length - 1; sel = Math.max(0, Math.min(sel, panels.length - 1)); selFig = -1; found = null; persist(); draw();
+    SH.status('rest', `${panels.length} panel${panels.length > 1 ? 's' : ''} · drag a figure to move it`);
+  }
+
+  /* drawing a panel: live (video ground, moving figures) on the stage, still everywhere else */
+  const frames = new Map();
+  function figEl(g, live) { const F = SAM.figs[g.f], d = document.createElement('div'); d.className = 'fig' + (g.flip ? ' flip' : ''); d.style.left = g.x * 100 + '%'; d.style.top = g.y * 100 + '%'; d.style.width = g.s * 100 + '%';
+    const still = () => { d.style.aspectRatio = F.w + ' / ' + F.h; d.style.backgroundImage = `url("${url(F.png)}")`; }; still();
+    if (live && F.sprite && F.sw) { const go = n => { if (n < 2) return; d.style.aspectRatio = F.sw + ' / ' + F.sh; d.style.backgroundImage = `url("${url(F.sprite)}")`; d.style.backgroundSize = n * 100 + '% 100%'; d.style.animation = `spr ${(n / (F.fps || 6)).toFixed(2)}s steps(${n}, jump-none) infinite alternate`; };
+      if (frames.has(F.sprite)) go(frames.get(F.sprite)); else { const im = new Image(); im.onload = () => { const n = Math.round(im.naturalWidth / (im.naturalHeight * F.sw / F.sh)); frames.set(F.sprite, n); if (d.isConnected) go(n); }; im.src = url(F.sprite); } }
+    return d; }
+  function paint(el, p, live) { el.classList.toggle('grade', !!grade); el.innerHTML = ''; const g = document.createElement('div'); g.className = 'g'; el.append(g);
+    if (p.bg != null) { const s = D.LIB.shots[p.bg]; if (live) { const v = document.createElement('video'); v.className = 'bg'; v.muted = true; v.loop = true; v.playsInline = true; v.autoplay = true; v.poster = s.thumb; v.src = s.video + '#t=' + (s.in || 0); g.append(v); v.play().catch(() => { }); }
+      else { const i = document.createElement('img'); i.className = 'bg'; i.loading = 'lazy'; i.src = s.thumb; g.append(i); } }
+    p.figs.forEach((f, n) => { const d = figEl(f, live); d.dataset.n = n; g.append(d); }); return g; }
+  function draw() {
+    const has = panels.length > 0; $('#empty').hidden = has; $('#stage').hidden = !has; $('#trayBox').hidden = !has; $('#tools').hidden = !has; if (!has) { $('#strip').innerHTML = ''; drawStarters(); return; }
+    drawStage(); drawStrip(); drawTray(); }
+  function drawStage() { const p = panels[sel], st = $('#stage'); paint(st, p, true); const c = document.createElement('div'); c.className = 'cap'; c.textContent = p.text; st.append(c); markSel(); fit(); }
+  function markSel() { $('#stage').querySelectorAll('.fig').forEach(d => d.classList.toggle('sel', +d.dataset.n === selFig)); drawTools(); }
+  function drawStrip() { const s = $('#strip'); s.innerHTML = ''; panels.forEach((p, i) => { const d = document.createElement('div'); d.className = 'panel' + (i === sel ? ' cur' : ''); paint(d, p, false); const b = document.createElement('b'); b.textContent = i + 1; d.append(b); d.onclick = () => { stop(); go(i); }; s.append(d); });
+    const c = s.querySelector('.cur'); if (c) s.scrollLeft = c.offsetLeft - s.offsetLeft - (s.clientWidth - c.clientWidth) / 2; }
+  function restrip() { const d = $('#strip').children[sel]; if (d) { paint(d, panels[sel], false); const b = document.createElement('b'); b.textContent = sel + 1; d.append(b); } }
+  function go(i) { sel = Math.max(0, Math.min(panels.length - 1, i)); selFig = -1; found = null; $('#find').value = ''; draw(); }
+  function fit() { const w = $('#stageWrap'), st = $('#stage'), W = w.clientWidth, H = w.clientHeight; const wd = Math.min(W, H * 16 / 9); st.style.width = wd + 'px'; st.style.height = wd * 9 / 16 + 'px'; }
+  addEventListener('resize', fit);
+  function drawTools() { const t = $('#tools'), p = panels[sel]; if (!p) return; const g = p.figs[selFig];
+    const B = (ic, lab, f) => `<button class="ico" data-a="${f}" aria-label="${lab}" title="${lab}"><svg><use href="#i-${ic}"/></svg></button>`;
+    t.innerHTML = g ? `<em>${esc(SAM.figs[g.f].desc)}</em>` + B('down', 'Smaller', 'sm') + B('up', 'Larger', 'lg') + B('take', 'Flip', 'flip') + B('full', 'Bring to front', 'front') + B('close', 'Remove', 'rm')
+      : `<span>${p.figs.length ? 'tap a figure to select it · drag to move · pinch or scroll to size' : 'tap a figure below to bring it in'}</span>`;
+    t.querySelectorAll('button').forEach(b => b.onclick = () => act(b.dataset.a)); }
+  function act(a) { const p = panels[sel], g = p.figs[selFig]; if (!g) return;
+    if (a === 'sm') g.s = Math.max(.04, g.s / 1.15); else if (a === 'lg') g.s = Math.min(1.6, g.s * 1.15); else if (a === 'flip') g.flip = g.flip ? 0 : 1;
+    else if (a === 'front') { p.figs.splice(selFig, 1); p.figs.push(g); selFig = p.figs.length - 1; } else if (a === 'rm') { p.figs.splice(selFig, 1); selFig = -1; }
+    persist(); drawStage(); restrip(); }
+  function drawTray() { const p = panels[sel], t = $('#tray'); t.innerHTML = ''; $('#tFig').classList.toggle('on', tab === 'fig'); $('#tGr').classList.toggle('on', tab === 'gr'); $('#find').placeholder = tab === 'fig' ? 'find a figure: a dog, hands, a cloud' : 'find a ground: a road at night';
+    if (tab === 'fig') (found || p.cands).slice(0, 40).forEach(i => { const F = SAM.figs[i], b = document.createElement('button'); b.innerHTML = `<img loading="lazy" src="${url(F.png)}" alt=""><small>${esc(F.desc)}</small>`; b.title = `${F.desc} · ${F.title || ''} ${F.year || ''}`;
+      b.onclick = () => { p.figs.push({ ...placeFig(i, p.figs.length), x: .5, y: .55 }); selFig = p.figs.length - 1; persist(); drawStage(); restrip(); }; t.append(b); });
+    else { const none = document.createElement('button'); none.className = 'gr' + (p.bg == null ? ' on' : ''); none.style.minWidth = '64px'; none.innerHTML = '<small>no ground</small>'; none.onclick = () => { p.bg = null; persist(); drawStage(); restrip(); drawTray(); }; t.append(none);
+      (found || p.alts).slice(0, 24).forEach(a => { const s = D.LIB.shots[a.k], b = document.createElement('button'); b.className = 'gr' + (a.k === p.bg ? ' on' : ''); b.innerHTML = `<img loading="lazy" src="${s.thumb}" alt=""><small>${a.p != null ? Math.round(a.p * 100) + '% · ' : ''}${esc(s.title || '')}</small>`;
+        b.onclick = () => { p.bg = a.k; persist(); drawStage(); restrip(); drawTray(); }; t.append(b); }); } }
+  $('#tFig').onclick = () => { tab = 'fig'; found = null; $('#find').value = ''; drawTray(); }; $('#tGr').onclick = () => { tab = 'gr'; found = null; $('#find').value = ''; drawTray(); };
+  $('#find').addEventListener('keydown', async e => { if (e.key !== 'Enter') return; const q = e.target.value.trim(); if (!q) { found = null; drawTray(); return; } e.target.blur();
+    try { const [v] = await SH.embed([q]); if (tab === 'fig') found = rank(figSims(v)); else { const s = D.LIB.sims(v); found = rank(s).slice(0, 24).map(k => ({ k, p: null })); } drawTray(); $('#tray').scrollLeft = 0; SH.status('rest', 'found for "' + q + '"'); } catch (x) { toast('could not read that: ' + x.message); } });
+
+  /* the hand: drag to move, pinch or wheel to size */
+  const st = $('#stage'), pts = new Map(); let drag = null;
+  st.addEventListener('pointerdown', e => { const f = e.target.closest('.fig'); pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 2 && selFig >= 0) { const [a, b] = [...pts.values()]; drag = { pinch: Math.hypot(a[0] - b[0], a[1] - b[1]), s0: panels[sel].figs[selFig].s }; return; }
+    if (!f) { if (selFig >= 0) { selFig = -1; markSel(); } return; } e.preventDefault(); stop(); selFig = +f.dataset.n; markSel(); const g = panels[sel].figs[selFig], r = st.getBoundingClientRect();
+    drag = { el: f, dx: g.x - (e.clientX - r.left) / r.width, dy: g.y - (e.clientY - r.top) / r.height }; try { st.setPointerCapture(e.pointerId); } catch (x) { } });
+  st.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, [e.clientX, e.clientY]); const g = panels[sel] && panels[sel].figs[selFig]; if (!drag || !g) return;
+    const el = st.querySelector(`.fig[data-n="${selFig}"]`);
+    if (drag.pinch) { if (pts.size < 2) return; const [a, b] = [...pts.values()]; g.s = Math.min(1.6, Math.max(.04, drag.s0 * Math.hypot(a[0] - b[0], a[1] - b[1]) / drag.pinch)); el.style.width = g.s * 100 + '%'; return; }
+    const r = st.getBoundingClientRect(); g.x = Math.min(1.1, Math.max(-.1, (e.clientX - r.left) / r.width + drag.dx)); g.y = Math.min(1.1, Math.max(-.1, (e.clientY - r.top) / r.height + drag.dy)); el.style.left = g.x * 100 + '%'; el.style.top = g.y * 100 + '%'; });
+  const up = e => { pts.delete(e.pointerId); if (drag && (!drag.pinch || pts.size < 2)) { if (pts.size === 0 || drag.pinch) { drag = null; persist(); restrip(); } } };
+  st.addEventListener('pointerup', up); st.addEventListener('pointercancel', up);
+  st.addEventListener('wheel', e => { const g = panels[sel] && panels[sel].figs[selFig]; if (!g) return; e.preventDefault(); g.s = Math.min(1.6, Math.max(.04, g.s * (e.deltaY < 0 ? 1.06 : 1 / 1.06))); st.querySelector(`.fig[data-n="${selFig}"]`).style.width = g.s * 100 + '%'; clearTimeout(st._w); st._w = setTimeout(() => { persist(); restrip(); }, 250); }, { passive: false });
+  addEventListener('keydown', e => { if (/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return; const g = panels[sel] && panels[sel].figs[selFig];
+    if (e.key === 'ArrowRight') go(sel + 1); else if (e.key === 'ArrowLeft') go(sel - 1); else if (e.key === ' ') { e.preventDefault(); $('#bPlay').click(); }
+    else if (g && (e.key === 'Backspace' || e.key === 'Delete')) act('rm'); else if (g && e.key === ']') act('lg'); else if (g && e.key === '[') act('sm'); else if (g && e.key === 'f') act('flip'); });
+
+  /* lines in */
+  async function addLine(t) { t = String(t || '').trim(); if (!t) return; lines.push(t); store.set('sam.lines', lines); SH.status('reading', 'reading'); try { await rebuild(); } catch (e) { SH.status('rest', 'the words could not be read: ' + e.message); } }
+  $('#prompt').addEventListener('keydown', e => { if (e.key === 'Enter') { const t = e.target.value; e.target.value = ''; addLine(t); } });
+  function removeLine(i) { if (!(i >= 0 && i < lines.length)) return; lines.splice(i, 1); saved = {}; persist(); store.set('sam.panels', {}); rebuild(true); }
+  function lineOf(pi) { let n = 0; for (let i = 0; i < lines.length; i++) { n += Shannon.parse(lines[i]).length; if (pi < n) return i; } return lines.length - 1; }
+  $('#bDeal').onclick = () => { const p = panels[sel]; if (!p) return; p.figs = deal(p, 1 + Math.floor(Math.random() * 3)); selFig = -1; persist(); drawStage(); restrip(); };
+  function drawStarters() { const b = $('#starters'); b.innerHTML = ''; ((D && D.starters) || []).forEach(ls => { const x = document.createElement('button'); x.textContent = ls[0]; x.onclick = () => { lines = [...ls]; saved = {}; rebuild().then(() => go(0)); }; b.append(x); }); }
+
+  /* play: the board read through, one panel a line */
+  let playT = null, playing = false;
+  function stop() { playing = false; clearTimeout(playT); try { speechSynthesis.cancel(); } catch (e) { } $('#bPlay').innerHTML = '<svg><use href="#i-play"/></svg>'; }
+  function step(i) { if (!playing) return; if (i >= panels.length) { stop(); return; } go(i); const t = panels[i].text, dur = Math.max(2400, t.split(/\s+/).length * 430); let done = false; const next = () => { if (done) return; done = true; clearTimeout(playT); playT = setTimeout(() => step(i + 1), 500); };
+    try { const u = new SpeechSynthesisUtterance(t); u.rate = .92; u.onend = next; speechSynthesis.speak(u); } catch (e) { } playT = setTimeout(next, dur + 2500); }
+  $('#bPlay').onclick = () => { if (playing) return stop(); if (!panels.length) return; playing = true; $('#bPlay').innerHTML = '<svg><use href="#i-pause"/></svg>'; step(sel >= panels.length - 1 ? 0 : sel); };
+
+  /* the whole storyboard, and sending it */
+  function openBoard() { stop(); const g = $('#board .grid'); g.innerHTML = ''; panels.forEach((p, i) => { const f = document.createElement('figure'), d = document.createElement('div'); d.className = 'panel'; paint(d, p, false); f.append(d); const c = document.createElement('figcaption'); c.innerHTML = `<b>${i + 1}</b>${esc(p.text)}`; f.append(c); f.onclick = () => { $('#board').hidden = true; go(i); }; g.append(f); }); $('#board').hidden = false; }
+  $('#bBoard').onclick = () => panels.length ? openBoard() : toast('type a line first'); $('#bBoardX').onclick = () => { $('#board').hidden = true; }; $('#bPrint').onclick = () => print();
+  const boardData = () => ({ v: 1, l: lines, p: panels.map(p => [p.bg == null ? null : D.LIB.shots[p.bg].id, p.figs.map(g => [SAM.figs[g.f].shot, SAM.figs[g.f].k, +g.x.toFixed(3), +g.y.toFixed(3), +g.s.toFixed(3), g.flip])]) });
+  async function link() { const u = location.origin + location.pathname + '#b=' + await MPExport.pack(boardData()); try { if (navigator.share && /Mobi|Android|iP(hone|ad)/.test(navigator.userAgent)) await navigator.share({ title: 'A Markov SAM storyboard', url: u }); else { await navigator.clipboard.writeText(u); toast('link copied · it opens this board, and they can move things too'); } } catch (e) { prompt('Copy this link', u); } }
+  function applyBoard(o) { lines = o.l || []; saved = {}; const idOf = new Map(D.LIB.shots.map((s, i) => [s.id, i])), fOf = new Map(SAM.figs.map((f, i) => [f.shot + '/' + f.k, i]));
+    return rebuild().then(() => { (o.p || []).forEach((q, i) => { const p = panels[i]; if (!p) return; p.bg = q[0] == null ? null : (idOf.has(q[0]) ? idOf.get(q[0]) : p.bg); p.figs = (q[1] || []).filter(g => fOf.has(g[0] + '/' + g[1])).map(g => ({ f: fOf.get(g[0] + '/' + g[1]), x: g[2], y: g[3], s: g[4], flip: g[5] })); }); persist(); go(0); }); }
+  function toRoom() { if (!SH.isLab()) { toast('the Cutting Room takes clips from the lab server: open this page from the lab'); return; }
+    const items = panels.filter(p => p.bg != null).map((p, i) => { const s = D.LIB.shots[p.bg]; return { shot: s.id, title: s.title, year: s.year || null, n: (s.signs || [])[0] || null, symbol: null, note: p.text, a: s.in || 0, b: null, media: '/media/' + s.id + '.mp4' }; });
+    const bin = { id: 'sam-' + Date.now().toString(36), title: 'Markov SAM · ' + (lines[0] || '').slice(0, 40), layout: 'sequence', items }; try { localStorage.setItem('cineosis.bin', JSON.stringify(bin)); } catch (e) { }
+    try { new BroadcastChannel('cineosis').postMessage({ type: 'bin', bin }); } catch (e) { } window.open('tools/hand-butter.html', 'cineosis-room'); toast(items.length + ' grounds sent to the Cutting Room, a line on each'); }
+
+  /* live voice, when a key is in this browser */
+  let live = null;
+  const poemNow = () => ({ lines: lines.map((t, i) => `${i + 1}. ${t}`) });
+  const TOOLS = [{ name: 'add_line', description: 'Add one line to the storyboard in the speaker\'s exact words; it becomes a panel.', parameters: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] }, run: async a => { await addLine(a.text); return poemNow(); } },
+    { name: 'remove_line', description: 'Remove a line (1 is the first).', parameters: { type: 'object', properties: { line: { type: 'integer' } }, required: ['line'] }, run: a => { removeLine(a.line - 1); return poemNow(); } },
+    { name: 'deal_again', description: 'Deal new figures for the panel on screen.', run: () => { $('#bDeal').click(); return { ok: true }; } },
+    { name: 'show_panel', description: 'Show a panel by number.', parameters: { type: 'object', properties: { panel: { type: 'integer' } }, required: ['panel'] }, run: a => { go(a.panel - 1); return { ok: true }; } },
+    { name: 'play', description: 'Read the board through from the start.', run: () => { stop(); sel = 0; $('#bPlay').click(); return { ok: true }; } }, { name: 'pause', description: 'Stop reading.', run: () => { stop(); return { ok: true }; } }];
+  $('#bMic').onclick = async () => { if (live) { const l = live; live = null; l.stop(); return; } if (!MPLive.hasKey()) { MPLive.keySheet(ok => toast(ok ? 'key saved · tap the microphone and speak' : 'live voice needs an OpenAI key')); return; }
+    stop(); $('#bMic').classList.add('on'); SH.status('listening', 'asking for the microphone'); let mic = '';
+    try { live = await MPLive.start({ tools: TOOLS, instructions: 'You operate a storyboard. The person speaks lines of a story or poem aloud. For each spoken line call add_line with exactly their words. For instructions (remove a line, deal again, show panel three, play, pause) call the matching tool. Say almost nothing: at most two or three words. If unsure, treat speech as a line.', on: {
+      mic: l => mic = l, state: (s, why) => { if (s === 'live') SH.status('listening', 'live on ' + mic + ' · speak a line'); else if (s === 'connecting') SH.status('listening', 'connecting the live voice'); else if (s === 'closed') { live = null; $('#bMic').classList.remove('on'); SH.status('rest', why ? 'live voice stopped: ' + why : 'live voice off'); } },
+      partial: t => { if (t) SH.status('listening', t); }, error: m => toast(m) } }); } catch (e) { $('#bMic').classList.remove('on'); SH.status('rest', 'live voice could not start: ' + e.message); toast('live voice could not start: ' + e.message); } };
+
+  $('#bMore').onclick = () => MPUI.menu($('#bMore'), [
+    { title: 'THIS PANEL', items: [
+      { icon: 'take', label: 'Deal again', hint: 'new figures, by their chance for this line', act: () => $('#bDeal').click() },
+      { icon: 'close', label: 'Clear the figures', hidden: () => !panels[sel] || !panels[sel].figs.length, act: () => { panels[sel].figs = []; selFig = -1; persist(); drawStage(); restrip(); } },
+      { icon: 'close', label: 'Remove this line', hidden: () => !panels.length, act: () => removeLine(lineOf(sel)) }] },
+    { title: 'THE BOARD', items: [
+      { icon: 'grid', label: 'See the whole storyboard', hidden: () => !panels.length, act: openBoard },
+      { icon: 'calm', label: 'One grade', hint: 'grounds and figures in the same black and white, so they sit together', on: () => grade, state: () => grade ? 'ON' : '', act: () => { grade = !grade; store.set('sam.grade', grade); draw(); return true; } },
+      { icon: 'send', label: 'Copy a link to this board', hidden: () => !panels.length, act: link },
+      { icon: 'book', label: 'Print, or save as PDF', hidden: () => !panels.length, act: () => { openBoard(); setTimeout(print, 600); } },
+      { icon: 'open', label: 'Bring the poem from the Poet', hint: 'the lines now in the Poet room', act: () => { const l = store.get('poet.lines', []); if (!l.length) return toast('the Poet room is empty'); lines = [...l]; saved = {}; rebuild().then(() => go(0)); } },
+      { icon: 'wrench', label: 'Send the grounds to the Cutting Room', hint: 'hand-butter · WAG, with the lab server', hidden: () => !panels.length, act: toRoom },
+      { icon: 'undo', label: 'Begin again', hidden: () => !lines.length, act: () => { stop(); lines = []; saved = {}; panels = []; store.set('sam.lines', []); store.set('sam.panels', {}); draw(); SH.status('rest', 'empty board'); } }] },
+    { title: 'VOICE', items: [{ icon: 'voice', label: 'Live voice · OpenAI key', state: () => MPLive.hasKey() ? 'SET' : '', act: () => MPLive.keySheet(ok => toast(ok ? 'key saved' : 'no key saved')) }] },
+    { title: 'GO', items: [{ icon: 'home', label: 'The Poet', act: () => location.href = 'shannon-poet.html' }, { icon: 'info', label: 'How the Markov Poet works', act: () => location.href = 'markov-poet.html' }] }]);
+
+  Promise.all([SH.load({ light: true }), loadCast()]).then(async ([d]) => { D = d; drawStarters();
+    const m = location.hash.match(/b=([^&]+)/); if (m) { try { await applyBoard(await MPExport.unpack(m[1])); history.replaceState(null, '', location.pathname); return; } catch (e) { toast('that link could not be opened'); } }
+    if (lines.length) rebuild(true).catch(e => SH.status('rest', e.message)); else SH.status('rest', `${SAM.n} figures and ${d.LIB.n.toLocaleString()} shots at rest`);
+  }).catch(e => SH.status('rest', 'could not wake: ' + e.message));
+})();
+</script></body></html>
