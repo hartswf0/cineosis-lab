@@ -51,6 +51,22 @@ def transcribe(data, ext):
     json.dump(out, open(cache, "w"))
     return out
 
+def render_film(job):
+    """markov/render.py in its own process: ffmpeg composes the cut, the dissolves, the words and the voice."""
+    import subprocess
+    cut = job.get("cut") or []
+    if not cut or len(cut) > 400:
+        raise ValueError("a cut of 1-400 shots")
+    key = hashlib.sha1(json.dumps({k: job.get(k) for k in ("cut", "phrases", "audio", "sound", "calm", "T0", "T1")}, sort_keys=True).encode() + (job.get("audio_b64") or "").encode()[:4096]).hexdigest()[:16]
+    job["out"] = "markov/renders/" + key
+    if not os.path.exists(os.path.join(LAB, job["out"] + ".mp4")):
+        jf = os.path.join(LAB, "markov", "renders", key + ".job.json"); os.makedirs(os.path.dirname(jf), exist_ok=True); json.dump(job, open(jf, "w"))
+        r = subprocess.run([sys.executable, os.path.join(LAB, "markov", "render.py"), jf], capture_output=True, text=True, timeout=1800)
+        os.remove(jf)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or "render failed")[-400:])
+    return {"video": job["out"] + ".mp4"}
+
 def speak(body):
     """The poem spoken by Piper, phrase by phrase (markov/speak.py in its own process): returns the audio path and each phrase's times."""
     import subprocess
@@ -215,6 +231,13 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json(200, transcribe(self.rfile.read(n), ext))
             except Exception as e:
                 return self._json(500, {"error": str(e)[:300]})
+        if self.path == "/api/render":                    # a Markov Poet film as an MP4 (may carry a recorded voice, so it is allowed to be large)
+            if not n or n > 60 * 1024 * 1024:
+                return self._json(413, {"error": "request too large"})
+            try:
+                return self._json(200, render_film(json.loads(self.rfile.read(n))))
+            except Exception as e:
+                return self._json(500, {"error": str(e)[:400]})
         if n < 0 or n > 1000000:
             return self._json(413, {"error": "request too large"})
         try:
