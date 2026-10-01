@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Markov Sea</title>
+<meta name="description" content="Markov Sea: the Odyssey as a sea of footage you tune by ear and eye. Voices on their words, archival people speaking the parts, the book's music and the archive's own sound on separate stations, every shot's alternatives playing beside it.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ color-scheme:dark; --bg:#050505; --ink:#efe9dd; --dim:#8a8378; --faint:#2a2723; --hi:#e8c070; --talk:#85bdff; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; }
+*{ box-sizing:border-box; } html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); font:12px var(--mono); overflow:hidden; -webkit-tap-highlight-color:transparent; }
+[hidden]{ display:none !important; } button,input,select{ font:inherit; color:inherit; }
+body{ display:grid; grid-template-rows:auto minmax(0,1fr) auto auto auto; grid-template-columns:minmax(0,1fr); height:100dvh; }
+header{ display:flex; align-items:center; gap:8px; padding:calc(6px + env(safe-area-inset-top)) 10px 4px; min-width:0; }
+#markLink{ display:flex; align-items:center; gap:8px; color:var(--ink); text-decoration:none; letter-spacing:.2em; font-size:10.5px; white-space:nowrap; } #markLink span{ color:var(--dim); }
+#now{ flex:1; min-width:0; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:11px; }
+.ico{ width:40px; height:40px; display:grid; place-items:center; background:none; border:0; border-radius:50%; cursor:pointer; color:#bdb5a9; flex:none; } .ico:hover{ background:#ffffff12; color:var(--ink); } .ico svg{ width:19px; height:19px; }
+#modes{ display:flex; gap:2px; background:#121110; border:1px solid var(--faint); border-radius:18px; padding:2px; flex:none; }
+#modes button{ border:0; background:none; border-radius:16px; padding:6px 10px; cursor:pointer; color:var(--dim); font-size:10px; letter-spacing:.14em; } #modes button.on{ background:#e8c07022; color:var(--hi); }
+main{ position:relative; min-height:0; background:#000; overflow:hidden; }
+#view{ position:absolute; inset:0; } #view video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity .9s ease; filter:grayscale(1) contrast(1.05); }
+#view video.on{ opacity:1; } #view video.blend{ opacity:var(--blend,0); mix-blend-mode:screen; }
+body.colour #view video, body.colour #wall video, body.colour #sea video{ filter:none; }
+#wall{ position:absolute; inset:0; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); gap:2px; background:#000; }
+#wall video{ width:100%; height:100%; object-fit:cover; filter:grayscale(1) contrast(1.05); cursor:pointer; } #wall video.cur{ outline:2px solid var(--hi); outline-offset:-2px; }
+#veil{ position:absolute; inset:0; background:linear-gradient(#0008,#0000 18%,#0000 58%,#000c); pointer-events:none; }
+#sub{ position:absolute; left:0; right:0; bottom:16px; text-align:center; padding:0 5vw; pointer-events:none; z-index:3; }
+#sub small{ display:block; font:500 10px var(--mono); letter-spacing:.2em; color:var(--hi); margin-bottom:5px; text-transform:uppercase; } #sub small.talk{ color:var(--talk); }
+#sub span{ font:300 clamp(16px,2.4vw,28px)/1.3 var(--serif); text-shadow:0 2px 14px #000,0 0 3px #000; text-wrap:balance; } #sub.narr span{ font-style:italic; color:#e2dccf; }
+#card{ position:absolute; z-index:3; left:max(14px,3vw); top:14px; max-width:min(560px,86%); pointer-events:none; transition:opacity .8s; }
+#card small{ display:block; font:500 10px var(--mono); letter-spacing:.2em; color:var(--dim); margin-bottom:6px; } #card h2{ margin:0 0 6px; font:300 clamp(22px,3.6vw,40px)/1.1 var(--serif); }
+#card p{ margin:0; font:300 clamp(14px,1.8vw,19px)/1.45 var(--serif); color:#ddd6c9; text-shadow:0 1px 10px #000; }
+#tag{ position:absolute; right:10px; top:10px; z-index:3; font:10px var(--mono); color:#d6cfc2; background:#000a; border-radius:12px; padding:4px 9px; letter-spacing:.06em; max-width:60%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#tag b{ color:var(--talk); font-weight:500; }
+/* the sea: what this moment could have been */
+#seaBox{ border-top:1px solid var(--faint); }
+#seaHead{ display:flex; align-items:center; gap:10px; padding:5px 10px 0; color:var(--dim); font-size:10px; letter-spacing:.14em; } #seaHead span{ flex:1; } #seaHead label{ display:flex; align-items:center; gap:6px; } #seaHead input[type=range]{ width:110px; accent-color:var(--hi); }
+#sea{ display:flex; gap:4px; overflow-x:auto; padding:5px 10px 7px; scrollbar-width:none; height:88px; } #sea::-webkit-scrollbar{ display:none; }
+#sea .t{ flex:none; position:relative; height:76px; aspect-ratio:4/3; border-radius:3px; overflow:hidden; cursor:pointer; background:#111; outline:1px solid var(--faint); }
+#sea .t video,#sea .t img{ width:100%; height:100%; object-fit:cover; filter:grayscale(1) contrast(1.05); } #sea .t.on{ outline:2px solid var(--hi); } #sea .t.talk{ outline-color:#2f4a6b; }
+#sea .t i{ position:absolute; left:3px; bottom:2px; font:9px var(--mono); color:#fff; text-shadow:0 1px 2px #000; font-style:normal; } #sea .t u{ position:absolute; right:3px; top:3px; width:6px; height:6px; border-radius:50%; background:#c4f46a; text-decoration:none; } #sea .t u.q{ background:#55504a; }
+#dial{ display:flex; overflow-x:auto; padding:4px 10px 0; scrollbar-width:none; mask:linear-gradient(90deg,#0000,#000 5%,#000 95%,#0000); } #dial::-webkit-scrollbar{ display:none; }
+#dial button{ flex:none; width:44px; background:none; border:0; cursor:pointer; color:#77706a; display:grid; justify-items:center; gap:2px; padding:3px 0; } #dial button i{ width:1px; height:9px; background:#55504a; } #dial button b{ font:500 10px var(--mono); }
+#dial button.on{ color:var(--hi); } #dial button.on i{ background:var(--hi); height:14px; width:2px; }
+footer{ display:flex; align-items:center; gap:2px; padding:2px 8px calc(6px + env(safe-area-inset-bottom)); }
+#bar{ flex:1; height:22px; position:relative; cursor:pointer; } #bar i{ position:absolute; top:10px; height:2px; background:#ffffff26; } #bar i.done{ background:var(--hi); } #bar b{ position:absolute; top:5px; width:2px; height:12px; background:var(--ink); }
+#mixer{ position:fixed; z-index:30; right:8px; bottom:calc(150px + env(safe-area-inset-bottom)); width:min(330px,94vw); background:#0e0d0c; border:1px solid #2a2723; border-radius:12px; padding:12px 14px; box-shadow:0 18px 40px #000b; }
+#mixer h5{ margin:2px 0 10px; font:500 10px var(--mono); letter-spacing:.2em; color:var(--dim); } #mixer .row{ display:grid; grid-template-columns:96px 1fr 34px; gap:8px; align-items:center; margin:8px 0; } #mixer .row b{ font-weight:500; font-size:10.5px; letter-spacing:.1em; }
+#mixer input[type=range]{ width:100%; accent-color:var(--hi); } #mixer output{ text-align:right; color:var(--dim); font-size:10px; } #mixer select{ width:100%; background:#161412; border:1px solid var(--faint); border-radius:6px; padding:6px; }
+#mixer p{ margin:10px 0 0; color:var(--dim); font-size:10.5px; line-height:1.5; }
+#sea .t em{ position:absolute; left:3px; top:3px; font:500 9.5px var(--mono); font-style:normal; background:#000b; color:#fff; padding:1px 4px; border-radius:3px; } #sea .t em.hi{ color:#c4f46a; } #sea .t em.lo{ color:#ff8a7a; }
+#sea .t s{ position:absolute; right:3px; bottom:2px; font:500 9px var(--mono); text-decoration:none; color:var(--hi); text-shadow:0 1px 2px #000; }
+#tag .v{ font-weight:500; padding:0 5px; border-radius:3px; margin-right:4px; } #tag .KEEP{ color:#c4f46a; } #tag .REPLACE{ color:var(--hi); } #tag .NOTHING{ color:#ff8a7a; }
+main.refused #view video{ opacity:0 !important; } main.refused::after{ content:'NOTHING HERE IS COHERENT · THE VOICE ALONE'; position:absolute; left:0; right:0; top:46%; text-align:center; font:500 10px var(--mono); letter-spacing:.24em; color:#6f2f28; }
+main.flag #view{ box-shadow:inset 0 0 0 3px #ff8a7a88; }
+#captain{ position:fixed; z-index:25; right:0; top:calc(52px + env(safe-area-inset-top)); bottom:calc(150px + env(safe-area-inset-bottom)); width:min(360px,92vw); background:#0b0a09f2; border-left:1px solid var(--faint); padding:12px 14px; overflow:auto; transform:translateX(100%); transition:transform .3s; font:11px/1.5 var(--mono); }
+#captain.open{ transform:none; } #captain h5{ margin:12px 0 5px; font:500 9.5px var(--mono); letter-spacing:.2em; color:var(--dim); } #captain h5:first-child{ margin-top:0; }
+#captain .big{ font:300 15px/1.4 var(--serif); color:var(--ink); } #captain .why{ font:300 14px/1.45 var(--serif); color:#e9d5b0; } #captain .seen{ color:#cfc8bb; }
+#captain .verdict{ font:500 13px var(--mono); letter-spacing:.14em; } #captain .verdict.KEEP{ color:#c4f46a; } #captain .verdict.REPLACE{ color:var(--hi); } #captain .verdict.NOTHING{ color:#ff8a7a; }
+#captain .bars div{ display:grid; grid-template-columns:44px 1fr 30px; gap:6px; align-items:center; color:var(--dim); font-size:10px; margin:3px 0; } #captain .bars i{ height:5px; background:#ffffff14; position:relative; border-radius:3px; overflow:hidden; } #captain .bars i b{ position:absolute; left:0; top:0; bottom:0; background:var(--hi); }
+#captain .shots{ display:flex; gap:2px; margin-top:4px; } #captain .shots i{ flex:1; height:16px; border-radius:2px; cursor:pointer; } #captain .shots i.cur{ outline:1px solid var(--ink); }
+#captain ul{ margin:0; padding-left:16px; color:#cfc8bb; } #captain li{ margin:3px 0; }
+#moodRow{ display:flex; gap:2px; background:#121110; border:1px solid var(--faint); border-radius:16px; padding:2px; margin-top:4px; } #moodRow button{ flex:1; border:0; background:none; border-radius:14px; padding:6px 4px; cursor:pointer; color:var(--dim); font-size:10px; letter-spacing:.14em; } #moodRow button.on{ background:#e8c07022; color:var(--hi); }
+#bCap.on{ color:var(--hi); }
+#start{ position:fixed; inset:0; z-index:40; display:grid; place-items:center; background:radial-gradient(circle at 50% 45%,#0d1418,#050505 70%); text-align:center; padding:24px; }
+#start h1{ font:300 clamp(34px,7vw,72px)/1 var(--serif); margin:14px 0 10px; } #start p{ max-width:56ch; margin:0 auto 22px; color:#b5aea3; font:300 16px/1.55 var(--serif); }
+#start button{ border:1px solid var(--hi); background:#e8c07014; color:var(--hi); border-radius:28px; padding:14px 30px; font:500 12px var(--mono); letter-spacing:.2em; cursor:pointer; min-height:48px; }
+@media (max-width:640px){ #modes button{ padding:6px 7px; letter-spacing:.08em; } #now{ display:none; } #sea{ height:70px; } #sea .t{ height:58px; } #seaHead input[type=range]{ width:80px; } }
+</style></head><body>
+<header><a id="markLink" href="markov-poet.html"></a><div id="now"></div>
+  <div id="modes" role="tablist" aria-label="What the picture follows"><button data-m="captain">CAPTAIN</button><button data-m="cut">CUT</button><button data-m="speak">VOICES</button><button data-m="sound">SOUND</button><button data-m="counter">COUNTER</button><button data-m="wall">SEA</button></div>
+  <button class="ico" id="bCap" aria-label="The captain: what we see, and whether it holds"><svg><use href="#i-info"/></svg></button><button class="ico" id="bMix" aria-label="Stations"><svg><use href="#i-voice"/></svg></button><button class="ico" id="bMore" aria-label="Menu"><svg><use href="#i-more"/></svg></button></header>
+<main><div id="view"><video id="vA" muted playsinline preload="auto"></video><video id="vB" muted playsinline preload="auto"></video><video id="vC" class="blend" muted playsinline preload="auto"></video></div>
+  <div id="wall" hidden></div><div id="veil"></div><div id="card"></div><div id="tag"></div><div id="sub"></div></main>
+<div id="seaBox"><div id="seaHead"><span id="seaLabel">THE SEA · WHAT THIS SHOT COULD BE</span><label>BLEND <input id="blend" type="range" min="0" max="80" value="0" aria-label="Blend the next possibility over the picture"></label></div><div id="sea"></div></div>
+<nav id="dial" aria-label="Books"></nav>
+<footer><button class="ico" id="bPrev" aria-label="Previous scene"><svg><use href="#i-prev"/></svg></button><button class="ico" id="bPlay" aria-label="Play"><svg><use href="#i-play"/></svg></button><button class="ico" id="bNext" aria-label="Next scene"><svg><use href="#i-next"/></svg></button><div id="bar"></div></footer>
+<div id="mixer" hidden></div><aside id="captain" aria-label="The captain"></aside>
+<audio id="voice" preload="auto"></audio><audio id="bed" preload="auto" loop></audio>
+<div id="start"><div><div id="startMark"></div><h1>Markov Sea</h1>
+  <p>The Odyssey as a sea of footage. The voices keep time; you choose what the picture follows: the composed cut, the people speaking (archival faces cast for each part), what the sound asks for, its counterpoint, or the whole sea at once. Every shot's other possibilities play beneath; tap one to keep it. Tune the stations: voices, music, the archive's own sound, the speakers' own voices.</p>
+  <button id="bTune">TUNE IN</button></div></div>
+<script src="markov/ui.js?v=3"></script>
+<script>
+(function () {
+  const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  MPUI.sprite(); $('#markLink').innerHTML = MPUI.mark(22) + 'MARKOV <span>· SEA</span>'; $('#startMark').innerHTML = MPUI.mark(54);
+  const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX', 'XXI', 'XXII', 'XXIII', 'XXIV'];
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
+  const PHONE = matchMedia('(max-width:640px)').matches;
+  let R = null, book = null, items = [], cur = -1, t0 = 0, playing = false, timer = 0, layer = 0, key = '', mode = store.get('sea.mode', 'captain'), mood = store.get('sea.mood', 'harsh'), blendManual = false, lastCap = '';
+  const st = Object.assign({ voice: 1, music: .7, archive: .7, speakers: .35, cc: true, album: 'book' }, store.get('sea.stations', {}));
+  const tune = store.get('sea.tune', {});              // your choices: "<scene>#<shot>" -> clip id; "cast:<book>:<name>" -> clip id
+  const V = [$('#vA'), $('#vB')], VB = $('#vC'), voice = $('#voice'), bed = $('#bed');
+
+  /* what the picture is at this moment, by mode */
+  const lineAt = (s, t) => s.subs.find(g => t >= g.t0 - .05 && t <= g.t1 + .2);
+  function castFor(name) { const c = R.cast[name] || []; if (!c.length) return null; const k = tune['cast:' + book.n + ':' + name]; return c.find(x => x.id === k) || c[0]; }
+  const confOf = c => (c && c.conf && c.conf.c != null) ? c.conf.c : null;
+  function choose(s, k, t) { const sh = s.shots[k], own = tune[s.id + '#' + k], pool = [sh, ...(sh.sea || [])], line = lineAt(s, t);
+    if (mode === 'captain') { const cp = sh.captain;
+      if (own) { const x = pool.find(p => p.id === own); if (x) return { clip: x, why: 'your choice' }; }
+      if (cp) { const pick = cp.pick ? pool.find(p => p.id === cp.pick) : null;
+        if (cp.verdict === 'NOTHING') return mood === 'calm' ? { clip: pool.reduce((a, p) => (confOf(p) || 0) > (confOf(a) || 0) ? p : a, sh), why: 'nothing holds; least bad', flag: true, cap: cp } : { clip: sh, refuse: mood === 'brave', flag: true, why: 'nothing holds', cap: cp };
+        const c = pick || sh; const weak = cp.conf != null && cp.conf < 35;
+        return { clip: c, why: cp.verdict === 'REPLACE' ? 'the captain steers' : 'the captain keeps', cap: cp, flag: weak && mood !== 'calm', refuse: weak && mood === 'brave' }; }
+      const best = pool.reduce((a, p) => (confOf(p) || 0) > (confOf(a) || 0) ? p : a, sh); return { clip: best, why: 'best by the instruments', refuse: mood === 'brave' && (confOf(best) || 0) < 35 }; }
+    if (mode === 'speak' && line && line.kind === 'DIALOGUE') { const c = castFor(line.who); if (c) return { clip: c, why: 'speaking', who: line.who }; }
+    if (own) { const x = pool.find(p => p.id === own); if (x) return { clip: x, why: 'your choice' }; }
+    if (mode === 'sound') {   // the sound steers the picture: quiet footage under speech, footage with its own sound in the clear
+      const want = line ? (p => -(p.snd || 0) - (p.talky ? .5 : 0)) : (p => (p.snd || 0) - (p.talky ? .3 : 0));
+      const best = pool.slice(0, 8).reduce((a, p) => want(p) > want(a) ? p : a, pool[0]); return { clip: best, why: line ? 'quiet under the voice' : 'its own sound in the gap' }; }
+    if (mode === 'counter') {  // counterpoint: the least likely of its possibilities, or another book's footage for the same kind of shot
+      const far = pool[pool.length - 1]; const ob = Object.values(loaded).find(b => b.n !== book.n) || book, os = ob.scenes[(k * 7 + s.shots.length) % ob.scenes.length], alt = os.shots.find(x => x.role === sh.role && x.id !== sh.id) || pool[pool.length - 1];
+      return { clip: (k % 2 ? far : alt), why: k % 2 ? 'the least likely possibility' : 'from Book ' + ROMAN[ob.n] }; }
+    return { clip: sh, why: 'the cut' }; }
+
+  /* book: prologue, then for each scene a title card then the scene */
+  function buildBook(b) { const it = [];
+    it.push({ kind: 'card', dur: 8, small: 'BOOK ' + ROMAN[b.n], h: b.title, p: b.prologue, shot: b.refrain });
+    b.scenes.forEach((s, n) => { it.push({ kind: 'card', dur: 3.2, small: ROMAN[b.n] + '·' + (n + 1) + (s.sign && s.sign.symbol ? ' · ' + s.sign.symbol + ' ' + (s.sign.name || '') : ''), h: s.title, p: s.card, shot: b.refrain }); it.push({ kind: 'scene', dur: s.total, scene: s }); });
+    return it; }
+  const total = () => items.reduce((a, x) => a + x.dur, 0);
+  function trackFor(b) { if (st.album === 'book' || !R.albums) return b.track; const a = R.albums.find(x => x.id === st.album); return a ? a.tracks[(b.n - 1) % a.tracks.length].url : b.track; }
+  const loaded = {};
+  async function tuneBook(n, play) { const meta = R.books.find(b => b.n === n) || R.books[0];
+    if (!loaded[meta.n]) { $('#now').textContent = 'tuning to Book ' + ROMAN[meta.n] + '…'; loaded[meta.n] = await fetch(`odyssey/sea/b${String(meta.n).padStart(2, '0')}.json`).then(r => r.json()); }
+    book = loaded[meta.n]; store.set('sea.book', book.n); items = buildBook(book); drawDial();
+    const tr = trackFor(book); if (bed.dataset.u !== tr) { bed.src = tr; bed.dataset.u = tr; } document.body.classList.toggle('colour', false); go(0, 0, play); }
+  function drawDial() { const d = $('#dial'); d.innerHTML = ''; R.books.forEach(b => { const x = document.createElement('button'); x.className = book && book.n === b.n ? 'on' : ''; x.innerHTML = `<i></i><b>${ROMAN[b.n]}</b>`; x.title = b.title; x.onclick = () => tuneBook(b.n, playing); d.append(x); }); const on = d.querySelector('.on'); if (on) d.scrollLeft = on.offsetLeft - d.clientWidth / 2 + 22; }
+  function drawBar() { const bar = $('#bar'), T = total(); let a = 0; bar.innerHTML = ''; items.forEach((x, n) => { const i = document.createElement('i'); i.style.left = (a / T * 100) + '%'; i.style.width = `calc(${x.dur / T * 100}% - 2px)`; if (n < cur) i.className = 'done'; bar.append(i); a += x.dur; }); const b = document.createElement('b'); b.id = 'head'; bar.append(b); }
+  $('#bar').onclick = e => { const r = $('#bar').getBoundingClientRect(), T = total(), want = (e.clientX - r.left) / r.width * T; let a = 0; for (let n = 0; n < items.length; n++) { if (a + items[n].dur > want) { go(n, want - a); return; } a += items[n].dur; } };
+
+  /* pictures */
+  function show(c) { if (!c) return; const nxt = V[1 - layer], now_ = V[layer]; if (now_.dataset.id === c.id) return;
+    if (nxt.dataset.id !== c.id) { nxt.src = c.video; nxt.dataset.id = c.id; nxt.loop = true; }
+    const go_ = () => { try { nxt.currentTime = c.in || 0; } catch (e) { } nxt.play().catch(() => { }); nxt.classList.add('on'); now_.classList.remove('on'); setTimeout(() => { if (!now_.classList.contains('on')) { now_.pause(); now_.muted = true; } }, 1000); layer = 1 - layer; };
+    if (nxt.readyState >= 2) go_(); else { nxt.addEventListener('loadeddata', go_, { once: true }); setTimeout(() => { if (V[layer] !== nxt) go_(); }, 1400); } }
+  function blendWith(c) { const b = +$('#blend').value / 100; VB.style.setProperty('--blend', b); if (!c || b <= 0) { VB.pause(); return; } if (VB.dataset.id !== c.id) { VB.src = c.video; VB.dataset.id = c.id; VB.loop = true; VB.addEventListener('loadeddata', () => { try { VB.currentTime = c.in || 0; } catch (e) { } VB.play().catch(() => { }); }, { once: true }); } else if (VB.paused && playing) VB.play().catch(() => { }); }
+  function drawSea(s, k, chosen, line) { const box = $('#sea'), sh = s.shots[k]; let list, label;
+    if (line && line.kind === 'DIALOGUE' && (mode === 'speak' || (R.cast[line.who] || []).length)) { list = (R.cast[line.who] || []).map(c => ({ ...c, talkFor: line.who })); label = 'WHO COULD SPEAK FOR ' + line.who.toUpperCase(); if (!list.length || mode !== 'speak') { list = null; } }
+    if (!list) { list = [sh, ...(sh.sea || [])]; label = 'THE SEA · WHAT THIS SHOT COULD BE · ' + (sh.role || '') ; }
+    $('#seaLabel').textContent = label + '  ·  ' + list.length;
+    const sig = label + list.map(x => x.id).join(); if (box.dataset.sig === sig) { box.querySelectorAll('.t').forEach(t => t.classList.toggle('on', t.dataset.id === chosen.id)); return; } box.dataset.sig = sig; box.innerHTML = '';
+    list.forEach((c, n) => { const t = document.createElement('div'); t.className = 't' + (c.id === chosen.id ? ' on' : '') + (c.talkFor ? ' talk' : ''); t.dataset.id = c.id; t.title = (c.title || '') + (c.year ? ' · ' + c.year : '') + (c.conf ? `\nfit ${c.conf.c}% · the words ${c.conf.line ?? '·'} · the beat ${c.conf.beat} · the sign ${c.conf.sign ?? '·'} · the role ${c.conf.role} (percentiles over the whole Odyssey)` : '');
+      const live = !PHONE && n < 10; t.innerHTML = (live ? `<video muted playsinline loop preload="none" src="${esc(c.video)}#t=${c.in || 0}"></video>` : `<img loading="lazy" src="${esc(c.thumb)}" alt="">`) + (confOf(c) != null ? `<em class="${confOf(c) >= 70 ? 'hi' : confOf(c) < 40 ? 'lo' : ''}">${confOf(c)}%</em>` : '') + (sh.captain && sh.captain.pick === c.id && !c.talkFor ? '<s>CAPTAIN</s>' : '') + `<i>${n === 0 && !c.talkFor ? 'CUT' : esc((c.title || '').slice(0, 18))}</i><u class="${(c.snd || 0) > .3 ? '' : 'q'}" title="${(c.snd || 0) > .3 ? 'has its own sound' : 'quiet'}"></u>`;
+      if (live) { const v = t.querySelector('video'); t.onmouseenter = () => v.play().catch(() => { }); t.onmouseleave = () => v.pause(); }
+      t.onclick = () => { if (c.talkFor) tune['cast:' + book.n + ':' + c.talkFor] = c.id; else tune[s.id + '#' + k] = c.id; store.set('sea.tune', tune); key = ''; tick(true); };
+      box.append(t); });
+    if (!PHONE) box.querySelectorAll('video').forEach((v, n) => { if (n < 6) v.play().catch(() => { }); }); }
+  function drawWall(s, k) { const w = $('#wall'), sh = s.shots[k], list = [sh, ...(sh.sea || [])].slice(0, PHONE ? 4 : 9), sig = list.map(x => x.id).join(); w.style.gridTemplateColumns = PHONE ? 'repeat(2,1fr)' : ''; w.style.gridTemplateRows = PHONE ? 'repeat(2,1fr)' : '';
+    if (w.dataset.sig === sig) return; w.dataset.sig = sig; w.innerHTML = ''; list.forEach((c, n) => { const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.loop = true; v.src = c.video; v.className = n ? '' : 'cur'; v.addEventListener('loadeddata', () => { try { v.currentTime = c.in || 0; } catch (e) { } if (playing) v.play().catch(() => { }); }, { once: true }); v.onclick = () => { tune[s.id + '#' + k] = c.id; store.set('sea.tune', tune); setMode('cut'); }; w.append(v); }); }
+
+  function go(n, at = 0, play = playing) { cur = Math.max(0, Math.min(items.length - 1, n)); const x = items[cur]; t0 = performance.now() - at * 1000; key = ''; voice.pause();
+    if (x.kind === 'scene') { if (voice.dataset.u !== x.scene.voice) { voice.src = x.scene.voice; voice.dataset.u = x.scene.voice; } try { voice.currentTime = at; } catch (e) { } if (play) voice.play().catch(() => { }); $('#card').style.opacity = 0; document.body.classList.toggle('colour', x.scene.palette === 'colour'); }
+    else { const c = $('#card'); c.innerHTML = `<small>${esc(x.small)}</small><h2>${esc(x.h)}</h2>${x.p ? `<p>${esc(x.p)}</p>` : ''}`; c.style.opacity = 1; $('#sub').innerHTML = ''; $('#tag').textContent = ''; if (x.shot) show(x.shot); }
+    $('#now').textContent = 'BOOK ' + ROMAN[book.n] + ' · ' + (x.scene ? x.scene.title : x.h || ''); drawBar(); if (play) start(); else tick(true); }
+  const now = () => { const x = items[cur]; return x && x.kind === 'scene' && !voice.paused && voice.readyState >= 2 ? voice.currentTime : (performance.now() - t0) / 1000; };
+  function start() { playing = true; $('#bPlay').innerHTML = '<svg><use href="#i-pause"/></svg>'; clearInterval(timer); timer = setInterval(() => tick(), 100); bed.play().catch(() => { }); const x = items[cur]; if (x && x.kind === 'scene') voice.play().catch(() => { }); V[layer].play().catch(() => { }); }
+  function stop() { playing = false; $('#bPlay').innerHTML = '<svg><use href="#i-play"/></svg>'; clearInterval(timer); voice.pause(); bed.pause(); V.forEach(v => v.pause()); VB.pause(); $('#wall').querySelectorAll('video').forEach(v => v.pause()); }
+  let bedVol = 0;
+  function tick(force) { const x = items[cur]; if (!x) return; const t = now();
+    if (t >= x.dur - .05 && playing) { if (cur < items.length - 1) { go(cur + 1, 0, true); return; } const nb = R.books.find(b => b.n === book.n + 1); if (nb) { tuneBook(nb.n, true); return; } stop(); return; }
+    let line = null, want = .45;
+    if (x.kind === 'scene') { const s = x.scene; let k = s.shots.findIndex(sh => t >= sh.t0 && t < sh.t0 + sh.dur); if (k < 0) k = s.shots.length - 1; line = lineAt(s, t);
+      const ch = choose(s, k, t), kk = k + '|' + ch.clip.id + '|' + mode + '|' + mood + '|' + !!ch.refuse;
+      if (kk !== key || force) { key = kk; $('main').classList.toggle('refused', !!ch.refuse); $('main').classList.toggle('flag', !!ch.flag && !ch.refuse);
+        if (mode === 'wall') { $('#wall').hidden = false; drawWall(s, k); } else { $('#wall').hidden = true; if (!ch.refuse) show(ch.clip); }
+        drawSea(s, k, ch.clip, line);
+        // blend: only where the scene's sign asks for layered time (recollection, dream, the marked past), with the partner chosen for it
+        const sh = s.shots[k], bl = sh.blend, bp = bl && [...(sh.sea || [])].find(c => c.id === bl.id);
+        if (!blendManual) { $('#blend').value = bp ? bl.amt : 0; $('#seaHead label').title = bp ? 'BLEND · ' + bl.why : 'no blend: this sign does not ask for layered time'; }
+        blendWith(bp || s.shots[k + 1] || (sh.sea || [])[0]);
+        const cf = confOf(ch.clip), cp = ch.cap;
+        $('#tag').innerHTML = (cp ? `<span class="v ${cp.verdict}">${cp.verdict}</span>` : '') + (cf != null ? `${cf}% · ` : '') + (ch.who ? `<b>${esc(ch.who.toUpperCase())}</b> · ` : esc(ch.why) + ' · ') + `${esc(ch.clip.title || '')}${ch.clip.year ? ' ' + ch.clip.year : ''}`;
+        drawCaptain(s, k, ch, line); }
+      else if (line && lastCap !== line.t0 + '') drawCaptain(s, k, ch, line);
+      // the archive's own sound: the picture's sound, levelled by the shot's measure, down under the voice; a speaking face lets its own voice through faintly
+      const v = V[layer], c = ch.clip, isSpeaker = !!ch.who, base = isSpeaker ? st.speakers : st.archive, lvl = (c.snd || 0) > 0 ? (line ? (isSpeaker ? .5 : (c.talky ? 0 : .35)) : (c.talky ? .4 : .9)) : 0;
+      v.muted = base * lvl <= 0.01; v.volume = Math.max(0, Math.min(1, base * lvl * (s.forward ? 1.3 : 1)));
+      want = s.forward ? (line ? .06 : .14) : (line ? .16 : .36); }
+    else { want = .5; const k2 = items[cur + 1]; if (k2 && k2.kind === 'scene') { const nx = V[1 - layer], c = k2.scene.shots[0]; if (nx.dataset.id !== c.id) { nx.src = c.video; nx.dataset.id = c.id; } } }
+    bedVol += (want - bedVol) * .12; bed.volume = Math.max(0, Math.min(1, bedVol * st.music * 1.4)); voice.volume = Math.max(0, Math.min(1, st.voice));
+    const sb = $('#sub'); if (x.kind === 'scene' && st.cc && line) { if (sb.dataset.k !== line.t0 + line.text) { sb.dataset.k = line.t0 + line.text; sb.className = line.kind === 'DIALOGUE' ? '' : 'narr'; sb.innerHTML = `${line.kind === 'DIALOGUE' ? `<small class="${mode === 'speak' ? 'talk' : ''}">${esc(line.who)}</small>` : ''}<span>${esc(line.text)}</span>`; } } else if (x.kind === 'scene') { sb.innerHTML = ''; sb.dataset.k = ''; }
+    const T = total(); let a = 0; for (let n = 0; n < cur; n++) a += items[n].dur; const h = $('#head'); if (h) h.style.left = ((a + Math.min(t, x.dur)) / T * 100) + '%'; }
+  // the captain's panel: what the scene asks, what is seen, whether it holds, and why; every reading behind the number
+  function drawCaptain(s, k, ch, line) { lastCap = line ? line.t0 + '' : ''; const P = $('#captain'); if (!P.classList.contains('open')) return; const sh = s.shots[k], cp = sh.captain, sc = s.captain, c = ch.clip.conf || {};
+    const bar = (lab, v) => `<div>${lab}<i><b style="width:${v == null ? 0 : v}%"></b></i><span>${v == null ? '·' : v}</span></div>`;
+    const col = v => v == null ? '#2a2723' : v >= 60 ? '#5f7d3a' : v >= 40 ? '#8a6d2f' : '#7a3029';
+    P.innerHTML = `<h5>THE MOOD</h5><div id="moodRow">${['calm', 'harsh', 'brave'].map(m => `<button data-m="${m}" class="${mood === m ? 'on' : ''}">${m.toUpperCase()}</button>`).join('')}</div>
+      <div style="color:var(--dim);margin-top:5px;font-size:10px">${mood === 'calm' ? 'Always a picture: the best the sea holds.' : mood === 'harsh' ? 'Incoherent pictures stay, marked in red.' : 'An incoherent picture is refused: the voice plays over darkness.'}</div>
+      ${sc ? `<h5>THIS SCENE ASKS</h5><div class="big">${esc(sc.asks || '')}</div>` : `<h5>THIS SCENE ASKS</h5><div class="big">${esc((s.sign || {}).operation || '')}</div>`}
+      <h5>NOW · SHOT ${k + 1} OF ${s.shots.length} · ${esc(sh.role || '')}</h5><div class="seen">${esc(line ? (line.kind === 'DIALOGUE' ? line.who + ': ' : '') + line.text : '(no words: the music and the archive)')}</div>
+      ${cp ? `<h5>THE CAPTAIN</h5><div class="verdict ${cp.verdict}">${cp.verdict}${cp.conf != null ? ' · ' + cp.conf : ''}</div><div class="seen">SEEN: ${esc(cp.seen || '')}</div><div class="why">${esc(cp.why || '')}</div>` : '<h5>THE CAPTAIN</h5><div class="seen">not yet judged</div>'}
+      <h5>THE INSTRUMENTS · THIS FRAME (percentile over the Odyssey)</h5><div class="bars">${bar('WORDS', c.line)}${bar('BEAT', c.beat)}${bar('SIGN', c.sign)}${bar('ROLE', c.role)}${bar('FIT', c.c)}</div>
+      <h5>THE SCENE, SHOT BY SHOT (the captain's confidence)</h5><div class="shots">${s.shots.map((x, n) => `<i class="${n === k ? 'cur' : ''}" style="background:${col(x.captain ? x.captain.conf : (x.conf || {}).c)}" title="shot ${n + 1}: ${esc(x.captain ? x.captain.verdict + ' · ' + x.captain.why : '')}" data-n="${n}"></i>`).join('')}</div>
+      ${sc ? `<h5>DIAGNOSIS · COHERENCE ${sc.coherence ?? '·'} · MOOD ${esc((sc.mood || '').toUpperCase())}</h5><ul>${(sc.diagnosis || []).map(d => `<li>${esc(d)}</li>`).join('')}</ul>` : ''}
+      ${sh.blend ? `<h5>BLEND</h5><div class="seen">${esc(sh.blend.why)}</div>` : ''}`;
+    P.querySelectorAll('#moodRow button').forEach(b => b.onclick = () => { mood = b.dataset.m; store.set('sea.mood', mood); key = ''; tick(true); });
+    P.querySelectorAll('.shots i').forEach(i => i.onclick = () => { const x = items[cur]; if (x && x.kind === 'scene') go(cur, x.scene.shots[+i.dataset.n].t0 + .05); }); }
+  $('#bCap').onclick = () => { const P = $('#captain'); P.classList.toggle('open'); $('#bCap').classList.toggle('on', P.classList.contains('open')); store.set('sea.capOpen', P.classList.contains('open')); key = ''; tick(true); };
+  if (store.get('sea.capOpen', !PHONE)) { $('#captain').classList.add('open'); $('#bCap').classList.add('on'); }
+  function stepScene(d) { let n = cur; do { n += d; } while (n >= 0 && n < items.length && items[n].kind !== 'card'); if (n < 0) n = 0; if (n >= items.length) { const nb = R.books.find(b => b.n === book.n + 1); if (nb) tuneBook(nb.n, playing); return; } go(n); }
+  function setMode(m) { mode = m; store.set('sea.mode', m); document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); key = ''; $('#sea').dataset.sig = ''; tick(true); }
+  document.querySelectorAll('#modes button').forEach(b => b.onclick = () => setMode(b.dataset.m));
+  $('#blend').oninput = () => { blendManual = true; key = ''; tick(true); };
+  $('#bPlay').onclick = () => playing ? stop() : go(cur, now(), true); $('#bNext').onclick = () => stepScene(1); $('#bPrev').onclick = () => stepScene(-1);
+  addEventListener('keydown', e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return; if (e.key === ' ') { e.preventDefault(); $('#bPlay').click(); } else if (e.key === 'ArrowRight') stepScene(1); else if (e.key === 'ArrowLeft') stepScene(-1); else if ('123456'.includes(e.key)) setMode(['captain', 'cut', 'speak', 'sound', 'counter', 'wall'][+e.key - 1]); });
+  /* the stations */
+  function drawMixer() { const m = $('#mixer'); const row = (k, label) => `<div class="row"><b>${label}</b><input type="range" min="0" max="100" value="${Math.round(st[k] * 100)}" data-k="${k}"><output>${Math.round(st[k] * 100)}</output></div>`;
+    m.innerHTML = `<h5>STATIONS</h5>${row('voice', 'VOICES')}${row('music', 'MUSIC')}${row('archive', 'ARCHIVE')}${row('speakers', 'SPEAKERS')}
+      <div class="row"><b>MUSIC FROM</b><select id="album" style="grid-column:2/4"><option value="book">Bronze Council · the book's own track</option>${(R.albums || []).filter(a => a.id !== 'bronze-council').map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></div>
+      <p>VOICES: the scene recordings. MUSIC: the bed, low under speech. ARCHIVE: each shot's own sound, low under speech and up in the gaps. SPEAKERS: the sound of the archival people cast to speak, faintly under the line they stand for.</p>`;
+    m.querySelectorAll('input').forEach(i => i.oninput = () => { st[i.dataset.k] = +i.value / 100; i.nextElementSibling.textContent = i.value; store.set('sea.stations', st); });
+    const sel = m.querySelector('#album'); sel.value = st.album; sel.onchange = () => { st.album = sel.value; store.set('sea.stations', st); const tr = trackFor(book); bed.src = tr; bed.dataset.u = tr; if (playing) bed.play().catch(() => { }); }; }
+  $('#bMix').onclick = () => { const m = $('#mixer'); if (m.hidden) drawMixer(); m.hidden = !m.hidden; };
+  $('#bMore').onclick = () => MPUI.menu($('#bMore'), [
+    { title: 'WHAT THE PICTURE FOLLOWS', items: [
+      { icon: 'info', label: 'CAPTAIN · the steersman decides', hint: 'a harsh critic judged every shot: keep, replace, or nothing holds', on: () => mode === 'captain', act: () => setMode('captain') },
+      { icon: 'play', label: 'CUT · the composed cut', on: () => mode === 'cut', act: () => setMode('cut') },
+      { icon: 'voice', label: 'VOICES · people speaking the lines', hint: 'archival faces cast for each part; tap one in the sea to recast', on: () => mode === 'speak', act: () => setMode('speak') },
+      { icon: 'sound', label: 'SOUND · the sound steers', hint: 'quiet footage under speech, footage with its own sound in the gaps', on: () => mode === 'sound', act: () => setMode('sound') },
+      { icon: 'take', label: 'COUNTER · against the grain', hint: 'the least likely possibility, or another book\'s footage', on: () => mode === 'counter', act: () => setMode('counter') },
+      { icon: 'grid', label: 'SEA · every possibility at once', on: () => mode === 'wall', act: () => setMode('wall') }] },
+    { title: 'YOUR TUNING', items: [
+      { icon: 'info', label: 'Subtitles', state: () => st.cc ? 'ON' : 'OFF', act: () => { st.cc = !st.cc; store.set('sea.stations', st); return true; } },
+      { icon: 'send', label: 'Copy your tuning', hint: Object.keys(tune).length + ' choices', act: async () => { try { await navigator.clipboard.writeText(JSON.stringify(tune)); } catch (e) { prompt('Your tuning', JSON.stringify(tune)); } } },
+      { icon: 'undo', label: 'Forget your tuning', hidden: () => !Object.keys(tune).length, act: () => { Object.keys(tune).forEach(k => delete tune[k]); store.set('sea.tune', tune); key = ''; tick(true); } }] },
+    { title: 'GO', items: [{ icon: 'voice', label: 'Cool Radio Odyssey', act: () => location.href = 'markov-radio-odyssey.html?book=' + book.n }, { icon: 'grid', label: 'Storyboard this scene', act: () => { const s = items[cur] && items[cur].scene; location.href = 'markov-odyssey.html' + (s ? '?od=' + s.id : ''); } }, { icon: 'home', label: 'The Markov Poet', act: () => location.href = 'markov-poet.html' }] }]);
+  $('#bTune').onclick = () => { $('#start').hidden = true; playing = true; voice.play().catch(() => { }); bed.play().catch(() => { }); go(cur < 0 ? 0 : cur, 0, true); };
+  fetch('odyssey/sea/index.json').then(r => r.json()).then(async d => { R = d; setMode(mode); await tuneBook(+(new URLSearchParams(location.search).get('book') || store.get('sea.book', 1)), false); $('#bTune').textContent = 'TUNE IN · BOOK ' + ROMAN[book.n]; })
+    .catch(e => { $('#start p').textContent = 'The sea could not load: ' + e.message; });
+})();
+</script></body></html>

@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<title>Markov SAM</title>
+<meta name="description" content="Markov SAM. Each line becomes a storyboard panel: a ground from the archive and figures cut out by SAM, which you move about by hand.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ color-scheme:dark; --bg:#050505; --ink:#efe9dd; --dim:#7d776f; --faint:#2a2723; --hi:#e8c070; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; }
+*{ box-sizing:border-box; } html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); font:12px var(--mono); -webkit-tap-highlight-color:transparent; overflow:hidden; }
+[hidden]{ display:none !important; } button,input{ font:inherit; color:inherit; }
+body{ display:grid; grid-template-rows:auto minmax(0,1fr) auto; grid-template-columns:minmax(0,1fr); height:100dvh; }
+header{ display:flex; align-items:center; gap:10px; padding:8px 12px; padding-top:calc(8px + env(safe-area-inset-top)); min-width:0; }
+#markLink{ display:flex; align-items:center; gap:8px; color:var(--ink); text-decoration:none; letter-spacing:.2em; font-size:10.5px; white-space:nowrap; } #markLink span{ color:var(--dim); }
+#sys{ flex:1; min-width:0; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:11px; }
+.ico{ width:44px; height:44px; display:grid; place-items:center; background:none; border:0; border-radius:50%; cursor:pointer; color:#a59e93; flex:none; } .ico:hover{ color:var(--ink); background:#ffffff0d; } .ico svg{ width:20px; height:20px; } .ico.on{ color:var(--hi); }
+main{ min-height:0; min-width:0; display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr) auto auto auto; gap:6px; padding:0 10px; }
+#stageWrap{ min-height:0; min-width:0; display:grid; grid-template-rows:minmax(0,1fr) auto; gap:6px; }
+#stageBox{ min-height:0; min-width:0; position:relative; display:grid; place-items:center; overflow:hidden; }
+.panel{ position:relative; aspect-ratio:16/9; background:#0c0b0a; overflow:hidden; border-radius:3px; container-type:size; }
+.panel.grade > .g{ filter:grayscale(1) contrast(1.06); }
+.panel .g{ position:absolute; inset:0; }
+.panel .bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.fig{ position:absolute; background-repeat:no-repeat; background-size:100% 100%; transform:translate(-50%,-50%); filter:drop-shadow(0 3px 10px #000a); touch-action:none; cursor:grab; }
+.fig.flip{ transform:translate(-50%,-50%) scaleX(-1); }
+.fig.sel{ outline:1px dashed var(--hi); outline-offset:3px; }
+@keyframes spr{ to{ background-position:100% 0; } }
+#stage{ position:absolute; left:50%; top:50%; translate:-50% -50%; box-shadow:0 0 0 1px var(--faint); }
+#stage .cap{ position:absolute; left:0; right:0; bottom:0; padding:22px 14px 10px; background:linear-gradient(#0000,#000c); font:300 clamp(15px,4.2cqw,30px)/1.2 var(--serif); text-align:center; pointer-events:none; text-wrap:balance; }
+#empty{ text-align:center; color:#5f5a52; padding:20px; } #empty h1{ font:300 clamp(26px,6vw,46px) var(--serif); color:#8f887c; margin:0 0 10px; } #empty p{ max-width:46ch; margin:0 auto 18px; line-height:1.6; }
+#starters{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; } #starters button{ border:1px solid #2e2b27; background:none; border-radius:20px; padding:9px 14px; min-height:40px; cursor:pointer; color:#a59e93; font:italic 300 15px var(--serif); }
+#tools{ display:flex; gap:2px; align-items:center; justify-content:center; min-height:44px; color:var(--dim); font-size:10.5px; letter-spacing:.06em; }
+#tools .ico{ width:40px; height:40px; } #tools em{ font-style:normal; margin-right:8px; max-width:34vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--hi); }
+#strip{ display:flex; gap:6px; overflow-x:auto; padding:2px 0 4px; scrollbar-width:none; } #strip::-webkit-scrollbar{ display:none; }
+#strip .panel{ flex:none; width:clamp(92px,15vw,150px); cursor:pointer; opacity:.62; } #strip .panel.cur{ opacity:1; box-shadow:0 0 0 1.5px var(--hi); } #strip .panel b{ position:absolute; left:4px; top:3px; font-weight:400; font-size:9.5px; color:#fffb; text-shadow:0 1px 2px #000; }
+#trayHead{ display:flex; gap:4px; align-items:center; } #trayHead button{ background:none; border:0; padding:8px 8px; min-height:36px; cursor:pointer; color:var(--dim); letter-spacing:.16em; font-size:10px; border-bottom:1px solid transparent; } #trayHead button.on{ color:var(--ink); border-color:var(--hi); }
+#find{ flex:1; min-width:0; background:#121110; border:1px solid var(--faint); border-radius:16px; padding:6px 12px; font-size:16px; height:34px; } #find::placeholder{ color:#57524b; font-size:12px; }
+#tray{ display:flex; gap:6px; overflow-x:auto; padding:6px 0; height:92px; scrollbar-width:none; } #tray::-webkit-scrollbar{ display:none; }
+#tray button{ flex:none; height:80px; min-width:64px; max-width:150px; padding:3px; background:#100f0e; border:1px solid var(--faint); border-radius:4px; cursor:pointer; position:relative; display:grid; place-items:center; } #tray button:hover{ border-color:#5a4e33; }
+#tray img{ max-height:72px; max-width:140px; display:block; } #tray button.gr{ padding:0; overflow:hidden; } #tray button.gr img{ height:80px; max-height:none; max-width:none; width:142px; object-fit:cover; }
+#tray small{ position:absolute; left:3px; bottom:2px; font-size:9px; color:#d8d2c6; text-shadow:0 1px 2px #000,0 0 4px #000; max-width:calc(100% - 6px); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+#tray button.on{ border-color:var(--hi); }
+footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + env(safe-area-inset-bottom)); }
+#prompt{ flex:1; min-width:0; background:#121110; border:1px solid var(--faint); border-radius:22px; padding:0 16px; height:44px; font:italic 300 17px var(--serif); } #prompt::placeholder{ color:#57524b; }
+#bMic.on{ color:var(--hi); background:#e8c07022; }
+#board{ position:fixed; inset:0; z-index:40; background:var(--bg); overflow:auto; padding:calc(54px + env(safe-area-inset-top)) 14px 40px; }
+#board .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr)); gap:16px 12px; max-width:1500px; margin:0 auto; }
+#board figure{ margin:0; cursor:pointer; } #board figcaption{ padding:6px 2px 0; font:300 15px/1.25 var(--serif); } #board figcaption b{ font:10px var(--mono); color:var(--dim); margin-right:6px; font-weight:400; }
+#board .top{ position:fixed; left:0; right:0; top:0; display:flex; align-items:center; gap:8px; padding:calc(6px + env(safe-area-inset-top)) 12px 6px; background:#050505ee; z-index:2; letter-spacing:.2em; font-size:10.5px; color:var(--dim); } #board .top span{ flex:1; }
+.fig.aim{ outline:1px solid #c4f46a; outline-offset:3px; }
+#tools button.tx{ background:none; border:1px solid var(--faint); border-radius:14px; min-height:32px; padding:0 10px; margin:0 2px; cursor:pointer; color:#a59e93; font-size:10px; letter-spacing:.1em; } #tools button.tx:hover{ color:var(--ink); border-color:#5a4e33; }
+#tools{ flex-wrap:wrap; }
+#handBox{ display:flex; align-items:stretch; background:#0b0a09; border:1px solid var(--faint); border-radius:6px; overflow:hidden; font-size:10px; line-height:1.35; position:relative; }
+#handBox .v{ position:relative; width:84px; flex:none; aspect-ratio:4/3; background:#000; } #handSteps{ flex:1; min-width:0; } #handBox video,#handCam{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; } #handBox video{ transform:scaleX(-1); opacity:.85; }
+#handSteps{ padding:5px 7px 6px; display:grid; gap:2px; } #handSteps span{ min-width:0; overflow-wrap:anywhere; } #handSteps div{ display:grid; grid-template-columns:58px minmax(0,1fr); gap:4px; color:var(--dim); } #handSteps b{ font-weight:500; letter-spacing:.1em; color:#8a8378; }
+#handSteps div.ok b{ color:#c4f46a; } #handSteps div.ok{ color:#d8d2c6; } #handSteps div.no b, #handSteps div.no{ color:#ff8a7a; }
+#handBox.min .v{ display:none; } #handBox button{ position:absolute; right:2px; top:2px; z-index:2; width:26px; height:26px; border:0; border-radius:50%; background:#000a; color:#ccc; cursor:pointer; }
+.hcur{ position:fixed; z-index:200; width:26px; height:26px; margin:-13px 0 0 -13px; border-radius:50%; border:2px solid #c4f46a; pointer-events:none; transition:width .12s,height .12s,margin .12s,background .12s; } .hcur.tool{ border-color:#85bdff; }
+.hcur.closed{ width:14px; height:14px; margin:-7px 0 0 -7px; background:#c4f46a; } .hcur.tool.closed{ background:#85bdff; } .hcur b{ position:absolute; left:18px; top:-16px; font:500 9.5px var(--mono); letter-spacing:.1em; color:#c4f46a; white-space:nowrap; text-shadow:0 1px 3px #000; } .hcur.tool b{ color:#85bdff; }
+.hcur i{ position:absolute; inset:-7px; border-radius:50%; border:2px solid transparent; border-top-color:currentColor; color:#fff; opacity:0; } .hcur.arm i{ opacity:.9; animation:arm linear forwards; } @keyframes arm{ from{ transform:rotate(0); } to{ transform:rotate(360deg); } }
+#bHand.on{ color:#c4f46a; background:#c4f46a1c; }
+.here{ position:absolute; width:34px; height:34px; margin:-17px 0 0 -17px; border:2px solid var(--hi); border-radius:50%; z-index:300; pointer-events:none; animation:here 1.4s ease-in-out infinite; } .here b{ position:absolute; left:38px; top:6px; font:500 10px var(--mono); letter-spacing:.12em; color:var(--hi); white-space:nowrap; text-shadow:0 1px 3px #000; }
+@keyframes here{ 50%{ transform:scale(.8); opacity:.6; } }
+.haim{ outline:2px solid #c4f46a !important; outline-offset:1px; }
+#tools .sign{ color:#a59e93; font-size:10.5px; letter-spacing:0; line-height:1.4; text-align:center; max-width:760px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; } #tools .sign b{ color:var(--hi); font-weight:500; margin-right:2px; }
+#bScene{ width:auto; padding:0 10px; border-radius:16px; font-size:11px; letter-spacing:.12em; color:var(--hi); border:1px solid #3a3226; height:34px; }
+#scenes{ position:fixed; inset:0; z-index:80; background:#050505f4; overflow:auto; padding:calc(56px + env(safe-area-inset-top)) 14px 40px; } #scenes .top{ position:fixed; left:0; right:0; top:0; display:flex; align-items:center; gap:8px; padding:calc(6px + env(safe-area-inset-top)) 12px 6px; background:#050505; letter-spacing:.2em; font-size:10.5px; color:var(--dim); z-index:2; } #scenes .top span{ flex:1; }
+#scenes h3{ font:500 10px var(--mono); letter-spacing:.2em; color:var(--dim); margin:18px 0 6px; } #scenes .row{ display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr)); gap:6px; }
+#scenes button{ display:grid; grid-template-columns:34px 1fr; gap:8px; align-items:center; text-align:left; background:#0e0d0c; border:1px solid var(--faint); border-radius:6px; padding:8px 10px; min-height:44px; cursor:pointer; color:var(--ink); font:300 14px var(--serif); }
+#scenes button b{ font:500 11px var(--mono); color:var(--hi); } #scenes button.cur{ border-color:var(--hi); } #scenes button.drop{ opacity:.55; }
+#toast{ position:fixed; left:50%; top:calc(56px + env(safe-area-inset-top)); transform:translateX(-50%); background:#14120f; border:1px solid var(--faint); border-radius:18px; padding:8px 14px; z-index:90; max-width:92vw; opacity:0; transition:opacity .3s; pointer-events:none; text-align:center; } #toast.on{ opacity:1; }
+@media (max-height:560px){ #handBox .v{ width:60px; }  header{ padding-top:2px; padding-bottom:2px; } #strip .panel{ width:72px; } #tray{ height:60px; padding:3px 0; } #tray button{ height:54px; } #tray img{ max-height:46px; } #tray button.gr img{ height:54px; width:96px; } #tools{ min-height:30px; } #tools .ico{ width:30px; height:30px; } footer{ padding-top:2px; } #stageWrap{ min-height:120px; } }
+@media (min-width:900px) and (min-height:561px){ main{ padding:0 18px; } #tray{ height:112px; } #tray button{ height:100px; } #tray img{ max-height:90px; } #tray button.gr img{ height:100px; width:178px; } }
+@media print{ html,body{ overflow:visible; height:auto; background:#fff; color:#000; display:block; } header,main,footer,#toast,#board .top{ display:none !important; } #board{ position:static; display:block !important; background:#fff; padding:0; } #board .grid{ grid-template-columns:repeat(3,1fr); } #board figure{ break-inside:avoid; } .panel{ print-color-adjust:exact; -webkit-print-color-adjust:exact; } }
+</style></head><body>
+<header><a id="markLink" href="markov-poet.html"></a><div id="sys">waking</div>
+  <button class="ico" id="bScene" hidden aria-label="Choose a scene of the Odyssey">SCENE</button>
+  <button class="ico" id="bBoard" aria-label="The whole storyboard"><svg><use href="#i-grid"/></svg></button>
+  <button class="ico" id="bMore" aria-label="Menu"><svg><use href="#i-more"/></svg></button></header>
+<main>
+  <div id="stageWrap"><div id="stageBox"><div id="empty"><h1>a line is a panel</h1><p>Type a line. The archive gives it a ground, and figures SAM has cut out of other films step in. Drag them where the story needs them.</p><div id="starters"></div></div>
+    <div class="panel" id="stage" hidden></div></div><div id="handBox" hidden><button id="handMin" aria-label="Hide or show the camera picture">–</button><div class="v"><video id="handVid" muted playsinline></video><canvas id="handCam"></canvas></div><div id="handSteps"></div></div></div>
+  <div id="tools" hidden></div>
+  <div id="strip"></div>
+  <div id="trayBox" hidden><div id="trayHead"><button id="tFig" class="on">FIGURES</button><button id="tGr">GROUNDS</button><input id="find" placeholder="find a figure: a dog, hands, a cloud" enterkeyhint="search" autocomplete="off"></div><div id="tray"></div></div>
+</main>
+<footer><input id="prompt" placeholder="type a line, then Return" autocomplete="off" enterkeyhint="send">
+  <button class="ico" id="bHand" aria-label="Hands: move figures through the camera"><svg><use href="#i-hand"/></svg></button>
+  <button class="ico" id="bMic" aria-label="Talk to the board"><svg><use href="#i-mic"/></svg></button>
+  <button class="ico" id="bPlay" aria-label="Play the board"><svg><use href="#i-play"/></svg></button>
+  <button class="ico" id="bDeal" aria-label="Deal this panel again"><svg><use href="#i-take"/></svg></button></footer>
+<div id="board" hidden><div class="top"><span>STORYBOARD</span><button class="ico" id="bPrint" aria-label="Print or save as PDF"><svg><use href="#i-send"/></svg></button><button class="ico" id="bBoardX" aria-label="Close"><svg><use href="#i-close"/></svg></button></div><div class="grid"></div></div>
+<div id="scenes" hidden><div class="top"><span>THE ODYSSEY · 152 SCENES · BOOK BY BOOK</span><button class="ico" id="bScenesX" aria-label="Close"><svg><use href="#i-close"/></svg></button></div><div id="sceneList"></div></div>
+<div id="toast"></div>
+<script src="markov/engine.js?v=6"></script>
+<script src="markov/clip-text.js?v=5"></script>
+<script src="markov/shared.js?v=5"></script>
+<script src="markov/export.js?v=4"></script>
+<script src="markov/live.js?v=4"></script>
+<script src="markov/hands.js?v=3"></script>
+<script src="markov/ui.js?v=3"></script>
+<script>
+(function () {
+  const $ = s => document.querySelector(s), esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const SH = window.SH; MPUI.sprite();
+  // the Odyssey: the same storyboard, its lines the beats of Homer's scenes, its grounds foraged for each beat from the Moving Image Archive
+  const OD = new URLSearchParams(location.search).has('od'); let ODS = null, scene = null;
+  $('#markLink').innerHTML = MPUI.mark(26) + (OD ? 'MARKOV <span>· ODYSSEY</span>' : 'MARKOV <span>· SAM</span>'); if (OD) document.title = 'Markov Odyssey';
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
+  let tT; const toast = t => { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(tT); tT = setTimeout(() => e.classList.remove('on'), 3200); };
+  SH.onStatus(s => { $('#sys').textContent = s.text || ''; });
+
+  /* the cast: figures SAM cut out of the lab's read shots */
+  let D = null, SAM = null, EMB = null, EXT = '.png';
+  const url = (p, sprite) => (EXT === '.png' ? p : p.replace(/\.png$/, EXT));
+  const figSims = e => { const n = SAM.n, d = SAM.dim, o = new Float32Array(n); for (let i = 0; i < n; i++) { let s = 0, r = i * d; for (let j = 0; j < d; j++) s += e[j] * EMB[r + j]; o[i] = s * SAM.scale; } return o; };
+  const rank = sims => Array.from(sims.keys()).sort((a, b) => sims[b] - sims[a]);
+  async function loadCast() {
+    const [j, b] = await Promise.all([fetch('markov/sam.json').then(r => r.json()), fetch('markov/sam-emb.bin').then(r => r.arrayBuffer())]); SAM = j; EMB = new Int8Array(b);
+    EXT = await new Promise(r => { const i = new Image(); i.onload = () => r('.webp'); i.onerror = () => r('.png'); i.src = j.figs[0].png.replace(/\.png$/, '.webp'); });
+  }
+
+  /* the board: lines, and for each panel a ground and placed figures */
+  const NS = OD ? 'odyssey.' : 'sam.';
+  let lines = OD ? [] : store.get('sam.lines', []), saved = OD ? {} : store.get('sam.panels', {}), panels = [], sel = 0, selFig = -1, grade = store.get('sam.grade', true), tab = 'fig', found = null, composing = 0;
+  const key = (i, t) => i + '|' + t;
+  const persist = () => { const o = {}; panels.forEach(p => o[p.key] = { bg: p.bg, figs: p.figs }); saved = o; if (OD) { if (scene) store.set('odyssey.panels.' + (scene.cut ? 'cut.' : '') + scene.id, o); return; } store.set('sam.lines', lines); store.set('sam.panels', o); };
+  // a figure enters where it stood in its own film, at its own size: the first guess at a composition
+  function placeFig(f, n) { const F = SAM.figs[f], [x, y, w, h] = F.box; return { z: .5, f, x: Math.min(.9, Math.max(.1, x + w / 2 + (n ? (n % 2 ? .12 : -.12) : 0))), y: Math.min(.9, Math.max(.12, y + h / 2)), s: Math.min(.42, Math.max(.12, w * .7)), flip: 0 }; }
+  function deal(p, n = 2) {   // sample figures by their chance for this line: the Markov step, over cut-outs
+    const top = p.cands.slice(0, 10), T = .02, w = top.map(i => Math.exp((p.fsims[i] - p.fsims[top[0]]) / T)), out = [], shots = new Set();
+    for (let k = 0; k < n; k++) { let tot = 0; top.forEach((i, j) => { if (!shots.has(SAM.figs[i].shot)) tot += w[j]; }); if (!tot) break; let r = Math.random() * tot, pick = -1;
+      for (let j = 0; j < top.length; j++) { if (shots.has(SAM.figs[top[j]].shot)) continue; r -= w[j]; if (r <= 0) { pick = top[j]; break; } } if (pick < 0) break;
+      if (k && p.fsims[pick] < p.fsims[top[0]] - .035) break; shots.add(SAM.figs[pick].shot); out.push(placeFig(pick, k)); }
+    return out; }
+  async function rebuild(keepSel) {
+    const my = ++composing; if (!lines.length) { panels = []; draw(); return; }
+    // a storyboard wants each ground to answer its own line, so the ground is drawn straight from that line's own distribution over the archive
+    const texts = OD ? [...lines] : Shannon.parse(lines.join('\n')).map(p => p.text), E = await SH.embed(texts); if (my !== composing) return; if (E.some(x => !x)) throw new Error('some words could not be read');
+    const used = new Set(), cut = E.map((e, bi) => {
+      // an Odyssey beat: its own foraged footage first (grounds and actions, ranked when the forage was read), the whole archive after
+      // a composed cut (cuts.json): this panel is one shot of it, chosen with the whole scene in view; its alternatives follow
+      const sh = OD && scene && scene.cut && scene.cut.shots[bi];
+      if (sh) { const ids = [sh.clip, ...(sh.alts || [])].filter(x => x && idOf.has(x)); if (ids.length) { const alts = ids.map((x, n) => ({ k: idOf.get(x), p: null, tag: n ? 'SHOT' : 'CUT' }));
+          const sm = D.LIB.sims(e), seen = new Set(alts.map(a => a.k)); rank(sm).slice(0, 12).forEach(k => { if (!seen.has(k)) alts.push({ k, p: null }); }); return { k: alts[0].k, alts }; } }
+      const ob = OD && scene && !scene.cut && scene.beats[bi]; if (ob) { const own = [...ob.action.map(x => [x[0], x[1], 'A']), ...ob.ground.map(x => [x[0], x[1], 'G'])].filter(x => idOf.has(x[0])).sort((a, b) => b[1] - a[1]);
+        if (own.length) { const w = own.map(x => Math.exp((x[1] - own[0][1]) / .02)), tot = w.reduce((a, b) => a + b, 0), alts = own.map((x, n) => ({ k: idOf.get(x[0]), p: w[n] / tot, tag: x[2] }));
+          const sm = D.LIB.sims(e), seen = new Set(alts.map(a => a.k)); rank(sm).slice(0, 16).forEach(k => { if (!seen.has(k)) alts.push({ k, p: null }); });
+          const pick = alts.find(a => !used.has(D.LIB.shots[a.k].src)) || alts[0]; used.add(D.LIB.shots[pick.k].src); return { k: pick.k, alts }; } } const sm = D.LIB.sims(e), top = rank(sm).slice(0, 24), w = top.map(k => Math.exp((sm[k] - sm[top[0]]) / .018)), tot = w.reduce((a, b) => a + b, 0), alts = top.map((k, n) => ({ k, p: w[n] / tot }));
+      const pick = alts.find(a => !used.has(D.LIB.shots[a.k].src)) || alts[0]; used.add(D.LIB.shots[pick.k].src); return { k: pick.k, alts }; });
+    // figures only where the spec asked for one, and only a cut-out that fits it well enough: pasted figures can make a scene worse
+    const fsub = {}; if (OD && scene && scene.cut) { const subs = [...new Set(scene.cut.shots.map(x => x.figure && x.figure.subject).filter(Boolean))]; if (subs.length) (await SH.embed(subs)).forEach((v, n) => fsub[subs[n]] = v); }
+    const figFor = sh => { const v = sh && sh.figure && fsub[sh.figure.subject]; if (!v) return []; const fs = figSims(v), i = rank(fs)[0]; return fs[i] >= .26 ? [{ ...placeFig(i, 0), x: .5, y: .58 }] : []; };
+    panels = cut.map((s, i) => { const fsims = figSims(E[i]), p = { key: key(i, texts[i]), text: texts[i], e: E[i], fsims, cands: rank(fsims).slice(0, 40), alts: s.alts.map(a => ({ k: a.k, p: a.p, tag: a.tag })), bg: s.k, figs: [] };
+      const was = saved[p.key]; if (was) { p.bg = was.bg; p.figs = (was.figs || []).filter(g => SAM.figs[g.f]); } else p.figs = OD && scene && scene.cut ? figFor(scene.cut.shots[i]) : deal(p); if (OD && scene && scene.cut) { p.shot = scene.cut.shots[i]; } return p; });
+    if (!keepSel) sel = panels.length - 1; sel = Math.max(0, Math.min(sel, panels.length - 1)); selFig = -1; found = null; persist(); draw();
+    SH.status('rest', `${panels.length} panel${panels.length > 1 ? 's' : ''} · drag a figure to move it`);
+  }
+
+  /* drawing a panel: live (video ground, moving figures) on the stage, still everywhere else */
+  const frames = new Map();
+  // depth: near figures stand in front, sharp and full; far ones sit behind, a little soft and dim, the way a lens would give them
+  const zOf = g => g.z == null ? .5 : g.z;
+  function depth(d, g) { const z = zOf(g); d.style.zIndex = Math.round(z * 100); d.style.filter = `drop-shadow(0 3px 10px #000a) blur(${(Math.max(0, .5 - z) * 3).toFixed(2)}px) brightness(${(.72 + .28 * Math.min(1, z * 2)).toFixed(2)})`; }
+  const undoStack = [];
+  function snap() { const p = panels[sel]; if (!p) return; undoStack.push({ i: sel, bg: p.bg, figs: JSON.stringify(p.figs) }); if (undoStack.length > 60) undoStack.shift(); }
+  function undo() { const u = undoStack.pop(); if (!u || !panels[u.i]) { toast('nothing to undo'); return false; } panels[u.i].bg = u.bg; panels[u.i].figs = JSON.parse(u.figs); sel = u.i; selFig = -1; persist(); draw(); toast('undone'); return true; }
+  function figEl(g, live) { const F = SAM.figs[g.f], d = document.createElement('div'); d.className = 'fig' + (g.flip ? ' flip' : ''); d.style.left = g.x * 100 + '%'; d.style.top = g.y * 100 + '%'; d.style.width = g.s * 100 + '%'; depth(d, g);
+    const still = () => { d.style.aspectRatio = F.w + ' / ' + F.h; d.style.backgroundImage = `url("${url(F.png)}")`; }; still();
+    if (live && F.sprite && F.sw) { const go = n => { if (n < 2) return; d.style.aspectRatio = F.sw + ' / ' + F.sh; d.style.backgroundImage = `url("${url(F.sprite)}")`; d.style.backgroundSize = n * 100 + '% 100%'; d.style.animation = `spr ${(n / (F.fps || 6)).toFixed(2)}s steps(${n}, jump-none) infinite alternate`; };
+      if (frames.has(F.sprite)) go(frames.get(F.sprite)); else { const im = new Image(); im.onload = () => { const n = Math.round(im.naturalWidth / (im.naturalHeight * F.sw / F.sh)); frames.set(F.sprite, n); if (d.isConnected) go(n); }; im.src = url(F.sprite); } }
+    return d; }
+  function paint(el, p, live) { el.classList.toggle('grade', !!grade); el.innerHTML = ''; const g = document.createElement('div'); g.className = 'g'; el.append(g);
+    if (p.bg != null) { const s = D.LIB.shots[p.bg]; if (live) { const v = document.createElement('video'); v.className = 'bg'; v.muted = true; v.loop = true; v.playsInline = true; v.autoplay = true; v.poster = s.thumb; v.src = s.video + '#t=' + (s.in || 0); g.append(v); v.play().catch(() => { }); }
+      else { const i = document.createElement('img'); i.className = 'bg'; i.loading = 'lazy'; i.src = s.thumb; g.append(i); } }
+    p.figs.forEach((f, n) => { const d = figEl(f, live); d.dataset.n = n; g.append(d); }); return g; }
+  function draw() {
+    const has = panels.length > 0; $('#empty').hidden = has; $('#stage').hidden = !has; $('#trayBox').hidden = !has; $('#tools').hidden = !has; if (!has) { $('#strip').innerHTML = ''; drawStarters(); return; }
+    drawStage(); drawStrip(); drawTray(); }
+  function drawStage() { const p = panels[sel], st = $('#stage'); paint(st, p, true); const c = document.createElement('div'); c.className = 'cap'; c.textContent = p.text; st.append(c); markSel(); fit(); }
+  function markSel() { $('#stage').querySelectorAll('.fig').forEach(d => d.classList.toggle('sel', +d.dataset.n === selFig)); drawTools(); }
+  function drawStrip() { const s = $('#strip'); s.innerHTML = ''; panels.forEach((p, i) => { const d = document.createElement('div'); d.className = 'panel' + (i === sel ? ' cur' : ''); paint(d, p, false); const b = document.createElement('b'); b.textContent = (i + 1) + (p.shot ? ' · ' + p.shot.role : ''); d.append(b); d.onclick = () => { stop(); go(i); }; s.append(d); });
+    const c = s.querySelector('.cur'); if (c) s.scrollLeft = c.offsetLeft - s.offsetLeft - (s.clientWidth - c.clientWidth) / 2; }
+  function restrip() { const d = $('#strip').children[sel]; if (d) { paint(d, panels[sel], false); const b = document.createElement('b'); b.textContent = sel + 1; d.append(b); } }
+  function go(i) { sel = Math.max(0, Math.min(panels.length - 1, i)); selFig = -1; found = null; $('#find').value = ''; draw(); }
+  function fit() { const w = $('#stageBox'), st = $('#stage'), W = w.clientWidth, H = w.clientHeight; const wd = Math.min(W, H * 16 / 9); st.style.width = wd + 'px'; st.style.height = wd * 9 / 16 + 'px'; }
+  addEventListener('resize', fit);
+  function drawTools() { const t = $('#tools'), p = panels[sel]; if (!p) return; const g = p.figs[selFig];
+    const B = (ic, lab, f) => `<button class="ico" data-a="${f}" aria-label="${lab}" title="${lab}"><svg><use href="#i-${ic}"/></svg></button>`;
+    const X = (lab, f) => `<button class="tx" data-a="${f}">${lab}</button>`;
+    t.innerHTML = g ? `<em>${esc(SAM.figs[g.f].desc)}</em>` + B('down', 'Smaller', 'sm') + B('up', 'Larger', 'lg') + X('NEAR', 'near') + X('FAR', 'far') + X('COPY', 'copy') + X('FLIP', 'flip') + B('close', 'Remove', 'rm')
+      : (OD && scene ? `<span class="sign"><b>${esc(scene.sign.symbol || '')}</b> ${esc(scene.sign.name || '')} · ${esc(scene.sign.operation || '')}</span>` : `<span>${p.figs.length ? 'tap a figure to select it · drag to move · pinch or scroll to size' : 'tap a figure below to bring it in'}</span>`);
+    t.querySelectorAll('button').forEach(b => b.onclick = () => act(b.dataset.a)); }
+  function act(a) { const p = panels[sel], g = p.figs[selFig]; if (!g) return false; snap();
+    if (a === 'near') { g.z = Math.min(1, zOf(g) + .17); g.s = Math.min(1.6, g.s * 1.14); } else if (a === 'far') { g.z = Math.max(0, zOf(g) - .17); g.s = Math.max(.04, g.s / 1.14); }
+    else if (a === 'copy') { p.figs.push({ ...g, x: Math.min(1.05, g.x + .08), y: Math.min(1.05, g.y + .04) }); selFig = p.figs.length - 1; }
+    else if (a === 'sm') g.s = Math.max(.04, g.s / 1.15); else if (a === 'lg') g.s = Math.min(1.6, g.s * 1.15); else if (a === 'flip') g.flip = g.flip ? 0 : 1;
+    else if (a === 'front') g.z = 1; else if (a === 'back') g.z = 0; else if (a === 'rm') { p.figs.splice(selFig, 1); selFig = -1; }
+    persist(); drawStage(); restrip(); return true; }
+  function drawTray() { const p = panels[sel], t = $('#tray'); t.innerHTML = ''; $('#tFig').classList.toggle('on', tab === 'fig'); $('#tGr').classList.toggle('on', tab === 'gr'); $('#find').placeholder = tab === 'fig' ? 'find a figure: a dog, hands, a cloud' : 'find a ground: a road at night';
+    if (tab === 'fig') (found || p.cands).slice(0, 40).forEach(i => { const F = SAM.figs[i], b = document.createElement('button'); b.innerHTML = `<img loading="lazy" src="${url(F.png)}" alt=""><small>${esc(F.desc)}</small>`; b.title = `${F.desc} · ${F.title || ''} ${F.year || ''}`;
+      b.onclick = () => { snap(); p.figs.push({ ...placeFig(i, p.figs.length), x: .5, y: .55 }); selFig = p.figs.length - 1; persist(); drawStage(); restrip(); }; t.append(b); });
+    else { const none = document.createElement('button'); none.className = 'gr' + (p.bg == null ? ' on' : ''); none.style.minWidth = '64px'; none.innerHTML = '<small>no ground</small>'; none.onclick = () => { snap(); p.bg = null; persist(); drawStage(); restrip(); drawTray(); }; t.append(none);
+      (found || p.alts).slice(0, 24).forEach(a => { const s = D.LIB.shots[a.k], b = document.createElement('button'); b.className = 'gr' + (a.k === p.bg ? ' on' : ''); b.innerHTML = `<img loading="lazy" src="${s.thumb}" alt=""><small>${a.tag ? (a.tag === 'G' ? 'PLACE · ' : 'ACTION · ') : ''}${a.p != null ? Math.round(a.p * 100) + '% · ' : ''}${esc(s.title || '')}</small>`;
+        b.onclick = () => { snap(); p.bg = a.k; persist(); drawStage(); restrip(); drawTray(); }; t.append(b); }); } }
+  $('#tFig').onclick = () => { tab = 'fig'; found = null; $('#find').value = ''; drawTray(); }; $('#tGr').onclick = () => { tab = 'gr'; found = null; $('#find').value = ''; drawTray(); };
+  $('#find').addEventListener('keydown', async e => { if (e.key !== 'Enter') return; const q = e.target.value.trim(); if (!q) { found = null; drawTray(); return; } e.target.blur();
+    try { const [v] = await SH.embed([q]); if (tab === 'fig') found = rank(figSims(v)); else { const s = D.LIB.sims(v); found = rank(s).slice(0, 24).map(k => ({ k, p: null })); } drawTray(); $('#tray').scrollLeft = 0; SH.status('rest', 'found for "' + q + '"'); } catch (x) { toast('could not read that: ' + x.message); } });
+
+  /* the hand: drag to move, pinch or wheel to size */
+  const st = $('#stage'), pts = new Map(); let drag = null;
+  st.addEventListener('pointerdown', e => { const f = e.target.closest('.fig'); pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 2 && selFig >= 0) { const [a, b] = [...pts.values()]; drag = { pinch: Math.hypot(a[0] - b[0], a[1] - b[1]), s0: panels[sel].figs[selFig].s }; return; }
+    if (!f) { if (selFig >= 0) { selFig = -1; markSel(); } return; } e.preventDefault(); stop(); snap(); selFig = +f.dataset.n; markSel(); const g = panels[sel].figs[selFig], r = st.getBoundingClientRect();
+    drag = { el: f, dx: g.x - (e.clientX - r.left) / r.width, dy: g.y - (e.clientY - r.top) / r.height }; try { st.setPointerCapture(e.pointerId); } catch (x) { } });
+  st.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, [e.clientX, e.clientY]); const g = panels[sel] && panels[sel].figs[selFig]; if (!drag || !g) return;
+    const el = st.querySelector(`.fig[data-n="${selFig}"]`);
+    if (drag.pinch) { if (pts.size < 2) return; const [a, b] = [...pts.values()]; g.s = Math.min(1.6, Math.max(.04, drag.s0 * Math.hypot(a[0] - b[0], a[1] - b[1]) / drag.pinch)); el.style.width = g.s * 100 + '%'; return; }
+    const r = st.getBoundingClientRect(); g.x = Math.min(1.1, Math.max(-.1, (e.clientX - r.left) / r.width + drag.dx)); g.y = Math.min(1.1, Math.max(-.1, (e.clientY - r.top) / r.height + drag.dy)); el.style.left = g.x * 100 + '%'; el.style.top = g.y * 100 + '%'; });
+  new ResizeObserver(() => fit()).observe($('#stageBox'));
+  const up = e => { pts.delete(e.pointerId); if (drag && (!drag.pinch || pts.size < 2)) { if (pts.size === 0 || drag.pinch) { drag = null; persist(); restrip(); } } };
+  st.addEventListener('pointerup', up); st.addEventListener('pointercancel', up);
+  st.addEventListener('wheel', e => { const g = panels[sel] && panels[sel].figs[selFig]; if (!g) return; e.preventDefault(); g.s = Math.min(1.6, Math.max(.04, g.s * (e.deltaY < 0 ? 1.06 : 1 / 1.06))); st.querySelector(`.fig[data-n="${selFig}"]`).style.width = g.s * 100 + '%'; clearTimeout(st._w); st._w = setTimeout(() => { persist(); restrip(); }, 250); }, { passive: false });
+  addEventListener('keydown', e => { if (/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return; const g = panels[sel] && panels[sel].figs[selFig];
+    if (e.key === 'z' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); undo(); return; } if (g && e.key === 'd') return act('copy');
+    if (e.key === 'ArrowRight') go(sel + 1); else if (e.key === 'ArrowLeft') go(sel - 1); else if (e.key === ' ') { e.preventDefault(); $('#bPlay').click(); }
+    else if (g && (e.key === 'Backspace' || e.key === 'Delete')) act('rm'); else if (g && e.key === ']') act('lg'); else if (g && e.key === '[') act('sm'); else if (g && e.key === 'f') act('flip'); });
+
+  /* lines in */
+  async function addLine(t) { t = String(t || '').trim(); if (!t) return; lines.push(t); if (!OD) store.set('sam.lines', lines); SH.status('reading', 'reading'); try { await rebuild(); } catch (e) { SH.status('rest', 'the words could not be read: ' + e.message); } }
+  $('#prompt').addEventListener('keydown', e => { if (e.key === 'Enter') { const t = e.target.value; e.target.value = ''; addLine(t); } });
+  function removeLine(i) { if (!(i >= 0 && i < lines.length)) return; lines.splice(i, 1); saved = {}; persist(); store.set('sam.panels', {}); rebuild(true); }
+  function lineOf(pi) { let n = 0; for (let i = 0; i < lines.length; i++) { n += Shannon.parse(lines[i]).length; if (pi < n) return i; } return lines.length - 1; }
+  $('#bDeal').onclick = () => { const p = panels[sel]; if (!p) return; snap(); p.figs = deal(p, 1 + Math.floor(Math.random() * 3)); selFig = -1; persist(); drawStage(); restrip(); };
+  function drawStarters() { const b = $('#starters'); b.innerHTML = ''; ((D && D.starters) || []).forEach(ls => { const x = document.createElement('button'); x.textContent = ls[0]; x.onclick = () => { lines = [...ls]; saved = {}; rebuild().then(() => go(0)); }; b.append(x); }); }
+
+  /* play: the board read through, one panel a line */
+  let playT = null, playing = false;
+  function stop() { playing = false; clearTimeout(playT); try { speechSynthesis.cancel(); } catch (e) { } $('#bPlay').innerHTML = '<svg><use href="#i-play"/></svg>'; }
+  function step(i) { if (!playing) return; if (i >= panels.length) { stop(); return; }
+    if (panels[i].shot) { go(i); const sh = panels[i].shot, prev = panels[i - 1] && panels[i - 1].shot; if (!prev || prev.beat !== sh.beat) { try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(panels[i].text); u.rate = .92; speechSynthesis.speak(u); } catch (e) { } }
+      clearTimeout(playT); playT = setTimeout(() => step(i + 1), Math.max(1500, (sh.sec || 4) * 1000)); return; }   // a cut plays by its own lengths; the beat is read once, at its first shot
+    go(i); const t = panels[i].text, dur = Math.max(2400, t.split(/\s+/).length * 430); let done = false; const next = () => { if (done) return; done = true; clearTimeout(playT); playT = setTimeout(() => step(i + 1), 500); };
+    try { const u = new SpeechSynthesisUtterance(t); u.rate = .92; u.onend = next; speechSynthesis.speak(u); } catch (e) { } playT = setTimeout(next, dur + 2500); }
+  $('#bPlay').onclick = () => { if (playing) return stop(); if (!panels.length) return; playing = true; $('#bPlay').innerHTML = '<svg><use href="#i-pause"/></svg>'; step(sel >= panels.length - 1 ? 0 : sel); };
+
+  /* the whole storyboard, and sending it */
+  function openBoard() { stop(); const g = $('#board .grid'); g.innerHTML = ''; panels.forEach((p, i) => { const f = document.createElement('figure'), d = document.createElement('div'); d.className = 'panel'; paint(d, p, false); f.append(d); const c = document.createElement('figcaption'); c.innerHTML = `<b>${i + 1}</b>${esc(p.text)}`; f.append(c); f.onclick = () => { $('#board').hidden = true; go(i); }; g.append(f); }); $('#board').hidden = false; }
+  $('#bBoard').onclick = () => panels.length ? openBoard() : toast('type a line first'); $('#bBoardX').onclick = () => { $('#board').hidden = true; }; $('#bPrint').onclick = () => print();
+  const boardData = () => ({ v: 1, l: lines, p: panels.map(p => [p.bg == null ? null : D.LIB.shots[p.bg].id, p.figs.map(g => [SAM.figs[g.f].shot, SAM.figs[g.f].k, +g.x.toFixed(3), +g.y.toFixed(3), +g.s.toFixed(3), g.flip])]) });
+  async function link() { const u = location.origin + location.pathname + '#b=' + await MPExport.pack(boardData()); try { if (navigator.share && /Mobi|Android|iP(hone|ad)/.test(navigator.userAgent)) await navigator.share({ title: 'A Markov SAM storyboard', url: u }); else { await navigator.clipboard.writeText(u); toast('link copied · it opens this board, and they can move things too'); } } catch (e) { prompt('Copy this link', u); } }
+  function applyBoard(o) { lines = o.l || []; saved = {}; const idOf = new Map(D.LIB.shots.map((s, i) => [s.id, i])), fOf = new Map(SAM.figs.map((f, i) => [f.shot + '/' + f.k, i]));
+    return rebuild().then(() => { (o.p || []).forEach((q, i) => { const p = panels[i]; if (!p) return; p.bg = q[0] == null ? null : (idOf.has(q[0]) ? idOf.get(q[0]) : p.bg); p.figs = (q[1] || []).filter(g => fOf.has(g[0] + '/' + g[1])).map(g => ({ f: fOf.get(g[0] + '/' + g[1]), x: g[2], y: g[3], s: g[4], flip: g[5] })); }); persist(); go(0); }); }
+  function toRoom() { if (!SH.isLab()) { toast('the Cutting Room takes clips from the lab server: open this page from the lab'); return; }
+    const items = panels.filter(p => p.bg != null).map((p, i) => { const s = D.LIB.shots[p.bg]; return { shot: s.id, title: s.title, year: s.year || null, n: (s.signs || [])[0] || null, symbol: null, note: p.text, a: s.in || 0, b: null, media: '/media/' + s.id + '.mp4' }; });
+    const bin = { id: 'sam-' + Date.now().toString(36), title: 'Markov SAM · ' + (lines[0] || '').slice(0, 40), layout: 'sequence', items }; try { localStorage.setItem('cineosis.bin', JSON.stringify(bin)); } catch (e) { }
+    try { new BroadcastChannel('cineosis').postMessage({ type: 'bin', bin }); } catch (e) { } window.open('tools/hand-butter.html', 'cineosis-room'); toast(items.length + ' grounds sent to the Cutting Room, a line on each'); }
+
+  /* hands, through the camera: hand-butter's language. One hand is GRIP (pinch a figure to hold it, open to let go); while it holds,
+     the other is TOOL (open palm: raise it to bring the figure nearer, lower it to push it back · V: copy · thumb down: remove).
+     With nothing held: pinch a tray figure to pull it onto the panel · pinch empty ground and sweep to turn the page · hold a fist to undo. */
+  let hands = null; const HS = { owner: null, tool: null, prev: {}, cmd: {}, swipe: null, lost: 0, tracks: [] }, curs = {};
+  const figAt = (x, y) => { const els = document.elementsFromPoint(x, y); const f = els.find(e => e.classList && e.classList.contains('fig') && e.closest('#stage')); return f ? +f.dataset.n : -1; };
+  const stageXY = t => { const r = st.getBoundingClientRect(); return { x: (t.x - r.left) / r.width, y: (t.y - r.top) / r.height, in: t.x >= r.left && t.x <= r.right && t.y >= r.top && t.y <= r.bottom }; };
+  const figDom = n => st.querySelector(`.fig[data-n="${n}"]`);
+  function release(why) { if (HS.owner == null) return; HS.owner = null; HS.tool = null; persist(); restrip(); markSel(); if (why) SH.status('rest', why); }
+  // a pose held long enough is a command; the ring on the cursor fills while it arms
+  function held(t, pose, ms, now) { const c = HS.cmd[t.id] || (HS.cmd[t.id] = {}); if (t.pose !== pose) { if (c.pose === pose) { c.pose = null; curs[t.id] && curs[t.id].classList.remove('arm'); } return false; }
+    if (c.pose !== pose) { c.pose = pose; c.t0 = now; c.fired = false; const el = curs[t.id]; if (el) { el.classList.remove('arm'); void el.offsetWidth; el.querySelector('i').style.animationDuration = ms + 'ms'; el.classList.add('arm'); } }
+    if (!c.fired && now - c.t0 >= ms) { c.fired = true; curs[t.id] && curs[t.id].classList.remove('arm'); return true; } return false; }
+  function onHands(tracks) { const now = performance.now(); HS.tracks = tracks; const p = panels[sel];
+    for (const id in curs) if (!tracks.find(t => t.id === id)) { curs[id].remove(); delete curs[id]; delete HS.cmd[id]; }
+    tracks.forEach(t => { let c = curs[t.id]; if (!c) { c = curs[t.id] = document.createElement('div'); c.className = 'hcur'; c.innerHTML = '<i></i><b></b>'; document.body.append(c); }
+      const tool = HS.owner != null && t.id !== HS.owner; c.style.left = t.x + 'px'; c.style.top = t.y + 'px'; c.classList.toggle('closed', t.closed); c.classList.toggle('tool', tool);
+      c.querySelector('b').textContent = HS.owner === t.id ? 'GRIP' : tool ? 'TOOL · ' + t.pose : t.pose; });
+    if (!p) { HS.prev = Object.fromEntries(tracks.map(t => [t.id, t.closed])); return; }
+    const own = tracks.find(t => t.id === HS.owner);
+    if (HS.owner != null) { const g = p.figs[selFig];
+      if (!own) { if (!HS.lost) HS.lost = now; if (now - HS.lost > 700 || !g) release('hand lost · placed'); }
+      else if (!g) release();
+      else { HS.lost = 0; const el = figDom(selFig);
+        if (!own.closed) { const ov = document.elementsFromPoint(own.x, own.y).some(e => e.id === 'trayBox' || e.id === 'strip'); if (ov) { p.figs.splice(selFig, 1); selFig = -1; HS.owner = null; HS.tool = null; persist(); drawStage(); restrip(); SH.status('rest', 'dropped in the drawer · removed'); } else release('placed'); }
+        else { const q = stageXY(own); g.x = Math.min(1.1, Math.max(-.1, q.x + HS.dx)); g.y = Math.min(1.1, Math.max(-.1, q.y + HS.dy)); if (el) { el.style.left = g.x * 100 + '%'; el.style.top = g.y * 100 + '%'; }
+          const tl = tracks.find(t => t.id !== HS.owner);
+          if (tl) {
+            if (tl.pose === 'open') { if (!HS.tool) HS.tool = { y0: tl.y, z0: zOf(g), s0: g.s }; const dz = (HS.tool.y0 - tl.y) / innerHeight * 2.4; g.z = Math.min(1, Math.max(0, HS.tool.z0 + dz)); g.s = Math.min(1.6, Math.max(.04, HS.tool.s0 * Math.pow(2, (g.z - HS.tool.z0) * 1.5))); if (el) { el.style.width = g.s * 100 + '%'; depth(el, g); }
+              SH.status('listening', `depth ${Math.round(g.z * 100)} · raise the open hand for nearer, lower for farther`); } else HS.tool = null;
+            if (held(tl, 'V', 700, now)) { p.figs.push({ ...g }); const me = p.figs.length - 1; drawStage(); selFig = me; markSel(); toast('copied · the copy stays, you hold the new one'); }
+            if (held(tl, 'down', 1300, now)) { p.figs.splice(selFig, 1); selFig = -1; HS.owner = null; HS.tool = null; persist(); drawStage(); restrip(); toast('removed'); }
+          } else HS.tool = null; } } }
+    else { let aim = -1;
+      tracks.forEach(t => { const was = HS.prev[t.id];
+        if (t.closed && !was) { const top = document.elementFromPoint(t.x, t.y), n = figAt(t.x, t.y);
+          if (n >= 0) { stop(); snap(); selFig = n; HS.owner = t.id; HS.lost = 0; const q = stageXY(t), g = p.figs[n]; HS.dx = g.x - q.x; HS.dy = g.y - q.y; markSel(); SH.status('listening', 'GRIP holds ' + SAM.figs[g.f].desc + ' · other hand: open = depth · V = copy · thumb down = remove'); }
+          else if (top && (top.closest('#tray') || top.closest('#strip'))) { const box = top.closest('#tray') || top.closest('#strip'); HS.drawer = { id: t.id, x0: t.x, y0: t.y, el: top.closest('button, #strip .panel'), box, s0: box.scrollLeft, mode: null }; }
+          else if (top && top.closest('#stage')) { HS.swipe = { id: t.id, x0: t.x }; setHere(stageXY(t)); }
+          else if (top && top.closest('button')) top.closest('button').click(); }
+        // the drawer: pinch an item and lift it up to pull it onto the panel · pinch and slide sideways to scroll · pinch and let go to press it
+        if (HS.drawer && HS.drawer.id === t.id) { const dr = HS.drawer, dx = t.x - dr.x0, dy = t.y - dr.y0;
+          if (!t.closed) { if (!dr.mode && dr.el) dr.el.click(); HS.drawer = null; }
+          else if (!dr.mode) { if (dy < -40 && dr.el && dr.box.id === 'tray') { dr.mode = 'pull'; dr.el.click();
+              if (tab === 'fig') { HS.owner = t.id; HS.lost = 0; HS.dx = 0; HS.dy = 0; SH.status('listening', 'pulled from the drawer · carry it to its place, open the hand to set it down'); } HS.drawer = null; }
+            else if (Math.abs(dx) > 28) dr.mode = 'scroll'; }
+          if (HS.drawer && HS.drawer.mode === 'scroll') dr.box.scrollLeft = dr.s0 - dx * 1.8; }
+        if (HS.swipe && HS.swipe.id === t.id) { if (!t.closed) HS.swipe = null; else { const dx = (t.x - HS.swipe.x0) / st.clientWidth; if (Math.abs(dx) > .22) { HS.swipe = null; go(sel + (dx < 0 ? 1 : -1)); } } }
+        if (!t.closed && HS.owner == null) { const n = figAt(t.x, t.y); if (n >= 0) aim = n; if (held(t, 'fist', 900, now)) undo(); } });
+      st.querySelectorAll('.fig').forEach(d => d.classList.toggle('aim', +d.dataset.n === aim && HS.owner == null)); }
+    // whatever button or drawer item a hand is over is outlined, so the pinch lands where it is meant to
+    document.querySelectorAll('.haim').forEach(e => e.classList.remove('haim')); tracks.forEach(t => { const e = document.elementFromPoint(t.x, t.y), b = e && !e.closest('#stage') && e.closest('button, #strip .panel'); if (b) b.classList.add('haim'); });
+    HS.prev = Object.fromEntries(tracks.map(t => [t.id, t.closed])); }
+  // the hand panel: the camera's own picture with the tracked skeleton on it, and three plain lines that say what works and what does not
+  const STEPS = ['camera', 'tracker', 'hands'], stepState = {};
+  function step(k, ok, text) { stepState[k] = { ok, text }; $('#handSteps').innerHTML = STEPS.map(n => { const v = stepState[n] || { ok: undefined, text: 'waiting' }; return `<div class="${v.ok === true ? 'ok' : v.ok === false ? 'no' : ''}"><b>${n.toUpperCase()}</b><span>${esc(v.text)}</span></div>`; }).join(''); }
+  $('#handMin').onclick = () => $('#handBox').classList.toggle('min');
+  function handsOff() { const h = hands; hands = null; if (h) h.stop(); $('#bHand').classList.remove('on'); release(); for (const id in curs) { curs[id].remove(); delete curs[id]; } }
+  $('#bHand').onclick = async () => { if (hands || $('#bHand').classList.contains('on')) { handsOff(); $('#handBox').hidden = true; SH.status('rest', 'hands off'); return; }
+    $('#bHand').classList.add('on'); $('#handBox').hidden = false; $('#handBox').classList.remove('min'); STEPS.forEach(k => delete stepState[k]); step('camera', null, 'starting');
+    try { const h = await MPHands.start({ engine: /hands=slow/.test(location.search) ? 'slow' : undefined, view: $('#handVid'), preview: $('#handCam'), on: { frame: onHands, step, state: () => { }, error: m => { step('tracker', false, m); handsOff(); } } });
+      if (!$('#bHand').classList.contains('on')) { h.stop(); return; } hands = h; SH.status('listening', live ? 'hands on · pinch a figure to hold it · pinch empty ground and say what goes there' : 'hands on · pinch a figure to hold it · turn on the mic too, to say what goes where you pinch'); }
+    catch (e) { hands = null; $('#bHand').classList.remove('on'); const k = stepState.camera && stepState.camera.ok === true ? 'tracker' : 'camera'; if (!stepState[k] || stepState[k].ok !== false) step(k, false, e.message || String(e)); SH.status('rest', 'hands did not start: see the panel'); } };   // the panel stays open so the reason stays readable
+  // what "this" and "here" mean to the voice: the figure a hand holds or points at, and the place a hand is over the panel
+  // "here": a pinch on empty ground leaves a mark for a few seconds; a figure asked for by voice lands on it
+  let here = null, hereT = 0;
+  function setHere(q) { clearHere(); if (!q) return; here = { x: q.x, y: q.y }; const m = document.createElement('div'); m.className = 'here'; m.id = 'hereMark'; m.style.left = q.x * 100 + '%'; m.style.top = q.y * 100 + '%'; m.innerHTML = '<b>' + (live ? 'HERE · say what goes here' : 'HERE · turn on the mic to say what goes here') + '</b>'; st.append(m); clearTimeout(hereT); hereT = setTimeout(clearHere, 15000); }
+  function clearHere() { here = null; const m = $('#hereMark'); if (m) m.remove(); }
+  function pointer() { const pin = HS.tracks.find(t => t.closed && stageXY(t).in); if (pin) return stageXY(pin); if (here) return here; for (const t of HS.tracks) { const q = stageXY(t); if (q.in) return q; } return null; }
+  function target() { if (HS.owner != null && selFig >= 0) return selFig; for (const t of HS.tracks) { const n = figAt(t.x, t.y); if (n >= 0) return n; } return selFig; }
+
+  /* live voice, when a key is in this browser */
+  let live = null;
+  const poemNow = () => ({ lines: lines.map((t, i) => `${i + 1}. ${t}`) });
+  const TOOLS = [{ name: 'add_line', description: 'Add one line to the storyboard in the speaker\'s exact words; it becomes a panel.', parameters: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] }, run: async a => { await addLine(a.text); return poemNow(); } },
+    { name: 'remove_line', description: 'Remove a line (1 is the first).', parameters: { type: 'object', properties: { line: { type: 'integer' } }, required: ['line'] }, run: a => { removeLine(a.line - 1); return poemNow(); } },
+    { name: 'deal_again', description: 'Deal new figures for the panel on screen.', run: () => { $('#bDeal').click(); return { ok: true }; } },
+    { name: 'show_panel', description: 'Show a panel by number.', parameters: { type: 'object', properties: { panel: { type: 'integer' } }, required: ['panel'] }, run: a => { go(a.panel - 1); return { ok: true }; } },
+    { name: 'place_figure', description: 'Bring a cut-out figure into the panel on screen, found by a few words (for example "a dog", "hands", "a cloud"). It lands where the person\'s hand is pointing, or in the middle if no hand is up. Use for "put a dog here", "add a cloud there", "I need a man".', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+      run: async a => { const p = panels[sel]; if (!p) return { error: 'no panel yet: add a line first' }; const [v] = await SH.embed([a.query]), fs = figSims(v), i = rank(fs)[0], at = pointer(); snap(); p.figs.push({ ...placeFig(i, 0), x: at ? at.x : .5, y: at ? at.y : .55 }); selFig = p.figs.length - 1; clearHere(); persist(); drawStage(); restrip(); return { placed: SAM.figs[i].desc, at: at ? 'where the hand pinched' : 'the middle', note: fs[i] < .235 ? 'the cast has nothing close to that; this was the nearest figure, say so in three words' : undefined }; } },
+    { name: 'edit_figure', description: 'Change the figure the hand is holding or pointing at (or the selected one). Use for "copy that", "double it", "remove this", "delete it", "flip it", "bigger", "smaller", "bring it nearer", "push it back", "to the front", "to the back".', parameters: { type: 'object', properties: { action: { type: 'string', enum: ['copy', 'remove', 'flip', 'bigger', 'smaller', 'nearer', 'farther', 'front', 'back'] }, times: { type: 'integer', description: 'repeat, for "much bigger" or "three copies"' } }, required: ['action'] },
+      run: a => { const n = target(); if (n < 0 || !panels[sel] || !panels[sel].figs[n]) return { error: 'no figure is held, pointed at or selected' }; const was = HS.owner, M = { copy: 'copy', remove: 'rm', flip: 'flip', bigger: 'lg', smaller: 'sm', nearer: 'near', farther: 'far', front: 'front', back: 'back' }; selFig = n; const name = SAM.figs[panels[sel].figs[n].f].desc;
+        for (let k = 0; k < Math.min(6, a.times || 1); k++) { act(M[a.action]); if (a.action === 'copy' && was != null) selFig = n; } if (a.action === 'remove') HS.owner = null; return { done: a.action, figure: name }; } },
+    { name: 'change_ground', description: 'Replace the background footage of the panel on screen with a shot found by a few words. Use for "make it a beach", "put this at night on a road".', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+      run: async a => { const p = panels[sel]; if (!p) return { error: 'no panel yet' }; const [v] = await SH.embed([a.query]), k = rank(D.LIB.sims(v))[0]; snap(); p.bg = k; persist(); drawStage(); restrip(); return { ground: D.LIB.shots[k].title }; } },
+    { name: 'turn_page', description: 'Go to the next or previous panel.', parameters: { type: 'object', properties: { to: { type: 'string', enum: ['next', 'previous'] } }, required: ['to'] }, run: a => { go(sel + (a.to === 'next' ? 1 : -1)); return { panel: sel + 1, of: panels.length }; } },
+    { name: 'change_scene', description: 'In the Odyssey room: go to the next or previous scene, or to a scene found by words from its title ("the bow", "the cyclops", "the sirens").', parameters: { type: 'object', properties: { to: { type: 'string' } }, required: ['to'] }, run: a => { if (!OD) return { error: 'not in the Odyssey room' }; const t = (a.to || '').toLowerCase(); if (/next/.test(t)) stepScene(1); else if (/prev|back/.test(t)) stepScene(-1); else { const hit = ODS.scenes.find(s => s.title.toLowerCase().includes(t)) || ODS.scenes.find(s => t.split(/\s+/).some(w => w.length > 3 && s.title.toLowerCase().includes(w))); if (!hit) return { error: 'no scene called that' }; openScene(hit.id); } return { scene: scene.title }; } },
+    { name: 'undo', description: 'Undo the last change to a panel.', run: () => ({ undone: undo() }) },
+    { name: 'play', description: 'Read the board through from the start.', run: () => { stop(); sel = 0; $('#bPlay').click(); return { ok: true }; } }, { name: 'pause', description: 'Stop reading.', run: () => { stop(); return { ok: true }; } }];
+  $('#bMic').onclick = async () => { if (live) { const l = live; live = null; l.stop(); return; } if (!MPLive.hasKey()) { MPLive.keySheet(ok => toast(ok ? 'key saved · tap the microphone and speak' : 'live voice needs an OpenAI key')); return; }
+    stop(); $('#bMic').classList.add('on'); SH.status('listening', 'asking for the microphone'); let mic = '';
+    try { live = await MPLive.start({ tools: TOOLS, instructions: 'You operate a storyboard. The person builds panels with their voice and their hands together: a camera follows their hands, so words like this, that, it, here and there mean the figure a hand is holding or pointing at and the place the hand is; the tools resolve that themselves, you never need to ask where. Requests to bring something in (put a dog here, add a cloud) are place_figure. Requests about a figure (copy that, remove it, flip it, bigger, push it back, bring it nearer) are edit_figure. Requests about the background are change_ground. Next and back are turn_page. Anything that sounds like a line of a story or poem, not an instruction, is add_line with exactly their words. Say almost nothing: at most two or three words, and nothing at all after a tool succeeds.', on: {
+      mic: l => mic = l, state: (s, why) => { if (s === 'live') SH.status('listening', 'live on ' + mic + ' · speak a line'); else if (s === 'connecting') SH.status('listening', 'connecting the live voice'); else if (s === 'closed') { live = null; $('#bMic').classList.remove('on'); SH.status('rest', why ? 'live voice stopped: ' + why : 'live voice off'); } },
+      partial: t => { if (t) SH.status('listening', t); }, error: m => toast(m) } }); } catch (e) { $('#bMic').classList.remove('on'); SH.status('rest', 'live voice could not start: ' + e.message); toast('live voice could not start: ' + e.message); } };
+
+  $('#bMore').onclick = () => MPUI.menu($('#bMore'), [
+    { title: 'THIS PANEL', items: [
+      { icon: 'take', label: 'Deal again', hint: 'new figures, by their chance for this line', act: () => $('#bDeal').click() },
+      { icon: 'close', label: 'Clear the figures', hidden: () => !panels[sel] || !panels[sel].figs.length, act: () => { panels[sel].figs = []; selFig = -1; persist(); drawStage(); restrip(); } },
+      { icon: 'close', label: 'Remove this line', hidden: () => !panels.length, act: () => removeLine(lineOf(sel)) }] },
+    ...(OD ? [{ title: 'THE ODYSSEY', items: [{ icon: 'book', label: 'Choose a scene', hint: '152 scenes, book by book', act: () => drawScenes() }, { icon: 'voice', label: 'Hear this book on the radio', hint: 'the voices, the music, the cut', act: () => location.href = 'markov-radio-odyssey.html?book=' + scene.book }, { icon: 'right', label: 'Next scene', act: () => stepScene(1) }, { icon: 'grid', label: () => new URLSearchParams(location.search).has('all') ? 'Search the core forage only' : 'Search the whole forage', hint: 'every clip the Odyssey searches found (about 20,000 new, a slower start)', act: () => { const u = new URLSearchParams(location.search); u.has('all') ? u.delete('all') : u.set('all', ''); location.search = u.toString().replace(/all=(&|$)/, 'all$1'); } }, { icon: 'left', label: 'Previous scene', act: () => stepScene(-1) }, { icon: 'take', label: 'Deal every panel again', hint: 'this scene, fresh figures and first-choice grounds', act: () => { saved = {}; store.set('odyssey.panels.' + (scene.cut ? 'cut.' : '') + scene.id, {}); rebuild().then(() => go(0)); } }] }] : []),
+    { title: 'THE BOARD', items: [
+      { icon: 'grid', label: 'See the whole storyboard', hidden: () => !panels.length, act: openBoard },
+      { icon: 'calm', label: 'One grade', hint: 'grounds and figures in the same black and white, so they sit together', on: () => grade, state: () => grade ? 'ON' : '', act: () => { grade = !grade; store.set('sam.grade', grade); draw(); return true; } },
+      { icon: 'send', label: 'Copy a link to this board', hidden: () => !panels.length, act: link },
+      { icon: 'book', label: 'Print, or save as PDF', hidden: () => !panels.length, act: () => { openBoard(); setTimeout(print, 600); } },
+      { icon: 'open', label: 'Bring the poem from the Poet', hint: 'the lines now in the Poet room', act: () => { const l = store.get('poet.lines', []); if (!l.length) return toast('the Poet room is empty'); lines = [...l]; saved = {}; rebuild().then(() => go(0)); } },
+      { icon: 'wrench', label: 'Send the grounds to the Cutting Room', hint: 'hand-butter · WAG, with the lab server', hidden: () => !panels.length, act: toRoom },
+      { icon: 'undo', label: 'Begin again', hidden: () => !lines.length, act: () => { stop(); lines = []; saved = {}; panels = []; store.set('sam.lines', []); store.set('sam.panels', {}); draw(); SH.status('rest', 'empty board'); } }] },
+    { title: 'HANDS AND VOICE', items: [{ icon: 'hand', label: () => hands ? 'Hands off' : 'Hands on', hint: 'move figures through the camera: pinch to hold, open to let go', on: () => !!hands, act: () => $('#bHand').click() },
+      { icon: 'undo', label: 'Undo', hint: 'or hold a fist', act: () => { undo(); } }, { icon: 'voice', label: 'Live voice · OpenAI key', state: () => MPLive.hasKey() ? 'SET' : '', act: () => MPLive.keySheet(ok => toast(ok ? 'key saved' : 'no key saved')) }] },
+    { title: 'GO', items: [{ icon: 'home', label: 'The Poet', act: () => location.href = 'shannon-poet.html' }, { icon: 'book', label: () => OD ? 'SAM storyboard' : 'The Odyssey', act: () => location.href = OD ? 'markov-sam.html' : 'markov-odyssey.html' }, { icon: 'info', label: 'How the Markov Poet works', act: () => location.href = 'markov-poet.html' }] }]);
+
+  let idOf = new Map();
+  const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX', 'XXI', 'XXII', 'XXIII', 'XXIV'];
+  const sceneTag = s => ROMAN[s.book] + '·' + (+s.id.slice(-2));
+  function openScene(id) { const s = ODS.scenes.find(x => x.id === id) || ODS.scenes[0]; stop(); scene = s; store.set('odyssey.scene', s.id); s.cut = ODS.cuts && ODS.cuts[s.id]; lines = s.cut ? s.cut.shots.map(x => s.beats[x.beat] ? s.beats[x.beat].text : s.title) : s.beats.map(b => b.text); saved = store.get('odyssey.panels.' + (s.cut ? 'cut.' : '') + s.id, {}); undoStack.length = 0;
+    $('#bScene').textContent = sceneTag(s); $('#scenes').hidden = true; history.replaceState(null, '', location.pathname + '?od=' + s.id + (new URLSearchParams(location.search).has('all') ? '&all' : ''));
+    SH.status('reading', `${s.title} · ${s.place.join(', ') || 'at sea'}`); rebuild().then(() => { go(0); SH.status('rest', `${sceneTag(s)} · ${s.title} · ${s.place.join(', ') || 'at sea'}`); }).catch(e => SH.status('rest', e.message)); }
+  function stepScene(d) { const i = ODS.scenes.findIndex(x => x.id === scene.id); openScene(ODS.scenes[(i + d + ODS.scenes.length) % ODS.scenes.length].id); }
+  function drawScenes() { const L = $('#sceneList'); L.innerHTML = ''; let book = 0, row = null;
+    ODS.scenes.forEach(s => { if (s.book !== book) { book = s.book; const h = document.createElement('h3'); h.textContent = 'BOOK ' + ROMAN[book]; L.append(h); row = document.createElement('div'); row.className = 'row'; L.append(row); }
+      const b = document.createElement('button'); b.className = (scene && scene.id === s.id ? 'cur ' : '') + (s.in_cut === false ? 'drop' : ''); b.innerHTML = `<b>${esc(s.sign.symbol || '·')}</b><span>${esc(s.title)}</span>`; b.title = (s.sign.name || '') + ' · ' + s.place.join(', '); b.onclick = () => openScene(s.id); row.append(b); });
+    $('#scenes').hidden = false; const c = L.querySelector('.cur'); if (c) c.scrollIntoView({ block: 'center' }); }
+  $('#bScene').onclick = () => ODS && drawScenes(); $('#bScenesX').onclick = () => { $('#scenes').hidden = true; };
+  Promise.all([SH.load(OD ? { light: true, extra: [new URLSearchParams(location.search).has('all') ? 'odyssey/all' : 'odyssey'] } : { light: true }), loadCast(), OD ? Promise.all([fetch('odyssey/scenes.json').then(r => r.json()), fetch('odyssey/cuts.json').then(r => r.ok ? r.json() : {}).catch(() => ({}))]).then(([a, b]) => ({ ...a, cuts: b.cuts || null })) : null]).then(async ([d, _, ods]) => { D = d; drawStarters(); idOf = new Map(d.LIB.shots.map((s, i) => [s.id, i]));
+    if (OD) { ODS = ods; $('#bScene').hidden = false; $('#empty h1').textContent = 'the Odyssey, shot by shot'; $('#empty p').textContent = 'Choose a scene. Each beat of it becomes a panel, grounded in footage foraged for it from the Moving Image Archive.'; $('#starters').innerHTML = '';
+      const want = new URLSearchParams(location.search).get('od'); openScene(ODS.scenes.some(x => x.id === want) ? want : store.get('odyssey.scene', ODS.scenes[0].id)); return; }
+    const m = location.hash.match(/b=([^&]+)/); if (m) { try { await applyBoard(await MPExport.unpack(m[1])); history.replaceState(null, '', location.pathname); return; } catch (e) { toast('that link could not be opened'); } }
+    if (lines.length) rebuild(true).catch(e => SH.status('rest', e.message)); else SH.status('rest', `${SAM.n} figures and ${d.LIB.n.toLocaleString()} shots at rest`);
+  }).catch(e => SH.status('rest', 'could not wake: ' + e.message));
+})();
+</script></body></html>

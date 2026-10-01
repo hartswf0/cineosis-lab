@@ -64,9 +64,13 @@ def main():
             t = clip_m.encode_text(tok(ts).to(dev)); return t / t.norm(dim=-1, keepdim=True)
     Tdesc = enc_text([f"a photo of a {l}" for l in DESCRIBE]); Tbg = enc_text([f"a photo of a {l}" for l in BACKGROUND])
 
-    data = json.load(open(os.path.join(LAB, "lab-data.json")))
-    shots = {s["id"]: s for s in data["shots"] if s["signs"] and s["clip"]}
     args = sys.argv[1:]
+    jobs = next((a.split("=", 1)[1] for a in args if a.startswith("--jobs=")), None)
+    if jobs:   # another collection (the Odyssey forage): [{id, clip, dur, t, targets}] where targets are what to cut out
+        shots = {j["id"]: {"id": j["id"], "title": j["targets"][0], "clip": j["clip"], "start": 0, "end": j["dur"], "read_t": j["t"], "signs": [{"note": t} for t in j["targets"]]} for j in json.load(open(jobs))}
+    else:
+        data = json.load(open(os.path.join(LAB, "lab-data.json")))
+        shots = {s["id"]: s for s in data["shots"] if s["signs"] and s["clip"]}
     shard = next((a for a in args if a.startswith("--shard=")), None)   # --shard=k/n : this worker's slice
     only = [a for a in args if not a.startswith("--")]
     done = {}
@@ -75,7 +79,8 @@ def main():
     todo = [i for i in sorted(shots) if not only or i in only]
     if shard:
         k_, n_ = map(int, shard.split("=")[1].split("/")); todo = todo[k_::n_]
-    out_path = os.path.join(C, f"segments_{shard.split('=')[1].replace('/', 'of')}.json" if shard else "segments.json")
+    tag = "_odyssey" if jobs else ""
+    out_path = os.path.join(C, f"segments{tag}_{shard.split('=')[1].replace('/', 'of')}.json" if shard else f"segments{tag}.json")
     out = json.load(open(out_path)) if os.path.exists(out_path) else {}
     todo = [i for i in todo if i not in done or only]
     for k, i in enumerate(todo):

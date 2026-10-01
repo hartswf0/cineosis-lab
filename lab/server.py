@@ -8,6 +8,7 @@ Queries are cached in cache/live/ and spaced at least GAP seconds apart.
 import hashlib, json, os, sys, threading, time, urllib.error, urllib.request
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
+os.environ.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")   # an expired stored Hugging Face token otherwise blocks public model downloads
 LAB = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(LAB)
 API = "https://www.movingimagearchive.com/api/search"
@@ -27,6 +28,76 @@ def corpus_url(sid):
     return c and c.get("videoUrl")
 GAP = 2.5
 _lock, _last = threading.Lock(), [0.0]
+_clip, _clip_lock = {}, threading.Lock()
+
+REC = os.path.join(LAB, "markov", "recordings")
+
+def transcribe(data, ext):
+    """A recording becomes timed language for the Shannon engine: whisper (small.en) with word timestamps.
+    The audio is kept in markov/recordings/ so the page can play it as the film's clock. Local only."""
+    os.makedirs(REC, exist_ok=True)
+    name = hashlib.sha1(data).hexdigest()[:16] + ext
+    path = os.path.join(REC, name)
+    if not os.path.exists(path):
+        open(path, "wb").write(data)
+    cache = path + ".json"
+    if os.path.exists(cache):
+        return json.load(open(cache))
+    import subprocess
+    r = subprocess.run([sys.executable, os.path.join(LAB, "markov", "transcribe.py"), path, cache], capture_output=True, text=True, timeout=3600)
+    if r.returncode != 0 or not os.path.exists(cache):
+        raise RuntimeError((r.stderr or "whisper failed")[-300:])
+    out = json.load(open(cache)); out["audio"] = "markov/recordings/" + name
+    json.dump(out, open(cache, "w"))
+    return out
+
+def render_film(job):
+    """markov/render.py in its own process: ffmpeg composes the cut, the dissolves, the words and the voice."""
+    import subprocess
+    cut = job.get("cut") or []
+    if not cut or len(cut) > 400:
+        raise ValueError("a cut of 1-400 shots")
+    key = hashlib.sha1(json.dumps({k: job.get(k) for k in ("cut", "phrases", "audio", "sound", "calm", "T0", "T1")}, sort_keys=True).encode() + (job.get("audio_b64") or "").encode()[:4096]).hexdigest()[:16]
+    job["out"] = "markov/renders/" + key
+    if not os.path.exists(os.path.join(LAB, job["out"] + ".mp4")):
+        jf = os.path.join(LAB, "markov", "renders", key + ".job.json"); os.makedirs(os.path.dirname(jf), exist_ok=True); json.dump(job, open(jf, "w"))
+        r = subprocess.run([sys.executable, os.path.join(LAB, "markov", "render.py"), jf], capture_output=True, text=True, timeout=1800)
+        os.remove(jf)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or "render failed")[-400:])
+    return {"video": job["out"] + ".mp4"}
+
+def speak(body):
+    """The poem spoken by Piper, phrase by phrase (markov/speak.py in its own process): returns the audio path and each phrase's times."""
+    import subprocess
+    phrases = [str(x)[:400] for x in body.get("phrases", [])][:400]
+    voice = body.get("voice") if body.get("voice") in ("en_US-ryan-high", "en_US-lessac-medium") else "en_US-ryan-high"
+    job = {"phrases": phrases, "gaps": [float(g) for g in body.get("gaps", [])][:400] or None, "voice": voice}
+    key = hashlib.sha1(json.dumps(job, sort_keys=True).encode()).hexdigest()[:16]
+    job["out"] = "markov/voice/live/" + key
+    meta = os.path.join(LAB, job["out"] + ".json")
+    if not os.path.exists(meta):
+        os.makedirs(os.path.dirname(meta), exist_ok=True)
+        jf = meta + ".job"; json.dump(job, open(jf, "w"))
+        r = subprocess.run([os.path.join(LAB, ".venv", "bin", "python"), os.path.join(LAB, "markov", "speak.py"), jf], capture_output=True, text=True, timeout=900)
+        os.remove(jf)
+        if r.returncode != 0 or not os.path.exists(meta):
+            raise RuntimeError((r.stderr or "piper failed")[-300:])
+    out = json.load(open(meta)); out["audio"] = job["out"] + ".mp3"
+    return out
+
+def embed_texts(texts):
+    """CLIP text embeddings for the Shannon engine's incoming language; loaded on first use."""
+    with _clip_lock:
+        if not _clip:
+            import open_clip, torch
+            os.environ.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")   # an expired stored token blocks even public downloads
+            # OpenAI's ViT-B/32: the same model the pages run in the browser (transformers.js), so server and browser read words alike
+            m, _, _ = open_clip.create_model_and_transforms("ViT-B-32-quickgelu", pretrained="openai"); m.eval()
+            _clip.update(m=m, tok=open_clip.get_tokenizer("ViT-B-32"), torch=torch)
+        with _clip["torch"].no_grad():
+            e = _clip["m"].encode_text(_clip["tok"](texts)).float(); e = e / e.norm(dim=-1, keepdim=True)
+        return [[round(float(v), 5) for v in r] for r in e]
 
 def archive_search(q):
     os.makedirs(LIVE, exist_ok=True)
@@ -152,6 +223,23 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         n = int(self.headers.get("content-length", 0))
+        if self.path.startswith("/api/transcribe"):
+            if not n or n > 300 * 1024 * 1024:
+                return self._json(400, {"error": "send one audio file under 300 MB"})
+            ext = "." + (self.path.split("ext=")[-1] if "ext=" in self.path else "mp3")[:5].strip(".")
+            try:
+                return self._json(200, transcribe(self.rfile.read(n), ext))
+            except Exception as e:
+                return self._json(500, {"error": str(e)[:300]})
+        if self.path == "/api/render":                    # a Markov Poet film as an MP4 (may carry a recorded voice, so it is allowed to be large)
+            if not n or n > 60 * 1024 * 1024:
+                return self._json(413, {"error": "request too large"})
+            try:
+                return self._json(200, render_film(json.loads(self.rfile.read(n))))
+            except Exception as e:
+                return self._json(500, {"error": str(e)[:400]})
+        if n < 0 or n > 1000000:
+            return self._json(413, {"error": "request too large"})
         try:
             body = json.loads(self.rfile.read(n) or b"{}")
         except json.JSONDecodeError:
@@ -162,6 +250,31 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json(400, {"error": "empty query"})
             code, data = archive_search(q)
             return self._json(code, data)
+        if self.path == "/api/shannon/retrieve":
+            texts = body.get("texts")
+            if not isinstance(texts, list) or not 1 <= len(texts) <= 121 or any(not isinstance(t, str) or not t.strip() or len(t) > 4000 for t in texts):
+                return self._json(400, {"error": "Provide 1–121 nonempty phrases, at most 4000 characters each."})
+            try:
+                from shannon.retrieval import retrieve
+                return self._json(200, {"model": "ViT-B-32/laion2b_s34b_b79k", "rows": retrieve(texts)})
+            except Exception as error:
+                sys.stderr.write("Shannon retrieval: %s\n" % error)
+                return self._json(503, {"error": "Text encoder unavailable. Install open_clip_torch and its matching model; cached studies remain available."})
+        if self.path == "/api/speak":
+            if not body.get("phrases"):
+                return self._json(400, {"error": "phrases required"})
+            try:
+                return self._json(200, speak(body))
+            except Exception as e:
+                return self._json(500, {"error": str(e)[:300]})
+        if self.path == "/api/embed":
+            texts = [str(t)[:300] for t in body.get("texts", [])][:64]
+            if not texts:
+                return self._json(400, {"error": "texts required"})
+            try:
+                return self._json(200, {"emb": embed_texts(texts)})
+            except Exception as e:                      # no open_clip in this python: the page falls back to its preset embeddings
+                return self._json(501, {"error": str(e)[:200]})
         if self.path == "/api/assign":
             if not body.get("id") or not body.get("n"):
                 return self._json(400, {"error": "id and n required"})

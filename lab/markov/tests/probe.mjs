@@ -1,0 +1,12 @@
+import fs from 'fs'; import path from 'path'; import { fileURLToPath } from 'url'; import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+const H = path.dirname(fileURLToPath(import.meta.url)), S = require(path.join(H, '../engine.js'));
+const J = JSON.parse(fs.readFileSync(path.join(H, '../library.json'))), q = new Int8Array(fs.readFileSync(path.join(H, '../emb.bin')).buffer.slice(0));
+const lib = new S.Library(J, q, JSON.parse(fs.readFileSync(path.join(H, '../events.json'))).events);
+const cache = JSON.parse(fs.readFileSync(path.join(H, 'emb-cache.json')));
+const id = process.argv[2], P = JSON.parse(fs.readFileSync(path.join(H, 'poems.json'))).poems.find(p => p.id === id);
+const ph = S.parse(P.text), sims = ph.map(p => lib.sims(cache[p.text]));
+const A = S.run(lib, S.parse(P.text), sims, {}), F = S.run(lib, S.parse(P.text), sims, { wOp: 0, wHome: 0, close: false, gap: 9 });
+console.log('SCENES', Object.entries(A.eng.scenes).map(([k, s]) => k + ':' + s.title).join(' | '));
+A.cut.forEach(s => console.log(String(s.scene).padStart(2), s.op.padEnd(9), (s.strand + '').padEnd(6), (J.shots[s.k].title || '').slice(0, 34).padEnd(34), s.src === s.home ? 'home' : '    ', '|', ph[s.phrase].text.slice(0, 60)));
+console.log('composed', A.fid.rows.map(r => (r.ok ? '+' : '-') + r.rel + ': ' + r.why));
+console.log('flat    ', F.fid.rows.map(r => (r.ok ? '+' : '-') + r.rel + ': ' + r.why));

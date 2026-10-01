@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Shannon Engine</title>
+<meta name="description" content="Cineosis Lab. Any voice, transcript or recording, composed into a film from the archive: scenes, a world for each scene, and edits that follow the grammar of the words.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{ color-scheme:dark; --bg:#0c0c0b; --panel:#151412; --panel2:#1c1b18; --ink:#ede7db; --dim:#958e82; --faint:#5f5a52; --rule:#2b2925; --hi:#e8c070; --ok:#9bd69f; --bad:#e8786e;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; --r:10px; }
+*{ box-sizing:border-box; } html{ -webkit-text-size-adjust:100%; }
+html,body{ margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 var(--sans); }
+body{ padding:0 16px calc(40px + env(safe-area-inset-bottom)); max-width:1240px; margin:0 auto; }
+button,select,textarea,input{ font:inherit; color:inherit; }
+button{ background:var(--panel2); border:1px solid var(--rule); border-radius:8px; padding:9px 14px; min-height:44px; cursor:pointer; }
+button.primary{ background:var(--hi); color:#1a1408; border-color:var(--hi); font-weight:600; }
+button.ghost{ background:transparent; } button:disabled{ opacity:.45; cursor:default; }
+select{ background:var(--panel2); border:1px solid var(--rule); border-radius:8px; padding:9px 10px; min-height:44px; width:100%; }
+textarea{ width:100%; min-height:130px; background:var(--panel); border:1px solid var(--rule); border-radius:8px; padding:12px; font:16px/1.55 var(--serif); resize:vertical; }
+input[type=search],input[type=text]{ width:100%; background:var(--panel); border:1px solid var(--rule); border-radius:8px; padding:11px 12px; min-height:44px; font-size:16px; }
+:focus-visible{ outline:2px solid var(--hi); outline-offset:2px; }
+.dim{ color:var(--dim); } .faint{ color:var(--faint); } .hi{ color:var(--hi); } .ok{ color:var(--ok); } .bad{ color:var(--bad); }
+[hidden]{ display:none !important; }
+/* header */
+.top{ position:relative; z-index:20; background:var(--bg); padding:12px 0 0; border-bottom:1px solid var(--rule); }
+@media (min-width:980px){ .top{ position:sticky; top:0; } }
+.brand{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+.brand b{ font:600 22px var(--serif); letter-spacing:.01em; } .brand span{ color:var(--dim); font-size:13px; }
+.tabs{ display:flex; gap:2px; margin-top:8px; overflow-x:auto; scrollbar-width:none; } .tabs::-webkit-scrollbar{ display:none; }
+.tabs button{ background:none; border:0; border-bottom:2px solid transparent; border-radius:0; padding:10px 14px; color:var(--dim); white-space:nowrap; }
+.tabs button.on{ color:var(--ink); border-bottom-color:var(--hi); }
+.status{ font:12px var(--mono); color:var(--faint); padding:6px 0 8px; }
+/* layout */
+.film{ display:grid; grid-template-columns:minmax(0,1fr); grid-template-areas:"words" "player" "scenes"; gap:16px; margin-top:14px; }
+.film > .words{ grid-area:words; } .film > .right{ grid-area:player; } .film > .scenes{ grid-area:scenes; }
+@media (min-width:980px){ .film{ grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr); grid-template-areas:"words player" "scenes player"; align-items:start; } .film > .right{ position:sticky; top:118px; } }
+.card{ background:var(--panel); border:1px solid var(--rule); border-radius:var(--r); padding:14px; }
+.right .card{ margin-top:12px; }
+h2{ font:600 17px var(--serif); margin:0 0 10px; } h3{ font:500 12px var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--dim); margin:18px 0 8px; }
+.row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; } .row > .grow{ flex:1; }
+.seg{ display:flex; border:1px solid var(--rule); border-radius:8px; overflow:hidden; } .seg button{ border:0; border-radius:0; flex:1; background:var(--panel2); font-size:14px; padding:9px 10px; }
+.seg button.on{ background:var(--ink); color:var(--bg); }
+.ctl{ display:grid; grid-template-columns:1fr; gap:10px; margin-top:12px; } @media (min-width:560px){ .ctl{ grid-template-columns:1fr 1fr; } }
+.ctl label{ display:block; font-size:13px; color:var(--dim); margin-bottom:4px; }
+.toggle{ display:flex; align-items:center; gap:8px; min-height:44px; font-size:14px; } .toggle input{ width:20px; height:20px; accent-color:var(--hi); }
+/* player */
+.stage{ position:relative; background:#000; aspect-ratio:16/9; border-radius:var(--r); overflow:hidden; }
+.stage video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; }
+.stage .sub{ position:absolute; left:5%; right:5%; bottom:6%; text-align:center; font:600 clamp(15px,2.3vw,23px)/1.35 var(--serif); text-shadow:0 0 8px #000,0 0 2px #000; }
+.stage .tag{ position:absolute; left:10px; top:10px; font:11px var(--mono); background:#000b; padding:3px 8px; border-radius:4px; max-width:80%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.stage .idle{ position:absolute; inset:0; display:grid; place-items:center; color:var(--dim); text-align:center; padding:20px; font-size:14px; }
+.transport{ display:flex; gap:8px; align-items:center; margin-top:8px; } .transport .time{ font:12px var(--mono); color:var(--dim); margin-left:auto; }
+.lane{ position:relative; height:30px; background:var(--panel2); border-radius:6px; margin-top:8px; overflow:hidden; cursor:pointer; touch-action:manipulation; }
+.lane i{ position:absolute; top:0; bottom:0; border-right:1px solid var(--bg); font:10px/30px var(--mono); color:#111; overflow:hidden; white-space:nowrap; padding-left:4px; font-style:normal; }
+.lane .head{ position:absolute; top:0; bottom:0; width:2px; background:#fff; pointer-events:none; }
+/* scenes */
+.scene{ border-top:1px solid var(--rule); padding:12px 0; }
+.scene .sh{ display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; } .scene .sh b{ font:600 16px var(--serif); } .scene .sh .dim{ font-size:13px; }
+.shots{ display:flex; gap:8px; overflow-x:auto; scroll-snap-type:x mandatory; padding:8px 0 4px; -webkit-overflow-scrolling:touch; }
+.shot{ flex:0 0 150px; scroll-snap-align:start; background:none; border:0; padding:0; text-align:left; min-height:0; border-radius:6px; }
+.shot img{ width:150px; aspect-ratio:16/10; object-fit:cover; display:block; border-radius:6px; background:#222; outline:2px solid transparent; }
+.shot.world img{ outline-color:#3d3423; } .shot.now img{ outline-color:var(--hi); } .shot.mine img{ outline-color:var(--ok); }
+.shot .op{ font:10px var(--mono); color:var(--hi); margin-top:4px; letter-spacing:.04em; }
+.shot .ln{ font:13px/1.3 var(--serif); color:var(--ink); display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.shot .why{ font-size:11px; color:var(--dim); margin-top:2px; }
+.kept div{ padding:6px 0; border-bottom:1px solid var(--rule); font-size:14px; } .kept div:last-child{ border-bottom:0; }
+.kept .k{ font:11px var(--mono); letter-spacing:.06em; text-transform:uppercase; margin-right:6px; }
+.big{ font:600 24px var(--serif); }
+/* sheet */
+.sheet{ position:fixed; left:0; right:0; bottom:0; z-index:40; background:var(--panel); border-top:1px solid var(--rule); border-radius:14px 14px 0 0; padding:14px 16px calc(16px + env(safe-area-inset-bottom)); max-height:78vh; overflow:auto; box-shadow:0 -10px 30px #0008; }
+@media (min-width:980px){ .sheet{ left:auto; right:24px; bottom:24px; width:560px; border-radius:14px; border:1px solid var(--rule); } }
+.alts{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; } @media (min-width:560px){ .alts{ grid-template-columns:repeat(3,1fr); } }
+.alts button{ padding:0; min-height:0; background:#000; border:2px solid transparent; border-radius:8px; overflow:hidden; text-align:left; }
+.alts button.cur{ border-color:var(--hi); } .alts img{ width:100%; aspect-ratio:16/10; object-fit:cover; display:block; }
+.alts span{ display:block; font-size:12px; padding:4px 6px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* search */
+.results{ display:grid; grid-template-columns:1fr; gap:12px; } @media (min-width:760px){ .results{ grid-template-columns:1fr 1fr; } }
+.grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; }
+.grid button{ padding:0; min-height:0; background:#000; border:0; border-radius:8px; overflow:hidden; text-align:left; }
+.grid img{ width:100%; aspect-ratio:16/10; object-fit:cover; display:block; } .grid span{ display:block; font-size:12px; padding:4px 6px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; background:var(--panel); }
+/* tests */
+.tests{ display:grid; grid-template-columns:1fr; gap:10px; } @media (min-width:760px){ .tests{ grid-template-columns:1fr 1fr; } }
+.test h4{ margin:0; font:600 16px var(--serif); } .test .by{ font-size:13px; color:var(--dim); } .test .st{ font:11px var(--mono); color:var(--faint); margin-top:4px; }
+.meas{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px; } .meas div{ background:var(--panel2); border-radius:6px; padding:6px 8px; }
+.meas b{ display:block; font:600 18px var(--serif); } .meas span{ font-size:11px; color:var(--dim); }
+/* about */
+.about{ max-width:760px; } .about p{ font:16px/1.65 var(--serif); margin:0 0 14px; } .about h2{ margin-top:26px; }
+.about dl{ margin:0; } .about dt{ font-weight:600; margin-top:12px; } .about dd{ margin:2px 0 0; color:var(--dim); }
+</style></head>
+<body>
+<header class="top">
+  <div class="brand"><a href="markov-poet.html" id="markLink" style="color:inherit;display:flex;align-items:center;gap:8px;text-decoration:none" title="The Markov Poet"></a><b>The Engine</b><span><a href="markov-poet.html" style="color:inherit">The Markov Poet</a> · any voice, transcript or recording, composed into a film</span></div>
+  <nav class="tabs" role="tablist" aria-label="Sections"><button class="on" data-tab="film">Film</button><button data-tab="search">Search</button><button data-tab="tests">Tests</button><button data-tab="about">About</button><a href="shannon-narrative.html" style="padding:10px 14px;color:var(--dim);text-decoration:none;white-space:nowrap">Narrative</a><button id="howBtn">How it works</button></nav>
+  <div class="status" id="status">Loading the archive…</div>
+</header>
+
+<!-- FILM -->
+<section id="t-film">
+  <div class="film">
+      <div class="card words">
+        <h2>The words</h2>
+        <select id="src" aria-label="What to make a film from"></select>
+        <div style="margin-top:10px"><textarea id="text" aria-label="The words" spellcheck="false" placeholder="Paste a poem, a transcript (Name: line), or anything spoken."></textarea></div>
+        <div class="row" style="margin-top:10px">
+          <button class="primary grow" id="go">Make the film</button>
+          <button id="mic">Speak</button>
+          <button id="recBtn">Recording or transcript</button>
+          <input type="file" id="rec" accept="audio/*,video/*,.vtt,.srt,.txt" hidden>
+        </div>
+        <div class="dim" id="note" style="font-size:13px;margin-top:8px"></div>
+        <div class="ctl">
+          <div><label>Follow</label><div class="seg" id="follow"><button data-v="words">the words</button><button data-v="both" class="on">both</button><button data-v="world">the world</button></div></div>
+          <div><label>Take</label><div class="row"><button id="take" class="grow">Another take</button><button id="best" class="ghost">Most likely</button></div></div>
+        </div>
+        <div class="ctl" style="margin-top:4px"><div><label>Voice</label><select id="voice"><option value="none">silence</option><option value="ryan">Piper (Ryan)</option><option value="lessac">Piper (Lessac)</option></select></div><div></div></div>
+        <label class="toggle"><input type="checkbox" id="close" checked> Close where it opened</label>
+        <label class="toggle" id="poetRow" hidden><input type="checkbox" id="poet" checked> The poet's own footage for "I" (local lab only)</label>
+        <label class="toggle" id="prepRow" hidden><input type="checkbox" id="prep"> Use the lab's foraged pools for these lines</label>
+      </div>
+      <div class="card scenes">
+        <div class="row"><h2 class="grow" style="margin:0">Scenes</h2><label class="toggle" style="min-height:0"><input type="checkbox" id="work"> Show reasoning</label></div>
+        <div id="scenes"><p class="dim">Choose words above and make the film.</p></div>
+      </div>
+    <div class="right">
+      <div class="stage" id="stage"><video id="va" playsinline muted preload="auto"></video><video id="vb" playsinline muted preload="auto"></video>
+        <div class="tag" id="tag" hidden></div><div class="sub" id="sub"></div><div class="idle" id="idle">The film plays here.</div></div>
+      <div class="transport"><button id="play" class="primary">Play</button><button id="restart" class="ghost">From the start</button><span class="time" id="time"></span></div>
+      <div class="lane" id="lane" title="Tap to move through the film"></div>
+      <div class="card" style="margin-top:12px"><div class="row"><h2 class="grow" style="margin:0">What the film kept</h2><button id="exportBtn" class="primary">Send</button></div><div class="kept" id="kept" style="margin-top:8px"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- SEARCH -->
+<section id="t-search" hidden>
+  <div class="card" style="margin-top:14px">
+    <h2>Search the archive</h2>
+    <p class="dim" style="margin:0 0 10px;font-size:14px">A line, or several. The answer is films that can play them as a sequence, then single shots.</p>
+    <textarea id="q" style="min-height:80px" placeholder="a man waits at a window; across the city a train leaves"></textarea>
+    <div class="row" style="margin-top:8px"><button class="primary grow" id="qgo">Search</button><button id="qwide">Search the wider archive</button></div>
+  </div>
+  <h3>Films that can play this</h3><div class="results" id="films"></div>
+  <h3>Shots</h3><div class="grid" id="shotsOut"></div>
+  <div id="wideWrap" hidden><h3>The wider archive (movingimagearchive.com)</h3><div class="grid" id="wide"></div></div>
+</section>
+
+<!-- TESTS -->
+<section id="t-tests" hidden>
+  <div class="card" style="margin-top:14px">
+    <h2>The test library</h2>
+    <p class="dim" style="margin:0 0 10px;font-size:14px">Each text is made into a film twice: composed, and as plain search (the best shot for each line). The numbers compare them. Texts still under copyright are listed without their words: paste your own copy and it stays in this browser.</p>
+    <div class="row"><button class="primary" id="runAll">Run every test</button><span class="dim" id="testNote" style="font-size:13px"></span></div>
+  </div>
+  <div class="tests" id="tests" style="margin-top:12px"></div>
+</section>
+
+<!-- ABOUT -->
+<section id="t-about" hidden class="about">
+  <h2>What this is</h2>
+  <p>The Shannon Engine began inside the Cineosis Lab, where a periodic table of cinematic signs and Christian Metz's grand syntagmatique were built to describe how films hold together. It was first pointed at the fourteen poems of <i>Where You Go When You Leave</i>, cut against the recorded voice, and it is being tuned toward the work of Mark Anthony Thomas. The aim is wider than those poems: any voice, transcript or recording, whether a poem, a nursery rhyme or a meeting, should be able to become a film made from the archive.</p>
+  <h2>Why Shannon</h2>
+  <p>In 1948 Claude Shannon described communication as choices made from a finite repertoire, where each symbol takes time and each choice changes what may follow. Here the repertoire is not clips but edits: open a scene, stay in it, hold a shot, return to a place, cut away, alternate between two people, suspend an action, close where the film began. The archive is fixed. What the words change is which edits are possible next, and which shots can carry them.</p>
+  <p>In 1959 he added a fidelity criterion: you say what must survive the passage from one form to another, and you measure what was lost. The words carry relations (a thing happens every evening; one person waits while another leaves; someone cannot leave; a sentence turns on "but"), and the film is judged on whether those relations can still be seen. Which relations matter is an editorial decision. The engine reports; it does not decide.</p>
+  <h2>Composing, not searching</h2>
+  <p>A search engine answers each line with a clip. The engine plans before it cuts. It divides the words into scenes (stanzas, a conversation, runs of sentences) and gives each scene a world: the one film in the archive that can play the most of that scene's lines. It then cuts inside that world, forward in its time, so a place accumulates. It leaves a world only when the world has nothing for a line, as a cutaway, and comes back.</p>
+  <p>Grammar changes the cut. "Every evening" returns to the same place. "While" alternates two people; "after" tells the earlier event first. "Cannot leave" holds the lead-up and never shows the departure. "But" keeps the image on screen while the sentence turns it. In a conversation the speakers share a room, and what they talk about becomes cutaways.</p>
+  <h2>Search, too</h2>
+  <p>The Search tab asks which films can play a passage, and shows them as sequences in their own order. When the archive is thin for a line, the film says so, and the line can be taken to Search, and from there to the wider Moving Image Archive, to forage for what is missing.</p>
+  <h2>How it is tested</h2>
+  <p>The Tests tab holds poems chosen because each asks something different of a film: Keats's urn (a picture that cannot move), Bashō's pond (one event, one sound), Cook Ding (a craft followed joint by joint), the Shield of Achilles (a world inside an object), Ars Poetica (a poem that should not mean but be), a nursery rhyme, a meeting. Each is made twice, composed and as plain search, and measured: how often the cuts stay in their scene's world, how many relations survive, how many lines the archive cannot answer. These are checks of structure, made with the same readings the engine uses, so they are necessary and not sufficient. Watching is the test.</p>
+  <h2>The controls</h2>
+  <dl>
+    <dt>Follow the words, both, the world</dt><dd>How far the words may pull the film out of its scene's world. "The words" is closest to search; "the world" holds each place longest.</dd>
+    <dt>Another take</dt><dd>Draws a different cut from the same possibilities: still probable, not the single most probable. "Most likely" goes back.</dd>
+    <dt>Close where it opened</dt><dd>The last line returns to the film's first world.</dd>
+    <dt>Tap a shot</dt><dd>Shows what else the engine considered for that moment. Choosing one is recorded as a correction: the film keeps count of how much you had to say beyond the words.</dd>
+    <dt>Show reasoning</dt><dd>For each shot: the edit, why it was made, how many shots were really in contention, and how strongly the archive answered the line.</dd>
+  </dl>
+  <h2>What it cannot do yet</h2>
+  <p>It does not know where inside a clip a gesture happens; it enters each clip at a prepared reading point. It cannot tell that two films show the same person; a strand is held together by name or pronoun, film and place. It reads only the relations it has words for, and none of the voice's tone. New language is read by the lab server with the same model that read the shots; without the server the page knows only the texts prepared for it.</p>
+  <h2>The archive</h2>
+  <p id="libAbout" class="dim"></p>
+</section>
+
+<div class="sheet" id="sheet" hidden role="dialog" aria-label="Other shots for this moment">
+  <div class="row"><b class="grow" id="sheetTitle" style="font:600 16px var(--serif)"></b><button class="ghost" id="sheetClose">Close</button></div>
+  <p class="dim" id="sheetWhy" style="font-size:13px;margin:6px 0 10px"></p>
+  <div class="alts" id="sheetAlts"></div>
+  <div class="row" style="margin-top:10px"><button id="sheetReset" class="ghost" hidden>Let the engine choose again</button></div>
+</div>
+<audio id="aud" preload="auto"></audio>
+<script src="syntagma/metz.js"></script>
+<script src="markov/engine.js?v=5"></script>
+<script src="markov/clip-text.js?v=5"></script>
+<script src="markov/guide.js?v=5"></script>
+<script src="markov/export.js?v=4"></script>
+<script src="markov/ui.js?v=2"></script>
+<script>
+(() => {
+  const $ = s => document.querySelector(s), h = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  if (!window.Shannon) { $('#status').innerHTML = '<span class="bad">The engine did not load. Open this page from the lab server: http://localhost:8765/lab/shannon.html</span>'; return; }
+  const S = window.Shannon;
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
+  const WORLD = ['#e8c070', '#7fb6dd', '#c99ad6', '#9bd69f', '#e8786e', '#d8d27a', '#7fd6c9', '#e0a07a'];
+  const FOLLOW = { words: { wOp: .75, wHome: .03, gap: .025 }, both: { wOp: 1, wHome: .09, gap: .045 }, world: { wOp: 1.2, wHome: .14, gap: .07 } };
+  let LIB, TX = {}, PRE, K, POEMS = [], serverOK = null, cur = null, locks = {}, corrections = 0, take = 0, follow = 'both', recording = null;
+
+  let VOICE = { poems: {}, wygwyl: {} }; fetch('markov/voice/index.json').then(r => r.json()).then(v => VOICE = v).catch(() => { });
+  Promise.all(['markov/library.json', 'markov/emb.bin', 'markov/events.json', 'markov/texts.json', 'markov/presets.json', 'bets/kernel-data.json', 'markov/tests/poems.json']
+    .map((u, i) => fetch(u).then(r => i === 1 ? r.arrayBuffer() : r.json())))
+    .then(([J, B, E, T, P, KD, PO]) => {
+      LIB = new S.Library(J, new Int8Array(B), E.events); TX = T; PRE = P; K = KD; POEMS = PO.poems;
+      const c = {}; J.shots.forEach(s => c[s.kind] = (c[s.kind] || 0) + 1);
+      $('#libAbout').textContent = `${J.n.toLocaleString()} shots: ${c.archive.toLocaleString()} from the Moving Image Archive, ${c.presence || 0} foraged to bring Black presence forward, and ${c.poet || 0} of the poet's own takes in Mexico City, which only the local lab serves. Each shot is read for what it shows (a door, someone waiting, an empty room, a man, a woman, a title card) and grouped into 320 recurring places.`;
+      setStatus(); setup();
+      if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) { serverOK = false; setStatus(); }   // the published site has no lab server
+      else fetch('/api/embed', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texts: ['a door'] }) }).then(r => serverOK = r.ok).catch(() => serverOK = false).finally(setStatus);
+    }).catch(e => $('#status').innerHTML = '<span class="bad">Could not load the archive: ' + esc(e.message) + '</span>');
+  function setStatus() { $('#status').textContent = `${LIB ? LIB.n.toLocaleString() : ''} shots · ` + (serverOK === null ? 'checking the lab server…' : serverOK ? 'lab server connected: any words, any voice' : 'reading words in the browser'); }
+
+  // ------------------------------------------------------------ sources
+  function setup() {
+    const src = $('#src'), g = (label) => { const o = document.createElement('optgroup'); o.label = label; src.append(o); return o; };
+    const a = g('Start here'); PRE.texts.forEach((t, i) => a.append(new Option(t.name, 'p' + i)));
+    const w = g('Where You Go When You Leave'); K.films.forEach(f => w.append(new Option(`${f.n} · ${f.title}`, 'w' + f.n)));
+    const t = g('Test library'); POEMS.filter(p => p.id !== 'wygwyl').forEach(p => t.append(new Option(`${p.title} · ${p.author}${textOf(p) ? '' : ' (paste your copy)'}`, 't:' + p.id)));
+    const o = g('Your words'); o.append(new Option('Your own words', 'own'));
+    src.value = store.get('shannon.src', 'p0'); if (!src.value) src.value = 'p0';
+    src.onchange = () => { store.set('shannon.src', src.value); load(); };
+    document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+    $('#go').onclick = () => { locks = {}; corrections = 0; compose(); };
+    $('#take').onclick = () => { take++; compose(); }; $('#best').onclick = () => { take = 0; compose(); };
+    document.querySelectorAll('#follow button').forEach(b => b.onclick = () => { follow = b.dataset.v; document.querySelectorAll('#follow button').forEach(x => x.classList.toggle('on', x === b)); compose(); });
+    ['#close', '#poet', '#prep', '#voice'].forEach(s => $(s).onchange = compose);
+    $('#work').onchange = () => cur && renderScenes();
+    $('#play').onclick = () => player.toggle(); $('#restart').onclick = () => { player.seek(cur ? cur.T0 : 0); if (!player.playing) player.toggle(); };
+    $('#lane').onclick = e => { if (!cur) return; const r = e.currentTarget.getBoundingClientRect(); player.seek(cur.T0 + (e.clientX - r.left) / r.width * (cur.T1 - cur.T0)); };
+    $('#mic').onclick = live.toggle; $('#recBtn').onclick = () => $('#rec').click(); $('#rec').onchange = e => e.target.files[0] && ingest(e.target.files[0]);
+    $('#sheetClose').onclick = () => $('#sheet').hidden = true;
+    window.SH = window.SH || { get server() { return serverOK; } }; MPUI.sprite(); $('#markLink').innerHTML = MPUI.mark(26);
+    $('#howBtn').onclick = () => MPGuide.open('engine'); MPGuide.first('engine');
+    $('#exportBtn').onclick = e => { e.stopPropagation(); if (!cur) return; const c = { ...cur, audio: cur.audio ? (typeof cur.audio === 'string' ? { src: cur.audio, offset: 0 } : cur.audio) : null };
+      const v = $('#src').value, lines = v[0] === 'w' ? null : $('#text').value.split('\n').map(x => x.trim()).filter(Boolean);
+      MPExport.menu($('#exportBtn'), () => MPExport.project({ LIB, K }, c, { room: 'engine', lines, poem: v[0] === 'w' || v.startsWith('t:') ? v : null, title: lines ? lines[0] : $('#src').selectedOptions[0].textContent, locks: { ...locks }, take })); };
+    $('#qgo').onclick = search; $('#qwide').onclick = wide; $('#runAll').onclick = runTests;
+    renderTests(); load();
+  }
+  function showTab(t) { document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === t)); ['film', 'search', 'tests', 'about'].forEach(k => $('#t-' + k).hidden = k !== t); window.scrollTo(0, 0); }
+  const textOf = p => p.text || store.get('shannon.byo.' + p.id, '');
+  function load() {
+    const v = $('#src').value; locks = {}; corrections = 0; take = 0; recording = null; player.stop();
+    const isW = v[0] === 'w'; $('#poetRow').hidden = !isW; $('#prepRow').hidden = !isW; $('#note').textContent = '';
+    if (v[0] === 'p') $('#text').value = PRE.texts[+v.slice(1)].text;
+    else if (isW) $('#text').value = K.lines.filter(l => l.film === v.slice(1)).map(l => l.text).join('\n');
+    else if (v.startsWith('t:')) { const p = POEMS.find(x => x.id === v.slice(2)); $('#text').value = textOf(p); $('#note').textContent = `${p.author}${p.year ? ', ' + p.year : ''}. ${p.status}.` + (textOf(p) ? '' : ' Paste your copy of the poem into the box; it stays in this browser.'); }
+    else $('#text').value = store.get('shannon.own', 'Every evening, he waited at the window. Across the city, she was already leaving.');
+    if ($('#text').value.trim()) compose();
+  }
+
+  // ------------------------------------------------------------ words -> phrases (the suite and recordings keep their own clock)
+  function phrasesFor() {
+    const v = $('#src').value, text = $('#text').value;
+    if (v === 'own') store.set('shannon.own', text);
+    if (v.startsWith('t:')) { const p = POEMS.find(x => x.id === v.slice(2)); if (!p.text && text.trim()) store.set('shannon.byo.' + p.id, text); }
+    if (recording && text === recording.text) return timed(recording.segments, recording.audio, 0, recording.segments.length ? recording.segments[recording.segments.length - 1].t1 : 0);
+    if (v[0] === 'w' && text === K.lines.filter(l => l.film === v.slice(1)).map(l => l.text).join('\n')) {
+      const film = K.films.find(f => f.n === v.slice(1)), lines = K.lines.filter(l => l.film === film.n);
+      const r = timed(lines.map(l => ({ text: l.text, t0: l.t0, t1: l.t1, words: l.words })), 'wygwyl/WYGWYL_Suite_Audio.mp3', film.t0, film.t1);
+      if ($('#prep').checked) r.ph.forEach(p => { const b = K.beats.find(b => b.t0 <= (p.t0 + p.t1) / 2 && b.t1 > (p.t0 + p.t1) / 2); p.pool = new Set(b ? (K.pool[b.id] || []).map(x => x.id) : []); });
+      return r;
+    }
+    const ph = S.parse(text), voice = $('#voice').value, VN = { ryan: 'en_US-ryan-high', lessac: 'en_US-lessac-medium' }[voice];
+    if (VN && ph.length) {
+      const pid = v.startsWith('t:') && v.slice(2), pre = pid && VOICE.poems[pid] && VOICE.poems[pid][VN] && POEMS.find(x => x.id === pid).text === text && VOICE.poems[pid][VN];
+      return (async () => { let meta, url;
+        if (pre) { meta = await fetch(pre + '.json').then(r => r.json()); url = pre + '.mp3'; }
+        else if (serverOK) { const gaps = ph.map((p, i) => { const n = ph[i + 1]; return !n ? 1.2 : n.scene !== p.scene ? 1.3 : n.sent !== p.sent ? .75 : .3; });
+          const r = await fetch('/api/speak', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ phrases: ph.map(p => p.text), gaps, voice: VN }) }); if (r.ok) { meta = await r.json(); url = meta.audio; } }
+        if (!meta || meta.times.length !== ph.length) { $('#note').textContent = 'A voice for new words needs the lab server; the film plays in silence.'; return { ph, audio: null, T0: 0, T1: ph[ph.length - 1].t1 }; }
+        ph.forEach((p, i) => { p.t0 = meta.times[i][0]; p.t1 = ph[i + 1] ? meta.times[i + 1][0] : meta.duration; p.timed = true; }); ph[0].t0 = 0;
+        return { ph, audio: url, T0: 0, T1: meta.duration }; })();
+    }
+    return { ph, audio: null, T0: 0, T1: ph.length ? ph[ph.length - 1].t1 : 0 };
+  }
+  function timed(segs, audio, T0, T1) {                         // phrases take their times from the words' own timestamps, in order
+    const text = segs.map(s => s.text).join('\n'), ph = S.parse(text), W = [];
+    segs.forEach(sg => { const toks = sg.text.split(/\s+/).filter(Boolean);
+      if (sg.words && sg.words.length) { toks.forEach((_, k) => { const w = sg.words[Math.min(k, sg.words.length - 1)]; W.push([w.t0, w.t1]); }); }
+      else { const d = (sg.t1 - sg.t0) / (toks.length || 1); toks.forEach((_, k) => W.push([sg.t0 + k * d, sg.t0 + (k + 1) * d])); } });
+    let w = 0;
+    ph.forEach(p => { const n = p.text.replace(/^[A-Z][\w .'\u2019-]{0,28}:\s+/, '').split(/\s+/).filter(Boolean).length, a = W[Math.min(w, W.length - 1)], b = W[Math.min(w + n - 1, W.length - 1)];
+      p.t0 = a ? a[0] : T0; p.t1 = b ? b[1] : T1; w += n; p.timed = true; });
+    ph.forEach((p, i) => { p.t1 = ph[i + 1] ? Math.max(p.t1, ph[i + 1].t0) : Math.max(p.t1, T1); });
+    if (ph.length) ph[0].t0 = Math.min(ph[0].t0, T0);
+    return { ph, audio, T0: ph.length ? ph[0].t0 : T0, T1 };
+  }
+  async function embed(texts) {
+    const miss = [...new Set(texts.filter(t => !TX[t]))];
+    for (let i = 0; i < miss.length && serverOK !== false; i += 48) {
+      try { const r = await fetch('/api/embed', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texts: miss.slice(i, i + 48) }) });
+        if (!r.ok) { serverOK = false; break; } const j = await r.json(); miss.slice(i, i + 48).forEach((t, k) => TX[t] = j.emb[k]); serverOK = true; } catch (e) { serverOK = false; }
+    }
+    const still = miss.filter(t => !TX[t]);                       // no lab server: read the words in the browser, with the same model
+    if (still.length && window.ClipText) { try { const v = await window.ClipText.encode(still, st => { $('#status').textContent = st.text + (st.frac != null ? ' ' + Math.round(st.frac * 100) + '%' : ''); }); still.forEach((t, k) => TX[t] = v[k]); } catch (e) { } }
+    setStatus(); return texts.map(t => TX[t] || null);
+  }
+  const opts = () => ({ ...FOLLOW[follow], seed: take ? take * 7919 : 0, close: $('#close').checked, poet: $('#src').value[0] === 'w' && $('#poet').checked ? 'I' : '', prepared: $('#prep').checked, locks });
+
+  // ------------------------------------------------------------ compose
+  let busy = 0;
+  async function compose() {
+    const my = ++busy, P = await phrasesFor(); if (!P.ph.length) return;
+    $('#scenes').innerHTML = '<p class="dim">Composing…</p>';
+    const E = await embed(P.ph.map(p => p.text)); if (my !== busy) return;
+    const miss = P.ph.filter((p, i) => !E[i]).length;
+    if (miss) { $('#scenes').innerHTML = `<p class="bad">${miss} line(s) could not be read. The browser needs to fetch its reader once (about 125 MB); check the connection and try again.</p>`; return; }
+    const sims = E.map(e => LIB.sims(e)), r = S.run(LIB, P.ph, sims, opts());
+    if (!P.audio && P.ph.length) P.T1 = P.ph[P.ph.length - 1].t1;
+    cur = { ...P, ...r, sims, T1: Math.max(P.T1, r.cut.length ? r.cut[r.cut.length - 1].t1 : 0) };
+    renderScenes(); renderKept(); renderLane(); $('#idle').hidden = true; player.prime();
+  }
+  const title = s => { const x = LIB.shots[s.k]; return `${x.title}${x.year ? ' (' + x.year + ')' : ''}`; };
+  const worldColor = k => WORLD[k % WORLD.length];
+  function strength(c) { return c >= .29 ? 'strong' : c >= .265 ? 'fair' : 'thin'; }
+  const OPWORD = { OPEN: 'opens', CONTINUE: 'stays', HOLD: 'holds', REPEAT: 'again', RETURN: 'returns', ALTERNATE: 'meanwhile', SUSPEND: 'held back', COMPLETE: 'completes', ABSENCE: 'emptied', INSERT: 'insert', CUTAWAY: 'cuts away' };
+  function renderScenes() {
+    const box = $('#scenes'), work = $('#work').checked; box.innerHTML = '';
+    const scenes = cur.eng.scenes || {};
+    Object.entries(scenes).forEach(([k, sc]) => {
+      const shots = cur.cut.filter(s => s.scene === +k); if (!shots.length) return;
+      const inWorld = shots.filter(s => s.src === s.home).length;
+      const d = h('div', 'scene'); const head = h('div', 'sh');
+      head.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${worldColor(+k)};display:inline-block"></span><b>Scene ${+k + 1}</b><span class="dim">${esc(sc.title || '')} · ${inWorld} of ${shots.length} shots in this world</span>`;
+      d.append(head);
+      const row = h('div', 'shots');
+      shots.forEach(s => {
+        const b = h('button', 'shot' + (s.src === s.home ? ' world' : '') + (locks[lockKey(s)] != null ? ' mine' : '')); b.dataset.i = s.i;
+        const lines = [cur.ph[s.phrase].text].concat((s.held || []).map(i => cur.ph[i].text)).join(' / ');
+        b.innerHTML = `<img src="${esc(LIB.shots[s.k].thumb)}" alt="" loading="lazy"><div class="op">${OPWORD[s.op] || s.op.toLowerCase()}${s.held ? ', held' : ''}</div><div class="ln">${esc(lines)}</div>` +
+          (work ? `<div class="why">${esc(s.why)}</div><div class="why">among about ${Math.max(1, Math.round(s.perp))} shots · archive ${strength(s.coverage)}${locks[lockKey(s)] != null ? ' · your choice' : ''}</div><div class="why">${esc(title(s))}</div>` : '');
+        b.onclick = () => { player.seek(s.t0); openSheet(s); };
+        row.append(b);
+      });
+      d.append(row); box.append(d);
+    });
+    if (corrections) box.append(h('p', 'dim', `${corrections} correction${corrections > 1 ? 's' : ''}: what you had to say beyond the words.`));
+  }
+  function renderKept() {
+    const m = cur.m, f = cur.fid, box = $('#kept'); box.innerHTML = '';
+    const add = (k, cls, txt) => { const d = h('div'); d.innerHTML = `<span class="k ${cls}">${k}</span>${txt}`; box.append(d); };
+    add('worlds', 'hi', `${m.scenes} scene${m.scenes > 1 ? 's' : ''}, ${m.worlds} world${m.worlds > 1 ? 's' : ''}. ${Math.round(m.inWorld * 100)}% of shots stay in their scene's world; ${m.cutaways} cutaway${m.cutaways === 1 ? '' : 's'}.`);
+    f.rows.filter(r => r.rel !== 'rhythm').forEach(r => add(r.ok ? 'kept' : 'lost', r.ok ? 'ok' : 'bad', `${esc(r.rel)}: ${esc(r.why)}. <span class="dim">"${esc(r.at)}"</span>`));
+    if (m.thin.length) { const d = h('div'); d.innerHTML = `<span class="k bad">thin</span>The archive has little for ${m.thin.length} line${m.thin.length > 1 ? 's' : ''}: `; m.thin.slice(0, 4).forEach(t => { const b = h('button', 'ghost', t.slice(0, 48)); b.style.cssText = 'min-height:32px;padding:4px 8px;margin:4px 4px 0 0;font-size:13px'; b.onclick = () => { $('#q').value = t; showTab('search'); search(); }; d.append(b); }); box.append(d); }
+    else add('archive', 'ok', 'Every line found footage.');
+  }
+  function renderLane() {
+    const lane = $('#lane'); lane.innerHTML = ''; const span = cur.T1 - cur.T0 || 1;
+    cur.cut.forEach(s => { const i = h('i', '', OPWORD[s.op] || ''); i.style.left = ((s.t0 - cur.T0) / span * 100) + '%'; i.style.width = ((s.t1 - s.t0) / span * 100) + '%'; i.style.background = worldColor(s.scene); if (s.op === 'CUTAWAY') i.style.opacity = .55; lane.append(i); });
+    lane.append(h('div', 'head'));
+  }
+  const lockKey = s => { const n0 = cur.cut.findIndex(x => x.phrase === s.phrase); return s.phrase + ':' + (s.i - n0); };
+  function openSheet(s) {
+    $('#sheet').hidden = false; $('#sheetTitle').textContent = cur.ph[s.phrase].text;
+    $('#sheetWhy').textContent = `${s.why}. It was choosing among about ${Math.max(1, Math.round(s.perp))} shots; the archive's answer to this line is ${strength(s.coverage)}.`;
+    const box = $('#sheetAlts'); box.innerHTML = '';
+    s.alts.forEach(a => { const x = LIB.shots[a.k], b = h('button', a.k === s.k ? 'cur' : ''); b.innerHTML = `<img src="${esc(x.thumb)}" alt="" loading="lazy"><span>${Math.round(a.p * 100)}% · ${esc(x.title)}</span>`;
+      b.onclick = () => { if (a.k === s.k) return; locks[lockKey(s)] = a.k; corrections++; $('#sheet').hidden = true; compose(); }; box.append(b); });
+    const r = $('#sheetReset'); r.hidden = locks[lockKey(s)] == null; r.onclick = () => { delete locks[lockKey(s)]; $('#sheet').hidden = true; compose(); };
+  }
+
+  // ------------------------------------------------------------ player: two videos; the voice, when there is one, is the clock
+  const player = (() => {
+    const va = $('#va'), vb = $('#vb'), aud = $('#aud'); const vids = [va, vb]; let on = 0, playing = false, t = 0, timer = 0, last = 0, shotI = -1;
+    const url = s => LIB.shots[s.k].video;
+    function load(v, s, off) { const u = url(s); if (v.dataset.u !== u) { v.dataset.u = u; v.src = u; } const want = (s.in || 0) + Math.max(0, off);
+      const set = () => { try { v.currentTime = Math.min(want, (v.duration || 1e9) - .05); } catch (e) { } }; if (v.readyState >= 1) set(); else v.addEventListener('loadedmetadata', set, { once: true }); }
+    const at = tt => cur.cut.findIndex(s => tt >= s.t0 && tt < s.t1);
+    function show(i, tt) {
+      const s = cur.cut[i]; if (!s) return;
+      if (i !== shotI) {
+        const nv = vids[1 - on]; if (nv.dataset.u === url(s) && nv.dataset.k == s.i) on = 1 - on; else load(vids[on], s, tt - s.t0);
+        vids[on].style.visibility = 'visible'; vids[1 - on].style.visibility = 'hidden'; if (playing) vids[on].play().catch(() => { }); vids[1 - on].pause();
+        shotI = i; const nx = cur.cut[i + 1]; if (nx) { load(vids[1 - on], nx, 0); vids[1 - on].dataset.k = nx.i; }
+        const tag = $('#tag'); tag.hidden = !$('#work').checked; tag.textContent = `${OPWORD[s.op] || s.op} · ${title(s)}`;
+        document.querySelectorAll('.shot').forEach(b => b.classList.toggle('now', +b.dataset.i === i));
+      }
+      const p = cur.ph.find(p => tt >= p.t0 && tt < p.t1); $('#sub').textContent = p ? p.text : '';
+    }
+    function tick() {
+      if (!playing) return; const now = performance.now();
+      if (cur.audio) t = aud.currentTime; else { t += (now - last) / 1000; } last = now;
+      if (t >= cur.T1) { pause(); t = cur.T0; return; }
+      const i = at(t); if (i >= 0) show(i, t); head(t);
+      const v = vids[on], end = v.ended || (v.duration && v.currentTime >= v.duration - .12);
+      if (end) { if (!v.paused) v.pause(); } else if (v.paused && v.readyState >= 2) v.play().catch(() => { });
+      $('#time').textContent = `${fmt(t - cur.T0)} / ${fmt(cur.T1 - cur.T0)}`;
+    }
+    const fmt = x => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
+    function play() { if (!cur) return; playing = true; $('#play').textContent = 'Pause'; $('#idle').hidden = true;
+      if (cur.audio) { if (aud.dataset.u !== cur.audio) { aud.src = cur.audio; aud.dataset.u = cur.audio; } aud.currentTime = t; aud.play().catch(() => { }); }
+      shotI = -1; const i = at(t); if (i >= 0) show(i, t); last = performance.now(); clearInterval(timer); timer = setInterval(tick, 40); }
+    function pause() { playing = false; $('#play').textContent = 'Play'; aud.pause(); vids.forEach(v => v.pause()); clearInterval(timer); }
+    function head(tt) { const e = document.querySelector('#lane .head'); if (e && cur) e.style.left = ((tt - cur.T0) / ((cur.T1 - cur.T0) || 1) * 100) + '%'; }
+    return { toggle() { playing ? pause() : play(); }, stop() { pause(); t = 0; }, get playing() { return playing; }, get t() { return t; },
+      seek(tt) { t = tt; shotI = -1; if (cur && cur.audio) aud.currentTime = tt; const i = cur ? at(tt) : -1; if (i >= 0) show(i, tt); head(tt); if (cur) $('#time').textContent = `${fmt(t - cur.T0)} / ${fmt(cur.T1 - cur.T0)}`; },
+      prime() { pause(); t = cur.T0; shotI = -1; const i = at(t); if (i >= 0) show(i, t); head(t); $('#time').textContent = `0:00 / ${fmt(cur.T1 - cur.T0)}`; } };
+  })();
+
+  // ------------------------------------------------------------ speaking: each finished phrase joins the film
+  const live = (() => {
+    const R = window.SpeechRecognition || window.webkitSpeechRecognition; let rec = null, on = false;
+    function toggle() {
+      if (!R) { $('#note').textContent = 'This browser has no speech recognition (Chrome and Safari do). Paste words or bring a recording instead.'; return; }
+      if (on) { rec.stop(); return; }
+      $('#src').value = 'own'; $('#text').value = ''; locks = {}; corrections = 0; recording = null;
+      rec = new R(); rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US';
+      rec.onresult = async e => {
+        let fin = '', inter = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) (e.results[i].isFinal ? (fin += e.results[i][0].transcript) : (inter += e.results[i][0].transcript));
+        $('#note').textContent = inter ? 'Hearing: ' + inter : 'Listening.';
+        if (fin.trim()) { const t = fin.trim().replace(/^\w/, c => c.toUpperCase()); $('#text').value += ($('#text').value ? '\n' : '') + (/[.!?]$/.test(t) ? t : t + '.');
+          const tt = player.t; await compose(); player.seek(Math.min(tt, cur.T1 - .01)); if (!player.playing) player.toggle(); }
+      };
+      rec.onend = () => { on = false; $('#mic').textContent = 'Speak'; $('#mic').classList.remove('primary'); $('#note').textContent = ''; };
+      rec.start(); on = true; $('#mic').textContent = 'Stop'; $('#mic').classList.add('primary'); $('#note').textContent = 'Listening. Each finished phrase joins the film.';
+    }
+    return { toggle };
+  })();
+
+  // ------------------------------------------------------------ a recording or a transcript becomes the words (and, for audio, the clock)
+  async function ingest(file) {
+    const name = file.name.toLowerCase(); $('#src').value = 'own'; locks = {}; corrections = 0;
+    if (/\.(vtt|srt)$/.test(name)) {
+      const raw = await file.text(), segs = [];
+      raw.replace(/\r/g, '').split(/\n\n+/).forEach(b => { const m = b.match(/(\d+:)?(\d+):(\d+)[.,](\d+)\s*-->\s*(\d+:)?(\d+):(\d+)[.,](\d+)/); if (!m) return;
+        const tt = (hh, mm, ss, ms) => (+(hh || '0').replace(':', '')) * 3600 + (+mm) * 60 + (+ss) + (+ms) / 1000;
+        const text = b.split('\n').slice(b.split('\n').findIndex(l => l.includes('-->')) + 1).join(' ').replace(/<[^>]+>/g, '').trim(); if (text) segs.push({ t0: tt(m[1], m[2], m[3], m[4]), t1: tt(m[5], m[6], m[7], m[8]), text }); });
+      recording = { segments: segs, audio: null, text: segs.map(s => s.text).join('\n') }; $('#text').value = recording.text; $('#note').textContent = `Transcript: ${segs.length} timed lines. Add the recording itself to hear it under the film.`; compose(); return;
+    }
+    if (/\.txt$/.test(name)) { $('#text').value = await file.text(); recording = null; compose(); return; }
+    if (serverOK === false) { $('#note').textContent = 'Turning a recording into words needs the lab server (it runs Whisper locally).'; return; }
+    $('#note').textContent = `Listening to ${file.name} with Whisper on this machine. Long recordings take a while.`;
+    try {
+      const r = await fetch('/api/transcribe?ext=' + (name.split('.').pop() || 'mp3'), { method: 'POST', body: file });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
+      recording = { segments: j.segments, audio: j.audio, text: j.segments.map(s => s.text).join('\n') }; $('#text').value = recording.text;
+      $('#note').textContent = `${j.segments.length} spoken line${j.segments.length === 1 ? '' : 's'}. The recording plays under the film and keeps its time.`; compose();
+    } catch (e) { $('#note').textContent = 'Could not transcribe: ' + e.message; }
+  }
+
+  // ------------------------------------------------------------ search: films that can play a passage, then shots
+  async function search() {
+    const text = $('#q').value.trim(); if (!text) return; const lines = text.split(/\n|;\s*/).map(x => x.trim()).filter(Boolean);
+    $('#films').innerHTML = '<p class="dim">Searching…</p>'; $('#shotsOut').innerHTML = '';
+    const E = await embed(lines); if (E.some(x => !x)) { $('#films').innerHTML = '<p class="bad">These words could not be read yet; try again once the reader has loaded.</p>'; return; }
+    const sims = E.map(e => LIB.sims(e)), F = S.searchFilms(LIB, sims, 8);
+    $('#films').innerHTML = '';
+    F.forEach(f => { const c = h('div', 'card'); c.innerHTML = `<b style="font:600 16px var(--serif)">${esc(f.title)}</b> <span class="dim">${f.year || ''} · answers ${lines.length > 1 ? 'all ' + lines.length + ' lines' : 'the line'}: ${strength(f.score)}</span>`;
+      const row = h('div', 'shots'); f.shots.slice(0, 8).forEach(k => { const x = LIB.shots[k], b = h('button', 'shot'); b.innerHTML = `<img src="${esc(x.thumb)}" alt="" loading="lazy">`; b.onclick = () => preview(k); row.append(b); }); c.append(row);
+      const use = h('button', '', 'Make a film from these lines'); use.onclick = () => { $('#src').value = 'own'; $('#text').value = lines.join('\n'); showTab('film'); locks = {}; compose(); }; c.append(use);
+      $('#films').append(c); });
+    const mean = new Float32Array(LIB.n); sims.forEach(s => { for (let i = 0; i < LIB.n; i++) mean[i] += s[i] / sims.length; });
+    const top = Array.from({ length: LIB.n }, (_, i) => i).sort((a, b) => mean[b] - mean[a]).slice(0, 24);
+    top.forEach(k => { const x = LIB.shots[k], b = h('button'); b.innerHTML = `<img src="${esc(x.thumb)}" alt="" loading="lazy"><span>${esc(x.title)} ${x.year || ''}</span>`; b.onclick = () => preview(k); $('#shotsOut').append(b); });
+  }
+  function preview(k) {                                         // a found shot plays in the film player
+    const x = LIB.shots[k]; cur = cur || null; showTab('film');
+    const v = $('#va'); $('#vb').style.visibility = 'hidden'; v.style.visibility = 'visible'; v.src = x.video; v.dataset.u = x.video; v.currentTime = x.in || 0; v.play().catch(() => { });
+    $('#idle').hidden = true; $('#sub').textContent = ''; const tag = $('#tag'); tag.hidden = false; tag.textContent = `${x.title} ${x.year || ''}`;
+  }
+  async function wide() {
+    const q = $('#q').value.trim().split('\n')[0]; if (!q) return; $('#wideWrap').hidden = false; $('#wide').innerHTML = '<p class="dim">Asking movingimagearchive.com…</p>';
+    try { const r = await fetch('/api/search', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query: q }) }); const j = await r.json();
+      const res = j.results || j.clips || j.items || []; $('#wide').innerHTML = res.length ? '' : '<p class="dim">Nothing came back.</p>';
+      res.slice(0, 24).forEach(x => { const vid = x.videoUrl || x.video, th = x.thumbnailUrl || (vid && vid.replace('/clips/', '/thumbnails/').replace('.mp4', '.jpg')); const b = h('button');
+        b.innerHTML = `<img src="${esc(th)}" alt="" loading="lazy"><span>${esc(x.sourceTitle || x.title || '')} ${x.sourceYear || ''}</span>`; b.onclick = () => { const v = $('#va'); showTab('film'); v.src = vid; v.style.visibility = 'visible'; $('#vb').style.visibility = 'hidden'; v.play().catch(() => { }); $('#idle').hidden = true; }; $('#wide').append(b); });
+    } catch (e) { $('#wide').innerHTML = '<p class="bad">The wider archive needs the lab server.</p>'; }
+  }
+
+  // ------------------------------------------------------------ tests
+  function renderTests(results = {}) {
+    const box = $('#tests'); box.innerHTML = '';
+    POEMS.forEach(p => {
+      const c = h('div', 'card test'), txt = p.id === 'wygwyl' ? 'suite' : textOf(p);
+      c.innerHTML = `<h4>${esc(p.title)}</h4><div class="by">${esc(p.author)}${p.year ? ', ' + p.year : ''}</div><div class="st">${esc(p.status)}</div>`;
+      const r = results[p.id];
+      if (r) c.insertAdjacentHTML('beforeend', `<div class="meas">
+        <div><b>${r.c.scenes} / ${r.c.worlds}</b><span>scenes / worlds</span></div>
+        <div><b>${Math.round(r.c.continuity * 100)}%</b><span>stays in its world (search ${Math.round(r.f.continuity * 100)}%)</span></div>
+        <div><b>${r.c.kept}/${r.c.required}</b><span>relations kept (search ${r.f.kept}/${r.f.required})</span></div>
+        <div><b>${r.c.films}</b><span>films used (search ${r.f.films})</span></div>
+        <div><b>${r.c.cutaways}</b><span>cutaways</span></div>
+        <div><b class="${r.c.thin ? 'bad' : 'ok'}">${r.c.thin}</b><span>thin lines</span></div></div>`);
+      const row = h('div', 'row'); row.style.marginTop = '10px';
+      if (p.id === 'wygwyl') { const b = h('button', '', 'Open the suite'); b.onclick = () => { $('#src').value = 'w01'; showTab('film'); load(); }; row.append(b); }
+      else if (txt) { const b = h('button', '', 'Open as a film'); b.onclick = () => { $('#src').value = 't:' + p.id; store.set('shannon.src', 't:' + p.id); showTab('film'); load(); }; row.append(b); }
+      if (!p.text && p.id !== 'wygwyl') { const b = h('button', 'ghost', txt ? 'Replace your copy' : 'Paste your copy'); b.onclick = () => { const ta = h('textarea'); ta.value = txt || ''; ta.placeholder = 'Paste the poem. It stays in this browser.'; const sv = h('button', 'primary', 'Keep'); sv.onclick = () => { store.set('shannon.byo.' + p.id, ta.value.trim()); renderTests(results); rebuildSources(); }; c.append(ta, sv); b.remove(); }; row.append(b); }
+      c.append(row); box.append(c);
+    });
+  }
+  function rebuildSources() { const v = $('#src').value; $('#src').innerHTML = ''; const src = $('#src'), g = (label) => { const o = document.createElement('optgroup'); o.label = label; src.append(o); return o; };
+    const a = g('Start here'); PRE.texts.forEach((t, i) => a.append(new Option(t.name, 'p' + i))); const w = g('Where You Go When You Leave'); K.films.forEach(f => w.append(new Option(`${f.n} · ${f.title}`, 'w' + f.n)));
+    const t = g('Test library'); POEMS.filter(p => p.id !== 'wygwyl').forEach(p => t.append(new Option(`${p.title} · ${p.author}${textOf(p) ? '' : ' (paste your copy)'}`, 't:' + p.id))); g('Your words').append(new Option('Your own words', 'own')); src.value = v; }
+  async function runTests() {
+    const results = {}, todo = POEMS.filter(p => p.id === 'wygwyl' || textOf(p)); let n = 0;
+    for (const p of todo) {
+      $('#testNote').textContent = `Running ${++n} of ${todo.length}: ${p.title}`;
+      const text = p.id === 'wygwyl' ? K.lines.filter(l => l.film === '01').map(l => l.text).join('\n') : textOf(p);
+      const ph = S.parse(text), E = await embed(ph.map(x => x.text)); if (E.some(x => !x)) { results[p.id] = null; continue; }
+      const sims = E.map(e => LIB.sims(e)), A = S.run(LIB, S.parse(text), sims, { ...FOLLOW.both }), F = S.run(LIB, S.parse(text), sims, { wOp: 0, wHome: 0, close: false, gap: 9 });
+      results[p.id] = { c: { ...A.m, kept: A.fid.realized, required: A.fid.required, thin: A.m.thin.length }, f: { ...F.m, kept: F.fid.realized, required: F.fid.required } };
+      renderTests(results); await new Promise(r => setTimeout(r, 10));
+    }
+    $('#testNote').textContent = `${Object.values(results).filter(Boolean).length} texts made into films.`;
+  }
+})();
+</script>
+</body></html>

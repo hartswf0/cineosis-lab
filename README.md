@@ -57,6 +57,10 @@ It exports the lab's `cineosis-edl/1` (every event, your couplings, the text car
 
 Static site limits: only the 253 read shots ship as local clips; every other shot plays from the archive's CDN. Chrome and Firefox stream the WYGWYL films from the release; if Safari refuses, the page offers the file to download.
 
+## Source Pattern Atlas
+
+[Source Pattern Atlas](https://hartswf0.github.io/cineosis-lab/lab/source-patterns.html) indexes 24 candidate original-source passages, visual observations from 34 sampled silent excerpts, and coverage audits of 60 cached source manifests. Complete-passage seed readings remain unresolved. Readers can encode relations, rival interpretations and evidence, attest full-context review, export/import their annotations, and open an original passage in Syntagm Lab. [Method and access limits](lab/source-patterns/README.md).
+
 ## Syntagm Lab
 
 Open [Syntagm Lab](https://hartswf0.github.io/cineosis-lab/lab/syntagm.html) to screen and rearrange passages from the four WYGWYL cuts or 60 cached source-film manifests. Keep playback above the timeline, inspect source coverage and neighboring clips, and compare edits while preserving occurrence identities and trims. The 45-sign table remains available with its deciding tests and read examples.
@@ -109,3 +113,7 @@ To re-run the Python pipeline: `sh setup.sh` (creates `lab/.venv`, installs SAM 
 - Gilles Deleuze, *Cinema 1: The Movement-Image* (1983) and *Cinema 2: The Time-Image* (1985).
 - Shots from [movingimagearchive.com](https://www.movingimagearchive.com), largely public-domain educational, industrial, amateur and newsreel film (Prelinger and similar collections). Each shot links back to its page there; rights remain with their holders. Open an issue to have any item removed.
 - [SAM 2.1](https://github.com/facebookresearch/sam2) (Meta, Apache-2.0), [OpenCLIP](https://github.com/mlfoundations/open_clip) ViT-B/32 LAION-2B weights, OpenCV, ffmpeg.
+
+### Operative Syntagm Lab
+
+[Film ↔ Structure](https://hartswf0.github.io/cineosis-lab/lab/syntagm.html) now opens six timed readings on playable source footage. The formula controls the cut: group, reverse, trim, substitute and compare exact joins. Source provenance and scope are in [the operative method](lab/syntagm/operative/README.md). The earlier candidate atlas remains at `lab/source-audit.html`.

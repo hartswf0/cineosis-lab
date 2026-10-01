@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<title>The Poet</title>
+<meta name="description" content="The Markov Poet. Type or say a line; the archive answers with a film. Record your own voice reading it. Choose any shot. Send the film.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ color-scheme:dark; --bg:#050505; --ink:#efe9dd; --dim:#7d776f; --faint:#3a3631; --hi:#e8c070; --rec:#e0453a; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; --dock:118px; }
+*{ box-sizing:border-box; } html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); overflow:hidden; font:12px var(--mono); -webkit-tap-highlight-color:transparent; }
+[hidden]{ display:none !important; } button,input{ font:inherit; color:inherit; }
+body.collapsed{ --dock:40px; }
+#film{ position:fixed; inset:0; opacity:0; transition:opacity 1.8s ease; } #film.on{ opacity:1; }
+#film::after{ content:''; position:absolute; inset:0; pointer-events:none; background:linear-gradient(180deg,#0009 0%,transparent 20%,transparent 50%,#000d 100%); z-index:3; }
+#ghosts{ position:fixed; inset:0; pointer-events:none; z-index:4; }
+#ghosts img{ position:absolute; border-radius:2px; opacity:0; transform:translate(-50%,-50%) scale(.9); transition:opacity .9s, transform 1.6s cubic-bezier(.2,.7,.2,1), left 1.6s cubic-bezier(.2,.7,.2,1), top 1.6s cubic-bezier(.2,.7,.2,1), width 1.6s, filter 1.2s; filter:grayscale(1) brightness(.8); }
+#ghosts img.show{ opacity:.55; transform:translate(-50%,-50%) scale(1); } #ghosts img.gone{ opacity:0; transform:translate(-50%,-50%) scale(.6); } #ghosts img.take{ opacity:1; filter:none; }
+/* top: the mark and the menu, nothing else */
+#top{ position:fixed; left:0; right:0; top:0; z-index:8; display:flex; align-items:center; gap:10px; padding:calc(10px + env(safe-area-inset-top)) 12px 8px; transition:opacity .6s; }
+#top a.mark{ display:flex; align-items:center; gap:8px; color:var(--ink); text-decoration:none; letter-spacing:.2em; font-size:10.5px; } #top a.mark span{ color:var(--dim); }
+#sys{ flex:1; min-width:0; display:flex; align-items:center; gap:8px; color:var(--dim); letter-spacing:.04em; font-size:11px; }
+#sys i{ width:6px; height:6px; border-radius:50%; background:var(--faint); flex:none; } #sys.busy i{ background:var(--hi); animation:pulse 1s infinite; } #sys.play i{ background:var(--ink); } #sys.rec i{ background:var(--rec); animation:pulse .8s infinite; }
+#sys span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } @keyframes pulse{ 50%{ opacity:.2; } }
+.ico{ width:44px; height:44px; display:grid; place-items:center; border:0; background:none; border-radius:50%; cursor:pointer; color:var(--dim); flex:none; }
+.ico:hover{ color:var(--ink); background:#ffffff10; } .ico svg{ width:20px; height:20px; } .ico.on{ color:var(--hi); } .ico:disabled{ opacity:.25; }
+/* the poem: the words are the reason for everything */
+#poem{ position:fixed; left:16px; top:calc(60px + env(safe-area-inset-top)); max-width:min(440px,70vw); max-height:34vh; overflow:auto; z-index:6; font:300 16px/1.5 var(--serif); color:var(--dim); scrollbar-width:none; }
+#poem div{ cursor:pointer; padding:1px 0; transition:color .3s; } #poem div:hover{ color:var(--ink); } #poem div.now{ color:var(--ink); } #poem div.sel{ color:var(--hi); }
+#dna{ position:fixed; right:14px; top:calc(62px + env(safe-area-inset-top)); z-index:6; max-width:min(460px,52vw); justify-content:flex-end; opacity:.78; }
+#room{ position:fixed; left:0; right:0; top:0; bottom:var(--dock); display:grid; place-items:center; padding:24px; z-index:5; pointer-events:none; transition:bottom .4s; }
+#say{ max-width:min(1100px,92vw); text-align:center; font:300 clamp(28px,5.2vw,70px)/1.15 var(--serif); }
+#say .plea{ color:#6a645c; transition:opacity 1.2s; } #say .heard{ color:var(--dim); font-style:italic; }
+#say.playing{ align-self:end; margin-bottom:14px; font-size:clamp(24px,3.8vw,54px); text-shadow:0 0 22px #000, 0 0 4px #000; }
+#say .w{ display:inline-block; opacity:0; filter:blur(10px); transform:translateY(.12em); animation:word .9s cubic-bezier(.2,.7,.2,1) forwards; white-space:pre; }
+@keyframes word{ to{ opacity:1; filter:none; transform:none; } }
+/* the dock: the operator's surface; it never scrolls away and folds to one line */
+#dock{ position:fixed; left:0; right:0; bottom:0; z-index:9; padding:0 10px calc(8px + env(safe-area-inset-bottom)); background:linear-gradient(180deg,transparent,#000c 30%); transition:transform .4s; }
+#strip{ display:flex; gap:1px; height:4px; margin:0 2px 8px; cursor:pointer; } #strip i{ height:100%; background:var(--dc,#ffffff22); opacity:.3; border-radius:1px; } #strip i.done{ opacity:.65; } #strip i.now{ opacity:1; }
+#row{ display:flex; align-items:center; gap:4px; max-width:900px; margin:0 auto; }
+#prompt{ flex:1; min-width:0; height:48px; border-radius:24px; border:1px solid #2e2b27; background:#0d0c0bdd; padding:0 18px; font:300 17px var(--serif); color:var(--ink); outline:none; }
+#prompt:focus{ border-color:#5a4e33; } #prompt::placeholder{ color:#5f5a52; font-style:italic; }
+#bMic.on{ color:var(--hi); background:#e8c07022; animation:pulse 1.2s infinite; }
+#bRec[hidden]{ display:none; } #bRec{ width:48px; height:48px; border:1px solid #3a2a28; } #bRec svg{ width:22px; height:22px; } #bRec.on{ background:#e0453a22; border-color:var(--rec); }
+body.collapsed #prompt, body.collapsed #bMic, body.collapsed #bRec, body.collapsed #bWall, body.collapsed #bSend{ display:none; } body.collapsed #row{ justify-content:flex-end; } body.collapsed #poem, body.collapsed #dna{ display:none; }
+body.quiet #top, body.quiet #dock, body.quiet #poem, body.quiet #dna{ opacity:0; } body.quiet{ cursor:none; }
+/* the wall of shots weighed */
+#wall{ position:fixed; left:0; right:0; bottom:0; z-index:10; background:#0b0a09f2; backdrop-filter:blur(8px); border-top:1px solid #24211d; padding:10px 14px calc(14px + env(safe-area-inset-bottom)); transform:translateY(100%); transition:transform .45s cubic-bezier(.2,.7,.2,1); max-height:64dvh; display:flex; flex-direction:column; }
+#wall.open{ transform:none; } #wall header{ display:flex; align-items:center; gap:4px; margin-bottom:8px; } #wall header b{ font:300 18px/1.2 var(--serif); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#wall .meta{ color:var(--dim); margin:0 0 8px 4px; letter-spacing:.04em; }
+#tiles{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:6px; overflow:auto; } @media (max-width:640px){ #tiles{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+.tile{ position:relative; padding:0; border:0; border-radius:3px; overflow:hidden; aspect-ratio:16/10; cursor:pointer; background:#000; outline:2px solid transparent; outline-offset:-2px; }
+.tile img{ width:100%; height:100%; object-fit:cover; display:block; opacity:.82; } .tile.chosen{ outline-color:var(--hi); } .tile.mine::after{ content:'kept'; position:absolute; left:5px; top:4px; font-size:9px; color:var(--hi); }
+.tile .p{ position:absolute; left:0; right:0; bottom:0; height:3px; } .tile .n{ position:absolute; right:4px; top:3px; font-size:10px; text-shadow:0 0 4px #000; }
+.tile .s{ position:absolute; left:4px; bottom:6px; display:flex; gap:2px; } .tile .s i{ font-style:normal; font-size:8.5px; color:#15120d; padding:1px 3px; border-radius:2px; }
+/* recording: a teleprompter */
+#rec{ position:fixed; inset:0; z-index:20; background:#050505; display:flex; flex-direction:column; }
+#rec header{ display:flex; align-items:center; gap:10px; padding:calc(12px + env(safe-area-inset-top)) 14px 8px; } #rec header b{ flex:1; letter-spacing:.14em; font-weight:500; font-size:11px; } #rec header span{ color:var(--rec); font-variant-numeric:tabular-nums; }
+#prompter{ flex:1; overflow:auto; padding:8vh 22px 30vh; font:300 clamp(26px,5vw,52px)/1.3 var(--serif); color:#4d4842; scroll-behavior:smooth; }
+#prompter div{ padding:6px 0; transition:color .4s; cursor:pointer; } #prompter div.now{ color:var(--ink); } #prompter div.done{ color:#8a8378; }
+#count{ position:absolute; inset:0; display:grid; place-items:center; font:300 30vw/1 var(--serif); color:var(--rec); pointer-events:none; }
+#rec footer{ padding:10px 14px calc(14px + env(safe-area-inset-bottom)); display:grid; gap:10px; }
+#spark{ width:100%; height:44px; display:block; }
+#recBtns{ display:flex; gap:10px; justify-content:center; align-items:center; }
+.pill{ min-height:52px; padding:0 22px; border-radius:26px; border:1px solid #3a3631; background:none; color:var(--ink); letter-spacing:.1em; cursor:pointer; }
+.pill.red{ background:var(--rec); border-color:var(--rec); color:#fff; } .pill.gold{ background:var(--hi); border-color:var(--hi); color:#1a1408; }
+#recHint{ text-align:center; color:var(--dim); font-size:11px; }
+#ready{ position:fixed; left:0; top:0; height:2px; background:var(--hi); z-index:30; width:0; transition:width .4s, opacity 1s; }
+#starters{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:26px; pointer-events:auto; }
+#starters button{ border:1px solid #2e2b27; background:#0d0c0bcc; border-radius:20px; padding:9px 14px; min-height:40px; cursor:pointer; color:#a59e93; font:italic 300 15px var(--serif); }
+#starters button:hover{ color:var(--ink); border-color:#5a4e33; } #starters small{ display:block; flex-basis:100%; text-align:center; color:#5f5a52; font:11px var(--mono); letter-spacing:.06em; }
+#toast{ position:fixed; left:50%; top:calc(58px + env(safe-area-inset-top)); transform:translateX(-50%); z-index:30; background:#0e0d0c; border:1px solid #24211d; border-radius:20px; padding:8px 14px; opacity:0; transition:opacity .4s; pointer-events:none; white-space:nowrap; max-width:92vw; overflow:hidden; text-overflow:ellipsis; } #toast.on{ opacity:1; }
+#veil{ position:fixed; inset:0; z-index:12; display:grid; place-items:center; background:#000c; cursor:pointer; text-align:center; padding:20px; } #veil b{ display:block; font:300 clamp(26px,4vw,48px)/1.2 var(--serif); } #veil span{ color:var(--dim); }
+@media (max-width:640px){ :root{ --dock:150px; } body.collapsed{ --dock:40px; } #row{ flex-wrap:wrap; justify-content:space-between; row-gap:6px; } #prompt{ order:-1; flex-basis:100%; } #top a.mark span{ display:none; } #poem{ font-size:14px; max-height:24vh; } #dna{ top:auto; bottom:calc(var(--dock) + 4px); left:14px; right:auto; justify-content:flex-start; max-width:92vw; font-size:9px; }
+  body.playing #poem{ display:none; } #say.playing{ margin-bottom:34px; } }
+</style></head>
+<body>
+<div id="film"></div>
+<div id="ghosts"></div>
+<header id="top">
+  <a class="mark" href="markov-poet.html" title="The Markov Poet: how it works" id="markLink"></a>
+  <div id="sys" aria-live="polite"><i></i><span id="sysText">waking</span></div>
+  <button class="ico" id="bMore" aria-label="More"><svg><use href="#i-more"/></svg></button>
+</header>
+<div id="poem" aria-label="The poem: tap a line to edit it or play from it"></div>
+<div id="dna" class="mpdna" aria-label="The shot's Cineosis signs"></div>
+<div id="ready" aria-hidden="true"></div>
+<div id="room"><div><div id="say" aria-live="polite"></div><div id="starters" hidden></div></div></div>
+<footer id="dock">
+  <div id="strip" aria-label="The poem, line by line"></div>
+  <div id="row">
+    <button class="ico" id="bFold" aria-label="Fold the controls"><svg><use href="#i-down"/></svg></button>
+    <input id="prompt" autocomplete="off" autocapitalize="sentences" spellcheck="false" enterkeyhint="done" placeholder="type a line, then Return" aria-label="Type a line">
+    <button class="ico" id="bMic" aria-label="Say a line"><svg><use href="#i-mic"/></svg></button>
+    <button class="ico" id="bRec" hidden aria-label="Record your voice reading the poem"><svg><use href="#i-rec"/></svg></button>
+    <button class="ico" id="bPlay" aria-label="Play"><svg><use href="#i-play"/></svg></button>
+    <button class="ico" id="bWall" aria-label="Choose a different shot"><svg><use href="#i-wall"/></svg></button>
+    <button class="ico" id="bSend" aria-label="Send"><svg><use href="#i-send"/></svg></button>
+  </div>
+</footer>
+<section id="wall" aria-label="The shots the engine weighed">
+  <header><button class="ico" id="wPrev" aria-label="Previous shot"><svg><use href="#i-left"/></svg></button><b id="wTitle"></b>
+    <button class="ico" id="wNext" aria-label="Next shot"><svg><use href="#i-right"/></svg></button><button class="ico" id="wUndo" aria-label="Undo"><svg><use href="#i-undo"/></svg></button><button class="ico" id="wClose" aria-label="Close"><svg><use href="#i-close"/></svg></button></header>
+  <div class="meta" id="wInfo"></div><div id="tiles"></div>
+</section>
+<section id="rec" hidden aria-label="Recording">
+  <header><b id="recTitle">READ YOUR POEM</b><span id="recTime">0:00</span><button class="ico" id="recX" aria-label="Cancel"><svg><use href="#i-close"/></svg></button></header>
+  <div id="prompter"></div><div id="count" hidden></div>
+  <footer><canvas id="spark" aria-hidden="true"></canvas><div id="recHint"></div><div id="recBtns"></div></footer>
+</section>
+<div id="toast"></div>
+<div id="veil" hidden><div><b>Touch to watch</b><span id="veilSub"></span></div></div>
+<audio id="aud"></audio>
+<script src="markov/engine.js?v=6"></script>
+<script src="markov/clip-text.js?v=5"></script>
+<script src="markov/shared.js?v=4"></script>
+<script src="markov/film.js?v=1"></script>
+<script src="markov/guide.js?v=5"></script>
+<script src="markov/export.js?v=4"></script>
+<script src="markov/live.js?v=4"></script>
+<script src="markov/hear.js?v=5"></script>
+<script src="markov/ui.js?v=2"></script>
+<script>
+(() => {
+  const $ = s => document.querySelector(s), esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const SH = window.SH, S = window.Shannon, EDIT = MPFilm.EDIT; MPUI.sprite(); $('#markLink').innerHTML = MPUI.mark(26) + 'MARKOV POET <span>· THE POET</span>';
+  const PLEAS = ['say a line', 'or type one', 'the archive is listening', 'sixteen thousand shots are waiting for a word', 'a poem does not exist before it is said', 'read it aloud: your voice becomes the clock'];
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
+  let D, F, lines = [], locks = {}, history = [], cur = null, composing = 0, sel = -1, pleaI = 0, pleaT = 0;
+  let voice = store.get('poet.voice', 'auto'), voiceRec = null, marks = null;            // voice: mine | piper (the lab) | device (this phone's own) | none; marks: [[t0,t1] per line] from a reading
+  const fallbackVoice = () => SH.server ? 'piper' : 'device';
+  const toast = t => { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('on'), 2600); };
+  SH.onStatus(s => { $('#sys').className = /rest|idle/.test(s.stage) ? '' : s.stage === 'playing' ? 'play' : s.stage === 'recording' ? 'rec' : 'busy'; $('#sysText').textContent = s.text + (s.frac != null ? ' ' + Math.round(s.frac * 100) + '%' : ''); });
+  let wakeT; const wake = () => { document.body.classList.remove('quiet'); clearTimeout(wakeT); wakeT = setTimeout(() => { if (clock.running && !$('#wall').classList.contains('open') && document.activeElement !== $('#prompt')) document.body.classList.add('quiet'); }, 3500); };
+  ['mousemove', 'touchstart', 'keydown'].forEach(e => addEventListener(e, wake));
+
+  // ------------------------------------------------------------ the words
+  function drawStarters() { const b = $('#starters'); if (!D || !D.starters.length || cur || lines.length) { b.hidden = true; return; } b.hidden = false; b.innerHTML = '<small>OR START FROM ONE OF THESE: THEY PLAY AT ONCE</small>';
+    D.starters.forEach(ls => { const x = document.createElement('button'); x.textContent = ls[0]; x.onclick = async () => { b.hidden = true; lines = [...ls]; store.set('poet.lines', lines); drawPoem(); unlockVoice(); const my = ++composing; try { const c = await build(); if (my !== composing) return; await see(c, 0); setFilm(c); play(c.T0); } catch (e) { SH.status('rest', e.message); } }; b.append(x); }); }
+  function plea() { if (cur || $('#prompt').value) return; drawStarters(); const say = $('#say'); say.className = ''; say.innerHTML = `<span class="plea" style="opacity:0">${esc(PLEAS[pleaI % PLEAS.length])}</span>`;
+    requestAnimationFrame(() => { const p = say.querySelector('.plea'); if (p) p.style.opacity = 1; });
+    pleaT = setTimeout(() => { const p = say.querySelector('.plea'); if (p) p.style.opacity = 0; pleaI++; pleaT = setTimeout(plea, 1300); }, 4200); }
+  function sayLine(t) { clearTimeout(pleaT); $('#starters').hidden = true; const say = $('#say'); say.className = 'playing'; say.innerHTML = t.split(/(\s+)/).map((w, i) => /^\s+$/.test(w) ? w : `<span class="w" style="animation-delay:${i * 45}ms">${esc(w)}</span>`).join(''); }
+  function drawPoem() { const p = $('#poem'); p.innerHTML = ''; lines.forEach((l, i) => { const d = document.createElement('div'); d.textContent = l; if (i === sel) d.className = 'sel';
+      d.onclick = () => { if (sel === i) { sel = -1; $('#prompt').value = ''; setPlaceholder(); } else { sel = i; $('#prompt').value = l; setPlaceholder(); if (cur) jumpLine(i); } drawPoem(); }; p.append(d); }); }
+  function setPlaceholder() { if (!SH.ready.all && sel < 0) { $('#prompt').placeholder = SH.ready.failed ? 'the reader could not load; reload to try again' : `getting ready ${Math.round(SH.ready.frac * 100)}%` + (SH.ready.eta ? ` · about ${Math.ceil(SH.ready.eta)} s` : '') + ' · you can type now'; return; }
+    $('#prompt').placeholder = sel >= 0 ? `edit line ${sel + 1}, Return to change the film, Esc to leave it` : cur ? 'add a line, then Return' : 'type a line, then Return'; }
+  $('#prompt').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); const t = e.target.value.trim(); if (!t) return; e.target.value = '';
+      if (sel >= 0) { history.push({ lines: [...lines], locks: { ...locks } }); lines[sel] = t; locks = {}; marks = null; if (voice === 'mine') voice = fallbackVoice(); const i = sel; sel = -1; setPlaceholder(); store.set('poet.lines', lines); drawPoem(); recompose(null, true, i); toast('line ' + (i + 1) + ' changed'); }
+      else commit(t); }
+    else if (e.key === 'Escape') { sel = -1; e.target.value = ''; setPlaceholder(); drawPoem(); e.target.blur(); }
+  });
+  $('#prompt').addEventListener('input', () => { if (cur && clock.running) pause(); if (!cur) { clearTimeout(pleaT); $('#starters').hidden = true; $('#say').innerHTML = esc($('#prompt').value); } });
+  addEventListener('keydown', e => {                                     // on a desktop, typing anywhere goes to the prompt; space and arrows steer the film
+    if (document.activeElement === $('#prompt') || !$('#rec').hidden) return;
+    if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); undo(); return; }
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === ' ' && cur) { e.preventDefault(); toggle(); return; }
+    if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && cur) { e.preventDefault(); stepLine(e.key === 'ArrowRight' ? 1 : -1); return; }
+    if (e.key === 'Escape') { closeWall(); return; }
+    if (e.key.length === 1) { $('#prompt').focus(); }
+  });
+
+  // ------------------------------------------------------------ composing
+  function phrasesFor(text) {
+    if (voice === 'mine' && voiceRec && marks && marks.length === lines.length) {       // your reading keeps the time: each line where you read it, phrases by word share
+      const ph = S.parse(text); let pi = 0;
+      lines.forEach((l, L) => { const n = S.parse(l).length, [a, b] = marks[L], ws = ph.slice(pi, pi + n).map(p => p.text.split(/\s+/).length), tot = ws.reduce((x, y) => x + y, 0) || 1; let t = a;
+        ph.slice(pi, pi + n).forEach((p, j) => { const d = (b - a) * ws[j] / tot; p.t0 = t; p.t1 = t + d; t += d; p.timed = true; }); pi += n; });
+      ph.forEach((p, i) => { if (ph[i + 1]) p.t1 = ph[i + 1].t0; }); ph[0].t0 = 0; const end = marks[marks.length - 1][1] + .6; ph[ph.length - 1].t1 = end;
+      return Promise.resolve({ ph, audio: { src: URL.createObjectURL(voiceRec), offset: 0 }, second: null, T0: 0, T1: end });
+    }
+    if (voice === 'auto' || (voice === 'piper' && !SH.server) || (voice === 'mine' && !voiceRec)) voice = fallbackVoice();
+    return SH.phrases('own', voice === 'piper' ? 'ryan' : 'none', text);
+  }
+  async function build() { const P = await phrasesFor(lines.join('\n')); return SH.compose(P, { wOp: 1, wHome: .09, gap: .045, close: lines.length > 2, locks }); }
+  async function commit(text) {
+    lines.push(text); store.set('poet.lines', lines); if (voice === 'mine') { voice = fallbackVoice(); marks = null; toast('a new line: your recording no longer fits; record again to use your voice'); }
+    drawPoem(); setPlaceholder(); const my = ++composing; pause(); $('#say').className = ''; $('#say').innerHTML = `<span style="color:var(--dim)">${esc(text)}</span>`;
+    try { const c = await build(); if (my !== composing) return; const nNew = S.parse(text).length, from = Math.max(0, c.cut.findIndex(s => s.phrase >= c.ph.length - nNew));
+      await see(c, from); if (my !== composing) return; setFilm(c); play(c.cut[from] ? c.cut[from].t0 : c.T0);
+    } catch (e) { SH.status('rest', 'the words could not be read: ' + e.message); }
+  }
+  async function recompose(atShot, andPlay, atLine) {
+    if (!lines.length) { again(); return; } const was = clock.running; pause(); const my = ++composing; const c = await build(); if (my !== composing) return; setFilm(c);
+    let t = c.T0; if (atLine != null) { let n = 0; for (let j = 0; j < atLine; j++) n += S.parse(lines[j]).length; t = (c.ph[n] || c.ph[0]).t0 + .01; } else if (atShot != null && atShot >= 0 && c.cut[Math.min(atShot, c.cut.length - 1)]) t = c.cut[Math.min(atShot, c.cut.length - 1)].t0 + .01;
+    seekTo(t); if (was || andPlay) play(); if ($('#wall').classList.contains('open')) drawWall();
+  }
+  function see(c, from) {
+    return new Promise(res => { const s = c.cut[from], g = $('#ghosts'); g.innerHTML = ''; if (!s) return res(); const W = innerWidth, H = innerHeight, top = s.alts[0].p;
+      SH.status('weighing', `about ${Math.max(1, Math.round(s.perp))} shots can carry this line`);
+      const imgs = s.alts.slice(0, 14).map((a, j) => { const im = new Image(); im.src = D.LIB.shots[a.k].thumb; const ang = j * 2.39996, r = .26 + .15 * ((j * 37) % 10) / 10;
+        im.style.left = (50 + Math.cos(ang) * r * 100 * Math.min(1, H / W) * 1.5) + '%'; im.style.top = (45 + Math.sin(ang) * r * 90) + '%'; im.style.width = Math.round(56 + 170 * Math.sqrt(a.p / top) * Math.min(1, W / 900)) + 'px';
+        im.style.outline = '2px solid ' + dom(D.LIB.shots[a.k]); g.append(im); setTimeout(() => im.classList.add('show'), 80 + j * 90); return [im, a]; });
+      setTimeout(() => { imgs.forEach(([im, a]) => { if (a.k === s.k) { im.classList.add('take'); im.style.left = '50%'; im.style.top = '50%'; im.style.width = Math.max(W, H * 16 / 9) + 'px'; im.style.outline = 'none'; } else im.classList.add('gone'); });
+        const x = D.LIB.shots[s.k]; SH.status('choosing', `it takes ${x.title}${x.year ? ', ' + x.year : ''}`); setTimeout(() => { res(); setTimeout(() => g.innerHTML = '', 1400); }, 1500); }, 2300); });
+  }
+  const dom = x => { const g = x && (x.signs || [])[0] && D.K.signs[x.signs[0]]; return g ? MPGuide.color(g.dom) : '#6b655c'; };
+
+  // ------------------------------------------------------------ the film
+  const clock = SH.Clock($('#aud'), null); let timer = 0, shown = -1, lineShown = -1;
+  function setFilm(c) { cur = c; clock.set(c); drawStrip(); $('#film').classList.add('on'); setPlaceholder(); }
+  function frame(t) { const c = cur; if (!c) return; const i = c.cut.findIndex(s => t >= s.t0 && t < s.t1);
+    if (i >= 0 && i !== shown) { const s = c.cut[i], x = D.LIB.shots[s.k]; F.show(x, (s.in || 0) + Math.max(0, t - s.t0), null, shown === -1 && !clock.running); shown = i;
+      const nx = c.cut[i + 1]; if (nx) F.preload(D.LIB.shots[nx.k], nx.in || 0); $('#dna').innerHTML = F.dna(x, { op: s.op, p: s.p }); if ($('#wall').classList.contains('open') && !wallPinned) drawWall(); }
+    const li = c.ph.findIndex(p => t >= p.t0 && t < p.t1);
+    if (li >= 0 && li !== lineShown) { lineShown = li; sayLine(c.ph[li].text); if (clock.running) speakLine(c.ph[li].text); document.querySelectorAll('#strip i').forEach((e, j) => { e.classList.toggle('now', j === li); e.classList.toggle('done', j < li); });
+      const L = lineOf(li); document.querySelectorAll('#poem div').forEach((d, j) => { d.classList.toggle('now', j === L); if (j === L) d.scrollIntoView({ block: 'nearest' }); }); } }
+  function lineOf(pi) { let n = 0; for (let L = 0; L < lines.length; L++) { n += S.parse(lines[L]).length; if (pi < n) return L; } return lines.length - 1; }
+  function play(at) { if (!cur) return; unlockVoice(); if (at != null) seekTo(at); $('#veil').hidden = true; lineShown = -1; clock.play(); F.play(); clearInterval(timer); $('#bPlay').innerHTML = '<svg><use href="#i-pause"/></svg>'; document.body.classList.add('playing');
+    timer = setInterval(() => { const t = clock.now(); if (t >= cur.T1) { pause(); SH.status('rest', 'the film rests · add a line, record your voice, or send it'); seekTo(cur.T0); return; } frame(t); F.tick(); }, 40);
+    SH.status('playing', `${cur.cut.length} shot${cur.cut.length > 1 ? 's' : ''} · ${({ mine: 'your voice', piper: 'Piper', device: 'this device\'s voice', none: 'silence' })[voice] || ''}`); wake(); }
+  function pause() { clearInterval(timer); if (canSpeak) try { speechSynthesis.cancel(); } catch (e) { } clock.pause(); if (F) F.pause(); $('#bPlay').innerHTML = '<svg><use href="#i-play"/></svg>'; document.body.classList.remove('quiet', 'playing'); }
+  function toggle() { if (!cur) { toast('type a line first'); return; } clock.running ? pause() : play(); }
+  function seekTo(t) { clock.seek(t); shown = -1; lineShown = -1; frame(t); }
+  function drawStrip() { const L = $('#strip'); L.innerHTML = ''; cur.ph.forEach((p, i) => { const e = document.createElement('i'), s = cur.cut.find(x => x.phrase === i || (x.held || []).includes(i));
+    e.style.flex = `${Math.max(.2, p.t1 - p.t0)} 1 0`; e.style.setProperty('--dc', s ? dom(D.LIB.shots[s.k]) : '#555'); e.title = p.text; e.onclick = () => seekTo(p.t0 + .01); L.append(e); }); }
+  function jumpLine(L) { if (!cur) return; let n = 0; for (let j = 0; j < L; j++) n += S.parse(lines[j]).length; const p = cur.ph[n]; if (p) seekTo(p.t0 + .01); }
+  function stepLine(d) { const t = clock.now(), li = Math.max(0, cur.ph.findIndex(p => t >= p.t0 && t < p.t1)), p = cur.ph[Math.max(0, Math.min(cur.ph.length - 1, li + d))]; seekTo(p.t0 + .01); }
+  function again() { pause(); cur = null; lines = []; locks = {}; history = []; marks = null; voiceRec = null; if (voice === 'mine') voice = fallbackVoice(); sel = -1; store.set('poet.lines', []);
+    $('#film').classList.remove('on'); $('#dna').innerHTML = ''; $('#strip').innerHTML = ''; drawPoem(); closeWall(); setPlaceholder(); try { history_clear(); } catch (e) { } SH.status('rest', 'the room is empty again'); plea(); }
+  function history_clear() { window.history.replaceState(null, '', location.pathname); }
+  $('#bPlay').onclick = toggle; $('#bFold').onclick = () => { const c = document.body.classList.toggle('collapsed'); $('#bFold').innerHTML = `<svg><use href="#i-${c ? 'up' : 'down'}"/></svg>`; store.set('poet.fold', c); };
+
+  // ------------------------------------------------------------ choosing among the shots weighed
+  let wallShot = 0, wallPinned = false;
+  function openWall() { if (!cur) { toast('type a line first'); return; } wallShot = Math.max(0, shown); wallPinned = false; $('#wall').classList.add('open'); drawWall(); }
+  function closeWall() { $('#wall').classList.remove('open'); }
+  $('#bWall').onclick = () => $('#wall').classList.contains('open') ? closeWall() : openWall(); $('#wClose').onclick = closeWall;
+  $('#wPrev').onclick = () => { wallPinned = true; wallShot = Math.max(0, wallShot - 1); seekTo(cur.cut[wallShot].t0 + .01); drawWall(); };
+  $('#wNext').onclick = () => { wallPinned = true; wallShot = Math.min(cur.cut.length - 1, wallShot + 1); seekTo(cur.cut[wallShot].t0 + .01); drawWall(); };
+  $('#wUndo').onclick = () => undo();
+  const lockKey = s => { const n0 = cur.cut.findIndex(x => x.phrase === s.phrase); return s.phrase + ':' + (s.i - n0); };
+  function drawWall() {
+    if (!cur) return; if (!wallPinned) wallShot = Math.max(0, shown); const s = cur.cut[wallShot]; if (!s) return; const top = s.alts[0].p;
+    $('#wTitle').textContent = cur.ph[s.phrase].text; $('#wInfo').textContent = `shot ${wallShot + 1}/${cur.cut.length} · ${EDIT[s.op] || s.op} · ~${Math.max(1, Math.round(s.perp))} in play` + (history.length ? ` · ${history.length} change${history.length > 1 ? 's' : ''}` : '');
+    $('#wUndo').disabled = !history.length; const box = $('#tiles'); box.innerHTML = '';
+    s.alts.forEach(a => { const x = D.LIB.shots[a.k], t = document.createElement('button'); t.className = 'tile' + (a.k === s.k ? ' chosen' : '') + (locks[lockKey(s)] === a.k ? ' mine' : '');
+      const sg = (x.signs || []).slice(0, 3).map(c => D.K.signs[c]).filter(Boolean).map(g => `<i style="background:${MPGuide.color(g.dom)}" title="${esc(g.name)}">${g.symbol}</i>`).join('');
+      t.innerHTML = `<img src="${esc(x.thumb)}" alt="" loading="lazy"><span class="n">${Math.round(a.p * 100)}%</span><span class="s">${sg}</span><span class="p" style="width:${Math.min(100, a.p / top * 100)}%;background:${dom(x)}"></span>`;
+      t.title = `${x.title}${x.year ? ', ' + x.year : ''} · ${Math.round(a.p * 100)}%`;
+      t.onmouseenter = () => { if (!clock.running) F.show(x, x.in || 0, { loop: true }); }; t.onmouseleave = () => { if (!clock.running) { shown = -1; frame(clock.now()); } };
+      t.onclick = () => { if (a.k === s.k) return; history.push({ lines: [...lines], locks: { ...locks } }); locks[lockKey(s)] = a.k; toast('kept: ' + x.title); recompose(wallShot, false); };
+      box.append(t); });
+  }
+  function undo() { const h = history.pop(); if (!h) return; lines = h.lines; locks = h.locks; store.set('poet.lines', lines); drawPoem(); toast('undone'); recompose(wallShot, clock.running); }
+
+  // ------------------------------------------------------------ hearing: the page records the microphone itself and Whisper, in this browser, finds the words
+  const hearStatus = d => { if (d.status === 'error') { SH.status('rest', d.message); toast(d.message); return; } SH.status(d.status === 'ready' ? 'hearing' : 'loading', d.status === 'ready' ? 'finding your words' : 'fetching the listener (once)', d.frac); };
+  // the microphone check: every step on screen, so a failure names itself
+  function openCheck() {
+    let el = document.getElementById('chk'); if (el) el.remove(); el = document.createElement('div'); el.id = 'chk';
+    el.style.cssText = 'position:fixed;inset:0;z-index:40;background:#050505f5;display:grid;place-items:center;padding:20px';
+    el.innerHTML = '<div style="width:min(520px,100%)"><div style="font:300 26px Fraunces,Georgia,serif;margin-bottom:6px">Microphone check</div><div style="color:#8a8378;margin-bottom:14px">Say a few words now. Each step reports below; if one fails, that line is the reason.</div><div id="chkRows" style="display:grid;gap:8px"></div><button class="pill" id="chkX" style="margin-top:18px">CLOSE</button></div>';
+    document.body.append(el); el.querySelector('#chkX').onclick = () => el.remove(); const rows = {};
+    const row = (name, ok, detail) => { let r = rows[name]; if (!r) { r = rows[name] = document.createElement('div'); r.style.cssText = 'display:grid;grid-template-columns:96px 1fr;gap:10px;padding:8px 0;border-top:1px solid #1f1d1a'; el.querySelector('#chkRows').append(r); }
+      r.innerHTML = `<span style="letter-spacing:.08em;color:${ok === true ? '#9bd69f' : ok === false ? '#e8786e' : '#e8c070'}">${ok === true ? 'OK' : ok === false ? 'FAILED' : '…'} · ${name}</span><span style="color:#cfc8bc;overflow-wrap:anywhere">${esc(detail)}</span>`; };
+    pause(); unlockVoice(); MPHear.check(row).then(ok => row('result', ok, ok ? 'everything works: use the mic or the red dot' : 'tell us the FAILED line and your phone and browser'));
+  }
+  const micError = e => toast(/NotAllowed|Permission|denied/i.test(e.name + e.message) ? 'the microphone is not allowed: allow it for this site in the browser settings' : /NotFound/i.test(e.name) ? 'no microphone was found' : 'could not listen: ' + e.message);
+  // say one line: tap, speak, stop speaking (or tap again); the words appear in the prompt and join the film
+  let saying = null;
+  // live voice: with an OpenAI key in this browser the mic button opens a realtime session that hears lines and acts on the film
+  let live = null, liveT = null, liveMic = '';
+  async function micSheet() { let list = []; try { list = await MPMic.list(); } catch (e) { }
+    if (!list.length || !list[0].label) { toast('tap the microphone once and allow it; then the microphones can be listed here'); return; }
+    const w = document.createElement('div'); w.style.cssText = 'position:fixed;inset:0;z-index:120;background:#000c;display:grid;place-items:end center';
+    const f = document.createElement('div'); f.style.cssText = "width:min(460px,100%);background:#0e0d0c;border:1px solid #2a2723;border-radius:14px 14px 0 0;padding:14px 10px calc(14px + env(safe-area-inset-bottom));font:12px 'IBM Plex Mono',monospace;color:#efe9dd";
+    f.innerHTML = '<div style="letter-spacing:.2em;font-size:10px;color:#6f695f;margin:4px 8px 8px">MICROPHONE</div>';
+    [{ deviceId: '', label: 'Let the browser choose' }, ...list.filter(d => d.deviceId !== 'default')].forEach(d => { const b = document.createElement('button'); b.textContent = d.label; const on = d.deviceId === MPMic.id();
+      b.style.cssText = 'display:block;width:100%;text-align:left;min-height:44px;padding:10px;border:0;border-radius:8px;background:' + (on ? '#e8c07022' : 'none') + ';color:' + (on ? '#e8c070' : '#efe9dd') + ';font:inherit;cursor:pointer';
+      b.onclick = () => { MPMic.set(d.deviceId); w.remove(); toast('microphone: ' + d.label); }; f.append(b); });
+    w.append(f); w.onclick = e => { if (e.target === w) w.remove(); }; document.body.append(w); }
+  const lineArg = { type: 'object', properties: { line: { type: 'integer', description: 'line number, 1 is the first' }, text: { type: 'string' } } };
+  const poemNow = () => ({ lines: lines.map((t, i) => `${i + 1}. ${t}`), playing: clock.running });
+  const LIVE_TOOLS = [
+    { name: 'add_line', description: 'Add one line to the poem, in the speaker\'s exact words. The film grows by that line and plays it.', parameters: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] }, run: a => { commit(String(a.text || '').trim()); return poemNow(); } },
+    { name: 'change_line', description: 'Replace the words of an existing line.', parameters: { ...lineArg, required: ['line', 'text'] }, run: a => { const i = a.line - 1; if (!(i >= 0 && i < lines.length)) return { error: 'no such line' }; history.push({ lines: [...lines], locks: { ...locks } }); lines[i] = String(a.text).trim(); locks = {}; marks = null; if (voice === 'mine') voice = fallbackVoice(); store.set('poet.lines', lines); drawPoem(); recompose(null, true, i); return poemNow(); } },
+    { name: 'remove_line', description: 'Remove a line from the poem.', parameters: { ...lineArg, required: ['line'] }, run: a => { const i = a.line - 1; if (!(i >= 0 && i < lines.length)) return { error: 'no such line' }; history.push({ lines: [...lines], locks: { ...locks } }); lines.splice(i, 1); locks = {}; marks = null; store.set('poet.lines', lines); drawPoem(); if (lines.length) recompose(null, false); else again(); return poemNow(); } },
+    { name: 'play', description: 'Play the film, from the start or from a given line.', parameters: lineArg, run: a => { if (!cur) return { error: 'there is no film yet' }; if (a.line) jumpLine(a.line - 1); else seekTo(cur.T0); play(); return { ok: true }; } },
+    { name: 'pause', description: 'Pause the film.', run: () => { pause(); return { ok: true }; } },
+    { name: 'undo', description: 'Undo the last change to the poem.', run: () => { undo(); return poemNow(); } },
+    { name: 'begin_again', description: 'Clear the whole poem and the film. Only when plainly asked.', run: () => { again(); return poemNow(); } },
+    { name: 'calm', description: 'Turn calm mode (slower pictures and dissolves) on or off.', parameters: { type: 'object', properties: { on: { type: 'boolean' } }, required: ['on'] }, run: a => { if (!!a.on !== !!F.isCalm) F.calm(!!a.on); return { ok: true }; } },
+    { name: 'read_poem', description: 'Get the poem as it stands, with line numbers.', run: poemNow } ];
+  const LIVE_RULES = `You operate the Markov Poet, a room where spoken lines of a poem become a film cut from an archive. The person is a poet speaking aloud.
+When they speak a line of poetry, a sentence, an image or a fragment, call add_line with exactly their words: do not improve, complete or answer it. One spoken sentence or breath is one line.
+When they give an instruction about the film or the poem (play, pause, change line two, remove the last line, undo, start over, calm), call the matching tool.
+Say almost nothing. After a tool call stay silent or say at most two or three words. Never recite the poem back, never comment on it, never ask questions unless an instruction cannot be carried out.
+If you cannot tell whether something is a line or an instruction, treat it as a line.`;
+  function liveEnd(why) { clearInterval(liveT); live = null; $('#bMic').classList.remove('on'); $('#bMic').style.boxShadow = ''; if (why) { SH.status('rest', 'live voice stopped: ' + why); toast('live voice stopped: ' + why); } else SH.status('rest', 'live voice off'); }
+  async function liveToggle() {
+    if (live) { const l = live; live = null; l.stop(); return; }
+    pause(); unlockVoice(); $('#bMic').classList.add('on'); SH.status('listening', 'asking for the microphone');
+    const p = MPLive.start({ instructions: LIVE_RULES + '\nThe poem so far:\n' + (lines.map((t, i) => `${i + 1}. ${t}`).join('\n') || '(empty)'), tools: LIVE_TOOLS, on: {
+      state: (st, why) => { if (st === 'connecting') SH.status('listening', 'connecting the live voice'); else if (st === 'live') { SH.status('listening', 'live on ' + liveMic + ' · speak a line, or say what to change'); toast('live voice is on · tap the microphone to stop'); } else if (st === 'closed') liveEnd(why); },
+      partial: t => { if (!t || clock.running) return; clearTimeout(pleaT); $('#starters').hidden = true; $('#say').className = ''; $('#say').innerHTML = `<span style="color:var(--dim)">${esc(t)}</span>`; },
+      level: lv => { $('#bMic').style.boxShadow = `0 0 0 ${Math.round(2 + lv * 22)}px #e8c07033`; },
+      mic: l => { liveMic = l; }, error: m => toast(m) } });
+    try { live = await p; liveT = setInterval(() => { if (live) live.mute(clock.running && voice !== 'none'); }, 200); }   // the film's own voice must not be heard as a new line
+    catch (e) { $('#bMic').classList.remove('on'); if (e.name === 'NotAllowedError' || e.name === 'NotFoundError') micError(e); else { SH.status('rest', 'live voice could not start: ' + e.message); toast('live voice could not start: ' + e.message); } }
+  }
+  $('#bMic').onclick = async () => {
+    if (live || MPLive.hasKey()) return liveToggle();
+    MPLive.keySheet(ok => toast(ok ? (MPLive.kept === 'tab' ? 'key held for this tab only (this browser\'s storage is full) · tap the microphone and speak' : 'key saved · tap the microphone and speak') : 'live voice needs an OpenAI key · tap the microphone to add one')); return;
+    if (saying) { saying.stop(); return; }
+    if (!MPHear.supported()) { toast('this browser cannot record; type the line instead'); return; }
+    pause(); unlockVoice(); let t; $('#bMic').classList.add('on'); SH.status('listening', 'asking for the microphone');
+    try { t = await MPHear.take({ autoStop: true, onLevel: lv => { $('#bMic').style.boxShadow = `0 0 0 ${Math.round(2 + lv * 22)}px #e8c07033`; } }); } catch (e) { $('#bMic').classList.remove('on'); SH.status('rest', 'the microphone did not start'); micError(e); return; }
+    saying = t; $('#bMic').classList.add('on'); SH.status('listening', 'listening to ' + t.label + ' · say one line, then pause'); MPHear.warm(hearStatus);
+    const done = r => { if (done.ran) return; done.ran = true; saying = null; $('#bMic').classList.remove('on'); $('#bMic').style.boxShadow = ''; heard(r); };
+    t.auto.then(done); const stop = t.stop; t.stop = () => stop().then(done);
+  };
+  async function heard(r) {
+    if (!r || r.seconds < .5) { SH.status('rest', 'nothing was heard'); return; }
+    if (r.peak < .012) { SH.status('rest', 'no sound from ' + r.label); toast('“' + r.label + '” gave only silence · pick another in ⋯ · Microphone, or check the input in system sound settings'); return; }
+    SH.status('hearing', 'finding your words');
+    try { const out = await MPHear.words(r.pcm, hearStatus), text = out.text.replace(/\[[^\]]*\]|\([^)]*\)/g, '').trim();
+      if (!text) { SH.status('rest', 'no words were found; tap the mic and try again'); return; }
+      const line = text.replace(/^\w/, c => c.toUpperCase());
+      if (sel >= 0) { $('#prompt').value = line; $('#prompt').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); } else commit(line);
+    } catch (e) { SH.status('rest', 'the listener could not run: ' + e.message); toast('could not find the words; type the line instead'); }
+  }
+
+  // ------------------------------------------------------------ recording a reading: one take, then the words are found and each line is placed where you read it
+  let R = null;
+  $('#bRec').onclick = () => openRec();
+  function recButtons(state) {
+    const b = $('#recBtns'); b.innerHTML = '';
+    const add = (label, cls, fn) => { const x = document.createElement('button'); x.className = 'pill ' + cls; x.textContent = label; x.onclick = fn; b.append(x); };
+    if (state === 'ready') { add('RECORD', 'red', () => startTake()); $('#recHint').textContent = lines.length ? 'read the poem at your own pace; the film will follow your timing' : 'no poem yet: just speak; each sentence becomes a line'; }
+    if (state === 'rolling') { add('STOP', 'red', () => stopTake()); $('#recHint').textContent = lines.length ? 'recording · read the poem, then STOP' : 'recording · say your poem, then STOP'; }
+    if (state === 'working') { $('#recHint').textContent = 'finding your words and where each line falls…'; }
+    if (state === 'review') { add('RETAKE', '', () => { discardTake(); showPrompter(); recButtons('ready'); }); add('KEEP MY VOICE', 'gold', () => keepTake()); $('#recHint').textContent = 'listen back with the film; keep it, or take it again'; }
+  }
+  function showPrompter() { const p = $('#prompter'); p.innerHTML = ''; (lines.length ? lines : ['Say your poem.', 'Pause between lines.']).forEach(l => { const d = document.createElement('div'); d.textContent = l; d.className = lines.length ? 'now' : ''; p.append(d); }); }
+  function openRec() { if (!MPHear.supported()) { toast('this browser cannot record'); return; } pause(); closeWall(); $('#rec').hidden = false; $('#rec').style.background = ''; $('#recTitle').textContent = lines.length ? 'READ YOUR POEM ALOUD' : 'SAY YOUR POEM'; $('#recTime').textContent = '0:00'; showPrompter(); recButtons('ready'); drawSpark([]); MPHear.warm(hearStatus); }
+  $('#recX').onclick = () => { discardTake(); $('#rec').hidden = true; };
+  async function startTake() {
+    unlockVoice(); let take; const level = [];
+    try { take = await MPHear.take({ onLevel: (lv, t) => { level.push(lv); $('#recTime').textContent = `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`; drawSpark(level); } }); } catch (e) { micError(e); return; }
+    R = { take, level }; SH.status('recording', 'recording'); recButtons('rolling');
+  }
+  async function stopTake() {
+    if (!R || !R.take) return; recButtons('working'); const r = await R.take.stop(); R.take = null;
+    if (r.seconds < 1) { toast('that was too short; try again'); recButtons('ready'); return; }
+    let ws = []; try { ws = (await MPHear.words(r.pcm, hearStatus)).words.filter(w => w.w && !/^[\[(]/.test(w.w)); } catch (e) { toast('the words could not be found; the lines are spread evenly'); }
+    if (!lines.length) { const sent = MPHear.sentences(ws); if (!sent.length) { toast('no words were found; try again'); recButtons('ready'); return; }
+      lines = sent.map(x => x.text); marks = sent.map(x => [x.t0, x.t1]); store.set('poet.lines', lines); drawPoem(); showPrompter(); }
+    else marks = ws.length ? MPHear.align(ws, lines) : lines.map((l, i) => [r.seconds * i / lines.length, r.seconds * (i + 1) / lines.length]);
+    marks[marks.length - 1][1] = Math.max(marks[marks.length - 1][1], r.seconds - .1);
+    voiceRec = r.blob; voice = 'mine'; locks = {}; SH.status('composing', 'composing with your voice'); const c = await build(); setFilm(c); recButtons('review'); $('#rec').style.background = '#05050599'; play(c.T0);
+  }
+  function keepTake() { $('#rec').hidden = true; $('#rec').style.background = ''; toast('your voice keeps the film\'s time now'); R = null; }
+  function discardTake() { if (R && R.take) R.take.cancel(); R = null; pause(); $('#rec').style.background = ''; }
+  function drawSpark(level) { const c = $('#spark'), w = c.clientWidth || 300, h = c.clientHeight || 44, x = c.getContext('2d'); c.width = w * devicePixelRatio; c.height = h * devicePixelRatio; x.scale(devicePixelRatio, devicePixelRatio);
+    x.clearRect(0, 0, w, h); x.fillStyle = '#2a2723'; x.fillRect(0, h / 2, w, 1); const n = Math.min(level.length, w); x.fillStyle = '#e0453a';
+    for (let i = 0; i < n; i++) { const v = level[level.length - n + i], y = Math.max(1, v * h * .9); x.fillRect(w - n + i, (h - y) / 2, 1, y); } }
+
+  // ------------------------------------------------------------ the device's own voice: what speaks when there is no recording and no lab
+  const canSpeak = 'speechSynthesis' in window; let unlocked = false;
+  function unlockVoice() { if (unlocked || !canSpeak) return; unlocked = true; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) { } }
+  function speakLine(t) { if (voice !== 'device' || !canSpeak) return; try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.rate = .92; speechSynthesis.speak(u); } catch (e) { } }
+
+  // ------------------------------------------------------------ the menu: everything that is not needed every second
+  const toggleCalm = () => { F.calm(!F.isCalm); return true; }, toggleSound = () => { F.sound(!F.isSound); return true; };
+  $('#bMore').onclick = e => { e.stopPropagation(); MPUI.menu($('#bMore'), [
+    { title: 'WATCH', items: [
+      { icon: 'calm', label: 'Calm', hint: 'slower dissolves and pictures', on: () => F.isCalm, state: () => F.isCalm ? 'ON' : '', act: toggleCalm },
+      { icon: () => F.isSound ? 'sound' : 'mute', label: 'Films\' own sound', on: () => F.isSound, state: () => F.isSound ? 'ON' : '', act: toggleSound },
+      { icon: 'voice', label: 'Voice', hint: () => ({ mine: 'your recording', piper: 'Piper (Ryan), from the lab', device: 'this device reads the lines', none: 'silence' })[voice] || '', state: () => ({ mine: 'YOURS', piper: 'PIPER', device: 'DEVICE', none: 'OFF' })[voice],
+        act: () => { const o = [...(voiceRec && marks ? ['mine'] : []), ...(SH.server ? ['piper'] : []), ...(canSpeak ? ['device'] : []), 'none']; voice = o[(o.indexOf(voice) + 1) % o.length]; store.set('poet.voice', voice === 'mine' ? 'auto' : voice); if (canSpeak) speechSynthesis.cancel(); if (cur) recompose(shown, clock.running); return true; } },
+      { icon: 'full', label: 'Full screen', act: () => { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => { }); } }] },
+    { title: 'MAKE', items: [
+      { icon: 'mic', label: () => live ? 'Stop live voice' : 'Talk to the film', hint: 'speak lines, or say what to change', act: () => $('#bMic').click() },
+      { icon: 'voice', label: 'Live voice · OpenAI key', hint: 'paste a key to talk to the film live; kept in this browser only', state: () => MPLive.hasKey() ? 'SET' : '', act: () => MPLive.keySheet(ok => toast(ok ? (MPLive.kept === 'tab' ? 'key held for this tab only (this browser\'s storage is full) · tap the microphone and speak' : 'key saved · tap the microphone and speak') : 'no key saved')) },
+      { icon: 'mic', label: 'Microphone', hint: 'choose which microphone listens', act: () => { micSheet(); } },
+      { hidden: true, icon: 'info', label: 'Check the microphone', hint: 'if speaking does nothing: shows each step and what fails', act: () => openCheck() },
+      { hidden: true, icon: 'rec', label: 'Record your voice', hint: () => lines.length ? 'read the poem; the film follows your timing' : 'say the poem; each sentence becomes a line', act: () => openRec() },
+      { icon: 'undo', label: 'Undo', hidden: () => !history.length, act: () => undo() },
+      { icon: 'close', label: 'Remove the selected line', hidden: () => sel < 0, act: () => { history.push({ lines: [...lines], locks: { ...locks } }); lines.splice(sel, 1); sel = -1; locks = {}; marks = null; if (voice === 'mine') voice = fallbackVoice(); $('#prompt').value = ''; store.set('poet.lines', lines); drawPoem(); recompose(null, false); } },
+      { icon: 'take', label: 'Begin again', hint: 'an empty room', hidden: () => !lines.length, act: () => again() }] },
+    { title: 'SEND', items: [
+      { icon: 'send', label: 'Send this film', hint: 'project file, MP4, link', hidden: () => !cur, act: () => { $('#bSend').click(); } },
+      { icon: 'open', label: 'Open a project', hint: 'a .markov.html from a friend', act: () => openFile() }] },
+    { title: 'GO', items: [
+      { icon: 'info', label: 'How this room works', act: () => MPGuide.open('poet') },
+      { icon: 'book', label: 'Narrative', hint: 'poems line by line, every shot weighed', act: () => location.href = 'shannon-narrative.html' },
+      { icon: 'grid', label: 'Storyboard (SAM)', hint: 'this poem as panels with cut-out figures you move', act: () => location.href = 'markov-sam.html' },
+      { icon: 'book', label: 'The Odyssey', hint: '152 scenes as storyboards, footage foraged for each beat', act: () => location.href = 'markov-odyssey.html' },
+      { icon: 'wrench', label: 'The workshop', hint: 'any text, recordings, tests', act: () => location.href = 'markov-engine.html' },
+      { icon: 'home', label: 'The Markov Poet', hint: 'how it works, step by step', act: () => location.href = 'markov-poet.html' }] }]); };
+
+  // ------------------------------------------------------------ sending and opening
+  const blobURL = b => new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(b); });
+  $('#bSend').onclick = async e => { e.stopPropagation(); if (!cur) { MPExport.sheet($('#bSend'), () => null, { open: loadProject }); return; }
+    const pr = MPExport.project(D, cur, { room: 'poet', lines: [...lines], voice, locks: { ...locks }, calm: F.isCalm, sound: F.isSound, audioData: voice === 'mine' && voiceRec ? await blobURL(voiceRec) : null });
+    MPExport.sheet($('#bSend'), () => pr, { open: loadProject }); };
+  function openFile() { const i = document.createElement('input'); i.type = 'file'; i.accept = '.html,.json'; i.onchange = async () => { try { loadProject(await MPExport.read(i.files[0])); } catch (err) { toast(err.message); } }; i.click(); }
+  async function loadProject(pr) {
+    pause(); lines = pr.lines || [...new Set(pr.film.ph.map(p => p[2]))]; locks = pr.locks || {}; history = []; store.set('poet.lines', lines); drawPoem();
+    if (pr.film.audioData && pr.voice === 'mine') { voiceRec = await (await fetch(pr.film.audioData)).blob(); let pi = 0; marks = lines.map(l => { const n = S.parse(l).length, a = pr.film.ph[pi], b = pr.film.ph[pi + n - 1]; pi += n; return [a ? a[0] : 0, b ? b[1] : 0]; }); voice = 'mine'; }
+    if (!!pr.calm !== F.isCalm) F.calm(!!pr.calm); SH.status('reading', 'opening ' + (pr.title || 'a project'));
+    const c = await build(); setFilm(c); seekTo(c.T0); $('#veilSub').textContent = (pr.title || '') + (pr.score ? ` · their score ${pr.score.total}: change a shot and beat it` : ''); $('#veil').hidden = false; $('#veil').onclick = () => play(c.T0);
+  }
+  addEventListener('dragover', e => e.preventDefault()); addEventListener('drop', async e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) try { await loadProject(await MPExport.read(f)); } catch (err) { toast(err.message); } });
+
+  // ------------------------------------------------------------ waking
+  if (store.get('poet.fold', false)) { document.body.classList.add('collapsed'); $('#bFold').innerHTML = '<svg><use href="#i-up"/></svg>'; }
+  // readiness: one line under the top edge, the prompt saying how long, and a clear moment when it is ready
+  let wasReady = false;
+  SH.onReady(r => { const bar = $('#ready'); bar.style.width = Math.round(r.frac * 100) + '%'; setPlaceholder();
+    if (!r.all && !cur && !/playing|recording|listening|hearing/.test($('#sys').className + $('#sysText').textContent)) SH.status('loading', r.failed || `getting ready · ${r.archive ? 'archive in' : 'archive'} · reader ${Math.round((window.ClipText ? ClipText.frac : 1) * 100)}%` + (r.eta ? ` · about ${Math.ceil(r.eta)} s` : ''));
+    if (r.all && !wasReady) { wasReady = true; bar.style.opacity = 0; if (!cur) SH.status('rest', 'ready · type or say a line'); setPlaceholder();
+    } });   // the listener is fetched behind the scenes, ready before the mic is tapped
+  SH.load({ light: true }).then(async d => { D = d; F = MPFilm($('#film'), { signs: d.K.signs }); MPGuide.first('poet'); drawStarters();
+    const m = location.hash.match(/#p=([\w-]+)/);
+    if (m) { try { const o = await MPExport.unpack(m[1]); lines = o.l || []; locks = o.k || {}; drawPoem(); SH.status('reading', 'reading a poem someone sent');
+        const c = await build(); setFilm(c); seekTo(c.T0); $('#veilSub').textContent = lines.join(' / ').slice(0, 160); $('#veil').hidden = false; $('#veil').onclick = () => play(c.T0); if (/rec=1/.test(location.hash)) openRec(); } catch (e) { toast('the link could not be read'); plea(); } }
+    else { lines = store.get('poet.lines', []); drawPoem(); setPlaceholder(); if (lines.length) { SH.status('rest', 'your poem is here · play it, add a line, or record your voice'); build().then(c => { setFilm(c); seekTo(c.T0); }).catch(() => { }); } else { SH.status('rest', `${d.LIB.n.toLocaleString()} shots at rest`); plea(); } }
+  }).catch(e => SH.status('rest', 'the archive could not wake: ' + e.message));
+})();
+</script>
+</body></html>
