@@ -5,6 +5,7 @@ book, a card per scene) makes it followable without knowing the Odyssey. A refra
 between scenes and closes it, so each book reads as one poem.
 Writes radio.json (published).   usage: python3 radio_build.py [path to odyssey-halfworld]"""
 import glob, json, os, sys, urllib.parse
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); from align import align
 H = os.path.dirname(os.path.abspath(__file__)); HW = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/Downloads/odyssey-halfworld")
 SITE = "https://hartswf0.github.io/odyssey-halfworld/"
 url = lambda p: SITE + urllib.parse.quote(p)
@@ -20,6 +21,26 @@ for f in glob.glob(os.path.join(H, "src", "stranger_*.json")):
     d = json.load(open(f)); ST["books"].update(d.get("books", {})); ST["scenes"].update(d.get("scenes", {}))
 lib = {s["id"]: s for s in json.load(open(os.path.join(H, "all", "library.json")))["shots"]}
 lib.update({s["id"]: s for s in json.load(open(os.path.join(os.path.dirname(H), "markov", "library.json")))["shots"] if s.get("kind") != "poet"})
+SPOKEN = {}
+for f in glob.glob(os.path.join(HW, "atlas", "spoken-lines", "lines-*.json")):
+    for k, x in json.load(open(f)).items():
+        if (x.get("line") or "").strip(): SPOKEN[k] = x["line"].strip()
+import re
+def chunks(text, start, dur, most=110):
+    """A long speech becomes phrases on screen, each held for its share of the recording by length, so the words keep pace with the voice."""
+    parts = [p.strip() for p in re.split(r"(?<=[.!?;:—])\s+", text) if p.strip()]
+    out = []
+    for p in parts:   # a sentence still too long is cut at commas
+        if len(p) <= most: out.append(p); continue
+        cur = ""
+        for w in re.split(r"(?<=,)\s+", p):
+            if cur and len(cur) + len(w) > most: out.append(cur); cur = w
+            else: cur = (cur + " " + w).strip()
+        if cur: out.append(cur)
+    tot = sum(len(p) + 6 for p in out) or 1; t = start; res = []
+    for p in out:
+        d = dur * (len(p) + 6) / tot; res.append((round(t, 2), round(t + d, 2), p)); t += d
+    return res
 def clipgain(i, forward):
     """(gain under speech, gain in the clear): the archive's own sound, levelled to sit under the voice or carry the gap."""
     a = audio.get(i)
@@ -37,7 +58,14 @@ for sid in sorted(cuts):
     segs = sp["segments"]; subs = []
     for g in v["segments"]:
         s = segs[g["gi"]] if g["gi"] < len(segs) else None
-        if s and s["kind"] != "SPEAKER_CUE": subs.append({"t0": round(g["start"], 2), "t1": round(g["start"] + g["dur"], 2), "who": s["speakerName"], "kind": s["kind"], "text": s["text"]})
+        if not s or s["kind"] == "SPEAKER_CUE": continue
+        # what was actually spoken: the recordings read the full line (atlas/spoken-lines) where the script often carries a summary;
+        # take whichever text fits the length of the recording at a speaking pace
+        cands = [s["text"]] + ([SPOKEN[s["sourceTurnId"]]] if SPOKEN.get(s.get("sourceTurnId") or "") else [])
+        text = min(cands, key=lambda t: abs(len(t) / max(.4, g["dur"]) - 13.5))
+        for c0, c1, piece in chunks(text, g["start"], g["dur"]): subs.append({"t0": c0, "t1": c1, "who": s["speakerName"], "kind": s["kind"], "text": piece})
+    wf = os.path.join(H, "cache", "voice-words", sid + ".json")
+    if os.path.exists(wf): subs = align(subs, json.load(open(wf)))       # on the words as spoken
     shots = [x for x in cut["shots"] if x["clip"] and x["clip"] in lib]
     if not shots: continue
     tot = sum(float(x["sec"] or 4) for x in shots); k = T / tot; t = 0.0; starts = [g["t0"] for g in subs]
