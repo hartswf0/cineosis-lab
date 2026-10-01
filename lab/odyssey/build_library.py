@@ -26,6 +26,16 @@ for r, n in enumerate(keep):
                   "signs": [s for s, v in votes.most_common(3) if v >= 3], "signs_inferred": True,
                   "ev": [[int(t), round(float(Z[r, t]), 2)] for t in np.argsort(-Z[r])[:3]], "place": nb[0].get("place", 0)})
 X = XO[keep]; sc = float(np.abs(X).max() / 127)
-np.clip(np.round(X / sc), -127, 127).astype(np.int8).tofile(os.path.join(H, "emb.bin"))
-json.dump({"n": len(shots), "dim": 512, "scale": sc, "model": "ViT-B-32 openai", "collection": "odyssey", "shots": shots}, open(os.path.join(H, "library.json"), "w"), separators=(",", ":"))
+def write(d, rows):
+    os.makedirs(d, exist_ok=True)
+    np.clip(np.round(X[rows] / sc), -127, 127).astype(np.int8).tofile(os.path.join(d, "emb.bin"))
+    json.dump({"n": len(rows), "dim": 512, "scale": sc, "model": "ViT-B-32 openai", "collection": "odyssey", "shots": [shots[r] for r in rows]}, open(os.path.join(d, "library.json"), "w"), separators=(",", ":"))
+# the whole forage (odyssey/all/), and the core the room loads at once (odyssey/): the shots its scenes and cuts name
+write(os.path.join(H, "all"), list(range(len(shots))))
+ref = set()
+for f, get in (("cuts.json", lambda d: [i for v in d["cuts"].values() for x in v["shots"] for i in ([x["clip"]] if x["clip"] else []) + x["alts"]]),
+               ("scenes.json", lambda d: [i for sc_ in d["scenes"] for b in sc_["beats"] for i, _ in b["ground"] + b["action"]] + [i for sc_ in d["scenes"] for f_ in sc_["figures"] for i in f_["clips"]])):
+    if os.path.exists(os.path.join(H, f)): ref |= set(get(json.load(open(os.path.join(H, f)))))
+core = [r for r, x in enumerate(shots) if x["id"] in ref] if ref else list(range(len(shots)))
+write(H, core); print("core", len(core), "of", len(shots))
 print("odyssey collection:", len(shots), "new shots;", len(ids) - len(keep), "already in the main library")

@@ -5,7 +5,7 @@ usage: python3 forage.py        (writes results/raw.json and results/clips.json)
 import glob, json, os, sys, time, urllib.request, urllib.error
 API = "https://www.movingimagearchive.com/api/search"
 H = os.path.dirname(os.path.abspath(__file__)); R = os.path.join(H, "results"); os.makedirs(R, exist_ok=True)
-RAW = os.path.join(R, "raw.json"); GAP = 2.6
+RAW = os.path.join(R, "raw.json"); GAP = 1.4
 KEEP = ("id", "sourceId", "sourceSlug", "sourceTitle", "sourceYear", "startSeconds", "endSeconds", "durationSeconds", "matchTimestampSeconds", "videoUrl", "thumbnailUrl", "colorMode", "aspectRatio", "score")
 
 def search(q):
@@ -28,6 +28,8 @@ def jobs():
     for f in sorted(glob.glob(os.path.join(H, "src", "q_*.json"))):
         for key, v in json.load(open(f)).items():
             if isinstance(v, list): v = {"ground" if key.startswith("loc:") else "motion": v}
+            elif "beats" in v:                                           # a scene spec: every shot's own searches, role shot:<beat>:<shot>
+                v = {f"shot:{bi}:{si}": sh.get("q", []) for bi, b in enumerate(v["beats"]) for si, sh in enumerate(b.get("shots", []))}
             for role, qs in v.items():
                 for q in qs: out.append((key, role, q.strip()))
     return out

@@ -123,7 +123,7 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
   const NS = OD ? 'odyssey.' : 'sam.';
   let lines = OD ? [] : store.get('sam.lines', []), saved = OD ? {} : store.get('sam.panels', {}), panels = [], sel = 0, selFig = -1, grade = store.get('sam.grade', true), tab = 'fig', found = null, composing = 0;
   const key = (i, t) => i + '|' + t;
-  const persist = () => { const o = {}; panels.forEach(p => o[p.key] = { bg: p.bg, figs: p.figs }); saved = o; if (OD) { if (scene) store.set('odyssey.panels.' + scene.id, o); return; } store.set('sam.lines', lines); store.set('sam.panels', o); };
+  const persist = () => { const o = {}; panels.forEach(p => o[p.key] = { bg: p.bg, figs: p.figs }); saved = o; if (OD) { if (scene) store.set('odyssey.panels.' + (scene.cut ? 'cut.' : '') + scene.id, o); return; } store.set('sam.lines', lines); store.set('sam.panels', o); };
   // a figure enters where it stood in its own film, at its own size: the first guess at a composition
   function placeFig(f, n) { const F = SAM.figs[f], [x, y, w, h] = F.box; return { z: .5, f, x: Math.min(.9, Math.max(.1, x + w / 2 + (n ? (n % 2 ? .12 : -.12) : 0))), y: Math.min(.9, Math.max(.12, y + h / 2)), s: Math.min(.42, Math.max(.12, w * .7)), flip: 0 }; }
   function deal(p, n = 2) {   // sample figures by their chance for this line: the Markov step, over cut-outs
@@ -138,13 +138,20 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
     const texts = OD ? [...lines] : Shannon.parse(lines.join('\n')).map(p => p.text), E = await SH.embed(texts); if (my !== composing) return; if (E.some(x => !x)) throw new Error('some words could not be read');
     const used = new Set(), cut = E.map((e, bi) => {
       // an Odyssey beat: its own foraged footage first (grounds and actions, ranked when the forage was read), the whole archive after
-      const ob = OD && scene && scene.beats[bi]; if (ob) { const own = [...ob.action.map(x => [x[0], x[1], 'A']), ...ob.ground.map(x => [x[0], x[1], 'G'])].filter(x => idOf.has(x[0])).sort((a, b) => b[1] - a[1]);
+      // a composed cut (cuts.json): this panel is one shot of it, chosen with the whole scene in view; its alternatives follow
+      const sh = OD && scene && scene.cut && scene.cut.shots[bi];
+      if (sh) { const ids = [sh.clip, ...(sh.alts || [])].filter(x => x && idOf.has(x)); if (ids.length) { const alts = ids.map((x, n) => ({ k: idOf.get(x), p: null, tag: n ? 'SHOT' : 'CUT' }));
+          const sm = D.LIB.sims(e), seen = new Set(alts.map(a => a.k)); rank(sm).slice(0, 12).forEach(k => { if (!seen.has(k)) alts.push({ k, p: null }); }); return { k: alts[0].k, alts }; } }
+      const ob = OD && scene && !scene.cut && scene.beats[bi]; if (ob) { const own = [...ob.action.map(x => [x[0], x[1], 'A']), ...ob.ground.map(x => [x[0], x[1], 'G'])].filter(x => idOf.has(x[0])).sort((a, b) => b[1] - a[1]);
         if (own.length) { const w = own.map(x => Math.exp((x[1] - own[0][1]) / .02)), tot = w.reduce((a, b) => a + b, 0), alts = own.map((x, n) => ({ k: idOf.get(x[0]), p: w[n] / tot, tag: x[2] }));
           const sm = D.LIB.sims(e), seen = new Set(alts.map(a => a.k)); rank(sm).slice(0, 16).forEach(k => { if (!seen.has(k)) alts.push({ k, p: null }); });
           const pick = alts.find(a => !used.has(D.LIB.shots[a.k].src)) || alts[0]; used.add(D.LIB.shots[pick.k].src); return { k: pick.k, alts }; } } const sm = D.LIB.sims(e), top = rank(sm).slice(0, 24), w = top.map(k => Math.exp((sm[k] - sm[top[0]]) / .018)), tot = w.reduce((a, b) => a + b, 0), alts = top.map((k, n) => ({ k, p: w[n] / tot }));
       const pick = alts.find(a => !used.has(D.LIB.shots[a.k].src)) || alts[0]; used.add(D.LIB.shots[pick.k].src); return { k: pick.k, alts }; });
+    // figures only where the spec asked for one, and only a cut-out that fits it well enough: pasted figures can make a scene worse
+    const fsub = {}; if (OD && scene && scene.cut) { const subs = [...new Set(scene.cut.shots.map(x => x.figure && x.figure.subject).filter(Boolean))]; if (subs.length) (await SH.embed(subs)).forEach((v, n) => fsub[subs[n]] = v); }
+    const figFor = sh => { const v = sh && sh.figure && fsub[sh.figure.subject]; if (!v) return []; const fs = figSims(v), i = rank(fs)[0]; return fs[i] >= .26 ? [{ ...placeFig(i, 0), x: .5, y: .58 }] : []; };
     panels = cut.map((s, i) => { const fsims = figSims(E[i]), p = { key: key(i, texts[i]), text: texts[i], e: E[i], fsims, cands: rank(fsims).slice(0, 40), alts: s.alts.map(a => ({ k: a.k, p: a.p, tag: a.tag })), bg: s.k, figs: [] };
-      const was = saved[p.key]; if (was) { p.bg = was.bg; p.figs = (was.figs || []).filter(g => SAM.figs[g.f]); } else p.figs = deal(p); return p; });
+      const was = saved[p.key]; if (was) { p.bg = was.bg; p.figs = (was.figs || []).filter(g => SAM.figs[g.f]); } else p.figs = OD && scene && scene.cut ? figFor(scene.cut.shots[i]) : deal(p); if (OD && scene && scene.cut) { p.shot = scene.cut.shots[i]; } return p; });
     if (!keepSel) sel = panels.length - 1; sel = Math.max(0, Math.min(sel, panels.length - 1)); selFig = -1; found = null; persist(); draw();
     SH.status('rest', `${panels.length} panel${panels.length > 1 ? 's' : ''} · drag a figure to move it`);
   }
@@ -171,7 +178,7 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
     drawStage(); drawStrip(); drawTray(); }
   function drawStage() { const p = panels[sel], st = $('#stage'); paint(st, p, true); const c = document.createElement('div'); c.className = 'cap'; c.textContent = p.text; st.append(c); markSel(); fit(); }
   function markSel() { $('#stage').querySelectorAll('.fig').forEach(d => d.classList.toggle('sel', +d.dataset.n === selFig)); drawTools(); }
-  function drawStrip() { const s = $('#strip'); s.innerHTML = ''; panels.forEach((p, i) => { const d = document.createElement('div'); d.className = 'panel' + (i === sel ? ' cur' : ''); paint(d, p, false); const b = document.createElement('b'); b.textContent = i + 1; d.append(b); d.onclick = () => { stop(); go(i); }; s.append(d); });
+  function drawStrip() { const s = $('#strip'); s.innerHTML = ''; panels.forEach((p, i) => { const d = document.createElement('div'); d.className = 'panel' + (i === sel ? ' cur' : ''); paint(d, p, false); const b = document.createElement('b'); b.textContent = (i + 1) + (p.shot ? ' · ' + p.shot.role : ''); d.append(b); d.onclick = () => { stop(); go(i); }; s.append(d); });
     const c = s.querySelector('.cur'); if (c) s.scrollLeft = c.offsetLeft - s.offsetLeft - (s.clientWidth - c.clientWidth) / 2; }
   function restrip() { const d = $('#strip').children[sel]; if (d) { paint(d, panels[sel], false); const b = document.createElement('b'); b.textContent = sel + 1; d.append(b); } }
   function go(i) { sel = Math.max(0, Math.min(panels.length - 1, i)); selFig = -1; found = null; $('#find').value = ''; draw(); }
@@ -229,7 +236,10 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
   /* play: the board read through, one panel a line */
   let playT = null, playing = false;
   function stop() { playing = false; clearTimeout(playT); try { speechSynthesis.cancel(); } catch (e) { } $('#bPlay').innerHTML = '<svg><use href="#i-play"/></svg>'; }
-  function step(i) { if (!playing) return; if (i >= panels.length) { stop(); return; } go(i); const t = panels[i].text, dur = Math.max(2400, t.split(/\s+/).length * 430); let done = false; const next = () => { if (done) return; done = true; clearTimeout(playT); playT = setTimeout(() => step(i + 1), 500); };
+  function step(i) { if (!playing) return; if (i >= panels.length) { stop(); return; }
+    if (panels[i].shot) { go(i); const sh = panels[i].shot, prev = panels[i - 1] && panels[i - 1].shot; if (!prev || prev.beat !== sh.beat) { try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(panels[i].text); u.rate = .92; speechSynthesis.speak(u); } catch (e) { } }
+      clearTimeout(playT); playT = setTimeout(() => step(i + 1), Math.max(1500, (sh.sec || 4) * 1000)); return; }   // a cut plays by its own lengths; the beat is read once, at its first shot
+    go(i); const t = panels[i].text, dur = Math.max(2400, t.split(/\s+/).length * 430); let done = false; const next = () => { if (done) return; done = true; clearTimeout(playT); playT = setTimeout(() => step(i + 1), 500); };
     try { const u = new SpeechSynthesisUtterance(t); u.rate = .92; u.onend = next; speechSynthesis.speak(u); } catch (e) { } playT = setTimeout(next, dur + 2500); }
   $('#bPlay').onclick = () => { if (playing) return stop(); if (!panels.length) return; playing = true; $('#bPlay').innerHTML = '<svg><use href="#i-pause"/></svg>'; step(sel >= panels.length - 1 ? 0 : sel); };
 
@@ -344,7 +354,7 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
       { icon: 'take', label: 'Deal again', hint: 'new figures, by their chance for this line', act: () => $('#bDeal').click() },
       { icon: 'close', label: 'Clear the figures', hidden: () => !panels[sel] || !panels[sel].figs.length, act: () => { panels[sel].figs = []; selFig = -1; persist(); drawStage(); restrip(); } },
       { icon: 'close', label: 'Remove this line', hidden: () => !panels.length, act: () => removeLine(lineOf(sel)) }] },
-    ...(OD ? [{ title: 'THE ODYSSEY', items: [{ icon: 'book', label: 'Choose a scene', hint: '152 scenes, book by book', act: () => drawScenes() }, { icon: 'right', label: 'Next scene', act: () => stepScene(1) }, { icon: 'left', label: 'Previous scene', act: () => stepScene(-1) }, { icon: 'take', label: 'Deal every panel again', hint: 'this scene, fresh figures and first-choice grounds', act: () => { saved = {}; store.set('odyssey.panels.' + scene.id, {}); rebuild().then(() => go(0)); } }] }] : []),
+    ...(OD ? [{ title: 'THE ODYSSEY', items: [{ icon: 'book', label: 'Choose a scene', hint: '152 scenes, book by book', act: () => drawScenes() }, { icon: 'right', label: 'Next scene', act: () => stepScene(1) }, { icon: 'grid', label: () => new URLSearchParams(location.search).has('all') ? 'Search the core forage only' : 'Search the whole forage', hint: 'every clip the Odyssey searches found (about 20,000 new, a slower start)', act: () => { const u = new URLSearchParams(location.search); u.has('all') ? u.delete('all') : u.set('all', ''); location.search = u.toString().replace(/all=(&|$)/, 'all$1'); } }, { icon: 'left', label: 'Previous scene', act: () => stepScene(-1) }, { icon: 'take', label: 'Deal every panel again', hint: 'this scene, fresh figures and first-choice grounds', act: () => { saved = {}; store.set('odyssey.panels.' + (scene.cut ? 'cut.' : '') + scene.id, {}); rebuild().then(() => go(0)); } }] }] : []),
     { title: 'THE BOARD', items: [
       { icon: 'grid', label: 'See the whole storyboard', hidden: () => !panels.length, act: openBoard },
       { icon: 'calm', label: 'One grade', hint: 'grounds and figures in the same black and white, so they sit together', on: () => grade, state: () => grade ? 'ON' : '', act: () => { grade = !grade; store.set('sam.grade', grade); draw(); return true; } },
@@ -360,8 +370,8 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
   let idOf = new Map();
   const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX', 'XXI', 'XXII', 'XXIII', 'XXIV'];
   const sceneTag = s => ROMAN[s.book] + '·' + (+s.id.slice(-2));
-  function openScene(id) { const s = ODS.scenes.find(x => x.id === id) || ODS.scenes[0]; stop(); scene = s; store.set('odyssey.scene', s.id); lines = s.beats.map(b => b.text); saved = store.get('odyssey.panels.' + s.id, {}); undoStack.length = 0;
-    $('#bScene').textContent = sceneTag(s); $('#scenes').hidden = true; history.replaceState(null, '', location.pathname + '?od=' + s.id);
+  function openScene(id) { const s = ODS.scenes.find(x => x.id === id) || ODS.scenes[0]; stop(); scene = s; store.set('odyssey.scene', s.id); s.cut = ODS.cuts && ODS.cuts[s.id]; lines = s.cut ? s.cut.shots.map(x => s.beats[x.beat] ? s.beats[x.beat].text : s.title) : s.beats.map(b => b.text); saved = store.get('odyssey.panels.' + (s.cut ? 'cut.' : '') + s.id, {}); undoStack.length = 0;
+    $('#bScene').textContent = sceneTag(s); $('#scenes').hidden = true; history.replaceState(null, '', location.pathname + '?od=' + s.id + (new URLSearchParams(location.search).has('all') ? '&all' : ''));
     SH.status('reading', `${s.title} · ${s.place.join(', ') || 'at sea'}`); rebuild().then(() => { go(0); SH.status('rest', `${sceneTag(s)} · ${s.title} · ${s.place.join(', ') || 'at sea'}`); }).catch(e => SH.status('rest', e.message)); }
   function stepScene(d) { const i = ODS.scenes.findIndex(x => x.id === scene.id); openScene(ODS.scenes[(i + d + ODS.scenes.length) % ODS.scenes.length].id); }
   function drawScenes() { const L = $('#sceneList'); L.innerHTML = ''; let book = 0, row = null;
@@ -369,8 +379,8 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
       const b = document.createElement('button'); b.className = (scene && scene.id === s.id ? 'cur ' : '') + (s.in_cut === false ? 'drop' : ''); b.innerHTML = `<b>${esc(s.sign.symbol || '·')}</b><span>${esc(s.title)}</span>`; b.title = (s.sign.name || '') + ' · ' + s.place.join(', '); b.onclick = () => openScene(s.id); row.append(b); });
     $('#scenes').hidden = false; const c = L.querySelector('.cur'); if (c) c.scrollIntoView({ block: 'center' }); }
   $('#bScene').onclick = () => ODS && drawScenes(); $('#bScenesX').onclick = () => { $('#scenes').hidden = true; };
-  Promise.all([SH.load(OD ? { light: true, extra: ['odyssey'] } : { light: true }), loadCast(), OD ? fetch('odyssey/scenes.json').then(r => r.json()) : null]).then(async ([d, _, ods]) => { D = d; drawStarters(); idOf = new Map(d.LIB.shots.map((s, i) => [s.id, i]));
-    if (OD) { ODS = ods; $('#bScene').hidden = false; $('#empty h1').textContent = 'the Odyssey, a beat a panel'; $('#empty p').textContent = 'Choose a scene. Each beat of it becomes a panel, grounded in footage foraged for it from the Moving Image Archive.'; $('#starters').innerHTML = '';
+  Promise.all([SH.load(OD ? { light: true, extra: [new URLSearchParams(location.search).has('all') ? 'odyssey/all' : 'odyssey'] } : { light: true }), loadCast(), OD ? Promise.all([fetch('odyssey/scenes.json').then(r => r.json()), fetch('odyssey/cuts.json').then(r => r.ok ? r.json() : {}).catch(() => ({}))]).then(([a, b]) => ({ ...a, cuts: b.cuts || null })) : null]).then(async ([d, _, ods]) => { D = d; drawStarters(); idOf = new Map(d.LIB.shots.map((s, i) => [s.id, i]));
+    if (OD) { ODS = ods; $('#bScene').hidden = false; $('#empty h1').textContent = 'the Odyssey, shot by shot'; $('#empty p').textContent = 'Choose a scene. Each beat of it becomes a panel, grounded in footage foraged for it from the Moving Image Archive.'; $('#starters').innerHTML = '';
       const want = new URLSearchParams(location.search).get('od'); openScene(ODS.scenes.some(x => x.id === want) ? want : store.get('odyssey.scene', ODS.scenes[0].id)); return; }
     const m = location.hash.match(/b=([^&]+)/); if (m) { try { await applyBoard(await MPExport.unpack(m[1])); history.replaceState(null, '', location.pathname); return; } catch (e) { toast('that link could not be opened'); } }
     if (lines.length) rebuild(true).catch(e => SH.status('rest', e.message)); else SH.status('rest', `${SAM.n} figures and ${d.LIB.n.toLocaleString()} shots at rest`);
