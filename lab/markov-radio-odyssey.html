@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cool Radio Odyssey</title>
+<meta name="description" content="The Markov Cool Radio Odyssey: each book of the Odyssey as a radio film, the studio voices as the clock, archival footage composed along them, the book's own music beneath, and the archive's own sound let through in the gaps.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ color-scheme:dark; --bg:#050505; --ink:#efe9dd; --dim:#8a8378; --faint:#2a2723; --hi:#e8c070; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; }
+*{ box-sizing:border-box; } html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); font:12px var(--mono); overflow:hidden; -webkit-tap-highlight-color:transparent; }
+[hidden]{ display:none !important; } button{ font:inherit; color:inherit; }
+#stage{ position:fixed; inset:0; background:#000; }
+#stage video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity .9s ease; }
+#stage video.on{ opacity:1; } #stage.grade video{ filter:grayscale(1) contrast(1.05); }
+#veil{ position:absolute; inset:0; background:linear-gradient(#000a,#0000 22%,#0000 62%,#000d); pointer-events:none; }
+header{ position:fixed; left:0; right:0; top:0; z-index:5; display:flex; align-items:center; gap:10px; padding:calc(8px + env(safe-area-inset-top)) 12px 6px; }
+#markLink{ display:flex; align-items:center; gap:8px; color:var(--ink); text-decoration:none; letter-spacing:.2em; font-size:10.5px; white-space:nowrap; } #markLink span{ color:var(--dim); }
+#now{ flex:1; min-width:0; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:11px; }
+.ico{ width:44px; height:44px; display:grid; place-items:center; background:none; border:0; border-radius:50%; cursor:pointer; color:#bdb5a9; flex:none; } .ico:hover{ background:#ffffff12; color:var(--ink); } .ico svg{ width:20px; height:20px; } .ico.off{ color:#5a554e; }
+/* the dial: the 24 books as stations */
+#dial{ position:fixed; left:0; right:0; bottom:calc(64px + env(safe-area-inset-bottom)); z-index:5; display:flex; gap:0; overflow-x:auto; padding:10px 12px 6px; scrollbar-width:none; mask:linear-gradient(90deg,#0000,#000 6%,#000 94%,#0000); }
+#dial::-webkit-scrollbar{ display:none; }
+#dial button{ flex:none; width:58px; background:none; border:0; cursor:pointer; color:#77706a; display:grid; justify-items:center; gap:3px; padding:4px 0; }
+#dial button i{ width:1px; height:12px; background:#55504a; } #dial button:nth-child(odd) i{ height:7px; }
+#dial button b{ font:500 10.5px var(--mono); letter-spacing:.08em; } #dial button.on{ color:var(--hi); } #dial button.on i{ background:var(--hi); height:18px; width:2px; }
+footer{ position:fixed; left:0; right:0; bottom:0; z-index:5; display:flex; align-items:center; gap:4px; padding:6px 10px calc(8px + env(safe-area-inset-bottom)); }
+#bar{ flex:1; height:22px; position:relative; cursor:pointer; } #bar i{ position:absolute; top:10px; height:2px; background:#ffffff26; } #bar i.done{ background:var(--hi); } #bar i.card{ background:#ffffff12; }
+#bar b{ position:absolute; top:5px; width:2px; height:12px; background:var(--ink); }
+#sub{ position:fixed; left:0; right:0; bottom:calc(132px + env(safe-area-inset-bottom)); z-index:4; text-align:center; padding:0 6vw; pointer-events:none; }
+#sub small{ display:block; font:500 10px var(--mono); letter-spacing:.2em; color:var(--hi); margin-bottom:6px; text-transform:uppercase; }
+#sub span{ font:300 clamp(17px,2.6vw,30px)/1.3 var(--serif); text-shadow:0 2px 14px #000, 0 0 3px #000; text-wrap:balance; } #sub.narr span{ font-style:italic; color:#e2dccf; }
+#card{ position:fixed; z-index:4; left:max(16px,4vw); top:calc(64px + env(safe-area-inset-top)); max-width:min(560px,86vw); pointer-events:none; transition:opacity .8s; }
+#card small{ display:block; font:500 10px var(--mono); letter-spacing:.2em; color:var(--dim); margin-bottom:8px; }
+#card h2{ margin:0 0 8px; font:300 clamp(24px,4vw,44px)/1.1 var(--serif); } #card p{ margin:0; font:300 clamp(15px,1.9vw,20px)/1.45 var(--serif); color:#ddd6c9; text-shadow:0 1px 10px #000; }
+#card.full{ top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; max-width:min(720px,90vw); } #card.full h2{ font-size:clamp(30px,6vw,64px); }
+#card .cast{ display:flex; flex-wrap:wrap; gap:6px 14px; justify-content:center; margin-top:16px; font:11px var(--mono); color:var(--dim); } #card .cast b{ color:var(--ink); font-weight:500; }
+#start{ position:fixed; inset:0; z-index:20; display:grid; place-items:center; background:radial-gradient(circle at 50% 45%,#16120c,#050505 70%); text-align:center; padding:24px; }
+#start h1{ font:300 clamp(34px,7vw,74px)/1 var(--serif); margin:14px 0 10px; } #start p{ max-width:52ch; margin:0 auto 26px; color:#b5aea3; font:300 16px/1.55 var(--serif); }
+#start button{ border:1px solid var(--hi); background:#e8c07014; color:var(--hi); border-radius:28px; padding:14px 30px; font:500 12px var(--mono); letter-spacing:.2em; cursor:pointer; min-height:48px; }
+#start .credit{ margin-top:22px; font-size:10.5px; color:#6b655d; max-width:60ch; line-height:1.6; }
+#who{ position:fixed; z-index:15; right:0; top:0; bottom:0; width:min(360px,92vw); background:#0b0a09f4; border-left:1px solid var(--faint); padding:calc(60px + env(safe-area-inset-top)) 18px 20px; overflow:auto; transform:translateX(100%); transition:transform .35s; }
+#who.open{ transform:none; } #who h3{ font:500 10px var(--mono); letter-spacing:.2em; color:var(--dim); margin:18px 0 8px; } #who p{ font:300 15px/1.5 var(--serif); margin:0 0 6px; color:#d6cfc2; } #who li{ list-style:none; margin:0 0 9px; font:300 15px/1.4 var(--serif); color:#cfc8bb; } #who li b{ font-weight:400; color:var(--ink); } #who ul{ padding:0; margin:0; }
+#who .meta{ font:11px/1.6 var(--mono); color:var(--dim); }
+@media (max-width:640px){ #dial button{ width:48px; } #sub{ bottom:calc(126px + env(safe-area-inset-bottom)); } }
+</style></head><body>
+<div id="stage"><video id="vA" muted playsinline preload="auto"></video><video id="vB" muted playsinline preload="auto"></video><div id="veil"></div></div>
+<audio id="voice" preload="auto"></audio><audio id="bed" preload="auto" loop></audio>
+<header><a id="markLink" href="markov-poet.html"></a><div id="now"></div>
+  <button class="ico" id="bCC" aria-label="Subtitles"><svg><use href="#i-info"/></svg></button>
+  <button class="ico" id="bWho" aria-label="Who is who"><svg><use href="#i-book"/></svg></button>
+  <button class="ico" id="bMore" aria-label="Menu"><svg><use href="#i-more"/></svg></button></header>
+<div id="card"></div><div id="sub"></div>
+<nav id="dial" aria-label="Books"></nav>
+<footer><button class="ico" id="bPrev" aria-label="Previous scene"><svg><use href="#i-prev"/></svg></button><button class="ico" id="bPlay" aria-label="Play"><svg><use href="#i-play"/></svg></button><button class="ico" id="bNext" aria-label="Next scene"><svg><use href="#i-next"/></svg></button><div id="bar"></div></footer>
+<aside id="who" aria-label="Who is who"></aside>
+<div id="start"><div><div id="startMark"></div><h1>Cool Radio Odyssey</h1>
+  <p>Homer's Odyssey in twenty-four stations. Each book plays as a radio film: the voices of the scenes keep the time, footage from the Moving Image Archive is composed along them, the book's own music lies beneath, and the archive's own sound comes through in the gaps. No need to know the story: each book begins by telling you where you are.</p>
+  <button id="bTune">TUNE IN · BOOK I</button>
+  <div class="credit">Voices, music (Bronze Council, Waking Son) and the scene script from the Odyssey halfworld film. Footage: movingimagearchive.com, foraged and composed by the Markov Poet.</div></div></div>
+<script src="markov/ui.js?v=3"></script>
+<script>
+(function () {
+  const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  MPUI.sprite(); $('#markLink').innerHTML = MPUI.mark(24) + 'COOL RADIO <span>· ODYSSEY</span>'; $('#startMark').innerHTML = MPUI.mark(54);
+  const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX', 'XXI', 'XXII', 'XXIII', 'XXIV'];
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
+  let R = null, book = null, items = [], cur = -1, t0 = 0, playing = false, timer = 0, layer = 0, shotIx = -1;
+  const mix = Object.assign({ voice: true, music: true, archive: true, cc: true, stranger: true }, store.get('radio.mix', {}));
+  const V = [$('#vA'), $('#vB')], voice = $('#voice'), bed = $('#bed');
+
+  /* a book is a run of items: the prologue over the refrain, then each scene (a title card over the refrain, then the scene), then the carry */
+  function buildBook(b) { const it = [], ref = b.refrain;
+    it.push({ kind: 'card', dur: 9, full: true, small: 'BOOK ' + ROMAN[b.n] + (b.track_title ? ' · MUSIC: ' + b.track_title.toUpperCase() : ''), h: b.title, p: b.prologue, cast: b.cast, shot: ref });
+    b.scenes.forEach((s, n) => { it.push({ kind: 'card', dur: 3.6, small: ROMAN[b.n] + '·' + (n + 1) + (s.sign && s.sign.symbol ? ' · ' + s.sign.symbol + ' ' + (s.sign.name || '') : ''), h: s.title, p: s.card, shot: ref, scene: s }); it.push({ kind: 'scene', dur: s.total, scene: s }); });
+    if (b.carry) it.push({ kind: 'card', dur: 6, full: true, small: 'END OF BOOK ' + ROMAN[b.n], h: '', p: b.carry, shot: ref });
+    return it; }
+  const total = () => items.reduce((a, x) => a + x.dur, 0);
+  function drawDial() { const d = $('#dial'); d.innerHTML = ''; R.books.forEach(b => { const x = document.createElement('button'); x.className = book && book.n === b.n ? 'on' : ''; x.innerHTML = `<i></i><b>${ROMAN[b.n]}</b>`; x.title = b.title; x.onclick = () => tune(b.n, true); d.append(x); }); const on = d.querySelector('.on'); if (on) d.scrollLeft = on.offsetLeft - d.clientWidth / 2 + 29; }
+  function drawBar() { const bar = $('#bar'), T = total(); let a = 0; bar.innerHTML = ''; items.forEach((x, n) => { const i = document.createElement('i'); i.style.left = (a / T * 100) + '%'; i.style.width = `calc(${x.dur / T * 100}% - 2px)`; i.className = (n < cur ? 'done ' : '') + (x.kind === 'card' ? 'card' : ''); bar.append(i); a += x.dur; }); const b = document.createElement('b'); b.id = 'head'; bar.append(b); }
+  $('#bar').onclick = e => { const r = $('#bar').getBoundingClientRect(), T = total(), want = (e.clientX - r.left) / r.width * T; let a = 0; for (let n = 0; n < items.length; n++) { if (a + items[n].dur > want) { go(n, want - a); return; } a += items[n].dur; } };
+  function tune(n, play) { book = R.books.find(b => b.n === n) || R.books[0]; store.set('radio.book', book.n); items = buildBook(book); drawDial(); go(0, 0, play !== false && playing); $('#bTune').textContent = 'TUNE IN · BOOK ' + ROMAN[book.n]; drawWho();
+    if (bed.dataset.u !== book.track) { bed.src = book.track || ''; bed.dataset.u = book.track || ''; } if (playing) bed.play().catch(() => { }); }
+
+  /* pictures: two layers, the next shot always waiting in the hidden one */
+  function show(sh, gainKey) { if (!sh) return; const nxt = V[1 - layer], now = V[layer];
+    if (nxt.dataset.id !== sh.id) { nxt.src = sh.video; nxt.dataset.id = sh.id; nxt.loop = true; }
+    const go_ = () => { try { nxt.currentTime = sh.in || 0; } catch (e) { } nxt.play().catch(() => { }); nxt.classList.add('on'); now.classList.remove('on'); setTimeout(() => { if (!now.classList.contains('on')) { now.pause(); now.muted = true; } }, 1000); layer = 1 - layer; };
+    if (nxt.readyState >= 2) go_(); else { nxt.addEventListener('loadeddata', go_, { once: true }); setTimeout(() => { if (V[layer] !== nxt) go_(); }, 1400); } }
+  function preload(sh) { if (!sh) return; const nxt = V[1 - layer]; if (nxt.dataset.id !== sh.id) { nxt.src = sh.video; nxt.dataset.id = sh.id; nxt.loop = true; nxt.load(); } }
+  $('#stage').classList.toggle('grade', true);
+
+  function go(n, at = 0, play = playing) { cur = Math.max(0, Math.min(items.length - 1, n)); const x = items[cur]; t0 = performance.now() - at * 1000; shotIx = -1;
+    voice.pause();
+    if (x.kind === 'scene') { if (voice.dataset.u !== x.scene.voice) { voice.src = x.scene.voice; voice.dataset.u = x.scene.voice; } try { voice.currentTime = at; } catch (e) { } if (play) voice.play().catch(() => { }); cardOff(); }
+    else { cardOn(x); show(x.shot); }
+    $('#now').textContent = 'BOOK ' + ROMAN[book.n] + ' · ' + (x.scene ? x.scene.title : x.h || ''); drawBar(); if (play) start(); else tick(); }
+  function cardOn(x) { const c = $('#card'); if (!mix.stranger && !x.full) { c.innerHTML = `<small>${esc(x.small)}</small><h2>${esc(x.h)}</h2>`; } else c.innerHTML = `<small>${esc(x.small)}</small>${x.h ? `<h2>${esc(x.h)}</h2>` : ''}${x.p && mix.stranger ? `<p>${esc(x.p)}</p>` : ''}${x.cast && x.cast.length && mix.stranger ? `<div class="cast">${x.cast.map(c => `<span><b>${esc(c.name)}</b> ${esc(c.who)}</span>`).join('')}</div>` : ''}`;
+    c.className = x.full ? 'full' : ''; c.style.opacity = 1; $('#sub').innerHTML = ''; }
+  function cardOff() { $('#card').style.opacity = 0; }
+  const now = () => { const x = items[cur]; return x && x.kind === 'scene' && !voice.paused && voice.readyState >= 2 ? voice.currentTime : (performance.now() - t0) / 1000; };
+  function start() { playing = true; $('#bPlay').innerHTML = '<svg><use href="#i-pause"/></svg>'; clearInterval(timer); timer = setInterval(tick, 100); if (book.track) bed.play().catch(() => { }); const x = items[cur]; if (x.kind === 'scene') voice.play().catch(() => { }); V[layer].play().catch(() => { }); }
+  function stop() { playing = false; $('#bPlay').innerHTML = '<svg><use href="#i-play"/></svg>'; clearInterval(timer); voice.pause(); bed.pause(); V.forEach(v => v.pause()); }
+  let bedVol = 0;
+  function tick() { const x = items[cur]; if (!x) return; const t = now();
+    if (t >= x.dur - .05) { if (cur < items.length - 1) { go(cur + 1, 0, true); return; } const nb = R.books.find(b => b.n === book.n + 1); if (nb && playing) { tune(nb.n, true); return; } stop(); return; }
+    let sub = null, want = .5;
+    if (x.kind === 'scene') { const s = x.scene; let k = s.shots.findIndex(sh => t >= sh.t0 && t < sh.t0 + sh.dur); if (k < 0) k = s.shots.length - 1;
+      if (k !== shotIx) { shotIx = k; show(s.shots[k]); preload(s.shots[k + 1]); }
+      sub = s.subs.find(g => t >= g.t0 - .1 && t <= g.t1 + .25);
+      const sh = s.shots[shotIx], v = V[layer], g = sub ? sh.under : sh.clear;   // the archive's own sound: down under speech, up in the clear
+      v.muted = !mix.archive || g <= 0; v.volume = Math.max(0, Math.min(1, g));
+      want = s.forward ? (sub ? .05 : .12) : (sub ? .14 : .34);
+      // the stranger's card: the first seconds of a scene, if wanted
+      if (mix.stranger && t < 5 && s.card && cur > 0 && items[cur - 1].kind === 'card') {}
+    } else { want = .5; const k = items[cur + 1]; if (k && k.kind === 'scene') preload(k.scene.shots[0]); }
+    bedVol += (want - bedVol) * .12; bed.volume = mix.music ? Math.max(0, Math.min(1, bedVol)) : 0; voice.volume = mix.voice ? 1 : 0;
+    const sb = $('#sub'); if (x.kind === 'scene' && mix.cc && sub) { if (sb.dataset.k !== sub.t0 + '') { sb.dataset.k = sub.t0; sb.className = sub.kind === 'DIALOGUE' ? '' : 'narr'; sb.innerHTML = `${sub.kind === 'DIALOGUE' ? `<small>${esc(sub.who)}</small>` : ''}<span>${esc(sub.text)}</span>`; } } else if (x.kind === 'scene') { sb.innerHTML = ''; sb.dataset.k = ''; }
+    const T = total(); let a = 0; for (let n = 0; n < cur; n++) a += items[n].dur; const h = $('#head'); if (h) h.style.left = ((a + Math.min(t, x.dur)) / T * 100) + '%'; }
+  function stepScene(d) { let n = cur; do { n += d; } while (n >= 0 && n < items.length && !(items[n].kind === 'card' && items[n].scene)); if (n < 0 || n >= items.length) { if (d > 0) { const nb = R.books.find(b => b.n === book.n + 1); if (nb) tune(nb.n, true); } else go(0); return; } go(n); }
+  $('#bPlay').onclick = () => playing ? stop() : (go(cur, now(), true)); $('#bNext').onclick = () => stepScene(1); $('#bPrev').onclick = () => stepScene(-1);
+  $('#bTune').onclick = () => { $('#start').hidden = true; playing = true; voice.play().catch(() => { }); bed.play().catch(() => { }); go(cur < 0 ? 0 : cur, 0, true); };
+  addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); $('#bPlay').click(); } else if (e.key === 'ArrowRight') stepScene(1); else if (e.key === 'ArrowLeft') stepScene(-1); });
+  function saveMix() { store.set('radio.mix', mix); }
+  $('#bCC').onclick = () => { mix.cc = !mix.cc; saveMix(); $('#bCC').classList.toggle('off', !mix.cc); $('#sub').innerHTML = ''; };
+  function drawWho() { const w = $('#who'); if (!book) return; const s = items[cur] && items[cur].scene;
+    w.innerHTML = `<h3>BOOK ${ROMAN[book.n]} · ${esc(book.title)}</h3><p>${esc(book.prologue || '')}</p><h3>WHO IS WHO</h3><ul>${(book.cast || []).map(c => `<li><b>${esc(c.name)}</b> · ${esc(c.who)}</li>`).join('')}</ul>`
+      + (s ? `<h3>THIS SCENE</h3><p>${esc(s.card || '')}</p><div class="meta">${esc(s.sign.symbol || '')} ${esc(s.sign.name || '')} · ${esc(s.palette)} · likeness to the halfworld film ${esc(s.grade || '·')}<br>${esc(s.world || '')}</div>` : '')
+      + `<h3>WHAT YOU HEAR</h3><div class="meta">Voices: the studio recording of each scene. Music: Bronze Council, ${esc(book.track_title || '')}. The archive's own sound rises in the gaps between lines and in scenes where sound leads.</div>`; }
+  $('#bWho').onclick = () => { drawWho(); $('#who').classList.toggle('open'); };
+  $('#bMore').onclick = () => MPUI.menu($('#bMore'), [
+    { title: 'SOUND', items: [
+      { icon: 'voice', label: 'Voices', on: () => mix.voice, state: () => mix.voice ? 'ON' : 'OFF', act: () => { mix.voice = !mix.voice; saveMix(); return true; } },
+      { icon: 'sound', label: 'Music', on: () => mix.music, state: () => mix.music ? 'ON' : 'OFF', act: () => { mix.music = !mix.music; saveMix(); return true; } },
+      { icon: 'wall', label: 'The archive\'s own sound', on: () => mix.archive, state: () => mix.archive ? 'ON' : 'OFF', act: () => { mix.archive = !mix.archive; saveMix(); return true; } }] },
+    { title: 'READING', items: [
+      { icon: 'info', label: 'Subtitles', on: () => mix.cc, state: () => mix.cc ? 'ON' : 'OFF', act: () => { $('#bCC').click(); return true; } },
+      { icon: 'book', label: 'For a stranger', hint: 'prologues, who is who, a line per scene', on: () => mix.stranger, state: () => mix.stranger ? 'ON' : 'OFF', act: () => { mix.stranger = !mix.stranger; saveMix(); return true; } }] },
+    { title: 'GO', items: [{ icon: 'grid', label: 'Storyboard this scene', hint: 'the Markov SAM room, shot by shot', act: () => { const s = items[cur] && items[cur].scene; location.href = 'markov-odyssey.html' + (s ? '?od=' + s.id : ''); } },
+      { icon: 'home', label: 'The Markov Poet', act: () => location.href = 'markov-poet.html' }] }]);
+  $('#bCC').classList.toggle('off', !mix.cc);
+  fetch('odyssey/radio.json').then(r => r.json()).then(d => { R = d; const want = +(new URLSearchParams(location.search).get('book') || store.get('radio.book', 1)); tune(want, false); })
+    .catch(e => { $('#start p').textContent = 'The radio could not load: ' + e.message; });
+})();
+</script></body></html>
