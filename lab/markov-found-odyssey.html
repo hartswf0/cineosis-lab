@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Found Odyssey</title>
+<meta name="description" content="The Odyssey spoken by the archive: every line assembled from words archival people actually said, the longest runs first, each fragment with its own face and voice.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ color-scheme:dark; --bg:#050505; --ink:#efe9dd; --dim:#8a8378; --faint:#2a2723; --hi:#e8c070; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; }
+*{ box-sizing:border-box; } html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); font:12px var(--mono); overflow:hidden; } button,select{ font:inherit; color:inherit; }
+body{ display:grid; grid-template-rows:auto minmax(0,1fr) auto auto; height:100dvh; }
+header{ display:flex; align-items:center; gap:10px; padding:calc(8px + env(safe-area-inset-top)) 12px 6px; } #markLink{ display:flex; align-items:center; gap:8px; color:var(--ink); text-decoration:none; letter-spacing:.2em; font-size:10.5px; white-space:nowrap; } #markLink span{ color:var(--dim); }
+#scene{ flex:1; min-width:0; background:#121110; border:1px solid var(--faint); border-radius:16px; padding:6px 10px; }
+main{ position:relative; background:#000; min-height:0; } main video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0; transition:opacity .12s; } main video.on{ opacity:1; }
+#who{ position:absolute; left:10px; top:10px; font:10px var(--mono); color:#d6cfc2; background:#000a; border-radius:12px; padding:4px 9px; max-width:80%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#line{ padding:14px 5vw 6px; min-height:110px; text-align:center; }
+#line small{ display:block; font:500 10px var(--mono); letter-spacing:.2em; color:var(--hi); margin-bottom:8px; }
+#line p{ margin:0; font:300 clamp(18px,2.6vw,30px)/1.35 var(--serif); } #line p f{ color:#5a554e; transition:color .1s; } #line p f.on{ color:var(--ink); } #line p f.gap{ color:#3a3631; text-decoration:line-through; } #line p f.done{ color:#a59e93; }
+#line .cov{ margin-top:8px; font-size:10.5px; color:var(--dim); }
+footer{ display:flex; align-items:center; gap:6px; padding:6px 10px calc(10px + env(safe-area-inset-bottom)); }
+.ico{ width:44px; height:44px; display:grid; place-items:center; background:none; border:0; border-radius:50%; cursor:pointer; color:#bdb5a9; } .ico:hover{ background:#ffffff12; } .ico svg{ width:20px; height:20px; }
+#ours{ border:1px solid var(--faint); background:none; border-radius:16px; padding:7px 12px; cursor:pointer; color:var(--dim); font-size:10.5px; letter-spacing:.1em; } #ours.on{ color:var(--hi); border-color:#5a4e33; }
+#prog{ flex:1; color:var(--dim); font-size:10.5px; text-align:right; }
+</style></head><body>
+<header><a id="markLink" href="markov-poet.html"></a><select id="scene" aria-label="Scene"></select></header>
+<main><video id="a" playsinline preload="auto"></video><video id="b" playsinline preload="auto"></video><div id="who"></div></main>
+<div id="line"></div>
+<footer><button class="ico" id="bPrev" aria-label="Previous line"><svg><use href="#i-prev"/></svg></button><button class="ico" id="bPlay" aria-label="Play"><svg><use href="#i-play"/></svg></button><button class="ico" id="bNext" aria-label="Next line"><svg><use href="#i-next"/></svg></button>
+  <button id="ours" aria-label="Also hear the studio voice">STUDIO VOICE</button><div id="prog"></div></footer>
+<audio id="voice" preload="auto"></audio>
+<script src="markov/ui.js?v=3"></script>
+<script>
+(function () {
+  const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  MPUI.sprite(); $('#markLink').innerHTML = MPUI.mark(22) + 'THE FOUND <span>ODYSSEY</span>';
+  let F = null, R = null, sid = null, li = 0, fi = 0, playing = false, layer = 0, guard = 0, ours = false;
+  const V = [$('#a'), $('#b')], voice = $('#voice');
+  const lines = () => F.scenes[sid] || [];
+  function drawLine() { const u = lines()[li]; if (!u) { $('#line').innerHTML = ''; return; }
+    $('#line').innerHTML = `<small>${esc(u.who)} · line ${li + 1} of ${lines().length}</small><p>${u.frags.map((x, n) => `<f data-n="${n}" class="${x.gap ? 'gap' : ''}">${esc(x.words || x.gap)}</f>`).join(' ')}</p><div class="cov">the archive says ${Math.round(u.coverage * 100)}% of this line, in ${u.runs} fragment${u.runs === 1 ? '' : 's'}</div>`;
+    $('#prog').textContent = `${lines().filter(x => x.coverage >= .999).length} of ${lines().length} lines said whole`; }
+  function mark(n) { $('#line').querySelectorAll('f').forEach(f => { const k = +f.dataset.n; f.classList.toggle('on', k === n); f.classList.toggle('done', k < n && !f.classList.contains('gap')); }); }
+  function prep(v, x) { const c = F.clips[x.id]; if (!c) return; if (v.dataset.id !== x.id) { v.src = c.video; v.dataset.id = x.id; } v.dataset.t0 = x.t0; v.preload = 'auto'; }
+  function nextFrag(after) { const u = lines()[li]; for (let n = after + 1; n < u.frags.length; n++) if (!u.frags[n].gap) return n; return -1; }
+  function playFrag() { if (!playing) return; const u = lines()[li]; if (!u) { playing = false; return; }
+    if (fi >= u.frags.length) { li++; fi = 0; if (li >= lines().length) { stepScene(1); return; } drawLine(); setTimeout(playFrag, 500); return; }
+    const x = u.frags[fi]; mark(fi);
+    if (x.gap) { $('#who').textContent = 'the archive never says “' + x.gap + '”'; fi++; setTimeout(playFrag, 380); return; }
+    const v = V[layer], c = F.clips[x.id], my = ++guard; prep(v, x);
+    $('#who').textContent = (c.title || '') + (c.year ? ' · ' + c.year : '') + ' · “' + x.words + '”';
+    const start = () => { if (my !== guard) return; try { v.currentTime = x.t0; } catch (e) { } v.muted = false; v.play().catch(() => { }); v.classList.add('on'); V[1 - layer].classList.remove('on'); V[1 - layer].pause();
+      const n2 = nextFrag(fi); if (n2 >= 0) prep(V[1 - layer], u.frags[n2]);
+      const watch = setInterval(() => { if (my !== guard) { clearInterval(watch); return; } if (v.currentTime >= x.t1 || v.ended) { clearInterval(watch); v.pause(); fi++; layer = 1 - layer; playFrag(); } }, 25);
+      setTimeout(() => { if (my === guard && !v.paused && v.currentTime < x.t0 + .05) { } }, 1500); };
+    if (v.readyState >= 2) start(); else { v.addEventListener('loadeddata', start, { once: true }); setTimeout(() => { if (my === guard && v.readyState < 2) { fi++; playFrag(); } }, 6000); } }
+  function playLine() { const u = lines()[li]; if (ours && u && R) { const s = R.scenes.find(x => x.id === sid); if (s) { if (voice.dataset.u !== s.voice) { voice.src = s.voice; voice.dataset.u = s.voice; } voice.currentTime = u.t0; voice.play().catch(() => { }); setTimeout(() => voice.pause(), (u.t1 - u.t0) * 1000 + 200); } } fi = 0; playFrag(); }
+  function go(n) { guard++; V.forEach(v => v.pause()); voice.pause(); li = Math.max(0, Math.min(lines().length - 1, n)); fi = 0; drawLine(); if (playing) playLine(); }
+  function stepScene(d) { const o = $('#scene'), k = o.selectedIndex + d; if (k < 0 || k >= o.options.length) { playing = false; return; } o.selectedIndex = k; sid = o.value; li = 0; drawLine(); if (playing) setTimeout(playLine, 600); }
+  $('#bPlay').onclick = () => { playing = !playing; $('#bPlay').innerHTML = `<svg><use href="#i-${playing ? 'pause' : 'play'}"/></svg>`; if (playing) playLine(); else { guard++; V.forEach(v => v.pause()); voice.pause(); } };
+  $('#bNext').onclick = () => go(li + 1); $('#bPrev').onclick = () => go(li - 1);
+  $('#ours').onclick = () => { ours = !ours; $('#ours').classList.toggle('on', ours); };
+  $('#scene').onchange = () => { sid = $('#scene').value; go(0); };
+  Promise.all([fetch('odyssey/found.json').then(r => r.json()), fetch('odyssey/radio.json').then(r => r.json()).catch(() => null)]).then(([f, r]) => { F = f; R = r ? { scenes: r.books.flatMap(b => b.scenes) } : null;
+    const titles = R ? Object.fromEntries(R.scenes.map(s => [s.id, s.title])) : {};
+    Object.keys(F.scenes).sort().forEach(id => { const o = document.createElement('option'); o.value = id; const ls = F.scenes[id], cov = ls.length ? Math.round(ls.reduce((a, x) => a + x.coverage, 0) / ls.length * 100) : 0; o.textContent = `${id.slice(3)} · ${titles[id] || ''} · ${cov}%`; $('#scene').append(o); });
+    const want = new URLSearchParams(location.search).get('scene'); sid = F.scenes[want] ? want : 'OD-B09-S09'; $('#scene').value = sid; drawLine(); });
+})();
+</script></body></html>

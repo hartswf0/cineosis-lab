@@ -24,6 +24,7 @@ body.colour #view video, body.colour #wall video, body.colour #sea video{ filter
 #veil{ position:absolute; inset:0; background:linear-gradient(#0008,#0000 18%,#0000 58%,#000c); pointer-events:none; }
 #sub{ position:absolute; left:0; right:0; bottom:16px; text-align:center; padding:0 5vw; pointer-events:none; z-index:3; }
 #sub small{ display:block; font:500 10px var(--mono); letter-spacing:.2em; color:var(--hi); margin-bottom:5px; text-transform:uppercase; } #sub small.talk{ color:var(--talk); }
+#sub em{ display:block; margin-top:6px; font:400 11px/1.4 var(--mono); font-style:normal; color:#9fc4ee; letter-spacing:.02em; text-shadow:0 1px 6px #000; } #sub em b{ font-weight:500; letter-spacing:.16em; margin-right:6px; }
 #sub span{ font:300 clamp(16px,2.4vw,28px)/1.3 var(--serif); text-shadow:0 2px 14px #000,0 0 3px #000; text-wrap:balance; } #sub.narr span{ font-style:italic; color:#e2dccf; }
 #card{ position:absolute; z-index:3; left:max(14px,3vw); top:14px; max-width:min(560px,86%); pointer-events:none; transition:opacity .8s; }
 #card small{ display:block; font:500 10px var(--mono); letter-spacing:.2em; color:var(--dim); margin-bottom:6px; } #card h2{ margin:0 0 6px; font:300 clamp(22px,3.6vw,40px)/1.1 var(--serif); }
@@ -66,7 +67,7 @@ main.flag #view{ box-shadow:inset 0 0 0 3px #ff8a7a88; }
 @media (max-width:640px){ #modes button{ padding:6px 7px; letter-spacing:.08em; } #now{ display:none; } #sea{ height:70px; } #sea .t{ height:58px; } #seaHead input[type=range]{ width:80px; } }
 </style></head><body>
 <header><a id="markLink" href="markov-poet.html"></a><div id="now"></div>
-  <div id="modes" role="tablist" aria-label="What the picture follows"><button data-m="captain">CAPTAIN</button><button data-m="cut">CUT</button><button data-m="speak">VOICES</button><button data-m="sound">SOUND</button><button data-m="counter">COUNTER</button><button data-m="wall">SEA</button></div>
+  <div id="modes" role="tablist" aria-label="What the picture follows"><button data-m="captain">CAPTAIN</button><button data-m="cut">CUT</button><button data-m="speak">VOICES</button><button data-m="echo">ECHO</button><button data-m="sound">SOUND</button><button data-m="counter">COUNTER</button><button data-m="wall">SEA</button></div>
   <button class="ico" id="bCap" aria-label="The captain: what we see, and whether it holds"><svg><use href="#i-info"/></svg></button><button class="ico" id="bMix" aria-label="Stations"><svg><use href="#i-voice"/></svg></button><button class="ico" id="bMore" aria-label="Menu"><svg><use href="#i-more"/></svg></button></header>
 <main><div id="view"><video id="vA" muted playsinline preload="auto"></video><video id="vB" muted playsinline preload="auto"></video><video id="vC" class="blend" muted playsinline preload="auto"></video></div>
   <div id="wall" hidden></div><div id="veil"></div><div id="card"></div><div id="tag"></div><div id="sub"></div></main>
@@ -74,7 +75,7 @@ main.flag #view{ box-shadow:inset 0 0 0 3px #ff8a7a88; }
 <nav id="dial" aria-label="Books"></nav>
 <footer><button class="ico" id="bPrev" aria-label="Previous scene"><svg><use href="#i-prev"/></svg></button><button class="ico" id="bPlay" aria-label="Play"><svg><use href="#i-play"/></svg></button><button class="ico" id="bNext" aria-label="Next scene"><svg><use href="#i-next"/></svg></button><div id="bar"></div></footer>
 <div id="mixer" hidden></div><aside id="captain" aria-label="The captain"></aside>
-<audio id="voice" preload="auto"></audio><audio id="bed" preload="auto" loop></audio>
+<video id="fol" playsinline preload="auto" style="display:none"></video><audio id="voice" preload="auto"></audio><audio id="bed" preload="auto" loop></audio>
 <div id="start"><div><div id="startMark"></div><h1>Markov Sea</h1>
   <p>The Odyssey as a sea of footage. The voices keep time; you choose what the picture follows: the composed cut, the people speaking (archival faces cast for each part), what the sound asks for, its counterpoint, or the whole sea at once. Every shot's other possibilities play beneath; tap one to keep it. Tune the stations: voices, music, the archive's own sound, the speakers' own voices.</p>
   <button id="bTune">TUNE IN</button></div></div>
@@ -87,7 +88,7 @@ main.flag #view{ box-shadow:inset 0 0 0 3px #ff8a7a88; }
   const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
   const PHONE = matchMedia('(max-width:640px)').matches;
   let R = null, book = null, items = [], cur = -1, t0 = 0, playing = false, timer = 0, layer = 0, key = '', mode = store.get('sea.mode', 'captain'), mood = store.get('sea.mood', 'harsh'), blendManual = false, lastCap = '';
-  const st = Object.assign({ voice: 1, music: .7, archive: .7, speakers: .35, cc: true, album: 'book' }, store.get('sea.stations', {}));
+  const st = Object.assign({ voice: 1, music: .7, archive: .7, speakers: .35, foley: .5, cc: true, album: 'book' }, store.get('sea.stations', {}));
   const tune = store.get('sea.tune', {});              // your choices: "<scene>#<shot>" -> clip id; "cast:<book>:<name>" -> clip id
   const V = [$('#vA'), $('#vB')], VB = $('#vC'), voice = $('#voice'), bed = $('#bed');
 
@@ -103,6 +104,7 @@ main.flag #view{ box-shadow:inset 0 0 0 3px #ff8a7a88; }
         const c = pick || sh; const weak = cp.conf != null && cp.conf < 35;
         return { clip: c, why: cp.verdict === 'REPLACE' ? 'the captain steers' : 'the captain keeps', cap: cp, flag: weak && mood !== 'calm', refuse: weak && mood === 'brave' }; }
       const best = pool.reduce((a, p) => (confOf(p) || 0) > (confOf(a) || 0) ? p : a, sh); return { clip: best, why: 'best by the instruments', refuse: mood === 'brave' && (confOf(best) || 0) < 35 }; }
+    if (mode === 'echo' && line && line.echo && line.echo.length) { const e = line.echo[+(tune['echo:' + s.id + ':' + line.t0] || 0)] || line.echo[0]; return { clip: { ...e, in: e.t0, snd: 1, talky: true }, why: 'the archive says it', who: null, echo: e }; }
     if (mode === 'speak' && line && line.kind === 'DIALOGUE') { const c = castFor(line.who); if (c) return { clip: c, why: 'speaking', who: line.who }; }
     if (own) { const x = pool.find(p => p.id === own); if (x) return { clip: x, why: 'your choice' }; }
     if (mode === 'sound') {   // the sound steers the picture: quiet footage under speech, footage with its own sound in the clear
@@ -137,13 +139,15 @@ main.flag #view{ box-shadow:inset 0 0 0 3px #ff8a7a88; }
   function blendWith(c) { const b = +$('#blend').value / 100; VB.style.setProperty('--blend', b); if (!c || b <= 0) { VB.pause(); return; } if (VB.dataset.id !== c.id) { VB.src = c.video; VB.dataset.id = c.id; VB.loop = true; VB.addEventListener('loadeddata', () => { try { VB.currentTime = c.in || 0; } catch (e) { } VB.play().catch(() => { }); }, { once: true }); } else if (VB.paused && playing) VB.play().catch(() => { }); }
   function drawSea(s, k, chosen, line) { const box = $('#sea'), sh = s.shots[k]; let list, label;
     if (line && line.kind === 'DIALOGUE' && (mode === 'speak' || (R.cast[line.who] || []).length)) { list = (R.cast[line.who] || []).map(c => ({ ...c, talkFor: line.who })); label = 'WHO COULD SPEAK FOR ' + line.who.toUpperCase(); if (!list.length || mode !== 'speak') { list = null; } }
+    if (!list && mode === 'echo' && line && line.echo && line.echo.length) { list = line.echo.map((e, n) => ({ ...e, in: e.t0, echoN: n, conf: { c: Math.round(e.score * 100) } })); label = 'WHO IN THE ARCHIVE SAYS SOMETHING LIKE THIS'; }
     if (!list) { list = [sh, ...(sh.sea || [])]; label = 'THE SEA · WHAT THIS SHOT COULD BE · ' + (sh.role || '') ; }
     $('#seaLabel').textContent = label + '  ·  ' + list.length;
     const sig = label + list.map(x => x.id).join(); if (box.dataset.sig === sig) { box.querySelectorAll('.t').forEach(t => t.classList.toggle('on', t.dataset.id === chosen.id)); return; } box.dataset.sig = sig; box.innerHTML = '';
     list.forEach((c, n) => { const t = document.createElement('div'); t.className = 't' + (c.id === chosen.id ? ' on' : '') + (c.talkFor ? ' talk' : ''); t.dataset.id = c.id; t.title = (c.title || '') + (c.year ? ' · ' + c.year : '') + (c.conf ? `\nfit ${c.conf.c}% · the words ${c.conf.line ?? '·'} · the beat ${c.conf.beat} · the sign ${c.conf.sign ?? '·'} · the role ${c.conf.role} (percentiles over the whole Odyssey)` : '');
       const live = !PHONE && n < 10; t.innerHTML = (live ? `<video muted playsinline loop preload="none" src="${esc(c.video)}#t=${c.in || 0}"></video>` : `<img loading="lazy" src="${esc(c.thumb)}" alt="">`) + (confOf(c) != null ? `<em class="${confOf(c) >= 70 ? 'hi' : confOf(c) < 40 ? 'lo' : ''}">${confOf(c)}%</em>` : '') + (sh.captain && sh.captain.pick === c.id && !c.talkFor ? '<s>CAPTAIN</s>' : '') + `<i>${n === 0 && !c.talkFor ? 'CUT' : esc((c.title || '').slice(0, 18))}</i><u class="${(c.snd || 0) > .3 ? '' : 'q'}" title="${(c.snd || 0) > .3 ? 'has its own sound' : 'quiet'}"></u>`;
       if (live) { const v = t.querySelector('video'); t.onmouseenter = () => v.play().catch(() => { }); t.onmouseleave = () => v.pause(); }
-      t.onclick = () => { if (c.talkFor) tune['cast:' + book.n + ':' + c.talkFor] = c.id; else tune[s.id + '#' + k] = c.id; store.set('sea.tune', tune); key = ''; tick(true); };
+      if (c.said) t.title = '“' + c.said + '”' + (c.voice ? ' · a ' + c.voice : '') + ' · ' + (c.title || '');
+      t.onclick = () => { if (c.echoN != null) { tune['echo:' + s.id + ':' + line.t0] = c.echoN; store.set('sea.tune', tune); key = ''; tick(true); return; } if (c.talkFor) tune['cast:' + book.n + ':' + c.talkFor] = c.id; else tune[s.id + '#' + k] = c.id; store.set('sea.tune', tune); key = ''; tick(true); };
       box.append(t); });
     if (!PHONE) box.querySelectorAll('video').forEach((v, n) => { if (n < 6) v.play().catch(() => { }); }); }
   function drawWall(s, k) { const w = $('#wall'), sh = s.shots[k], list = [sh, ...(sh.sea || [])].slice(0, PHONE ? 4 : 9), sig = list.map(x => x.id).join(); w.style.gridTemplateColumns = PHONE ? 'repeat(2,1fr)' : ''; w.style.gridTemplateRows = PHONE ? 'repeat(2,1fr)' : '';
@@ -155,7 +159,7 @@ main.flag #view{ box-shadow:inset 0 0 0 3px #ff8a7a88; }
     $('#now').textContent = 'BOOK ' + ROMAN[book.n] + ' · ' + (x.scene ? x.scene.title : x.h || ''); drawBar(); if (play) start(); else tick(true); }
   const now = () => { const x = items[cur]; return x && x.kind === 'scene' && !voice.paused && voice.readyState >= 2 ? voice.currentTime : (performance.now() - t0) / 1000; };
   function start() { playing = true; $('#bPlay').innerHTML = '<svg><use href="#i-pause"/></svg>'; clearInterval(timer); timer = setInterval(() => tick(), 100); bed.play().catch(() => { }); const x = items[cur]; if (x && x.kind === 'scene') voice.play().catch(() => { }); V[layer].play().catch(() => { }); }
-  function stop() { playing = false; $('#bPlay').innerHTML = '<svg><use href="#i-play"/></svg>'; clearInterval(timer); voice.pause(); bed.pause(); V.forEach(v => v.pause()); VB.pause(); $('#wall').querySelectorAll('video').forEach(v => v.pause()); }
+  function stop() { $('#fol').pause(); playing = false; $('#bPlay').innerHTML = '<svg><use href="#i-play"/></svg>'; clearInterval(timer); voice.pause(); bed.pause(); V.forEach(v => v.pause()); VB.pause(); $('#wall').querySelectorAll('video').forEach(v => v.pause()); }
   let bedVol = 0;
   function tick(force) { const x = items[cur]; if (!x) return; const t = now();
     if (t >= x.dur - .05 && playing) { if (cur < items.length - 1) { go(cur + 1, 0, true); return; } const nb = R.books.find(b => b.n === book.n + 1); if (nb) { tuneBook(nb.n, true); return; } stop(); return; }
@@ -174,12 +178,16 @@ main.flag #view{ box-shadow:inset 0 0 0 3px #ff8a7a88; }
         drawCaptain(s, k, ch, line); }
       else if (line && lastCap !== line.t0 + '') drawCaptain(s, k, ch, line);
       // the archive's own sound: the picture's sound, levelled by the shot's measure, down under the voice; a speaking face lets its own voice through faintly
-      const v = V[layer], c = ch.clip, isSpeaker = !!ch.who, base = isSpeaker ? st.speakers : st.archive, lvl = (c.snd || 0) > 0 ? (line ? (isSpeaker ? .5 : (c.talky ? 0 : .35)) : (c.talky ? .4 : .9)) : 0;
+      const v = V[layer], c = ch.clip, isSpeaker = !!ch.who || !!ch.echo, base = isSpeaker ? st.speakers : st.archive, lvl = (c.snd || 0) > 0 ? (line ? (isSpeaker ? .5 : (c.talky ? 0 : .35)) : (c.talky ? .4 : .9)) : 0;
       v.muted = base * lvl <= 0.01; v.volume = Math.max(0, Math.min(1, base * lvl * (s.forward ? 1.3 : 1)));
-      want = s.forward ? (line ? .06 : .14) : (line ? .16 : .36); }
+      want = s.forward ? (line ? .06 : .14) : (line ? .16 : .36);
+      // foley: the archive's sound that best answers this shot, from another clip, as its own station
+      const fo = (s.shots[k].foley || [])[0], F = $('#fol');
+      if (fo && st.foley > 0) { if (F.dataset.id !== fo.id) { F.src = fo.video; F.dataset.id = fo.id; F.loop = true; F.muted = false; F.play().catch(() => { }); } else if (F.paused && playing) F.play().catch(() => { }); F.volume = Math.max(0, Math.min(1, st.foley * (line ? .35 : .9))); }
+      else if (!F.paused) F.pause(); }
     else { want = .5; const k2 = items[cur + 1]; if (k2 && k2.kind === 'scene') { const nx = V[1 - layer], c = k2.scene.shots[0]; if (nx.dataset.id !== c.id) { nx.src = c.video; nx.dataset.id = c.id; } } }
     bedVol += (want - bedVol) * .12; bed.volume = Math.max(0, Math.min(1, bedVol * st.music * 1.4)); voice.volume = Math.max(0, Math.min(1, st.voice));
-    const sb = $('#sub'); if (x.kind === 'scene' && st.cc && line) { if (sb.dataset.k !== line.t0 + line.text) { sb.dataset.k = line.t0 + line.text; sb.className = line.kind === 'DIALOGUE' ? '' : 'narr'; sb.innerHTML = `${line.kind === 'DIALOGUE' ? `<small class="${mode === 'speak' ? 'talk' : ''}">${esc(line.who)}</small>` : ''}<span>${esc(line.text)}</span>`; } } else if (x.kind === 'scene') { sb.innerHTML = ''; sb.dataset.k = ''; }
+    const sb = $('#sub'); if (x.kind === 'scene' && st.cc && line) { if (sb.dataset.k !== line.t0 + line.text) { sb.dataset.k = line.t0 + line.text; sb.className = line.kind === 'DIALOGUE' ? '' : 'narr'; sb.innerHTML = `${line.kind === 'DIALOGUE' ? `<small class="${mode === 'speak' ? 'talk' : ''}">${esc(line.who)}</small>` : ''}<span>${esc(line.text)}</span>${mode === 'echo' && line.echo && line.echo[0] ? `<em><b>THE ARCHIVE SAYS</b>${esc(line.echo[+(tune['echo:' + x.scene.id + ':' + line.t0] || 0)] ? line.echo[+(tune['echo:' + x.scene.id + ':' + line.t0] || 0)].said : '')}</em>` : ''}`; } } else if (x.kind === 'scene') { sb.innerHTML = ''; sb.dataset.k = ''; }
     const T = total(); let a = 0; for (let n = 0; n < cur; n++) a += items[n].dur; const h = $('#head'); if (h) h.style.left = ((a + Math.min(t, x.dur)) / T * 100) + '%'; }
   // the captain's panel: what the scene asks, what is seen, whether it holds, and why; every reading behind the number
   function drawCaptain(s, k, ch, line) { lastCap = line ? line.t0 + '' : ''; const P = $('#captain'); if (!P.classList.contains('open')) return; const sh = s.shots[k], cp = sh.captain, sc = s.captain, c = ch.clip.conf || {};
@@ -203,12 +211,12 @@ main.flag #view{ box-shadow:inset 0 0 0 3px #ff8a7a88; }
   document.querySelectorAll('#modes button').forEach(b => b.onclick = () => setMode(b.dataset.m));
   $('#blend').oninput = () => { blendManual = true; key = ''; tick(true); };
   $('#bPlay').onclick = () => playing ? stop() : go(cur, now(), true); $('#bNext').onclick = () => stepScene(1); $('#bPrev').onclick = () => stepScene(-1);
-  addEventListener('keydown', e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return; if (e.key === ' ') { e.preventDefault(); $('#bPlay').click(); } else if (e.key === 'ArrowRight') stepScene(1); else if (e.key === 'ArrowLeft') stepScene(-1); else if ('123456'.includes(e.key)) setMode(['captain', 'cut', 'speak', 'sound', 'counter', 'wall'][+e.key - 1]); });
+  addEventListener('keydown', e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return; if (e.key === ' ') { e.preventDefault(); $('#bPlay').click(); } else if (e.key === 'ArrowRight') stepScene(1); else if (e.key === 'ArrowLeft') stepScene(-1); else if ('1234567'.includes(e.key)) setMode(['captain', 'cut', 'speak', 'echo', 'sound', 'counter', 'wall'][+e.key - 1]); });
   /* the stations */
   function drawMixer() { const m = $('#mixer'); const row = (k, label) => `<div class="row"><b>${label}</b><input type="range" min="0" max="100" value="${Math.round(st[k] * 100)}" data-k="${k}"><output>${Math.round(st[k] * 100)}</output></div>`;
-    m.innerHTML = `<h5>STATIONS</h5>${row('voice', 'VOICES')}${row('music', 'MUSIC')}${row('archive', 'ARCHIVE')}${row('speakers', 'SPEAKERS')}
+    m.innerHTML = `<h5>STATIONS</h5>${row('voice', 'VOICES')}${row('music', 'MUSIC')}${row('archive', 'ARCHIVE')}${row('speakers', 'SPEAKERS')}${row('foley', 'FOLEY')}
       <div class="row"><b>MUSIC FROM</b><select id="album" style="grid-column:2/4"><option value="book">Bronze Council · the book's own track</option>${(R.albums || []).filter(a => a.id !== 'bronze-council').map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></div>
-      <p>VOICES: the scene recordings. MUSIC: the bed, low under speech. ARCHIVE: each shot's own sound, low under speech and up in the gaps. SPEAKERS: the sound of the archival people cast to speak, faintly under the line they stand for.</p>`;
+      <p>VOICES: the scene recordings. MUSIC: the bed, low under speech. ARCHIVE: each shot's own sound, low under speech and up in the gaps. SPEAKERS: the sound of the archival people cast to speak (and, in ECHO, the archive's own words), under the line they stand for. FOLEY: the archive's sound that best answers each shot, heard from another clip.</p>`;
     m.querySelectorAll('input').forEach(i => i.oninput = () => { st[i.dataset.k] = +i.value / 100; i.nextElementSibling.textContent = i.value; store.set('sea.stations', st); });
     const sel = m.querySelector('#album'); sel.value = st.album; sel.onchange = () => { st.album = sel.value; store.set('sea.stations', st); const tr = trackFor(book); bed.src = tr; bed.dataset.u = tr; if (playing) bed.play().catch(() => { }); }; }
   $('#bMix').onclick = () => { const m = $('#mixer'); if (m.hidden) drawMixer(); m.hidden = !m.hidden; };
@@ -218,6 +226,7 @@ main.flag #view{ box-shadow:inset 0 0 0 3px #ff8a7a88; }
       { icon: 'play', label: 'CUT · the composed cut', on: () => mode === 'cut', act: () => setMode('cut') },
       { icon: 'voice', label: 'VOICES · people speaking the lines', hint: 'archival faces cast for each part; tap one in the sea to recast', on: () => mode === 'speak', act: () => setMode('speak') },
       { icon: 'sound', label: 'SOUND · the sound steers', hint: 'quiet footage under speech, footage with its own sound in the gaps', on: () => mode === 'sound', act: () => setMode('sound') },
+      { icon: 'voice', label: 'ECHO · the archive says it', hint: 'archival people whose real words echo the line, at the second they say them', on: () => mode === 'echo', act: () => setMode('echo') },
       { icon: 'take', label: 'COUNTER · against the grain', hint: 'the least likely possibility, or another book\'s footage', on: () => mode === 'counter', act: () => setMode('counter') },
       { icon: 'grid', label: 'SEA · every possibility at once', on: () => mode === 'wall', act: () => setMode('wall') }] },
     { title: 'YOUR TUNING', items: [

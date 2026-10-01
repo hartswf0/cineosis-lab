@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Archive Transcripts</title>
+<meta name="description" content="What the archive's people actually say: every Odyssey forage clip with sound, transcribed word by word. Search it; tap a word to hear it said.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ color-scheme:dark; --bg:#050505; --ink:#efe9dd; --dim:#8a8378; --faint:#2a2723; --hi:#e8c070; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; }
+*{ box-sizing:border-box; } html,body{ margin:0; background:var(--bg); color:var(--ink); font:12px var(--mono); } button,input{ font:inherit; color:inherit; }
+header{ position:sticky; top:0; z-index:5; background:#050505f2; padding:calc(10px + env(safe-area-inset-top)) 14px 10px; border-bottom:1px solid var(--faint); }
+.top{ display:flex; align-items:center; gap:10px; } #markLink{ display:flex; align-items:center; gap:8px; color:var(--ink); text-decoration:none; letter-spacing:.2em; font-size:10.5px; white-space:nowrap; } #markLink span{ color:var(--dim); }
+#stat{ flex:1; color:var(--dim); font-size:11px; text-align:right; }
+#q{ width:100%; margin-top:10px; background:#121110; border:1px solid var(--faint); border-radius:22px; padding:11px 16px; font:300 18px var(--serif); } #q::placeholder{ color:#5a554e; font-style:italic; }
+#chips{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; } #chips button{ border:1px solid var(--faint); background:none; border-radius:14px; padding:4px 10px; cursor:pointer; color:var(--dim); } #chips button:hover{ color:var(--ink); }
+main{ max-width:1100px; margin:0 auto; padding:10px 14px 140px; }
+.c{ display:grid; grid-template-columns:150px 1fr; gap:14px; padding:14px 0; border-bottom:1px solid #1a1816; } .c img{ width:150px; aspect-ratio:4/3; object-fit:cover; border-radius:3px; background:#111; filter:grayscale(.3); cursor:pointer; }
+.c h3{ margin:0 0 6px; font:500 10.5px var(--mono); letter-spacing:.12em; color:var(--dim); text-transform:uppercase; } .c p{ margin:0; font:300 16px/1.55 var(--serif); color:#d8d1c4; }
+.c p w{ cursor:pointer; border-radius:2px; } .c p w:hover{ background:#ffffff14; } .c p w.hit{ color:#14110c; background:var(--hi); } .c p w.now{ outline:1px solid var(--hi); }
+#player{ position:fixed; z-index:10; right:12px; bottom:calc(12px + env(safe-area-inset-bottom)); width:min(380px,92vw); background:#0e0d0c; border:1px solid #2a2723; border-radius:10px; overflow:hidden; box-shadow:0 18px 40px #000b; }
+#player video{ width:100%; display:block; aspect-ratio:4/3; background:#000; } #player div{ padding:8px 10px; font-size:10.5px; color:var(--dim); display:flex; gap:8px; align-items:center; } #player div span{ flex:1; } #player button{ background:none; border:0; cursor:pointer; color:var(--dim); font-size:16px; }
+.more{ display:block; margin:20px auto; border:1px solid var(--faint); background:none; border-radius:18px; padding:9px 18px; cursor:pointer; color:var(--dim); }
+@media (max-width:600px){ .c{ grid-template-columns:96px 1fr; } .c img{ width:96px; } .c p{ font-size:15px; } }
+</style></head><body>
+<header><div class="top"><a id="markLink" href="markov-poet.html"></a><div id="stat">reading the transcripts…</div></div>
+  <input id="q" placeholder="what does the archive say? the sea, home, my son, a stranger…" autocomplete="off" enterkeyhint="search">
+  <div id="chips"></div></header>
+<main id="list"></main>
+<div id="player" hidden><video id="pv" playsinline controls></video><div><span id="pt"></span><button id="px" aria-label="Close">×</button></div></div>
+<script src="markov/ui.js?v=3"></script>
+<script>
+(function () {
+  const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  MPUI.sprite(); $('#markLink').innerHTML = MPUI.mark(22) + 'THE ARCHIVE <span>· WHAT IT SAYS</span>';
+  const norm = w => w.toLowerCase().replace(/[^a-z0-9']/g, '').replace(/^'+|'+$/g, '');
+  let T = null, ids = [], shown = 0, hits = [];
+  ['the sea', 'home', 'my son', 'a stranger', 'the king', 'blood', 'remember', 'the gods', 'bow', 'twenty years', 'nobody', 'father'].forEach(w => { const b = document.createElement('button'); b.textContent = w; b.onclick = () => { $('#q').value = w; search(); }; $('#chips').append(b); });
+  function search() { const q = $('#q').value.trim(), toks = q.split(/\s+/).map(norm).filter(Boolean); hits = [];
+    if (!toks.length) hits = ids.map(i => ({ i, at: [] }));
+    else for (const i of ids) { const ws = T[i].words.map(w => norm(w[0])), at = [];
+      for (let p = 0; p <= ws.length - toks.length; p++) { let ok = true; for (let k = 0; k < toks.length; k++) if (ws[p + k] !== toks[k]) { ok = false; break; } if (ok) at.push(p); }
+      if (at.length) hits.push({ i, at, n: toks.length }); }
+    $('#stat').textContent = toks.length ? `"${q}" is said in ${hits.length} clips` : `${ids.length.toLocaleString()} clips with words · ${ids.reduce((a, i) => a + T[i].words.length, 0).toLocaleString()} words`;
+    $('#list').innerHTML = ''; shown = 0; more(); }
+  function more() { const L = $('#list'); const old = L.querySelector('.more'); if (old) old.remove();
+    hits.slice(shown, shown + 40).forEach(h => { const t = T[h.i], mark = new Set(); h.at.forEach(p => { for (let k = 0; k < h.n; k++) mark.add(p + k); });
+      const d = document.createElement('div'); d.className = 'c';
+      d.innerHTML = `<img loading="lazy" src="${esc(t.thumb)}" alt=""><div><h3>${esc(t.title || '')}${t.year ? ' · ' + t.year : ''}</h3><p>${t.words.map((w, n) => `<w data-t="${w[1]}" class="${mark.has(n) ? 'hit' : ''}">${esc(w[0])}</w>`).join(' ')}</p></div>`;
+      d.querySelector('img').onclick = () => play(h.i, h.at.length ? t.words[h.at[0]][1] : 0);
+      d.querySelectorAll('w').forEach(w => w.onclick = () => play(h.i, +w.dataset.t)); L.append(d); });
+    shown += 40; if (shown < hits.length) { const b = document.createElement('button'); b.className = 'more'; b.textContent = `${hits.length - shown} more`; b.onclick = more; L.append(b); } }
+  function play(i, t) { const t_ = T[i], v = $('#pv'); $('#player').hidden = false; if (v.dataset.i !== i) { v.src = t_.video; v.dataset.i = i; }
+    const go = () => { try { v.currentTime = Math.max(0, t - .15); } catch (e) { } v.play().catch(() => { }); }; if (v.readyState >= 1) go(); else v.addEventListener('loadedmetadata', go, { once: true });
+    $('#pt').textContent = (t_.title || '') + (t_.year ? ' · ' + t_.year : '') + ' · from ' + t.toFixed(1) + ' s'; }
+  $('#px').onclick = () => { $('#pv').pause(); $('#player').hidden = true; };
+  let deb; $('#q').addEventListener('input', () => { clearTimeout(deb); deb = setTimeout(search, 250); });
+  fetch('odyssey/transcripts.json').then(r => r.json()).then(d => { T = d; ids = Object.keys(d).sort((a, b) => d[b].words.length - d[a].words.length); const q = new URLSearchParams(location.search).get('q'); if (q) $('#q').value = q; search(); })
+    .catch(e => { $('#stat').textContent = 'could not load: ' + e.message; });
+})();
+</script></body></html>
