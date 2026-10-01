@@ -9,6 +9,8 @@ Bodies (lanes), each a list of [t0, t1, sprite cell | null, sign | null, id]:
   suite · scenes · cineosis · drift   the plan.py cuts   syntagma/syntagma-data.json
   spinecut   Spine-Cut's clean film                      spinecut/spinecut-data.json
   forage     the forage cut                              wygwyl/WYGWYL_Forage_Cut.json
+  archive    the router's pick for every vertebra from the 36,144 archive clips    syzygy/routing.json (route.py)
+             items carry [.., id, realised (1|0), vertebra id]; "route" holds each pick's rule, fit, start and runners-up
   halfworld  the author's Halfworld reference frames, one per movement of each poem (4:3)   wygwyl/collage-data.json
   taxonomy · compound   two films from the chemistry trials: the ordinary taxonomy's best pick per slot, and a blind
              compound laid over the slots                chemistry/trials.json
@@ -147,6 +149,27 @@ def main():
     lanes["spinecut"] = spc
     lanes["forage"] = [[s["start"], s["end"], arch(s.get("selected")), sign_of(s.get("selected")), s.get("selected")] for s in FC if s.get("selected")]
 
+    # the route: every vertebra's archive clip (route.py). Pictures from a local thumb or clip where the lab has one; the
+    # page streams the rest (thumbnail and video) from the archive
+    RT = json.load(open(os.path.join(HERE, "routing.json")))
+    pool = {}
+    for lib in (os.path.join(LAB, "markov", "library.json"), os.path.join(LAB, "odyssey", "all", "library.json")):
+        for s_ in json.load(open(lib))["shots"]: pool.setdefault(s_["id"], s_)
+    ar, route = [], {}
+    for r in RT["route"]:
+        c = r["clip"]; i = c["id"]
+        k = arch(i) if picture(i) else None
+        if i not in meta: meta[i] = [c["title"], c["year"], c["video"]]
+        meta[i] = meta[i][:3] + [c["thumb"], c["dur"]]
+        sg = ((pool.get(i) or {}).get("signs") or [None])[0]
+        ar.append([r["t0"], r["t1"], k, sg, i, 1 if r["realised"] else 0, r["v"]])
+        route[r["v"]] = [r["syntagma"], r["rule"], r["fit"], c["start"], [a for a in r["alts"][:4]]]
+        for a in r["alts"][:4]:
+            if a not in meta and a in pool:
+                x = pool[a]; v = x["video"]
+                meta[a] = [x.get("title"), x.get("year"), v, v.replace("/clips/", "/thumbnails/").rsplit(".", 1)[0] + ".jpg" if "/clips/" in v else None, x.get("dur")]
+    lanes["archive"] = ar
+
     CD = J("wygwyl", "collage-data.json"); hw = []
     for wd in CD["worlds"]:
         for m in wd.get("movements", []):
@@ -191,8 +214,8 @@ def main():
     signs = {s["n"]: [s["symbol"], s["name"], s["dom"]] for s in LDd["signs"]}
     out = {"dur": SD["duration"], "films": [[f["n"], f["title"], f["t0"], f["t1"]] for f in K["films"]],
            "beats": [[b["t0"], b["t1"], b["codes"], b["title"], b["id"]] for b in K["beats"]],
-           "order": ["voice", "spine", "halfworld", "board", "suite", "scenes", "cineosis", "drift", "spinecut", "forage", "taxonomy", "compound"],
-           "lanes": lanes, "sheets": {"lg": [ng, 240, 135], "la": [na, 128, 72], "lh": [nh, 240, 180]}, "meta": meta, "prompts": prompts, "signs": signs, "flips": flips, "flip": [len(fsheets), FW, FH, NF, 8], "hw": hw_runs, "hwf": [len(hw_sheets), 128, 96, 4]}
+           "order": ["voice", "spine", "archive", "halfworld", "board", "suite", "scenes", "cineosis", "drift", "spinecut", "forage", "taxonomy", "compound"],
+           "lanes": lanes, "sheets": {"lg": [ng, 240, 135], "la": [na, 128, 72], "lh": [nh, 240, 180]}, "meta": meta, "prompts": prompts, "route": route, "routing": {k: RT[k] for k in ("bridge", "pool", "realised", "fit", "films", "clips")}, "signs": signs, "flips": flips, "flip": [len(fsheets), FW, FH, NF, 8], "hw": hw_runs, "hwf": [len(hw_sheets), 128, 96, 4]}
     json.dump(out, open(os.path.join(HERE, "lanes.json"), "w"), ensure_ascii=False, separators=(",", ":"))
     dark = {k: sum(1 for x in v if x[2] is None) for k, v in lanes.items() if k != "voice"}
     print({k: len(v) for k, v in lanes.items()}, "·", len(G.idx), "generated,", len(A.idx), "archive pictures,", len(flips), "flipbooks in", len(fsheets), "sheets · dark:", dark)
