@@ -2,8 +2,12 @@
 Cineosis taxonomy cannot?  Writes chemistry/trials.json for lab/chemistry-trials.html.
 
 One instrument for every film. Each shot is labelled with the sign of its highest affinity (lab-data.json
-aff_top; for all 1,408 pool candidates this equals the sign the pool curated them for). Human cuts and generated
-films are read the same way.
+aff_top; for all 1,408 pool candidates this equals the sign the pool curated them for). The four WYGWYL cuts and the
+generated films are read the same way.
+
+The four cuts (suite, scenes, cineosis, drift) are machine cuts: lab/cutbastard/plan.py fills each patch greedily
+from CLIP scores with one rule per strategy. They are called the plan.py cuts here. What they show about adjacency
+describes plan.py's strategies, not human editing (see lab/syntagm/SWAP.md, "What was cut by whom").
 
 Spectroscopy (film → measurement). A film is a list of shots on the poem's clock. Its spectrum:
   stoichiometry   time-weighted share of each sign (45) and of each image type (16)
@@ -13,9 +17,9 @@ Spectroscopy (film → measurement). A film is a list of shots on the poem's clo
                   within (same regime, no special bond)
   recurrence      share of shots whose sign already appeared in the poem
 
-E1 Vacuity. What share of adjacent pairs in the human cuts would v1 forbid? (A single cut joins anything, so a
+E1 Vacuity. What share of adjacent pairs in the plan.py cuts would v1 forbid? (A single cut joins anything, so a
    linear film can never be unlawful; v1 can only speak through which bonds it favours.)
-E2 Adjacency. Do human editors put pairs next to each other that v1 calls bonds (rhyme, resonance, break) more
+E2 Adjacency. Do the plan.py cuts put pairs next to each other that v1 calls bonds (rhyme, resonance, break) more
    often than the same shots in shuffled order? Permutation test within each poem, 2,000 shuffles.
 E3 Blind synthesis. Hide the four cuts. From the poem's clock, its beats and their candidate pools only, seven
    films per poem, each the same number of slots (two per beat):
@@ -27,15 +31,15 @@ E3 Blind synthesis. Hide the four cuts. From the poem's clock, its beats and the
      G-compound   a blind compound (built from the pools alone, as the natural one is from the cut) laid over
                   the slots: each atom a run of slots, the best candidate carrying it
      G-isomer     G-compound's own signs, same counts, reordered for the strongest bonds
-   Each is measured against the four human cuts: stoichiometry distance, transition distance, a time-aligned
-   image-type mismatch, and shot overlap. The four human cuts measured against each other give the ceiling.
+   Each is measured against the four plan.py cuts: stoichiometry distance, transition distance, a time-aligned
+   image-type mismatch, and shot overlap. The four plan.py cuts measured against each other give the ceiling.
 E4 Isomers. G-isomer has G-compound's inventory exactly. If ordering alone moves the transition spectrum as far
    as a different inventory does, bonding is doing something the inventory cannot.
 
-Predictions, fixed before the numbers:
-  P1 chemistry films are nearer the human cuts' transitions than random ones      (the bonds capture editing)
-  P2 chemistry films are nearer the human cuts than the ordinary taxonomy's        (chemistry adds to the taxonomy)
-  P3 human cuts over-represent rhyme, resonance or break beyond their own shuffles (editors bond as v1 says)
+Predictions, fixed before the numbers (worded then as if the four cuts were human; the cuts are plan.py's):
+  P1 chemistry films are nearer the plan.py cuts' transitions than random ones    (the bonds capture these cuts)
+  P2 chemistry films are nearer the plan.py cuts than the ordinary taxonomy's      (chemistry adds to the taxonomy)
+  P3 plan.py cuts over-represent rhyme, resonance or break beyond their own shuffles (the cuts bond as v1 says)
   P4 isomers differ in transitions at least half as much as different inventories do (same atoms, different film)
 Any prediction the numbers refute is reported as refuted.
     python3 lab/chemistry/trials.py
@@ -174,15 +178,15 @@ def realise_seq(slots, seq):
     return film
 
 rng = random.Random(1440)
-HUMAN = ['suite', 'scenes', 'cineosis', 'drift']
+CUTS = ['suite', 'scenes', 'cineosis', 'drift']
 GENS = ['B-random', 'B-taxonomy', 'G-bond', 'G-resonance', 'G-break', 'G-compound', 'G-isomer']
 poems, vac_pairs, vac_bad = [], 0, 0
-adj = {cut: collections.Counter() for cut in HUMAN}; adj_null = {cut: collections.defaultdict(list) for cut in HUMAN}
+adj = {cut: collections.Counter() for cut in CUTS}; adj_null = {cut: collections.defaultdict(list) for cut in CUTS}
 for f in K['films']:
     t0, t1 = f['t0'], f['t1']; beats = [b for b in K['beats'] if b['film'] == f['n']]
-    human = {cut: [piece({'id': p['id'], 'title': p.get('title'), 'year': p.get('year'), 'thumb': p.get('thumb'), 'video': p.get('video'), 'in': p.get('in', 0)}, max(t0, p['t0']), min(t1, p['t1'])) for p in D['cuts'][cut] if p['t1'] > t0 and p['t0'] < t1] for cut in HUMAN}
-    # E1 vacuity and E2 adjacency, on the human cuts
-    for cut, film in human.items():
+    cuts = {cut: [piece({'id': p['id'], 'title': p.get('title'), 'year': p.get('year'), 'thumb': p.get('thumb'), 'video': p.get('video'), 'in': p.get('in', 0)}, max(t0, p['t0']), min(t1, p['t1'])) for p in D['cuts'][cut] if p['t1'] > t0 and p['t0'] < t1] for cut in CUTS}
+    # E1 vacuity and E2 adjacency, on the plan.py cuts
+    for cut, film in cuts.items():
         labs = [p['sg'] for p in film if p['sg']]
         vac_pairs += max(0, len(labs) - 1)
         obs = collections.Counter(klass(labs[i - 1], labs[i]) for i in range(1, len(labs))); adj[cut].update(obs)
@@ -199,25 +203,25 @@ for f in K['films']:
         'G-bond': gen_scored(slots, bond_score), 'G-resonance': gen_scored(slots, res_score), 'G-break': gen_scored(slots, break_score),
         'G-compound': g_comp, 'G-isomer': realise_seq(slots, isomer_order([p['sg'] for p in g_comp])),
     }
-    specs = {k: spectrum(v, t0, t1) for k, v in {**films, **human}.items()}
-    dist = {g: {cut: distance(films[g], human[cut], t0, t1) for cut in HUMAN} for g in GENS}
-    ceil = {f'{a}~{b}': distance(human[a], human[b], t0, t1) for i, a in enumerate(HUMAN) for b in HUMAN[i + 1:]}
+    specs = {k: spectrum(v, t0, t1) for k, v in {**films, **cuts}.items()}
+    dist = {g: {cut: distance(films[g], cuts[cut], t0, t1) for cut in CUTS} for g in GENS}
+    ceil = {f'{a}~{b}': distance(cuts[a], cuts[b], t0, t1) for i, a in enumerate(CUTS) for b in CUTS[i + 1:]}
     iso = {'isomer_vs_compound': distance(films['G-isomer'], films['G-compound'], t0, t1), 'bond_vs_compound': distance(films['G-bond'], films['G-compound'], t0, t1), 'taxonomy_vs_compound': distance(films['B-taxonomy'], films['G-compound'], t0, t1)}
-    poems.append({'n': f['n'], 'title': f['title'], 't0': t0, 't1': t1, 'blind_compound': comp, 'films': films, 'human': human, 'spectra': specs, 'dist': dist, 'ceiling': ceil, 'isomer': iso})
+    poems.append({'n': f['n'], 'title': f['title'], 't0': t0, 't1': t1, 'blind_compound': comp, 'films': films, 'cuts': cuts, 'spectra': specs, 'dist': dist, 'ceiling': ceil, 'isomer': iso})
 
 # ---------- the verdicts ----------
 def mean(xs): xs = [x for x in xs if x is not None]; return round(statistics.mean(xs), 4) if xs else None
 def summary(metric):
-    return {g: mean([p['dist'][g][cut][metric] for p in poems for cut in HUMAN]) for g in GENS} | {'human ceiling': mean([d[metric] for p in poems for d in p['ceiling'].values()])}
+    return {g: mean([p['dist'][g][cut][metric] for p in poems for cut in CUTS]) for g in GENS} | {'cuts ceiling': mean([d[metric] for p in poems for d in p['ceiling'].values()])}
 def wins(g, base, metric, lower=True):
-    w = sum(1 for p in poems if (mean([p['dist'][g][c][metric] for c in HUMAN]) < mean([p['dist'][base][c][metric] for c in HUMAN])) == lower)
+    w = sum(1 for p in poems if (mean([p['dist'][g][c][metric] for c in CUTS]) < mean([p['dist'][base][c][metric] for c in CUTS])) == lower)
     n = len(poems); p = sum(math.comb(n, k) for k in range(w, n + 1)) / 2 ** n          # one-sided sign test
     return {'wins': w, 'of': n, 'p': round(p, 4)}
 metrics = {m: summary(m) for m in ['d_sto', 'd_type', 'd_trans', 'd_time', 'overlap']}
 chem = ['G-bond', 'G-resonance', 'G-break', 'G-compound', 'G-isomer']
 tests = {g: {'vs_random': {m: wins(g, 'B-random', m) for m in ['d_trans', 'd_time', 'd_type']}, 'vs_taxonomy': {m: wins(g, 'B-taxonomy', m) for m in ['d_trans', 'd_time', 'd_type']}} for g in chem}
 e2 = {}
-for cut in HUMAN:
+for cut in CUTS:
     e2[cut] = {}
     for k in KL:
         obs = adj[cut][k]; null = [sum(col[i] for col in adj_null[cut][k]) for i in range(2000)]
@@ -227,17 +231,17 @@ iso_t = mean([p['isomer']['isomer_vs_compound']['d_trans'] for p in poems]); inv
 iso_s = mean([p['isomer']['isomer_vs_compound']['d_sto'] for p in poems]); inv_s = mean([p['isomer']['taxonomy_vs_compound']['d_sto'] for p in poems])
 best_chem_trans = min(chem, key=lambda g: metrics['d_trans'][g])
 bonded = ['rhyme', 'resonance', 'break']
-p3 = {cut: [k for k in bonded if e2[cut][k]['p_over'] < 0.05] for cut in HUMAN}
+p3 = {cut: [k for k in bonded if e2[cut][k]['p_over'] < 0.05] for cut in CUTS}
 verdicts = {
-  'P1': {'claim': 'chemistry films are nearer the human cuts’ transitions than random films', 'holds': sum(tests[g]['vs_random']['d_trans']['p'] < 0.05 for g in chem) >= 3,
+  'P1': {'claim': 'chemistry films are nearer the plan.py cuts’ transitions than random films', 'holds': sum(tests[g]['vs_random']['d_trans']['p'] < 0.05 for g in chem) >= 3,
          'evidence': {g: tests[g]['vs_random']['d_trans'] for g in chem}},
-  'P2': {'claim': 'chemistry films are nearer the human cuts than the ordinary taxonomy’s', 'holds': any(tests[g]['vs_taxonomy'][m]['p'] < 0.05 for g in chem for m in ['d_trans', 'd_time']),
+  'P2': {'claim': 'chemistry films are nearer the plan.py cuts than the ordinary taxonomy’s', 'holds': any(tests[g]['vs_taxonomy'][m]['p'] < 0.05 for g in chem for m in ['d_trans', 'd_time']),
          'evidence': {g: tests[g]['vs_taxonomy'] for g in chem}},
-  'P3': {'claim': 'human cuts over-represent rhyme, resonance or break beyond their own shuffles', 'holds': sum(bool(v) for v in p3.values()) >= 2, 'evidence': p3},
+  'P3': {'claim': 'plan.py cuts over-represent rhyme, resonance or break beyond their own shuffles', 'holds': sum(bool(v) for v in p3.values()) >= 2, 'evidence': p3},
   'P4': {'claim': 'isomers differ in transitions at least half as much as different inventories do', 'holds': iso_t >= 0.5 * inv_t,
          'evidence': {'isomer transition distance': iso_t, 'different-inventory transition distance': inv_t, 'isomer stoichiometry distance': iso_s, 'different-inventory stoichiometry distance': inv_s}},
 }
-out = {'ontology': 'v1', 'labeller': 'aff_top[0] (lab-data.json) for every shot', 'generators': GENS, 'human': HUMAN, 'classes': KL, 'metrics': metrics, 'tests': tests, 'adjacency': e2,
+out = {'ontology': 'v1', 'labeller': 'aff_top[0] (lab-data.json) for every shot', 'generators': GENS, 'cuts': CUTS, 'classes': KL, 'metrics': metrics, 'tests': tests, 'adjacency': e2,
        'vacuity': {'pairs': vac_pairs, 'forbidden': vac_bad, 'share_forbidden': 0.0, 'note': 'a single cut may join any two signs, so no linear film breaks v1; v1 speaks only through which bonds it favours'},
        'verdicts': verdicts, 'poems': poems}
 json.dump(out, open(os.path.join(HERE, 'trials.json'), 'w'), separators=(',', ':'), ensure_ascii=False)
