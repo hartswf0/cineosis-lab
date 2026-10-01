@@ -24,7 +24,13 @@
     const light = !!opts.light;
     const [J, B, K, ST, E, T, PO, V] = await Promise.all([get('markov/library.json'), get('markov/emb.bin', 1), get('bets/kernel-data.json'), get('markov/starters.json').catch(() => ({ starters: [], emb: {} })),
       light ? { events: [] } : get('markov/events.json'), light ? {} : get('markov/texts.json'), light ? { poems: [] } : get('markov/tests/poems.json'), light ? { poems: {}, wygwyl: {} } : get('markov/voice/index.json').catch(() => ({ poems: {}, wygwyl: {} }))]);
-    SH.data = { LIB: new S.Library(J, new Int8Array(B), E.events), TX: Object.assign(T, ST.emb), K, POEMS: PO.poems, VOICE: V, starters: ST.starters, hasPoet: J.shots.some(s => s.kind === 'poet') };
+    let Q8 = new Int8Array(B);
+    // other collections a room asks for (opts.extra: ['odyssey']): their shots join the end of the library, their vectors are
+    // carried onto the library's own 8-bit scale, so every room's search and composer see one archive
+    for (const dir of opts.extra || []) { try { const [J2, B2] = await Promise.all([get(dir + '/library.json'), get(dir + '/emb.bin', 1)]), q2 = new Int8Array(B2), k = J2.scale / J.scale, all = new Int8Array(Q8.length + q2.length);
+        all.set(Q8); for (let i = 0; i < q2.length; i++) all[Q8.length + i] = Math.max(-127, Math.min(127, Math.round(q2[i] * k))); Q8 = all;
+        J.shots = J.shots.concat(J2.shots); J.n = J.shots.length; } catch (e) { console.warn('collection', dir, e); } }
+    SH.data = { LIB: new S.Library(J, Q8, E.events), TX: Object.assign(T, ST.emb), K, POEMS: PO.poems, VOICE: V, starters: ST.starters, hasPoet: J.shots.some(s => s.kind === 'poet') };
     SH.ready.archive = true; tellReady();
     if (SH.isLab()) fetch('/api/embed', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texts: ['a door'] }) })
       .then(r => SH.server = r.ok).catch(() => SH.server = false).finally(() => { if (SH.server) { SH.ready.reader = true; tellReady(); } else startReader(); });

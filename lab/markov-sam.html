@@ -61,12 +61,19 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
 .here{ position:absolute; width:34px; height:34px; margin:-17px 0 0 -17px; border:2px solid var(--hi); border-radius:50%; z-index:300; pointer-events:none; animation:here 1.4s ease-in-out infinite; } .here b{ position:absolute; left:38px; top:6px; font:500 10px var(--mono); letter-spacing:.12em; color:var(--hi); white-space:nowrap; text-shadow:0 1px 3px #000; }
 @keyframes here{ 50%{ transform:scale(.8); opacity:.6; } }
 .haim{ outline:2px solid #c4f46a !important; outline-offset:1px; }
+#tools .sign{ color:#a59e93; font-size:10.5px; letter-spacing:0; line-height:1.4; text-align:center; max-width:760px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; } #tools .sign b{ color:var(--hi); font-weight:500; margin-right:2px; }
+#bScene{ width:auto; padding:0 10px; border-radius:16px; font-size:11px; letter-spacing:.12em; color:var(--hi); border:1px solid #3a3226; height:34px; }
+#scenes{ position:fixed; inset:0; z-index:80; background:#050505f4; overflow:auto; padding:calc(56px + env(safe-area-inset-top)) 14px 40px; } #scenes .top{ position:fixed; left:0; right:0; top:0; display:flex; align-items:center; gap:8px; padding:calc(6px + env(safe-area-inset-top)) 12px 6px; background:#050505; letter-spacing:.2em; font-size:10.5px; color:var(--dim); z-index:2; } #scenes .top span{ flex:1; }
+#scenes h3{ font:500 10px var(--mono); letter-spacing:.2em; color:var(--dim); margin:18px 0 6px; } #scenes .row{ display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr)); gap:6px; }
+#scenes button{ display:grid; grid-template-columns:34px 1fr; gap:8px; align-items:center; text-align:left; background:#0e0d0c; border:1px solid var(--faint); border-radius:6px; padding:8px 10px; min-height:44px; cursor:pointer; color:var(--ink); font:300 14px var(--serif); }
+#scenes button b{ font:500 11px var(--mono); color:var(--hi); } #scenes button.cur{ border-color:var(--hi); } #scenes button.drop{ opacity:.55; }
 #toast{ position:fixed; left:50%; top:calc(56px + env(safe-area-inset-top)); transform:translateX(-50%); background:#14120f; border:1px solid var(--faint); border-radius:18px; padding:8px 14px; z-index:90; max-width:92vw; opacity:0; transition:opacity .3s; pointer-events:none; text-align:center; } #toast.on{ opacity:1; }
 @media (max-height:560px){ #handBox .v{ width:60px; }  header{ padding-top:2px; padding-bottom:2px; } #strip .panel{ width:72px; } #tray{ height:60px; padding:3px 0; } #tray button{ height:54px; } #tray img{ max-height:46px; } #tray button.gr img{ height:54px; width:96px; } #tools{ min-height:30px; } #tools .ico{ width:30px; height:30px; } footer{ padding-top:2px; } #stageWrap{ min-height:120px; } }
 @media (min-width:900px) and (min-height:561px){ main{ padding:0 18px; } #tray{ height:112px; } #tray button{ height:100px; } #tray img{ max-height:90px; } #tray button.gr img{ height:100px; width:178px; } }
 @media print{ html,body{ overflow:visible; height:auto; background:#fff; color:#000; display:block; } header,main,footer,#toast,#board .top{ display:none !important; } #board{ position:static; display:block !important; background:#fff; padding:0; } #board .grid{ grid-template-columns:repeat(3,1fr); } #board figure{ break-inside:avoid; } .panel{ print-color-adjust:exact; -webkit-print-color-adjust:exact; } }
 </style></head><body>
 <header><a id="markLink" href="markov-poet.html"></a><div id="sys">waking</div>
+  <button class="ico" id="bScene" hidden aria-label="Choose a scene of the Odyssey">SCENE</button>
   <button class="ico" id="bBoard" aria-label="The whole storyboard"><svg><use href="#i-grid"/></svg></button>
   <button class="ico" id="bMore" aria-label="Menu"><svg><use href="#i-more"/></svg></button></header>
 <main>
@@ -82,10 +89,11 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
   <button class="ico" id="bPlay" aria-label="Play the board"><svg><use href="#i-play"/></svg></button>
   <button class="ico" id="bDeal" aria-label="Deal this panel again"><svg><use href="#i-take"/></svg></button></footer>
 <div id="board" hidden><div class="top"><span>STORYBOARD</span><button class="ico" id="bPrint" aria-label="Print or save as PDF"><svg><use href="#i-send"/></svg></button><button class="ico" id="bBoardX" aria-label="Close"><svg><use href="#i-close"/></svg></button></div><div class="grid"></div></div>
+<div id="scenes" hidden><div class="top"><span>THE ODYSSEY · 152 SCENES · BOOK BY BOOK</span><button class="ico" id="bScenesX" aria-label="Close"><svg><use href="#i-close"/></svg></button></div><div id="sceneList"></div></div>
 <div id="toast"></div>
 <script src="markov/engine.js?v=6"></script>
 <script src="markov/clip-text.js?v=5"></script>
-<script src="markov/shared.js?v=4"></script>
+<script src="markov/shared.js?v=5"></script>
 <script src="markov/export.js?v=4"></script>
 <script src="markov/live.js?v=4"></script>
 <script src="markov/hands.js?v=3"></script>
@@ -93,7 +101,10 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
 <script>
 (function () {
   const $ = s => document.querySelector(s), esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const SH = window.SH; MPUI.sprite(); $('#markLink').innerHTML = MPUI.mark(26) + 'MARKOV <span>· SAM</span>';
+  const SH = window.SH; MPUI.sprite();
+  // the Odyssey: the same storyboard, its lines the beats of Homer's scenes, its grounds foraged for each beat from the Moving Image Archive
+  const OD = new URLSearchParams(location.search).has('od'); let ODS = null, scene = null;
+  $('#markLink').innerHTML = MPUI.mark(26) + (OD ? 'MARKOV <span>· ODYSSEY</span>' : 'MARKOV <span>· SAM</span>'); if (OD) document.title = 'Markov Odyssey';
   const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
   let tT; const toast = t => { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(tT); tT = setTimeout(() => e.classList.remove('on'), 3200); };
   SH.onStatus(s => { $('#sys').textContent = s.text || ''; });
@@ -109,9 +120,10 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
   }
 
   /* the board: lines, and for each panel a ground and placed figures */
-  let lines = store.get('sam.lines', []), saved = store.get('sam.panels', {}), panels = [], sel = 0, selFig = -1, grade = store.get('sam.grade', true), tab = 'fig', found = null, composing = 0;
+  const NS = OD ? 'odyssey.' : 'sam.';
+  let lines = OD ? [] : store.get('sam.lines', []), saved = OD ? {} : store.get('sam.panels', {}), panels = [], sel = 0, selFig = -1, grade = store.get('sam.grade', true), tab = 'fig', found = null, composing = 0;
   const key = (i, t) => i + '|' + t;
-  const persist = () => { store.set('sam.lines', lines); const o = {}; panels.forEach(p => o[p.key] = { bg: p.bg, figs: p.figs }); saved = o; store.set('sam.panels', o); };
+  const persist = () => { const o = {}; panels.forEach(p => o[p.key] = { bg: p.bg, figs: p.figs }); saved = o; if (OD) { if (scene) store.set('odyssey.panels.' + scene.id, o); return; } store.set('sam.lines', lines); store.set('sam.panels', o); };
   // a figure enters where it stood in its own film, at its own size: the first guess at a composition
   function placeFig(f, n) { const F = SAM.figs[f], [x, y, w, h] = F.box; return { z: .5, f, x: Math.min(.9, Math.max(.1, x + w / 2 + (n ? (n % 2 ? .12 : -.12) : 0))), y: Math.min(.9, Math.max(.12, y + h / 2)), s: Math.min(.42, Math.max(.12, w * .7)), flip: 0 }; }
   function deal(p, n = 2) {   // sample figures by their chance for this line: the Markov step, over cut-outs
@@ -123,10 +135,15 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
   async function rebuild(keepSel) {
     const my = ++composing; if (!lines.length) { panels = []; draw(); return; }
     // a storyboard wants each ground to answer its own line, so the ground is drawn straight from that line's own distribution over the archive
-    const texts = Shannon.parse(lines.join('\n')).map(p => p.text), E = await SH.embed(texts); if (my !== composing) return; if (E.some(x => !x)) throw new Error('some words could not be read');
-    const used = new Set(), cut = E.map(e => { const sm = D.LIB.sims(e), top = rank(sm).slice(0, 24), w = top.map(k => Math.exp((sm[k] - sm[top[0]]) / .018)), tot = w.reduce((a, b) => a + b, 0), alts = top.map((k, n) => ({ k, p: w[n] / tot }));
+    const texts = OD ? [...lines] : Shannon.parse(lines.join('\n')).map(p => p.text), E = await SH.embed(texts); if (my !== composing) return; if (E.some(x => !x)) throw new Error('some words could not be read');
+    const used = new Set(), cut = E.map((e, bi) => {
+      // an Odyssey beat: its own foraged footage first (grounds and actions, ranked when the forage was read), the whole archive after
+      const ob = OD && scene && scene.beats[bi]; if (ob) { const own = [...ob.action.map(x => [x[0], x[1], 'A']), ...ob.ground.map(x => [x[0], x[1], 'G'])].filter(x => idOf.has(x[0])).sort((a, b) => b[1] - a[1]);
+        if (own.length) { const w = own.map(x => Math.exp((x[1] - own[0][1]) / .02)), tot = w.reduce((a, b) => a + b, 0), alts = own.map((x, n) => ({ k: idOf.get(x[0]), p: w[n] / tot, tag: x[2] }));
+          const sm = D.LIB.sims(e), seen = new Set(alts.map(a => a.k)); rank(sm).slice(0, 16).forEach(k => { if (!seen.has(k)) alts.push({ k, p: null }); });
+          const pick = alts.find(a => !used.has(D.LIB.shots[a.k].src)) || alts[0]; used.add(D.LIB.shots[pick.k].src); return { k: pick.k, alts }; } } const sm = D.LIB.sims(e), top = rank(sm).slice(0, 24), w = top.map(k => Math.exp((sm[k] - sm[top[0]]) / .018)), tot = w.reduce((a, b) => a + b, 0), alts = top.map((k, n) => ({ k, p: w[n] / tot }));
       const pick = alts.find(a => !used.has(D.LIB.shots[a.k].src)) || alts[0]; used.add(D.LIB.shots[pick.k].src); return { k: pick.k, alts }; });
-    panels = cut.map((s, i) => { const fsims = figSims(E[i]), p = { key: key(i, texts[i]), text: texts[i], e: E[i], fsims, cands: rank(fsims).slice(0, 40), alts: s.alts.map(a => ({ k: a.k, p: a.p })), bg: s.k, figs: [] };
+    panels = cut.map((s, i) => { const fsims = figSims(E[i]), p = { key: key(i, texts[i]), text: texts[i], e: E[i], fsims, cands: rank(fsims).slice(0, 40), alts: s.alts.map(a => ({ k: a.k, p: a.p, tag: a.tag })), bg: s.k, figs: [] };
       const was = saved[p.key]; if (was) { p.bg = was.bg; p.figs = (was.figs || []).filter(g => SAM.figs[g.f]); } else p.figs = deal(p); return p; });
     if (!keepSel) sel = panels.length - 1; sel = Math.max(0, Math.min(sel, panels.length - 1)); selFig = -1; found = null; persist(); draw();
     SH.status('rest', `${panels.length} panel${panels.length > 1 ? 's' : ''} · drag a figure to move it`);
@@ -164,7 +181,7 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
     const B = (ic, lab, f) => `<button class="ico" data-a="${f}" aria-label="${lab}" title="${lab}"><svg><use href="#i-${ic}"/></svg></button>`;
     const X = (lab, f) => `<button class="tx" data-a="${f}">${lab}</button>`;
     t.innerHTML = g ? `<em>${esc(SAM.figs[g.f].desc)}</em>` + B('down', 'Smaller', 'sm') + B('up', 'Larger', 'lg') + X('NEAR', 'near') + X('FAR', 'far') + X('COPY', 'copy') + X('FLIP', 'flip') + B('close', 'Remove', 'rm')
-      : `<span>${p.figs.length ? 'tap a figure to select it · drag to move · pinch or scroll to size' : 'tap a figure below to bring it in'}</span>`;
+      : (OD && scene ? `<span class="sign"><b>${esc(scene.sign.symbol || '')}</b> ${esc(scene.sign.name || '')} · ${esc(scene.sign.operation || '')}</span>` : `<span>${p.figs.length ? 'tap a figure to select it · drag to move · pinch or scroll to size' : 'tap a figure below to bring it in'}</span>`);
     t.querySelectorAll('button').forEach(b => b.onclick = () => act(b.dataset.a)); }
   function act(a) { const p = panels[sel], g = p.figs[selFig]; if (!g) return false; snap();
     if (a === 'near') { g.z = Math.min(1, zOf(g) + .17); g.s = Math.min(1.6, g.s * 1.14); } else if (a === 'far') { g.z = Math.max(0, zOf(g) - .17); g.s = Math.max(.04, g.s / 1.14); }
@@ -176,7 +193,7 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
     if (tab === 'fig') (found || p.cands).slice(0, 40).forEach(i => { const F = SAM.figs[i], b = document.createElement('button'); b.innerHTML = `<img loading="lazy" src="${url(F.png)}" alt=""><small>${esc(F.desc)}</small>`; b.title = `${F.desc} · ${F.title || ''} ${F.year || ''}`;
       b.onclick = () => { snap(); p.figs.push({ ...placeFig(i, p.figs.length), x: .5, y: .55 }); selFig = p.figs.length - 1; persist(); drawStage(); restrip(); }; t.append(b); });
     else { const none = document.createElement('button'); none.className = 'gr' + (p.bg == null ? ' on' : ''); none.style.minWidth = '64px'; none.innerHTML = '<small>no ground</small>'; none.onclick = () => { snap(); p.bg = null; persist(); drawStage(); restrip(); drawTray(); }; t.append(none);
-      (found || p.alts).slice(0, 24).forEach(a => { const s = D.LIB.shots[a.k], b = document.createElement('button'); b.className = 'gr' + (a.k === p.bg ? ' on' : ''); b.innerHTML = `<img loading="lazy" src="${s.thumb}" alt=""><small>${a.p != null ? Math.round(a.p * 100) + '% · ' : ''}${esc(s.title || '')}</small>`;
+      (found || p.alts).slice(0, 24).forEach(a => { const s = D.LIB.shots[a.k], b = document.createElement('button'); b.className = 'gr' + (a.k === p.bg ? ' on' : ''); b.innerHTML = `<img loading="lazy" src="${s.thumb}" alt=""><small>${a.tag ? (a.tag === 'G' ? 'PLACE · ' : 'ACTION · ') : ''}${a.p != null ? Math.round(a.p * 100) + '% · ' : ''}${esc(s.title || '')}</small>`;
         b.onclick = () => { snap(); p.bg = a.k; persist(); drawStage(); restrip(); drawTray(); }; t.append(b); }); } }
   $('#tFig').onclick = () => { tab = 'fig'; found = null; $('#find').value = ''; drawTray(); }; $('#tGr').onclick = () => { tab = 'gr'; found = null; $('#find').value = ''; drawTray(); };
   $('#find').addEventListener('keydown', async e => { if (e.key !== 'Enter') return; const q = e.target.value.trim(); if (!q) { found = null; drawTray(); return; } e.target.blur();
@@ -202,7 +219,7 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
     else if (g && (e.key === 'Backspace' || e.key === 'Delete')) act('rm'); else if (g && e.key === ']') act('lg'); else if (g && e.key === '[') act('sm'); else if (g && e.key === 'f') act('flip'); });
 
   /* lines in */
-  async function addLine(t) { t = String(t || '').trim(); if (!t) return; lines.push(t); store.set('sam.lines', lines); SH.status('reading', 'reading'); try { await rebuild(); } catch (e) { SH.status('rest', 'the words could not be read: ' + e.message); } }
+  async function addLine(t) { t = String(t || '').trim(); if (!t) return; lines.push(t); if (!OD) store.set('sam.lines', lines); SH.status('reading', 'reading'); try { await rebuild(); } catch (e) { SH.status('rest', 'the words could not be read: ' + e.message); } }
   $('#prompt').addEventListener('keydown', e => { if (e.key === 'Enter') { const t = e.target.value; e.target.value = ''; addLine(t); } });
   function removeLine(i) { if (!(i >= 0 && i < lines.length)) return; lines.splice(i, 1); saved = {}; persist(); store.set('sam.panels', {}); rebuild(true); }
   function lineOf(pi) { let n = 0; for (let i = 0; i < lines.length; i++) { n += Shannon.parse(lines[i]).length; if (pi < n) return i; } return lines.length - 1; }
@@ -313,6 +330,7 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
     { name: 'change_ground', description: 'Replace the background footage of the panel on screen with a shot found by a few words. Use for "make it a beach", "put this at night on a road".', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
       run: async a => { const p = panels[sel]; if (!p) return { error: 'no panel yet' }; const [v] = await SH.embed([a.query]), k = rank(D.LIB.sims(v))[0]; snap(); p.bg = k; persist(); drawStage(); restrip(); return { ground: D.LIB.shots[k].title }; } },
     { name: 'turn_page', description: 'Go to the next or previous panel.', parameters: { type: 'object', properties: { to: { type: 'string', enum: ['next', 'previous'] } }, required: ['to'] }, run: a => { go(sel + (a.to === 'next' ? 1 : -1)); return { panel: sel + 1, of: panels.length }; } },
+    { name: 'change_scene', description: 'In the Odyssey room: go to the next or previous scene, or to a scene found by words from its title ("the bow", "the cyclops", "the sirens").', parameters: { type: 'object', properties: { to: { type: 'string' } }, required: ['to'] }, run: a => { if (!OD) return { error: 'not in the Odyssey room' }; const t = (a.to || '').toLowerCase(); if (/next/.test(t)) stepScene(1); else if (/prev|back/.test(t)) stepScene(-1); else { const hit = ODS.scenes.find(s => s.title.toLowerCase().includes(t)) || ODS.scenes.find(s => t.split(/\s+/).some(w => w.length > 3 && s.title.toLowerCase().includes(w))); if (!hit) return { error: 'no scene called that' }; openScene(hit.id); } return { scene: scene.title }; } },
     { name: 'undo', description: 'Undo the last change to a panel.', run: () => ({ undone: undo() }) },
     { name: 'play', description: 'Read the board through from the start.', run: () => { stop(); sel = 0; $('#bPlay').click(); return { ok: true }; } }, { name: 'pause', description: 'Stop reading.', run: () => { stop(); return { ok: true }; } }];
   $('#bMic').onclick = async () => { if (live) { const l = live; live = null; l.stop(); return; } if (!MPLive.hasKey()) { MPLive.keySheet(ok => toast(ok ? 'key saved · tap the microphone and speak' : 'live voice needs an OpenAI key')); return; }
@@ -326,6 +344,7 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
       { icon: 'take', label: 'Deal again', hint: 'new figures, by their chance for this line', act: () => $('#bDeal').click() },
       { icon: 'close', label: 'Clear the figures', hidden: () => !panels[sel] || !panels[sel].figs.length, act: () => { panels[sel].figs = []; selFig = -1; persist(); drawStage(); restrip(); } },
       { icon: 'close', label: 'Remove this line', hidden: () => !panels.length, act: () => removeLine(lineOf(sel)) }] },
+    ...(OD ? [{ title: 'THE ODYSSEY', items: [{ icon: 'book', label: 'Choose a scene', hint: '152 scenes, book by book', act: () => drawScenes() }, { icon: 'right', label: 'Next scene', act: () => stepScene(1) }, { icon: 'left', label: 'Previous scene', act: () => stepScene(-1) }, { icon: 'take', label: 'Deal every panel again', hint: 'this scene, fresh figures and first-choice grounds', act: () => { saved = {}; store.set('odyssey.panels.' + scene.id, {}); rebuild().then(() => go(0)); } }] }] : []),
     { title: 'THE BOARD', items: [
       { icon: 'grid', label: 'See the whole storyboard', hidden: () => !panels.length, act: openBoard },
       { icon: 'calm', label: 'One grade', hint: 'grounds and figures in the same black and white, so they sit together', on: () => grade, state: () => grade ? 'ON' : '', act: () => { grade = !grade; store.set('sam.grade', grade); draw(); return true; } },
@@ -336,9 +355,23 @@ footer{ display:flex; gap:4px; align-items:center; padding:6px 10px calc(8px + e
       { icon: 'undo', label: 'Begin again', hidden: () => !lines.length, act: () => { stop(); lines = []; saved = {}; panels = []; store.set('sam.lines', []); store.set('sam.panels', {}); draw(); SH.status('rest', 'empty board'); } }] },
     { title: 'HANDS AND VOICE', items: [{ icon: 'hand', label: () => hands ? 'Hands off' : 'Hands on', hint: 'move figures through the camera: pinch to hold, open to let go', on: () => !!hands, act: () => $('#bHand').click() },
       { icon: 'undo', label: 'Undo', hint: 'or hold a fist', act: () => { undo(); } }, { icon: 'voice', label: 'Live voice · OpenAI key', state: () => MPLive.hasKey() ? 'SET' : '', act: () => MPLive.keySheet(ok => toast(ok ? 'key saved' : 'no key saved')) }] },
-    { title: 'GO', items: [{ icon: 'home', label: 'The Poet', act: () => location.href = 'shannon-poet.html' }, { icon: 'info', label: 'How the Markov Poet works', act: () => location.href = 'markov-poet.html' }] }]);
+    { title: 'GO', items: [{ icon: 'home', label: 'The Poet', act: () => location.href = 'shannon-poet.html' }, { icon: 'book', label: () => OD ? 'SAM storyboard' : 'The Odyssey', act: () => location.href = OD ? 'markov-sam.html' : 'markov-odyssey.html' }, { icon: 'info', label: 'How the Markov Poet works', act: () => location.href = 'markov-poet.html' }] }]);
 
-  Promise.all([SH.load({ light: true }), loadCast()]).then(async ([d]) => { D = d; drawStarters();
+  let idOf = new Map();
+  const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX', 'XXI', 'XXII', 'XXIII', 'XXIV'];
+  const sceneTag = s => ROMAN[s.book] + '·' + (+s.id.slice(-2));
+  function openScene(id) { const s = ODS.scenes.find(x => x.id === id) || ODS.scenes[0]; stop(); scene = s; store.set('odyssey.scene', s.id); lines = s.beats.map(b => b.text); saved = store.get('odyssey.panels.' + s.id, {}); undoStack.length = 0;
+    $('#bScene').textContent = sceneTag(s); $('#scenes').hidden = true; history.replaceState(null, '', location.pathname + '?od=' + s.id);
+    SH.status('reading', `${s.title} · ${s.place.join(', ') || 'at sea'}`); rebuild().then(() => { go(0); SH.status('rest', `${sceneTag(s)} · ${s.title} · ${s.place.join(', ') || 'at sea'}`); }).catch(e => SH.status('rest', e.message)); }
+  function stepScene(d) { const i = ODS.scenes.findIndex(x => x.id === scene.id); openScene(ODS.scenes[(i + d + ODS.scenes.length) % ODS.scenes.length].id); }
+  function drawScenes() { const L = $('#sceneList'); L.innerHTML = ''; let book = 0, row = null;
+    ODS.scenes.forEach(s => { if (s.book !== book) { book = s.book; const h = document.createElement('h3'); h.textContent = 'BOOK ' + ROMAN[book]; L.append(h); row = document.createElement('div'); row.className = 'row'; L.append(row); }
+      const b = document.createElement('button'); b.className = (scene && scene.id === s.id ? 'cur ' : '') + (s.in_cut === false ? 'drop' : ''); b.innerHTML = `<b>${esc(s.sign.symbol || '·')}</b><span>${esc(s.title)}</span>`; b.title = (s.sign.name || '') + ' · ' + s.place.join(', '); b.onclick = () => openScene(s.id); row.append(b); });
+    $('#scenes').hidden = false; const c = L.querySelector('.cur'); if (c) c.scrollIntoView({ block: 'center' }); }
+  $('#bScene').onclick = () => ODS && drawScenes(); $('#bScenesX').onclick = () => { $('#scenes').hidden = true; };
+  Promise.all([SH.load(OD ? { light: true, extra: ['odyssey'] } : { light: true }), loadCast(), OD ? fetch('odyssey/scenes.json').then(r => r.json()) : null]).then(async ([d, _, ods]) => { D = d; drawStarters(); idOf = new Map(d.LIB.shots.map((s, i) => [s.id, i]));
+    if (OD) { ODS = ods; $('#bScene').hidden = false; $('#empty h1').textContent = 'the Odyssey, a beat a panel'; $('#empty p').textContent = 'Choose a scene. Each beat of it becomes a panel, grounded in footage foraged for it from the Moving Image Archive.'; $('#starters').innerHTML = '';
+      const want = new URLSearchParams(location.search).get('od'); openScene(ODS.scenes.some(x => x.id === want) ? want : store.get('odyssey.scene', ODS.scenes[0].id)); return; }
     const m = location.hash.match(/b=([^&]+)/); if (m) { try { await applyBoard(await MPExport.unpack(m[1])); history.replaceState(null, '', location.pathname); return; } catch (e) { toast('that link could not be opened'); } }
     if (lines.length) rebuild(true).catch(e => SH.status('rest', e.message)); else SH.status('rest', `${SAM.n} figures and ${d.LIB.n.toLocaleString()} shots at rest`);
   }).catch(e => SH.status('rest', 'could not wake: ' + e.message));

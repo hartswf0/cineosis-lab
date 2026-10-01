@@ -17,6 +17,17 @@ for s in shots:
         bx = o.get("union") or o["bbox"]
         figs.append({"shot": s["id"], "k": o["k"], "title": s.get("title"), "year": s.get("year"), "png": o["png"], "sprite": o.get("sprite"), "sw": o.get("sw"), "sh": o.get("sh"),
                      "frames": g.get("frames"), "fps": g.get("fps"), "desc": o.get("desc") or o.get("label") or "figure", "role": o.get("role"), "box": [round(x, 4) for x in bx], "present": o.get("present", 1)})
+# the Odyssey forage's cut-outs (seg_track.py --jobs=odyssey/cache/seg-jobs.json)
+op = os.path.join(LAB, "cache", "segments_odyssey.json")
+if os.path.exists(op):
+    oc = {c["id"]: c for c in json.load(open(os.path.join(LAB, "odyssey", "results", "clips.json")))}
+    for sid, g in json.load(open(op)).items():
+        c = oc.get(sid, {})
+        for o in g.get("objects") or []:
+            if not os.path.exists(os.path.join(LAB, o["png"])) or o.get("area", 0) > .8: continue
+            bx = o.get("union") or o["bbox"]
+            figs.append({"shot": sid, "k": o["k"], "title": c.get("sourceTitle"), "year": c.get("sourceYear"), "png": o["png"], "sprite": o.get("sprite"), "sw": o.get("sw"), "sh": o.get("sh"), "coll": "odyssey",
+                         "frames": g.get("frames"), "fps": g.get("fps"), "desc": o.get("desc") or o.get("label") or "figure", "role": o.get("role"), "box": [round(x, 4) for x in bx], "present": o.get("present", 1)})
 dev = "mps" if torch.backends.mps.is_available() else "cpu"
 m, _, pre = open_clip.create_model_and_transforms("ViT-B-32-quickgelu", pretrained="openai"); m = m.to(dev).eval(); tok = open_clip.get_tokenizer("ViT-B-32-quickgelu")
 out = np.zeros((len(figs), 512), np.float32)
