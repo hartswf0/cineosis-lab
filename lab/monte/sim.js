@@ -11,7 +11,13 @@
     M.cardIx = new Map(M.cards.map((s, k) => [s, k])); M.plain = M.shots.map((s, k) => k).filter(k => !M.shots[k].title);
     M.opening = M.cards.filter(k => /present|produced|picture|productions?|films?\b/i.test(M.shots[k].text) && !/\bend\b/i.test(M.shots[k].text));
     M.ending = M.cards.filter(k => /\bthe end\b|^end\b|einde/i.test(M.shots[k].text));
-    M.middle = M.cards.filter(k => !M.opening.includes(k) && !M.ending.includes(k)); return M; }
+    M.middle = M.cards.filter(k => !M.opening.includes(k) && !M.ending.includes(k));
+    const d = M.SE[0].length; M.mu = new Float32Array(d); M.SE.forEach(v => { for (let j = 0; j < d; j++) M.mu[j] += v[j] / M.SE.length; }); M.taste = null; return M; }
+  // ---- the viewer's taste: shots marked yes (+) and no (-), and the films chosen, as one direction in CLIP space
+  function taste(M, marks) { const d = M.mu.length, T = new Float32Array(d); let n = 0; const ix = new Map(M.shots.map((s, k) => [s.i, k]));
+    for (const [i, w] of Object.entries(marks)) { const k = ix.get(i); if (k == null || !w) continue; for (let j = 0; j < d; j++) T[j] += w * (M.SE[k][j] - M.mu[j]); n++; }
+    let s = 0; for (let j = 0; j < d; j++) s += T[j] * T[j]; s = Math.sqrt(s); if (!n || !s) return (M.taste = null); for (let j = 0; j < d; j++) T[j] /= s; return (M.taste = T); }
+  const lean = (M, k) => { let s = 0; for (let j = 0; j < M.mu.length; j++) s += (M.SE[k][j] - M.mu[j]) * M.taste[j]; return s; };
   // ---- the rules: each gene in [0,1], read through its range
   const GENES = [['acts', 3, 7, 'acts'], ['shots', 2, 5, 'shots per act'], ['card', 0, 1, 'a card opens an act'], ['voice', 0, 2.5, 'spoken lines per act'],
     ['wJudge', 0, 3, 'trust the judge'], ['wMatch', 0, 3, 'match cuts'], ['target', .55, .9, 'how alike a cut'], ['wText', 0, 3, 'cards borne out'], ['wVoice', 0, 3, 'words fit pictures'],
@@ -91,8 +97,9 @@
     P.structure = (cards.length && M.opening.includes(ev[0].k) ? .2 : 0) + (ev.length && ev[ev.length - 1].end ? .2 : 0) + (shots.some(e => e.ret) ? .2 : 0) + .2 * three + .2 * Math.min(1, chapters / 2);
     P.variety = shots.length ? new Set(shots.map(e => M.shots[e.k].film)).size / shots.length : 0;
     const T = ev.reduce((s, e) => s + e.dur, 0); f.seconds = T; P.pace = T < 70 ? T / 70 : T > 120 ? Math.max(0, 1 - (T - 120) / 40) : 1;   // unhurried: a film to sit with, not blink at
+    P.yours = M.taste && shots.length ? Math.min(1, Math.max(0, .5 + 3 * shots.reduce((a, e) => a + lean(M, e.k), 0) / shots.length)) : 0;
     P.music = f.music != null ? Math.max(0, cos(M.music[f.music].mood, f.mood)) : 0;
-    f.parts = P; f.score = Object.entries(W).reduce((s, [k, w]) => s + w * (P[k] || 0), 0); return f.score;
+    const tw = Object.values(W).reduce((a, b) => a + b, 0) || 1; f.parts = P; f.score = Object.entries(W).reduce((s, [k, w]) => s + w * (P[k] || 0), 0) / tw; return f.score;
   }
   // ---- evolution: rule sets that make good films survive, cross and mutate
   function evolve(M, opts = {}) {
@@ -109,6 +116,6 @@
       pop = next; gen++; return history[history.length - 1]; }
     return { step, get best() { return best; }, get history() { return history; }, get pop() { return pop; } };
   }
-  const api = { load, generate, critic, evolve, GENES, CRITIC, val, dot };
+  const api = { load, generate, critic, evolve, taste, lean, GENES, CRITIC, val, dot };
   if (typeof module !== 'undefined') module.exports = api; else root.MonteCinema = api;
 })(this);

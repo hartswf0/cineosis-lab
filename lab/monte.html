@@ -1,104 +1,132 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Monte Carlo Cinema</title>
-<meta name="description" content="A selection committee for films the archive makes by chance: rules make films, you choose the best of three, the rules breed from your choices.">
+<meta name="description" content="A selection committee for films the archive makes by chance: watch three, mark the moments, keep the best; the rules breed from your taste.">
 <meta name="theme-color" content="#f2d3cb">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Cormorant+Garamond:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
 <style>
 :root{ --wall:#f2d3cb; --cream:#fbf3e4; --ink:#4a2027; --soft:#9a6b6b; --mustard:#e0ae48; --teal:#6fa9a2; --red:#a8323e; --sans:'Jost',Futura,'Century Gothic',sans-serif; --serif:'Cormorant Garamond',Georgia,serif; }
-*{ box-sizing:border-box; } html,body{ margin:0; height:100%; } body{ background:var(--wall); color:var(--ink); font:500 12px var(--sans); letter-spacing:.14em; text-transform:uppercase; overflow:hidden; }
-button{ font:inherit; letter-spacing:inherit; text-transform:inherit; color:inherit; cursor:pointer; }
-#room{ height:100dvh; display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr) auto auto auto; justify-items:center; padding:calc(14px + env(safe-area-inset-top)) 16px calc(14px + env(safe-area-inset-bottom)); gap:10px; }
-header{ text-align:center; } header h1{ margin:0; font:600 15px var(--sans); letter-spacing:.42em; } header p{ margin:4px 0 0; font-size:9.5px; letter-spacing:.26em; color:var(--soft); }
-header h1::before, header h1::after{ content:'✦'; color:var(--mustard); margin:0 .8em; font-size:10px; vertical-align:2px; }
-/* the screen: a proscenium, dead centre */
+*{ box-sizing:border-box; } html,body{ margin:0; height:100%; } body{ background:var(--wall); color:var(--ink); font:500 12px var(--sans); letter-spacing:.14em; text-transform:uppercase; overflow:hidden; -webkit-tap-highlight-color:transparent; }
+button{ font:inherit; letter-spacing:inherit; text-transform:inherit; color:inherit; cursor:pointer; background:none; border:0; padding:0; }
+#room{ height:100dvh; display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr) auto auto auto; justify-items:center; padding:calc(14px + env(safe-area-inset-top)) 16px calc(12px + env(safe-area-inset-bottom)); gap:10px; }
+header h1{ margin:0; font:600 14px var(--sans); letter-spacing:.42em; text-align:center; } header h1::before, header h1::after{ content:'✦'; color:var(--mustard); margin:0 .8em; font-size:10px; vertical-align:2px; }
+/* the screen */
 #well{ width:100%; height:100%; min-height:0; container-type:size; display:grid; place-items:center; }
 #frame{ width:min(100cqw - 18px, (100cqh - 18px) * 4 / 3); aspect-ratio:4/3; background:var(--red); padding:10px; border-radius:3px; box-shadow:0 0 0 3px var(--mustard), 0 0 0 9px var(--red), 0 18px 40px #6a2a2a33; display:flex; }
-#screen{ position:relative; flex:1; background:#1a1210; overflow:hidden; }
+#screen{ position:relative; flex:1; background:#1a1210; overflow:hidden; cursor:pointer; }
 .lay{ position:absolute; inset:0; opacity:0; transition:opacity .9s ease; } .lay.on{ opacity:1; } .lay img, .lay video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
-#cap{ min-height:2.6em; max-width:640px; text-align:center; font:italic 400 17px/1.3 var(--serif); letter-spacing:0; text-transform:none; transition:opacity .6s; }
+#hint{ position:absolute; inset:0; display:grid; place-items:center; color:var(--cream); font-size:11px; letter-spacing:.4em; background:#1a121055; transition:opacity .5s; pointer-events:none; } #screen.playing #hint{ opacity:0; }
+/* yes / no on the moment: the only rating gesture */
+.mark{ position:absolute; bottom:10px; width:38px; height:38px; border-radius:50%; background:#fbf3e4dd; color:var(--ink); font-size:16px; letter-spacing:0; display:grid; place-items:center; opacity:0; transition:opacity .3s, transform .15s; }
+#screen.playing .mark{ opacity:.85; } .mark:active{ transform:scale(.9); } #no{ left:10px; } #yes{ right:10px; color:var(--red); }
+#flash{ position:absolute; inset:0; display:grid; place-items:center; font-size:64px; color:var(--cream); opacity:0; pointer-events:none; transition:opacity .5s; letter-spacing:0; }
+#cap{ min-height:2.5em; max-width:640px; text-align:center; font:italic 400 17px/1.3 var(--serif); letter-spacing:0; text-transform:none; transition:opacity .6s; }
 #cap small{ display:block; font:500 9px var(--sans); letter-spacing:.24em; text-transform:uppercase; color:var(--soft); margin-top:2px; font-style:normal; }
-/* the three candidates */
-#three{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; width:min(640px,100%); }
-.pc{ background:var(--cream); padding:6px 6px 8px; border-radius:2px; box-shadow:0 2px 0 #d9b9ae; text-align:center; position:relative; } .pc.now{ box-shadow:0 0 0 2px var(--ink); }
-.pc .th{ aspect-ratio:4/3; background:#ddd center/cover; cursor:pointer; } .pc .no{ font-size:9.5px; letter-spacing:.3em; margin:6px 0 4px; } .pc .sc{ color:var(--soft); font-size:9px; letter-spacing:.2em; }
-.pc button{ margin-top:6px; border:1.5px solid var(--ink); background:none; padding:4px 10px; border-radius:20px; font-size:9px; letter-spacing:.24em; } .pc button:hover{ background:var(--ink); color:var(--cream); }
-nav{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; } nav button{ background:none; border:0; padding:6px 8px; font-size:10px; letter-spacing:.26em; border-bottom:1.5px solid transparent; } nav button:hover{ border-bottom-color:var(--mustard); }
-nav button.main{ background:var(--ink); color:var(--cream); border-radius:20px; padding:7px 16px; } nav button:disabled{ opacity:.5; }
-#status{ font-size:9px; letter-spacing:.26em; color:var(--soft); text-align:center; min-height:1em; margin-top:4px; }
-/* drawers */
+/* the three films, as strips: their structure at a glance, every piece a door into it */
+#three{ width:min(680px,100%); display:grid; gap:7px; }
+.strip{ display:grid; grid-template-columns:34px minmax(0,1fr) 30px; align-items:center; gap:8px; opacity:.62; transition:opacity .3s; } .strip.now{ opacity:1; }
+.strip .no{ font-size:9px; letter-spacing:.2em; text-align:right; cursor:pointer; }
+.tiles{ display:flex; height:34px; gap:1px; background:var(--cream); padding:2px; border-radius:2px; cursor:pointer; }
+.t{ position:relative; background:#ccc center/cover; min-width:3px; } .t.card{ box-shadow:inset 0 3px var(--mustard); } .t.voice::after{ content:''; position:absolute; left:50%; bottom:2px; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:var(--cream); }
+.t.ret{ box-shadow:inset 0 -3px var(--teal); } .t.yes{ outline:2px solid var(--red); outline-offset:-2px; } .t.no{ filter:grayscale(1) brightness(.45); } .t.here{ outline:2px solid var(--ink); outline-offset:1px; z-index:1; }
+.star{ font-size:18px; color:var(--soft); letter-spacing:0; line-height:1; } .star:hover{ color:var(--red); }
+#why{ font-size:9px; letter-spacing:.22em; color:var(--soft); text-align:center; min-height:1em; } #why b{ color:var(--ink); font-weight:500; } #why i{ font-style:normal; color:var(--red); }
+nav{ display:flex; gap:14px; justify-content:center; align-items:center; } nav button{ padding:6px 2px; font-size:10px; letter-spacing:.26em; border-bottom:1.5px solid transparent; } nav button:hover{ border-bottom-color:var(--mustard); }
+nav .main{ background:var(--ink); color:var(--cream); border-radius:20px; padding:7px 16px; border:0; } nav button:disabled{ opacity:.4; }
+/* the back room */
 .drawer{ position:fixed; inset:0; background:#f2d3cbee; display:none; place-items:center; padding:16px; z-index:5; } .drawer.open{ display:grid; }
 .card{ background:var(--cream); width:min(560px,100%); max-height:calc(100dvh - 32px); overflow:auto; padding:22px 22px 18px; border-radius:2px; box-shadow:0 0 0 3px var(--mustard), 0 0 0 9px var(--cream); position:relative; }
-.card h2{ margin:0 0 4px; text-align:center; font:600 13px var(--sans); letter-spacing:.38em; } .card .sub{ text-align:center; color:var(--soft); font-size:9px; letter-spacing:.24em; margin-bottom:14px; }
-.card .x{ position:absolute; top:8px; right:10px; border:0; background:none; font-size:16px; }
-.row{ display:grid; grid-template-columns:1fr 44px; gap:3px 10px; margin-bottom:7px; font-size:9.5px; } .row .bar{ grid-column:1/3; height:5px; background:#ecdccb; } .row .bar i{ display:block; height:100%; background:var(--teal); transition:width .5s; } .row b{ text-align:right; font-weight:500; }
-.sl{ display:grid; grid-template-columns:96px 1fr 34px; gap:8px; align-items:center; font-size:9.5px; margin-bottom:6px; } .sl input{ width:100%; accent-color:#a8323e; } .sl b{ text-align:right; font-weight:500; }
+.card h2{ margin:0 0 4px; text-align:center; font:600 13px var(--sans); letter-spacing:.38em; } .sub{ text-align:center; color:var(--soft); font-size:9px; letter-spacing:.24em; margin-bottom:14px; }
+.x{ position:absolute; top:8px; right:12px; font-size:16px; }
+.tabs{ display:flex; justify-content:center; gap:16px; margin:-2px 0 16px; } .tabs button{ font-size:9.5px; letter-spacing:.28em; padding-bottom:3px; border-bottom:1.5px solid transparent; } .tabs button.on{ border-bottom-color:var(--red); }
+.pane{ display:none; } .pane.on{ display:block; }
+.row{ display:grid; grid-template-columns:1fr 44px; gap:3px 10px; margin-bottom:7px; font-size:9.5px; } .row .bar{ grid-column:1/3; height:5px; background:#ecdccb; } .row .bar i{ display:block; height:100%; background:var(--teal); } .row b{ text-align:right; font-weight:500; }
+.sl{ display:grid; grid-template-columns:90px 1fr 34px; gap:8px; align-items:center; font-size:9.5px; margin-bottom:6px; } .sl input{ width:100%; accent-color:#a8323e; } .sl b{ text-align:right; font-weight:500; }
 .two{ display:grid; grid-template-columns:1fr 1fr; gap:18px; } h3{ font:600 10px var(--sans); letter-spacing:.3em; margin:0 0 10px; color:var(--red); text-align:center; }
-#chart{ width:100%; height:90px; display:block; margin-bottom:14px; }
-.prints{ display:flex; gap:8px; justify-content:center; margin-bottom:10px; } .prints button{ border:1.5px solid var(--ink); background:none; border-radius:20px; padding:5px 12px; font-size:9px; } .prints button.on{ background:var(--ink); color:var(--cream); }
+#chart{ width:100%; height:80px; display:block; margin-bottom:14px; }
+.prints{ display:flex; gap:8px; justify-content:center; margin-bottom:10px; } .prints button{ border:1.5px solid var(--ink); border-radius:20px; padding:5px 12px; font-size:9px; } .prints button.on{ background:var(--ink); color:var(--cream); }
 .card video{ width:100%; background:#1a1210; display:block; border:8px solid var(--red); }
-.kept{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; } .kept .pc{ box-shadow:0 0 0 1px #e3cdbf; cursor:pointer; }
-.empty{ text-align:center; color:var(--soft); font:italic 400 16px var(--serif); text-transform:none; letter-spacing:0; padding:20px 0; }
-@media (max-width:640px){ #room{ gap:8px; } header h1{ font-size:12px; letter-spacing:.3em; } #cap{ font-size:15px; } #three{ gap:8px; } .pc button{ padding:3px 7px; font-size:8px; } nav button{ font-size:9px; letter-spacing:.18em; padding:5px 4px; } .two{ grid-template-columns:1fr; } }
+.taste{ display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:4px; margin-bottom:12px; } .taste div{ aspect-ratio:4/3; background:#ccc center/cover; }
+.keptl .strip{ opacity:1; margin-bottom:6px; } .empty{ text-align:center; color:var(--soft); font:italic 400 16px var(--serif); text-transform:none; letter-spacing:0; padding:14px 0; }
+@media (max-width:640px){ #room{ gap:8px; } header h1{ font-size:11.5px; letter-spacing:.3em; } #cap{ font-size:15px; } .tiles{ height:30px; } nav{ gap:10px; } nav button{ font-size:9px; letter-spacing:.18em; } .two{ grid-template-columns:1fr; } .taste{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
 </style></head><body>
 <div id="room">
-  <header><h1>THE MONTE CARLO CINEMA</h1><p>films the archive makes by chance · you choose · the rules learn</p></header>
-  <div id="well"><div id="frame"><div id="screen"><div class="lay on" id="A"><img alt=""><video muted playsinline></video></div><div class="lay" id="B"><img alt=""><video muted playsinline></video></div></div></div></div>
+  <header><h1>THE MONTE CARLO CINEMA</h1></header>
+  <div id="well"><div id="frame"><div id="screen"><div class="lay on" id="A"><img alt=""><video muted playsinline></video></div><div class="lay" id="B"><img alt=""><video muted playsinline></video></div>
+    <div id="hint">▶ TOUCH TO WATCH</div><div id="flash"></div><button class="mark" id="no" title="not this (↓)">✕</button><button class="mark" id="yes" title="this (↑)">♥</button></div></div></div>
   <div id="cap"></div>
   <div id="three"></div>
-  <div><nav><button class="main" id="next">THREE MORE</button><button id="watch">▶ WATCH</button><button data-d="dw">THE WORKINGS</button><button data-d="dk" id="kbtn">KEPT (0)</button><button data-d="dp">THE PRINTS</button></nav><div id="status">reading the archive…</div></div>
+  <div><div id="why"></div><nav><button class="main" id="next">THREE MORE</button><button id="undo" disabled>UNDO</button><button id="back">THE BACK ROOM</button></nav></div>
 </div>
 <video id="voice" playsinline style="display:none"></video><video id="music" playsinline style="display:none"></video>
-<div class="drawer" id="dw"><div class="card"><button class="x">×</button><h2>THE WORKINGS</h2><div class="sub">the rules now · and what the critic counts as good</div>
-  <canvas id="chart"></canvas><div class="two"><div><h3>THE RULES</h3><div id="rules"></div></div><div><h3>THE CRITIC</h3><div id="critic"></div><div class="sub" style="margin-top:12px;text-transform:none;letter-spacing:.04em;font:italic 400 14px var(--serif)">The critic reads each film through CLIP (pictures and words) and CLAP (music). Your choices count beside it.</div></div></div></div></div>
-<div class="drawer" id="dk"><div class="card"><button class="x">×</button><h2>KEPT</h2><div class="sub">the films you chose · touch one to watch it</div><div class="kept" id="kept"></div></div></div>
-<div class="drawer" id="dp"><div class="card"><button class="x">×</button><h2>THE PRINTS</h2><div class="sub">three winners, rendered · every join a dissolve</div>
-  <div class="prints"><button class="on" data-k="0">NO. 1</button><button data-k="1">NO. 2</button><button data-k="2">NO. 3</button></div><video id="print" controls playsinline preload="metadata" src="monte/film-0.mp4"></video></div></div>
+<div class="drawer" id="dr"><div class="card"><button class="x">×</button><h2>THE BACK ROOM</h2><div class="sub" id="drsub"></div>
+  <div class="tabs"><button data-p="pk" class="on">KEPT</button><button data-p="pt">YOUR TASTE</button><button data-p="pw">THE WORKINGS</button><button data-p="pp">THE PRINTS</button></div>
+  <div class="pane on" id="pk"><div class="keptl" id="kept"></div></div>
+  <div class="pane" id="pt"><h3>THIS</h3><div class="taste" id="tyes"></div><h3>NOT THIS</h3><div class="taste" id="tno"></div><div class="sub" style="text-transform:none;letter-spacing:.04em;font:italic 400 14px var(--serif)">Every ♥ and ✕, and every film you star, moves one direction in CLIP space. The critic's “yours” measures how far a film leans that way, and the rules evolve toward it.</div><div style="text-align:center"><button id="forget" style="font-size:9px;letter-spacing:.26em;border-bottom:1.5px solid var(--mustard)">FORGET MY TASTE</button></div></div>
+  <div class="pane" id="pw"><canvas id="chart"></canvas><div class="two"><div><h3>THE RULES</h3><div id="rules"></div></div><div><h3>THE CRITIC</h3><div id="critic"></div></div></div></div>
+  <div class="pane" id="pp"><div class="prints"><button class="on" data-k="0">NO. 1</button><button data-k="1">NO. 2</button><button data-k="2">NO. 3</button></div><video id="print" controls playsinline preload="metadata" src="monte/film-0.mp4"></video></div>
+</div></div>
 <script src="monte/sim.js"></script>
 <script>
 (function () {
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)], esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const MC = window.MonteCinema, W = { ...MC.CRITIC }, VIDX = {}, NO = ['NO. 1', 'NO. 2', 'NO. 3'];
-  let M = null, E = null, three = [], cur = 0, hist = [], kept = [];
-  try { kept = JSON.parse(localStorage.getItem('monte-kept') || '[]'); } catch (e) { }
+  const MC = window.MonteCinema, W = { ...MC.CRITIC, yours: 0 }, VIDX = {}, NO = ['NO. 1', 'NO. 2', 'NO. 3'];
+  let M = null, E = null, three = [], cur = 0, hist = [], kept = [], marks = {}, undo = null;
+  const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } }, save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } };
+  kept = load('monte-kept', []); marks = load('monte-marks', {});
   const thumb = s => M.r2 + s.v.replace('/clips/', '/thumbnails/').replace('.mp4', '.jpg');
-  const face = f => M.shots[(f.ev.find(e => e.kind === 'shot') || f.ev[0]).k];
-  const status = t => $('#status').textContent = t;
-  // ---- evolution, with the viewer on the committee
   const mutate = (g, s) => g.map(x => Math.min(1, Math.max(0, x + (Math.random() - .5) * s)));
+  // ---- taste: marks become a direction; the critic's "yours" weighs it once there is any
+  function retaste() { MC.taste(M, marks); W.yours = M.taste ? Math.max(W.yours, .2) : 0; three.forEach(f => MC.critic(M, f, W)); drawCritic(); }
+  function mark(f, n, w) { const e = f.ev[n]; if (!e) return; const i = M.shots[e.k].i; marks[i] = marks[i] === w ? 0 : w; if (!marks[i]) delete marks[i]; save('monte-marks', marks); retaste(); drawThree();
+    const fl = $('#flash'); fl.textContent = marks[i] ? (w > 0 ? '♥' : '✕') : '·'; fl.style.transition = 'none'; fl.style.opacity = .9; requestAnimationFrame(() => { fl.style.transition = 'opacity .7s'; fl.style.opacity = 0; }); }
+  // ---- evolution, with the viewer on the committee
   function breed(start) { E = MC.evolve(M, { seed: Math.floor(Math.random() * 1e9), pop: 24, films: 6, critic: W, start }); }
   function candidates() { const pool = E.pop.slice(0, 6), out = [];
     for (let c = 0; c < 3; c++) { const g = pool[c % pool.length]; let best = null;
       for (let t = 0; t < 4; t++) { const f = MC.generate(M, g, Math.floor(Math.random() * 1e9)); MC.critic(M, f, W); if (!best || f.score > best.score) best = f; }
       best.g = g.slice(); out.push(best); } return out; }
-  function next() { $('#next').disabled = true; let n = 0; status('the committee deliberates…');
-    const go = () => { const h = E.step(); hist.push(h); status(`generation ${hist.length} · deliberating`); if (++n < 3) return setTimeout(go, 20);
-      three = candidates(); cur = 0; drawThree(); drawWorkings(); show(0); $('#next').disabled = false; status(`generation ${hist.length} · choose the best of three`); };
+  let job = 0;
+  function next() { stop(); $('#next').disabled = true; let n = 0; const me = ++job; $('#why').textContent = 'the committee deliberates…';
+    const go = () => { if (me !== job) return; hist.push(E.step()); if (++n < 3) return setTimeout(go, 20); three = candidates(); cur = 0; drawThree(); show(); $('#next').disabled = false; };
     setTimeout(go, 30); }
-  function choose(k) { const f = three[k], g = f.g;   // the chosen rules join the elite, and their children fill the house
-    const pop = E.pop; pop[0] = g.slice(); for (let j = 1; j < 8; j++) pop[pop.length - j] = mutate(g, .12);
-    kept.unshift({ g: g.map(x => +x.toFixed(4)), seed: f.seed, score: +f.score.toFixed(3), at: hist.length });
-    kept = kept.slice(0, 30); try { localStorage.setItem('monte-kept', JSON.stringify(kept)); } catch (e) { }
-    drawKept(); stop(); next(); }
+  function star(k) { const f = three[k];
+    undo = { pop: E.pop.map(g => g.slice()), kept: kept.slice(), marks: { ...marks }, three, cur, hist: hist.length };
+    const pop = E.pop; pop[0] = f.g.slice(); for (let j = 1; j < 8; j++) pop[pop.length - j] = mutate(f.g, .12);
+    // a starred film's shots lean the taste a little toward it; the two passed over, a little away
+    three.forEach((x, j) => x.ev.forEach(e => { if (e.kind !== 'shot') return; const i = M.shots[e.k].i; if (marks[i] === 1 || marks[i] === -1) return; marks[i] = +((marks[i] || 0) + (j === k ? .3 : -.1)).toFixed(2); }));
+    save('monte-marks', marks); retaste();
+    kept.unshift({ g: f.g.map(x => +x.toFixed(4)), seed: f.seed, score: +f.score.toFixed(3), at: hist.length }); kept = kept.slice(0, 40); save('monte-kept', kept);
+    $('#undo').disabled = false; next(); }
+  $('#undo').onclick = () => { if (!undo) return; job++; $('#next').disabled = false; stop(); E.pop.splice(0, E.pop.length, ...undo.pop); kept = undo.kept; marks = undo.marks; three = undo.three; cur = undo.cur; hist.length = undo.hist;
+    save('monte-kept', kept); save('monte-marks', marks); retaste(); undo = null; $('#undo').disabled = true; drawThree(); show(); };
   // ---- drawing
-  function drawThree() { $('#three').innerHTML = three.map((f, k) => `<div class="pc${k === cur ? ' now' : ''}"><div class="th" data-k="${k}" style="background-image:url('${esc(thumb(face(f)))}')"></div><div class="no">${NO[k]}</div><div class="sc">${f.score.toFixed(3)} · ${Math.round(f.seconds)} S</div><button data-c="${k}">CHOOSE</button></div>`).join('');
-    $$('#three .th').forEach(d => d.onclick = () => { cur = +d.dataset.k; drawThree(); play(three[cur]); });
-    $$('#three [data-c]').forEach(b => b.onclick = () => choose(+b.dataset.c)); }
+  function tiles(f, here) { return f.ev.map((e, n) => { const s = M.shots[e.k], m = marks[s.i];
+    return `<div class="t ${e.kind}${e.line != null ? ' voice' : ''}${e.ret ? ' ret' : ''}${m === 1 ? ' yes' : m === -1 ? ' no' : ''}${n === here ? ' here' : ''}" data-n="${n}" style="flex:${e.dur.toFixed(2)};background-image:url('${esc(thumb(s))}')"></div>`; }).join(''); }
+  function why(f) { const P = Object.entries(f.parts).filter(([k]) => W[k] > 0).sort((a, b) => b[1] - a[1]);
+    return `NO. ${three.indexOf(f) + 1} · <b>${f.score.toFixed(3)}</b> · ${Math.round(f.seconds)} S · strong in <b>${P.slice(0, 2).map(p => p[0]).join(', ')}</b> · weak in <b>${P.slice(-1)[0][0]}</b>${M.taste ? ` · <i>yours ${f.parts.yours.toFixed(2)}</i>` : ''}`; }
+  function drawThree() { $('#three').innerHTML = three.map((f, k) => `<div class="strip${k === cur ? ' now' : ''}" data-k="${k}"><div class="no">${NO[k]}</div><div class="tiles">${tiles(f, k === cur ? playN : -1)}</div><button class="star" data-s="${k}" title="keep this one: the rules breed from it">☆</button></div>`).join('');
+    $$('#three .strip').forEach(d => { const k = +d.dataset.k;
+      d.querySelector('.no').onclick = () => { cur = k; drawThree(); show(); };
+      d.querySelector('.tiles').onclick = ev => { const t = ev.target.closest('.t'); cur = k; play(three[k], t ? +t.dataset.n : 0); };
+      d.querySelector('.star').onclick = () => star(k); });
+    if (three[cur]) $('#why').innerHTML = why(three[cur]); }
   function drawWorkings() { const g = E.pop[0];
     $('#rules').innerHTML = MC.GENES.map(([n, lo, hi, say], k) => { const v = MC.val(g, k); return `<div class="row"><span>${esc(say)}</span><b>${hi - lo > 3 ? v.toFixed(1) : v.toFixed(2)}</b><div class="bar"><i style="width:${(g[k] * 100).toFixed(0)}%"></i></div></div>`; }).join('');
-    const c = $('#chart'), d = devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight; if (!w) return; c.width = w * d; c.height = h * d; const x = c.getContext('2d'); x.setTransform(d, 0, 0, d, 0, 0);
-    if (hist.length < 2) return;
+    const c = $('#chart'), d = devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight; if (!w || hist.length < 2) return; c.width = w * d; c.height = h * d; const x = c.getContext('2d'); x.setTransform(d, 0, 0, d, 0, 0);
     const lo = Math.min(...hist.map(r => r.mean)) - .01, hi = Math.max(...hist.map(r => r.best)) + .01, X = k => 6 + k / (hist.length - 1) * (w - 12), Y = v => h - 6 - (v - lo) / (hi - lo) * (h - 12);
     [['mean', '#d8b4a6'], ['best', '#a8323e']].forEach(([key, col]) => { x.strokeStyle = col; x.lineWidth = 2; x.beginPath(); hist.forEach((r, k) => k ? x.lineTo(X(k), Y(r[key])) : x.moveTo(X(k), Y(r[key]))); x.stroke(); }); }
-  function drawCritic() { $('#critic').innerHTML = Object.entries(W).map(([k, v]) => `<div class="sl"><span>${k}</span><input type="range" min="0" max="0.5" step="0.01" value="${v}" data-k="${k}"><b>${v.toFixed(2)}</b></div>`).join('');
-    $$('#critic input').forEach(i => i.oninput = () => { W[i.dataset.k] = +i.value; i.nextElementSibling.textContent = (+i.value).toFixed(2); });
-    $$('#critic input').forEach(i => i.onchange = () => { breed(E.pop.map(g => g.slice())); status('the critic has changed its mind · press THREE MORE'); }); }
-  function drawKept() { $('#kbtn').textContent = `KEPT (${kept.length})`;
-    $('#kept').innerHTML = kept.length ? kept.map((r, k) => { const f = MC.generate(M, r.g, r.seed); return `<div class="pc" data-k="${k}"><div class="th" style="background-image:url('${esc(thumb(face(f)))}')"></div><div class="no">GEN ${r.at}</div><div class="sc">${r.score}</div></div>`; }).join('') : '<div class="empty" style="grid-column:1/4">Nothing kept yet. Choose one of the three.</div>';
-    $$('#kept .pc').forEach(d => d.onclick = () => { const r = kept[+d.dataset.k], f = MC.generate(M, r.g, r.seed); MC.critic(M, f, W); closeAll(); play(f); }); }
-  // ---- the screen: two layers, each piece dissolving into the next; the next one is loaded before it is shown
-  let pt = null, playing = null, front = 'A';
+  function drawCritic() { if (!M) return; $('#critic').innerHTML = Object.entries(W).map(([k, v]) => `<div class="sl"><span>${k}</span><input type="range" min="0" max="0.5" step="0.01" value="${v}" data-k="${k}"><b>${v.toFixed(2)}</b></div>`).join('');
+    $$('#critic input').forEach(i => { i.oninput = () => { W[i.dataset.k] = +i.value; i.nextElementSibling.textContent = (+i.value).toFixed(2); }; i.onchange = () => { three.forEach(f => MC.critic(M, f, W)); drawThree(); }; }); }
+  function drawTaste() { const ix = new Map(M.shots.map(s => [s.i, s])), pick = w => Object.entries(marks).filter(([, v]) => v === w).slice(0, 24).map(([i]) => ix.get(i)).filter(Boolean);
+    const cell = s => `<div style="background-image:url('${esc(thumb(s))}')"></div>`, y = pick(1), n = pick(-1);
+    $('#tyes').innerHTML = y.length ? y.map(cell).join('') : '<div class="empty" style="grid-column:1/-1;aspect-ratio:auto">Press ♥ while a shot plays.</div>';
+    $('#tno').innerHTML = n.length ? n.map(cell).join('') : '<div class="empty" style="grid-column:1/-1;aspect-ratio:auto">Press ✕ while a shot plays.</div>'; }
+  function drawKept() { $('#kept').innerHTML = kept.length ? kept.map((r, k) => { const f = MC.generate(M, r.g, r.seed); return `<div class="strip" data-k="${k}"><div class="no">G${r.at}</div><div class="tiles">${tiles(f, -1)}</div><div class="no" style="text-align:left">${r.score}</div></div>`; }).join('') : '<div class="empty">Nothing kept yet. Star one of the three.</div>';
+    $$('#kept .strip').forEach(d => d.onclick = () => { const r = kept[+d.dataset.k], f = MC.generate(M, r.g, r.seed); MC.critic(M, f, W); f.g = r.g; closeAll(); three = [f, ...three.slice(0, 2)]; cur = 0; drawThree(); play(f, 0); }); }
+  // ---- the screen: two layers, each piece dissolving into the next once it is ready
+  let pt = null, playing = null, playN = -1, front = 'A';
   function stage(e, ready) { const back = front === 'A' ? 'B' : 'A', L = $('#' + back), img = L.querySelector('img'), v = L.querySelector('video'), s = M.shots[e.k]; let done = false;
     const fin = () => { if (done) return; done = true; ready(back); };
     if (e.kind === 'card') { v.pause(); v.removeAttribute('src'); v.style.opacity = 0; img.onload = fin; img.src = thumb(s); if (img.complete) fin(); }
@@ -109,28 +137,35 @@ nav button.main{ background:var(--ink); color:var(--cream); border-radius:20px; 
   function swap(to) { $('#A').classList.toggle('on', to === 'A'); $('#B').classList.toggle('on', to === 'B'); const was = front; front = to; setTimeout(() => { if (front !== was) $('#' + was).querySelector('video').pause(); }, 1000); }
   function caption(e) { const s = M.shots[e.k], c = $('#cap'); c.style.opacity = 0;
     setTimeout(() => { c.innerHTML = e.line != null ? `“${esc(M.lines[e.line].text)}”<small>${esc(M.lines[e.line].film || '')}</small>` : e.kind === 'shot' ? `<small>${esc(s.film || '')}${s.year ? ' · ' + s.year : ''}</small>` : ''; c.style.opacity = 1; }, 300); }
-  function show(k) { stop(); stage(three[k].ev[0], to => swap(to)); $('#cap').innerHTML = ''; }
-  function play(f) { stop(); playing = f; $('#watch').textContent = '■ STOP'; const mus = $('#music'); mus.src = M.r2 + (M.music[f.music].v || ''); mus.volume = .7; mus.play().catch(() => { });
+  function show() { stop(); playN = -1; stage(three[cur].ev[0], to => swap(to)); $('#cap').innerHTML = ''; drawThree(); }
+  function play(f, from = 0) { stop(); playing = f; $('#screen').classList.add('playing'); const mus = $('#music'); mus.src = M.r2 + (M.music[f.music].v || ''); mus.volume = .7; mus.play().catch(() => { });
     const step = n => { if (playing !== f) return; if (n >= f.ev.length) return stop(); const e = f.ev[n];
-      stage(e, to => { if (playing !== f) return; swap(to); caption(e);
+      stage(e, to => { if (playing !== f) return; swap(to); caption(e); playN = n; $$('#three .strip.now .t').forEach((t, j) => t.classList.toggle('here', j === n));
         mus.volume = e.silent ? 0 : e.line != null ? .25 : .7;
         if (e.line != null) { const L = M.lines[e.line], vo = $('#voice'); vo.src = M.r2 + (VIDX[L.i] || ''); vo.onloadedmetadata = () => { vo.currentTime = L.t0; vo.play().catch(() => { }); }; setTimeout(() => vo.pause(), (L.t1 - L.t0) * 1000 + 900); }
         pt = setTimeout(() => step(n + 1), Math.max(600, e.dur * 1000 - 300)); }); };
-    step(0); }
-  function stop() { playing = null; clearTimeout(pt); ['#voice', '#music'].forEach(s => $(s).pause()); $('#watch').textContent = '▶ WATCH'; }
-  $('#watch').onclick = () => playing ? stop() : three[cur] && play(three[cur]);
-  $('#next').onclick = () => { stop(); next(); };
-  const closeAll = () => { $$('.drawer').forEach(d => d.classList.remove('open')); $('#print').pause(); };
-  $$('nav [data-d]').forEach(b => b.onclick = () => { closeAll(); $('#' + b.dataset.d).classList.add('open'); if (b.dataset.d === 'dw') drawWorkings(); if (b.dataset.d === 'dp') stop(); });
-  $$('.drawer').forEach(d => d.onclick = ev => { if (ev.target === d || ev.target.classList.contains('x')) closeAll(); });
+    step(from); }
+  function stop() { playing = null; clearTimeout(pt); ['#voice', '#music'].forEach(s => $(s).pause()); $('#screen').classList.remove('playing'); }
+  $('#screen').onclick = ev => { if (ev.target.closest('.mark')) return; playing ? stop() : play(three[cur], Math.max(0, playN)); };
+  $('#yes').onclick = () => playing && mark(playing, playN, 1); $('#no').onclick = () => playing && mark(playing, playN, -1);
+  addEventListener('keydown', e => { if (e.key === 'Escape') closeAll(); if (!three.length || $('#dr').classList.contains('open')) return;
+    if (e.key === ' ') { e.preventDefault(); $('#screen').click(); } if (e.key === 'ArrowUp' && playing) mark(playing, playN, 1); if (e.key === 'ArrowDown' && playing) mark(playing, playN, -1);
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { cur = (cur + (e.key === 'ArrowRight' ? 1 : 2)) % 3; drawThree(); show(); } if ('123'.includes(e.key)) star(+e.key - 1); });
+  $('#next').onclick = next;
+  // ---- the back room
+  const closeAll = () => { $('#dr').classList.remove('open'); $('#print').pause(); };
+  function tab(p) { $$('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.p === p)); $$('.pane').forEach(x => x.classList.toggle('on', x.id === p));
+    if (p === 'pk') drawKept(); if (p === 'pt') drawTaste(); if (p === 'pw') { drawWorkings(); drawCritic(); } if (p !== 'pp') $('#print').pause(); }
+  $('#back').onclick = () => { stop(); $('#drsub').textContent = `${hist.length} generations · ${kept.length} kept · ${Object.values(marks).filter(v => Math.abs(v) === 1).length} moments marked`; $('#dr').classList.add('open'); tab($('.tabs button.on').dataset.p); };
+  $$('.tabs button').forEach(b => b.onclick = () => tab(b.dataset.p));
+  $('#dr').onclick = ev => { if (ev.target.id === 'dr' || ev.target.classList.contains('x')) closeAll(); };
+  $('#forget').onclick = () => { marks = {}; save('monte-marks', marks); retaste(); drawTaste(); drawThree(); };
   $$('.prints button').forEach(b => b.onclick = () => { $$('.prints button').forEach(x => x.classList.toggle('on', x === b)); $('#print').src = `monte/film-${b.dataset.k}.mp4`; $('#print').play().catch(() => { }); });
-  addEventListener('keydown', e => { if (e.key === 'Escape') closeAll(); });
   Promise.all([fetch('monte/material.json').then(r => r.json()), fetch('monte/evolution.json').then(r => r.json()).catch(() => null), fetch('aspect/video.json').then(r => r.json()).catch(() => ({}))]).then(([m, ev, vids]) => {
     M = MC.load(m); M.lines.forEach(l => { if (vids[l.i]) VIDX[l.i] = vids[l.i][0]; }); M.music.forEach(x => { if (vids[x.i]) x.v = vids[x.i][0]; });
-    drawCritic(); drawKept();
+    retaste();
     const g0 = ev ? ev.genome : null; breed(g0 ? Array.from({ length: 24 }, (_, k) => k ? mutate(g0, .2) : g0.slice()) : undefined);
-    if (ev) { hist = ev.generations.map(h => ({ best: h.best, mean: h.mean })); three = ev.best.slice(0, 3).map(b => { const f = MC.generate(M, g0, b.seed); MC.critic(M, f, W); f.g = g0.slice(); return f; });
-      cur = 0; drawThree(); show(0); status(`${hist.length} generations so far · watch, then choose the best of three`); }
+    if (ev) { hist = ev.generations.map(h => ({ best: h.best, mean: h.mean })); three = ev.best.slice(0, 3).map(b => { const f = MC.generate(M, g0, b.seed); MC.critic(M, f, W); f.g = g0.slice(); return f; }); cur = 0; show(); }
     else next();
   });
 })();
