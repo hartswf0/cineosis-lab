@@ -65,7 +65,7 @@ for n, (kind, a, v0, v1, a0, a1, txt, job) in enumerate(EDIT):
                         "-map", "[v]", "-map", "[a]", "-t", f"{dur}", *ENC, out], check=True)
     parts.append(out)
     table.append({"pos": n + 1, "at": round(t, 1), "dur": round(dur, 1), "asset": a or "added card", "video_src": None if kind == "card" else [v0, v1],
-                  "audio_src": None if kind == "card" else ([a0, a1] if a1 is not None else "room, -26 dB"), "card": " · ".join(txt) if txt else None, "job": job})
+                  "audio_src": None if kind == "card" else ([a0, a1] if a1 is not None else "room, -45 dB"), "card": " · ".join(txt) if txt else None, "job": job})
     t += dur
 lst = os.path.join(T, "ck_list.txt"); open(lst, "w").write("".join(f"file '{p}'\n" for p in parts))
 out = os.path.join(D, "chicken-of-tomorrow-in-seven-steps.mp4")
