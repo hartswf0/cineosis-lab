@@ -7,6 +7,7 @@ D = os.path.dirname(os.path.abspath(__file__)); L = os.path.dirname(D); T = os.p
 K = int(sys.argv[1]) if len(sys.argv) > 1 else 0
 EV = json.load(open(os.path.join(D, "evolution.json"))); F = EV["best"][K]; M = json.load(open(os.path.join(D, "material.json")))
 V = json.load(open(os.path.join(L, "aspect", "video.json"))); R2 = M["r2"]; W_, H_, FPS = 960, 720, 24
+DX = 0.8   # every join is a dissolve this long: no blinking; each piece runs DX longer and the next fades in over its tail
 def fetch(i):
     p = os.path.join(T, i + ".mp4")
     if not os.path.exists(p) or os.path.getsize(p) < 1000: subprocess.run(["curl", "-sfL", "--retry", "3", "-A", "cineosis-44-research", "-o", p, R2 + V[i][0]], check=True)
@@ -16,20 +17,24 @@ ENC = ["-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p"
 VF = f"scale={W_}:{H_}:force_original_aspect_ratio=decrease,pad={W_}:{H_}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={FPS},format=yuv420p"
 parts, voices, silent, t = [], [], [], 0.0
 for n, e in enumerate(F["ev"]):
-    src = fetch(e["i"]); d = dur(src); mid = d / 2; out = os.path.join(T, f"f{K}_{n:02d}.mp4"); L_ = e["dur"]
+    src = fetch(e["i"]); d = dur(src); mid = d / 2; out = os.path.join(T, f"f{K}_{n:02d}.mp4"); L_ = e["dur"]; LL = L_ + (DX if n < len(F["ev"]) - 1 else 0)
     if e["kind"] == "card":
         png = os.path.join(T, f"f{K}_{n:02d}.png"); subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-ss", f"{mid:.2f}", "-i", src, "-frames:v", "1", "-update", "1", png], check=True)
-        subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-loop", "1", "-t", f"{L_}", "-i", png, "-vf", VF, *ENC, out], check=True)
+        subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-loop", "1", "-t", f"{LL:.2f}", "-i", png, "-vf", VF, *ENC, out], check=True)
     else:
-        a = max(0.0, min(mid - L_ / 2, d - L_ - .05))
-        subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-ss", f"{a:.2f}", "-t", f"{L_}", "-i", src, "-an", "-vf", VF + (f",tpad=stop_mode=clone:stop_duration={L_}" if d < L_ else ""), "-t", f"{L_}", *ENC, out], check=True)
+        a = max(0.0, min(mid - LL / 2, d - LL - .05))
+        subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-ss", f"{a:.2f}", "-t", f"{LL:.2f}", "-i", src, "-an", "-vf", VF + (f",tpad=stop_mode=clone:stop_duration={LL:.2f}" if d < LL + .1 else ""), "-t", f"{LL:.2f}", *ENC, out], check=True)
         if e.get("line"):
             ln = e["line"]; flac = os.path.join(L, "odyssey", "cache", "aud", ln["i"] + ".flac")
             voices.append((t + .35, flac if os.path.exists(flac) else fetch(ln["i"]), ln["t0"], ln["t1"]))
         if e.get("silent"): silent.append((t, t + L_))
     parts.append(out); t += L_
-lst = os.path.join(T, f"f{K}_list.txt"); open(lst, "w").write("".join(f"file '{p}'\n" for p in parts))
-pic = os.path.join(T, f"f{K}_picture.mp4"); subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", pic], check=True)
+# the joins: dissolves between shots, a dip through black into and out of a card
+pic = os.path.join(T, f"f{K}_picture.mp4"); vfc, ch, at = "", "[0:v]", 0.0
+for n in range(1, len(parts)):
+    at += F["ev"][n - 1]["dur"]; kind = "fadeblack" if "card" in (F["ev"][n - 1]["kind"], F["ev"][n]["kind"]) else "fade"
+    vfc += f"{ch}[{n}:v]xfade=transition={kind}:duration={DX}:offset={at:.3f}[j{n}];"; ch = f"[j{n}]"
+subprocess.run(["ffmpeg", "-v", "error", "-y", *sum([["-i", p] for p in parts], []), "-filter_complex", vfc + f"{ch}format=yuv420p[v]", "-map", "[v]", *ENC, pic], check=True)
 # the music: the chosen piece, then the pieces nearest its mood, crossfaded, long enough for the film
 mood = F["music"]["mood"]; cosv = lambda a, b: sum(x * y for x, y in zip(a, b)) / ((sum(x * x for x in a) * sum(y * y for y in b)) ** .5 or 1)
 order = [F["music"]] + sorted([m for m in M["music"] if m["film"] != F["music"]["film"] and not re.search(r"interview|lecture|speech", m["film"] or "", re.I)], key=lambda m: -cosv(m["mood"], mood))

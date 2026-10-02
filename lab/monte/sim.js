@@ -15,8 +15,8 @@
   // ---- the rules: each gene in [0,1], read through its range
   const GENES = [['acts', 3, 7, 'acts'], ['shots', 2, 5, 'shots per act'], ['card', 0, 1, 'a card opens an act'], ['voice', 0, 2.5, 'spoken lines per act'],
     ['wJudge', 0, 3, 'trust the judge'], ['wMatch', 0, 3, 'match cuts'], ['target', .55, .9, 'how alike a cut'], ['wText', 0, 3, 'cards borne out'], ['wVoice', 0, 3, 'words fit pictures'],
-    ['ret', 0, 1, 'return to the first image'], ['exc', 0, 1, 'the last act breaks'], ['dur', 1.8, 3.6, 'seconds a shot'], ['silence', 0, .6, 'silent acts'],
-    ['wRole', 0, 2, 'rule of three'], ['bw', 0, 1, 'black and white allowed'], ['temp', .05, .6, 'chance'], ['wColour', 0, 2, 'colour holds'], ['hold', 2.2, 3.8, 'seconds a card']];
+    ['ret', 0, 1, 'return to the first image'], ['exc', 0, 1, 'the last act breaks'], ['dur', 2.6, 4.6, 'seconds a shot'], ['silence', 0, .6, 'silent acts'],
+    ['wRole', 0, 2, 'rule of three'], ['bw', 0, 1, 'black and white allowed'], ['temp', .05, .6, 'chance'], ['wColour', 0, 2, 'colour holds'], ['hold', 3, 4.6, 'seconds a card']];
   const val = (g, k) => { const [, lo, hi] = GENES[k]; return lo + (hi - lo) * g[k]; };
   const G = name => GENES.findIndex(x => x[0] === name);
   function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -90,7 +90,7 @@
     const chapters = ev.filter(e => e.kind === 'card' && !e.end && !M.opening.includes(e.k)).length;   // the film is told in chapters, in the archive's own cards
     P.structure = (cards.length && M.opening.includes(ev[0].k) ? .2 : 0) + (ev.length && ev[ev.length - 1].end ? .2 : 0) + (shots.some(e => e.ret) ? .2 : 0) + .2 * three + .2 * Math.min(1, chapters / 2);
     P.variety = shots.length ? new Set(shots.map(e => M.shots[e.k].film)).size / shots.length : 0;
-    const T = ev.reduce((s, e) => s + e.dur, 0); f.seconds = T; P.pace = T < 55 ? T / 55 : T > 95 ? Math.max(0, 1 - (T - 95) / 40) : 1;
+    const T = ev.reduce((s, e) => s + e.dur, 0); f.seconds = T; P.pace = T < 70 ? T / 70 : T > 120 ? Math.max(0, 1 - (T - 120) / 40) : 1;   // unhurried: a film to sit with, not blink at
     P.music = f.music != null ? Math.max(0, cos(M.music[f.music].mood, f.mood)) : 0;
     f.parts = P; f.score = Object.entries(W).reduce((s, [k, w]) => s + w * (P[k] || 0), 0); return f.score;
   }
