@@ -67,7 +67,9 @@ function prep(s, i) {
   s._aff3 = (s.aff_top || []).slice(0, 3).map(x => String(x[0]));
   s._affMax = s.affinity ? Math.max(...Object.values(s.affinity)) : 0;
   s._conf = s.signs && s.signs.length ? Math.max(...s.signs.map(e => e.conf ?? 0)) : -1;
-  s._text = [s.title, s.year, s.decade ? s.decade + 's' : '',
+  const ar = L.aspect && L.aspect[s.id];   // what kind of film, and the shape of its picture (aspect/measure.py)
+  if (ar) { s.kind = ar[0]; s.shape = ar[1]; s.box = ar[2]; s.pic = ar[3]; s.fiction = !!ar[4]; s.director = ar[5]; }
+  s._text = [s.title, s.year, s.decade ? s.decade + 's' : '', s.kind, s.shape, s.box, s.fiction ? 'fiction' : '', s.director,
     ...(s.signs || []).map(e => (e.note || '') + ' ' + (e.flip || '')),
     ...(s.found || []).map(f => f.q), ...(s.subjects || []).map(x => x.label), s.scale, s.audio && s.audio.kind,
     ...(s.cutouts || []).map(c => c.label), ...s._any.map(n => L.S[n] ? L.S[n].name : '')]
@@ -97,6 +99,7 @@ async function loadData(silent) {
   const r = await fetch('lab-data.json', { cache: 'no-store' });
   if (!r.ok) throw new Error('lab-data.json ' + r.status);
   const d = await r.json();
+  if (!L.aspect) L.aspect = await fetch('aspect/wall.json').then(r => r.ok ? r.json() : null).catch(() => null);
   L.signs = d.signs.map(s => ({ ...s, n: String(s.n) }));
   L.S = Object.fromEntries(L.signs.map(s => [s.n, s]));
   L.sidx = Object.fromEntries(L.signs.map((s, i) => [s.n, i]));
@@ -226,6 +229,9 @@ const GROUPS = {
   decade: s => s.decade ? { k: 'D' + s.decade, o: s.decade, label: `<b>${s.decade}s</b>` } : { k: 'D-', o: 9999, label: '<b>undated</b>' },
   hue: s => ({ k: 'H' + s._hb, o: s._hb, label: `<i class="sw" style="background:${s._hb < 12 ? `hsl(${s._hb * 30},62%,55%)` : s._hb === HB_GREY ? '#888' : 'transparent'}"></i><b>${hbLabel(s._hb)}</b>` }),
   subject: s => { const l = s.subjects && s.subjects[0] && s.subjects[0].label; return l ? { k: 'U' + l, o: -(L.subjCounts[l] || 0), label: `<b>${esc(l)}</b>` } : { k: 'U-', o: 1e9, label: '<b>no subject yet</b>' }; },
+  kind: s => { const K = ['cinema', 'animation', 'documentary', 'sponsored', 'government', 'television', 'amateur', 'record'], i = K.indexOf(s.kind);
+    return i >= 0 ? { k: 'K' + i, o: i, label: `<b>${s.kind}</b> <em>${s.director ? esc(s.director) : ''}</em>` } : { k: 'K-', o: 99, label: '<b>kind unknown</b>' }; },
+  shape: s => s.pic ? { k: 'R' + s.shape, o: s.pic, label: `<i class="sw" style="width:${Math.round(10 * s.pic)}px;height:10px;background:#8a8378;display:inline-block"></i> <b>${esc(s.shape)}</b>` } : { k: 'R-', o: 99, label: '<b>shape not measured</b>' },
   scale: s => { const i = SCALES.indexOf(s.scale); return i >= 0 ? { k: 'C' + i, o: i, label: `<b>${s.scale}</b> <em>${SCALE_AB[s.scale]}</em>` } : { k: 'C-', o: 99, label: '<b>scale not analysed</b>' }; },
 };
 

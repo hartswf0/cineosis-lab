@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Aspect Explorer</title>
+<meta name="description" content="Every film in the Cineosis repo by the shape of its picture: measured frame and picture (black bars found and removed), named by the standards of cinema history, sorted into cinema, animation, documentary, sponsored, government, television, amateur and record.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ color-scheme:dark; --bg:#050505; --ink:#efe9dd; --dim:#8a8378; --faint:#2a2723; --hi:#e8c070; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; }
+*{ box-sizing:border-box; } html,body{ margin:0; background:var(--bg); color:var(--ink); font:12px var(--mono); overflow-x:hidden; } button,input{ font:inherit; color:inherit; }
+header{ position:relative; z-index:20; background:#050505; padding:calc(10px + env(safe-area-inset-top)) 16px 8px; border-bottom:1px solid var(--faint); }
+.top{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; } .top a{ color:var(--ink); text-decoration:none; letter-spacing:.2em; font-size:10.5px; } .top a span{ color:var(--dim); }
+h1{ margin:0; font:300 20px var(--serif); flex:1; min-width:200px; } h1 em{ font-style:italic; color:var(--dim); font-size:14px; }
+#q{ background:#121110; border:1px solid var(--faint); border-radius:16px; padding:6px 12px; width:min(260px,100%); }
+#ruler{ display:block; width:100%; height:118px; margin-top:8px; cursor:crosshair; touch-action:none; }
+.chips{ display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; align-items:center; } .chips b{ font:500 9.5px var(--mono); letter-spacing:.18em; color:var(--dim); margin-right:4px; }
+.chips button{ border:1px solid var(--faint); background:none; border-radius:13px; padding:4px 9px; cursor:pointer; color:var(--dim); font-size:10.5px; } .chips button.on{ color:var(--hi); border-color:#5a4e33; background:#e8c07014; } .chips button i{ font-style:normal; color:#5f5951; margin-left:4px; }
+#stat{ color:var(--dim); font-size:11px; margin-top:6px; } #stat b{ color:var(--ink); font-weight:500; }
+#shapes{ display:flex; gap:14px; overflow-x:auto; padding:14px 16px 4px; scrollbar-width:thin; }
+.shape{ flex:none; cursor:pointer; text-align:center; color:var(--dim); } .shape .box{ height:74px; background:#121110 center/cover; border:1px solid #3a352f; margin:0 auto 6px; position:relative; overflow:hidden; } .shape.on .box{ border-color:var(--hi); }
+.shape .box img{ position:absolute; } .shape small{ display:block; font-size:9.5px; letter-spacing:.06em; max-width:150px; } .shape small b{ color:var(--ink); font-weight:500; }
+main{ padding:10px 12px 80px; } .row{ display:flex; gap:6px; margin-bottom:6px; }
+.t{ position:relative; overflow:hidden; background:#121110; border-radius:3px; cursor:pointer; flex:none; } .t img{ position:absolute; max-width:none; }
+.t .c{ position:absolute; left:0; right:0; bottom:0; padding:14px 6px 4px; background:linear-gradient(transparent,#000c); font-size:9.5px; line-height:1.3; opacity:0; transition:opacity .15s; } .t:hover .c{ opacity:1; } .t .c b{ display:block; font-weight:500; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .t .c i{ font-style:normal; color:var(--hi); }
+.t .r{ position:absolute; top:4px; right:4px; font-size:9px; background:#000a; color:#d6cfc2; padding:1px 5px; border-radius:7px; }
+.t.cin{ box-shadow:inset 0 0 0 1px #e8c07055; }
+.more{ display:block; margin:16px auto; background:none; border:1px solid var(--faint); border-radius:16px; padding:8px 16px; color:var(--dim); cursor:pointer; }
+#play{ position:fixed; inset:0; z-index:50; background:#000e; display:grid; place-items:center; padding:20px; } #play[hidden]{ display:none; }
+#pv{ position:relative; overflow:hidden; background:#000; max-width:94vw; max-height:78vh; } #pv video{ position:absolute; }
+#pi{ margin-top:12px; text-align:center; font:300 16px var(--serif); max-width:820px; } #pi small{ display:block; font:11px var(--mono); color:var(--dim); margin-top:4px; }
+#px{ position:absolute; top:14px; right:18px; background:none; border:0; color:var(--ink); font-size:28px; cursor:pointer; }
+@media (max-width:640px){ h1{ font-size:17px; } #ruler{ height:96px; } }
+</style></head><body>
+<header><div class="top"><a href="index.html#wall">CINEOSIS <span>LAB</span></a><h1>The shape of the picture <em>· every film in the repo, by aspect ratio</em></h1><input id="q" placeholder="title, director, year…" autocomplete="off"></div>
+  <canvas id="ruler" aria-label="Aspect ratio ruler: drag to select a range"></canvas>
+  <div class="chips" id="kinds"><b>KIND</b></div><div class="chips" id="boxes"><b>INSIDE THE FRAME</b></div><div class="chips" id="decs"><b>DECADE</b></div>
+  <div class="chips"><b>SHOW</b><button id="byFilm" class="on">ONE PER FILM</button><button id="byShot">EVERY SHOT</button><button id="clear">CLEAR</button></div>
+  <div id="stat"></div></header>
+<div id="shapes" aria-label="The standards"></div>
+<main id="wall"></main>
+<div id="play" hidden><button id="px" aria-label="Close">×</button><div><div id="pv"><video playsinline muted controls loop></video></div><div id="pi"></div></div></div>
+<script>
+(function () {
+  const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const KINDS = ['cinema', 'animation', 'documentary', 'sponsored', 'government', 'television', 'amateur', 'record'];
+  const BOXES = ['full frame', 'letterbox', 'pillarbox', 'windowbox'], R2 = 'https://pub-075ff01374c04555b51c9bc50f258b42.r2.dev/';
+  let FL = null, CL = null, ST = [], VID = null, rows = [], shown = 0;
+  const F = { kinds: new Set(), boxes: new Set(), decs: new Set(), lo: null, hi: null, q: '', film: true, std: null };
+  // a clip: [id, film, odysseyThumb, frame, top, bottom, left, right]
+  const thumb = c => (c[2] ? 'odyssey/thumbs/' : 'thumbs/') + c[0] + '.jpg';
+  const picOf = c => c.length > 4 ? c[3] * (1 - c[6] - c[7]) / Math.max(.05, 1 - c[4] - c[5]) : c[3];
+  // a picture cut to its true shape: the image is enlarged so its bars fall outside the box
+  function crop(el, c, W, H) { const [t, b, l, r] = c.length > 4 ? c.slice(4) : [0, 0, 0, 0], iw = W / (1 - l - r), ih = H / (1 - t - b);
+    el.style.width = iw + 'px'; el.style.height = ih + 'px'; el.style.left = -l * iw + 'px'; el.style.top = -t * ih + 'px'; }
+  const dec = y => y ? Math.floor(+y / 10) * 10 : null;
+  function pass(f, c) { if (F.kinds.size && !F.kinds.has(f.kind)) return false; if (F.boxes.size && !F.boxes.has(f.box)) return false;
+    if (F.decs.size && !F.decs.has(dec(f.year))) return false; const p = c ? picOf(c) : f.pic; if (F.lo != null && (p < F.lo || p > F.hi)) return false;
+    if (F.std && f.standard !== F.std) return false;
+    if (F.q) { const s = `${f.title} ${f.year} ${f.director || ''} ${f.kind} ${f.standard} ${f.box}`.toLowerCase(); if (!F.q.split(/\s+/).every(w => s.includes(w))) return false; } return true; }
+  function chips(host, list, set, count) { const h = $(host); h.querySelectorAll('button').forEach(b => b.remove());
+    list.forEach(k => { const b = document.createElement('button'); b.innerHTML = `${esc(String(k).toUpperCase())}<i>${count(k)}</i>`; b.classList.toggle('on', set.has(k)); b.onclick = () => { set.has(k) ? set.delete(k) : set.add(k); go(); }; h.append(b); }); }
+  // ---- the ruler: every film placed by the shape of its picture, the standards marked
+  const cv = $('#ruler'), g = cv.getContext('2d'), X0 = Math.log(1.1), X1 = Math.log(2.85);
+  const xOf = (r, W) => 14 + (Math.log(r) - X0) / (X1 - X0) * (W - 28), rOf = (x, W) => Math.exp(X0 + (x - 14) / (W - 28) * (X1 - X0));
+  function ruler(films) { const W = cv.clientWidth, H = cv.clientHeight, d = devicePixelRatio || 1; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, W, H);
+    const bins = new Map(); films.forEach(f => { const k = Math.round(xOf(f.pic, W) / 2); bins.set(k, (bins.get(k) || 0) + 1); });
+    const mx = Math.max(1, ...bins.values()), base = H - 30;
+    if (F.lo != null) { g.fillStyle = '#e8c07018'; g.fillRect(xOf(F.lo, W), 0, xOf(F.hi, W) - xOf(F.lo, W), base); }
+    ST.forEach(([r, n]) => { const x = xOf(r, W); g.strokeStyle = '#2f2b27'; g.beginPath(); g.moveTo(x, 6); g.lineTo(x, base); g.stroke(); });
+    bins.forEach((v, k) => { const h = Math.max(1.5, Math.log1p(v) / Math.log1p(mx) * (base - 10)); g.fillStyle = F.lo != null && k * 2 >= xOf(F.lo, W) && k * 2 <= xOf(F.hi, W) ? '#e8c070' : '#8a8378'; g.fillRect(k * 2, base - h, 2, h); });
+    g.font = '9px IBM Plex Mono, monospace'; g.textAlign = 'center'; let last = -99;
+    ST.forEach(([r, n]) => { const x = xOf(r, W); if (x - last < (W < 700 ? 52 : 64)) return; last = x; g.fillStyle = '#8a8378'; g.fillText(r.toFixed(2), x, base + 12); g.fillStyle = '#5f5951'; g.fillText(n.replace(/\s*\(?[\d.:]+\)?$/, '').split(' ')[0].slice(0, 10), x, base + 23); }); }
+  let drag = null;
+  cv.addEventListener('pointerdown', e => { drag = e.offsetX; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => { if (drag == null) return; const W = cv.clientWidth, a = Math.min(drag, e.offsetX), b = Math.max(drag, e.offsetX); if (b - a > 3) { F.lo = rOf(a, W); F.hi = rOf(b, W); F.std = null; go(false); } });
+  cv.addEventListener('pointerup', e => { const W = cv.clientWidth; if (Math.abs(e.offsetX - drag) <= 3) { const r = rOf(e.offsetX, W); F.lo = r / 1.03; F.hi = r * 1.03; F.std = null; } drag = null; go(); });
+  // ---- the standards, each drawn at its own shape with a picture of that shape inside
+  function shapes(films) { const H = $('#shapes'); H.innerHTML = ''; const by = new Map(); films.forEach(f => { const k = f.standard; if (!by.has(k)) by.set(k, []); by.get(k).push(f); });
+    [...by.entries()].filter(([k]) => !k.startsWith('other')).sort((a, b) => (ST.find(s => s[1] === a[0]) || [9])[0] - (ST.find(s => s[1] === b[0]) || [9])[0]).forEach(([k, fs]) => {
+      const r = (ST.find(s => s[1] === k) || [1.33])[0], d = document.createElement('div'); d.className = 'shape' + (F.std === k ? ' on' : '');
+      const h = 74, w = h * r, f = fs.find(x => x.box !== 'full frame') || fs[0], c = CL.find(x => FL[x[1]] === f);
+      d.innerHTML = `<div class="box" style="width:${w}px"></div><small><b>${esc(k)}</b><br>${fs.length} film${fs.length === 1 ? '' : 's'}</small>`;
+      if (c) { const im = new Image(); im.src = thumb(c); im.loading = 'lazy'; d.querySelector('.box').append(im); crop(im, c, w, h); }
+      d.onclick = () => { F.std = F.std === k ? null : k; F.lo = F.hi = null; go(); }; H.append(d); }); }
+  // ---- the wall: rows packed like a photo wall, every picture at its true shape
+  function go(full = true) { const films = FL.filter(f => pass(f));
+    if (FL) ruler(FL.filter(f => { const lo = F.lo; F.lo = null; const ok = pass(f); F.lo = lo; return ok; }));
+    if (!full) return;
+    rows = F.film ? films.map(f => f._c).filter(Boolean) : CL.filter(c => pass(FL[c[1]], c));
+    chips('#kinds', KINDS, F.kinds, k => FL.filter(f => f.kind === k).length); chips('#boxes', BOXES, F.boxes, k => FL.filter(f => f.box === k).length);
+    const ds = [...new Set(FL.map(f => dec(f.year)).filter(Boolean))].sort(); chips('#decs', ds, F.decs, k => FL.filter(f => dec(f.year) === k).length);
+    $('#stat').innerHTML = `<b>${films.length.toLocaleString()}</b> films · <b>${(F.film ? rows.length : rows.length).toLocaleString()}</b> ${F.film ? 'shown, one each' : 'shots'}` + (F.lo != null ? ` · picture ${F.lo.toFixed(2)}–${F.hi.toFixed(2)}` : '') + (F.std ? ` · ${esc(F.std)}` : '') + ` · cinema is ringed in gold`;
+    shapes(films); $('#wall').innerHTML = ''; shown = 0; more(); }
+  function more() { const M = $('#wall'), W = M.clientWidth - 28, H = innerWidth < 640 ? 92 : 132; M.querySelector('.more')?.remove();
+    const batch = rows.slice(shown, shown + 300); let row = [], w = 0;
+    const flush = last => { if (!row.length) return; const k = last && w < W * .7 ? 1 : (W - 6 * (row.length - 1)) / w, d = document.createElement('div'); d.className = 'row';
+      row.forEach(c => { const f = FL[c[1]], p = picOf(c), tw = Math.floor(H * k * p), th = Math.floor(H * k), t = document.createElement('div'); t.className = 't' + (f.kind === 'cinema' ? ' cin' : ''); t.style.width = tw + 'px'; t.style.height = th + 'px';
+        const im = new Image(); im.loading = 'lazy'; im.decoding = 'async'; im.src = thumb(c); im.alt = ''; crop(im, c, tw, th); t.append(im);
+        t.insertAdjacentHTML('beforeend', `<span class="r" title="${f.sure_shape ? '' : 'measured on fewer than three shots'}">${p.toFixed(2)}${f.sure_shape ? '' : '?'}</span><div class="c"><b>${esc(f.title)}</b>${esc(f.year || '')} · <i>${esc(f.kind)}</i> · ${esc(f.box)}</div>`); t.onclick = () => play(c); d.append(t); });
+      M.append(d); row = []; w = 0; };
+    batch.forEach(c => { const p = picOf(c); row.push(c); w += H * p; if (w + 6 * (row.length - 1) >= W) flush(false); }); flush(true);
+    shown += batch.length; if (shown < rows.length) { const b = document.createElement('button'); b.className = 'more'; b.textContent = `${(rows.length - shown).toLocaleString()} more`; b.onclick = more; M.append(b); } }
+  // ---- play a shot at its true shape
+  async function play(c) { const f = FL[c[1]]; if (!VID) VID = await fetch('aspect/video.json').then(r => r.json()).catch(() => ({}));
+    const v = VID[c[0]]; if (!v) return; const p = picOf(c), W = Math.min(innerWidth * .94, innerHeight * .78 * p), H = W / p, box = $('#pv'), vid = box.querySelector('video');
+    box.style.width = W + 'px'; box.style.height = H + 'px'; crop(vid, c, W, H); vid.src = R2 + v[0]; vid.addEventListener('loadedmetadata', () => { try { vid.currentTime = v[1] || 0; } catch (e) { } vid.play().catch(() => { }); }, { once: true });
+    $('#pi').innerHTML = `${esc(f.title)} <small>${esc(f.year || 'undated')} · ${esc(f.kind)}${f.director ? ' · ' + esc(f.director) : ''} · frame ${f.frame.toFixed(2)} → picture ${p.toFixed(2)} (${esc(f.box)}) · ${esc(f.standard)}${f.sure_shape ? '' : ' · measured on ' + f.n + ' shot' + (f.n === 1 ? '' : 's') + ', uncertain'}</small>`; $('#play').hidden = false; }
+  $('#px').onclick = () => { const v = $('#pv video'); v.pause(); v.removeAttribute('src'); $('#play').hidden = true; };
+  $('#play').addEventListener('click', e => { if (e.target.id === 'play') $('#px').click(); });
+  $('#byFilm').onclick = () => { F.film = true; $('#byFilm').classList.add('on'); $('#byShot').classList.remove('on'); go(); };
+  $('#byShot').onclick = () => { F.film = false; $('#byShot').classList.add('on'); $('#byFilm').classList.remove('on'); go(); };
+  $('#clear').onclick = () => { F.kinds.clear(); F.boxes.clear(); F.decs.clear(); F.lo = F.hi = F.std = null; F.q = ''; $('#q').value = ''; go(); };
+  let deb; $('#q').addEventListener('input', () => { clearTimeout(deb); deb = setTimeout(() => { F.q = $('#q').value.trim().toLowerCase(); go(); }, 200); });
+  addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(() => go(), 200); });
+  addEventListener('keydown', e => { if (e.key === 'Escape') $('#px').click(); });
+  Promise.all([fetch('aspect/films.json').then(r => r.json()), fetch('aspect/clips.json').then(r => r.json())]).then(([f, c]) => {
+    FL = f.films; ST = f.standards; CL = c;
+    CL.forEach(x => { const fm = FL[x[1]], d = Math.abs(picOf(x) - fm.pic); if (!fm._c || d < fm._d) { fm._c = x; fm._d = d; } });   // a film's face: the shot whose shape is the film's
+    const q = new URLSearchParams(location.search); if (q.get('kind')) F.kinds.add(q.get('kind')); if (q.get('q')) { F.q = q.get('q').toLowerCase(); $('#q').value = q.get('q'); }
+    go(); }).catch(e => { $('#stat').textContent = 'could not load: ' + e.message; });
+})();
+</script></body></html>
