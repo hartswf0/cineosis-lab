@@ -48,7 +48,7 @@ footer{ display:flex; align-items:center; gap:6px; padding:4px 10px calc(10px + 
 <div id="line"></div>
 <footer><button class="ico" id="bPrev" aria-label="Previous line"><svg><use href="#i-prev"/></svg></button><button class="ico" id="bPlay" aria-label="Play"><svg><use href="#i-play"/></svg></button><button class="ico" id="bNext" aria-label="Next line"><svg><use href="#i-next"/></svg></button>
   <button class="tg" id="deliv" title="How one voice gives way to the next">BREATH</button><button class="tg" id="ours" title="Our studio voice under the archive">STUDIO</button><div id="prog"></div></footer>
-<audio id="voice" preload="auto"></audio>
+<audio id="voice" preload="auto"></audio><audio id="track" preload="auto"></audio>
 <script src="markov/ui.js?v=3"></script>
 <script>
 (function () {
@@ -136,26 +136,59 @@ footer{ display:flex; align-items:center; gap:6px; padding:4px 10px calc(10px + 
   function go(n) { hush(); li = Math.max(0, Math.min(lines().length - 1, n)); fi = 0; drawLine(); anticipate();
     const x = upcoming(1)[0]; if (x && !playing) { const el = POOL.find(e => e._key === keyOf(x)); if (el) { const show = () => take(el, 300); if (el.readyState >= 2) show(); else el.addEventListener('loadeddata', show, { once: true }); $('#who').textContent = src(x); } }
     if (playing) startLine(); }
-  function stepScene(d) { const o = $('#scene'), k = o.selectedIndex + d; if (k < 0 || k >= o.options.length) { stop(); return; } o.selectedIndex = k; sid = o.value; li = 0; fi = 0; drawLine(); anticipate(); if (playing) rest(1400, startLine); }
-  function setMode(m) { mode = m; store.set('found.mode2', m); document.querySelectorAll('#dial button').forEach(b => { b.classList.toggle('on', b.dataset.m === m); if (b.dataset.m === m && b.scrollIntoView) b.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }); go(li); }
+  // ---- the rendered track (SPOKEN, PERFORMANCE): one continuous mixed sound per scene, made offline (render_found.py): voices
+  // normalized, tails ringing out, our voice filling, the book's music under it all. The page only follows it: the words light as
+  // they are said, and the picture changes slowly (a new picture at most every three seconds, dissolving over a second and a half),
+  // only when the next picture is already loaded; otherwise the current one simply plays on.
+  const track = $('#track'), DISSOLVE = 1500, SPACING = 3.2;
+  const trk = () => F && F.scene_tracks && F.scene_tracks[sid] && F.scene_tracks[sid][mode];
+  let curPic = null, curEv = null, tkRaf = 0;
+  const pkey = e => 'pic:' + e.id + '@' + e.t0;
+  function pics() { const t = trk(); if (!t) return []; if (t._pics) return t._pics; const out = []; let last = -1e9;
+    t.ev.forEach(e => { if (e.id && F.clips[e.id] && (!out.length || (e.end - e.at >= 1.1 && e.at - last >= SPACING))) { out.push(e); last = e.at; } }); return (t._pics = out); }
+  function loadPic(el, e) { const c = F.clips[e.id]; el._key = pkey(e); el.muted = true; if (el.dataset.id !== e.id) { el.src = c.video; el.dataset.id = e.id; el.load(); }
+    const at = Math.max(0, e.t0 - .4), seek = () => { if (el._key === pkey(e)) try { el.currentTime = at; } catch (x) { } }; if (el.readyState >= 1) seek(); else el.addEventListener('loadedmetadata', seek, { once: true }); }
+  function slowTake(el) { if (el === shown) return; const old = shown; el.style.transition = `opacity ${DISSOLVE}ms ease, filter .6s`; el.style.zIndex = ++z; el.style.opacity = 1; shown = el;
+    if (old) setTimeout(() => { if (old !== shown) { old.style.transition = 'none'; old.style.opacity = 0; old.pause(); } }, DISSOLVE + 80); }
+  function tkLoop() { cancelAnimationFrame(tkRaf); const t = trk(); if (!t) return; const now = track.currentTime;
+    let L = null; for (const l of t.lines) if (l.at - .6 <= now) L = l; if (L && L.li !== li) { li = L.li; drawLine(); }
+    let E = null; for (const e of t.ev) if (e.at - .05 <= now) E = e; else break;
+    if (E && E !== curEv && E.li === li && now <= E.end + .5) { curEv = E; mark(E.fi); const x = (tr(lines()[E.li]) || { frags: [] }).frags[E.fi] || {};
+      $('#who').textContent = E.ours ? 'our voice · “' + (x.gap || x.elided || '') + '”' : src(E) + ' · “' + (x.words || '') + '”'; }
+    const ps = pics(); let P = null, k = -1; ps.forEach((p, n) => { if (p.at - .4 <= now) { P = p; k = n; } });
+    if (P && P !== curPic) { const el = POOL.find(e => e._key === pkey(P));
+      if (el && el.readyState >= 3 && !el.seeking) { if (!track.paused) el.play().catch(() => { }); slowTake(el); curPic = P; }
+      else if (!el) { const f = POOL.find(e => e !== shown); if (f) loadPic(f, P); }
+      if (now - (P.at - .4) > 1.5) curPic = P; }                     // too late: let the picture on screen play on
+    const busy = new Set([shown]); ps.slice(k + 1, k + 4).forEach(p => { const e = POOL.find(e => e._key === pkey(p)); if (e) busy.add(e); else { const f = POOL.find(e => !busy.has(e)); if (f) { busy.add(f); loadPic(f, p); } } });
+    if (playing) tkRaf = requestAnimationFrame(tkLoop); }
+  function tkLoad(atLine, autoplay) { const t = trk(); curPic = curEv = null; hush(); track.pause();
+    const l = t.lines.find(l => l.li >= atLine) || t.lines[0], go_ = () => { try { track.currentTime = Math.max(0, l ? l.at - .8 : 0); } catch (x) { } tkLoop(); if (autoplay) track.play().catch(() => { }); };
+    li = l ? l.li : 0; drawLine();
+    if (track.dataset.u !== t.url) { track.src = t.url; track.dataset.u = t.url; track.addEventListener('loadedmetadata', go_, { once: true }); track.load(); } else go_(); }
+  function tkPlay(on) { if (on) { track.play().catch(() => { }); if (shown) shown.play().catch(() => { }); tkLoop(); } else { track.pause(); POOL.forEach(v => v.pause()); cancelAnimationFrame(tkRaf); } }
+  track.addEventListener('ended', () => { if (playing && trk()) stepScene(1); });
+  const drawTools = () => { const t = !!trk(); $('#deliv').hidden = t; $('#ours').hidden = t; };
+  function stepScene(d) { const o = $('#scene'), k = o.selectedIndex + d; if (k < 0 || k >= o.options.length) { stop(); return; } o.selectedIndex = k; sid = o.value; li = 0; fi = 0; drawTools(); if (trk()) { tkLoad(0, playing); return; } drawLine(); anticipate(); if (playing) rest(1400, startLine); }
+  function setMode(m) { const was = li; track.pause(); cancelAnimationFrame(tkRaf); mode = m; store.set('found.mode2', m); drawTools(); document.querySelectorAll('#dial button').forEach(b => { b.classList.toggle('on', b.dataset.m === m); if (b.dataset.m === m && b.scrollIntoView) b.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }); if (trk()) tkLoad(was, playing); else go(was); }
   // phones only let a page sound after a touch: wake both picture layers and the studio voice on the first one
   function unlock() { if (unlocked) return; unlocked = true; [...POOL, voice].forEach(m => { if (!m.src) return; m._unlock = true; m.muted = true; const p = m.play(); const done = () => { if (m._unlock) { m.pause(); m.muted = false; } m._unlock = false; }; if (p) p.then(done, done); }); }   // a voice claimed meanwhile is left playing
-  function toggle() { unlock(); playing = !playing; $('#bPlay').innerHTML = `<svg><use href="#i-${playing ? 'pause' : 'play'}"/></svg>`; if (playing) startLine(); else stop();
+  function toggle() { playing = !playing; $('#bPlay').innerHTML = `<svg><use href="#i-${playing ? 'pause' : 'play'}"/></svg>`; if (trk()) tkPlay(playing); else { unlock(); if (playing) startLine(); else stop(); }
     const tp = $('#tap'); tp.innerHTML = `<svg><use href="#i-${playing ? 'play' : 'pause'}"/></svg>`; tp.classList.add('show'); setTimeout(() => tp.classList.remove('show'), 500); }
   document.querySelectorAll('#dial button').forEach(b => b.onclick = () => setMode(b.dataset.m));
-  $('#bPlay').onclick = toggle; $('#bNext').onclick = () => go(li + 1); $('#bPrev').onclick = () => go(li - 1);
+  $('#bPlay').onclick = toggle; const jump = n => { if (trk()) tkLoad(Math.max(0, n), playing); else go(n); }; $('#bNext').onclick = () => jump(li + 1); $('#bPrev').onclick = () => jump(li - 1);
   $('#ours').onclick = () => { ours = !ours; $('#ours').classList.toggle('on', ours); };
   const drawDeliv = () => { $('#deliv').textContent = deliv; $('#deliv').classList.toggle('on', deliv !== 'CUT'); }; drawDeliv();
   $('#deliv').onclick = () => { deliv = DELIV[(DELIV.indexOf(deliv) + 1) % DELIV.length]; store.set('found.deliv', deliv); drawDeliv(); };
-  $('#scene').onchange = () => { sid = $('#scene').value; go(0); };
+  $('#scene').onchange = () => { sid = $('#scene').value; drawTools(); if (trk()) tkLoad(0, playing); else go(0); };
   // touch: tap the picture to play or pause, swipe across the picture or the words for the next or previous line
   let sx = null, sy = 0, st = 0; const touch = 'ontouchstart' in window;
   [stage, $('#line')].forEach(el => { el.addEventListener('touchstart', e => { const p = e.touches[0]; sx = p.clientX; sy = p.clientY; st = Date.now(); }, { passive: true });
     el.addEventListener('touchend', e => { if (sx == null) return; const p = e.changedTouches[0], dx = p.clientX - sx, dy = p.clientY - sy; sx = null;
-      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { go(li + (dx < 0 ? 1 : -1)); e.preventDefault(); }
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { jump(li + (dx < 0 ? 1 : -1)); e.preventDefault(); }
       else if (el === stage && Math.abs(dx) < 10 && Math.abs(dy) < 10 && Date.now() - st < 400) { toggle(); e.preventDefault(); } }); });
   stage.addEventListener('click', () => { if (!touch) toggle(); });
-  addEventListener('keydown', e => { if (e.target.tagName === 'SELECT') return; if (e.key === ' ') { e.preventDefault(); toggle(); } else if (e.key === 'ArrowRight') go(li + 1); else if (e.key === 'ArrowLeft') go(li - 1); else if ('12345'.includes(e.key)) setMode(MODES[+e.key - 1]); });
+  addEventListener('keydown', e => { if (e.target.tagName === 'SELECT') return; if (e.key === ' ') { e.preventDefault(); toggle(); } else if (e.key === 'ArrowRight') jump(li + 1); else if (e.key === 'ArrowLeft') jump(li - 1); else if ('12345'.includes(e.key)) setMode(MODES[+e.key - 1]); });
   Promise.all([fetch('odyssey/found.json').then(r => r.json()), fetch('odyssey/radio.json').then(r => r.json()).catch(() => null)]).then(([f, r]) => { F = f; R = r ? r.books.flatMap(b => b.scenes) : null;
     const titles = R ? Object.fromEntries(R.map(s => [s.id, s.title])) : {};
     Object.keys(F.scenes).sort().forEach(id => { const o = document.createElement('option'); o.value = id; o.textContent = `${id.slice(3).replace('-', ' ')} · ${titles[id] || ''}`; $('#scene').append(o); });

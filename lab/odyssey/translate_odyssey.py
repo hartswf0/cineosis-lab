@@ -141,4 +141,6 @@ for m, v in stats.items():
 print("gaps filled from our voice", sum(1 for v in found.values() for u in v for m in MODES if u["modes"][m] for x in u["modes"][m]["frags"] if "fill" in x), "of", sum(1 for v in found.values() for u in v for m in MODES if u["modes"][m] for x in u["modes"][m]["frags"] if "gap" in x or "elided" in x))
 print("sense echoes on", sum(1 for v in found.values() for u in v if u["modes"]["sense"]), "lines · clips", len(clips))
 import subprocess, sys
-if not os.environ.get("NO_SPOKEN"): subprocess.run([sys.executable, os.path.join(H, "spoken_odyssey.py")])   # then the spoken mode: whole utterances (adds modes.spoken)
+if not os.environ.get("NO_SPOKEN"):
+    subprocess.run([sys.executable, os.path.join(H, "spoken_odyssey.py")])
+    subprocess.run([os.path.expanduser("~/.cache/mlxw-venv/bin/python"), os.path.join(H, "render_found.py")])   # and the rendered tracks   # then the spoken mode: whole utterances (adds modes.spoken)
