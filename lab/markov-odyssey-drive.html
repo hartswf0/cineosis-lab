@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Odyssey Drive</title>
+<meta name="description" content="The whole Odyssey as one long broadcast for the road or the background: the archive tells each scene, a herald says where you are, and, as you climb the levels, Homer's Greek is read and taken apart word by word, with his great words coming back across the books.">
+<meta name="theme-color" content="#050505">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=GFS+Didot&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ color-scheme:dark; --bg:#050505; --ink:#efe9dd; --dim:#8a8378; --faint:#2a2723; --hi:#e8c070; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; --greek:'GFS Didot','Fraunces',Georgia,serif; }
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; } html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); font:12px var(--mono); overflow:hidden; } button,select{ font:inherit; color:inherit; }
+body{ display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr) auto; height:100dvh; }
+#bg{ position:fixed; inset:0; z-index:0; background:#000; } #bg video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity 1.6s ease-in-out, transform 14s linear; filter:brightness(.42) saturate(.85); }
+body.drive #bg{ display:none; }
+header{ position:relative; z-index:2; display:flex; align-items:center; gap:10px; padding:calc(10px + env(safe-area-inset-top)) 14px 6px; flex-wrap:wrap; }
+#markLink{ display:flex; align-items:center; gap:8px; color:var(--ink); text-decoration:none; letter-spacing:.2em; font-size:10.5px; white-space:nowrap; } #markLink span{ color:var(--dim); }
+.seg{ display:flex; gap:2px; background:#121110cc; border:1px solid var(--faint); border-radius:18px; padding:2px; }
+.seg button{ border:0; background:none; border-radius:16px; padding:7px 11px; cursor:pointer; color:var(--dim); font-size:10px; letter-spacing:.12em; } .seg button.on{ background:#e8c07026; color:var(--hi); }
+#where{ flex:1; min-width:120px; text-align:right; color:var(--dim); font-size:10.5px; letter-spacing:.08em; }
+main{ position:relative; z-index:2; min-height:0; overflow:auto; display:grid; align-content:center; padding:10px 6vw; }
+#kind{ font:500 10.5px var(--mono); letter-spacing:.24em; color:var(--hi); margin-bottom:14px; text-transform:uppercase; }
+#title{ font:300 clamp(24px,4.4vw,52px)/1.12 var(--serif); margin:0 0 14px; }
+#text{ font:300 clamp(19px,2.8vw,34px)/1.35 var(--serif); color:#d8d1c4; max-width:1000px; }
+#text .ar{ display:block; font-style:italic; color:var(--ink); margin-top:10px; }
+#gk{ font:400 clamp(26px,4.8vw,60px)/1.25 var(--greek); color:var(--ink); }
+#tl{ font:300 italic clamp(15px,2vw,24px)/1.4 var(--serif); color:#a59e93; margin-top:6px; }
+#words{ display:flex; flex-wrap:wrap; gap:10px 18px; margin-top:20px; } #words div{ display:grid; gap:2px; } #words b{ font:400 clamp(18px,2.6vw,30px) var(--greek); font-weight:400; } #words i{ font:400 clamp(11px,1.3vw,14px) var(--mono); color:var(--dim); font-style:normal; }
+#theme{ font:400 clamp(52px,11vw,140px)/1 var(--greek); color:var(--hi); }
+.sub{ font:300 italic clamp(16px,2.2vw,26px)/1.4 var(--serif); color:#a59e93; margin-top:8px; }
+footer{ position:relative; z-index:2; display:flex; align-items:center; justify-content:center; gap:14px; padding:8px 14px calc(14px + env(safe-area-inset-bottom)); }
+.ico{ width:58px; height:58px; display:grid; place-items:center; background:#121110cc; border:1px solid var(--faint); border-radius:50%; cursor:pointer; color:#d6cfc2; } .ico svg{ width:24px; height:24px; } #bPlay{ width:78px; height:78px; background:#e8c07022; color:var(--hi); border-color:#5a4e33; } #bPlay svg{ width:30px; height:30px; }
+#bar{ position:relative; z-index:2; height:3px; background:#1a1816; margin:0 14px; } #bar div{ height:100%; background:var(--hi); width:0; transition:width .4s linear; }
+#book{ background:#121110cc; border:1px solid var(--faint); border-radius:16px; padding:6px 10px; font-size:11px; max-width:46vw; }
+@media (max-width:640px){ header{ gap:6px; } #where{ display:none; } .seg button{ padding:7px 8px; font-size:9.5px; letter-spacing:.06em; } main{ padding:10px 18px; } .ico{ width:52px; height:52px; } #bPlay{ width:70px; height:70px; } }
+</style></head><body>
+<div id="bg"><video playsinline muted loop></video><video playsinline muted loop></video></div>
+<header><a id="markLink" href="markov-found-odyssey.html"></a>
+  <div class="seg" id="lvl" aria-label="Level"><button data-l="1">TRAVELER</button><button data-l="2">STUDENT</button><button data-l="3">READER</button></div>
+  <div class="seg" id="view" aria-label="View"><button data-v="drive">DRIVE</button><button data-v="screen">SCREEN</button></div>
+  <select id="book" aria-label="Book"></select><div id="where"></div></header>
+<main><div id="kind"></div><h1 id="title"></h1><div id="body"></div></main>
+<div id="bar"><div></div></div>
+<footer><button class="ico" id="bBack" aria-label="Back 15 seconds"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 3v4h4"/><text x="12" y="15.5" font-size="7" text-anchor="middle" fill="currentColor" stroke="none" font-family="monospace">15</text></svg></button>
+  <button class="ico" id="bPrev" aria-label="Previous"><svg><use href="#i-prev"/></svg></button><button class="ico" id="bPlay" aria-label="Play"><svg><use href="#i-play"/></svg></button><button class="ico" id="bNext" aria-label="Next"><svg><use href="#i-next"/></svg></button>
+  <button class="ico" id="bFwd" aria-label="Forward 15 seconds"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M20 3v4h-4"/><text x="12" y="15.5" font-size="7" text-anchor="middle" fill="currentColor" stroke="none" font-family="monospace">15</text></svg></button></footer>
+<audio id="au" preload="auto"></audio>
+<script src="markov/ui.js?v=3"></script>
+<script>
+(function () {
+  const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  MPUI.sprite(); $('#markLink').innerHTML = MPUI.mark(22) + 'ODYSSEY <span>DRIVE</span>';
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
+  const au = $('#au'), BG = [...document.querySelectorAll('#bg video')];
+  let D = null, F = null, PICS = null, R = null, list = [], pos = store.get('drive.pos', { i: 0, t: 0 }), level = store.get('drive.level', 2), view = store.get('drive.view', 'drive'), playing = false, bgOn = 0, wake = null;
+  // the broadcast: for every scene, the herald, then the archive telling it, then (by level) the word to carry and the Greek line
+  function build() { const out = [];
+    D.books.forEach(b => b.scenes.forEach(sid => { const s = D.scenes[sid] || {}, tr = F.scene_tracks && F.scene_tracks[sid];
+      if (s.herald) out.push({ sid, b: b.n, kind: 'herald', url: `odyssey/drive/${sid}-herald.m4a` });
+      const t = tr && (tr.spoken || tr.performance); if (t) out.push({ sid, b: b.n, kind: 'scene', url: t.url, track: t, mode: tr.spoken ? 'spoken' : 'performance' });
+      if (level >= 2 && s.theme) out.push({ sid, b: b.n, kind: 'theme', url: `odyssey/drive/${sid}-theme.m4a` });
+      if (level >= 3 && s.greek) out.push({ sid, b: b.n, kind: 'greek', url: `odyssey/drive/${sid}-greek.m4a` }); })); return out; }
+  const title = sid => { const s = R && R.find(x => x.id === sid); return s ? s.title : sid; };
+  // Homer's Greek in Latin letters, for reading along
+  function translit(g) { const n = g.normalize('NFD'); let o = '', rough = false;
+    const M = { α: 'a', β: 'b', γ: 'g', δ: 'd', ε: 'e', ζ: 'z', η: 'ē', θ: 'th', ι: 'i', κ: 'k', λ: 'l', μ: 'm', ν: 'n', ξ: 'x', ο: 'o', π: 'p', ρ: 'r', σ: 's', ς: 's', τ: 't', υ: 'u', φ: 'ph', χ: 'kh', ψ: 'ps', ω: 'ō' };
+    for (let k = 0; k < n.length; k++) { const c = n[k], lo = c.toLowerCase();
+      if (c === '̔') { o = o.replace(/([aeiouēō]+)$/i, 'h$1'); continue; } if (/[̀-ͯ]/.test(c)) continue;
+      if (M[lo]) { let t = M[lo]; if (lo === 'γ' && /[γκξχ]/.test((n[k + 1] || '').toLowerCase())) t = 'n'; o += c !== lo ? t[0].toUpperCase() + t.slice(1) : t; } else o += c === 'ʼ' ? "'" : c; }
+    return o; }
+  function show() { const it = list[pos.i]; if (!it) return; const s = D.scenes[it.sid] || {}, bk = D.books.find(b => b.n === it.b);
+    $('#where').textContent = `Book ${it.b} · ${bk ? bk.title : ''}`; $('#book').value = it.b;
+    $('#kind').textContent = { herald: 'where we are', scene: 'the archive tells it', theme: 'the word to carry', greek: `Homer's Greek · ${it.b}.${(s.greek || {}).n || ''}` }[it.kind];
+    $('#title').textContent = it.kind === 'theme' ? '' : title(it.sid);
+    let h = '';
+    if (it.kind === 'herald') h = `<div id="text">${esc((s.herald || {}).text || '')}</div>`;
+    else if (it.kind === 'theme') { const t = s.theme; h = `<div id="theme">${esc(t.word)}</div><div class="sub">${esc(t.say)}: ${esc(t.means)}</div>`; }
+    else if (it.kind === 'greek') { const g = s.greek; h = `<div id="gk">${esc(g.greek)}</div><div id="tl">${esc(translit(g.greek))}</div><div id="words">${g.words.map(w => `<div><b>${esc(w[0])}</b><i>${esc(w[1])}</i></div>`).join('')}</div><div class="sub">${esc(g.who)}: “${esc(g.english)}”</div>`; }
+    else h = `<div id="text"></div>`;
+    $('#body').innerHTML = h; meta(it); }
+  // in a scene: the line being said, Homer's words above, the archive's below
+  function follow() { const it = list[pos.i]; if (!it || it.kind !== 'scene') return; const now = au.currentTime, t = it.track, lines = F.scenes[it.sid] || [];
+    let L = null; for (const l of t.lines) if (l.at - .4 <= now) L = l; let E = null; for (const e of t.ev) if (e.at - .05 <= now) E = e; else break;
+    if (L) { const u = lines[L.li], fr = E && E.li === L.li && u.modes[it.mode] ? u.modes[it.mode].frags[E.fi] : null; const el = $('#text');
+      const key = L.li + ':' + (E ? E.fi : ''); if (el && el.dataset.k !== key) { el.dataset.k = key; el.innerHTML = `${esc(u.text)}${fr && fr.words ? `<span class="ar">“${esc(fr.words)}”</span>` : ''}`; } }
+    if (view === 'screen' && PICS) { const ps = (PICS[it.sid] || {})[it.mode] || []; let P = null; for (const p of ps) if (p.sw <= now) P = p; if (P) picture(P); } }
+  let curP = null;
+  function picture(P) { if (curP === P.id + P.in) return; curP = P.id + P.in; const v = BG[1 - bgOn], o = BG[bgOn];
+    v.src = P.video; v.addEventListener('loadedmetadata', () => { try { v.currentTime = P.in; } catch (e) { } v.playbackRate = .7; v.play().catch(() => { }); v.style.transform = 'scale(1)'; v.style.opacity = 1; requestAnimationFrame(() => { v.style.transform = 'scale(1.08)'; }); o.style.opacity = 0; setTimeout(() => o.pause(), 1700); bgOn = 1 - bgOn; }, { once: true }); }
+  function scenePicture(sid) { const ps = PICS && PICS[sid] && (PICS[sid].spoken || PICS[sid].performance); if (ps && ps.length) picture(ps[0]); }
+  function meta(it) { if (!('mediaSession' in navigator)) return; const bk = D.books.find(b => b.n === it.b);
+    navigator.mediaSession.metadata = new MediaMetadata({ title: `${title(it.sid)} · ${{ herald: 'herald', scene: 'the archive', theme: 'word', greek: 'Greek' }[it.kind]}`, artist: 'The Found Odyssey', album: `Book ${it.b} · ${bk ? bk.title : ''}` }); }
+  function load(i, t = 0, autoplay = playing) { pos = { i: Math.max(0, Math.min(list.length - 1, i)), t }; store.set('drive.pos', pos); const it = list[pos.i];
+    au.src = it.url; au.addEventListener('loadedmetadata', () => { try { au.currentTime = t; } catch (e) { } }, { once: true }); show();
+    if (view === 'screen' && it.kind !== 'scene') scenePicture(it.sid);
+    if (autoplay) au.play().catch(() => { }); }
+  au.addEventListener('ended', () => load(pos.i + 1, 0, true));
+  au.addEventListener('timeupdate', () => { follow(); const d = au.duration || 1; $('#bar div').style.width = (au.currentTime / d * 100) + '%'; if (Math.random() < .1) { pos.t = au.currentTime; store.set('drive.pos', pos); } });
+  au.addEventListener('play', () => { playing = true; $('#bPlay').innerHTML = '<svg><use href="#i-pause"/></svg>'; if (view === 'screen' && navigator.wakeLock) navigator.wakeLock.request('screen').then(w => wake = w).catch(() => { }); });
+  au.addEventListener('pause', () => { playing = false; $('#bPlay').innerHTML = '<svg><use href="#i-play"/></svg>'; pos.t = au.currentTime; store.set('drive.pos', pos); });
+  au.addEventListener('error', () => setTimeout(() => load(pos.i + 1, 0, playing), 400));   // a missing piece is passed over, never a stop
+  const skip = d => { const k = pos.i + d; load(k, 0, playing); };
+  const nextScene = d => { const sid = list[pos.i].sid; let k = pos.i; if (d > 0) { while (k < list.length - 1 && list[k].sid === sid) k++; } else { while (k > 0 && list[k - 1].sid === sid) k--; if (k === pos.i) { k--; const s2 = list[Math.max(0, k)].sid; while (k > 0 && list[k - 1].sid === s2) k--; } } load(k, 0, playing); };
+  $('#bPlay').onclick = () => { if (au.paused) { if (!au.src) load(pos.i, pos.t, true); else au.play().catch(() => { }); } else au.pause(); };
+  $('#bNext').onclick = () => nextScene(1); $('#bPrev').onclick = () => nextScene(-1);
+  $('#bBack').onclick = () => { au.currentTime = Math.max(0, au.currentTime - 15); }; $('#bFwd').onclick = () => { au.currentTime = Math.min((au.duration || 0) - .5, au.currentTime + 15); };
+  if ('mediaSession' in navigator) { const ms = navigator.mediaSession;   // the car's buttons and the lock screen
+    [['play', () => au.play()], ['pause', () => au.pause()], ['nexttrack', () => nextScene(1)], ['previoustrack', () => nextScene(-1)],
+     ['seekbackward', () => $('#bBack').click()], ['seekforward', () => $('#bFwd').click()]].forEach(([a, f]) => { try { ms.setActionHandler(a, f); } catch (e) { } }); }
+  function setLevel(l) { const sid = list[pos.i] && list[pos.i].sid; level = l; store.set('drive.level', l); document.querySelectorAll('#lvl button').forEach(b => b.classList.toggle('on', +b.dataset.l === l));
+    list = build(); const k = list.findIndex(x => x.sid === sid); if (k >= 0 && sid) { pos.i = k; store.set('drive.pos', pos); } }
+  function setView(v) { view = v; store.set('drive.view', v); document.body.classList.toggle('drive', v === 'drive'); document.querySelectorAll('#view button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); if (v === 'screen' && list[pos.i]) scenePicture(list[pos.i].sid); }
+  document.querySelectorAll('#lvl button').forEach(b => b.onclick = () => setLevel(+b.dataset.l));
+  document.querySelectorAll('#view button').forEach(b => b.onclick = () => setView(b.dataset.v));
+  $('#book').onchange = () => { const k = list.findIndex(x => x.b === +$('#book').value); if (k >= 0) load(k, 0, playing); };
+  addEventListener('keydown', e => { if (e.target.tagName === 'SELECT') return; if (e.key === ' ') { e.preventDefault(); $('#bPlay').click(); } else if (e.key === 'ArrowRight') nextScene(1); else if (e.key === 'ArrowLeft') nextScene(-1); });
+  Promise.all(['odyssey/drive/index.json', 'odyssey/found.json', 'odyssey/found-pics.json', 'odyssey/radio.json'].map(u => fetch(u).then(r => r.json()).catch(() => null))).then(([d, f, p, r]) => {
+    D = d; F = f; PICS = p; R = r ? r.books.flatMap(b => b.scenes) : null; if (!D || !F) { $('#title').textContent = 'The drive is still being made.'; return; }
+    D.books.forEach(b => { const o = document.createElement('option'); o.value = b.n; o.textContent = `Book ${b.n} · ${b.title}`; $('#book').append(o); });
+    setLevel(level); setView(view); const q = new URLSearchParams(location.search).get('scene'); if (q) { const k = list.findIndex(x => x.sid === q); if (k >= 0) pos = { i: k, t: 0 }; }
+    if (pos.i >= list.length) pos = { i: 0, t: 0 }; load(pos.i, pos.t, false); });
+})();
+</script></body></html>

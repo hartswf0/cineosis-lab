@@ -13,7 +13,7 @@ header{ display:flex; align-items:center; gap:10px; padding:calc(8px + env(safe-
 #dial{ display:flex; gap:2px; margin:4px 12px 6px; background:#121110; border:1px solid var(--faint); border-radius:18px; padding:2px; overflow-x:auto; scrollbar-width:none; } #dial::-webkit-scrollbar{ display:none; }
 #dial button{ flex:1 0 auto; border:0; background:none; border-radius:16px; padding:7px 10px; cursor:pointer; color:var(--dim); font-size:10px; letter-spacing:.14em; } #dial button.on{ background:#e8c07022; color:var(--hi); }
 #dial button small{ display:block; font-size:8.5px; letter-spacing:.04em; color:#6b655d; margin-top:2px; }
-main{ position:relative; background:#000; min-height:0; touch-action:pan-y; } main video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0; transition:filter .6s; } main.rest video{ filter:brightness(.7); }
+main{ position:relative; background:#000; min-height:0; touch-action:pan-y; } main{ overflow:hidden; } main video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0; transition:filter .6s; transform-origin:50% 45%; will-change:opacity, transform; } main.rest video{ filter:brightness(.7); }
 #who{ position:absolute; left:10px; top:10px; font:10px var(--mono); color:#d6cfc2; background:#000a; border-radius:12px; padding:4px 9px; max-width:calc(100% - 20px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } #who:empty{ display:none; }
 #tap{ position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; } #tap svg{ width:56px; height:56px; padding:14px; border-radius:50%; background:#0009; color:#efe9dd; opacity:0; transition:opacity .3s; } #tap.show svg{ opacity:1; }
 #line{ padding:10px 4vw 4px; min-height:140px; max-height:36vh; overflow:auto; }
@@ -39,7 +39,7 @@ footer{ display:flex; align-items:center; gap:6px; padding:4px 10px calc(10px + 
   footer{ justify-content:space-between; gap:2px; } #prog{ display:none; } .tg{ padding:7px 8px; font-size:9px; letter-spacing:.05em; } #deliv{ order:-1; } .ico{ width:44px; height:44px; } #bPlay{ width:54px; height:54px; }
 }
 </style></head><body>
-<header><a id="markLink" href="markov-poet.html"></a><select id="scene" aria-label="Scene"></select></header>
+<header><a id="markLink" href="markov-poet.html"></a><a class="tg" href="markov-odyssey-drive.html" style="text-decoration:none">DRIVE</a><select id="scene" aria-label="Scene"></select></header>
 <nav id="dial" aria-label="How to translate">
   <button data-m="spoken">SPOKEN<small>whole sentences that say it</small></button><button data-m="sense">SENSE<small>one sentence for the line</small></button>
   <button data-m="performance">PERFORMANCE<small>longer runs, fewer voices</small></button><button data-m="kinship">KINSHIP<small>kindred words where it lacks his</small></button>
@@ -143,28 +143,50 @@ footer{ display:flex; align-items:center; gap:6px; padding:4px 10px calc(10px + 
   const track = $('#track'), DISSOLVE = 1500, SPACING = 3.2;
   const trk = () => F && F.scene_tracks && F.scene_tracks[sid] && F.scene_tracks[sid][mode];
   let curPic = null, curEv = null, tkRaf = 0;
-  const pkey = e => 'pic:' + e.id + '@' + e.t0;
-  function pics() { const t = trk(); if (!t) return []; if (t._pics) return t._pics; const out = []; let last = -1e9;
-    t.ev.forEach(e => { if (e.id && F.clips[e.id] && (!out.length || (e.end - e.at >= 1.1 && e.at - last >= SPACING))) { out.push(e); last = e.at; } }); return (t._pics = out); }
-  function loadPic(el, e) { const c = F.clips[e.id]; el._key = pkey(e); el.muted = true; if (el.dataset.id !== e.id) { el.src = c.video; el.dataset.id = e.id; el.load(); }
-    const at = Math.max(0, e.t0 - .4), seek = () => { if (el._key === pkey(e)) try { el.currentTime = at; } catch (x) { } }; if (el.readyState >= 1) seek(); else el.addEventListener('loadedmetadata', seek, { once: true }); }
-  function slowTake(el) { if (el === shown) return; const old = shown; el.style.transition = `opacity ${DISSOLVE}ms ease, filter .6s`; el.style.zIndex = ++z; el.style.opacity = 1; shown = el;
-    if (old) setTimeout(() => { if (old !== shown) { old.style.transition = 'none'; old.style.opacity = 0; old.pause(); } }, DISSOLVE + 80); }
+  const pkey = e => 'pic:' + e.id + '@' + (e.in ?? e.t0);
+  let PICS = null;   // the picture plan (picture_found.py): story pictures held per line, speakers in sync, joins chosen by likeness
+  // pictures turn over in the in-between: a new picture is chosen where a pause comes before a voice long enough to carry it,
+  // its dissolve begins in the silence and ends just as the voice begins (sw: when it starts, dd: how long it takes)
+  function pics() { const t = trk(); if (!t) return []; if (t._pics) return t._pics;
+    const plan = PICS && PICS[sid] && PICS[sid][mode]; if (plan && plan.length) return (t._pics = plan);
+    const out = []; let last = -1e9;
+    t.ev.forEach(e => { if (!e.id || !F.clips[e.id]) return; const pause = e.at - (e.gap || e.at - 1);
+      if (out.length && !(e.end - e.at >= .8 && e.at - last >= SPACING && (pause >= .3 || e.at - last >= 8))) return;
+      const sw = Math.max(e.at - 1.8, Math.min(e.at - .5, e.gap ? e.gap + .1 : e.at - 1.2)); out.push({ ...e, sw, dd: Math.round(Math.max(600, Math.min(1900, (e.at + .2 - sw) * 1000))) }); last = e.at; });
+    return (t._pics = out); }
+  function loadPic(el, e) { const v = e.video || (F.clips[e.id] || {}).video; if (!v) return; el._key = pkey(e); el._p = e; el.muted = true; if (el.dataset.id !== e.id) { el.src = v; el.dataset.id = e.id; el.load(); }
+    const at = e.in != null ? Math.max(0, e.in) : Math.max(0, e.t0 - (e.at - (e.sw ?? e.at - .4))), seek = () => { if (el._key === pkey(e)) try { el.currentTime = at; } catch (x) { } }; if (el.readyState >= 1) seek(); else el.addEventListener('loadedmetadata', seek, { once: true }); }
+  // the join: a cut, a dissolve, or a dip (the old picture sinks to dark through the first half of the pause, the new one rises
+  // through the second); every story picture plays slower than life and pushes in slowly for as long as it is held
+  function slowTake(el, ms = DISSOLVE, tr = 'dissolve') { if (el === shown) return; const old = shown, p = el._p || {};
+    el.playbackRate = p.rate || 1; el.style.zIndex = ++z;
+    el.style.transition = 'none'; el.style.transform = 'scale(1)'; void el.offsetWidth;
+    const push = p.kind === 'story' ? `, transform ${Math.round(((p.hold || 6) + ms / 1000 + 2) * 1000)}ms linear` : '';
+    if (tr === 'cut' || !old) { el.style.transition = `opacity ${tr === 'cut' ? 0 : ms}ms ease-in-out, filter .6s${push}`; el.style.opacity = 1; }
+    else if (tr === 'dip') { old.style.transition = `opacity ${ms / 2}ms ease-in, filter .6s`; old.style.opacity = 0; el.style.opacity = 0;
+      setTimeout(() => { el.style.transition = `opacity ${ms / 2}ms ease-out, filter .6s${push}`; el.style.opacity = 1; }, ms / 2); }
+    else { el.style.transition = `opacity ${ms}ms ease-in-out, filter .6s${push}`; el.style.opacity = 1; }
+    if (p.kind === 'story') requestAnimationFrame(() => { el.style.transform = 'scale(1.07)'; });
+    shown = el;
+    if (old) setTimeout(() => { if (old !== shown) { old.style.transition = 'none'; old.style.opacity = 0; old.style.transform = 'scale(1)'; old.pause(); } }, ms + 80); }
   function tkLoop() { cancelAnimationFrame(tkRaf); const t = trk(); if (!t) return; const now = track.currentTime;
     let L = null; for (const l of t.lines) if (l.at - .6 <= now) L = l; if (L && L.li !== li) { li = L.li; drawLine(); }
     let E = null; for (const e of t.ev) if (e.at - .05 <= now) E = e; else break;
     if (E && E !== curEv && E.li === li && now <= E.end + .5) { curEv = E; mark(E.fi); const x = (tr(lines()[E.li]) || { frags: [] }).frags[E.fi] || {};
       $('#who').textContent = E.ours ? 'our voice · “' + (x.gap || x.elided || '') + '”' : src(E) + ' · “' + (x.words || '') + '”'; }
-    const ps = pics(); let P = null, k = -1; ps.forEach((p, n) => { if (p.at - .4 <= now) { P = p; k = n; } });
+    const ps = pics(); let P = null, k = -1; ps.forEach((p, n) => { if (p.sw <= now) { P = p; k = n; } });
     if (P && P !== curPic) { const el = POOL.find(e => e._key === pkey(P));
-      if (el && el.readyState >= 3 && !el.seeking) { if (!track.paused) el.play().catch(() => { }); slowTake(el); curPic = P; }
+      if (el && el.readyState >= 3 && !el.seeking) { if (!track.paused) el.play().catch(() => { }); slowTake(el, P.dd, P.tr); curPic = P; }
       else if (!el) { const f = POOL.find(e => e !== shown); if (f) loadPic(f, P); }
-      if (now - (P.at - .4) > 1.5) curPic = P; }                     // too late: let the picture on screen play on
+      if (now - P.sw > 1.5) curPic = P; }                     // too late: let the picture on screen play on
     const busy = new Set([shown]); ps.slice(k + 1, k + 4).forEach(p => { const e = POOL.find(e => e._key === pkey(p)); if (e) busy.add(e); else { const f = POOL.find(e => !busy.has(e)); if (f) { busy.add(f); loadPic(f, p); } } });
     if (playing) tkRaf = requestAnimationFrame(tkLoop); }
   function tkLoad(atLine, autoplay) { const t = trk(); curPic = curEv = null; hush(); track.pause();
     const l = t.lines.find(l => l.li >= atLine) || t.lines[0], go_ = () => { try { track.currentTime = Math.max(0, l ? l.at - .8 : 0); } catch (x) { } tkLoop(); if (autoplay) track.play().catch(() => { }); };
     li = l ? l.li : 0; drawLine();
+    // the opening picture is loaded and shown at once, before the sound begins
+    const t0 = l ? l.at - .8 : 0, first = [...pics()].reverse().find(p => p.sw <= t0 + .05) || pics()[0];
+    if (first) { const el = POOL.find(e => e !== shown) || POOL[0]; loadPic(el, first); const show = () => { slowTake(el, 500); curPic = first; }; if (el.readyState >= 2) show(); else el.addEventListener('loadeddata', show, { once: true }); }
     if (track.dataset.u !== t.url) { track.src = t.url; track.dataset.u = t.url; track.addEventListener('loadedmetadata', go_, { once: true }); track.load(); } else go_(); }
   function tkPlay(on) { if (on) { track.play().catch(() => { }); if (shown) shown.play().catch(() => { }); tkLoop(); } else { track.pause(); POOL.forEach(v => v.pause()); cancelAnimationFrame(tkRaf); } }
   track.addEventListener('ended', () => { if (playing && trk()) stepScene(1); });
@@ -189,7 +211,7 @@ footer{ display:flex; align-items:center; gap:6px; padding:4px 10px calc(10px + 
       else if (el === stage && Math.abs(dx) < 10 && Math.abs(dy) < 10 && Date.now() - st < 400) { toggle(); e.preventDefault(); } }); });
   stage.addEventListener('click', () => { if (!touch) toggle(); });
   addEventListener('keydown', e => { if (e.target.tagName === 'SELECT') return; if (e.key === ' ') { e.preventDefault(); toggle(); } else if (e.key === 'ArrowRight') jump(li + 1); else if (e.key === 'ArrowLeft') jump(li - 1); else if ('12345'.includes(e.key)) setMode(MODES[+e.key - 1]); });
-  Promise.all([fetch('odyssey/found.json').then(r => r.json()), fetch('odyssey/radio.json').then(r => r.json()).catch(() => null)]).then(([f, r]) => { F = f; R = r ? r.books.flatMap(b => b.scenes) : null;
+  Promise.all([fetch('odyssey/found.json').then(r => r.json()), fetch('odyssey/radio.json').then(r => r.json()).catch(() => null), fetch('odyssey/found-pics.json').then(r => r.json()).catch(() => null)]).then(([f, r, pp]) => { F = f; PICS = pp; R = r ? r.books.flatMap(b => b.scenes) : null;
     const titles = R ? Object.fromEntries(R.map(s => [s.id, s.title])) : {};
     Object.keys(F.scenes).sort().forEach(id => { const o = document.createElement('option'); o.value = id; o.textContent = `${id.slice(3).replace('-', ' ')} · ${titles[id] || ''}`; $('#scene').append(o); });
     const want = qs.get('scene'); sid = F.scenes[want] ? want : 'OD-B09-S09'; $('#scene').value = sid;

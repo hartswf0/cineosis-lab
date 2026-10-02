@@ -143,4 +143,7 @@ print("sense echoes on", sum(1 for v in found.values() for u in v if u["modes"][
 import subprocess, sys
 if not os.environ.get("NO_SPOKEN"):
     subprocess.run([sys.executable, os.path.join(H, "spoken_odyssey.py")])
-    subprocess.run([os.path.expanduser("~/.cache/mlxw-venv/bin/python"), os.path.join(H, "render_found.py")])   # and the rendered tracks   # then the spoken mode: whole utterances (adds modes.spoken)
+    subprocess.run([os.path.expanduser("~/.cache/mlxw-venv/bin/python"), os.path.join(H, "render_found.py")])   # and the rendered tracks
+    subprocess.run([sys.executable, os.path.join(H, "picture_found.py")])                                     # the pictures on them
+    subprocess.run([sys.executable, os.path.join(H, "greek_odyssey.py")])                                     # the Greek under them
+    subprocess.run([os.path.expanduser("~/.cache/mlxw-venv/bin/python"), os.path.join(H, "drive_lessons.py")])  # and the drive's lessons   # then the spoken mode: whole utterances (adds modes.spoken)

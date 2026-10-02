@@ -14,8 +14,12 @@ import numpy as np, soundfile as sf, pyloudnorm as pyln
 from scipy.signal import resample_poly
 H = os.path.dirname(os.path.abspath(__file__)); A = os.path.join(H, "cache", "aud"); HW = os.path.expanduser("~/Downloads/odyssey-halfworld")
 OUT = os.path.join(H, "found-audio"); SR = 44100; meter = pyln.Meter(SR)
-MODES = {"spoken": {"pre": .14, "tail": .55, "fin": .05, "fout": .38, "breath": .7, "rest": 1.6},
-         "performance": {"pre": .08, "tail": .4, "fin": .025, "fout": .22, "breath": .06, "rest": 1.2}}
+# head: up to this much of the speaker's room before the first word (never the word before), faded in
+# ring: up to this much of the silence after the last word, at full; ghost: then whatever follows, fading out fast underneath
+# lo, hi: the pause between two voices is the speakers' own (half what A left after its words, half what B left before its own),
+# held within these bounds; rest: the pause between lines, likewise lengthened by how long the last speaker paused
+MODES = {"spoken": {"pre": .14, "tail": .55, "head": .8, "ring": .9, "ghost": .45, "lo": .45, "hi": 1.3, "rest": 1.6},
+         "performance": {"pre": .08, "tail": .4, "head": .3, "ring": .35, "ghost": .2, "lo": .03, "hi": .28, "rest": 1.2}}
 SPEECH, BED, MASTER = -21.0, -33.0, -19.0
 norm = lambda w: re.sub(r"[^a-z0-9']", "", w.lower()).strip("'")
 found = json.load(open(os.path.join(H, "found.json"))); radio = json.load(open(os.path.join(H, "radio.json")))
@@ -42,20 +46,70 @@ CLIPL = {}
 def clip_level(i, a):
     if i not in CLIPL: CLIPL[i] = loud(a) or -26.0
     return CLIPL[i]
-def piece(a, t0, t1, P, ref):
-    """The voice from t0 to t1 with room before and a ringing tail after, normalized and enveloped."""
-    s = max(0, int((t0 - P["pre"]) * SR)); e = min(len(a), int((t1 + P["tail"]) * SR)); x = a[s:e].astype(np.float32).copy()
-    if len(x) < 64: return None, 0
-    L = loud(x) or ref; g = 10 ** (np.clip(SPEECH - L, -12, 18) / 20); x *= g
-    fi, fo = int(P["fin"] * SR), int(P["fout"] * SR); fi = min(fi, len(x) // 3); fo = min(fo, len(x) // 2)
-    if fi: x[:fi] *= np.sin(np.linspace(0, np.pi / 2, fi)) ** 2
-    if fo: x[-fo:] *= np.cos(np.linspace(0, np.pi / 2, fo)) ** 2
-    pk = np.abs(x).max()
+# ---- one medium for every voice. Archival voices differ (measured on 300: loudness -34..-20 LUFS, bandwidth 1.0..2.6 kHz,
+# speech 12..29 dB over its hiss, pitch 115..229 Hz), so each is brought into one shared medium before it is heard:
+#   hiss and hum lowered toward one floor (spectral subtraction from the clip's own quietest moments, gently, leaving some air)
+#   its tone pulled 70% of the way toward the archive's median voice (third-octave match EQ, at most 9 dB)
+#   one band for all, 90 Hz to 6 kHz, so a bright modern voice does not leap out of the muffled 1930s ones
+#   its dynamics evened (2.5:1 above its own speaking level), then its loudness set from its words alone
+# and all of them later share one room (a single reverb on the voice bus) and one floor (a continuous room tone).
+from scipy.signal import stft, istft, butter, sosfiltfilt, lfilter, fftconvolve
+WORDS = json.load(open(os.path.join(H, "cache", "ears", "words.json")))
+for f in glob.glob(os.path.join(H, "cache", "ears", "words.*.json")): WORDS.update(json.load(open(f)))
+def edges(i, t0, t1):
+    ws = (WORDS.get(i) or {}).get("words") or []
+    pe = max([w[2] for w in ws if w[2] <= t0 + .03] or [0.0]); ns = min([w[1] for w in ws if w[1] >= t1 - .03] or [t1 + 5])
+    return pe, ns
+BANDS = 100 * 2 ** (np.arange(20) / 3)                               # third octaves, 100 Hz to 6.3 kHz
+def ltas(x):
+    S = np.abs(np.fft.rfft(x * np.hanning(len(x)))) ** 2; fr = np.fft.rfftfreq(len(x), 1 / SR)
+    e = np.array([S[(fr >= b / 2 ** (1 / 6)) & (fr < b * 2 ** (1 / 6))].mean() + 1e-12 for b in BANDS]); d = 10 * np.log10(e); return d - d.mean()
+TP = os.path.join(H, "cache", "voice-target.npy"); TARGET = np.load(TP) if os.path.exists(TP) else None
+SOS_BAND = butter(2, [90, 6000], "bandpass", fs=SR, output="sos")
+def medium(x, core, ctx):
+    """x: the piece; core: (s, e) samples of its words; ctx: the clip around it, for the noise print."""
+    if len(x) < 2048: return x
+    f, t, Z = stft(ctx, SR, nperseg=1024, noverlap=768); pw = np.abs(Z) ** 2
+    fe = pw.sum(0); q = pw[:, fe <= np.percentile(fe, 15)].mean(1, keepdims=True)          # its noise: the quietest 15%
+    f, t, X = stft(x, SR, nperseg=1024, noverlap=768); P_ = np.abs(X) ** 2
+    snr = 10 * np.log10(P_.sum(0).mean() / (q.sum() + 1e-12) + 1e-12)
+    if snr < 26:                                                       # noisy: subtract it, leave a quarter so it still breathes
+        g = np.maximum(1 - 1.0 * q / (P_ + 1e-12), .25 ** 2); X = X * np.sqrt(g)
+    x = istft(X, SR, nperseg=1024, noverlap=768)[1][: len(x)].astype(np.float32)
+    if TARGET is not None:
+        c = x[core[0]: core[1]]
+        if len(c) > SR * .25:
+            corr = np.clip(TARGET - ltas(c), -9, 9) * .7; n = 1 << int(np.ceil(np.log2(len(x) * 2))); fr = np.fft.rfftfreq(n, 1 / SR)
+            gain = 10 ** (np.interp(np.log2(np.maximum(fr, 50)), np.log2(BANDS), corr) / 20)
+            x = np.fft.irfft(np.fft.rfft(x, n) * gain, n)[: len(x)].astype(np.float32)
+    x = sosfiltfilt(SOS_BAND, x).astype(np.float32)
+    env = np.sqrt(lfilter([.003], [1, -.997], x ** 2) + 1e-12); c = env[core[0]: core[1]]
+    thr = np.percentile(c, 60) if len(c) else env.max(); g = np.where(env > thr, (env / thr) ** (1 / 2.5 - 1), 1.0)
+    return (x * g).astype(np.float32)
+def piece(a, t0, t1, P, ref, i=None):
+    """The voice from t0 to t1 in the shared medium, opening out of its own room and ringing out after, normalized on its words."""
+    pe, ns = edges(i, t0, t1) if i else (t0 - P["pre"], t1 + P["tail"])
+    head = max(P["pre"], min(P["head"], t0 - pe - .04)); ring = max(P["tail"], min(P["ring"], ns - t1 - .04))
+    s = max(0.0, t0 - head); e = min(len(a) / SR, t1 + ring + P["ghost"])
+    S, E = int(s * SR), int(e * SR); x = a[S:E].astype(np.float32).copy()
+    if len(x) < 256: return None, 0
+    core = (int((t0 - s) * SR), int((t1 - s) * SR)); ctx = a[max(0, S - 3 * SR): min(len(a), E + 3 * SR)]
+    x = medium(x, core, ctx)
+    c = x[core[0]: core[1]]
+    if 0 < len(c) < SR * .5: c = np.tile(c, int(np.ceil(SR * .55 / len(c))))   # a single word is too short to meter: meter it repeated
+    L = loud(c) or ref; x *= 10 ** (np.clip(SPEECH - L, -12, 18) / 20)
+    n = len(x); env = np.ones(n, np.float32); h = max(1, int((t0 - .06 - s) * SR))
+    env[:h] = np.sin(np.linspace(0, np.pi / 2, h)) ** 2                # the room fades up before the first word
+    r = min(n, int((t1 + ring - s) * SR))
+    if r < n: env[r:] = np.exp(-np.arange(n - r) / (SR * P["ghost"] / 4))   # what follows the ring fades away underneath
+    fo = min(int(.05 * SR), n // 4); env[-fo:] *= np.linspace(1, 0, fo)
+    x *= env; pk = np.abs(x).max()
     if pk > .89: x *= .89 / pk
-    return x, (t0 - P["pre"]) if s > 0 else 0.0
+    return x, s
 # ---- Whisper hears every cut
-CHECK = {}; CP = os.path.join(H, "cache", "render-check.json")
-if os.path.exists(CP): CHECK = json.load(open(CP))
+PART = (int(sys.argv[2]), int(sys.argv[3])) if sys.argv[1:2] == ["--part"] else None
+CHECK = {}; CP = os.path.join(H, "cache", f"render-check{'.' + str(PART[0]) if PART else ''}.json")
+for f in glob.glob(os.path.join(H, "cache", "render-check*.json")): CHECK.update(json.load(open(f)))
 try:
     import mlx_whisper
     def hear(x):
@@ -68,9 +122,9 @@ def heard_last(text, said):
 def checked(a, x0, P, i, ref, mode):
     """Cut, hear it back, lengthen the tail until the last word is heard (at most 0.9 s more)."""
     k = f"{mode}|{i}|{x0['t0']}|{x0['t1']}"
-    if k in CHECK and "extra" in CHECK[k]: extra = CHECK[k]["extra"]; return piece(a, x0["t0"], x0["t1"] + extra, P, ref)
+    if k in CHECK and "extra" in CHECK[k]: extra = CHECK[k]["extra"]; return piece(a, x0["t0"], x0["t1"] + extra, P, ref, i)
     rec = {"said": x0["words"]}; extra = 0.0
-    x, at = piece(a, x0["t0"], x0["t1"], P, ref)
+    x, at = piece(a, x0["t0"], x0["t1"], P, ref, i)
     if hear and len(x0["words"].split()) >= 2 and (mode == "spoken" or int(hashlib.md5(k.encode()).hexdigest(), 16) % 4 == 0):   # every sentence; a quarter of the fragments
         # what the old page played: from t0 to t1 less its 50 ms lead, no tail
         old = a[int(x0["t0"] * SR): int(max(x0["t0"] + .05, x0["t1"] - .05) * SR)]
@@ -78,7 +132,7 @@ def checked(a, x0, P, i, ref, mode):
         for step in range(4):
             last, rcl = heard_last(hear(x), x0["words"]); rec.setdefault("first", [last, rcl]); rec["final"] = [last, rcl]
             if last or x0["t1"] + P["tail"] + extra + .3 > len(a) / SR or step == 3: break
-            extra += .3; x, at = piece(a, x0["t0"], x0["t1"] + extra, P, ref)
+            extra += .3; x, at = piece(a, x0["t0"], x0["t1"] + extra, P, ref, i)
     rec["extra"] = round(extra, 2); CHECK[k] = rec; return x, at
 # ---- the bed: the book's track, quiet, ducking under the voices
 def bed(sid, n):
@@ -90,35 +144,76 @@ def bed(sid, n):
     off = (int(sid[-2:]) * 41 * SR) % max(1, len(m) - SR)          # each scene enters the track somewhere else
     m = np.tile(m, int(np.ceil((n + off) / len(m))) + 1)[off: off + n].copy()
     L = loud(m[: min(len(m), 60 * SR)]) or -20; m *= 10 ** ((BED - L) / 20); return m.astype(np.float32)
+_rng = np.random.default_rng(7)
+_t = np.arange(int(1.4 * SR)) / SR; IR = _rng.standard_normal(len(_t)) * np.exp(-6.9 * _t / 1.1); IR[: int(.018 * SR)] = 0
+IR = sosfiltfilt(butter(2, 3200, "lowpass", fs=SR, output="sos"), IR).astype(np.float32); IR /= np.sqrt((IR ** 2).sum())
+def glue(v):
+    w = fftconvolve(v, IR)[: len(v)].astype(np.float32); rv, rw = np.sqrt((v ** 2).mean()) + 1e-9, np.sqrt((w ** 2).mean()) + 1e-9
+    return w * (rv / rw) * 10 ** (-14 / 20)
+def room(n):
+    w = np.fft.rfft(_rng.standard_normal(n)); fr = np.fft.rfftfreq(n, 1 / SR); w /= np.sqrt(np.maximum(fr, 20))   # pink
+    x = np.fft.irfft(w, n).astype(np.float32); x = sosfiltfilt(butter(2, [150, 4000], "bandpass", fs=SR, output="sos"), x).astype(np.float32)
+    L = loud(x[: 20 * SR]) or -30; return x * 10 ** ((SPEECH - 36 - L) / 20)
+def room_print(y):
+    """The sound of a voice's room: the quiet moments inside it (between its words), away from the faded edges."""
+    f, t, Z = stft(y, SR, nperseg=2048, noverlap=1536); m = np.abs(Z); k = m.shape[1]; m = m[:, int(k * .15): max(int(k * .15) + 1, int(k * .85))]
+    e = m.sum(0); q = m[:, (e >= np.percentile(e, 8)) & (e <= np.percentile(e, 30))]
+    return q.mean(1) if q.size else m.mean(1)
+def bridges(n, parts):
+    """The in-between, made: across every pause a bed of room sound that begins as the room of the voice that ends and becomes,
+    spectrum by spectrum, the room of the voice that begins (log-magnitude interpolation, random phase), so no pause is a hole."""
+    out = np.zeros(n, np.float32); pr = [room_print(y) for _, y, _, _ in parts]
+    spans = [(max(0.0, parts[0][2] - 1.5), parts[0][2], pr[0], pr[0])] + [(parts[k][3], parts[k + 1][2], pr[k], pr[k + 1]) for k in range(len(parts) - 1)] + [(parts[-1][3], min(n / SR, parts[-1][3] + 2.5), pr[-1], pr[-1])]
+    for a_, b_, pa, pb in spans:
+        a_, b_ = max(0.0, a_ - .3), min(n / SR, b_ + .3); L = int((b_ - a_) * SR)
+        if L < 4096: continue
+        nf = L // 512 + 2; w = np.linspace(0, 1, nf)[None, :]
+        mag = np.exp((1 - w) * np.log(pa[:, None] + 1e-9) + w * np.log(pb[:, None] + 1e-9))
+        _, x = istft(mag * np.exp(2j * np.pi * _rng.random(mag.shape)), SR, nperseg=2048, noverlap=1536); x = x[:L].astype(np.float32)
+        f = min(int(.25 * SR), L // 3); x[:f] *= np.linspace(0, 1, f); x[-f:] *= np.linspace(1, 0, f)
+        s = int(a_ * SR); out[s: s + len(x)] += x[: n - s] * .8
+    return out
 def render(sid, mode):
     P = MODES[mode]; lines = found["scenes"].get(sid) or []
     voice_p = os.path.join(HW, "drive", "voice", sid + ".m4a")
-    parts, ev, lt = [], [], []; cur = 2.0                             # the music opens alone for two seconds
+    parts, ev, lt = [], [], []; cur = 2.0; after = None; prev_end = None   # the music opens alone for two seconds
     for li, u in enumerate(lines):
         t = u["modes"].get(mode)
         if not t: continue
-        l0 = cur
+        l0 = None
         for fi, x in enumerate(t["frags"]):
             if x.get("id"):
                 a = audio(os.path.join(A, x["id"] + ".flac"), x["id"])
                 if a is None: continue
-                y, _ = checked(a, x, P, x["id"], clip_level(x["id"], a), mode)
+                y, s0 = checked(a, x, P, x["id"], clip_level(x["id"], a), mode)
                 if y is None: continue
-                parts.append((cur - P["pre"], y)); core = x["t1"] - x["t0"]
-                ev.append({"at": round(cur, 2), "end": round(cur + core, 2), "li": li, "fi": fi, "id": x["id"], "t0": x["t0"]}); cur += core + P["breath"]
+                pe, ns = edges(x["id"], x["t0"], x["t1"]); before, aft = x["t0"] - pe, ns - x["t1"]; c0, c1 = x["t0"], x["t1"]
             elif x.get("fill"):
                 a = audio(voice_p, voice_p)
                 if a is None: continue
-                y, _ = piece(a, x["fill"][0], x["fill"][1], {**P, "tail": min(P["tail"], .12), "pre": .03}, -20)
+                y, s0 = piece(a, x["fill"][0], x["fill"][1], {**P, "tail": .14, "pre": .05, "head": .05, "ring": .14, "ghost": .06}, -20)
                 if y is None: continue
-                parts.append((cur - .03, y)); core = x["fill"][1] - x["fill"][0]
-                ev.append({"at": round(cur, 2), "end": round(cur + core, 2), "li": li, "fi": fi, "ours": 1}); cur += core + P["breath"]
-            elif x.get("gap"): cur += .3
-        if cur > l0: lt.append({"li": li, "at": round(l0, 2), "end": round(cur, 2)}); cur += P["rest"]
+                before = aft = .12; c0, c1 = x["fill"]
+            else:
+                if x.get("gap"): cur += .3
+                continue
+            if l0 is not None and after is not None: cur += float(np.clip(.5 * (after + before), P["lo"], P["hi"]))
+            if l0 is None: l0 = cur
+            parts.append((cur - (c0 - s0), y, cur, cur + c1 - c0))
+            e_ = {"at": round(cur, 2), "end": round(cur + c1 - c0, 2), "li": li, "fi": fi, "gap": round(prev_end, 2) if prev_end is not None else 0}
+            e_.update({"id": x["id"], "t0": x["t0"]} if x.get("id") else {"ours": 1}); ev.append(e_)
+            cur += c1 - c0; after = min(aft, 2.0); prev_end = cur
+        if l0 is not None:
+            lt.append({"li": li, "at": round(l0, 2), "end": round(cur, 2)})
+            cur += float(np.clip(.6 * P["rest"] + .5 * (after or 0), .75 * P["rest"], 1.4 * P["rest"]))
     if not ev: return None
     n = int((cur + 3.0) * SR); v = np.zeros(n, np.float32)
-    for at, y in parts:
+    for at, y, _, _ in parts:
         s = max(0, int(at * SR)); e = min(n, s + len(y)); v[s:e] += y[: e - s]
+    v = v + bridges(n, parts)
+    # one room for all of them: a single soft reverb on the voices (1.1 s, dark, 14 dB under), and one floor: a quiet
+    # continuous room tone, so the hiss never switches with the voice
+    v = v + glue(v); v = v + room(n)
     # duck the bed under the voices: down 10 dB with a quick attack and a slow release
     act = np.zeros(n, np.float32)
     for e_ in ev: act[int(e_["at"] * SR): int((e_["end"] + .2) * SR)] = 1
@@ -138,15 +233,20 @@ def render(sid, mode):
     sf.write(wav, mix, SR)
     subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-i", wav, "-c:a", "aac_at", "-b:a", "48k", "-ac", "1", m4a]); os.remove(wav)
     return {"url": f"odyssey/found-audio/{mode}/{sid}.m4a", "dur": round(n / SR, 2), "lines": lt, "ev": ev}
-want = sys.argv[1:] or sorted(found["scenes"])
+if sys.argv[1:2] == ["--merge"]:                                     # fold the parts' timelines into found.json
+    tr = found.setdefault("scene_tracks", {})
+    for f in glob.glob(os.path.join(OUT, "*", "*.json")):
+        mode, sid = f.split(os.sep)[-2], os.path.basename(f)[:-5]; tr.setdefault(sid, {})[mode] = json.load(open(f))
+    json.dump(found, open(os.path.join(H, "found.json"), "w"), separators=(",", ":")); print("merged", len(tr), "scenes"); sys.exit()
+want = sorted(found["scenes"])[PART[0]::PART[1]] if PART else (sys.argv[1:] or sorted(found["scenes"]))
 tracks = found.setdefault("scene_tracks", {})
 for c, sid in enumerate(want, 1):
     for mode in MODES:
         r = render(sid, mode)
-        if r: tracks.setdefault(sid, {})[mode] = r
+        if r: tracks.setdefault(sid, {})[mode] = r; json.dump(r, open(os.path.join(OUT, mode, sid + ".json"), "w"), separators=(",", ":"))
     json.dump(CHECK, open(CP, "w"))
-    if c % 10 == 0 or c == len(want): json.dump(found, open(os.path.join(H, "found.json"), "w"), separators=(",", ":")); print(c, "of", len(want), "scenes", flush=True)
-json.dump(found, open(os.path.join(H, "found.json"), "w"), separators=(",", ":"))
+    if not PART and (c % 10 == 0 or c == len(want)): json.dump(found, open(os.path.join(H, "found.json"), "w"), separators=(",", ":")); print(c, "of", len(want), "scenes", flush=True)
+if not PART: json.dump(found, open(os.path.join(H, "found.json"), "w"), separators=(",", ":"))
 # what Whisper heard: the old cuts against the new
 for mode in MODES:
     r = [v for k, v in CHECK.items() if k.startswith(mode) and "first" in v]

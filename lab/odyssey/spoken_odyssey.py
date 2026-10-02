@@ -6,7 +6,9 @@ its clauses, at most three) is given the one utterance that best says it:
   words     how many of Homer's content words it says, or says in kind (inflection, WordNet synonym, one step broader)
   delivery  a whole sentence over a fragment; not begun before the clip begins; about as long as the line takes to say;
             a woman's voice for Athena, Penelope and the other women, a man's for the men (CLAP), when the archive allows
-  variety   a voice already used in the scene costs a little, an utterance already used anywhere costs more
+  seams     a voice whose recording sounds like the one before it (CLAP) joins better and is preferred
+  casting   a character keeps the archival voice it already has in the scene; another character's voice costs; an utterance
+            already used anywhere costs more
 The player breathes between utterances. Adds modes.spoken to found.json.   usage: ../.venv/bin/python spoken_odyssey.py"""
 import glob, json, os, re, hashlib
 import numpy as np, torch
@@ -87,7 +89,7 @@ def said(hw, ul):
     if not hw: return 0.0
     return sum(max([c for x, c in kin(h).items() if x in ul] or [0]) for h in hw) / len(hw)
 # ---- voices: a man or a woman (CLAP, where the archive has been heard)
-gender = {}
+gender = {}; SND = {}
 try:
     os.environ.setdefault("HF_HUB_OFFLINE", "1")
     from transformers import ClapModel, ClapProcessor
@@ -95,6 +97,7 @@ try:
     cm = ClapModel.from_pretrained("laion/clap-htsat-unfused").eval(); cpr = ClapProcessor.from_pretrained("laion/clap-htsat-unfused")
     with torch.no_grad(): g = cm.get_text_features(**cpr(text=["a man speaking", "a woman speaking"], return_tensors="pt", padding=True)); g = (g / g.norm(dim=-1, keepdim=True)).numpy()
     for n, i in enumerate(eids):
+        if np.abs(CL[n]).sum() > 0: SND[i] = CL[n] / (np.linalg.norm(CL[n]) + 1e-9)
         if np.abs(CL[n]).sum() > 0: d = float(CL[n] @ g[0] - CL[n] @ g[1]); gender[i] = "man" if d > .01 else "woman" if d < -.01 else None
 except Exception as e: print("no voices:", e)
 WOMEN = {"Athena", "Penelope", "Calypso", "Circe", "Nausicaa", "Helen", "Eurycleia", "Melantho", "Mill woman", "Arete"}
@@ -112,7 +115,7 @@ def clauses(text):
         k = min(range(len(out) - 1), key=lambda j: len(out[j].split()) + len(out[j + 1].split())); out[k:k + 2] = [out[k] + " " + out[k + 1]]
     return out
 UID = [u[0] for u in U]; used_u = set()
-def best(clause, who, used_clip, qv):
+def best(clause, who, used_clip, qv, cast=None, prev=None):
     hw = {lem(norm(w)) for w in clause.split() if norm(w) and norm(w) not in STOP}
     sim = UV @ qv; top = np.argpartition(-sim, 300)[:300] if len(sim) > 300 else np.arange(len(sim))
     want = len(clause.split()) / 2.6; res = None
@@ -123,24 +126,28 @@ def best(clause, who, used_clip, qv):
         gv = gender.get(i)
         if who in WOMEN and gv: s += .05 if gv == "woman" else -.05
         elif who != "Epic Narrator" and gv: s += .03 if gv == "man" else -.03
-        if i in used_clip: s -= .06
+        if prev in SND and i in SND: s += .12 * (float(SND[prev] @ SND[i]) - .6)   # the seam: sounds like the recording before it
+        mine = cast.get(who, set()) if cast else set()
+        if i in mine: s += .07                                          # casting: a character keeps the voice it already has
+        elif i in used_clip: s -= .08                                   # and does not borrow another character's
+
         if j in used_u: s -= .15
         if not res or s > res[0]: res = (s, j)
     return res
 found = json.load(open(os.path.join(H, "found.json"))); clips = found["clips"]; stats = []; nc = 0
 for f in sorted(glob.glob(os.path.join(H, "sea", "b*.json"))):
     for sc in json.load(open(f))["scenes"]:
-        lines = found["scenes"].get(sc["id"]) or []; used_clip = set()
+        lines = found["scenes"].get(sc["id"]) or []; used_clip = set(); cast = {}; prev = None
         for u in lines:
             whole = [u["text"]]; parts = clauses(u["text"])
             Q = embed(whole + (parts if len(parts) > 1 else [])).astype(np.float32)
-            a = best(u["text"], u["who"], used_clip, Q[0]); pick = [(u["text"], a)]
+            a = best(u["text"], u["who"], used_clip, Q[0], cast, prev); pick = [(u["text"], a)]
             if len(parts) > 1:
-                bs = [best(p, u["who"], used_clip, q) for p, q in zip(parts, Q[1:])]
+                bs = [best(p, u["who"], used_clip, q, cast, prev) for p, q in zip(parts, Q[1:])]
                 if all(bs) and np.mean([b[0] for b in bs]) > a[0] + .05: pick = list(zip(parts, bs))
             frags = []
             for h, (s, j) in pick:
-                i, t0, t1, text, n, conf, wh, cold = U[j]; used_u.add(j); used_clip.add(i)
+                i, t0, t1, text, n, conf, wh, cold = U[j]; used_u.add(j); used_clip.add(i); cast.setdefault(u["who"], set()).add(i); prev = i
                 frags.append({"id": i, "t0": t0, "t1": t1, "words": text, "homer": h, "score": round(s, 3), "voice": gender.get(i)})
                 if i not in clips: L = lib[i]; clips[i] = {"video": L["video"], "thumb": L["thumb"], "title": L.get("title"), "year": L.get("year")}
             sm = round(float(np.mean([x["score"] for x in frags])), 3)
