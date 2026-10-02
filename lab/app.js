@@ -59,8 +59,11 @@ function chip(n, cls = '') {
   return `<span class="chip ${cls}" style="--c:${DOMC[s.dom]}" title="${esc(s.name)}">${esc(s.symbol)}</span>`;
 }
 
+// the published site carries only some thumbnails; every clip's picture also lives on the archive's CDN, beside its video
+const cdnThumb = s => s.video && /\/clips\//.test(s.video) ? s.video.replace('/clips/', '/thumbnails/').replace(/\.mp4(\?.*)?$/, '.jpg') : null;
+const IMG_ALT = new Map();
 function prep(s, i) {
-  s._i = i;
+  s._i = i; if (s.thumb && cdnThumb(s)) IMG_ALT.set(s.thumb, cdnThumb(s));
   s._read = (s.signs || []).map(e => String(e.n));
   s._found = [...new Set((s.found || []).map(f => String(f.n)).filter(n => L.S[n]))];
   s._any = [...new Set([...s._read, ...s._found])];
@@ -642,7 +645,7 @@ const Wall = {
         const d = el('div', 'tile' + (s._live ? ' live' : '') + (s._read.length ? ' read' : ''));
         d.appendChild(el('span', 'tcap', `<b>${esc(s.title || 'untitled')}</b><em>${s.year ?? 'undated'}</em>`));
         const img = new Image(); img.decoding = 'async'; img.loading = 'lazy'; img.alt = ''; img.draggable = false;
-        img.onerror = () => d.classList.add('broken'); img.onload = () => d.classList.add('loaded');
+        img.onerror = () => { const alt = cdnThumb(s); if (alt && !img.dataset.cdn) { img.dataset.cdn = 1; img.src = alt; } else d.classList.add('broken'); }; img.onload = () => d.classList.add('loaded');
         if (s.thumb) img.src = s.thumb; else d.classList.add('broken');
         d.appendChild(img);
         const b = el('div', 'badges');
@@ -680,7 +683,7 @@ const IMG = {
       const url = this.queue.pop(); const r = this.cache.get(url); this.active++;
       const im = new Image(); im.decoding = 'async';
       im.onload = () => { r.img = im; r.ok = true; this.active--; this.pump(); if (this.onload) this.onload(); };
-      im.onerror = () => { r.bad = true; this.active--; this.pump(); };
+      im.onerror = () => { const alt = IMG_ALT.get(url); if (alt && !r.alt) { r.alt = true; im.src = alt; return; } r.bad = true; this.active--; this.pump(); };
       im.src = url;
     }
   },

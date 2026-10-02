@@ -46,7 +46,9 @@ main{ padding:10px 12px 80px; } .row{ display:flex; gap:6px; margin-bottom:6px; 
   let FL = null, CL = null, ST = [], VID = null, rows = [], shown = 0;
   const F = { kinds: new Set(), boxes: new Set(), decs: new Set(), lo: null, hi: null, q: '', film: true, std: null };
   // a clip: [id, film, odysseyThumb, frame, top, bottom, left, right]
-  const thumb = c => (c[2] ? 'odyssey/thumbs/' : 'thumbs/') + c[0] + '.jpg';
+  let PRE = [];   // the archive's CDN folders; every clip's picture lives beside its video
+  let STEM = {};  // some folders name a clip's files by its frame range, not its id
+  const thumb = c => R2 + PRE[c[2]] + '/thumbnails/' + (STEM[c[0]] || c[0]) + '.jpg';
   const picOf = c => c.length > 4 ? c[3] * (1 - c[6] - c[7]) / Math.max(.05, 1 - c[4] - c[5]) : c[3];
   // a picture cut to its true shape: the image is enlarged so its bars fall outside the box
   function crop(el, c, W, H) { const [t, b, l, r] = c.length > 4 ? c.slice(4) : [0, 0, 0, 0], iw = W / (1 - l - r), ih = H / (1 - t - b);
@@ -113,7 +115,7 @@ main{ padding:10px 12px 80px; } .row{ display:flex; gap:6px; margin-bottom:6px; 
   addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(() => go(), 200); });
   addEventListener('keydown', e => { if (e.key === 'Escape') $('#px').click(); });
   Promise.all([fetch('aspect/films.json').then(r => r.json()), fetch('aspect/clips.json').then(r => r.json())]).then(([f, c]) => {
-    FL = f.films; ST = f.standards; CL = c;
+    FL = f.films; ST = f.standards; CL = c; PRE = f.pre || []; STEM = f.stems || {};
     CL.forEach(x => { const fm = FL[x[1]], d = Math.abs(picOf(x) - fm.pic); if (!fm._c || d < fm._d) { fm._c = x; fm._d = d; } });   // a film's face: the shot whose shape is the film's
     const q = new URLSearchParams(location.search); if (q.get('kind')) F.kinds.add(q.get('kind')); if (q.get('q')) { F.q = q.get('q').toLowerCase(); $('#q').value = q.get('q'); }
     go(); }).catch(e => { $('#stat').textContent = 'could not load: ' + e.message; });

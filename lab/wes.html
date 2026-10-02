@@ -25,6 +25,12 @@
 .films h3{ margin:0; font:500 17px var(--jost); letter-spacing:.08em; text-transform:uppercase; } .films h3::before{ content:counter(f) '.  '; color:var(--rose); }
 .films em{ display:block; font:300 12px var(--jost); letter-spacing:.14em; color:var(--soft); text-transform:uppercase; margin:2px 0 10px; }
 .strip{ display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px; }
+.film{ max-width:880px; margin:0 auto; border:2px solid var(--ink); outline:6px solid var(--cream); box-shadow:0 0 0 8px var(--mint); background:#000; } .film video{ display:block; width:100%; aspect-ratio:4/3; background:#000; }
+.shotlist{ max-width:880px; margin:18px auto 0; display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px 20px; font:300 12.5px/1.45 var(--jost); color:var(--soft); text-align:center; }
+.shotlist b{ display:block; font:500 10.5px var(--jost); letter-spacing:.3em; color:var(--ink); text-transform:uppercase; margin-bottom:3px; }
+.edit{ max-width:880px; margin:16px auto 0; font:300 12px/1.45 var(--jost); color:var(--soft); } .edit summary{ cursor:pointer; text-align:center; font:500 10.5px var(--jost); letter-spacing:.3em; text-transform:uppercase; color:var(--ink); padding:8px; }
+.edit table{ width:100%; border-collapse:collapse; margin-top:8px; } .edit td{ border-top:1px solid var(--line); padding:5px 6px; vertical-align:top; } .edit td:first-child{ white-space:nowrap; color:var(--ink); }
+@media (max-width:700px){ .edit td:nth-child(3){ display:none; } }
 .legend{ max-width:640px; margin:0 auto; font:300 13.5px/1.6 var(--jost); color:var(--soft); text-align:center; }
 footer{ margin:60px auto 40px; text-align:center; font:500 10px var(--jost); letter-spacing:.3em; color:var(--soft); text-transform:uppercase; }
 #pic{ position:fixed; inset:0; z-index:50; background:#1b1414; display:grid; place-items:center; } #pic[hidden]{ display:none; }
@@ -38,7 +44,13 @@ footer{ margin:60px auto 40px; text-align:center; font:500 10px var(--jost); let
 </style></head><body>
 <nav class="top"><a href="index.html#wall">The Lab</a><a href="aspect.html">Aspect Explorer</a></nav>
 <div class="wrap">
-  <div class="card"><small>The Cineosis Archive presents</small><h1>A Wes Anderson Cineosis</h1><p>Every shot in the archive, 36,538 of them, measured for the things his pictures are made of, and the films that hold the most.</p><button class="btn" id="play">Play the picture</button></div>
+  <div class="card"><small>The Cineosis Archive presents</small><h1>A Wes Anderson Cineosis</h1><p>Every shot in the archive, 36,538 of them, measured for the things his pictures are made of, and the films that hold the most.</p><button class="btn" id="play">Watch the film</button></div>
+  <div class="card"><small>The Film</small><h2>The Archive of Small Wonders</h2><p>A picture in seven chapters, cut from the archive's most Andersonian shots: CLIP orders each chapter so that every shot rhymes with the one before, and the score is the archive's own music, chosen by ear.</p></div>
+  <div class="film"><video id="theFilm" controls playsinline preload="metadata" poster="wes/film-poster.jpg" src="wes/archive-of-small-wonders.mp4"></video></div>
+  <div class="shotlist" id="shotlist"></div>
+  <div class="card"><small>The Second Film</small><h2>The Chicken of Tomorrow, in Seven Steps</h2><p>A recut of one film, Chicken of Tomorrow (1948): a national contest to breed the perfect chicken, followed step by step to where the steps lead. Every word is the film's own narrator; the step cards are added.</p></div>
+  <div class="film"><video controls playsinline preload="metadata" poster="wes/chicken-poster.jpg" src="wes/chicken-of-tomorrow-in-seven-steps.mp4"></video></div>
+  <details class="edit"><summary>The edit: every piece, its source and its job</summary><table id="editTable"></table></details>
   <p class="legend">Each shot is scored for mirror symmetry (with the letterbox removed), frontal level-and-plumb staging, a centred subject, a pastel palette, and for what it shows (a title card, an overhead insert, uniforms in a row, a miniature, a face to camera, a compartment). Blank frames, rockets and hearings, which only look the part, are set aside. Hover a shot to see its centre line; click to play it.</p>
   <div id="chapters"></div>
   <div class="card"><small>Part Two</small><h2>The Films</h2><p>Ranked by their five most Andersonian shots.</p></div>
@@ -68,7 +80,10 @@ footer{ margin:60px auto 40px; text-align:center; font:500 10px var(--jost); let
     if (my === run) close(); }
   function close() { run++; const P = $('#pic'); P.hidden = true; P.querySelectorAll('video').forEach(v => { v.pause(); v.removeAttribute('src'); }); }
   $('#pic .x').onclick = close; addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
-  $('#play').onclick = () => { const seq = []; CH.forEach(([k, name], n) => { seq.push({ card: [NUM[n], name] }); (D.chapters[k] || []).slice(0, 4).forEach(x => seq.push(x)); }); picture(seq); };
+  $('#play').onclick = () => { const v = $('#theFilm'); v.scrollIntoView({ behavior: 'smooth', block: 'center' }); v.play().catch(() => { }); };
+  fetch('wes/chicken-cut.json').then(r => r.json()).then(c => { $('#editTable').innerHTML = c.edit.map(e => `<tr><td>${e.at.toFixed(1)} s · ${e.dur.toFixed(1)}</td><td>${e.card ? '<b>card (added):</b> ' + esc(e.card) : esc(e.asset.slice(0, 8)) + ' · picture ' + e.video_src.join('–') + ' s · sound ' + (Array.isArray(e.audio_src) ? e.audio_src.join('–') + ' s' : esc(e.audio_src))}</td><td>${esc(e.job)}</td></tr>`).join(''); }).catch(() => { });
+  fetch('wes/film.json').then(r => r.json()).then(f => { $('#shotlist').innerHTML = f.chapters.map(c => `<div><b>Chapter ${esc(c.chapter)} · ${esc(c.name)}</b>${c.shots.map(x => `${esc(x.title)}${x.year ? ' (' + x.year + ')' : ''}`).join('<br>')}</div>`).join(''); }).catch(() => { });
+  $('#shuffle') && ($('#shuffle').onclick = () => { const seq = []; CH.forEach(([k, name], n) => { seq.push({ card: [NUM[n], name] }); (D.chapters[k] || []).slice(0, 4).forEach(x => seq.push(x)); }); picture(seq); });
   document.addEventListener('click', e => { const t = e.target.closest('.t'); if (!t) return; const all = [...D.best, ...Object.values(D.chapters).flat(), ...D.films.flatMap(f => f.shots)]; const x = all.find(y => y.id === t.dataset.id); if (x) picture([x]); });
   fetch('wes/wes.json').then(r => r.json()).then(d => { D = d;
     $('#chapters').innerHTML = CH.map(([k, name], n) => `<div class="card"><small>Chapter ${NUM[n]}</small><h2>${esc(name)}</h2></div><div class="grid">${(d.chapters[k] || []).slice(0, 12).map(tile).join('')}</div>`).join('') +
