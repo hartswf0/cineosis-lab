@@ -106,7 +106,7 @@ for sid, tm in TR.items():
             evs = [e for e in t["ev"] if e["li"] == L["li"]]
             if slots and slots[-1]["kind"] == "story" and slots[-1]["key"] == key: slots[-1]["end"] = L["end"]
             else: slots.append({"kind": "story", "key": key, "opts": options(sh), "start": L["at"], "end": L["end"], "pause": L["at"] - (slots[-1]["end"] if slots else 0)})
-            if mode == "spoken" and u["who"] != "Epic Narrator":
+            if mode == "spoken" and u["who"] != "Epic Narrator":           # (in call, the speakers stand beside the story instead)
                 for e in evs:
                     s_ = SPK.get(f"{e.get('id')}@{e.get('t0')}")
                     if e.get("id") and s_ and s_.get("face", 0) >= .12 and s_["talk"] >= .9 and e["end"] - e["at"] >= 1.2:   # a real face, speaking
@@ -166,9 +166,13 @@ for sid, tm in TR.items():
             stats[tr] += 1 if out else 0; stats[s["kind"]] += 1
             out.append({"sw": round(sw, 2), "dd": dd, "tr": tr, "kind": s["kind"], "id": o["id"], "video": o.get("video") or lib[o["id"]]["video"],
                         "in": round(float(o["in"]) - (s["start"] - sw if s["kind"] == "speaker" else 0), 2), "rate": 1.0 if s["kind"] == "speaker" else RATE,
-                        "hold": round(s["end"] - s["start"], 2), "dur": dur_of(o["id"])})
+                        "hold": round(s["end"] - s["start"], 2), "dur": dur_of(o["id"]),
+                        "alts": [{"id": a_["id"], "in": round(float(a_["in"]), 2), "video": a_["video"]} for a_ in s.get("opts", []) if a_["id"] != o["id"]][:3]})   # other takes, for the grid
         plan.setdefault(sid, {})[mode] = out
+        if mode == "call":                                              # beside the story: the footage each answer comes from, in sync
+            plan[sid]["call_beside"] = [{"sw": round(e["at"] - .35, 2), "end": round(e["end"] + .45, 2), "id": e["id"], "in": round(max(0, e["t0"] - .35), 2),
+                                         "video": lib[e["id"]]["video"], "li": e["li"]} for e in t["ev"] if e.get("id") and e["id"] in lib and e["end"] - e["at"] >= .9]
 json.dump(plan, open(os.path.join(H, "found-pics.json"), "w"), separators=(",", ":"))
 n = sum(len(v) for s in plan.values() for v in s.values())
 print(f"pictures {n} in {len(plan)} scenes · story {stats['story']} · speakers {stats['speaker']} · joins: cut {stats['cut']}, dissolve {stats['dissolve']}, dip {stats['dip']}")
-holds = [p["hold"] for s in plan.values() for v in s.values() for p in v]; print(f"hold per picture: median {np.median(holds):.1f} s, 10% {np.percentile(holds, 10):.1f} s")
+holds = [p["hold"] for s in plan.values() for k, v in s.items() if k != "call_beside" for p in v]; print(f"hold per picture: median {np.median(holds):.1f} s, 10% {np.percentile(holds, 10):.1f} s")

@@ -18,8 +18,11 @@ OUT = os.path.join(H, "found-audio"); SR = 44100; meter = pyln.Meter(SR)
 # ring: up to this much of the silence after the last word, at full; ghost: then whatever follows, fading out fast underneath
 # lo, hi: the pause between two voices is the speakers' own (half what A left after its words, half what B left before its own),
 # held within these bounds; rest: the pause between lines, likewise lengthened by how long the last speaker paused
-MODES = {"spoken": {"pre": .14, "tail": .55, "head": .8, "ring": .9, "ghost": .45, "lo": .45, "hi": 1.3, "rest": 1.6},
-         "performance": {"pre": .08, "tail": .4, "head": .3, "ring": .35, "ghost": .2, "lo": .03, "hi": .28, "rest": 1.2}}
+# call: the line said plainly first by our studio voice, then the archive answers with the SPOKEN choice; cr is the breath
+# between the call and its answer. Pauses are short: what fills them is sound (rooms, tails, the shot's own sound signs)
+MODES = {"spoken": {"pre": .14, "tail": .55, "head": .8, "ring": .9, "ghost": .45, "lo": .3, "hi": .85, "rest": 1.0},
+         "performance": {"pre": .08, "tail": .4, "head": .3, "ring": .35, "ghost": .2, "lo": .03, "hi": .22, "rest": .8},
+         "call": {"pre": .14, "tail": .55, "head": .8, "ring": .9, "ghost": .45, "lo": .3, "hi": .85, "rest": 1.0, "cr": .35, "bed_db": -4}}   # a dialogue wants air around the voices
 SPEECH, BED, MASTER = -21.0, -33.0, -19.0
 norm = lambda w: re.sub(r"[^a-z0-9']", "", w.lower()).strip("'")
 found = json.load(open(os.path.join(H, "found.json"))); radio = json.load(open(os.path.join(H, "radio.json")))
@@ -86,7 +89,7 @@ def medium(x, core, ctx):
     env = np.sqrt(lfilter([.003], [1, -.997], x ** 2) + 1e-12); c = env[core[0]: core[1]]
     thr = np.percentile(c, 60) if len(c) else env.max(); g = np.where(env > thr, (env / thr) ** (1 / 2.5 - 1), 1.0)
     return (x * g).astype(np.float32)
-def piece(a, t0, t1, P, ref, i=None):
+def piece(a, t0, t1, P, ref, i=None, raw=False):
     """The voice from t0 to t1 in the shared medium, opening out of its own room and ringing out after, normalized on its words."""
     pe, ns = edges(i, t0, t1) if i else (t0 - P["pre"], t1 + P["tail"])
     head = max(P["pre"], min(P["head"], t0 - pe - .04)); ring = max(P["tail"], min(P["ring"], ns - t1 - .04))
@@ -94,7 +97,7 @@ def piece(a, t0, t1, P, ref, i=None):
     S, E = int(s * SR), int(e * SR); x = a[S:E].astype(np.float32).copy()
     if len(x) < 256: return None, 0
     core = (int((t0 - s) * SR), int((t1 - s) * SR)); ctx = a[max(0, S - 3 * SR): min(len(a), E + 3 * SR)]
-    x = medium(x, core, ctx)
+    if not raw: x = medium(x, core, ctx)                                # our studio voice stays clean: it is the text
     c = x[core[0]: core[1]]
     if 0 < len(c) < SR * .5: c = np.tile(c, int(np.ceil(SR * .55 / len(c))))   # a single word is too short to meter: meter it repeated
     L = loud(c) or ref; x *= 10 ** (np.clip(SPEECH - L, -12, 18) / 20)
@@ -173,19 +176,53 @@ def bridges(n, parts):
         f = min(int(.25 * SR), L // 3); x[:f] *= np.linspace(0, 1, f); x[-f:] *= np.linspace(1, 0, f)
         s = int(a_ * SR); out[s: s + len(x)] += x[: n - s] * .8
     return out
+# ---- sound signs: each shot's own sounds (CLAP-matched field and music clips, ears_match.py), a short excerpt where the sound is
+# most alive, laid under the end of one voice and into the next: the sound that receives the next sentence
+SEA = {sc["id"]: sc for f in glob.glob(os.path.join(H, "sea", "b*.json")) for sc in json.load(open(f))["scenes"]}
+def shot_for(sid, u):
+    best, ov = None, 0
+    for sh in (SEA.get(sid) or {}).get("shots", []):
+        a, b = float(sh["t0"]), float(sh["t0"]) + float(sh["dur"]); o = min(b, u["t1"]) - max(a, u["t0"])
+        if o > ov: best, ov = sh, o
+    return best
+def sign(sid, u, k, dur=2.6):
+    sh = shot_for(sid, u); fl = (sh or {}).get("foley") or []
+    for j in range(len(fl)):
+        f = fl[(k + j) % len(fl)]; a = audio(os.path.join(A, f["id"] + ".flac"), f["id"])
+        if a is None or len(a) < SR * 3: continue
+        w = int(dur * SR); e = np.convolve(a[: SR * 30] ** 2, np.ones(SR // 10) / (SR // 10), "valid")[:: SR // 20]
+        rise = np.maximum(0, np.diff(e, prepend=e[0]))                  # where it comes alive: the strongest onset
+        st = int(np.argmax(rise[: max(1, len(rise) - int(dur * 20))])) * (SR // 20); x = a[st: st + w].astype(np.float32).copy()
+        if len(x) < w * .8: continue
+        L = loud(x)
+        if L is None: continue
+        x *= 10 ** ((-27 - L) / 20); fi, fo = int(.5 * SR), int(.9 * SR); x[:fi] *= np.linspace(0, 1, fi); x[-fo:] *= np.linspace(1, 0, fo)
+        return x, f["id"]
+    return None, None
 def render(sid, mode):
     P = MODES[mode]; lines = found["scenes"].get(sid) or []
     voice_p = os.path.join(HW, "drive", "voice", sid + ".m4a")
-    parts, ev, lt = [], [], []; cur = 2.0; after = None; prev_end = None   # the music opens alone for two seconds
+    parts, ev, lt, signs = [], [], [], []; cur = 2.0; after = None; prev_end = None   # the music opens alone for two seconds
     for li, u in enumerate(lines):
-        t = u["modes"].get(mode)
+        t = u["modes"].get("spoken" if mode == "call" else mode)
         if not t: continue
         l0 = None
+        if mode == "call":                                              # the call: our voice says the line plainly
+            a = audio(voice_p, voice_p)
+            if a is not None:
+                y, s0 = piece(a, u["t0"], u["t1"], {**P, "pre": .06, "tail": .3, "head": .12, "ring": .3, "ghost": .05}, -20, None, raw=True)
+                if y is not None:
+                    l0 = cur; parts.append((cur - (u["t0"] - s0), y, cur, cur + u["t1"] - u["t0"]))
+                    ev.append({"at": round(cur, 2), "end": round(cur + u["t1"] - u["t0"], 2), "li": li, "fi": -1, "call": 1, "gap": round(prev_end, 2) if prev_end is not None else 0})
+                    cur += u["t1"] - u["t0"]; prev_end = cur
+                    sg, sgid = sign(sid, u, li)                          # a sound sign carries the call into its answer
+                    if sg is not None: signs.append((cur - .9, sg))
+                    cur += P["cr"]; after = None
         for fi, x in enumerate(t["frags"]):
             if x.get("id"):
                 a = audio(os.path.join(A, x["id"] + ".flac"), x["id"])
                 if a is None: continue
-                y, s0 = checked(a, x, P, x["id"], clip_level(x["id"], a), mode)
+                y, s0 = checked(a, x, P, x["id"], clip_level(x["id"], a), "spoken" if mode == "call" else mode)
                 if y is None: continue
                 pe, ns = edges(x["id"], x["t0"], x["t1"]); before, aft = x["t0"] - pe, ns - x["t1"]; c0, c1 = x["t0"], x["t1"]
             elif x.get("fill"):
@@ -197,7 +234,7 @@ def render(sid, mode):
             else:
                 if x.get("gap"): cur += .3
                 continue
-            if l0 is not None and after is not None: cur += float(np.clip(.5 * (after + before), P["lo"], P["hi"]))
+            if l0 is not None and after is not None and not (mode == "call" and ev and ev[-1].get("call")): cur += float(np.clip(.5 * (after + before), P["lo"], P["hi"]))
             if l0 is None: l0 = cur
             parts.append((cur - (c0 - s0), y, cur, cur + c1 - c0))
             e_ = {"at": round(cur, 2), "end": round(cur + c1 - c0, 2), "li": li, "fi": fi, "gap": round(prev_end, 2) if prev_end is not None else 0}
@@ -205,6 +242,10 @@ def render(sid, mode):
             cur += c1 - c0; after = min(aft, 2.0); prev_end = cur
         if l0 is not None:
             lt.append({"li": li, "at": round(l0, 2), "end": round(cur, 2)})
+            if mode != "call" or li % 2 == 1:                           # and between lines, the next shot's sound receives the next voice
+                nu = next((lines[j] for j in range(li + 1, len(lines)) if lines[j]["modes"].get("spoken")), None)
+                sg, _ = sign(sid, nu or u, li + 7)
+                if sg is not None: signs.append((cur - .5, sg))
             cur += float(np.clip(.6 * P["rest"] + .5 * (after or 0), .75 * P["rest"], 1.4 * P["rest"]))
     if not ev: return None
     n = int((cur + 3.0) * SR); v = np.zeros(n, np.float32)
@@ -221,7 +262,10 @@ def render(sid, mode):
     env = np.zeros(len(act), np.float32); g = 0.0
     for j, a_ in enumerate(act): g = g + (a_ - g) * (.6 if a_ > g else .06); env[j] = g
     env = np.repeat(env, k)[:n]; env = np.pad(env, (0, n - len(env)))
-    b = bed(sid, n) * (1 - .68 * env)
+    sb = np.zeros(n, np.float32)
+    for at, y in signs:
+        s_ = max(0, int(at * SR)); e_ = min(n, s_ + len(y)); sb[s_:e_] += y[: e_ - s_]
+    b = (bed(sid, n) + sb) * (1 - .68 * env) * 10 ** (P.get("bed_db", 0) / 20)                             # the signs ride the music bus: they recede under voices
     fade = np.ones(n, np.float32); fade[: 2 * SR] = np.linspace(0, 1, 2 * SR); fade[-3 * SR:] = np.linspace(1, 0, 3 * SR)
     mix = v + b * fade
     L = loud(mix) or MASTER; mix *= 10 ** ((MASTER - L) / 20)
@@ -239,6 +283,7 @@ if sys.argv[1:2] == ["--merge"]:                                     # fold the 
         mode, sid = f.split(os.sep)[-2], os.path.basename(f)[:-5]; tr.setdefault(sid, {})[mode] = json.load(open(f))
     json.dump(found, open(os.path.join(H, "found.json"), "w"), separators=(",", ":")); print("merged", len(tr), "scenes"); sys.exit()
 want = sorted(found["scenes"])[PART[0]::PART[1]] if PART else (sys.argv[1:] or sorted(found["scenes"]))
+if os.environ.get("ONLY"): MODES = {k: v for k, v in MODES.items() if k in os.environ["ONLY"].split(",")}   # re-render some modes only
 tracks = found.setdefault("scene_tracks", {})
 for c, sid in enumerate(want, 1):
     for mode in MODES:

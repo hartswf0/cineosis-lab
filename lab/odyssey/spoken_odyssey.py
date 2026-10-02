@@ -43,8 +43,9 @@ for i, v in words.items():
         ends = bool(re.search(r"[.!?]$", seg[-1][0])) or (norm(seg[-1][0]) not in STOP and not re.search(r"[,;:]$", seg[-1][0]))
         U.append((i, round(t0, 2), round(t1, 2), " ".join(w[0] for w in seg), n, conf, whole and begins, cold or not begins or not ends))
     a = 0
+    ABBR = {"mr.", "mrs.", "ms.", "dr.", "st.", "mt.", "jr.", "sr.", "u.s.", "vs.", "co.", "inc.", "no.", "gen.", "col.", "capt.", "lt.", "rev.", "prof."}
     for k in range(len(ws)):
-        end = re.search(r"[.!?]$", ws[k][0]) or k == len(ws) - 1 or (ws[k + 1][1] - ws[k][2] > .75)
+        end = (re.search(r"[.!?]$", ws[k][0]) and ws[k][0].lower() not in ABBR and not re.fullmatch(r"[A-Z]\.", ws[k][0])) or k == len(ws) - 1 or (ws[k + 1][1] - ws[k][2] > .75)
         if not end: continue
         b = k + 1; emit(a, b, bool(re.search(r"[.!?]$", ws[k][0])))
         if b - a > 14:                                          # long sentences also offer their clauses

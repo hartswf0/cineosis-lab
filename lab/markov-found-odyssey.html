@@ -14,6 +14,8 @@ header{ display:flex; align-items:center; gap:10px; padding:calc(8px + env(safe-
 #dial button{ flex:1 0 auto; border:0; background:none; border-radius:16px; padding:7px 10px; cursor:pointer; color:var(--dim); font-size:10px; letter-spacing:.14em; } #dial button.on{ background:#e8c07022; color:var(--hi); }
 #dial button small{ display:block; font-size:8.5px; letter-spacing:.04em; color:#6b655d; margin-top:2px; }
 main{ position:relative; background:#000; min-height:0; touch-action:pan-y; } main{ overflow:hidden; } main video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0; transition:filter .6s; transform-origin:50% 45%; will-change:opacity, transform; } main.rest video{ filter:brightness(.7); }
+main video.pool{ transition:opacity .6s, filter .6s, right .8s ease-in-out, bottom .8s ease-in-out; } main video.bs{ left:auto; width:50%; right:0; opacity:0; transition:opacity .7s ease-in-out; z-index:5000; border-left:2px solid #050505; }
+main.pair video.pool{ right:50%; width:auto; } main.pair video.bs.on{ opacity:1; }
 #who{ position:absolute; left:10px; top:10px; font:10px var(--mono); color:#d6cfc2; background:#000a; border-radius:12px; padding:4px 9px; max-width:calc(100% - 20px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } #who:empty{ display:none; }
 #tap{ position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; } #tap svg{ width:56px; height:56px; padding:14px; border-radius:50%; background:#0009; color:#efe9dd; opacity:0; transition:opacity .3s; } #tap.show svg{ opacity:1; }
 #line{ padding:10px 4vw 4px; min-height:140px; max-height:36vh; overflow:auto; }
@@ -32,19 +34,36 @@ footer{ display:flex; align-items:center; gap:6px; padding:4px 10px calc(10px + 
 .ico{ width:44px; height:44px; display:grid; place-items:center; background:none; border:0; border-radius:50%; cursor:pointer; color:#bdb5a9; flex:none; } .ico:hover{ background:#ffffff12; } .ico svg{ width:20px; height:20px; } #bPlay{ background:#e8c07018; color:var(--hi); }
 .tg{ border:1px solid var(--faint); background:none; border-radius:16px; padding:7px 11px; cursor:pointer; color:var(--dim); font-size:10px; letter-spacing:.1em; white-space:nowrap; } .tg.on{ color:var(--hi); border-color:#5a4e33; }
 #prog{ flex:1; color:var(--dim); font-size:10.5px; text-align:right; }
+#grid{ position:absolute; inset:0; z-index:6000; display:none; place-content:center; gap:8px; padding:8px; background:#050505; } body.gridv #grid{ display:grid; } body.gridv #who{ display:none; }
+.tile{ position:relative; aspect-ratio:4/3; background:#000; border-radius:8px; overflow:hidden; border:2px solid #1d1b19; transition:border-color .35s, box-shadow .35s; }
+.tile video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; } #grid video{ opacity:1; transform:none; transition:none; }
+.tile.live{ border-color:var(--hi); box-shadow:0 0 0 1px #e8c07055, 0 0 28px #e8c07030; }
+.tile .nm{ position:absolute; left:6px; bottom:6px; right:6px; display:flex; gap:6px; align-items:center; font:10px var(--mono); color:#efe9dd; text-shadow:0 1px 2px #000; }
+.tile .nm span{ background:#000b; padding:3px 8px; border-radius:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .tile .nm img{ width:24px; height:24px; border-radius:50%; object-fit:cover; border:1px solid #000; flex:none; background:#f2f1ec; }
+.tile .nm i{ font-style:normal; color:#a59e93; } .tile .tag{ position:absolute; top:6px; left:6px; font:500 9px var(--mono); letter-spacing:.18em; color:var(--hi); background:#000a; padding:3px 7px; border-radius:9px; }
+body.gridv #line{ min-height:0; max-height:22vh; padding:6px 16px 2px; } body.gridv .cr{ gap:4px; } body.gridv .cr .call, body.gridv .cr .ans .a{ font-size:clamp(14px,1.7vw,19px); } body.gridv .cr .ans:not(.on):not(.done){ display:none; } body.gridv #line small{ margin-bottom:4px; }
+.cr{ max-width:820px; margin:0 auto; display:grid; gap:12px; }
+.cr .call{ font:300 clamp(19px,2.6vw,28px)/1.32 var(--serif); color:#cfc8bb; padding:4px 10px; border-left:2px solid transparent; } .cr .call.on{ border-left-color:#8a8378; color:var(--ink); }
+.cr .call em{ display:block; font:500 9.5px var(--mono); letter-spacing:.22em; color:var(--dim); font-style:normal; margin-bottom:4px; }
+.cr .ans{ padding:4px 10px; border-left:2px solid transparent; } .cr .ans.on{ border-left-color:var(--hi); background:#ffffff08; }
+.cr .ans .a{ display:block; font:italic 300 clamp(19px,2.6vw,28px)/1.32 var(--serif); color:#8f887d; } .cr .ans.on .a, .cr .ans.done .a{ color:var(--ink); }
+.cr .ans .s{ display:block; font:10px var(--mono); color:#5f5951; margin-top:3px; }
+.cr mark{ background:none; color:var(--hi); border-bottom:1px solid #e8c07066; }
 @media (max-width:640px){
+  body.gridv{ grid-template-rows:auto auto minmax(0,1fr) auto auto; }
+  main.pair video.pool{ right:0; bottom:50%; height:auto; } main video.bs{ width:100%; left:0; top:50%; height:50%; border-left:0; border-top:2px solid #050505; }
   body{ grid-template-rows:auto auto 34vh minmax(0,1fr) auto; }
   #markLink b{ display:none; } #dial{ margin:2px 10px 6px; } #dial button{ padding:8px 12px; } #dial button small{ display:none; }
   #line{ max-height:none; min-height:0; padding:12px 16px 6px; } .il{ gap:8px 10px; } .il .h{ font-size:16px; }
   footer{ justify-content:space-between; gap:2px; } #prog{ display:none; } .tg{ padding:7px 8px; font-size:9px; letter-spacing:.05em; } #deliv{ order:-1; } .ico{ width:44px; height:44px; } #bPlay{ width:54px; height:54px; }
 }
 </style></head><body>
-<header><a id="markLink" href="markov-poet.html"></a><a class="tg" href="markov-odyssey-drive.html" style="text-decoration:none">DRIVE</a><select id="scene" aria-label="Scene"></select></header>
+<header><a id="markLink" href="markov-poet.html"></a><button class="tg" id="gridBtn" title="See everyone at once: the voices as a call, the poem's footage beside">GRID</button><a class="tg" href="markov-odyssey-drive.html" style="text-decoration:none">DRIVE</a><select id="scene" aria-label="Scene"></select></header>
 <nav id="dial" aria-label="How to translate">
-  <button data-m="spoken">SPOKEN<small>whole sentences that say it</small></button><button data-m="sense">SENSE<small>one sentence for the line</small></button>
+  <button data-m="call">CALL<small>the line, then the archive answers</small></button><button data-m="spoken">SPOKEN<small>whole sentences that say it</small></button><button data-m="sense">SENSE<small>one sentence for the line</small></button>
   <button data-m="performance">PERFORMANCE<small>longer runs, fewer voices</small></button><button data-m="kinship">KINSHIP<small>kindred words where it lacks his</small></button>
   <button data-m="literal">LITERAL<small>Homer's words, his order</small></button></nav>
-<main id="stage"><video playsinline muted preload="auto"></video><video playsinline muted preload="auto"></video><video playsinline muted preload="auto"></video><video playsinline muted preload="auto"></video><div id="who"></div><div id="tap"><svg><use href="#i-play"/></svg></div></main>
+<main id="stage"><video class="pool" playsinline muted preload="auto"></video><video class="pool" playsinline muted preload="auto"></video><video class="pool" playsinline muted preload="auto"></video><video class="pool" playsinline muted preload="auto"></video><video class="bs" playsinline muted preload="auto"></video><video class="bs" playsinline muted preload="auto"></video><div id="grid" aria-label="The call"></div><div id="who"></div><div id="tap"><svg><use href="#i-play"/></svg></div></main>
 <div id="line"></div>
 <footer><button class="ico" id="bPrev" aria-label="Previous line"><svg><use href="#i-prev"/></svg></button><button class="ico" id="bPlay" aria-label="Play"><svg><use href="#i-play"/></svg></button><button class="ico" id="bNext" aria-label="Next line"><svg><use href="#i-next"/></svg></button>
   <button class="tg" id="deliv" title="How one voice gives way to the next">BREATH</button><button class="tg" id="ours" title="Our studio voice under the archive">STUDIO</button><div id="prog"></div></footer>
@@ -55,11 +74,11 @@ footer{ display:flex; align-items:center; gap:6px; padding:4px 10px calc(10px + 
   const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   MPUI.sprite(); $('#markLink').innerHTML = MPUI.mark(22) + '<b>THE FOUND </b><span>ODYSSEY</span>';
   const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
-  const MODES = ['spoken', 'sense', 'performance', 'kinship', 'literal'], DELIV = ['BREATH', 'JOINED', 'CUT'];
+  const MODES = ['call', 'spoken', 'sense', 'performance', 'kinship', 'literal'], DELIV = ['BREATH', 'JOINED', 'CUT'];
   const qs = new URLSearchParams(location.search);
   let F = null, R = null, sid = null, li = 0, fi = 0, playing = false, layer = 0, guard = 0, ours = false, unlocked = false;
-  let mode = MODES.includes(qs.get('mode')) ? qs.get('mode') : store.get('found.mode2', 'spoken'), deliv = store.get('found.deliv', 'BREATH');
-  const POOL = [...document.querySelectorAll('#stage video')], voice = $('#voice'), stage = $('#stage');
+  let mode = MODES.includes(qs.get('mode')) ? qs.get('mode') : store.get('found.mode3', 'call'), deliv = store.get('found.deliv', 'BREATH');
+  const POOL = [...document.querySelectorAll('#stage video.pool')], voice = $('#voice'), stage = $('#stage');
   // The delivery. Four picture layers: the next voices are loaded and parked on their first frame before they are needed, so a
   // voice starts the moment it is called. The picture never stops: it plays on, silent, through each breath and each rest between
   // lines, and dissolves into the next picture. A short fragment is heard without taking the picture (it would only flicker);
@@ -67,13 +86,22 @@ footer{ display:flex; align-items:center; gap:6px; padding:4px 10px calc(10px + 
   // BREATH: a held breath between voices. JOINED: the next voice begins 90 ms early, the sounds cross. CUT: no dissolve, no breath.
   const XF = 90, BREATH = () => mode === 'spoken' || mode === 'sense' ? 420 : 120, REST = () => deliv === 'BREATH' ? 900 : 450, TAKE = 0.9;
   const lines = () => F.scenes[sid] || [];
-  const tr = u => u && (u.modes[mode] || (mode === 'spoken' || mode === 'sense' ? null : u.modes.kinship));
+  const tr = u => u && (mode === 'call' ? u.modes.spoken : u.modes[mode] || (mode === 'spoken' || mode === 'sense' ? null : u.modes.kinship));
   const src = x => { const c = F.clips[x.id] || {}; return (c.title || '') + (c.year ? ' · ' + c.year : ''); };
   const keyOf = x => x.id + '@' + x.t0;
   let shown = null, cur = null, z = 1;
+  // what the call and its answer have in common: the content words they share, by stem, lit in both
+  const STOPW = new Set('a an the and or but of to in on at by for with from as is are was were be been it its this that i you he she we they me him her us them my your his our their not no so if then than there here what who which when where how all any some one into out up down over under o oh let now upon shall will would should could may might must do did does have has had am'.split(' '));
+  const stem = w => w.toLowerCase().replace(/[^a-z']/g, '').replace(/'s$/, '').replace(/(ing|ed|es|s)$/, '');
+  function shared(a, b) { const A = new Set(a.split(/\s+/).map(w => w.toLowerCase().replace(/[^a-z']/g, '')).filter(w => w.length > 2 && !STOPW.has(w)).map(stem)); const S = new Set();
+    b.split(/\s+/).forEach(w => { const c = w.toLowerCase().replace(/[^a-z']/g, ''); if (c.length > 2 && !STOPW.has(c) && A.has(stem(c))) S.add(stem(c)); }); return S; }
+  const lit = (text, S) => text.split(/(\s+)/).map(w => S.has(stem(w)) && !STOPW.has(w.toLowerCase().replace(/[^a-z']/g, '')) ? `<mark>${esc(w)}</mark>` : esc(w)).join('');
   function drawLine() { const u = lines()[li]; if (!u) { $('#line').innerHTML = ''; return; } const t = tr(u);
     let body, cov = '';
-    if (!t) body = `<div class="sp"><div class="f"><span class="h">${esc(u.text)}</span><span class="a" style="color:#4a4540">the archive has nothing that says this yet</span></div></div>`;
+    if (mode === 'call' && t) { const sh = shared(u.text, t.frags.map(x => x.words).join(' '));
+      body = `<div class="cr"><div class="call" data-n="-1"><em>THE LINE</em>${lit(u.text, sh)}</div>${t.frags.map((x, n) => `<div class="ans" data-n="${n}"><span class="a">“${lit(x.words, sh)}”</span><span class="s">${esc(src(x))}</span></div>`).join('')}</div>`;
+      cov = sh.size ? `they share ${[...sh].join(', ')}` : 'it answers in other words'; }
+    else if (!t) body = `<div class="sp"><div class="f"><span class="h">${esc(u.text)}</span><span class="a" style="color:#4a4540">the archive has nothing that says this yet</span></div></div>`;
     else if (mode === 'spoken' || mode === 'sense') { body = `<div class="sp">${t.frags.map((x, n) => `<div class="f" data-n="${n}"><span class="h">${esc(x.homer || (t.frags.length === 1 ? u.text : ''))}</span><span class="a">“${esc(x.words)}”</span><span class="s">${esc(src(x))}</span></div>`).join('')}</div>`;
       cov = `${t.frags.length === 1 ? 'one voice' : t.frags.length + ' voices'} · ${t.frags.reduce((a, x) => a + x.t1 - x.t0, 0).toFixed(1)} s · match ${Math.round((t.score || 0) * 100)}`; }
     else { body = `<div class="il">${t.frags.map((x, n) => x.fill ? `<div class="f gap fill" data-n="${n}"><span class="h">${esc(x.gap || x.elided)}</span><span class="a">our voice</span></div>`
@@ -83,7 +111,7 @@ footer{ display:flex; align-items:center; gap:6px; padding:4px 10px calc(10px + 
       cov = `fidelity ${Math.round(t.fidelity * 100)}% · ${t.cuts} fragment${t.cuts === 1 ? '' : 's'} · ${t.voices} voice${t.voices === 1 ? '' : 's'}${t.gaps ? ' · ' + t.gaps + ' never said' : ''}${t.frags.some(x => x.fill) ? ' · our voice fills ' + t.frags.filter(x => x.fill).length : ''}${t.elided ? ' · ' + t.elided + ' left out' : ''}`; }
     $('#line').innerHTML = `<small>${esc(u.who)} · line ${li + 1} of ${lines().length}</small>${body}<div class="cov">${cov}</div>`; $('#line').scrollTop = 0;
     const all = lines().map(tr).filter(Boolean); $('#prog').textContent = !all.length ? '' : all[0].fidelity != null ? `scene fidelity ${Math.round(all.reduce((a, x) => a + x.fidelity, 0) / all.length * 100)}%` : `scene match ${Math.round(all.reduce((a, x) => a + (x.score || 0), 0) / all.length * 100)}`; }
-  function mark(n) { $('#line').querySelectorAll('.f').forEach(f => { const k = +f.dataset.n; f.classList.toggle('on', k === n); f.classList.toggle('done', k < n); }); const on = $('#line .f.on'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+  function mark(n) { $('#line').querySelectorAll('.f, .call, .ans').forEach(f => { const k = +f.dataset.n; f.classList.toggle('on', k === n); f.classList.toggle('done', k < n); }); const on = $('#line .on'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
   function upcoming(n) { const out = []; for (let l = li; l < lines().length && l <= li + 2 && out.length < n; l++) { const t = tr(lines()[l]); if (!t) continue;
       t.frags.forEach((x, k) => { if ((l > li || k >= fi) && x.id && out.length < n) out.push(x); }); } return out; }
   function load(el, x) { const c = F.clips[x.id]; if (!c) return; el._key = keyOf(x);
@@ -173,7 +201,9 @@ footer{ display:flex; align-items:center; gap:6px; padding:4px 10px calc(10px + 
     let L = null; for (const l of t.lines) if (l.at - .6 <= now) L = l; if (L && L.li !== li) { li = L.li; drawLine(); }
     let E = null; for (const e of t.ev) if (e.at - .05 <= now) E = e; else break;
     if (E && E !== curEv && E.li === li && now <= E.end + .5) { curEv = E; mark(E.fi); const x = (tr(lines()[E.li]) || { frags: [] }).frags[E.fi] || {};
-      $('#who').textContent = E.ours ? 'our voice · “' + (x.gap || x.elided || '') + '”' : src(E) + ' · “' + (x.words || '') + '”'; }
+      $('#who').textContent = E.call ? 'the line' : E.ours ? 'our voice · “' + (x.gap || x.elided || '') + '”' : src(E) + ' · “' + (x.words || '') + '”'; }
+    if (gridOn) { gridUpdate(now); if (playing) tkRaf = requestAnimationFrame(tkLoop); return; }
+    beside(now);
     const ps = pics(); let P = null, k = -1; ps.forEach((p, n) => { if (p.sw <= now) { P = p; k = n; } });
     if (P && P !== curPic) { const el = POOL.find(e => e._key === pkey(P));
       if (el && el.readyState >= 3 && !el.seeking) { if (!track.paused) el.play().catch(() => { }); slowTake(el, P.dd, P.tr); curPic = P; }
@@ -181,21 +211,76 @@ footer{ display:flex; align-items:center; gap:6px; padding:4px 10px calc(10px + 
       if (now - P.sw > 1.5) curPic = P; }                     // too late: let the picture on screen play on
     const busy = new Set([shown]); ps.slice(k + 1, k + 4).forEach(p => { const e = POOL.find(e => e._key === pkey(p)); if (e) busy.add(e); else { const f = POOL.find(e => !busy.has(e)); if (f) { busy.add(f); loadPic(f, p); } } });
     if (playing) tkRaf = requestAnimationFrame(tkLoop); }
-  function tkLoad(atLine, autoplay) { const t = trk(); curPic = curEv = null; hush(); track.pause();
+  // beside the story, the footage the answer comes from, in sync with its voice; the next one waits loaded in the other pane
+  const BS = [...document.querySelectorAll('#stage video.bs')]; let bsOn = null;
+  function beside(now) { const list = mode === 'call' && PICS && PICS[sid] && PICS[sid].call_beside || [];
+    const B = list.find(b => b.sw <= now && now < b.end), nx = list.find(b => b.sw > now);
+    const key = b => b.id + '@' + b.in, ready = (el, b) => { el._k = key(b); if (el.dataset.id !== b.id) { el.src = b.video; el.dataset.id = b.id; el.load(); } const sk = () => { try { el.currentTime = b.in; } catch (e) { } }; if (el.readyState >= 1) sk(); else el.addEventListener('loadedmetadata', sk, { once: true }); };
+    if (B) { let el = BS.find(e => e._k === key(B)); if (!el) { el = BS.find(e => e !== bsOn) || BS[0]; ready(el, B); }
+      if (bsOn !== el && el.readyState >= 2) { if (bsOn) { bsOn.classList.remove('on'); const o = bsOn; setTimeout(() => o.pause(), 700); } bsOn = el; el.classList.add('on'); try { el.currentTime = B.in + Math.max(0, now - B.sw); } catch (e) { } if (!track.paused) el.play().catch(() => { }); stage.classList.add('pair'); } }
+    else if (bsOn) { bsOn.classList.remove('on'); const o = bsOn; bsOn = null; setTimeout(() => { o.pause(); if (!bsOn) stage.classList.remove('pair'); }, 700); }
+    if (nx) { const free = BS.find(e => e !== bsOn); if (free && free._k !== key(nx)) ready(free, nx); } }
+  // ---- GRID: the Odyssey as a call. The voices of the scene as tiles, each archival person under the character they play,
+  // the one speaking lit and in sync; beside them the poem's footage: the best take for this moment large, other takes and the
+  // poem's own renders small, all moving at once
+  const HWB = 'https://hartswf0.github.io/odyssey-halfworld/renders/tiles/';
+  const slug = w => w.toLowerCase().replace(/'s\b/g, 's').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  let gridOn = store.get('found.grid', false), GT = null, gPic = null;
+  // a seat for each character in the scene (and one for the line itself); whoever in the archive is speaking for that character
+  // sits in it, and the next actor for a seat is already loaded while it waits
+  // one grid, laid out like a video call: the tile size that fills the space best at the archive's 4:3, footage never cropped
+  function layoutGrid() { const G = $('#grid'), n = G.children.length; if (!n) return; const W = G.clientWidth - 16, Hh = G.clientHeight - 16; let best = { w: 0 };
+    for (let c = 1; c <= n; c++) { const r = Math.ceil(n / c), w = Math.min((W - 8 * (c - 1)) / c, ((Hh - 8 * (r - 1)) / r) * 4 / 3); if (w > best.w) best = { w, c }; }
+    G.style.gridTemplateColumns = `repeat(${best.c}, ${Math.floor(best.w)}px)`; }
+  addEventListener('resize', () => { if (gridOn) layoutGrid(); });
+  let HWI = null; fetch('odyssey/halfworld/index.json').then(r => r.json()).then(d => HWI = d).catch(() => { });
+  function vtile(cls, html) { const d = document.createElement('div'); d.className = 'tile ' + cls; d.innerHTML = '<video muted playsinline preload="auto" loop></video>' + html; $('#grid').append(d); return d; }
+  // the seats: the halfworld's own film of the scene (in step with our voice), a seat for each character with whoever in the archive
+  // speaks for them, and the poem's footage: the captains' take and another
+  function buildGrid() { const t = trk(), G = $('#grid'); G.innerHTML = ''; GT = null; gPic = null; if (!t || !gridOn) return;
+    const order = []; t.ev.forEach(e => { if (!e.id || e.call || !F.clips[e.id]) return; const w = (lines()[e.li] || {}).who || ''; if (!order.includes(w)) order.push(w); });
+    const hw = vtile('hw', `<span class="tag">THE HALFWORLD</span><div class="nm"><span>THE LINE <i>· our voice</i></span></div>`), hv = hw.querySelector('video'); hv.src = `odyssey/halfworld/${sid}.mp4`;
+    GT = [{ line: true, el: hw, v: hv }];
+    order.slice(0, 6).forEach(w => { const d = vtile('seat', `<div class="nm"><img src="${HWB}asset__character__${slug(w)}.png" alt="" onerror="this.remove()"><span>${esc(w)} <i></i></span></div>`);
+      const g = { who: w, el: d, v: d.querySelector('video'), cur: null }; GT.push(g); const e = t.ev.find(e => e.id && !e.call && (lines()[e.li] || {}).who === w); if (e) seat(g, e); });
+    const pm = vtile('poem', `<span class="tag">THE POEM</span><div class="nm"><span></span></div>`), al = vtile('alt', `<span class="tag">ANOTHER TAKE</span><div class="nm"><span></span></div>`);
+    GT.poem = pm; GT.alt = al; layoutGrid(); if (!track.paused) gridPlay(true); }
+  function seat(g, e) { if (g.cur === e) return; g.cur = e; const c = F.clips[e.id], v = g.v; g.el.querySelector('.nm i').textContent = '· ' + (c.title || '') + (c.year ? ', ' + c.year : '');
+    if (v.dataset.id !== e.id) { v.src = c.video; v.dataset.id = e.id; v.load(); } const sk = () => { try { v.currentTime = e.t0; } catch (x) { } }; if (v.readyState >= 1) sk(); else v.addEventListener('loadedmetadata', sk, { once: true }); }
+  function gridPlay(on) { document.querySelectorAll('#grid video').forEach(v => on ? v.play().catch(() => { }) : v.pause()); }
+  function gridUpdate(now) { if (!GT) return; const t = trk(); let E = null, k = -1; t.ev.forEach((e, n) => { if (e.at - .1 <= now) { E = e; k = n; } });
+    const whoOf = e => (lines()[e.li] || {}).who, on = E && now <= E.end + .4;
+    const live = on ? (E.call || E.ours ? GT[0] : GT.find(g => !g.line && g.who === whoOf(E))) : null;
+    if (live && !live.line && live.cur !== E) seat(live, E);
+    GT.forEach(g => { const is = g === live; if (is === g.el.classList.contains('live')) return; g.el.classList.toggle('live', is);
+      if (g.line) { const u = lines()[E ? E.li : li], r = HWI && HWI[sid] ? HWI[sid].dur / (HWI[sid].voice || HWI[sid].dur) : 1;
+        if (is && u) { try { g.v.currentTime = (u.t0 + Math.max(0, now - E.at)) * r; } catch (x) { } g.v.playbackRate = 1; } else g.v.playbackRate = .6; }   // the halfworld in step with our voice, then drifting on slowly
+      else if (is) { try { g.v.currentTime = E.t0 + Math.max(0, now - E.at); } catch (x) { } }
+      else { const nx = t.ev.slice(k + 1).find(e => e.id && !e.call && whoOf(e) === g.who); if (nx && g.v.currentTime > (g.cur ? g.cur.t0 + 12 : 0)) seat(g, nx); }
+      if (!track.paused) g.v.play().catch(() => { }); });
+    const ps = pics(); let P = null; for (const p of ps) if (p.sw <= now && p.kind !== 'speaker') P = p; P = P || ps.find(p => p.kind !== 'speaker') || ps[0];
+    if (P && P !== gPic) { gPic = P; const run = (d, x, r) => { const v = d.querySelector('video'); v.src = x.video || (F.clips[x.id] || {}).video; d.querySelector('.nm span').textContent = src(x);
+        v.addEventListener('loadedmetadata', () => { try { v.currentTime = x.in || 0; } catch (e) { } v.playbackRate = r; if (!track.paused) v.play().catch(() => { }); }, { once: true }); };
+      run(GT.poem, P, .8); const a0 = (P.alts || [])[0] || ps.find(p => p !== P && p.kind !== 'speaker'); if (a0) run(GT.alt, a0, .6); } }
+  function setGrid(on) { gridOn = on; store.set('found.grid', on); document.body.classList.toggle('gridv', on); $('#gridBtn').classList.toggle('on', on); buildGrid();
+    if (on) { POOL.forEach(v => v.pause()); BS && BS.forEach(v => v.pause()); } else if (playing && shown) shown.play().catch(() => { }); if (trk()) tkLoop(); }
+  $('#gridBtn').onclick = () => setGrid(!gridOn);
+  function tkLoad(atLine, autoplay) { const t = trk(); curPic = curEv = null; hush(); track.pause(); BS.forEach(v => { v.classList.remove('on'); v.pause(); }); bsOn = null; stage.classList.remove('pair');
     const l = t.lines.find(l => l.li >= atLine) || t.lines[0], go_ = () => { try { track.currentTime = Math.max(0, l ? l.at - .8 : 0); } catch (x) { } tkLoop(); if (autoplay) track.play().catch(() => { }); };
-    li = l ? l.li : 0; drawLine();
+    li = l ? l.li : 0; drawLine(); buildGrid();
     // the opening picture is loaded and shown at once, before the sound begins
     const t0 = l ? l.at - .8 : 0, first = [...pics()].reverse().find(p => p.sw <= t0 + .05) || pics()[0];
     if (first) { const el = POOL.find(e => e !== shown) || POOL[0]; loadPic(el, first); const show = () => { slowTake(el, 500); curPic = first; }; if (el.readyState >= 2) show(); else el.addEventListener('loadeddata', show, { once: true }); }
     if (track.dataset.u !== t.url) { track.src = t.url; track.dataset.u = t.url; track.addEventListener('loadedmetadata', go_, { once: true }); track.load(); } else go_(); }
-  function tkPlay(on) { if (on) { track.play().catch(() => { }); if (shown) shown.play().catch(() => { }); tkLoop(); } else { track.pause(); POOL.forEach(v => v.pause()); cancelAnimationFrame(tkRaf); } }
+  function tkPlay(on) { if (on) { track.play().catch(() => { }); if (shown) shown.play().catch(() => { }); if (bsOn) bsOn.play().catch(() => { }); if (gridOn) gridPlay(true); tkLoop(); } else { track.pause(); POOL.forEach(v => v.pause()); BS.forEach(v => v.pause()); document.querySelectorAll('#grid video').forEach(v => v.pause()); cancelAnimationFrame(tkRaf); } }
   track.addEventListener('ended', () => { if (playing && trk()) stepScene(1); });
-  const drawTools = () => { const t = !!trk(); $('#deliv').hidden = t; $('#ours').hidden = t; };
+  const drawTools = () => { const t = !!trk(); $('#deliv').hidden = t; $('#ours').hidden = t; $('#gridBtn').hidden = !t; document.body.classList.toggle('gridv', gridOn && t); };
   function stepScene(d) { const o = $('#scene'), k = o.selectedIndex + d; if (k < 0 || k >= o.options.length) { stop(); return; } o.selectedIndex = k; sid = o.value; li = 0; fi = 0; drawTools(); if (trk()) { tkLoad(0, playing); return; } drawLine(); anticipate(); if (playing) rest(1400, startLine); }
-  function setMode(m) { const was = li; track.pause(); cancelAnimationFrame(tkRaf); mode = m; store.set('found.mode2', m); drawTools(); document.querySelectorAll('#dial button').forEach(b => { b.classList.toggle('on', b.dataset.m === m); if (b.dataset.m === m && b.scrollIntoView) b.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }); if (trk()) tkLoad(was, playing); else go(was); }
+  function setMode(m) { const was = li; track.pause(); stage.classList.remove('pair'); cancelAnimationFrame(tkRaf); mode = m; store.set('found.mode3', m); drawTools(); document.querySelectorAll('#dial button').forEach(b => { b.classList.toggle('on', b.dataset.m === m); if (b.dataset.m === m && b.scrollIntoView) b.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }); if (trk()) tkLoad(was, playing); else go(was); }
   // phones only let a page sound after a touch: wake both picture layers and the studio voice on the first one
   function unlock() { if (unlocked) return; unlocked = true; [...POOL, voice].forEach(m => { if (!m.src) return; m._unlock = true; m.muted = true; const p = m.play(); const done = () => { if (m._unlock) { m.pause(); m.muted = false; } m._unlock = false; }; if (p) p.then(done, done); }); }   // a voice claimed meanwhile is left playing
-  function toggle() { playing = !playing; $('#bPlay').innerHTML = `<svg><use href="#i-${playing ? 'pause' : 'play'}"/></svg>`; if (trk()) tkPlay(playing); else { unlock(); if (playing) startLine(); else stop(); }
+  let lastToggle = 0;
+  function toggle() { const nw = performance.now(); if (nw - lastToggle < 500) return; lastToggle = nw; playing = !playing; $('#bPlay').innerHTML = `<svg><use href="#i-${playing ? 'pause' : 'play'}"/></svg>`; if (trk()) tkPlay(playing); else { unlock(); if (playing) startLine(); else stop(); }
     const tp = $('#tap'); tp.innerHTML = `<svg><use href="#i-${playing ? 'play' : 'pause'}"/></svg>`; tp.classList.add('show'); setTimeout(() => tp.classList.remove('show'), 500); }
   document.querySelectorAll('#dial button').forEach(b => b.onclick = () => setMode(b.dataset.m));
   $('#bPlay').onclick = toggle; const jump = n => { if (trk()) tkLoad(Math.max(0, n), playing); else go(n); }; $('#bNext').onclick = () => jump(li + 1); $('#bPrev').onclick = () => jump(li - 1);
@@ -210,12 +295,12 @@ footer{ display:flex; align-items:center; gap:6px; padding:4px 10px calc(10px + 
       if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { jump(li + (dx < 0 ? 1 : -1)); e.preventDefault(); }
       else if (el === stage && Math.abs(dx) < 10 && Math.abs(dy) < 10 && Date.now() - st < 400) { toggle(); e.preventDefault(); } }); });
   stage.addEventListener('click', () => { if (!touch) toggle(); });
-  addEventListener('keydown', e => { if (e.target.tagName === 'SELECT') return; if (e.key === ' ') { e.preventDefault(); toggle(); } else if (e.key === 'ArrowRight') jump(li + 1); else if (e.key === 'ArrowLeft') jump(li - 1); else if ('12345'.includes(e.key)) setMode(MODES[+e.key - 1]); });
+  addEventListener('keydown', e => { if (e.target.tagName === 'SELECT') return; if (e.key === ' ') { e.preventDefault(); toggle(); } else if (e.key === 'ArrowRight') jump(li + 1); else if (e.key === 'ArrowLeft') jump(li - 1); else if ('123456'.includes(e.key)) setMode(MODES[+e.key - 1]); });
   Promise.all([fetch('odyssey/found.json').then(r => r.json()), fetch('odyssey/radio.json').then(r => r.json()).catch(() => null), fetch('odyssey/found-pics.json').then(r => r.json()).catch(() => null)]).then(([f, r, pp]) => { F = f; PICS = pp; R = r ? r.books.flatMap(b => b.scenes) : null;
     const titles = R ? Object.fromEntries(R.map(s => [s.id, s.title])) : {};
     Object.keys(F.scenes).sort().forEach(id => { const o = document.createElement('option'); o.value = id; o.textContent = `${id.slice(3).replace('-', ' ')} · ${titles[id] || ''}`; $('#scene').append(o); });
     const want = qs.get('scene'); sid = F.scenes[want] ? want : 'OD-B09-S09'; $('#scene').value = sid;
     if (mode === 'spoken' && !Object.values(F.scenes).some(v => v.some(u => u.modes.spoken))) mode = 'sense';
-    setMode(mode); }).catch(e => { $('#line').textContent = 'could not load: ' + e.message; });
+    setMode(mode); if (gridOn) setGrid(true); }).catch(e => { $('#line').textContent = 'could not load: ' + e.message; });
 })();
 </script></body></html>
