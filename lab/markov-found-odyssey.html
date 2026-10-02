@@ -13,7 +13,7 @@ header{ display:flex; align-items:center; gap:10px; padding:calc(8px + env(safe-
 #dial{ display:flex; gap:2px; margin:4px 12px 6px; background:#121110; border:1px solid var(--faint); border-radius:18px; padding:2px; overflow-x:auto; scrollbar-width:none; } #dial::-webkit-scrollbar{ display:none; }
 #dial button{ flex:1 0 auto; border:0; background:none; border-radius:16px; padding:7px 10px; cursor:pointer; color:var(--dim); font-size:10px; letter-spacing:.14em; } #dial button.on{ background:#e8c07022; color:var(--hi); }
 #dial button small{ display:block; font-size:8.5px; letter-spacing:.04em; color:#6b655d; margin-top:2px; }
-main{ position:relative; background:#000; min-height:0; touch-action:pan-y; } main video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0; transition:opacity .25s; } main video.on{ opacity:1; } main.rest video.on{ opacity:.35; }
+main{ position:relative; background:#000; min-height:0; touch-action:pan-y; } main video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0; transition:filter .6s; } main.rest video{ filter:brightness(.7); }
 #who{ position:absolute; left:10px; top:10px; font:10px var(--mono); color:#d6cfc2; background:#000a; border-radius:12px; padding:4px 9px; max-width:calc(100% - 20px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } #who:empty{ display:none; }
 #tap{ position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; } #tap svg{ width:56px; height:56px; padding:14px; border-radius:50%; background:#0009; color:#efe9dd; opacity:0; transition:opacity .3s; } #tap.show svg{ opacity:1; }
 #line{ padding:10px 4vw 4px; min-height:140px; max-height:36vh; overflow:auto; }
@@ -21,7 +21,7 @@ main{ position:relative; background:#000; min-height:0; touch-action:pan-y; } ma
 .il{ display:flex; flex-wrap:wrap; justify-content:center; gap:10px 14px; }
 .il .f{ display:grid; justify-items:center; gap:2px; padding:2px 4px; border-radius:4px; transition:background .12s; } .il .f.on{ background:#ffffff10; }
 .il .h{ font:300 clamp(15px,2vw,22px)/1.2 var(--serif); color:#cfc8bb; } .il .a{ font:400 11px/1.3 var(--mono); color:#7d776f; } .il .f.on .a{ color:var(--ink); } .il .f.done .a{ color:#a59e93; }
-.il .a k{ color:var(--hi); } .il .f.gap .h{ color:#4a4540; text-decoration:line-through; } .il .f.gap .a{ color:#4a4540; } .il .f.el .h{ color:#4a4540; font-style:italic; }
+.il .a k{ color:var(--hi); } .il .f.gap .h{ color:#4a4540; text-decoration:line-through; } .il .f.gap .a{ color:#4a4540; } .il .f.el .h{ color:#4a4540; font-style:italic; } .il .f.fill .h{ color:#b9a27a; text-decoration:none; } .il .f.fill .a{ color:#6b5f48; } .il .f.fill.on .a{ color:var(--hi); }
 .sp{ max-width:760px; margin:0 auto; display:grid; gap:10px; }
 .sp .f{ padding:6px 10px; border-left:2px solid transparent; border-radius:2px; transition:background .15s, border-color .15s; } .sp .f.on{ background:#ffffff0c; border-left-color:var(--hi); }
 .sp .h{ display:block; font:300 clamp(16px,2.1vw,22px)/1.3 var(--serif); color:#a59e93; } .sp .f.on .h{ color:#d8d1c4; }
@@ -44,7 +44,7 @@ footer{ display:flex; align-items:center; gap:6px; padding:4px 10px calc(10px + 
   <button data-m="spoken">SPOKEN<small>whole sentences that say it</small></button><button data-m="sense">SENSE<small>one sentence for the line</small></button>
   <button data-m="performance">PERFORMANCE<small>longer runs, fewer voices</small></button><button data-m="kinship">KINSHIP<small>kindred words where it lacks his</small></button>
   <button data-m="literal">LITERAL<small>Homer's words, his order</small></button></nav>
-<main id="stage"><video id="a" playsinline preload="auto"></video><video id="b" playsinline preload="auto"></video><div id="who"></div><div id="tap"><svg><use href="#i-play"/></svg></div></main>
+<main id="stage"><video playsinline muted preload="auto"></video><video playsinline muted preload="auto"></video><video playsinline muted preload="auto"></video><video playsinline muted preload="auto"></video><div id="who"></div><div id="tap"><svg><use href="#i-play"/></svg></div></main>
 <div id="line"></div>
 <footer><button class="ico" id="bPrev" aria-label="Previous line"><svg><use href="#i-prev"/></svg></button><button class="ico" id="bPlay" aria-label="Play"><svg><use href="#i-play"/></svg></button><button class="ico" id="bNext" aria-label="Next line"><svg><use href="#i-next"/></svg></button>
   <button class="tg" id="deliv" title="How one voice gives way to the next">BREATH</button><button class="tg" id="ours" title="Our studio voice under the archive">STUDIO</button><div id="prog"></div></footer>
@@ -59,58 +59,87 @@ footer{ display:flex; align-items:center; gap:6px; padding:4px 10px calc(10px + 
   const qs = new URLSearchParams(location.search);
   let F = null, R = null, sid = null, li = 0, fi = 0, playing = false, layer = 0, guard = 0, ours = false, unlocked = false;
   let mode = MODES.includes(qs.get('mode')) ? qs.get('mode') : store.get('found.mode2', 'spoken'), deliv = store.get('found.deliv', 'BREATH');
-  const V = [$('#a'), $('#b')], voice = $('#voice'), stage = $('#stage');
-  // the delivery: BREATH leaves a held breath between voices and a longer rest between lines; JOINED lets the next voice begin
-  // 90 ms early, sound and picture crossing; CUT is a straight cut
-  const XF = 90, BREATH = () => mode === 'spoken' || mode === 'sense' ? 420 : 160, REST = () => deliv === 'BREATH' ? 900 : 450;
+  const POOL = [...document.querySelectorAll('#stage video')], voice = $('#voice'), stage = $('#stage');
+  // The delivery. Four picture layers: the next voices are loaded and parked on their first frame before they are needed, so a
+  // voice starts the moment it is called. The picture never stops: it plays on, silent, through each breath and each rest between
+  // lines, and dissolves into the next picture. A short fragment is heard without taking the picture (it would only flicker);
+  // a word the archive never says is said by our own studio voice under the held picture.
+  // BREATH: a held breath between voices. JOINED: the next voice begins 90 ms early, the sounds cross. CUT: no dissolve, no breath.
+  const XF = 90, BREATH = () => mode === 'spoken' || mode === 'sense' ? 420 : 120, REST = () => deliv === 'BREATH' ? 900 : 450, TAKE = 0.9;
   const lines = () => F.scenes[sid] || [];
   const tr = u => u && (u.modes[mode] || (mode === 'spoken' || mode === 'sense' ? null : u.modes.kinship));
   const src = x => { const c = F.clips[x.id] || {}; return (c.title || '') + (c.year ? ' · ' + c.year : ''); };
+  const keyOf = x => x.id + '@' + x.t0;
+  let shown = null, cur = null, z = 1;
   function drawLine() { const u = lines()[li]; if (!u) { $('#line').innerHTML = ''; return; } const t = tr(u);
     let body, cov = '';
     if (!t) body = `<div class="sp"><div class="f"><span class="h">${esc(u.text)}</span><span class="a" style="color:#4a4540">the archive has nothing that says this yet</span></div></div>`;
     else if (mode === 'spoken' || mode === 'sense') { body = `<div class="sp">${t.frags.map((x, n) => `<div class="f" data-n="${n}"><span class="h">${esc(x.homer || (t.frags.length === 1 ? u.text : ''))}</span><span class="a">“${esc(x.words)}”</span><span class="s">${esc(src(x))}</span></div>`).join('')}</div>`;
       cov = `${t.frags.length === 1 ? 'one voice' : t.frags.length + ' voices'} · ${t.frags.reduce((a, x) => a + x.t1 - x.t0, 0).toFixed(1)} s · match ${Math.round((t.score || 0) * 100)}`; }
-    else { body = `<div class="il">${t.frags.map((x, n) => x.gap ? `<div class="f gap" data-n="${n}"><span class="h">${esc(x.gap)}</span><span class="a">never said</span></div>`
+    else { body = `<div class="il">${t.frags.map((x, n) => x.fill ? `<div class="f gap fill" data-n="${n}"><span class="h">${esc(x.gap || x.elided)}</span><span class="a">our voice</span></div>`
+        : x.gap ? `<div class="f gap" data-n="${n}"><span class="h">${esc(x.gap)}</span><span class="a">never said</span></div>`
         : x.elided ? `<div class="f el" data-n="${n}"><span class="h">${esc(x.elided)}</span><span class="a">·</span></div>`
         : `<div class="f" data-n="${n}"><span class="h">${esc(x.homer)}</span><span class="a">${esc(x.words).split(' ').map(w => (x.kin || []).some(p => p[1] === w.toLowerCase().replace(/[^a-z0-9']/g, '')) ? `<k>${w}</k>` : w).join(' ')}</span></div>`).join('')}</div>`;
-      cov = `fidelity ${Math.round(t.fidelity * 100)}% · ${t.cuts} fragment${t.cuts === 1 ? '' : 's'} · ${t.voices} voice${t.voices === 1 ? '' : 's'}${t.gaps ? ' · ' + t.gaps + ' never said' : ''}${t.elided ? ' · ' + t.elided + ' left out' : ''}`; }
+      cov = `fidelity ${Math.round(t.fidelity * 100)}% · ${t.cuts} fragment${t.cuts === 1 ? '' : 's'} · ${t.voices} voice${t.voices === 1 ? '' : 's'}${t.gaps ? ' · ' + t.gaps + ' never said' : ''}${t.frags.some(x => x.fill) ? ' · our voice fills ' + t.frags.filter(x => x.fill).length : ''}${t.elided ? ' · ' + t.elided + ' left out' : ''}`; }
     $('#line').innerHTML = `<small>${esc(u.who)} · line ${li + 1} of ${lines().length}</small>${body}<div class="cov">${cov}</div>`; $('#line').scrollTop = 0;
     const all = lines().map(tr).filter(Boolean); $('#prog').textContent = !all.length ? '' : all[0].fidelity != null ? `scene fidelity ${Math.round(all.reduce((a, x) => a + x.fidelity, 0) / all.length * 100)}%` : `scene match ${Math.round(all.reduce((a, x) => a + (x.score || 0), 0) / all.length * 100)}`; }
   function mark(n) { $('#line').querySelectorAll('.f').forEach(f => { const k = +f.dataset.n; f.classList.toggle('on', k === n); f.classList.toggle('done', k < n); }); const on = $('#line .f.on'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
-  // ready the next voice on the hidden layer, already sought to where it begins, so it starts on time
-  function prep(v, x) { const c = F.clips[x.id]; if (!c) return; if (v.dataset.id !== x.id) { v.src = c.video; v.dataset.id = x.id; v.load(); }
-    const seek = () => { try { if (Math.abs(v.currentTime - x.t0) > .12) v.currentTime = x.t0; } catch (e) { } }; if (v.readyState >= 1) seek(); else v.addEventListener('loadedmetadata', seek, { once: true }); }
-  function fade(v, to, ms, from) { const t0 = performance.now(), a = from == null ? v.volume : from; try { v.volume = a; } catch (e) { } const step = () => { const k = Math.min(1, (performance.now() - t0) / ms); try { v.volume = Math.max(0, Math.min(1, a + (to - a) * k)); } catch (e) { } if (k < 1) requestAnimationFrame(step); }; step(); }
-  function upcoming(after) { const t = tr(lines()[li]); if (t) for (let n = after + 1; n < t.frags.length; n++) if (t.frags[n].id) return t.frags[n];
-    const t2 = tr(lines()[li + 1]); return t2 ? t2.frags.find(x => x.id) : null; }
+  function upcoming(n) { const out = []; for (let l = li; l < lines().length && l <= li + 2 && out.length < n; l++) { const t = tr(lines()[l]); if (!t) continue;
+      t.frags.forEach((x, k) => { if ((l > li || k >= fi) && x.id && out.length < n) out.push(x); }); } return out; }
+  function load(el, x) { const c = F.clips[x.id]; if (!c) return; el._key = keyOf(x);
+    if (el.dataset.id !== x.id) { el.src = c.video; el.dataset.id = x.id; el.load(); }
+    const seek = () => { if (el._key !== keyOf(x)) return; try { if (Math.abs(el.currentTime - x.t0) > .1) el.currentTime = x.t0; } catch (e) { } };
+    if (el.readyState >= 1) seek(); else el.addEventListener('loadedmetadata', seek, { once: true }); }
+  // keep the next three voices loaded and parked, never touching the one speaking or the one on screen
+  function anticipate() { const want = upcoming(3), busy = new Set([cur, shown].filter(Boolean)), need = [];
+    want.forEach(x => { const e = POOL.find(e => e._key === keyOf(x) && !busy.has(e)); if (e) busy.add(e); else need.push(x); });
+    need.forEach(x => { const e = POOL.find(e => !busy.has(e)); if (e) { busy.add(e); load(e, x); } }); }
+  const ready = (el, x) => el.readyState >= 3 && !el.seeking && Math.abs(el.currentTime - x.t0) < .3;
+  function vol(el, to, ms) { const a = el.volume, t0 = performance.now(); const step = () => { const k = ms <= 1 ? 1 : Math.min(1, (performance.now() - t0) / ms); try { el.volume = Math.max(0, Math.min(1, a + (to - a) * k)); } catch (e) { } if (k < 1) requestAnimationFrame(step); }; step(); }
+  function take(el, ms) { if (el === shown) return; const old = shown; el.style.transition = `opacity ${ms}ms ease, filter .6s`; el.style.zIndex = ++z; el.style.opacity = 1; shown = el;
+    if (old) setTimeout(() => { if (old !== shown && old !== cur) { old.style.transition = 'none'; old.style.opacity = 0; old.pause(); } }, ms + 60); }
   function rest(ms, then) { stage.classList.add('rest'); const my = guard; setTimeout(() => { if (my === guard && playing) { stage.classList.remove('rest'); then(); } }, ms); }
-  function playFrag() { if (!playing) return; const u = lines()[li]; const t = tr(u);
+  const sceneVoice = () => { const s = R && R.find(x => x.id === sid); return s && s.voice; };
+  function ourWords(x, done) { const my = guard, url = sceneVoice(); if (!url) { setTimeout(done, 300); return; }
+    if (ours) { setTimeout(() => { if (my === guard) done(); }, (x.fill[1] - x.fill[0]) * 1000); return; }   // the full studio line is already sounding
+    if (voice.dataset.u !== url) { voice.src = url; voice.dataset.u = url; }
+    voice._unlock = false; voice.muted = false; try { voice.currentTime = x.fill[0]; } catch (e) { } voice.play().catch(() => { });
+    const w = setInterval(() => { if (my !== guard) { clearInterval(w); return; } if (voice.currentTime >= x.fill[1] || voice.ended) { clearInterval(w); voice.pause(); done(); } }, 15);
+    setTimeout(() => { if (my === guard && voice.paused) { clearInterval(w); done(); } }, 3000); }
+  function playFrag() { if (!playing) return; const u = lines()[li], t = tr(u);
     if (!u) { stop(); return; }
-    if (!t || fi >= t.frags.length) { const p = V[1 - layer]; if (deliv !== 'JOINED') { fade(p, 0, 120); setTimeout(() => p.pause(), 130); }
-      li++; fi = 0; if (li >= lines().length) { stepScene(1); return; } drawLine(); rest(t ? REST() : 1600, startLine); return; }
-    const x = t.frags[fi]; mark(fi);
-    if (x.gap || x.elided) { $('#who').textContent = x.gap ? 'the archive never says “' + x.gap + '”' : '“' + x.elided + '” left out'; fi++; setTimeout(playFrag, x.gap ? 360 : 60); return; }
-    const v = V[layer], o = V[1 - layer], my = ++guard; prep(v, x);
-    $('#who').textContent = src(x) + ' · “' + x.words + '”';
-    const start = () => { if (my !== guard) return; try { if (Math.abs(v.currentTime - x.t0) > .12) v.currentTime = x.t0; } catch (e) { } v._unlock = false; v.muted = false; v.classList.add('on'); v.play().catch(() => { });
-      if (deliv === 'JOINED') { fade(v, 1, XF, 0); if (!o.paused) fade(o, 0, XF); setTimeout(() => { if (my === guard) { o.pause(); o.classList.remove('on'); } }, XF + 20); }
-      else { fade(v, 1, deliv === 'BREATH' ? 60 : 1, 0); o.pause(); o.classList.remove('on'); }
-      const nx = upcoming(fi); if (nx) prep(o, nx);
-      const lead = deliv === 'JOINED' ? XF / 1000 : deliv === 'BREATH' ? .07 : 0;
-      const watch = setInterval(() => { if (my !== guard) { clearInterval(watch); return; } if (v.currentTime >= x.t1 - lead || v.ended) { clearInterval(watch);
-        fi++; const more = fi < t.frags.length;
-        if (deliv === 'BREATH') { fade(v, 0, 70); setTimeout(() => { if (my === guard) v.pause(); }, 80); layer = 1 - layer; if (more) rest(BREATH(), playFrag); else playFrag(); }
-        else { if (deliv === 'CUT') v.pause(); layer = 1 - layer; playFrag(); } } }, 15); };
-    if (v.readyState >= 2 && !v.seeking) start(); else { const go = () => { v.removeEventListener('seeked', go); v.removeEventListener('canplay', go); start(); }; v.addEventListener('seeked', go); v.addEventListener('canplay', go);
-      setTimeout(() => { if (my === guard && v.paused) { fi++; playFrag(); } }, 6000); } }
-  function startLine() { const u = lines()[li]; if (ours && u && R) { const s = R.find(x => x.id === sid); if (s) { if (voice.dataset.u !== s.voice) { voice.src = s.voice; voice.dataset.u = s.voice; } voice._unlock = false; voice.muted = false; voice.currentTime = u.t0; try { voice.volume = .55; } catch (e) { } voice.play().catch(() => { }); clearTimeout(voice._t); voice._t = setTimeout(() => voice.pause(), (u.t1 - u.t0) * 1000 + 200); } } fi = 0; playFrag(); }
-  function stop() { playing = false; guard++; V.forEach(v => v.pause()); voice.pause(); stage.classList.remove('rest'); $('#bPlay').innerHTML = '<svg><use href="#i-play"/></svg>'; }
-  function go(n) { guard++; V.forEach(v => v.pause()); voice.pause(); stage.classList.remove('rest'); li = Math.max(0, Math.min(lines().length - 1, n)); fi = 0; drawLine(); const x = (tr(lines()[li]) || { frags: [] }).frags.find(x => x.id); if (x) { prep(V[layer], x); if (!playing) { V[layer].classList.add('on'); V[1 - layer].classList.remove('on'); $('#who').textContent = src(x); } } if (playing) startLine(); }
-  function stepScene(d) { const o = $('#scene'), k = o.selectedIndex + d; if (k < 0 || k >= o.options.length) { stop(); return; } o.selectedIndex = k; sid = o.value; li = 0; drawLine(); if (playing) rest(1400, startLine); }
+    if (!t || fi >= t.frags.length) { li++; fi = 0; if (li >= lines().length) { stepScene(1); return; } drawLine(); anticipate(); rest(t ? REST() : 1600, startLine); return; }
+    const x = t.frags[fi]; mark(fi); anticipate(); const next = () => { fi++; playFrag(); };
+    if (!x.id) { const w = x.gap || x.elided;
+      if (x.fill) { $('#who').textContent = 'our voice · “' + w + '”'; ourWords(x, next); }
+      else { $('#who').textContent = x.gap ? 'the archive never says “' + w + '”' : '“' + w + '” left out'; setTimeout(next, x.gap ? 300 : 40); } return; }
+    const my = ++guard; let el = POOL.find(e => e._key === keyOf(x) && e !== shown) || POOL.find(e => e._key === keyOf(x));
+    if (!el) { const e = POOL.find(e => e !== shown && e !== cur); if (!e) { next(); return; } load(e, x); el = e; }
+    const t0 = performance.now();
+    const wait = () => { if (my !== guard) return; if (ready(el, x)) begin(); else if (performance.now() - t0 > 3000) next(); else { if (!el.seeking && Math.abs(el.currentTime - x.t0) > .3 && el.readyState >= 1) try { el.currentTime = x.t0; } catch (e) { } setTimeout(wait, 30); } };
+    function begin() { cur = el; el._unlock = false; try { el.volume = 0; } catch (e) { } el.muted = false; el.play().catch(() => { }); vol(el, 1, deliv === 'CUT' ? 1 : 60);
+      const dur = x.t1 - x.t0;
+      if (!shown || dur >= TAKE || deliv === 'CUT') take(el, deliv === 'CUT' ? 0 : Math.round(Math.min(650, Math.max(180, dur * 300))));
+      $('#who').textContent = src(x) + ' · “' + x.words + '”';
+      const lead = deliv === 'JOINED' ? XF / 1000 : .05;
+      const watch = setInterval(() => { if (my !== guard) { clearInterval(watch); return; } if (el.currentTime >= x.t1 - lead || el.ended) { clearInterval(watch); end(); } }, 15); }
+    function end() { vol(el, 0, deliv === 'CUT' ? 1 : 80); const k = el._key;
+      setTimeout(() => { if (el._key === k && el !== cur) { el.muted = true; if (el !== shown) el.pause(); } }, 100);   // the picture on screen plays on, silent
+      if (cur === el) cur = null; fi++;
+      if (deliv === 'BREATH' && fi < t.frags.length) rest(BREATH(), playFrag); else playFrag(); }
+    wait(); }
+  function startLine() { const u = lines()[li]; if (ours && u && R) { const url = sceneVoice(); if (url) { if (voice.dataset.u !== url) { voice.src = url; voice.dataset.u = url; } voice._unlock = false; voice.muted = false; voice.currentTime = u.t0; try { voice.volume = .55; } catch (e) { } voice.play().catch(() => { }); clearTimeout(voice._t); voice._t = setTimeout(() => voice.pause(), (u.t1 - u.t0) * 1000 + 200); } }
+    else { try { voice.volume = 1; } catch (e) { } } fi = 0; playFrag(); }
+  function hush() { guard++; cur = null; POOL.forEach(v => { v.muted = true; if (v !== shown) v.pause(); }); voice.pause(); stage.classList.remove('rest'); }
+  function stop() { playing = false; hush(); if (shown) shown.pause(); $('#bPlay').innerHTML = '<svg><use href="#i-play"/></svg>'; }
+  // a new line: its first picture is loaded and dissolved in at once, so the screen is never empty
+  function go(n) { hush(); li = Math.max(0, Math.min(lines().length - 1, n)); fi = 0; drawLine(); anticipate();
+    const x = upcoming(1)[0]; if (x && !playing) { const el = POOL.find(e => e._key === keyOf(x)); if (el) { const show = () => take(el, 300); if (el.readyState >= 2) show(); else el.addEventListener('loadeddata', show, { once: true }); $('#who').textContent = src(x); } }
+    if (playing) startLine(); }
+  function stepScene(d) { const o = $('#scene'), k = o.selectedIndex + d; if (k < 0 || k >= o.options.length) { stop(); return; } o.selectedIndex = k; sid = o.value; li = 0; fi = 0; drawLine(); anticipate(); if (playing) rest(1400, startLine); }
   function setMode(m) { mode = m; store.set('found.mode2', m); document.querySelectorAll('#dial button').forEach(b => { b.classList.toggle('on', b.dataset.m === m); if (b.dataset.m === m && b.scrollIntoView) b.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }); go(li); }
   // phones only let a page sound after a touch: wake both picture layers and the studio voice on the first one
-  function unlock() { if (unlocked) return; unlocked = true; [...V, voice].forEach(m => { if (!m.src) return; m._unlock = true; m.muted = true; const p = m.play(); const done = () => { if (m._unlock) { m.pause(); m.muted = false; } m._unlock = false; }; if (p) p.then(done, done); }); }   // a voice claimed meanwhile is left playing
+  function unlock() { if (unlocked) return; unlocked = true; [...POOL, voice].forEach(m => { if (!m.src) return; m._unlock = true; m.muted = true; const p = m.play(); const done = () => { if (m._unlock) { m.pause(); m.muted = false; } m._unlock = false; }; if (p) p.then(done, done); }); }   // a voice claimed meanwhile is left playing
   function toggle() { unlock(); playing = !playing; $('#bPlay').innerHTML = `<svg><use href="#i-${playing ? 'pause' : 'play'}"/></svg>`; if (playing) startLine(); else stop();
     const tp = $('#tap'); tp.innerHTML = `<svg><use href="#i-${playing ? 'play' : 'pause'}"/></svg>`; tp.classList.add('show'); setTimeout(() => tp.classList.remove('show'), 500); }
   document.querySelectorAll('#dial button').forEach(b => b.onclick = () => setMode(b.dataset.m));

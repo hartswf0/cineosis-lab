@@ -98,13 +98,35 @@ def translate(text, mode):
             for h, a in zip(x["homer"].split(), [norm(w) for w in x["words"].split()]): fid += 1 if h == a else (.9 if a in inflections(h) else .6)
     runs = [x for x in out if "id" in x]
     return {"frags": out, "fidelity": round(fid / N, 2), "cuts": len(runs), "voices": len({x["id"] for x in runs}), "gaps": sum(1 for x in out if "gap" in x), "elided": sum(1 for x in out if "elided" in x)}
+import difflib
+VW = {os.path.basename(f)[:-5]: json.load(open(f)) for f in glob.glob(os.path.join(H, "cache", "voice-words", "*.json"))}
+def our_words(sid, u):
+    """Each token of the line -> (t0, t1) where our studio voice says it (Whisper word times on the scene's recording), or None."""
+    tokens = [norm(w) for w in u["text"].split() if norm(w)]; ws = [w for w in VW.get(sid, []) if u["t0"] - .4 <= w["t0"] <= u["t1"] + .2]
+    m = difflib.SequenceMatcher(None, tokens, [norm(w["w"]) for w in ws], autojunk=False); at = [None] * len(tokens)
+    for a, b, n in m.get_matching_blocks():
+        for j in range(n): at[a + j] = (ws[b + j]["t0"], ws[b + j]["t1"])
+    return at
+def fill(t, at):
+    """Words the archive never says (or that were left out) are filled from our own recording; neighbours merge into one breath."""
+    if not t: return t
+    out = []; k = 0
+    for x in t["frags"]:
+        if "id" in x: k += len(x["homer"].split()); out.append(x); continue
+        span = at[k] if k < len(at) else None; k += 1; w = x.get("gap") or x.get("elided")
+        prev = out[-1] if out and "id" not in out[-1] else None
+        if prev and (prev.get("fill") is None) == (span is None) and ("gap" in prev) == ("gap" in x):
+            prev["gap" if "gap" in x else "elided"] += " " + w
+            if span: prev["fill"] = [prev["fill"][0], span[1]]
+        else: out.append({**x, **({"fill": [round(max(0, span[0] - .05), 2), round(span[1] + .08, 2)]} if span else {})})
+    t["frags"] = out; return t
 found = {}; stats = {m: [] for m in MODES}
 for f in sorted(glob.glob(os.path.join(H, "sea", "b*.json"))):
     for s in json.load(open(f))["scenes"]:
         out = []
         for u in s["subs"]:
             if u["kind"] == "SCENE_HEADER": continue
-            modes = {m: translate(u["text"], m) for m in MODES}
+            ow = our_words(s["id"], u); modes = {m: fill(translate(u["text"], m), ow) for m in MODES}
             for m in MODES:
                 if modes[m]: stats[m].append(modes[m])
             e = (u.get("echo") or [None])[0]
@@ -116,6 +138,7 @@ json.dump({"clips": {i: {"video": lib[i]["video"], "thumb": lib[i]["thumb"], "ti
 import statistics as st
 for m, v in stats.items():
     print(f"{m:12s} fidelity {st.mean(x['fidelity'] for x in v):.2f} · cuts per line {st.mean(x['cuts'] for x in v):.1f} · voices {st.mean(x['voices'] for x in v):.1f} · gaps {st.mean(x['gaps'] for x in v):.2f} · elided {st.mean(x['elided'] for x in v):.2f}")
+print("gaps filled from our voice", sum(1 for v in found.values() for u in v for m in MODES if u["modes"][m] for x in u["modes"][m]["frags"] if "fill" in x), "of", sum(1 for v in found.values() for u in v for m in MODES if u["modes"][m] for x in u["modes"][m]["frags"] if "gap" in x or "elided" in x))
 print("sense echoes on", sum(1 for v in found.values() for u in v if u["modes"]["sense"]), "lines · clips", len(clips))
 import subprocess, sys
-subprocess.run([sys.executable, os.path.join(H, "spoken_odyssey.py")])   # then the spoken mode: whole utterances (adds modes.spoken)
+if not os.environ.get("NO_SPOKEN"): subprocess.run([sys.executable, os.path.join(H, "spoken_odyssey.py")])   # then the spoken mode: whole utterances (adds modes.spoken)
