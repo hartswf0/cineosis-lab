@@ -105,16 +105,25 @@
   function evolve(M, opts = {}) {
     const R = rng(opts.seed || 1), P = opts.pop || 24, K = opts.films || 6, ELITE = opts.elite || 6, W = opts.critic || CRITIC;
     let pop = opts.start || Array.from({ length: P }, () => GENES.map(() => R())), gen = 0, history = [], best = null;
+    // lineage, for showing: every rule set has an id, a birth (how it was made) and its latest measured fitness. It draws nothing from R.
+    let uid = 0, ids = pop.map(() => ++uid); const births = {}, fits = {};
+    ids.forEach((id, k) => { births[id] = (opts.origin && opts.origin(k)) || { kind: opts.start ? 'given' : 'random', gen: 0 }; });
     function rate(g) { const fs = []; for (let k = 0; k < K; k++) { const f = generate(M, g, Math.floor(R() * 1e9)); critic(M, f, W); fs.push(f); } fs.sort((a, b) => b.score - a.score);
       return { g, fit: (fs[0].score + fs[1].score + fs[2].score) / 3, film: fs[0] }; }
-    function step() { const rated = pop.map(rate).sort((a, b) => b.fit - a.fit);
+    function step() { const rated = pop.map((g, k) => Object.assign(rate(g), { id: ids[k] })).sort((a, b) => b.fit - a.fit);
+      rated.forEach((r, j) => { fits[r.id] = { gen, fit: r.fit, rank: j + 1, of: rated.length, film: r.film.score }; });
       if (!best || rated[0].film.score > best.film.score) best = { g: rated[0].g, film: rated[0].film, gen };
       history.push({ gen, best: rated[0].fit, mean: rated.reduce((s, r) => s + r.fit, 0) / rated.length, g: rated[0].g.slice(), film: rated[0].film.score });
-      const elite = rated.slice(0, ELITE).map(r => r.g), sigma = .14 * Math.pow(.97, gen); const next = elite.map(g => g.slice());
-      while (next.length < P) { const a = elite[Math.floor(R() * elite.length)], b = elite[Math.floor(R() * elite.length)];
-        next.push(a.map((x, k) => { let y = R() < .5 ? x : b[k]; if (R() < .35) { y += (R() + R() + R() - 1.5) * sigma * 2; } return Math.min(1, Math.max(0, y)); })); }
-      pop = next; gen++; return history[history.length - 1]; }
-    return { step, get best() { return best; }, get history() { return history; }, get pop() { return pop; } };
+      const elite = rated.slice(0, ELITE).map(r => r.g), sigma = .14 * Math.pow(.97, gen); const next = elite.map(g => g.slice()), nextIds = rated.slice(0, ELITE).map(r => r.id);
+      while (next.length < P) { const ai = Math.floor(R() * elite.length), bi = Math.floor(R() * elite.length), a = elite[ai], b = elite[bi], cross = [], mut = [];
+        next.push(a.map((x, k) => { let y = R() < .5 ? x : b[k]; if (y !== x) cross.push(k); const y0 = y; if (R() < .35) { y += (R() + R() + R() - 1.5) * sigma * 2; } y = Math.min(1, Math.max(0, y)); if (y !== y0) mut.push({ k, from: y0, to: y }); return y; }));
+        const id = ++uid; nextIds.push(id); births[id] = { kind: 'child', gen: gen + 1, parents: ai === bi ? [nextIds[ai]] : [nextIds[ai], nextIds[bi]], cross, mut }; }
+      pop = next; ids = nextIds; gen++; return history[history.length - 1]; }
+    // put a rule set into slot k by hand (the viewer kept a film, or a variant of it); returns its id
+    function adopt(k, g, birth) { pop[k] = g.slice(); const id = ++uid; ids[k] = id; births[id] = Object.assign({ gen }, birth); return id; }
+    const snapshot = () => ({ pop: pop.map(g => g.slice()), ids: ids.slice(), uid });
+    function restore(s) { pop = s.pop.map(g => g.slice()); ids = s.ids.slice(); uid = s.uid; }
+    return { step, adopt, snapshot, restore, get best() { return best; }, get history() { return history; }, get pop() { return pop; }, get ids() { return ids; }, get gen() { return gen; }, births, fits };
   }
   const api = { load, generate, critic, evolve, taste, lean, GENES, CRITIC, val, dot };
   if (typeof module !== 'undefined') module.exports = api; else root.MonteCinema = api;

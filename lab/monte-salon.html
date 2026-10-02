@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Monte Carlo Cinema</title>
+<meta name="description" content="Rules that make films from the archive, a critic that scores them, and a population of rules that evolves. Watch the films each generation keeps, mark shots, keep a film to breed from it.">
+<meta name="theme-color" content="#672F3B">
+<link rel="icon" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ivory:#F2E6CC; --ivory-2:#E7D7B5; --rose:#D8A5A0; --baize:#31564A; --baize-2:#284A3F; --oxblood:#672F3B; --butter:#E6C66B;
+  --ink:#292723; --ink-2:#574F45; --ebony:#101411; --gold:#B99A5B; --on-baize:#E4D9BE;
+  --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif; --sans:'Jost','Avenir Next','Segoe UI',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --felt:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  color-scheme:light;
+}
+*{ box-sizing:border-box; }
+html{ -webkit-text-size-adjust:100%; }
+body{ margin:0; background:var(--rose); color:var(--ink); font:400 15px/1.45 var(--sans); -webkit-tap-highlight-color:transparent; }
+button{ font:inherit; color:inherit; }
+.mono,.num{ font-family:var(--mono); font-variant-numeric:tabular-nums; }
+.cap{ font:600 11px/1.2 var(--sans); letter-spacing:.14em; text-transform:uppercase; }
+:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; box-shadow:0 0 0 4px var(--butter); }
+.vh{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+/* buttons: rectangular, shallow relief, a label that says what happens */
+.btn{ min-height:38px; padding:6px 14px; border:1px solid var(--ink); border-radius:4px; background:var(--ivory); color:var(--ink); cursor:pointer;
+  font:500 14px/1.2 var(--sans); box-shadow:inset 0 -2px 0 rgba(41,39,35,.14), 0 1px 0 rgba(16,20,17,.25); display:inline-flex; align-items:center; justify-content:center; gap:7px; }
+.btn:hover{ background:#F7EEDB; } .btn:active{ transform:translateY(1px); box-shadow:inset 0 1px 0 rgba(41,39,35,.18); }
+.btn:disabled{ opacity:.45; cursor:default; transform:none; }
+.btn.primary{ background:var(--oxblood); color:var(--ivory); border-color:var(--ebony); box-shadow:inset 0 0 0 2px var(--oxblood), inset 0 0 0 3px rgba(242,230,204,.55), 0 1px 0 rgba(16,20,17,.35); font-weight:600; }
+.btn.primary:hover{ background:#74364A; }
+.btn[aria-pressed="true"]{ background:var(--butter); }
+.link{ background:none; border:0; padding:4px 0; cursor:pointer; text-decoration:underline; text-decoration-color:var(--gold); text-underline-offset:3px; }
+
+/* the table: one surface, one restrained double rule */
+.salon{ padding:22px 22px 28px; }
+.table{ max-width:1380px; margin:0 auto; background:var(--baize) var(--felt); border:1px solid var(--ebony); box-shadow:0 0 0 4px var(--rose), 0 0 0 5px var(--gold); }
+.titlebar{ display:flex; align-items:center; gap:14px; padding:8px 14px; background:var(--oxblood); color:var(--ivory); border-bottom:1px solid var(--ebony);
+  background-image:repeating-linear-gradient(180deg, rgba(242,230,204,.13) 0 1px, transparent 1px 4px); }
+.titlebar h1{ margin:0; padding:2px 10px; background:var(--oxblood); font:600 27px/1.05 var(--serif); letter-spacing:.01em; white-space:nowrap; }
+.titlebar h1 small{ font:500 11px var(--sans); letter-spacing:.14em; text-transform:uppercase; margin-left:10px; vertical-align:4px; opacity:.85; }
+.titlebar .counts{ margin-left:auto; padding:3px 10px; background:var(--oxblood); font:400 13px var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.counts .wide{ } @media (max-width:520px){ .counts .wide{ display:none; } }
+.titlebar a{ color:var(--ivory); padding:3px 8px; background:var(--oxblood); font-size:13px; }
+
+.work{ display:grid; grid-template-columns:minmax(340px,5fr) minmax(0,7fr); align-items:start; }
+/* inspector */
+.inspector{ background:var(--ivory); border-right:1px solid var(--ebony); box-shadow:1px 0 0 var(--gold); padding:16px; position:sticky; top:0; max-height:100vh; overflow:auto; }
+.mat{ background:var(--ink); padding:8px; border-radius:2px; box-shadow:inset 0 0 0 1px var(--ebony); }
+#screen{ position:relative; aspect-ratio:4/3; background:#17110f; overflow:hidden; cursor:pointer; border:0; padding:0; width:100%; display:block; }
+.lay{ position:absolute; inset:0; opacity:0; transition:opacity .6s ease; } .lay.on{ opacity:1; }
+.lay img,.lay video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
+#playstate{ position:absolute; left:8px; top:8px; padding:3px 8px; background:rgba(242,230,204,.92); color:var(--ink); border-radius:3px; font:500 12px var(--sans); }
+#flash{ position:absolute; right:10px; top:8px; padding:3px 9px; background:var(--butter); color:var(--ink); border-radius:3px; font:600 13px var(--sans); opacity:0; pointer-events:none; }
+.markbar{ display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:center; margin-top:10px; }
+.markbar .btn{ width:100%; } #where{ text-align:center; font:400 12.5px var(--mono); font-variant-numeric:tabular-nums; color:var(--ink-2); white-space:nowrap; }
+#cap{ min-height:2.6em; margin:10px 2px 4px; font:italic 500 19px/1.3 var(--serif); }
+#cap small{ display:block; font:400 12.5px var(--sans); font-style:normal; color:var(--ink-2); margin-top:2px; }
+.ihead{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; border-top:1px solid var(--ink); box-shadow:0 -3px 0 -2px var(--gold); padding-top:10px; margin-top:6px; }
+.ihead h2{ margin:0; font:600 22px/1.15 var(--serif); }
+.ihead .rid{ font:500 13px var(--mono); }
+.iacts{ display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 4px; }
+.conseq{ font-size:13px; color:var(--ink-2); margin:4px 0 0; }
+.crit{ width:100%; border-collapse:collapse; margin-top:8px; font-size:13.5px; }
+.crit th,.crit td{ padding:4px 6px; border-bottom:1px solid var(--ivory-2); text-align:right; font-variant-numeric:tabular-nums; }
+.crit th:first-child,.crit td:first-child{ text-align:left; } .crit thead th{ font:600 11px var(--sans); letter-spacing:.12em; text-transform:uppercase; color:var(--ink-2); border-bottom:1px solid var(--ink); }
+.crit td{ font-family:var(--mono); font-size:13px; } .crit td:first-child{ font-family:var(--sans); font-size:14px; } .crit tfoot td{ border-bottom:0; border-top:1px solid var(--ink); font-weight:500; }
+details.more > summary{ cursor:pointer; padding:8px 0; font-weight:500; }
+
+/* the population field */
+.field{ padding:16px 16px 18px; color:var(--ivory); min-width:0; }
+.ledger{ margin:0 0 14px; border:1px solid rgba(242,230,204,.55); outline:1px solid rgba(185,154,91,.55); outline-offset:-4px; padding:10px 14px; }
+.ledger div{ display:grid; grid-template-columns:96px minmax(0,1fr); gap:10px; padding:4px 0; border-bottom:1px solid rgba(242,230,204,.16); }
+.ledger div:last-child{ border-bottom:0; }
+.ledger dt{ font:600 11px/1.9 var(--sans); letter-spacing:.14em; text-transform:uppercase; color:var(--on-baize); }
+.ledger dd{ margin:0; font-size:14.5px; } .ledger dd b{ font-weight:600; } .ledger .num{ font-size:13.5px; }
+.secth{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:4px 0 8px; }
+.secth h2{ margin:0; font:600 21px var(--serif); color:var(--ivory); } .secth p{ margin:0; font-size:13px; color:var(--on-baize); text-align:right; }
+
+#sheet{ display:grid; gap:12px; }
+.spec{ container-type:inline-size; background:var(--ivory); color:var(--ink); border:1px solid var(--ebony); border-radius:3px; box-shadow:0 1px 0 rgba(16,20,17,.4); padding:12px; position:relative; }
+.spec.sel{ box-shadow:0 0 0 2px var(--butter), 0 0 0 3px var(--ebony); }
+.spec.fresh{ animation:fresh 1.6s ease-out 1; }
+@keyframes fresh{ 0%{ box-shadow:0 0 0 6px var(--butter), 0 0 0 7px var(--ebony); } 100%{ box-shadow:0 1px 0 rgba(16,20,17,.4); } }
+.spec.sel.fresh{ animation:none; }
+.spec-in{ display:grid; gap:8px 16px; }
+@container (min-width:620px){ .spec-in{ grid-template-columns:minmax(0,1fr) minmax(0,1.35fr); } .spec-in .cs{ grid-column:2; grid-row:1 / span 6; } }
+.spec-h{ display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; }
+.spec-h .no{ font:600 11px var(--sans); letter-spacing:.14em; text-transform:uppercase; color:var(--oxblood); }
+.spec-h .rid{ font:500 13px var(--mono); }
+.spec-h h3{ flex-basis:100%; margin:0; font:600 21px/1.15 var(--serif); cursor:pointer; }
+.tags{ display:flex; gap:6px; flex-wrap:wrap; }
+.tag{ font:600 10.5px/1 var(--sans); letter-spacing:.12em; text-transform:uppercase; padding:4px 6px; border:1px solid var(--ink); border-radius:2px; }
+.tag.on-sel{ background:var(--butter); } .tag.on-new{ background:var(--ivory); border-style:dashed; } .tag.on-insp{ background:var(--ink); color:var(--ivory); }
+.desc,.origin,.why{ margin:0; font-size:14px; } .origin{ color:var(--ink-2); } .why{ color:var(--ink-2); }
+.meas{ display:grid; grid-template-columns:auto 1fr; gap:2px 10px; margin:0; font-size:13.5px; align-items:baseline; }
+.meas dt{ font:600 10.5px var(--sans); letter-spacing:.12em; text-transform:uppercase; color:var(--ink-2); } .meas dd{ margin:0; }
+.meas b{ font:500 15px var(--mono); font-variant-numeric:tabular-nums; margin-right:6px; }
+.meas .n{ color:var(--ink-2); font-size:13px; }
+.sacts{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+
+/* contact sheet: one row per act, the actual frames in order */
+.cs{ background:var(--ink); padding:6px; border-radius:2px; display:grid; gap:4px; align-content:start; }
+.csrow{ display:grid; grid-template-columns:24px minmax(0,1fr); gap:5px; align-items:start; }
+.csrow > span{ font:500 11px/1 var(--mono); color:var(--on-baize); padding-top:5px; text-align:right; }
+.frames{ display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:3px; }
+.f{ position:relative; aspect-ratio:4/3; background:#3a332c; border:0; padding:0; cursor:pointer; overflow:hidden; display:block; }
+.f img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
+.f .b{ position:absolute; left:1px; top:1px; display:flex; gap:1px; }
+.f .b i{ font:600 9.5px/1 var(--mono); font-style:normal; background:var(--ivory); color:var(--ink); padding:2px 3px; border-radius:1px; }
+.f.card{ box-shadow:inset 0 0 0 1px var(--gold); }
+.f.no img{ filter:grayscale(1) brightness(.5); }
+.f.here{ outline:2px solid var(--butter); outline-offset:-2px; }
+.f.here::after{ content:''; position:absolute; inset:2px; border:1px solid var(--ink); pointer-events:none; }
+.legend{ font-size:12.5px; color:var(--on-baize); margin:8px 2px 0; } .legend .mono{ background:var(--ivory); color:var(--ink); padding:0 3px; border-radius:1px; font-size:11px; }
+.inspector .cs{ margin-top:8px; }
+
+/* the register: every rule set in the population, in compartments */
+.register{ margin-top:18px; }
+#reg{ display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:0; border:1px solid rgba(242,230,204,.7); box-shadow:0 0 0 3px var(--baize), 0 0 0 4px rgba(185,154,91,.6); background:var(--baize-2); }
+.cell{ border:0; border-right:1px solid rgba(242,230,204,.28); border-bottom:1px solid rgba(242,230,204,.28); background:none; color:var(--ivory); padding:7px 4px 6px; min-height:58px; cursor:pointer; text-align:center; display:grid; gap:2px; align-content:center; }
+.cell:hover{ background:rgba(242,230,204,.07); }
+.cell .i{ font:500 12.5px var(--mono); } .cell .v{ font:400 12px var(--mono); font-variant-numeric:tabular-nums; color:var(--on-baize); } .cell .k{ font:600 9.5px var(--sans); letter-spacing:.1em; text-transform:uppercase; color:var(--on-baize); }
+.cell[aria-pressed="true"]{ background:var(--ivory); color:var(--ink); box-shadow:inset 0 0 0 2px var(--butter); } .cell[aria-pressed="true"] .v,.cell[aria-pressed="true"] .k{ color:var(--ink-2); }
+.cell.shown .k::after{ content:' · No.' attr(data-no); }
+#regd{ margin-top:10px; padding:10px 12px; background:var(--ivory); color:var(--ink); border:1px solid var(--ebony); border-radius:3px; font-size:14px; display:none; }
+#regd.on{ display:block; } #regd p{ margin:0 0 8px; }
+
+/* toolbar */
+.toolbar{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:10px 14px; background:var(--ivory-2); color:var(--ink); border-top:1px solid var(--ebony); box-shadow:inset 0 1px 0 var(--gold); }
+#status{ margin-left:auto; font-size:13.5px; color:var(--ink-2); min-height:1.3em; text-align:right; }
+.empty{ padding:24px 12px; text-align:center; font:italic 500 18px var(--serif); color:var(--on-baize); }
+
+/* records sheet */
+.drawer{ position:fixed; inset:0; background:rgba(16,20,17,.55); display:none; z-index:20; padding:20px; }
+.drawer.open{ display:grid; grid-template-columns:minmax(0,1fr); place-items:center; }
+.rec{ background:var(--ivory); color:var(--ink); width:min(760px,100%); max-height:calc(100dvh - 40px); display:flex; flex-direction:column; border:1px solid var(--ebony); box-shadow:0 0 0 4px var(--ivory), 0 0 0 5px var(--gold); }
+.rec header{ display:flex; align-items:center; gap:12px; padding:8px 12px; background:var(--oxblood); color:var(--ivory); background-image:repeating-linear-gradient(180deg, rgba(242,230,204,.13) 0 1px, transparent 1px 4px); }
+.rec header h2{ margin:0; padding:0 8px; background:var(--oxblood); font:600 22px var(--serif); }
+.rec header .btn{ margin-left:auto; min-height:34px; }
+.rtabs{ flex-shrink:0; min-width:0; display:flex; gap:0; border-bottom:1px solid var(--ink); background:var(--ivory-2); overflow-x:auto; }
+.rtabs button{ border:0; border-right:1px solid rgba(41,39,35,.25); background:none; padding:10px 14px; cursor:pointer; font:500 14px var(--sans); white-space:nowrap; }
+.rtabs button[aria-selected="true"]{ background:var(--ivory); box-shadow:inset 0 3px 0 var(--butter); font-weight:600; }
+.rbody{ min-width:0; overflow:auto; padding:14px 16px 18px; }
+.pane{ display:none; } .pane.on{ display:block; }
+.rbody h3{ font:600 18px var(--serif); margin:12px 0 6px; } .rbody p{ margin:0 0 8px; font-size:14px; }
+.krow{ display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px 12px; padding:10px 0; border-bottom:1px solid var(--ivory-2); align-items:center; }
+.krow .strip{ grid-column:1 / -1; display:flex; height:30px; gap:1px; background:var(--ink); padding:2px; }
+.krow .strip i{ background:#3a332c center/cover; min-width:2px; }
+.taste{ display:grid; grid-template-columns:repeat(auto-fill,minmax(64px,1fr)); gap:4px; } .taste div{ aspect-ratio:4/3; background:#ccc center/cover; }
+.genes{ display:grid; grid-template-columns:1fr auto; gap:2px 12px; font-size:13.5px; } .genes b{ font:400 13px var(--mono); text-align:right; }
+.genes .bar{ grid-column:1 / -1; height:4px; background:var(--ivory-2); margin-bottom:5px; } .genes .bar i{ display:block; height:100%; background:var(--baize); }
+.sl{ display:grid; grid-template-columns:100px minmax(0,1fr) 44px; gap:8px; align-items:center; font-size:14px; } .sl input{ width:100%; accent-color:var(--oxblood); min-height:32px; } .sl b{ font:400 13px var(--mono); text-align:right; }
+#chart{ width:100%; max-width:100%; height:110px; display:block; background:var(--ivory); border:1px solid var(--ivory-2); }
+.prints{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+#print{ width:100%; background:#17110f; display:block; border:6px solid var(--ink); }
+.two{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:22px; } .two > div{ min-width:0; }
+
+@media (prefers-reduced-motion: reduce){ .lay{ transition:none; } .spec.fresh{ animation:none; } * { scroll-behavior:auto !important; } }
+
+/* narrow screens: the ornamental margins go first; the working surface keeps its size */
+@media (max-width:860px){
+  .salon{ padding:0; }
+  .table{ border:0; box-shadow:none; min-height:100dvh; display:flex; flex-direction:column; }
+  .titlebar{ padding:calc(6px + env(safe-area-inset-top)) 12px 6px; gap:8px; position:sticky; top:0; z-index:5; }
+  .titlebar h1{ font-size:22px; padding:2px 6px; } .titlebar h1 small{ display:none; } .titlebar .counts{ font-size:12px; padding:3px 6px; } .titlebar a{ display:none; }
+  .work{ grid-template-columns:minmax(0,1fr); flex:1; }
+  .inspector{ position:static; max-height:none; border-right:0; box-shadow:none; border-bottom:1px solid var(--ebony); padding:12px; }
+  .mat{ padding:5px; margin:0 -4px; }
+  .field{ padding:14px 12px 16px; }
+  .ledger{ padding:8px 10px; } .ledger div{ grid-template-columns:minmax(0,1fr); gap:0; } .ledger dt{ line-height:1.5; }
+  .btn{ min-height:44px; font-size:15px; }
+  .frames{ grid-template-columns:repeat(7,minmax(0,1fr)); }
+  #reg{ grid-template-columns:repeat(6,minmax(0,1fr)); }
+  @media (max-width:560px){ #reg{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+  .cell{ min-height:56px; }
+  .toolbar{ position:sticky; bottom:0; z-index:5; padding:6px 8px calc(6px + env(safe-area-inset-bottom)); display:grid; grid-template-columns:minmax(0,1.9fr) repeat(3,minmax(0,1fr)); gap:6px; }
+  .toolbar .btn{ padding:6px 4px; font-size:14.5px; } .toolbar #export{ display:none; }
+  #status{ grid-column:1 / -1; order:-1; margin:0; text-align:left; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-height:0; }
+  .drawer{ padding:0; } .rec{ width:100%; max-height:100dvh; height:100dvh; box-shadow:none; border:0; } .rec header{ padding-top:calc(8px + env(safe-area-inset-top)); }
+  .rbody{ padding-bottom:calc(18px + env(safe-area-inset-bottom)); }
+  .two{ grid-template-columns:minmax(0,1fr); }
+  .crit{ font-size:13px; }
+}
+@media (max-width:380px){ .frames{ grid-template-columns:repeat(6,minmax(0,1fr)); } #reg{ grid-template-columns:repeat(3,minmax(0,1fr)); } .markbar{ grid-template-columns:1fr 1fr; } #where{ grid-column:1 / -1; grid-row:2; } }
+</style></head><body>
+<div class="salon"><main class="table" id="table">
+  <header class="titlebar"><h1>Monte Carlo Cinema<small>Evolutionary workshop</small></h1><span class="counts" id="counts">Loading</span><a href="monte.html">Original view</a></header>
+  <div class="work">
+    <section class="inspector" id="inspector" aria-labelledby="ititle">
+      <div class="mat"><div id="screen" role="button" tabindex="0" aria-label="Play or pause the inspected film">
+        <div class="lay on" id="A"><img alt=""><video muted playsinline></video></div><div class="lay" id="B"><img alt=""><video muted playsinline></video></div>
+        <span id="playstate">Paused · tap to play</span><span id="flash" aria-hidden="true"></span></div></div>
+      <div class="markbar"><button class="btn" id="no" title="Mark the shot on screen: less like this (↓)">− Less like this</button><span id="where">—</span><button class="btn" id="yes" title="Mark the shot on screen: more like this (↑)">+ More like this</button></div>
+      <div id="cap" aria-live="off"></div>
+      <div class="ihead"><span class="cap">Inspecting</span><span class="rid mono" id="irid"></span><h2 id="ititle">—</h2></div>
+      <div class="iacts"><button class="btn" id="iplay">Play</button><button class="btn" id="ikeep">Keep this film</button></div>
+      <p class="conseq" id="iconseq">Keep saves the film to Kept and breeds the next generation from its rules: the rule set and 7 variants of it take the last places in the population.</p>
+      <details class="more" id="idet"><summary>Frames, origin and scores</summary><p class="desc" id="idesc"></p><div class="cs" id="ics"></div><p class="origin" id="iorigin" style="margin-top:8px"></p><table class="crit" id="icrit"></table></details>
+    </section>
+    <section class="field" aria-labelledby="poph">
+      <dl class="ledger" id="ledger"></dl>
+      <div class="secth"><h2 id="poph">Specimens</h2><p id="sheetnote">Films from the three best rule sets</p></div>
+      <div id="sheet"><div class="empty">Loading the archive’s material (about 3 MB)…</div></div>
+      <p class="legend"><span class="mono">T</span> title card · <span class="mono">“</span> spoken line · <span class="mono">↺</span> returns to the first image · <span class="mono">+</span> <span class="mono">−</span> your marks · one row per act</p>
+      <div class="register"><div class="secth"><h2>Population register</h2><p id="regnote"></p></div>
+        <div id="reg" role="group" aria-label="Rule sets in the population"></div><div id="regd" aria-live="polite"></div></div>
+    </section>
+  </div>
+  <footer class="toolbar" role="toolbar" aria-label="Evolution">
+    <button class="btn primary" id="next" disabled>Next generation</button>
+    <button class="btn" id="run" aria-pressed="false" disabled>Run</button>
+    <button class="btn" id="undo" disabled title="Undo the last Keep">Undo</button>
+    <button class="btn" id="records">Records</button>
+    <button class="btn" id="export">Export</button>
+    <span id="status" role="status" aria-live="polite"></span>
+  </footer>
+</main></div>
+<video id="voice" playsinline hidden></video><video id="music" playsinline hidden></video>
+<div class="drawer" id="dr" aria-hidden="true"><div class="rec" role="dialog" aria-modal="true" aria-labelledby="rech">
+  <header><h2 id="rech">Records</h2><button class="btn" id="close">Close</button></header>
+  <div class="rtabs" role="tablist"><button role="tab" data-p="pk" aria-selected="true">Kept</button><button role="tab" data-p="pt" aria-selected="false">Your marks</button><button role="tab" data-p="pw" aria-selected="false">Rules &amp; criteria</button><button role="tab" data-p="pp" aria-selected="false">Rendered prints</button></div>
+  <div class="rbody">
+    <div class="pane on" id="pk"><p id="ksum"></p><div class="iacts"><button class="btn" id="export2">Export kept, marks and population (JSON)</button><label class="btn" for="imp">Restore kept and marks from a file</label><input type="file" id="imp" accept="application/json,.json" class="vh"></div><div id="kept"></div></div>
+    <div class="pane" id="pt"><p>Each mark moves one direction in CLIP space. The critic’s <b>yours</b> criterion measures how far a film leans that way; rule sets evolve toward it. Keeping a film adds a small mark to its unmarked shots.</p>
+      <h3>More like this</h3><div class="taste" id="tyes"></div><h3>Less like this</h3><div class="taste" id="tno"></div><p style="margin-top:12px"><button class="btn" id="forget">Clear all marks</button></p></div>
+    <div class="pane" id="pw"><h3>Rule-set fitness by generation</h3><canvas id="chart" aria-label="Best and mean rule-set fitness per generation"></canvas><p class="conseq">Dark line: best rule set. Light line: population mean. Fitness is the mean critic score of each rule set’s best 3 of 6 sampled films.</p>
+      <div class="two"><div><h3>Rules of the leading rule set <span class="mono" id="lead"></span></h3><div class="genes" id="rules"></div></div><div><h3>Critic weights</h3><p>Changing a weight rescores the specimens now and applies to the next generation.</p><div id="critic"></div></div></div></div>
+    <div class="pane" id="pp"><p>Three films from the offline run, rendered to video with sound.</p><div class="prints"><button class="btn" data-k="0" aria-pressed="true">Print 1</button><button class="btn" data-k="1" aria-pressed="false">Print 2</button><button class="btn" data-k="2" aria-pressed="false">Print 3</button></div><video id="print" controls playsinline preload="none" src="monte/film-0.mp4"></video></div>
+  </div></div></div>
+<script src="monte/sim.js"></script>
+<script>
+(function () {
+  const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const MC = window.MonteCinema, W = { ...MC.CRITIC, yours: 0 }, VIDX = {}, ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } }, save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } };
+  let M = null, O = 0, S = { POP: 24, FILMS: 6, ELITE: 6, TRIALS: 4, SHOWN: 3, VARIANTS: 7 }, reg = [], hist = [], three = [], cur = 0, egen = 0, sheetChange = null;
+  let kept = load('monte-kept', []), marks = load('monte-marks', {}), insp = null, busy = false, running = false, undo = null, regSel = null, note = '', pendingNote = '';
+  const rid = id => id == null ? '—' : 'R-' + String(id).padStart(3, '0');
+  const dg = g => O + g + 1;                       // the engine counts from 0; generations shown count on from the offline run
+  const f3 = v => v == null ? '—' : v.toFixed(3);
+  const thumb = s => M.r2 + s.v.replace('/clips/', '/thumbnails/').replace('.mp4', '.jpg');
+  const gv = (k, x) => { const [, lo, hi] = MC.GENES[k], v = lo + (hi - lo) * x; return hi - lo > 3 ? v.toFixed(1) : v.toFixed(2); };
+  const status = t => { $('#status').textContent = t; };
+
+  // ---- the engine: a worker where possible, the page itself otherwise
+  let worker = null, inline = null, reqN = 0; const pending = {};
+  function settle(r) { const p = pending[r.req]; delete pending[r.req]; if (!p) return; if (r.gen != null) egen = r.gen; r.type === 'error' ? p.rej(new Error(r.message)) : p.res(r); }
+  function call(msg) { return new Promise((res, rej) => { const req = ++reqN; pending[req] = { res, rej }; msg = Object.assign({}, msg, { req });
+    if (worker) worker.postMessage(msg); else setTimeout(() => { let r; try { r = inline(msg); r.req = req; } catch (e) { r = { type: 'error', req, message: e.message }; } settle(r); }, 30); }); }
+  function startEngine(raw, g0) { const init = { type: 'init', material: raw, g0, W: { ...W }, marks };
+    const fallback = () => new Promise((res, rej) => { if (worker) { worker.terminate(); worker = null; } Object.keys(pending).forEach(k => delete pending[k]);
+      const s = document.createElement('script'); s.src = 'monte/engine.js'; s.onload = () => { inline = window.MonteEngine(MC); call(init).then(res, rej); }; s.onerror = rej; document.head.appendChild(s); });
+    try { worker = new Worker('monte/engine.js'); } catch (e) { worker = null; }
+    if (!worker) return { ready: fallback() };
+    const p = new Promise((res, rej) => { worker.onmessage = e => settle(e.data); worker.onerror = ev => { ev.preventDefault && ev.preventDefault(); rej(new Error('worker failed')); }; call(init).then(res, rej); });
+    return { ready: p.catch(fallback) };
+  }
+
+  // ---- describing films and rule sets, from what is recorded
+  function film(o) { MC.critic(M, o, W); return o; }
+  function titleOf(f) { const c = f.ev.find(e => e.kind === 'card' && e.act != null && !e.end); let t = c ? (M.shots[c.k].text || '') : '';
+    const tc = x => x === x.toUpperCase() ? x.toLowerCase().replace(/(^|[\s(“"-])([a-z])/g, (m, a, b) => a + b.toUpperCase()) : x;
+    t = t.split(' / ').map(x => tc(x.trim())).filter(Boolean).slice(0, 3).join(' ').replace(/\s+/g, ' ').trim();
+    if (t.length > 44) t = t.slice(0, 42).replace(/\s+\S*$/, '') + '…'; return t || `Untitled, ${actsOf(f)} acts`; }
+  const actsOf = f => new Set(f.ev.filter(e => e.act != null).map(e => e.act)).size;
+  function descOf(f) { const shots = f.ev.filter(e => e.kind === 'shot'), lines = shots.filter(e => e.line != null).length, acts = actsOf(f);
+    const silent = new Set(shots.filter(e => e.silent).map(e => e.act)).size, words = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven'];
+    let s = `${acts} acts · ${shots.length} shots · ${lines} spoken line${lines === 1 ? '' : 's'} · ${Math.round(f.seconds)} s.`;
+    if (shots.some(e => e.ret)) s += ' Returns to its first image.'; if (silent) s += ` ${words[silent] || silent} silent act${silent > 1 ? 's' : ''}.`;
+    if (!f.ev.some(e => e.end)) s += ' No end card.'; return s; }
+  function mutText(mut, n = 3) { if (!mut || !mut.length) return 'no rule changed'; const m = mut.slice().sort((a, b) => Math.abs(b.to - b.from) - Math.abs(a.to - a.from));
+    return m.slice(0, n).map(d => `${MC.GENES[d.k][3]} ${gv(d.k, d.from)} → ${gv(d.k, d.to)}`).join('; ') + (m.length > n ? `; ${m.length - n} more` : ''); }
+  function originOf(b, fit) { if (!b) return 'Origin not recorded.'; let s;
+    if (b.kind === 'saved') s = O ? `The saved rule set: the winner of ${O} offline generations.` : 'The saved rule set.';
+    else if (b.kind === 'variant') s = `${b.of === 'saved' ? 'Random variant of the saved rule set' : 'Variant of kept ' + rid(b.of)}, generation ${dg(b.gen)}: ${mutText(b.mut)}.`;
+    else if (b.kind === 'kept') s = `Kept by you${b.from != null ? ' from ' + rid(b.from) : ''}, generation ${dg(b.gen)}; rules unchanged.`;
+    else if (b.kind === 'child') s = (b.parents.length > 1 ? `Child of ${rid(b.parents[0])} × ${rid(b.parents[1])}, generation ${dg(b.gen)}; ${b.cross.length} rule${b.cross.length === 1 ? '' : 's'} from ${rid(b.parents[1])}` : `Mutated copy of ${rid(b.parents[0])}, generation ${dg(b.gen)}`) + `; ${b.mut.length ? 'mutated ' + mutText(b.mut) : 'no mutation'}.`;
+    else s = 'Random rule set.';
+    if (fit && fit.gen > b.gen) s += ` Retained through ${fit.gen - b.gen + 1} selection${fit.gen - b.gen ? 's' : ''}.`; return s; }
+  function fitText(fit) { return fit ? `rank ${fit.rank} of ${fit.of} in generation ${dg(fit.gen)}` : 'not yet tested in this session'; }
+  function whyOf(f) { const P = Object.entries(f.parts).filter(([k]) => W[k] > 0).sort((a, b) => b[1] - a[1]); if (!P.length) return '';
+    return `Strongest in ${P.slice(0, 2).map(p => `${p[0]} ${p[1].toFixed(2)}`).join(', ')}; weakest in ${P[P.length - 1][0]} ${P[P.length - 1][1].toFixed(2)}.`; }
+  const trialsText = f => f.note ? f.note : f.trials ? `best of ${f.trials.length} samples (${f.trials.map(t => t.toFixed(2)).join(', ')})` : 'a single sample';
+
+  // ---- contact sheet: the actual frames, one row per act
+  function contact(f, here) { const rows = new Map(); let open = [];
+    f.ev.forEach((e, n) => { if (e.act == null && !e.end) { open.push(n); return; } const a = e.end ? Math.max(...rows.keys(), 0) : e.act; if (!rows.has(a)) rows.set(a, open.splice(0)); rows.get(a).push(n); });
+    if (open.length) rows.set(0, open.concat(rows.get(0) || []));
+    return [...rows.entries()].sort((a, b) => a[0] - b[0]).map(([a, ns]) => `<div class="csrow"><span>${ROMAN[a] || a + 1}</span><div class="frames">${ns.map(n => { const e = f.ev[n], s = M.shots[e.k], m = marks[s.i];
+      const b = (e.kind === 'card' ? '<i>T</i>' : '') + (e.line != null ? '<i>“</i>' : '') + (e.ret ? '<i>↺</i>' : '') + (m === 1 ? '<i>+</i>' : m === -1 ? '<i>−</i>' : '');
+      const lab = `${e.kind === 'card' ? 'Title card' : 'Shot'} ${n + 1}: ${s.film || ''}${s.year ? ', ' + s.year : ''}${m === 1 ? ', marked more like this' : m === -1 ? ', marked less like this' : ''}`;
+      return `<button class="f ${e.kind}${m === -1 ? ' no' : ''}${n === here ? ' here' : ''}" data-n="${n}" aria-label="${esc(lab)}" title="${esc(lab)}" tabindex="-1"><img loading="lazy" alt="" src="${esc(thumb(s))}"><span class="b">${b}</span></button>`; }).join('')}</div></div>`).join(''); }
+
+  // ---- the main surface
+  function drawSheet(fresh = []) { const now = playing ? playN : -1;
+    $('#sheet').innerHTML = three.map((f, k) => { const sel = k === cur, ins = insp && insp.f === f;
+      return `<article class="spec${sel ? ' sel' : ''}${fresh.includes(k) && !reduce.matches ? ' fresh' : ''}" data-k="${k}" aria-label="Specimen ${k + 1}, ${esc(rid(f.id))}"><div class="spec-in">
+        <div class="spec-h"><span class="no">No. ${k + 1}</span><span class="rid">${rid(f.id)}</span><span class="tags">${sel ? '<span class="tag on-sel">Selected</span>' : ''}${ins ? '<span class="tag on-insp">In inspector</span>' : ''}${fresh.includes(k) ? '<span class="tag on-new">New on sheet</span>' : ''}</span><h3>${esc(f.title)}</h3></div>
+        <p class="desc">${esc(f.desc)}</p>
+        <div class="cs">${contact(f, ins ? now : -1)}</div>
+        <dl class="meas"><dt>This film</dt><dd><b>${f3(f.score)}</b><span class="n">critic score, ${esc(trialsText(f))}</span></dd>
+          <dt>Rule set</dt><dd><b>${f.fit ? f3(f.fit.fit) : '—'}</b><span class="n">fitness, ${esc(fitText(f.fit))}</span></dd></dl>
+        <p class="origin">${esc(originOf(f.birth, f.fit))}</p>
+        <p class="why">${esc(whyOf(f))}</p>
+        <div class="sacts"><button class="btn" data-a="inspect">${ins ? (playing ? 'Pause' : 'Play') : 'Inspect'}</button><button class="btn" data-a="keep" ${busy ? 'disabled' : ''}>Keep</button></div>
+        ${sel ? '<p class="conseq">Keep saves this film and breeds the next generation from its rules.</p>' : ''}</div></article>`; }).join('') || '<div class="empty">No specimens yet.</div>';
+    $$('#sheet .spec').forEach(d => { const k = +d.dataset.k;
+      d.onclick = ev => { const b = ev.target.closest('button'); if (b && b.dataset.a === 'keep') return keep(three[k]);
+        if (b && b.dataset.a === 'inspect') { if (insp && insp.f === three[k]) return toggle(); cur = k; return inspect(three[k], 0, true); }
+        if (b && b.classList.contains('f')) { cur = k; return inspect(three[k], +b.dataset.n, true); }
+        if (k !== cur) { cur = k; drawSheet(); } }; }); }
+  const lastTested = () => { const h = hist[hist.length - 1]; return h && h.gen != null ? dg(h.gen) : null; };
+  function drawLedger() { const h = hist[hist.length - 1], hp = hist[hist.length - 2], crit = Object.entries(W).filter(([, v]) => v > 0), tw = crit.reduce((a, [, v]) => a + v, 0);
+    const rows = [];
+    if (h && h.gen != null) rows.push(['Tested', `Generation <b>${dg(h.gen)}</b>: ${S.POP} rule sets, ${S.FILMS} sampled films each (${S.POP * S.FILMS} films). Best fitness <span class="num">${f3(h.best)}</span>${hp ? ` (${h.best - hp.best >= 0 ? '+' : '−'}${Math.abs(h.best - hp.best).toFixed(3)})` : ''}, mean <span class="num">${f3(h.mean)}</span>.`]);
+    else rows.push(['Tested', O ? `Nothing yet in this session. Generations 1–${O} ran offline; their best rule set seeds this population.` : 'Nothing yet.']);
+    rows.push(['Survived', h && h.gen != null ? `The top ${S.ELITE} rule sets carried over unchanged; the other ${S.POP - S.ELITE} were replaced by their children.` : `${S.POP} rule sets wait: the saved rule set and ${S.POP - 1} random variants of it.`]);
+    rows.push(['Changed', esc(sheetChange || 'The specimens below are the offline run’s best films from the saved rule set.') + (note ? ' ' + esc(note) : '')]);
+    rows.push(['Criteria', crit.map(([k, v]) => `${k} <span class="num">${Math.round(v / tw * 100)}%</span>`).join(' · ')]);
+    const surv = reg.filter(r => r.fit && r.fit.gen === egen - 1).length;
+    rows.push(['Next', running ? `Running: generation ${dg(egen)} is being tested; Pause stops after it.` : `Next generation (${dg(egen)}) tests the ${S.POP} rule sets in the register below: ${surv ? surv + ' survivors and ' : ''}${S.POP - surv} untested.`]);
+    $('#ledger').innerHTML = rows.map(([t, d]) => `<div><dt>${t}</dt><dd>${d}</dd></div>`).join('');
+    const lt = lastTested(); $('#counts').innerHTML = `${lt ? `Gen ${lt}<span class="wide"> tested</span>` : `Gen ${O}<span class="wide"> (offline)</span>`} · Pop ${S.POP}<span class="wide"> · ${S.FILMS} films each</span>`;
+    $('#regnote').textContent = `${S.POP} rule sets · tap one to see where it came from`; }
+  function drawReg() { const shown = new Map(three.map((f, k) => [f.id, k + 1]));
+    $('#reg').innerHTML = reg.map((r, k) => { const t = r.fit && r.fit.gen === egen - 1, kind = t ? (k < S.ELITE ? 'survivor' : 'tested') : r.birth.kind === 'child' ? 'new child' : r.birth.kind;
+      return `<button class="cell${shown.has(r.id) ? ' shown' : ''}" data-no="${shown.get(r.id) || ''}" data-id="${r.id}" aria-pressed="${r.id === regSel}" aria-label="${rid(r.id)}, ${kind}${t ? ', fitness ' + f3(r.fit.fit) : ', untested'}"><span class="i">${rid(r.id)}</span><span class="v">${t ? f3(r.fit.fit) : 'untested'}</span><span class="k">${kind}</span></button>`; }).join('');
+    $$('#reg .cell').forEach(c => c.onclick = () => { regSel = regSel === +c.dataset.id ? null : +c.dataset.id; drawReg(); });
+    const r = reg.find(x => x.id === regSel), d = $('#regd'); d.classList.toggle('on', !!r);
+    if (r) { d.innerHTML = `<p><b class="mono">${rid(r.id)}</b> · ${r.fit ? `fitness <span class="mono">${f3(r.fit.fit)}</span>, ${esc(fitText(r.fit))}` : 'untested'}.</p><p>${esc(originOf(r.birth, r.fit))}</p><button class="btn" id="sample">Sample one film from ${rid(r.id)}</button>`;
+      $('#sample').onclick = () => { const f = film(MC.generate(M, r.g, Math.floor(Math.random() * 1e9))); Object.assign(f, { id: r.id, g: r.g.slice(), birth: r.birth, fit: r.fit, trials: null, note: 'a single sample, not the best of several' }); f.title = titleOf(f); f.desc = descOf(f); inspect(f, 0, true); }; } }
+  function drawInspector() { const f = insp && insp.f; if (!f) return;
+    $('#irid').textContent = rid(f.id) + (f.sheetGen != null ? ` · generation ${dg(f.sheetGen)}` : ''); $('#ititle').textContent = f.title; $('#idesc').textContent = `${f.desc} Critic score ${f3(f.score)}, ${trialsText(f)}.`;
+    $('#ics').innerHTML = contact(f, playN); $('#iorigin').textContent = originOf(f.birth, f.fit) + (three.includes(f) ? '' : ' Not on the current sheet; it stays here until you inspect another.');
+    const crit = Object.entries(W).filter(([, v]) => v > 0), tw = crit.reduce((a, [, v]) => a + v, 0);
+    $('#icrit').innerHTML = `<thead><tr><th>Criterion</th><th>Weight</th><th>Measured</th><th>Adds</th></tr></thead><tbody>${crit.map(([k, v]) => `<tr><td>${k}</td><td>${Math.round(v / tw * 100)}%</td><td>${(f.parts[k] || 0).toFixed(2)}</td><td>${(v / tw * (f.parts[k] || 0)).toFixed(3)}</td></tr>`).join('')}</tbody><tfoot><tr><td>Critic score</td><td></td><td></td><td>${f3(f.score)}</td></tr></tfoot>`;
+    $('#iplay').textContent = playing ? 'Pause' : playN > 0 ? 'Resume' : 'Play'; $('#ikeep').disabled = busy;
+    const e = f.ev[Math.max(0, playN)], s = e && M.shots[e.k];
+    $('#where').textContent = `${Math.max(0, playN) + 1} / ${f.ev.length}`; $('#where').title = s ? `${e.kind === 'card' ? 'Title card' : 'Shot'} from ${s.film}` : '';
+    $('#yes').disabled = $('#no').disabled = playN < 0;
+    $('#playstate').textContent = playing ? 'Playing · tap to pause' : 'Paused · tap to play'; }
+  function ui() { $('#next').disabled = busy || running || !M; $('#run').disabled = !M; $('#run').textContent = running ? 'Pause' : 'Run'; $('#run').setAttribute('aria-pressed', running);
+    $('#undo').disabled = busy || !undo; $$('#sheet [data-a="keep"]').forEach(b => b.disabled = busy); $('#ikeep').disabled = busy || !insp; }
+  const drawAll = (fresh) => { drawSheet(fresh); drawReg(); drawLedger(); drawInspector(); ui(); };
+
+  // ---- evolution
+  async function nextGen() { if (busy || !M) return; busy = true; ui(); status(`Testing generation ${dg(egen)}: ${S.POP * S.FILMS} films…`);
+    try { const r = await call({ type: 'step' }); apply(r); status(`Generation ${dg(r.hist.gen)} tested.${running ? ' Running.' : ''}`); }
+    catch (e) { running = false; status('The generation could not be run: ' + e.message); }
+    busy = false; ui(); drawLedger(); if (running) setTimeout(nextGen, 150); }
+  function apply(r) { const before = three.map(f => f.id); hist.push(r.hist); reg = r.reg; note = pendingNote; pendingNote = '';
+    three = r.three.map(o => { const f = film(o), b = reg.find(x => x.id === f.id); f.birth = b && b.birth; f.fit = b && b.fit; f.sheetGen = r.hist.gen; f.title = titleOf(f); f.desc = descOf(f); return f; });
+    const fresh = three.map((f, k) => before.includes(f.id) ? -1 : k).filter(k => k >= 0);
+    sheetChange = fresh.length ? `${fresh.length === three.length ? 'All three specimens are' : fresh.map(k => 'No. ' + (k + 1)).join(' and ') + (fresh.length > 1 ? ' are' : ' is')} new to the sheet: ${fresh.map(k => `${rid(three[k].id)} (${originOf(three[k].birth).split(';')[0].replace(/\.$/, '')})`).join('; ')}.` + (fresh.length < three.length ? ' The others are the same rule sets with new film samples.' : '')
+      : 'Same three rule sets as before; each shows a new film sample.';
+    if (cur >= three.length) cur = 0; drawAll(fresh); }
+  async function keep(f) { if (busy || !f) return;
+    undo = { kept: kept.slice(), marks: { ...marks }, three, cur, hist: hist.length, reg, sheetChange, title: f.title };
+    // a kept film's shots lean the taste a little toward it; the others on the sheet, a little away
+    const nudge = (x, w) => x.ev.forEach(e => { if (e.kind !== 'shot') return; const i = M.shots[e.k].i; if (marks[i] === 1 || marks[i] === -1) return; marks[i] = +((marks[i] || 0) + w).toFixed(2); });
+    nudge(f, .3); if (three.includes(f)) three.forEach(x => x !== f && nudge(x, -.1)); save('monte-marks', marks); retaste();
+    kept.unshift({ g: f.g.map(x => +x.toFixed(4)), seed: f.seed, score: +f.score.toFixed(3), at: dg(f.sheetGen != null ? f.sheetGen : egen - 1), id: f.id, title: f.title }); kept = kept.slice(0, 40); save('monte-kept', kept);
+    busy = true; ui(); status(`Kept “${f.title}”. Breeding from ${rid(f.id)}…`);
+    try { const r = await call({ type: 'keep', g: f.g, id: f.id }); reg = r.reg; } catch (e) { status('Keep failed: ' + e.message); busy = false; ui(); return; }
+    busy = false; pendingNote = `You kept ${rid(f.id)}; its rules and ${S.VARIANTS} variants took the last places in the population.`; nextGen(); }
+  async function undoKeep() { if (!undo || busy) return; running = false; busy = true; ui();
+    try { const r = await call({ type: 'undo' }); reg = r.reg; } catch (e) { status('Undo failed: ' + e.message); busy = false; ui(); return; }
+    kept = undo.kept; marks = undo.marks; three = undo.three; cur = undo.cur; hist.length = undo.hist; sheetChange = undo.sheetChange; note = `Undone: “${undo.title}” removed from Kept and the population restored to before it; the generations since were discarded.`;
+    save('monte-kept', kept); save('monte-marks', marks); retaste(); undo = null; busy = false; drawAll(); status('Keep undone.'); }
+
+  // ---- taste and the critic
+  function retaste() { MC.taste(M, marks); W.yours = M.taste ? Math.max(W.yours, .2) : 0; rescore(); call({ type: 'critic', W: { ...W }, marks }).then(r => { reg = r.reg; drawReg(); }).catch(() => { }); }
+  function rescore() { three.forEach(f => MC.critic(M, f, W)); if (insp && !three.includes(insp.f)) MC.critic(M, insp.f, W); }
+  function mark(w) { const f = insp && insp.f, e = f && f.ev[playN]; if (!e) return; const i = M.shots[e.k].i; marks[i] = marks[i] === w ? 0 : w; if (!marks[i]) delete marks[i]; save('monte-marks', marks); retaste();
+    const fl = $('#flash'); fl.textContent = marks[i] ? (w > 0 ? '+ More like this' : '− Less like this') : 'Mark cleared'; fl.style.transition = 'none'; fl.style.opacity = 1;
+    requestAnimationFrame(() => { fl.style.transition = 'opacity 1.2s ease-in .4s'; fl.style.opacity = 0; });
+    status(`${marks[i] ? (w > 0 ? 'Marked more like this' : 'Marked less like this') : 'Mark cleared'}: frame ${playN + 1}, ${M.shots[e.k].film}. Scores updated.`); drawSheet(); drawInspector(); }
+
+  // ---- the inspector's screen: two layers, each piece dissolving into the next once it is ready
+  let pt = null, playing = null, playN = -1, front = 'A';
+  function stage(e, ready) { const back = front === 'A' ? 'B' : 'A', L = $('#' + back), img = L.querySelector('img'), v = L.querySelector('video'), s = M.shots[e.k]; let done = false;
+    const fin = () => { if (done) return; done = true; ready(back); };
+    if (e.kind === 'card') { v.pause(); v.removeAttribute('src'); v.style.opacity = 0; img.onload = fin; img.src = thumb(s); if (img.complete) fin(); }
+    else { img.src = thumb(s); v.style.opacity = 0; v.src = M.r2 + s.v;
+      v.onloadedmetadata = () => { try { v.currentTime = Math.max(0, v.duration / 2 - e.dur / 2); } catch (x) { } };
+      v.onseeked = () => { v.onseeked = null; v.play().then(() => { v.style.opacity = 1; fin(); }).catch(fin); }; }
+    setTimeout(fin, 1500); }
+  function still(e) { const L = $('#' + front), img = L.querySelector('img'), v = L.querySelector('video'); v.pause(); v.removeAttribute('src'); v.style.opacity = 0; img.src = thumb(M.shots[e.k]); }
+  function swap(to) { $('#A').classList.toggle('on', to === 'A'); $('#B').classList.toggle('on', to === 'B'); const was = front; front = to; setTimeout(() => { if (front !== was) $('#' + was).querySelector('video').pause(); }, 700); }
+  function caption(e) { const s = M.shots[e.k], c = $('#cap');
+    c.innerHTML = e.line != null ? `“${esc(M.lines[e.line].text)}”<small>Spoken in ${esc(M.lines[e.line].film || '')}${M.lines[e.line].year ? ', ' + M.lines[e.line].year : ''} · picture from ${esc(s.film || '')}</small>` : `<small>${e.kind === 'card' ? 'Title card from ' : 'From '}${esc(s.film || '')}${s.year ? ', ' + s.year : ''}</small>`; }
+  function here(n) { playN = n; $$('#ics .f, #sheet .spec .f').forEach(t => t.classList.remove('here'));
+    const k = three.indexOf(insp.f); [...$$('#ics .f'), ...(k >= 0 ? $$(`#sheet .spec[data-k="${k}"] .f`) : [])].forEach(t => t.classList.toggle('here', +t.dataset.n === n)); drawInspectorLite(); }
+  function drawInspectorLite() { const f = insp.f, e = f.ev[Math.max(0, playN)]; $('#where').textContent = `${Math.max(0, playN) + 1} / ${f.ev.length}`; $('#yes').disabled = $('#no').disabled = playN < 0;
+    $('#playstate').textContent = playing ? 'Playing · tap to pause' : 'Paused · tap to play'; $('#iplay').textContent = playing ? 'Pause' : playN > 0 ? 'Resume' : 'Play';
+    $$('#sheet [data-a="inspect"]').forEach(b => { const k = +b.closest('.spec').dataset.k; b.textContent = three[k] === f ? (playing ? 'Pause' : 'Play') : 'Inspect'; }); }
+  function inspect(f, from = 0, autoplay = false, keepScroll = false) { stop(); insp = { f }; playN = from; still(f.ev[from]); caption(f.ev[from]); drawSheet(); drawInspector(); here(from);
+    if (!keepScroll && innerWidth <= 860) $('#inspector').scrollIntoView({ behavior: reduce.matches ? 'auto' : 'smooth', block: 'start' });
+    if (autoplay) play(f, from); }
+  function play(f, from = 0) { stop(); playing = f; const mus = $('#music'); mus.src = M.r2 + (M.music[f.music].v || ''); mus.volume = .7; mus.play().catch(() => { });
+    const step = n => { if (playing !== f) return; if (n >= f.ev.length) { stop(); here(0); return; } const e = f.ev[n];
+      stage(e, to => { if (playing !== f) return; swap(to); caption(e); here(n);
+        mus.volume = e.silent ? 0 : e.line != null ? .25 : .7;
+        if (e.line != null) { const L = M.lines[e.line], vo = $('#voice'); vo.src = M.r2 + (VIDX[L.i] || ''); vo.onloadedmetadata = () => { vo.currentTime = L.t0; vo.play().catch(() => { }); }; setTimeout(() => vo.pause(), (L.t1 - L.t0) * 1000 + 900); }
+        pt = setTimeout(() => step(n + 1), Math.max(600, e.dur * 1000 - 300)); }); };
+    drawInspectorLite(); step(from); }
+  function stop() { playing = null; clearTimeout(pt); ['#voice', '#music'].forEach(s => $(s).pause()); $$('.lay video').forEach(v => v.pause()); if (insp) drawInspectorLite(); }
+  function toggle() { if (!insp) return; playing ? stop() : play(insp.f, Math.max(0, playN)); }
+  $('#screen').onclick = toggle; $('#screen').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); toggle(); } };
+  $('#iplay').onclick = toggle; $('#ikeep').onclick = () => insp && keep(insp.f);
+  $('#yes').onclick = () => mark(1); $('#no').onclick = () => mark(-1);
+  $('#ics').onclick = ev => { const t = ev.target.closest('.f'); if (!t || !insp) return; const n = +t.dataset.n; if (playing) play(insp.f, n); else { playN = n; still(insp.f.ev[n]); caption(insp.f.ev[n]); here(n); } };
+
+  // ---- toolbar
+  $('#next').onclick = nextGen;
+  $('#run').onclick = () => { running = !running; ui(); drawLedger(); if (running) { status('Running: each generation follows the last until you pause.'); nextGen(); } else status(busy ? `Pausing after generation ${dg(egen)} finishes.` : 'Paused.'); };
+  $('#undo').onclick = undoKeep;
+  function exportAll() { const data = { app: 'Monte Carlo Cinema', exported: new Date().toISOString(), generation: dg(egen), population: reg.map(r => ({ id: rid(r.id), rules: Object.fromEntries(MC.GENES.map(([n], k) => [n, +gv(k, r.g[k])])), g: r.g.map(x => +x.toFixed(4)), birth: r.birth, fitness: r.fit })),
+      history: hist.filter(h => h.gen != null).map(h => ({ generation: dg(h.gen), best: +h.best.toFixed(4), mean: +h.mean.toFixed(4) })), critic: W, kept, marks };
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' })); a.download = `monte-carlo-cinema-g${dg(egen)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    status(`Exported ${kept.length} kept films, ${Object.keys(marks).length} marks and ${reg.length} rule sets.`); }
+  $('#export').onclick = exportAll; $('#export2').onclick = exportAll;
+  $('#imp').onchange = ev => { const file = ev.target.files[0]; if (!file) return; file.text().then(t => { const d = JSON.parse(t); if (!Array.isArray(d.kept)) throw new Error('no kept list in this file');
+      const seen = new Set(kept.map(k => k.seed + ':' + k.g.join())); d.kept.forEach(k => { if (k && Array.isArray(k.g) && !seen.has(k.seed + ':' + k.g.join())) kept.push(k); }); kept = kept.slice(0, 80);
+      Object.assign(marks, d.marks || {}); save('monte-kept', kept); save('monte-marks', marks); retaste(); drawKept(); drawSheet(); status(`Restored from ${file.name}.`); })
+    .catch(e => status('Could not restore: ' + e.message)); ev.target.value = ''; };
+
+  // ---- records
+  let lastFocus = null;
+  const closeAll = () => { if (!$('#dr').classList.contains('open')) return; $('#dr').classList.remove('open'); $('#dr').setAttribute('aria-hidden', 'true'); $('#print').pause(); lastFocus && lastFocus.focus(); };
+  function tab(p) { $$('.rtabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.p === p)); $$('.pane').forEach(x => x.classList.toggle('on', x.id === p));
+    if (p === 'pk') drawKept(); if (p === 'pt') drawTaste(); if (p === 'pw') { drawWorkings(); drawCritic(); } if (p !== 'pp') $('#print').pause(); }
+  $('#records').onclick = () => { stop(); lastFocus = document.activeElement; $('#dr').classList.add('open'); $('#dr').setAttribute('aria-hidden', 'false'); tab($('.rtabs [aria-selected="true"]').dataset.p); $('#close').focus(); };
+  $$('.rtabs button').forEach(b => b.onclick = () => tab(b.dataset.p));
+  $('#close').onclick = closeAll; $('#dr').onclick = ev => { if (ev.target.id === 'dr') closeAll(); };
+  function drawKept() { $('#ksum').textContent = kept.length ? `${kept.length} kept film${kept.length === 1 ? '' : 's'}, newest first. Kept films live in this browser, outside the population: replacing a generation never removes them.` : 'Nothing kept yet. Keep a specimen to save it here.';
+    $('#kept').innerHTML = kept.map((r, k) => { const f = MC.generate(M, r.g, r.seed); MC.critic(M, f, W); const t = r.title || titleOf(f);
+      return `<div class="krow"><div><b>${esc(t)}</b><br><span class="mono" style="font-size:13px">${r.id ? rid(r.id) + ' · ' : ''}generation ${r.at} · score when kept ${(+r.score).toFixed(3)} · now ${f3(f.score)}</span></div><button class="btn" data-k="${k}">Inspect</button>
+        <div class="strip" aria-hidden="true">${f.ev.map(e => `<i style="flex:${e.dur.toFixed(2)};background-image:url('${esc(thumb(M.shots[e.k]))}')"></i>`).join('')}</div></div>`; }).join('');
+    $$('#kept .btn').forEach(b => b.onclick = () => { const r = kept[+b.dataset.k], f = film(MC.generate(M, r.g, r.seed)); Object.assign(f, { id: r.id, g: r.g.slice(), birth: null, fit: null, note: `kept in generation ${r.at}` }); f.title = r.title || titleOf(f); f.desc = descOf(f); f.birth = { kind: 'kept', from: r.id, gen: r.at - O - 1 }; closeAll(); inspect(f, 0, true); }); }
+  function drawTaste() { const ix = new Map(M.shots.map(s => [s.i, s])), pick = w => Object.entries(marks).filter(([, v]) => v === w).slice(0, 36).map(([i]) => ix.get(i)).filter(Boolean);
+    const cell = s => `<div role="img" aria-label="${esc(s.film)}" style="background-image:url('${esc(thumb(s))}')"></div>`, y = pick(1), n = pick(-1);
+    $('#tyes').innerHTML = y.length ? y.map(cell).join('') : '<p>None yet. Press “More like this” while a shot is on screen.</p>';
+    $('#tno').innerHTML = n.length ? n.map(cell).join('') : '<p>None yet. Press “Less like this” while a shot is on screen.</p>'; }
+  function drawWorkings() { const r = reg[0]; if (!r) return; $('#lead').textContent = rid(r.id);
+    $('#rules').innerHTML = MC.GENES.map(([, , , say], k) => `<span>${esc(say)}</span><b>${gv(k, r.g[k])}</b><div class="bar"><i style="width:${(r.g[k] * 100).toFixed(0)}%"></i></div>`).join('');
+    const H = hist.filter(h => h.best != null), c = $('#chart'), d = devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight; if (!w || H.length < 2) return; c.width = w * d; c.height = h * d; const x = c.getContext('2d'); x.setTransform(d, 0, 0, d, 0, 0);
+    const lo = Math.min(...H.map(r => r.mean)) - .01, hi = Math.max(...H.map(r => r.best)) + .01, X = k => 8 + k / (H.length - 1) * (w - 16), Y = v => h - 8 - (v - lo) / (hi - lo) * (h - 16);
+    if (O && H.length > O) { x.strokeStyle = '#B99A5B'; x.setLineDash([3, 3]); x.beginPath(); x.moveTo(X(O - .5), 4); x.lineTo(X(O - .5), h - 4); x.stroke(); x.setLineDash([]); x.fillStyle = '#574F45'; x.font = '11px Jost, sans-serif'; x.fillText('offline | this session', Math.max(4, X(O - .5) - 52), 13); }
+    [['mean', '#B7A47E', 1.5], ['best', '#672F3B', 2]].forEach(([key, col, lw]) => { x.strokeStyle = col; x.lineWidth = lw; x.beginPath(); H.forEach((r, k) => k ? x.lineTo(X(k), Y(r[key])) : x.moveTo(X(k), Y(r[key]))); x.stroke(); }); }
+  function drawCritic() { $('#critic').innerHTML = Object.entries(W).map(([k, v]) => `<label class="sl"><span>${k}</span><input type="range" min="0" max="0.5" step="0.01" value="${v}" data-k="${k}"><b>${v.toFixed(2)}</b></label>`).join('');
+    $$('#critic input').forEach(i => { i.oninput = () => { W[i.dataset.k] = +i.value; i.nextElementSibling.textContent = (+i.value).toFixed(2); };
+      i.onchange = () => { rescore(); call({ type: 'critic', W: { ...W }, marks }).catch(() => { }); drawSheet(); drawInspector(); drawLedger(); status(`Critic weight ${i.dataset.k} set to ${(+i.value).toFixed(2)}; specimens rescored.`); }; }); }
+  $('#forget').onclick = () => { marks = {}; save('monte-marks', marks); retaste(); drawTaste(); drawSheet(); drawInspector(); status('All marks cleared.'); };
+  $$('.prints button').forEach(b => b.onclick = () => { $$('.prints button').forEach(x => x.setAttribute('aria-pressed', x === b)); $('#print').src = `monte/film-${b.dataset.k}.mp4`; $('#print').play().catch(() => { }); });
+
+  // ---- keys
+  addEventListener('keydown', e => { if ($('#dr').classList.contains('open')) { if (e.key === 'Escape') closeAll(); return; }
+    if (e.target.closest('input, textarea, select') || e.metaKey || e.ctrlKey || e.altKey || !M) return;
+    const onButton = e.target.closest('button, [role="button"]');
+    if (e.key === ' ' && !onButton) { e.preventDefault(); toggle(); }
+    else if (e.key === 'ArrowUp' && playN >= 0) { e.preventDefault(); mark(1); } else if (e.key === 'ArrowDown' && playN >= 0) { e.preventDefault(); mark(-1); }
+    else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && three.length) { cur = (cur + (e.key === 'ArrowRight' ? 1 : three.length - 1)) % three.length; drawSheet(); }
+    else if ('123'.includes(e.key) && three[+e.key - 1]) keep(three[+e.key - 1]);
+    else if (e.key === 'n' || e.key === 'N') nextGen(); });
+
+  const wide = matchMedia('(min-width:861px)'); $('#idet').open = wide.matches;
+  // ---- start: the material, the saved run, then the population
+  Promise.all([fetch('monte/material.json').then(r => r.json()), fetch('monte/evolution.json').then(r => r.json()).catch(() => null), fetch('aspect/video.json').then(r => r.json()).catch(() => ({}))]).then(async ([raw, ev, vids]) => {
+    const g0 = ev ? ev.genome : null, eng = startEngine(raw, g0);      // the worker copies the material before the page decodes it
+    M = MC.load(raw); M.lines.forEach(l => { if (vids[l.i]) VIDX[l.i] = vids[l.i][0]; }); M.music.forEach(x => { if (vids[x.i]) x.v = vids[x.i][0]; });
+    MC.taste(M, marks); W.yours = M.taste ? .2 : 0;
+    if (ev) { O = ev.generations.length; hist = ev.generations.map(h => ({ best: h.best, mean: h.mean })); }
+    let r; try { r = await eng.ready; } catch (e) { $('#sheet').innerHTML = `<div class="empty">The population could not be started: ${esc(e.message)}. Reload to try again.</div>`; return; }
+    reg = r.reg; S = r.sizes; egen = r.gen || 0; call({ type: 'critic', W: { ...W }, marks }).catch(() => { });
+    if (ev) { three = ev.best.slice(0, 3).map((b, k) => { const f = film(MC.generate(M, g0, b.seed)); Object.assign(f, { id: reg[0].id, g: g0.slice(), birth: reg[0].birth, fit: null, note: `offline: number ${k + 1} of 400 samples from this rule set` }); f.title = titleOf(f); f.desc = descOf(f); return f; });
+      insp = { f: three[0] }; drawAll(); inspect(three[0], 0, false, true); status('Ready. Next generation tests the population.'); }
+    else { drawAll(); nextGen().then(() => { if (three[0]) inspect(three[0], 0, false, true); }); }
+  }).catch(e => { $('#sheet').innerHTML = `<div class="empty">The archive’s material did not load (${esc(e.message)}). Reload to try again.</div>`; });
+})();
+</script></body></html>
