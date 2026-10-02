@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Monte Carlo Cinema</title>
+<meta name="description" content="Rules that make films, films that are scored, rules that adapt: a Monte Carlo cinema that evolves cuts from the archive's judged shots, title cards, spoken lines and music, scored with CLIP and CLAP.">
+<meta name="theme-color" content="#0b0908">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,300;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+:root{ --bg:#0b0908; --ink:#efe9dd; --dim:#8a8378; --faint:#2a2521; --gold:#e8c070; --red:#d0574f; --mint:#8fc3a6; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; }
+*{ box-sizing:border-box; } html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); font:12px var(--mono); } button,input{ font:inherit; color:inherit; }
+body{ display:grid; grid-template-rows:auto minmax(0,1fr); height:100dvh; overflow:hidden; }
+#bar{ display:flex; gap:12px; align-items:center; padding:calc(8px + env(safe-area-inset-top)) 14px 8px; border-bottom:1px solid var(--faint); flex-wrap:wrap; }
+#bar h1{ margin:0; font:600 14px var(--mono); letter-spacing:.16em; } #bar h1 span{ color:var(--gold); } #bar a{ color:var(--dim); text-decoration:none; font-size:10.5px; letter-spacing:.16em; }
+#gen{ margin-left:auto; color:var(--dim); }
+.b{ border:1px solid var(--faint); background:#151110; border-radius:14px; padding:7px 14px; cursor:pointer; letter-spacing:.12em; font-size:10.5px; } .b.on{ color:var(--gold); border-color:#5a4e33; } .b.main{ background:#e8c07022; color:var(--gold); border-color:#5a4e33; }
+#main{ display:grid; grid-template-columns:300px minmax(0,1fr) 300px; gap:0; min-height:0; }
+.col{ min-height:0; overflow:auto; padding:12px 14px; border-right:1px solid var(--faint); } .col:last-child{ border-right:0; }
+h2{ margin:0 0 8px; font:600 10px var(--mono); letter-spacing:.2em; color:var(--dim); text-transform:uppercase; } h2 i{ font-style:normal; color:#5f5951; letter-spacing:.04em; text-transform:none; }
+.rule{ display:grid; grid-template-columns:1fr 46px; gap:2px 8px; margin-bottom:6px; font-size:10.5px; } .rule .bar{ grid-column:1 / 3; height:4px; background:#1d1816; border-radius:2px; overflow:hidden; } .rule .bar i{ display:block; height:100%; background:var(--gold); transition:width .4s; } .rule b{ font-weight:500; text-align:right; color:var(--gold); }
+.slider{ display:grid; grid-template-columns:90px 1fr 34px; gap:8px; align-items:center; margin-bottom:6px; font-size:10.5px; } .slider input{ width:100%; accent-color:#e8c070; } .slider b{ font-weight:500; text-align:right; }
+#chart{ width:100%; height:150px; display:block; background:#100c0b; border:1px solid var(--faint); border-radius:4px; }
+#stage{ position:relative; background:#000; aspect-ratio:4/3; max-height:50dvh; margin:0 auto 10px; border:1px solid var(--faint); overflow:hidden; }
+#stage video, #stage img{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; } #stage .cap{ position:absolute; left:0; right:0; bottom:0; padding:18px 14px 10px; background:linear-gradient(transparent,#000c); font:italic 300 16px/1.35 var(--serif); text-align:center; }
+#stage .cap small{ display:block; font:10px var(--mono); color:#b5ad9f; font-style:normal; margin-top:3px; }
+#film{ scrollbar-width:thin; scrollbar-color:#3a332d transparent; display:flex; gap:4px; overflow-x:auto; padding-bottom:6px; } #film .e{ flex:none; width:96px; cursor:pointer; } #film .e img{ width:96px; height:72px; object-fit:cover; display:block; border:1px solid #2a2521; background:#111; }
+#film .e.card img{ border-color:#5a4e33; } #film .e.on img{ outline:2px solid var(--gold); } #film .e span{ display:block; font-size:9px; color:var(--dim); line-height:1.3; margin-top:2px; height:24px; overflow:hidden; } #film .e.ret span{ color:var(--mint); }
+#parts{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; margin:10px 0; } #parts div{ background:#151110; border:1px solid var(--faint); border-radius:4px; padding:6px; font-size:10px; color:var(--dim); } #parts b{ display:block; font:500 15px var(--mono); color:var(--ink); }
+#lines{ font:italic 300 14px/1.5 var(--serif); color:#cfc8bb; } #lines div{ margin-bottom:4px; } #lines small{ font:10px var(--mono); color:#5f5951; font-style:normal; }
+.note{ color:var(--dim); font-size:10.5px; line-height:1.5; margin:8px 0 12px; }
+video.won{ width:100%; display:block; border:1px solid var(--faint); background:#000; }
+.col{ min-width:0; } #tabs{ display:none; }
+@media (max-width:1000px){ body{ grid-template-rows:auto auto minmax(0,1fr); } #bar{ gap:8px; padding-left:16px; padding-right:16px; } #bar a{ display:none; } #gen{ order:9; width:100%; margin:0; font-size:10px; }
+  #tabs{ display:flex; border-bottom:1px solid var(--faint); } #tabs button{ flex:1; background:none; border:0; padding:9px 0; font-size:10.5px; letter-spacing:.16em; color:var(--dim); cursor:pointer; } #tabs button.on{ color:var(--gold); box-shadow:inset 0 -2px var(--gold); }
+  #main{ grid-template-columns:1fr; } .col{ display:none; border-right:0; padding:12px 16px; } .col.on{ display:block; } #stage{ max-height:38dvh; } #parts{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+</style></head><body>
+<div id="bar"><h1>MONTE CARLO <span>CINEMA</span></h1><button class="b main" id="go">EVOLVE</button><button class="b" id="reset">RESET</button><button class="b" id="play">▶ PREVIEW</button><span id="gen">reading the archive…</span><a href="wes.html">WES</a><a href="index.html#wall">LAB</a></div>
+<div id="tabs"><button data-c="c2" class="on">FILM</button><button data-c="c1">RULES · CRITIC</button><button data-c="c3">FITNESS · WINNER</button></div>
+<div id="main">
+  <div class="col" id="c1"><h2>The rules <i>· the best rule set now</i></h2><div id="rules"></div>
+    <h2 style="margin-top:14px">The critic <i>· what counts as good</i></h2><div id="critic"></div>
+    <p class="note">Move the critic and the rules adapt to it. The critic reads every film from its embeddings: CLIP for pictures and words, CLAP for music.</p></div>
+  <div class="col on" id="c2"><div id="stage"><img id="still" alt=""><video id="pv" muted playsinline></video><div class="cap" id="cap"></div></div>
+    <video id="voice" playsinline style="display:none"></video><video id="music" playsinline style="display:none"></video>
+    <h2>The best film so far <i id="fscore"></i></h2><div id="film"></div><div id="parts"></div><div id="lines"></div></div>
+  <div class="col" id="c3"><h2>Fitness <i>· best and mean rule set, by generation</i></h2><canvas id="chart"></canvas>
+    <p class="note" id="how">A rule set (18 numbers) makes films by chance from 906 judged shots and archival title cards, 2,600 spoken lines and 80 pieces of music. Each generation, every rule set makes six films; its best three are scored; the best rule sets survive, cross and mutate.</p>
+    <h2>The rendered winners <i>· offline, 40 generations</i></h2><div style="display:flex;gap:6px;margin-bottom:8px" id="wins"><button class="b on" data-k="0">FILM 1</button><button class="b" data-k="1">FILM 2</button><button class="b" data-k="2">FILM 3</button></div><video class="won" controls playsinline preload="metadata" src="monte/film-0.mp4"></video><p class="note" id="wonNote"></p></div>
+</div>
+<script src="monte/sim.js"></script>
+<script>
+(function () {
+  const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const MC = window.MonteCinema; let M = null, E = null, offline = false, running = false, W = { ...MC.CRITIC }, best = null;
+  const thumb = s => M.r2 + s.v.replace('/clips/', '/thumbnails/').replace('.mp4', '.jpg');
+  function drawRules(g) { $('#rules').innerHTML = MC.GENES.map(([n, lo, hi, say], k) => { const v = MC.val(g, k); return `<div class="rule"><span>${esc(say)}</span><b>${hi - lo > 3 ? v.toFixed(1) : v.toFixed(2)}</b><div class="bar"><i style="width:${(g[k] * 100).toFixed(0)}%"></i></div></div>`; }).join(''); }
+  function drawCritic() { $('#critic').innerHTML = Object.entries(W).map(([k, v]) => `<div class="slider"><span>${k}</span><input type="range" min="0" max="0.5" step="0.01" value="${v}" data-k="${k}"><b>${v.toFixed(2)}</b></div>`).join('');
+    $('#critic').querySelectorAll('input').forEach(i => i.oninput = () => { W[i.dataset.k] = +i.value; i.nextElementSibling.textContent = (+i.value).toFixed(2); reset(); }); }
+  function chart() { const c = $('#chart'), d = devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight; c.width = w * d; c.height = h * d; const g = c.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0);
+    const H = E ? E.history : []; if (!H.length) return; const lo = Math.min(...H.map(x => x.mean)) - .02, hi = Math.max(...H.map(x => x.best)) + .02, X = k => 8 + k / Math.max(1, H.length - 1) * (w - 16), Y = v => h - 10 - (v - lo) / (hi - lo) * (h - 20);
+    [['mean', '#5f5951'], ['best', '#e8c070']].forEach(([key, col]) => { g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); H.forEach((x, k) => k ? g.lineTo(X(k), Y(x[key])) : g.moveTo(X(k), Y(x[key]))); g.stroke(); });
+    g.fillStyle = '#8a8378'; g.font = '10px IBM Plex Mono'; g.fillText(hi.toFixed(3), 6, 12); g.fillText(lo.toFixed(3), 6, h - 2); }
+  function drawFilm(f) { if (!f) return; best = f; $('#fscore').textContent = `· ${f.score.toFixed(3)} · ${f.seconds.toFixed(0)} s · ${f.ev.length} pieces`;
+    $('#film').innerHTML = f.ev.map((e, n) => { const s = M.shots[e.k]; return `<div class="e ${e.kind}${e.ret ? ' ret' : ''}" data-n="${n}"><img src="${esc(thumb(s))}" alt=""><span>${e.kind === 'card' ? '“' + esc((s.text || '').replace(/ \/ /g, ' ')) + '”' : esc(s.film || '')}${e.ret ? ' · return' : ''}</span></div>`; }).join('');
+    $('#film').querySelectorAll('.e').forEach(d => d.onclick = () => preview(+d.dataset.n)); if (!playing) { $('#still').src = thumb(M.shots[f.ev[0].k]); $('#still').style.opacity = 1; }
+    $('#parts').innerHTML = Object.entries(f.parts).map(([k, v]) => `<div><b>${v.toFixed(2)}</b>${k}</div>`).join('');
+    $('#lines').innerHTML = f.ev.filter(e => e.line != null).map(e => `<div>“${esc(M.lines[e.line].text)}” <small>${esc(M.lines[e.line].film || '')}</small></div>`).join('') + `<div><small>music: ${esc(M.music[f.music].film)}</small></div>`; }
+  function tick() { if (!running) return; const h = E.step(); $('#gen').textContent = `generation ${h.gen + 1} · best rules ${h.best.toFixed(3)} · mean ${h.mean.toFixed(3)}`;
+    drawRules(h.g); chart(); if (!best || E.best.film !== best) drawFilm(E.best.film); setTimeout(tick, 30); }
+  function reset() { E = MC.evolve(M, { seed: Math.floor(Math.random() * 1e9), pop: 24, films: 6, critic: W }); best = null; $('#gen').textContent = 'generation 0'; chart(); }
+  $('#go').onclick = () => { if (offline) { offline = false; reset(); } running = !running; $('#go').textContent = running ? 'STOP' : 'EVOLVE'; $('#go').classList.toggle('on', running); if (running) tick(); };
+  $('#reset').onclick = () => { reset(); if (!running) $('#go').click(); };
+  // ---- preview: the best film, played from the archive itself (pictures, cards, voices, music), nothing rendered
+  let pt = null, playing = false;
+  function seekPlay(v, url, t, muted) { v.src = url; v.muted = muted; v.addEventListener('loadedmetadata', () => { try { v.currentTime = t < 0 ? Math.max(0, v.duration / 2 - 1) : t; } catch (e) { } v.play().catch(() => { }); }, { once: true }); }
+  function preview(from = 0) { if (!best) return; clearTimeout(pt); playing = true; $('#play').textContent = '■ STOP'; const f = best, mus = $('#music');
+    if (from === 0) seekPlay(mus, M.r2 + (M.music[f.music].v || ''), 0, false);
+    const step = n => { if (!playing || n >= f.ev.length) { stop(); return; } const e = f.ev[n], s = M.shots[e.k]; $('#film').querySelectorAll('.e').forEach((d, k) => d.classList.toggle('on', k === n));
+      const pv = $('#pv'), still = $('#still');
+      if (e.kind === 'card') { pv.pause(); pv.style.opacity = 0; still.src = thumb(s); still.style.opacity = 1; $('#cap').innerHTML = ''; }
+      else { still.style.opacity = 0; pv.style.opacity = 1; seekPlay(pv, M.r2 + s.v, -1, true); $('#cap').innerHTML = e.line != null ? `“${esc(M.lines[e.line].text)}”<small>${esc(M.lines[e.line].film || '')}</small>` : `<small>${esc(s.film || '')}${s.year ? ' · ' + s.year : ''}</small>`;
+        if (e.line != null) { const L = M.lines[e.line]; const vo = $('#voice'); seekPlay(vo, M.r2 + vUrl(L.i), L.t0, false); setTimeout(() => vo.pause(), (L.t1 - L.t0) * 1000 + 300); } }
+      mus.volume = e.silent ? 0 : e.line != null ? .3 : .8; pt = setTimeout(() => step(n + 1), e.dur * 1000); };
+    step(from); }
+  const VIDX = {}; const vUrl = i => VIDX[i] || '';
+  function stop() { playing = false; clearTimeout(pt); ['#pv', '#voice', '#music'].forEach(s => $(s).pause()); $('#play').textContent = '▶ PREVIEW'; }
+  $('#play').onclick = () => playing ? stop() : preview(0);
+  Promise.all([fetch('monte/material.json').then(r => r.json()), fetch('monte/evolution.json').then(r => r.json()).catch(() => null), fetch('aspect/video.json').then(r => r.json()).catch(() => ({}))]).then(([m, ev, vids]) => {
+    M = MC.load(m); M.lines.forEach(l => { if (vids[l.i]) VIDX[l.i] = vids[l.i][0]; }); M.music.forEach(x => { if (vids[x.i]) x.v = vids[x.i][0]; });
+    drawCritic(); reset();
+    if (ev) { drawRules(ev.genome); const f = MC.generate(M, ev.genome, ev.best[0].seed); MC.critic(M, f, W); drawFilm(f);
+      $('#wonNote').textContent = `Found offline in 40 generations; its rules, run 400 times, made these three films (scores ${ev.best.slice(0, 3).map(b => b.score).join(' · ')}). Every picture, card, voice and note is archival.`;
+      E.history.push(...ev.generations.map(h => ({ gen: h.gen, best: h.best, mean: h.mean, g: h.g, film: h.film }))); offline = true; chart(); $('#gen').textContent = `the offline run: ${ev.generations.length} generations · press EVOLVE to run your own`; }
+  });
+  document.querySelectorAll('#wins button').forEach(b => b.onclick = () => { document.querySelectorAll('#wins button').forEach(x => x.classList.toggle('on', x === b)); const v = document.querySelector('video.won'); v.src = `monte/film-${b.dataset.k}.mp4`; v.play().catch(() => { }); });
+  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b)); document.querySelectorAll('.col').forEach(c => c.classList.toggle('on', c.id === b.dataset.c)); chart(); });
+  addEventListener('resize', chart);
+})();
+</script></body></html>
