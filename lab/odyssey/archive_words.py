@@ -1,7 +1,8 @@
 """What the archive's people actually say. Every clip CLAP heard as speech (archive_ears.py) is transcribed with word timestamps
 (faster-whisper base.en, int8), so an Odyssey line can find the archival clip whose real words echo it. Resumable.
-Writes cache/ears/words.json {id: {"text", "words": [[w, t0, t1]...], "lang_p"}}.   usage: ../.venv/bin/python archive_words.py"""
-import json, os, subprocess, concurrent.futures as cf
+Writes cache/ears/words.json {id: {"text", "words": [[w, t0, t1]...], "lang_p"}}.   usage: ../.venv/bin/python archive_words.py [k n]
+With k n it transcribes only every n-th clip from the k-th (parallel workers) into words.<k>.json; "merge" folds those into words.json."""
+import json, os, sys, glob, subprocess, concurrent.futures as cf
 import numpy as np
 from faster_whisper import WhisperModel
 H = os.path.dirname(os.path.abspath(__file__)); E = os.path.join(H, "cache", "ears"); P = os.path.join(E, "words.json")
@@ -10,10 +11,18 @@ lib.update({s["id"]: s for s in json.load(open(os.path.join(os.path.dirname(H), 
 clips = {c["id"]: c for c in json.load(open(os.path.join(H, "results", "clips.json")))}
 url = lambda i: (lib.get(i) or {}).get("video") or (clips.get(i) or {}).get("videoUrl")
 out = json.load(open(P)) if os.path.exists(P) else {}
+if sys.argv[1:] == ["merge"]:
+    for f in glob.glob(os.path.join(E, "words.*.json")): out.update(json.load(open(f)))
+    json.dump(out, open(P, "w")); print("merged", len(out)); sys.exit()
+SH = (int(sys.argv[1]), int(sys.argv[2])) if len(sys.argv) > 2 else None
+if SH:
+    P = os.path.join(E, f"words.{SH[0]}.json"); mine = json.load(open(P)) if os.path.exists(P) else {}
+    out.update(mine)
 A = os.path.join(H, "cache", "aud")
-todo = [f[:-5] for f in sorted(os.listdir(A)) if f.endswith(".flac") and f[:-5] not in out]   # every clip with sound: a transcript for each (the voice filter skips silence)
+todo = [f[:-5] for f in sorted(os.listdir(A)) if f.endswith(".flac") and f[:-5] not in out]
+if SH: todo = todo[SH[0]::SH[1]]; out = mine   # every clip with sound: a transcript for each (the voice filter skips silence)
 print(len(todo), "speaking clips to transcribe", flush=True)
-m = WhisperModel("base.en", device="cpu", compute_type="int8", cpu_threads=6)
+m = WhisperModel("base.en", device="cpu", compute_type="int8", cpu_threads=int(os.environ.get("WT", 6)))
 import soundfile as sf
 def pcm(i):
     try:

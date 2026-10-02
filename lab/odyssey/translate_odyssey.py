@@ -11,6 +11,7 @@ import glob, json, os, re
 from nltk.corpus import wordnet as wn
 H = os.path.dirname(os.path.abspath(__file__)); E = os.path.join(H, "cache", "ears")
 words = json.load(open(os.path.join(E, "words.json")))
+for f in glob.glob(os.path.join(E, "words.*.json")): words.update(json.load(open(f)))   # workers still transcribing
 lib = {s["id"]: s for s in json.load(open(os.path.join(H, "all", "library.json")))["shots"]}
 lib.update({s["id"]: s for s in json.load(open(os.path.join(os.path.dirname(H), "markov", "library.json")))["shots"] if s.get("kind") != "poet"})
 norm = lambda w: re.sub(r"[^a-z0-9']", "", w.lower()).strip("'")
@@ -85,7 +86,9 @@ def translate(text, mode):
         if b[0] == "run":
             _, s, n, i, p, pairs = b; ws = seq[i][p:p + n]
             kinp = [[h, a] for h, a in pairs if h != a and a not in inflections(h) | {h}]
-            out.append({"id": i, "t0": round(max(0, ws[0][1] - .04), 2), "t1": round(ws[-1][2] + .06, 2), "words": " ".join(w[0] for w in ws), "homer": " ".join(h for h, _ in pairs), "kin": kinp}); k = s
+            S = seq[i]; pe = S[p - 1][2] if p > 0 else 0.0; ns = S[p + n][1] if p + n < len(S) else ws[-1][2] + .4   # open and close in the speaker's own silence
+            t0 = max(0.0, ws[0][1] - min(.18, max(.03, (ws[0][1] - pe) * .5))); t1 = ws[-1][2] + min(.25, max(.05, (ns - ws[-1][2]) * .5))
+            out.append({"id": i, "t0": round(t0, 2), "t1": round(t1, 2), "words": " ".join(w[0] for w in ws), "homer": " ".join(h for h, _ in pairs), "kin": kinp}); k = s
         elif b[0] == "gap": out.append({"gap": tokens[b[1]]}); k = b[1]
         else: out.append({"elided": tokens[b[1]]}); k = b[1]
     out.reverse()
@@ -114,3 +117,5 @@ import statistics as st
 for m, v in stats.items():
     print(f"{m:12s} fidelity {st.mean(x['fidelity'] for x in v):.2f} · cuts per line {st.mean(x['cuts'] for x in v):.1f} · voices {st.mean(x['voices'] for x in v):.1f} · gaps {st.mean(x['gaps'] for x in v):.2f} · elided {st.mean(x['elided'] for x in v):.2f}")
 print("sense echoes on", sum(1 for v in found.values() for u in v if u["modes"]["sense"]), "lines · clips", len(clips))
+import subprocess, sys
+subprocess.run([sys.executable, os.path.join(H, "spoken_odyssey.py")])   # then the spoken mode: whole utterances (adds modes.spoken)
