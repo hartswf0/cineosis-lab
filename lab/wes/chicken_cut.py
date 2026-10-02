@@ -69,7 +69,11 @@ for n, (kind, a, v0, v1, a0, a1, txt, job) in enumerate(EDIT):
     t += dur
 lst = os.path.join(T, "ck_list.txt"); open(lst, "w").write("".join(f"file '{p}'\n" for p in parts))
 out = os.path.join(D, "chicken-of-tomorrow-in-seven-steps.mp4")
-subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-f", "concat", "-safe", "0", "-i", lst, "-af", "loudnorm=I=-17:TP=-1.5", "-c:v", "libx264", "-preset", "slow", "-crf", "23", "-maxrate", "1600k", "-bufsize", "3200k", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", out], check=True)
+# one fixed gain for the whole film (two-pass, linear): a dynamic normalizer would lift the held silences back into speech
+_m = subprocess.run(["ffmpeg", "-hide_banner", "-f", "concat", "-safe", "0", "-i", lst, "-af", "loudnorm=I=-17:TP=-1.5:print_format=json", "-f", "null", "-"], capture_output=True, text=True).stderr
+_j = json.loads(_m[_m.rindex("{"):_m.rindex("}") + 1])
+LN = f"loudnorm=I=-17:TP=-1.5:linear=true:measured_I={_j['input_i']}:measured_TP={_j['input_tp']}:measured_LRA={_j['input_lra']}:measured_thresh={_j['input_thresh']}:offset={_j['target_offset']}"
+subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-f", "concat", "-safe", "0", "-i", lst, "-af", LN, "-c:v", "libx264", "-preset", "slow", "-crf", "23", "-maxrate", "1600k", "-bufsize", "3200k", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", out], check=True)
 json.dump({"title": "The Chicken of Tomorrow, in Seven Steps", "source": "Chicken of Tomorrow (1948), Bay State Film Productions, narrated by Lowell Thomas", "seconds": round(t, 1), "edit": table},
           open(os.path.join(D, "chicken-cut.json"), "w"), indent=1)
 print(f"wrote {out} · {t:.1f} s · {len(EDIT)} pieces · {os.path.getsize(out) / 1e6:.1f} MB")
