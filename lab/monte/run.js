@@ -15,6 +15,8 @@ for (let slot = 0; slot < 6; slot++) {   // each print: the best of many films t
     if (chap(f).length >= 3 && (!best || f.score > best.score)) best = f; }
   // as many prints as the material can make well, at least three
   if (!best || (films.length >= 3 && best.score < .82)) break; best.av = [...A]; best.sp = [...spent]; films.push(best);
+  const same = k => M.cards.filter(c => M.shots[c].text && M.shots[c].text === M.shots[k].text);   // the same card from another reel is the same card
+  best.ev.filter(e => e.kind === 'card' && !e.end).forEach(e => { spent.add(e.k); same(e.k).forEach(c => spent.add(c)); });
   chap(best).forEach(k => spent.add(k)); best.ev.filter(e => e.kind === 'shot').forEach(e => spent.add(e.k)); MC.starts(best).forEach(k => { A.add(k); M.cards.forEach(c => { if (M.shots[c].text && M.shots[c].text === M.shots[k].text) A.add(c); }); }); }   // the same card from another reel is the same opening
 const show = f => ({ seed: f.seed, score: +f.score.toFixed(3), parts: Object.fromEntries(Object.entries(f.parts).map(([k, v]) => [k, +v.toFixed(2)])), seconds: +f.seconds.toFixed(1),
   music: M.music[f.music], av: f.av, sp: f.sp, ev: f.ev.map(e => ({ kind: e.kind, i: M.shots[e.k].i, film: M.shots[e.k].film, year: M.shots[e.k].year, text: M.shots[e.k].text || null, score: M.shots[e.k].score,

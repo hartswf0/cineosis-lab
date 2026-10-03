@@ -13,7 +13,7 @@
     M.opening = M.cards.filter(k => /present|produced|picture|productions?|films?\b/i.test(M.shots[k].text) && !/\bend\b|einde|stop projector/i.test(M.shots[k].text) && !said(k));
     M.ending = M.cards.filter(k => /\bthe end\b|^end\b|einde/i.test(M.shots[k].text));
     M.middle = M.cards.filter(k => !M.opening.includes(k) && !M.ending.includes(k) && M.shots[k].score >= 5);
-    M.opening = M.opening.filter(k => M.shots[k].score >= 7); M.ending = M.ending.filter(k => M.shots[k].score >= 6 && /\bthe end\b/i.test(M.shots[k].text));   // Precisely So's floor: nothing the judge did not rate
+    M.opening = M.opening.filter(k => M.shots[k].score >= 7 && M.shots[k].text.split(' / ').length <= 6 && !/credits|cast of|direction|screenplay|photography|edited|narrated/i.test(M.shots[k].text));   // an opening, not a credit roll M.ending = M.ending.filter(k => M.shots[k].score >= 6 && /\bthe end\b/i.test(M.shots[k].text));   // Precisely So's floor: nothing the judge did not rate
     M.good = M.plain.filter(k => M.shots[k].score >= 7);
     // the story grammar. Precisely So worked because its cards, in order, told one: an invitation, a voyage, a door that will not open,
     // "That night.", the King. Each middle card is read for the beat it can play and for how much it speaks (dialogue, I/you/we, a sentence)
@@ -73,7 +73,7 @@
     for (let a = 0; a < acts; a++) {
       let card = null;
       const told = story && plot[a] != null ? M.story[plot[a]].filter(k => !used.has(k) && !S.has(k) && !(a === 0 && A.has(k))) : [];
-      const cardScore = k => M.shots[k].score / 10 * v('wJudge') + (M.speaks.get(k) || 0) * v('wSpeak') + (thread.has(M.shots[k].film) ? 1.5 * v('story') : 0) + (prev != null ? .5 * dot(M.CT[M.cardIx.get(k)], M.SE[prev]) * v('wText') : 0);
+      const cardScore = k => M.shots[k].score / 10 * v('wJudge') + (M.speaks.get(k) || 0) * v('wSpeak') + (thread.has(M.shots[k].film) ? 1.6 : 0) + (prev != null ? .5 * dot(M.CT[M.cardIx.get(k)], M.SE[prev]) * v('wText') : 0);
       if (told.length) card = pick(R, told, cardScore, temp);
       else if (M.middle.length && (a === 0 || R() < v('card'))) card = pick(R, sample(R, M.middle, 40).filter(k => !used.has(k) && !S.has(k) && !(a === 0 && A.has(k))), cardScore, temp);
       if (card != null && M.beat.has(card)) thread.add(M.shots[card].film);   // a story, once begun, keeps to its own cards where it can
