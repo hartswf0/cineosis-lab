@@ -11,7 +11,7 @@ pool.sort((a, b) => b.score - a.score);
 // the prints: the best films that tell different stories (no chapter card shared), each beginning differently
 const films = [], spent = new Set(), A = new Set(), chap = f => f.ev.filter(e => e.kind === 'card' && !e.end && M.middle.includes(e.k)).map(e => e.k);
 for (let s = 0; films.length < 5 && s < 4000; s++) { const f = MC.generate(M, b.g, 9000 + s, new Set(A), new Set(spent)); MC.critic(M, f);
-  if (f.score < pool[Math.min(40, pool.length - 1)].score) continue; f.av = [...A]; f.sp = [...spent]; films.push(f); chap(f).forEach(k => spent.add(k)); MC.starts(f).forEach(k => A.add(k)); }
+  if (f.score < pool[Math.min(120, pool.length - 1)].score) continue; f.av = [...A]; f.sp = [...spent]; films.push(f); chap(f).forEach(k => spent.add(k)); MC.starts(f).forEach(k => A.add(k)); }
 films.sort((a, b) => b.score - a.score);
 const show = f => ({ seed: f.seed, score: +f.score.toFixed(3), parts: Object.fromEntries(Object.entries(f.parts).map(([k, v]) => [k, +v.toFixed(2)])), seconds: +f.seconds.toFixed(1),
   music: M.music[f.music], av: f.av, sp: f.sp, ev: f.ev.map(e => ({ kind: e.kind, i: M.shots[e.k].i, film: M.shots[e.k].film, year: M.shots[e.k].year, text: M.shots[e.k].text || null, score: M.shots[e.k].score,
