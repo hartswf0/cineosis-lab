@@ -20,23 +20,28 @@ def frames(p):
     raw = subprocess.run(["ffmpeg", "-v", "quiet", "-i", p, "-vf", f"fps={SR},scale={SW}:{SH},format=gray", "-f", "rawvideo", "-"], capture_output=True).stdout
     return np.frombuffer(raw, np.uint8).reshape(-1, SH, SW).astype(np.float32)
 def moment(p, kind, need):
-    """(start, the frame to hold) in seconds. A card: the middle of its longest steady, fully-lit hold. A shot: the window of `need`
-    seconds, nearest the clip's middle, with no black, no fade and no cut inside it."""
+    """(start, the frame to hold) in seconds. The judge saw the clip's middle frame, so everything is anchored there. A card: the steady,
+    fully-lit stretch of the same card as the middle frame (nearest it), held at its middle, so never mid-fade and never the next card.
+    A shot: the window of `need` seconds around the middle with no black, no fade and no cut inside it."""
     f = frames(p); n = len(f)
     if n < 2: return 0.0, 0.0
-    lum, con = f.mean((1, 2)), f.std((1, 2)); diff = np.r_[0, np.abs(np.diff(f, axis=0)).mean((1, 2))]
-    up = (lum > 5) & (con > max(6, 0.6 * np.percentile(con, 90)))   # not black, and as crisp as the clip gets (a fade has less contrast)
+    m = n // 2; lum, con = f.mean((1, 2)), f.std((1, 2)); diff = np.r_[0, np.abs(np.diff(f, axis=0)).mean((1, 2))]
+    z = (f - lum[:, None, None]) / (con[:, None, None] + 1e-3); ref = z[m]; same = (z * ref).mean((1, 2))   # each frame against the judged one
+    up = (lum > 5) & (con > max(6, 0.6 * np.percentile(con, 90)))
     if kind == "card":
-        steady = up & (diff < 2.5); best, run, a = (0, 0), 0, 0
-        for k in range(n):
-            run = run + 1 if steady[k] else 0
-            if run and run > best[1]: best = (k - run + 1, run)
-        if best[1] == 0: k = int(np.argmax(con)); return k / SR, k / SR
-        k = best[0] + best[1] // 2; return k / SR, k / SR
-    w = max(1, int(round(need * SR))); good = up & (diff < 22)        # a jump this big is a cut or a flash
-    if n <= w: return 0.0, n / SR / 2
-    ok = np.convolve(good.astype(np.float32), np.ones(w), "valid") / w; mid = (n - w) / 2
-    score = ok - 0.15 * np.abs(np.arange(len(ok)) - mid) / max(1, mid)   # all-good first, then nearest the middle
+        if con[m] < 6: same[:] = 1                                   # the judged frame was black: any steady card will do
+        ok = up & (diff < 2.5) & (same > .7); runs, a = [], None
+        for k in range(n + 1):
+            if k < n and ok[k]: a = k if a is None else a
+            elif a is not None: runs.append((a, k - 1)); a = None
+        if not runs: return m / SR, m / SR
+        a, b = min(runs, key=lambda r: (0 if r[0] <= m <= r[1] else min(abs(r[0] - m), abs(r[1] - m)), -(r[1] - r[0])))
+        full = [k for k in range(a, b + 1) if con[k] >= .97 * con[a:b + 1].max()]; k = full[len(full) // 2]   # the card at full strength
+        return k / SR, k / SR
+    w = max(1, int(round(need * SR))); good = up & (diff < 22) & (same > .35)   # a jump this big, or a frame this unlike the judged one, is a cut
+    if n <= w: return 0.0, m / SR
+    ok = np.convolve(good.astype(np.float32), np.ones(w), "valid") / w; c = np.clip(m - w / 2, 0, len(ok) - 1)
+    score = ok - 0.4 * np.abs(np.arange(len(ok)) - c) / max(1, n)  # all-good first, then nearest the judged moment
     a = int(np.argmax(score)); return a / SR, (a + w / 2) / SR
 dur = lambda p: float(subprocess.run(["ffprobe", "-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", p], capture_output=True, text=True).stdout or 0)
 ENC = ["-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p", "-r", str(FPS)]
@@ -52,14 +57,15 @@ for n, e in enumerate(F["ev"]):
         a, _ = moment(src, "shot", L_); a = max(0.0, min(a, d - L_ - .05))
         subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-ss", f"{a:.2f}", "-t", f"{L_:.2f}", "-i", src, "-an", "-vf", VF + (f",tpad=stop_mode=clone:stop_duration={L_:.2f}" if d < L_ + .1 else ""), "-t", f"{L_:.2f}", *ENC, out], check=True)
         v0, v1 = round(a, 2), round(a + L_, 2)
-        if e.get("silent"): silent.append((t, t + L_))
+    if e.get("silent"): silent.append((t, t + L_))   # a silent act, or the card that stops the film
     parts.append(out)
     table.append({"pos": n + 1, "at": round(t, 1), "dur": round(L_, 2), "kind": e["kind"], "id": e["i"], "film": e.get("film"), "year": e.get("year"), "score": e.get("score"),
                   "source": [v0, v1] if v1 > v0 else f"frame at {v0} s, held", "text": e.get("text"), "silent": bool(e.get("silent"))})
     t += L_
 # the joins: straight cuts, as in Precisely So
-lst = os.path.join(T, f"f{K}_list.txt"); open(lst, "w").write("".join(f"file '{x}'\n" for x in parts))
-pic = os.path.join(T, f"f{K}_picture.mp4"); subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", pic], check=True)
+pic = os.path.join(T, f"f{K}_picture.mp4")   # re-encoded through the concat filter: a stream copy can stop at a piece whose timing differs
+subprocess.run(["ffmpeg", "-v", "error", "-y", *sum([["-i", x] for x in parts], []), "-filter_complex", "".join(f"[{k}:v]settb=1/{FPS},setpts=PTS-STARTPTS[p{k}];" for k in range(len(parts))) + "".join(f"[p{k}]" for k in range(len(parts))) + f"concat=n={len(parts)}:v=1:a=0[v]", "-map", "[v]", *ENC, pic], check=True)
+assert abs(dur(pic) - t) < 1, f"picture is {dur(pic):.1f} s, the edit {t:.1f} s"
 # the music: the chosen piece, then the pieces nearest its mood, one per film, each levelled before they meet, crossfaded
 mood = F["music"]["mood"]; cosv = lambda a, b: sum(x * y for x, y in zip(a, b)) / ((sum(x * x for x in a) * sum(y * y for y in b)) ** .5 or 1)
 order = [F["music"]] + sorted([m for m in M["music"] if m["film"] != F["music"]["film"] and not re.search(r"interview|lecture|speech", m["film"] or "", re.I)], key=lambda m: -cosv(m["mood"], mood))

@@ -24,17 +24,27 @@
       if (t === t.toUpperCase() && t.split(' ').length < 5) sp -= .15;
       M.speaks.set(k, Math.max(0, Math.min(1, sp))); if (b >= 0) { M.beat.set(k, b); M.story[b].push(k); } }
     M.middle = M.middle.filter(k => M.shots[k].score >= 6 || M.beat.has(k));   // a 5 only if it tells the story
+    // the lexicon: every chapter card read by hand for the beat it plays and the pictures that answer it (monte/story.json). When it is
+    // there, it replaces the guesses: only cards that tell a story are chapters, and the shots after a card are the ones that bear it out
+    const word = w => w.toLowerCase().replace(/[^a-z-]/g, '').replace(/(es|s)$/, '');
+    M.words = M.shots.map(x => new Set((x.sees && x.sees.length ? x.sees : (x.why || '').split(/[\s,;]+/)).map(word).filter(w => w.length > 2)));
+    M.answer = new Map(); M.stop = [];
+    if (M.lexicon) { const byId = new Map(M.shots.map((x, k) => [x.i, k])); M.beat = new Map(); M.story = BEATS.map(() => []); M.middle = [];
+      for (const [i, L] of Object.entries(M.lexicon)) { const k = byId.get(i); if (k == null || !M.cardIx.has(k)) continue;
+        if (L.beat === 'stop') { M.stop.push(k); continue; }
+        const b = BEATS.findIndex(x => x.key === L.beat); if (b < 0) continue;
+        M.beat.set(k, b); M.story[b].push(k); M.middle.push(k); M.answer.set(k, new Set(L.answer.map(word))); if (!M.speaks.has(k)) M.speaks.set(k, .5); } }
     const d = M.SE[0].length; M.mu = new Float32Array(d); M.SE.forEach(v => { for (let j = 0; j < d; j++) M.mu[j] += v[j] / M.SE.length; }); M.taste = null; return M; }
   // ---- the viewer's taste: shots marked yes (+) and no (-), and the films chosen, as one direction in CLIP space
   function taste(M, marks) { const d = M.mu.length, T = new Float32Array(d); let n = 0; const ix = new Map(M.shots.map((s, k) => [s.i, k]));
     for (const [i, w] of Object.entries(marks)) { const k = ix.get(i); if (k == null || !w) continue; for (let j = 0; j < d; j++) T[j] += w * (M.SE[k][j] - M.mu[j]); n++; }
     let s = 0; for (let j = 0; j < d; j++) s += T[j] * T[j]; s = Math.sqrt(s); if (!n || !s) return (M.taste = null); for (let j = 0; j < d; j++) T[j] /= s; return (M.taste = T); }
   const lean = (M, k) => { let s = 0; for (let j = 0; j < M.mu.length; j++) s += (M.SE[k][j] - M.mu[j]) * M.taste[j]; return s; };
-  const BEATS = [{ name: 'the want', re: /\bparty|come to|bring a friend|introduc|partners|i'm going|going to|ready to launch|\bwant|\bwish|invit|\bmust\b|let's|how do you|qualifications/i },
-    { name: 'the journey', re: /\bsail|voyage|aboard|abroad|europe|pass the|\broad\b|highway|\btrain\b|flight|anchored|journey|\btrip|travel|out on|across|we saw|streets|vistas/i },
-    { name: 'the trouble', re: /can't|cannot|wrong|mutiny|cyclone|\bburn|fire|flames|threat|darkness|stumbled|\bfell\b|\brent\b|chance|too close|danger|disaster|\bno,|ruins|earthquake|not want|axe|suspense/i },
-    { name: 'that night', re: /\bnight\b|evening|that day|later|next morning|meanwhile|zeideravond|nacht|\bdusk|\bdawn|day and night/i },
-    { name: 'the arrival', re: /\bking\b|coming|\bmeet\b|farewell|finished|ready for|arriv|at last|\bhome\b|welcome|races|graduat|saved|\\bhorses\\b|sight of a ship|highspot/i }];
+  const BEATS = [{ key: 'want', name: 'the want', re: /\bparty|come to|bring a friend|introduc|partners|i'm going|going to|ready to launch|\bwant|\bwish|invit|\bmust\b|let's|how do you|qualifications/i },
+    { key: 'journey', name: 'the journey', re: /\bsail|voyage|aboard|abroad|europe|pass the|\broad\b|highway|\btrain\b|flight|anchored|journey|\btrip|travel|out on|across|we saw|streets|vistas/i },
+    { key: 'trouble', name: 'the trouble', re: /can't|cannot|wrong|mutiny|cyclone|\bburn|fire|flames|threat|darkness|stumbled|\bfell\b|\brent\b|chance|too close|danger|disaster|\bno,|ruins|earthquake|not want|axe|suspense/i },
+    { key: 'night', name: 'that night', re: /\bnight\b|evening|that day|later|next morning|meanwhile|zeideravond|nacht|\bdusk|\bdawn|day and night/i },
+    { key: 'arrival', name: 'the arrival', re: /\bking\b|coming|\bmeet\b|farewell|finished|ready for|arriv|at last|\bhome\b|welcome|races|graduat|saved|\\bhorses\\b|sight of a ship|highspot/i }];
   const CREDIT = /collaborator|produced|production|presents|copyright|music|narrated|commentary|cooperation|appreciation|consultant|supervisor|directed|manufactured|technical|investigator|official film|encyclop|erpi|correlated|\bpicture\b|films? inc|studios|acknowledged|haghe-film|pictoreels/i;
   const FOREIGN = /\b(de|het|een|van|werd|den|zocht|der|die|und|waren|naar|hun|men|op|ter)\b/gi;
   // the order a story's beats take, for a film of n acts
@@ -55,7 +65,7 @@
     const A = avoid || new Set(), S = spent || new Set();
     const R = rng(seed), v = n => val(g, G(n)), temp = v('temp'), ev = [], used = new Set(), films = new Map();
     const seenAlike = k => { for (const u of used) if (!M.shots[u].title && dot(M.SE[u], M.SE[k]) > .93) return true; return false; };
-    const acts = Math.round(v('acts')), story = R() < v('story'), plot = PLOT[acts] || [];
+    const acts = Math.round(v('acts')), story = M.lexicon ? true : R() < v('story'), plot = PLOT[acts] || [];   // with the lexicon every film tells one
     const opens = M.opening.filter(k => !A.has(k)), op = opens.length ? pick(R, sample(R, opens, 30), k => M.shots[k].score / 10 * v('wJudge'), temp) : null;
     if (op != null) { ev.push({ kind: 'card', k: op, dur: v('hold') }); used.add(op); }
     let prev = null, roleRun = [], first = null;
@@ -66,16 +76,18 @@
       if (told.length) card = pick(R, told, cardScore, temp);
       else if (M.middle.length && (a === 0 || R() < v('card'))) card = pick(R, sample(R, M.middle, 40).filter(k => !used.has(k) && !S.has(k) && !(a === 0 && A.has(k))), cardScore, temp);
       if (card != null) { const words = M.shots[card].text.split(/\s+/).length; ev.push({ kind: 'card', k: card, dur: Math.max(v('hold'), Math.min(4, 1.6 + words * .22)), act: a, beat: M.beat.get(card) }); used.add(card); }
+      if (M.stop.length && story && plot[a] === 2 && R() < .5) { const st = M.stop.find(k => !used.has(k) && !S.has(k)); if (st != null) { ev.push({ kind: 'card', k: st, dur: 3.2, act: a, silent: true, stop: true }); used.add(st); } }   // the film stops itself, in silence
       const silent = R() < v('silence'), n = Math.max(1, Math.round(v('shots') + (R() - .5) * 2));
       const actShots = [];
       for (let s = 0; s < n; s++) {
         const last = a === acts - 1 && s === n - 1;
         if (false) { ev.push({ kind: 'shot', k: first, dur: v('dur') + .6, act: a, silent, ret: true }); actShots.push(first); continue; }   // Precisely So never shows a shot twice: no return to the first image
-        const cand = sample(R, M.good, 160).filter(k => !used.has(k) && !(first == null && A.has(k)) && !seenAlike(k));
+        const cand = sample(R, M.good, 220).filter(k => !used.has(k) && !S.has(k) && !(first == null && A.has(k)) && !seenAlike(k));   // S: what the other prints already show
         const cen = actShots.length ? actShots.map(k => M.SE[k]) : null;
         const k = pick(R, cand, c => { const S = M.shots[c]; let sc = S.score / 10 * v('wJudge');
           if (prev != null) { const sim = dot(M.SE[prev], M.SE[c]); sc -= Math.abs(sim - v('target')) * 3 * v('wMatch') / 3; sc -= Math.abs(S.colour - M.shots[prev].colour) * v('wColour') * .5; }
           if (card != null && s < 2) sc += dot(M.CT[M.cardIx.get(card)], M.SE[c]) * 4 * v('wText');
+          if (card != null && s < 3 && M.answer.has(card)) sc += Math.min(2, hits(M.answer.get(card), M.words[c])) * 1.4 * v('wText');   // the picture answers the card
           if (roleRun.length >= 1 && roleRun[roleRun.length - 1] === S.role) sc += .35 * v('wRole');
           if (S.colour < .12) sc -= (1 - v('bw')) * 1.2;
           if (films.get(S.film)) sc -= .8 * films.get(S.film);
@@ -101,6 +113,7 @@
     const music = pick(R, M.music.map((_, k) => k), k => { const x = M.music[k].mood; return cos(x, mood) * 3; }, .3);
     return { seed, ev, music, mood };
   }
+  const hits = (A, B) => { let n = 0; for (const w of A) if (B.has(w)) n++; return n; };
   const cos = (a, b) => { let s = 0, x = 0, y = 0; for (let k = 0; k < a.length; k++) { s += a[k] * b[k]; x += a[k] * a[k]; y += b[k] * b[k]; } return s / (Math.sqrt(x * y) || 1); };
   // ---- the critic: fixed, from the embeddings; each part in [0,1]
   const CRITIC = { anderson: .26, story: .18, cuts: .12, cards: .12, voice: 0, structure: .12, variety: .06, pace: .05, music: .05 };
@@ -114,6 +127,8 @@
       const nx = ev.slice(k + 1, k + 3).filter(e => e.kind === 'shot'); if (!nx.length) continue;
       cl.push(Math.min(1, Math.max(0, (Math.max(...nx.map(e => dot(M.CT[M.cardIx.get(ev[k].k)], M.SE[e.k]))) - .17) / .12))); }
     P.cards = cl.length ? cl.reduce((a, b) => a + b, 0) / cl.length : 0;
+    const asked = ev.map((e, k) => [e, k]).filter(([e]) => e.kind === 'card' && M.answer.has(e.k));
+    if (asked.length) P.cards = .4 * P.cards + .6 * asked.filter(([e, k]) => ev.slice(k + 1, k + 3).some(x => x.kind === 'shot' && hits(M.answer.get(e.k), M.words[x.k]) > 0)).length / asked.length;
     for (const e of shots) if (e.line != null) vl.push(Math.min(1, Math.max(0, (dot(M.LT[e.line], M.SE[e.k]) - .17) / .12)));
     P.voice = vl.length ? (vl.reduce((a, b) => a + b, 0) / vl.length) * Math.min(1, vl.length / 3) : 0;
     let three = 0; for (let k = 2; k < shots.length; k++) if (M.shots[shots[k].k].role === M.shots[shots[k - 1].k].role && M.shots[shots[k].k].role === M.shots[shots[k - 2].k].role) three = 1;
