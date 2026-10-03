@@ -29,7 +29,7 @@ header h1{ margin:0; font:600 clamp(13px, 1.2vw, 20px) var(--sans); letter-spaci
 .strip .no{ font-size:clamp(11px, 1.3vw, 20px); letter-spacing:.2em; text-align:right; cursor:pointer; }
 .tiles{ overflow:hidden; display:flex; height:clamp(44px, 11vh, 120px); gap:2px; background:var(--cream); padding:2px; border-radius:2px; cursor:pointer; }
 .t{ position:relative; background:#ccc center/cover; min-width:3px; } .t.cd{ box-shadow:inset 0 4px var(--mustard); } .t.voice::after{ content:''; position:absolute; left:50%; bottom:4px; width:7px; height:7px; margin-left:-3.5px; border-radius:50%; background:var(--cream); }
-.t.ret{ box-shadow:inset 0 -5px var(--teal); } .t.yes{ outline:2px solid var(--red); outline-offset:-2px; } .t.no{ filter:grayscale(1) brightness(.45); } .t.here{ outline:2px solid var(--ink); outline-offset:1px; z-index:1; }
+.t.ret{ box-shadow:inset 0 -5px var(--teal); } .t.yes{ outline:2px solid var(--red); outline-offset:-2px; } .t.no{ filter:grayscale(1) brightness(.45); } .t.here{ outline:3px solid var(--ink); outline-offset:0; z-index:1; }
 .star{ font-size:clamp(26px, 2.2vw, 40px); color:var(--soft); letter-spacing:0; line-height:1; } .star:hover{ color:var(--red); }
 #why{ font-size:clamp(11px, .95vw, 16px); letter-spacing:.2em; margin-bottom:6px; color:var(--soft); text-align:center; min-height:1em; } #why b{ color:var(--ink); font-weight:500; } #why i{ font-style:normal; color:var(--red); }
 nav{ display:flex; gap:22px; justify-content:center; align-items:center; } nav button{ padding:8px 2px; font-size:clamp(12px, 1vw, 17px); letter-spacing:.26em; border-bottom:1.5px solid transparent; } nav button:hover{ border-bottom-color:var(--mustard); }
@@ -48,8 +48,12 @@ nav .main{ background:var(--ink); color:var(--cream); border-radius:24px; paddin
 .prints{ display:flex; gap:8px; justify-content:center; margin-bottom:10px; } .prints button{ border:1.5px solid var(--ink); border-radius:20px; padding:5px 12px; font-size:9px; } .prints button.on{ background:var(--ink); color:var(--cream); }
 .card video{ width:100%; background:#1a1210; display:block; border:8px solid var(--red); }
 .taste{ display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:4px; margin-bottom:12px; } .taste div{ aspect-ratio:4/3; background:#ccc center/cover; }
+.big, .posters{ display:none; }
+.big{ flex-wrap:wrap; gap:2px; background:var(--cream); padding:2px; border-radius:2px; } .big .t{ height:clamp(40px, 6.5vh, 64px); }
+.posters{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; } .poster{ background:var(--cream); padding:4px 4px 2px; border-radius:2px; opacity:.7; } .poster.now{ opacity:1; box-shadow:0 0 0 2px var(--ink); }
+.poster .ph{ aspect-ratio:16/9; background:#ccc center/cover; cursor:pointer; } .poster .pl{ display:flex; justify-content:space-between; align-items:center; padding:2px 2px 0 4px; font-size:12px; letter-spacing:.14em; } .poster .star{ font-size:26px; padding:0 2px; }
 .keptl .strip{ opacity:1; margin-bottom:6px; } .empty{ text-align:center; color:var(--soft); font:italic 400 16px var(--serif); text-transform:none; letter-spacing:0; padding:14px 0; }
-@media (max-width:640px){ #room{ gap:8px; } header h1{ font-size:11.5px; letter-spacing:.3em; } #cap{ font-size:16px; } .strip{ grid-template-columns:30px minmax(0,1fr) 30px; gap:6px; } .strip .no{ font-size:9px; } .tiles{ height:clamp(38px, 7vh, 60px); gap:1px; } .star{ font-size:24px; } #why{ font-size:9.5px; letter-spacing:.14em; } nav{ gap:12px; } nav button{ font-size:10px; letter-spacing:.18em; } nav .main{ padding:8px 14px; } .two{ grid-template-columns:1fr; } .taste{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+@media (max-width:640px){ #room{ gap:8px; } header h1{ font-size:12px; letter-spacing:.3em; } #cap{ font-size:18px; line-height:1.25; } #cap small{ font-size:10.5px; letter-spacing:.16em; } #three > .strip{ display:none; } #three .big{ display:flex; } #three .posters{ display:grid; } #three{ gap:10px; } #why{ font-size:11.5px; letter-spacing:.1em; line-height:1.5; } nav{ gap:16px; } nav button{ font-size:12px; letter-spacing:.14em; } nav .main{ padding:10px 16px; } #hint{ font-size:13px; letter-spacing:.3em; } .mark{ width:46px !important; height:46px !important; font-size:20px !important; } .two{ grid-template-columns:1fr; } .taste{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
 </style></head><body>
 <div id="room">
   <header><h1>THE MONTE CARLO CINEMA</h1></header>
@@ -83,10 +87,14 @@ nav .main{ background:var(--ink); color:var(--cream); border-radius:24px; paddin
     const fl = $('#flash'); fl.textContent = marks[i] ? (w > 0 ? '♥' : '✕') : '·'; fl.style.transition = 'none'; fl.style.opacity = .9; requestAnimationFrame(() => { fl.style.transition = 'opacity .7s'; fl.style.opacity = 0; }); }
   // ---- evolution, with the viewer on the committee
   function breed(start) { E = MC.evolve(M, { seed: Math.floor(Math.random() * 1e9), pop: 24, films: 6, critic: W, start }); }
-  function candidates() { const pool = E.pop.slice(0, 6), out = [];
-    for (let c = 0; c < 3; c++) { const g = pool[c % pool.length]; let best = null;
-      for (let t = 0; t < 4; t++) { const f = MC.generate(M, g, Math.floor(Math.random() * 1e9)); MC.critic(M, f, W); if (!best || f.score > best.score) best = f; }
-      best.g = g.slice(); out.push(best); } return out; }
+  // every film begins differently: no opening card, first chapter or first shot shared with its two companions or the three before
+  let lastStarts = [];
+  function make(g, seed, A) { const f = MC.generate(M, g, seed, A); MC.critic(M, f, W); f.g = g.slice(); f.av = [...A]; return f; }
+  function candidates(seeds) { const pool = E.pop.slice(0, 6), out = [], A = new Set(lastStarts);
+    for (let c = 0; c < 3; c++) { const g = seeds ? seeds.g : pool[c % pool.length]; let best = null;
+      for (let t = 0; t < (seeds ? 1 : 4); t++) { const f = make(g, seeds ? seeds.s[c] : Math.floor(Math.random() * 1e9), new Set(A)); if (!best || f.score > best.score) best = f; }
+      MC.starts(best).forEach(k => A.add(k)); out.push(best); }
+    lastStarts = out.flatMap(f => MC.starts(f)); return out; }
   let job = 0;
   function next() { stop(); $('#next').disabled = true; let n = 0; const me = ++job; $('#why').textContent = 'the committee deliberates…';
     const go = () => { if (me !== job) return; hist.push(E.step()); if (++n < 3) return setTimeout(go, 20); three = candidates(); cur = 0; drawThree(); show(); $('#next').disabled = false; };
@@ -97,7 +105,7 @@ nav .main{ background:var(--ink); color:var(--cream); border-radius:24px; paddin
     // a starred film's shots lean the taste a little toward it; the two passed over, a little away
     three.forEach((x, j) => x.ev.forEach(e => { if (e.kind !== 'shot') return; const i = M.shots[e.k].i; if (marks[i] === 1 || marks[i] === -1) return; marks[i] = +((marks[i] || 0) + (j === k ? .3 : -.1)).toFixed(2); }));
     save('monte-marks', marks); retaste();
-    kept.unshift({ g: f.g.map(x => +x.toFixed(4)), seed: f.seed, score: +f.score.toFixed(3), at: hist.length }); kept = kept.slice(0, 40); save('monte-kept', kept);
+    kept.unshift({ g: f.g.map(x => +x.toFixed(4)), seed: f.seed, av: f.av, score: +f.score.toFixed(3), at: hist.length }); kept = kept.slice(0, 40); save('monte-kept', kept);
     $('#undo').disabled = false; next(); }
   $('#undo').onclick = () => { if (!undo) return; job++; $('#next').disabled = false; stop(); E.pop.splice(0, E.pop.length, ...undo.pop); kept = undo.kept; marks = undo.marks; three = undo.three; cur = undo.cur; hist.length = undo.hist;
     save('monte-kept', kept); save('monte-marks', marks); retaste(); undo = null; $('#undo').disabled = true; drawThree(); show(); };
@@ -105,8 +113,13 @@ nav .main{ background:var(--ink); color:var(--cream); border-radius:24px; paddin
   function tiles(f, here) { return f.ev.map((e, n) => { const s = M.shots[e.k], m = marks[s.i];
     return `<div class="t ${e.kind === 'card' ? 'cd' : 'sh'}${e.line != null ? ' voice' : ''}${e.ret ? ' ret' : ''}${m === 1 ? ' yes' : m === -1 ? ' no' : ''}${n === here ? ' here' : ''}" data-n="${n}" style="flex:${e.dur.toFixed(2)};background-image:url('${esc(thumb(s))}')"></div>`; }).join(''); }
   function why(f) { const P = Object.entries(f.parts).filter(([k]) => W[k] > 0).sort((a, b) => b[1] - a[1]);
-    return `NO. ${three.indexOf(f) + 1} · <b>${f.score.toFixed(3)}</b> · ${Math.round(f.seconds)} S · strong in <b>${P.slice(0, 2).map(p => p[0]).join(', ')}</b> · weak in <b>${P.slice(-1)[0][0]}</b>${M.taste ? ` · <i>yours ${f.parts.yours.toFixed(2)}</i>` : ''}`; }
-  function drawThree() { $('#three').innerHTML = three.map((f, k) => `<div class="strip${k === cur ? ' now' : ''}" data-k="${k}"><div class="no">${NO[k]}</div><div class="tiles">${tiles(f, k === cur ? playN : -1)}</div><button class="star" data-s="${k}" title="keep this one: the rules breed from it">☆</button></div>`).join('');
+    return `<b>${NO[three.indexOf(f)]}</b> · <b>${f.score.toFixed(2)}</b> · ${Math.round(f.seconds)} S · best at <b>${P[0][0]}</b> · worst at <b>${P.slice(-1)[0][0]}</b>${M.taste ? ` · <i>yours ${f.parts.yours.toFixed(2)}</i>` : ''}`; }
+  function drawThree() { const f0 = three[cur], T = f0 ? f0.ev.reduce((a, e) => a + e.dur, 0) : 1;
+    $('#three').innerHTML = three.map((f, k) => `<div class="strip${k === cur ? ' now' : ''}" data-k="${k}"><div class="no">${NO[k]}</div><div class="tiles">${tiles(f, k === cur ? playN : -1)}</div><button class="star" data-s="${k}" title="keep this one: the rules breed from it">☆</button></div>`).join('')
+      + (f0 ? `<div class="big now">${tiles(f0, playN).replace(/flex:([\d.]+)/g, (_, d) => `flex:1 0 calc(${(d / T * 196).toFixed(2)}% - 3px)`)}</div>` : '')
+      + `<div class="posters">${three.map((f, k) => `<div class="poster${k === cur ? ' now' : ''}" data-k="${k}"><div class="ph" style="background-image:url('${esc(thumb(M.shots[f.ev[0].k]))}')"></div><div class="pl"><span>${NO[k]} · ${f.score.toFixed(2)}</span><button class="star" data-s="${k}">☆</button></div></div>`).join('')}</div>`;
+    $$('#three .poster').forEach(d => { const k = +d.dataset.k; d.querySelector('.ph').onclick = () => { cur = k; drawThree(); show(); }; d.querySelector('.star').onclick = () => star(k); });
+    const bg = $('#three .big'); if (bg) bg.onclick = ev => { const t = ev.target.closest('.t'); if (t) play(three[cur], +t.dataset.n); };
     $$('#three .strip').forEach(d => { const k = +d.dataset.k;
       d.querySelector('.no').onclick = () => { cur = k; drawThree(); show(); };
       d.querySelector('.tiles').onclick = ev => { const t = ev.target.closest('.t'); cur = k; play(three[k], t ? +t.dataset.n : 0); };
@@ -123,8 +136,8 @@ nav .main{ background:var(--ink); color:var(--cream); border-radius:24px; paddin
     const cell = s => `<div style="background-image:url('${esc(thumb(s))}')"></div>`, y = pick(1), n = pick(-1);
     $('#tyes').innerHTML = y.length ? y.map(cell).join('') : '<div class="empty" style="grid-column:1/-1;aspect-ratio:auto">Press ♥ while a shot plays.</div>';
     $('#tno').innerHTML = n.length ? n.map(cell).join('') : '<div class="empty" style="grid-column:1/-1;aspect-ratio:auto">Press ✕ while a shot plays.</div>'; }
-  function drawKept() { $('#kept').innerHTML = kept.length ? kept.map((r, k) => { const f = MC.generate(M, r.g, r.seed); return `<div class="strip" data-k="${k}"><div class="no">G${r.at}</div><div class="tiles">${tiles(f, -1)}</div><div class="no" style="text-align:left">${r.score}</div></div>`; }).join('') : '<div class="empty">Nothing kept yet. Star one of the three.</div>';
-    $$('#kept .strip').forEach(d => d.onclick = () => { const r = kept[+d.dataset.k], f = MC.generate(M, r.g, r.seed); MC.critic(M, f, W); f.g = r.g; closeAll(); three = [f, ...three.slice(0, 2)]; cur = 0; drawThree(); play(f, 0); }); }
+  function drawKept() { $('#kept').innerHTML = kept.length ? kept.map((r, k) => { const f = MC.generate(M, r.g, r.seed, new Set(r.av || [])); return `<div class="strip" data-k="${k}"><div class="no">G${r.at}</div><div class="tiles">${tiles(f, -1)}</div><div class="no" style="text-align:left">${r.score}</div></div>`; }).join('') : '<div class="empty">Nothing kept yet. Star one of the three.</div>';
+    $$('#kept .strip').forEach(d => d.onclick = () => { const r = kept[+d.dataset.k], f = make(r.g, r.seed, new Set(r.av || [])); closeAll(); three = [f, ...three.slice(0, 2)]; cur = 0; drawThree(); play(f, 0); }); }
   // ---- the screen: two layers, each piece dissolving into the next once it is ready
   let pt = null, playing = null, playN = -1, front = 'A';
   function stage(e, ready) { const back = front === 'A' ? 'B' : 'A', L = $('#' + back), img = L.querySelector('img'), v = L.querySelector('video'), s = M.shots[e.k]; let done = false;
@@ -140,7 +153,7 @@ nav .main{ background:var(--ink); color:var(--cream); border-radius:24px; paddin
   function show() { stop(); playN = -1; stage(three[cur].ev[0], to => swap(to)); $('#cap').innerHTML = ''; drawThree(); }
   function play(f, from = 0) { stop(); playing = f; $('#screen').classList.add('playing'); const mus = $('#music'); mus.src = M.r2 + (M.music[f.music].v || ''); mus.volume = .7; mus.play().catch(() => { });
     const step = n => { if (playing !== f) return; if (n >= f.ev.length) return stop(); const e = f.ev[n];
-      stage(e, to => { if (playing !== f) return; swap(to); caption(e); playN = n; $$('#three .strip.now .t').forEach((t, j) => t.classList.toggle('here', j === n));
+      stage(e, to => { if (playing !== f) return; swap(to); caption(e); playN = n; $$('#three .now').forEach(c => c.querySelectorAll('.t').forEach((t, j) => t.classList.toggle('here', j === n)));
         mus.volume = e.silent ? 0 : e.line != null ? .25 : .7;
         if (e.line != null) { const L = M.lines[e.line], vo = $('#voice'); vo.src = M.r2 + (VIDX[L.i] || ''); vo.onloadedmetadata = () => { vo.currentTime = L.t0; vo.play().catch(() => { }); }; setTimeout(() => vo.pause(), (L.t1 - L.t0) * 1000 + 900); }
         pt = setTimeout(() => step(n + 1), Math.max(600, e.dur * 1000 - 300)); }); };
@@ -165,7 +178,7 @@ nav .main{ background:var(--ink); color:var(--cream); border-radius:24px; paddin
     M = MC.load(m); M.lines.forEach(l => { if (vids[l.i]) VIDX[l.i] = vids[l.i][0]; }); M.music.forEach(x => { if (vids[x.i]) x.v = vids[x.i][0]; });
     retaste();
     const g0 = ev ? ev.genome : null; breed(g0 ? Array.from({ length: 24 }, (_, k) => k ? mutate(g0, .2) : g0.slice()) : undefined);
-    if (ev) { hist = ev.generations.map(h => ({ best: h.best, mean: h.mean })); three = ev.best.slice(0, 3).map(b => { const f = MC.generate(M, g0, b.seed); MC.critic(M, f, W); f.g = g0.slice(); return f; }); cur = 0; show(); }
+    if (ev) { hist = ev.generations.map(h => ({ best: h.best, mean: h.mean })); three = candidates({ g: g0, s: ev.best.slice(0, 3).map(b => b.seed) }); cur = 0; show(); }
     else next();
   });
 })();
