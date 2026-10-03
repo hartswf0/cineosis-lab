@@ -6,10 +6,15 @@ const t0 = Date.now();
 for (let k = 0; k < N; k++) { const h = E.step(); if (k % 5 === 0 || k === N - 1) console.log(`gen ${h.gen} · best rules ${h.best.toFixed(3)} · mean ${h.mean.toFixed(3)} · best film ${h.film.toFixed(3)}`); }
 const b = E.best, rules = Object.fromEntries(MC.GENES.map(([n, lo, hi, say], k) => [n, { value: +MC.val(b.g, k).toFixed(2), say }]));
 // the winning rules, run many times: the best films they make
-const films = []; for (let s = 0; s < 400; s++) { const f = MC.generate(M, b.g, 9000 + s); MC.critic(M, f); films.push(f); }
+const pool = []; for (let s = 0; s < 400; s++) { const f = MC.generate(M, b.g, 9000 + s); MC.critic(M, f); pool.push(f); }
+pool.sort((a, b) => b.score - a.score);
+// the prints: the best films that tell different stories (no chapter card shared), each beginning differently
+const films = [], spent = new Set(), A = new Set(), chap = f => f.ev.filter(e => e.kind === 'card' && !e.end && M.middle.includes(e.k)).map(e => e.k);
+for (let s = 0; films.length < 5 && s < 4000; s++) { const f = MC.generate(M, b.g, 9000 + s, new Set(A), new Set(spent)); MC.critic(M, f);
+  if (f.score < pool[Math.min(40, pool.length - 1)].score) continue; f.av = [...A]; f.sp = [...spent]; films.push(f); chap(f).forEach(k => spent.add(k)); MC.starts(f).forEach(k => A.add(k)); }
 films.sort((a, b) => b.score - a.score);
 const show = f => ({ seed: f.seed, score: +f.score.toFixed(3), parts: Object.fromEntries(Object.entries(f.parts).map(([k, v]) => [k, +v.toFixed(2)])), seconds: +f.seconds.toFixed(1),
-  music: M.music[f.music], ev: f.ev.map(e => ({ kind: e.kind, i: M.shots[e.k].i, film: M.shots[e.k].film, year: M.shots[e.k].year, text: M.shots[e.k].text || null, score: M.shots[e.k].score,
+  music: M.music[f.music], av: f.av, sp: f.sp, ev: f.ev.map(e => ({ kind: e.kind, i: M.shots[e.k].i, film: M.shots[e.k].film, year: M.shots[e.k].year, text: M.shots[e.k].text || null, score: M.shots[e.k].score,
     dur: +e.dur.toFixed(2), act: e.act, silent: !!e.silent, ret: !!e.ret, end: !!e.end, line: e.line != null ? M.lines[e.line] : null })) });
 fs.writeFileSync(__dirname + '/evolution.json', JSON.stringify({ generations: E.history.map(h => ({ gen: h.gen, best: +h.best.toFixed(4), mean: +h.mean.toFixed(4), film: +h.film.toFixed(4), g: h.g.map(x => +x.toFixed(3)) })),
   rules, genome: b.g, critic: MC.CRITIC, best: films.slice(0, 5).map(show), seconds: (Date.now() - t0) / 1000 }));

@@ -9,40 +9,59 @@
   const dot = (a, b) => { let s = 0; for (let k = 0; k < a.length; k++) s += a[k] * b[k]; return s; };
   function load(M) { M.SE = dec(M.shotEmb, M.shots.length); M.CT = dec(M.cardText, M.cards.length); M.LT = dec(M.lineEmb, M.lines.length);
     M.cardIx = new Map(M.cards.map((s, k) => [s, k])); M.plain = M.shots.map((s, k) => k).filter(k => !M.shots[k].title);
-    M.opening = M.cards.filter(k => /present|produced|picture|productions?|films?\b/i.test(M.shots[k].text) && !/\bend\b|einde|stop projector/i.test(M.shots[k].text));
+    const said = k => M.shots[k].text.split(' / ').some(x => !CREDIT.test(x) && (/^["'“]/.test(x) || /[a-z][.!?]["']?$/.test(x.trim())));   // a line someone says, even with a studio credit under it
+    M.opening = M.cards.filter(k => /present|produced|picture|productions?|films?\b/i.test(M.shots[k].text) && !/\bend\b|einde|stop projector/i.test(M.shots[k].text) && !said(k));
     M.ending = M.cards.filter(k => /\bthe end\b|^end\b|einde/i.test(M.shots[k].text));
     M.middle = M.cards.filter(k => !M.opening.includes(k) && !M.ending.includes(k));
+    // the story grammar. Precisely So worked because its cards, in order, told one: an invitation, a voyage, a door that will not open,
+    // "That night.", the King. Each middle card is read for the beat it can play and for how much it speaks (dialogue, I/you/we, a sentence)
+    M.beat = new Map(); M.speaks = new Map(); M.story = BEATS.map(() => []);
+    for (const k of M.middle) { const segs = M.shots[k].text.split(' / '), keep = segs.filter(x => !CREDIT.test(x)), t = keep.join(' ');   // a credit line under a title does not silence it
+      if (!keep.length || keep.length < segs.length / 2 || (t.match(FOREIGN) || []).length >= 2) continue;
+      const b = [2, 3, 0, 1, 4].find(j => BEATS[j].re.test(t)) ?? -1; let sp = (/^["'“]/.test(t) ? .45 : 0) + (/\b(I|I'm|you|your|we|my|our|me)\b/i.test(t) ? .25 : 0) + (/[.!?"'-]$/.test(t.trim()) ? .15 : 0) + (b >= 0 ? .15 : 0);
+      if (t === t.toUpperCase() && t.split(' ').length < 5) sp -= .15;
+      M.speaks.set(k, Math.max(0, Math.min(1, sp))); if (b >= 0) { M.beat.set(k, b); M.story[b].push(k); } }
     const d = M.SE[0].length; M.mu = new Float32Array(d); M.SE.forEach(v => { for (let j = 0; j < d; j++) M.mu[j] += v[j] / M.SE.length; }); M.taste = null; return M; }
   // ---- the viewer's taste: shots marked yes (+) and no (-), and the films chosen, as one direction in CLIP space
   function taste(M, marks) { const d = M.mu.length, T = new Float32Array(d); let n = 0; const ix = new Map(M.shots.map((s, k) => [s.i, k]));
     for (const [i, w] of Object.entries(marks)) { const k = ix.get(i); if (k == null || !w) continue; for (let j = 0; j < d; j++) T[j] += w * (M.SE[k][j] - M.mu[j]); n++; }
     let s = 0; for (let j = 0; j < d; j++) s += T[j] * T[j]; s = Math.sqrt(s); if (!n || !s) return (M.taste = null); for (let j = 0; j < d; j++) T[j] /= s; return (M.taste = T); }
   const lean = (M, k) => { let s = 0; for (let j = 0; j < M.mu.length; j++) s += (M.SE[k][j] - M.mu[j]) * M.taste[j]; return s; };
+  const BEATS = [{ name: 'the want', re: /\bparty|come to|bring a friend|introduc|partners|i'm going|going to|ready to launch|\bwant|\bwish|invit|\bmust\b|let's|how do you|qualifications/i },
+    { name: 'the journey', re: /\bsail|voyage|aboard|abroad|europe|pass the|\broad\b|highway|\btrain\b|flight|anchored|journey|\btrip|travel|out on|across|we saw|streets|vistas/i },
+    { name: 'the trouble', re: /can't|cannot|wrong|mutiny|cyclone|\bburn|fire|flames|threat|darkness|stumbled|\bfell\b|\brent\b|chance|too close|danger|disaster|\bno,|ruins|earthquake|not want|axe|suspense/i },
+    { name: 'that night', re: /\bnight\b|evening|that day|later|next morning|meanwhile|zeideravond|nacht|\bdusk|\bdawn|day and night/i },
+    { name: 'the arrival', re: /\bking\b|coming|\bmeet\b|farewell|finished|ready for|arriv|at last|\bhome\b|welcome|races|graduat|saved|\\bhorses\\b|sight of a ship|highspot/i }];
+  const CREDIT = /collaborator|produced|production|presents|copyright|music|narrated|commentary|cooperation|appreciation|consultant|supervisor|directed|manufactured|technical|investigator|official film|encyclop|erpi|correlated|\bpicture\b|films? inc|studios|acknowledged|haghe-film|pictoreels/i;
+  const FOREIGN = /\b(de|het|een|van|werd|den|zocht|der|die|und|waren|naar|hun|men|op|ter)\b/gi;
+  // the order a story's beats take, for a film of n acts
+  const PLOT = { 3: [0, 2, 4], 4: [0, 1, 2, 4], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 2, 4], 7: [0, 1, 2, 1, 2, 3, 4] };
   // ---- the rules: each gene in [0,1], read through its range
   const GENES = [['acts', 3, 7, 'acts'], ['shots', 2, 5, 'shots per act'], ['card', 0, 1, 'a card opens an act'], ['voice', 0, 2.5, 'spoken lines per act'],
     ['wJudge', 0, 3, 'trust the judge'], ['wMatch', 0, 3, 'match cuts'], ['target', .55, .9, 'how alike a cut'], ['wText', 0, 3, 'cards borne out'], ['wVoice', 0, 3, 'words fit pictures'],
     ['ret', 0, 1, 'return to the first image'], ['exc', 0, 1, 'the last act breaks'], ['dur', 2.6, 4.6, 'seconds a shot'], ['silence', 0, .6, 'silent acts'],
-    ['wRole', 0, 2, 'rule of three'], ['bw', 0, 1, 'black and white allowed'], ['temp', .05, .6, 'chance'], ['wColour', 0, 2, 'colour holds'], ['hold', 3, 4.6, 'seconds a card']];
-  const val = (g, k) => { const [, lo, hi] = GENES[k]; return lo + (hi - lo) * g[k]; };
+    ['wRole', 0, 2, 'rule of three'], ['bw', 0, 1, 'black and white allowed'], ['temp', .05, .6, 'chance'], ['wColour', 0, 2, 'colour holds'], ['hold', 3, 4.6, 'seconds a card'], ['story', 0, 1, 'tell a story'], ['wSpeak', 0, 3, 'cards that speak']];
+  const val = (g, k) => { const [, lo, hi] = GENES[k]; return lo + (hi - lo) * (g[k] == null ? .5 : g[k]); };
   const G = name => GENES.findIndex(x => x[0] === name);
   function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
   function pick(R, xs, score, temp) { const s = xs.map(score), mx = Math.max(...s), w = s.map(v => Math.exp((v - mx) / Math.max(.02, temp))), t = w.reduce((a, b) => a + b, 0); let r = R() * t;
     for (let k = 0; k < xs.length; k++) { r -= w[k]; if (r <= 0) return xs[k]; } return xs[xs.length - 1]; }
   const sample = (R, xs, n) => { const out = []; for (let k = 0; k < n; k++) out.push(xs[Math.floor(R() * xs.length)]); return [...new Set(out)]; };
   // ---- a film, generated by the rules (events: card | shot, with an optional spoken line on a shot)
-  function generate(M, g, seed, avoid) {   // avoid: a Set of shots this film may not begin with (its opening, first chapter, first shot)
-    const A = avoid || new Set();
+  function generate(M, g, seed, avoid, spent) {   // spent: chapter cards its companions already tell   // avoid: a Set of shots this film may not begin with (its opening, first chapter, first shot)
+    const A = avoid || new Set(), S = spent || new Set();
     const R = rng(seed), v = n => val(g, G(n)), temp = v('temp'), ev = [], used = new Set(), films = new Map();
-    const acts = Math.round(v('acts'));
+    const acts = Math.round(v('acts')), story = R() < v('story'), plot = PLOT[acts] || [];
     const opens = M.opening.filter(k => !A.has(k)), op = opens.length ? pick(R, sample(R, opens, 30), k => M.shots[k].score / 10 * v('wJudge'), temp) : null;
     if (op != null) { ev.push({ kind: 'card', k: op, dur: v('hold') }); used.add(op); }
     let prev = null, roleRun = [], first = null;
     for (let a = 0; a < acts; a++) {
       let card = null;
-      if (M.middle.length && (a === 0 || R() < v('card'))) {
-        card = pick(R, sample(R, M.middle, 40).filter(k => !used.has(k) && !(a === 0 && A.has(k))), k => M.shots[k].score / 10 * v('wJudge') + (prev != null ? .5 * dot(M.CT[M.cardIx.get(k)], M.SE[prev]) * v('wText') : 0), temp);
-        if (card != null) { ev.push({ kind: 'card', k: card, dur: v('hold'), act: a }); used.add(card); }
-      }
+      const told = story && plot[a] != null ? M.story[plot[a]].filter(k => !used.has(k) && !S.has(k) && !(a === 0 && A.has(k))) : [];
+      const cardScore = k => M.shots[k].score / 10 * v('wJudge') + (M.speaks.get(k) || 0) * v('wSpeak') + (prev != null ? .5 * dot(M.CT[M.cardIx.get(k)], M.SE[prev]) * v('wText') : 0);
+      if (told.length) card = pick(R, told, cardScore, temp);
+      else if (M.middle.length && (a === 0 || R() < v('card'))) card = pick(R, sample(R, M.middle, 40).filter(k => !used.has(k) && !S.has(k) && !(a === 0 && A.has(k))), cardScore, temp);
+      if (card != null) { const words = M.shots[card].text.split(/\s+/).length; ev.push({ kind: 'card', k: card, dur: Math.max(v('hold'), Math.min(7, 1.4 + words * .3)), act: a, beat: M.beat.get(card) }); used.add(card); }
       const silent = R() < v('silence'), n = Math.max(1, Math.round(v('shots') + (R() - .5) * 2));
       const actShots = [];
       for (let s = 0; s < n; s++) {
@@ -80,7 +99,7 @@
   }
   const cos = (a, b) => { let s = 0, x = 0, y = 0; for (let k = 0; k < a.length; k++) { s += a[k] * b[k]; x += a[k] * a[k]; y += b[k] * b[k]; } return s / (Math.sqrt(x * y) || 1); };
   // ---- the critic: fixed, from the embeddings; each part in [0,1]
-  const CRITIC = { anderson: .28, cuts: .14, cards: .14, voice: .1, structure: .14, variety: .08, pace: .06, music: .06 };
+  const CRITIC = { anderson: .22, story: .18, cuts: .12, cards: .12, voice: .08, structure: .12, variety: .06, pace: .05, music: .05 };
   function critic(M, f, W = CRITIC) {
     const ev = f.ev, shots = ev.filter(e => e.kind === 'shot'), cards = ev.filter(e => e.kind === 'card'), P = {};
     P.anderson = ev.length ? ev.reduce((s, e) => s + M.shots[e.k].score, 0) / ev.length / 10 : 0;
@@ -96,6 +115,11 @@
     let three = 0; for (let k = 2; k < shots.length; k++) if (M.shots[shots[k].k].role === M.shots[shots[k - 1].k].role && M.shots[shots[k].k].role === M.shots[shots[k - 2].k].role) three = 1;
     const chapters = ev.filter(e => e.kind === 'card' && !e.end && !M.opening.includes(e.k)).length;   // the film is told in chapters, in the archive's own cards
     P.structure = (cards.length && M.opening.includes(ev[0].k) ? .2 : 0) + (ev.length && ev[ev.length - 1].end ? .2 : 0) + (shots.some(e => e.ret) ? .2 : 0) + .2 * three + .2 * Math.min(1, chapters / 2);
+    // the story: chapters that speak, in the order a story goes (want, journey, trouble, night, arrival), enough of them to be one
+    const ch = ev.filter(e => e.kind === 'card' && !e.end && M.middle.includes(e.k)), bs = ch.map(e => M.beat.get(e.k)).filter(b => b != null);
+    const speak = ch.length ? ch.reduce((a, e) => a + (M.speaks.get(e.k) || 0), 0) / ch.length : 0;
+    let ord = 0; for (let k = 1; k < bs.length; k++) ord += bs[k] >= bs[k - 1] ? 1 : 0; const order = bs.length > 1 ? ord / (bs.length - 1) : 0;
+    P.story = Math.min(1, Math.min(1, bs.length / 3) * (.45 * speak + .35 * order + .2 * new Set(bs).size / 5) / .85);
     P.variety = shots.length ? new Set(shots.map(e => M.shots[e.k].film)).size / shots.length : 0;
     const T = ev.reduce((s, e) => s + e.dur, 0); f.seconds = T; P.pace = T < 70 ? T / 70 : T > 120 ? Math.max(0, 1 - (T - 120) / 40) : 1;   // unhurried: a film to sit with, not blink at
     P.yours = M.taste && shots.length ? Math.min(1, Math.max(0, .5 + 3 * shots.reduce((a, e) => a + lean(M, e.k), 0) / shots.length)) : 0;
@@ -119,6 +143,6 @@
   }
     // what a film begins with: its opening card, its first chapter card, its first shot
   const starts = f => { const out = []; const c = f.ev.filter(e => e.kind === 'card' && !e.end).slice(0, 2), sh = f.ev.find(e => e.kind === 'shot'); c.forEach(e => out.push(e.k)); if (sh) out.push(sh.k); return out; };
-  const api = { starts, load, generate, critic, evolve, taste, lean, GENES, CRITIC, val, dot };
+  const api = { BEATS, starts, load, generate, critic, evolve, taste, lean, GENES, CRITIC, val, dot };
   if (typeof module !== 'undefined') module.exports = api; else root.MonteCinema = api;
 })(this);
