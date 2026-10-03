@@ -70,13 +70,18 @@ assert abs(dur(pic) - t) < 1, f"picture is {dur(pic):.1f} s, the edit {t:.1f} s"
 mood = F["music"]["mood"]; cosv = lambda a, b: sum(x * y for x, y in zip(a, b)) / ((sum(x * x for x in a) * sum(y * y for y in b)) ** .5 or 1)
 order = [F["music"]] + sorted([m for m in M["music"] if m["film"] != F["music"]["film"] and not re.search(r"interview|lecture|speech", m["film"] or "", re.I)], key=lambda m: -cosv(m["mood"], mood))
 seenf = set(); order = [m for m in order if not (m["film"] in seenf or seenf.add(m["film"]))]
-music = order[: int(t // 24) + 2]
 aud = lambda i: (lambda f: f if os.path.exists(f) else fetch(i))(os.path.join(L, "odyssey", "cache", "aud", i + ".flac"))   # the clip's own sound if the local copy is missing
+music, lens, have = [], [], 0.0
+for m in order:                                    # piece after piece until the film is covered (some pieces are short)
+    d = min(27.0, dur(aud(m["i"])))
+    if d < 6: continue
+    music.append(m); lens.append(d); have += d - (2.5 if len(music) > 1 else 0)
+    if have > t + 3: break
 ins = sum([["-i", aud(m["i"])] for m in music], [])
-fc = "".join(f"[{k}:a]atrim=0:27,asetpts=PTS-STARTPTS,loudnorm=I=-20:TP=-2,aformat=sample_rates=48000:channel_layouts=stereo[a{k}];" for k in range(len(music))); ch = "[a0]"
+fc = "".join(f"[{k}:a]atrim=0:{lens[k]:.2f},asetpts=PTS-STARTPTS,loudnorm=I=-20:TP=-2,aformat=sample_rates=48000:channel_layouts=stereo[a{k}];" for k in range(len(music))); ch = "[a0]"
 for k in range(1, len(music)): fc += f"{ch}[a{k}]acrossfade=d=2.5:c1=tri:c2=tri[x{k}];"; ch = f"[x{k}]"
 mute = "+".join(f"between(t,{a - .15:.2f},{b + .1:.2f})" for a, b in silent) or "0"
-fc += f"{ch}atrim=0:{t:.2f},volume='if({mute},0,1)':eval=frame,afade=t=in:d=1.2,afade=t=out:st={t - 2.5:.2f}:d=2.5[m]"
+fc += f"{ch}apad,atrim=0:{t:.2f},volume='if({mute},0,1)':eval=frame,afade=t=in:d=1.2,afade=t=out:st={t - 2.5:.2f}:d=2.5[m]"
 wav = os.path.join(T, f"f{K}_score.wav"); subprocess.run(["ffmpeg", "-v", "quiet", "-y", *ins, "-filter_complex", fc, "-map", "[m]", wav], check=True)
 _m = subprocess.run(["ffmpeg", "-hide_banner", "-i", wav, "-af", "loudnorm=I=-18:TP=-1.5:print_format=json", "-f", "null", "-"], capture_output=True, text=True).stderr
 _j = json.loads(_m[_m.rindex("{"):_m.rindex("}") + 1])
@@ -84,5 +89,6 @@ LN = f"loudnorm=I=-18:TP=-1.5:linear=true:measured_I={_j['input_i']}:measured_TP
 out = os.path.join(D, f"film-{K}.mp4")
 subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-i", pic, "-i", wav, "-map", "0:v", "-map", "1:a", "-af", LN, "-c:v", "libx264", "-preset", "slow", "-crf", "22", "-maxrate", "1800k", "-bufsize", "3600k",
                 "-c:a", "aac", "-b:a", "128k", "-shortest", "-movflags", "+faststart", out], check=True)
+assert abs(dur(out) - t) < 1, f"the film is {dur(out):.1f} s, the edit {t:.1f} s"
 json.dump({"seconds": round(t, 1), "music": [m["i"] for m in music], "edit": table}, open(os.path.join(D, f"film-{K}.json"), "w"), ensure_ascii=False, indent=1)
 print(f"wrote {out} · {t:.1f} s · {len(parts)} pieces · music {[m['film'] for m in music]} · {os.path.getsize(out) / 1e6:.1f} MB")
