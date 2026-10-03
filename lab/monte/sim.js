@@ -108,7 +108,8 @@
         const ln = M.lines[e.line]; e.dur = Math.max(e.dur, ln.t1 - ln.t0 + .6);
       }
     }
-    if (M.ending.length) { const end = pick(R, sample(R, M.ending, 20), k => M.shots[k].score / 10, temp); ev.push({ kind: 'card', k: end, dur: v('hold'), end: true }); }
+    const endings = M.ending.filter(k => !S.has(k));   // each print its own last card
+    if (endings.length) { const end = pick(R, sample(R, endings, 20), k => M.shots[k].score / 10, temp); ev.push({ kind: 'card', k: end, dur: v('hold'), end: true }); }
     // the score: the music whose mood is nearest the cards' words
     const cm = ev.filter(e => e.kind === 'card').map(e => M.cardMood[M.cardIx.get(e.k)]).filter(Boolean);
     const mood = cm.length ? cm[0].map((_, j) => cm.reduce((s, x) => s + x[j], 0) / cm.length) : M.moods.map(() => 0);
