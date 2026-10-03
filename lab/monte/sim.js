@@ -64,6 +64,7 @@
   function generate(M, g, seed, avoid, spent) {   // spent: chapter cards its companions already tell   // avoid: a Set of shots this film may not begin with (its opening, first chapter, first shot)
     const A = avoid || new Set(), S = spent || new Set();
     const R = rng(seed), v = n => val(g, G(n)), temp = v('temp'), ev = [], used = new Set(), films = new Map();
+    const thread = new Set();
     const seenAlike = k => { for (const u of used) if (!M.shots[u].title && dot(M.SE[u], M.SE[k]) > .93) return true; return false; };
     const acts = Math.round(v('acts')), story = M.lexicon ? true : R() < v('story'), plot = PLOT[acts] || [];   // with the lexicon every film tells one
     const opens = M.opening.filter(k => !A.has(k)), op = opens.length ? pick(R, sample(R, opens, 30), k => M.shots[k].score / 10 * v('wJudge'), temp) : null;
@@ -72,9 +73,10 @@
     for (let a = 0; a < acts; a++) {
       let card = null;
       const told = story && plot[a] != null ? M.story[plot[a]].filter(k => !used.has(k) && !S.has(k) && !(a === 0 && A.has(k))) : [];
-      const cardScore = k => M.shots[k].score / 10 * v('wJudge') + (M.speaks.get(k) || 0) * v('wSpeak') + (prev != null ? .5 * dot(M.CT[M.cardIx.get(k)], M.SE[prev]) * v('wText') : 0);
+      const cardScore = k => M.shots[k].score / 10 * v('wJudge') + (M.speaks.get(k) || 0) * v('wSpeak') + (thread.has(M.shots[k].film) ? 1.5 * v('story') : 0) + (prev != null ? .5 * dot(M.CT[M.cardIx.get(k)], M.SE[prev]) * v('wText') : 0);
       if (told.length) card = pick(R, told, cardScore, temp);
       else if (M.middle.length && (a === 0 || R() < v('card'))) card = pick(R, sample(R, M.middle, 40).filter(k => !used.has(k) && !S.has(k) && !(a === 0 && A.has(k))), cardScore, temp);
+      if (card != null && M.beat.has(card)) thread.add(M.shots[card].film);   // a story, once begun, keeps to its own cards where it can
       if (card != null) { const words = M.shots[card].text.split(/\s+/).length; ev.push({ kind: 'card', k: card, dur: Math.max(v('hold'), Math.min(4, 1.6 + words * .22)), act: a, beat: M.beat.get(card) }); used.add(card); }
       if (M.stop.length && story && plot[a] === 2 && R() < .5) { const st = M.stop.find(k => !used.has(k) && !S.has(k)); if (st != null) { ev.push({ kind: 'card', k: st, dur: 3.2, act: a, silent: true, stop: true }); used.add(st); } }   // the film stops itself, in silence
       const silent = R() < v('silence'), n = Math.max(1, Math.round(v('shots') + (R() - .5) * 2));
