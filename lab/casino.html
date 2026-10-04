@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Monte Carlo Casino</title>
+<meta name="description" content="Twelve tables for making films with friends from the Cineosis archive. The TV is the table; each phone is a hand; chips buy the house's imagination; the visions play; the gold chip cuts the film.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,300;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+:root{ --felt:#0e3a2c; --felt2:#0a2c21; --gold:#e2b23c; --cream:#f1e8da; --ink:#2b2020; --rose:#c9483f; --dim:#9fb5a9; --jost:'Jost',Futura,sans-serif; --serif:'Fraunces',Georgia,serif; color-scheme:dark; }
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; } html,body{ margin:0; height:100%; background:var(--felt2); color:var(--cream); font:400 15px/1.4 var(--jost); overflow:hidden; } button{ font:inherit; color:inherit; cursor:pointer; }
+.hide{ display:none !important; }
+/* ---- the TV */
+#tv{ position:fixed; inset:0; display:grid; grid-template-rows:auto minmax(0,1fr) auto; background:radial-gradient(ellipse at 50% 40%, var(--felt), var(--felt2) 75%); }
+#top{ display:flex; align-items:center; gap:14px; padding:10px 18px; font:500 11px var(--jost); letter-spacing:.32em; color:var(--gold); text-transform:uppercase; } #top .t{ flex:1; } #top a{ color:var(--dim); text-decoration:none; } #top .bank{ color:var(--cream); letter-spacing:.12em; }
+#stage{ position:relative; min-height:0; }
+#screen{ position:absolute; inset:2% 4% 18%; background:#000; border-radius:6px; overflow:hidden; box-shadow:0 0 0 2px #e2b23c55, 0 30px 80px #000a; }
+#screen video, #screen img{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; opacity:0; transition:opacity .35s; } #screen .on{ opacity:1; }
+#screen .title{ position:absolute; inset:0; display:grid; place-items:center; text-align:center; font:300 clamp(28px,5vw,72px)/1.1 var(--serif); letter-spacing:.06em; color:var(--cream); padding:0 8%; pointer-events:none; }
+#screen .note{ position:absolute; left:0; right:0; bottom:0; padding:30px 6% 16px; text-align:center; font:italic 300 clamp(15px,2vw,26px)/1.3 var(--serif); background:linear-gradient(transparent,#000c); color:#fff; pointer-events:none; } #screen .note:empty{ display:none; }
+#screen .tag{ position:absolute; top:14px; left:16px; font:500 11px var(--jost); letter-spacing:.32em; color:var(--gold); }
+#reels{ position:absolute; left:4%; right:4%; bottom:2%; height:14%; display:grid; grid-template-rows:1fr 1fr; gap:6px; }
+.reel{ display:flex; align-items:center; gap:4px; overflow:hidden; } .reel b{ flex:0 0 74px; font:500 9px var(--jost); letter-spacing:.3em; color:var(--dim); }
+.reel .f{ flex:0 0 auto; height:100%; aspect-ratio:4/3; border-radius:3px; background:#000 center/cover; opacity:.85; } .reel .gap{ flex:0 0 2px; align-self:stretch; background:var(--gold); box-shadow:0 0 12px var(--gold); margin:0 6px; }
+.reel .q{ font:300 28px var(--serif); color:var(--gold); padding:0 8px; } .reel .snd{ flex:1; height:2px; background:repeating-linear-gradient(90deg,#9fb5a9 0 10px,transparent 10px 16px); opacity:.6; } .reel .snd.open{ background:repeating-linear-gradient(90deg,#e2b23c 0 3px,transparent 3px 9px); opacity:1; }
+#panel{ position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; } #panel > div{ pointer-events:auto; }
+.card3{ display:flex; gap:clamp(10px,2vw,28px); justify-content:center; align-items:flex-end; }
+.cardT{ width:clamp(150px,20vw,300px); background:var(--cream); color:var(--ink); border-radius:12px; padding:10px; box-shadow:0 12px 30px #0008; text-align:center; transition:transform .4s; }
+.cardT .k{ font:500 12px var(--jost); letter-spacing:.3em; color:var(--rose); } .cardT .im{ aspect-ratio:4/3; background:#000 center/cover; border-radius:6px; margin:6px 0; } .cardT .lb{ font:300 14px/1.25 var(--serif); min-height:36px; }
+.cardT .ch{ margin-top:6px; font:600 20px var(--jost); letter-spacing:.1em; color:var(--rose); min-height:26px; } .cardT .ch i{ font-style:normal; color:var(--gold); }
+.cardT.win{ transform:translateY(-14px) scale(1.04); box-shadow:0 0 0 4px var(--gold), 0 18px 40px #000a; }
+.big{ text-align:center; } .big h1{ margin:0; font:300 clamp(30px,5vw,64px)/1.05 var(--serif); letter-spacing:.04em; } .big p{ margin:10px auto 0; max-width:720px; color:var(--dim); font:300 clamp(14px,1.5vw,19px)/1.45 var(--serif); }
+.big .kick{ font:500 12px var(--jost); letter-spacing:.42em; color:var(--gold); margin-bottom:12px; }
+.btn{ display:inline-block; margin:18px 8px 0; border:0; border-radius:30px; padding:12px 26px; background:var(--gold); color:var(--ink); font:600 12px var(--jost); letter-spacing:.3em; }
+.btn.ghost{ background:transparent; color:var(--cream); box-shadow:inset 0 0 0 1px #f1e8da66; }
+.timer{ font:300 clamp(36px,5vw,64px) var(--serif); color:var(--gold); }
+/* the floor: twelve tables */
+#floor{ position:absolute; inset:0; overflow:auto; padding:10px 18px 30px; }
+#floor .head{ display:grid; grid-template-columns:1fr auto; gap:24px; align-items:center; max-width:1200px; margin:6px auto 18px; }
+#floor h1{ margin:0; font:300 clamp(30px,4.5vw,58px)/1 var(--serif); } #floor .sub{ color:var(--dim); font:300 15px/1.4 var(--serif); margin-top:8px; max-width:640px; }
+.join{ text-align:center; background:var(--cream); color:var(--ink); border-radius:12px; padding:12px; } .join svg{ width:150px; height:150px; display:block; margin:0 auto; } .join b{ display:block; font:600 22px var(--jost); letter-spacing:.3em; margin-top:4px; } .join small{ font:500 10px var(--jost); letter-spacing:.2em; color:#7a6a60; }
+.players{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:10px; } .players span{ background:#ffffff14; border-radius:14px; padding:4px 10px; font:500 12px var(--jost); letter-spacing:.08em; }
+.tables{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:14px; max-width:1200px; margin:0 auto; }
+.tbl{ text-align:left; border:0; border-radius:14px; padding:16px; background:linear-gradient(160deg,#155240,#0c3428); box-shadow:inset 0 0 0 1px #e2b23c44; color:var(--cream); }
+.tbl:hover{ box-shadow:inset 0 0 0 2px var(--gold); } .tbl .n{ font:500 11px var(--jost); letter-spacing:.3em; color:var(--gold); } .tbl h3{ margin:4px 0 2px; font:300 22px/1.15 var(--serif); } .tbl .g{ font:500 10px var(--jost); letter-spacing:.24em; color:var(--rose); } .tbl p{ margin:8px 0 0; color:var(--dim); font:300 13.5px/1.4 var(--serif); }
+#board{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:14px; } #board span{ background:#0008; border-radius:14px; padding:5px 12px; font:500 12px var(--jost); letter-spacing:.08em; } #board span b{ color:var(--gold); }
+/* ---- the phone */
+#phone{ position:fixed; inset:0; display:flex; flex-direction:column; background:var(--cream); color:var(--ink); padding:calc(14px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom)); overflow:auto; }
+#phone .who{ display:flex; justify-content:space-between; font:500 11px var(--jost); letter-spacing:.24em; color:#7a6a60; } #phone .who b{ color:var(--rose); }
+#phone h2{ text-align:center; font:300 24px/1.2 var(--serif); margin:18px 0 12px; } #phone .look{ flex:1; display:grid; place-items:center; text-align:center; font:300 34px var(--serif); color:#7a6a60; letter-spacing:.06em; }
+.hand{ display:grid; gap:12px; } .hcard{ display:grid; grid-template-columns:104px 1fr auto; gap:10px; align-items:center; background:#fff; border-radius:12px; padding:8px; box-shadow:0 2px 8px #0002; user-select:none; }
+.hcard .im{ width:104px; aspect-ratio:4/3; border-radius:6px; background:#000 center/cover; } .hcard .im.txt{ background:var(--felt); color:var(--cream); display:grid; place-items:center; font:600 26px var(--jost); }
+.hcard .lb{ font:300 15px/1.25 var(--serif); } .hcard .lb small{ display:block; font:500 10px var(--jost); letter-spacing:.12em; color:#7a6a60; margin-top:3px; }
+.hcard .ctl{ display:grid; justify-items:center; gap:4px; } .hcard .ctl button{ width:38px; height:38px; border-radius:50%; border:0; background:var(--felt); color:var(--cream); font:600 20px var(--jost); } .hcard .ctl .c{ font:600 15px var(--jost); color:var(--rose); min-height:18px; }
+.hcard.gold{ box-shadow:0 0 0 3px var(--gold); } .left{ text-align:center; font:500 12px var(--jost); letter-spacing:.2em; color:#7a6a60; margin:12px 0; }
+.lock{ width:100%; border:0; border-radius:30px; padding:16px; background:var(--rose); color:#fff; font:600 14px var(--jost); letter-spacing:.3em; margin-top:auto; } .lock:disabled{ opacity:.45; }
+#phone input{ width:100%; font:300 22px var(--serif); padding:12px; border:1px solid #c9b9a8; border-radius:10px; text-align:center; margin:12px 0; background:#fff; color:var(--ink); }
+/* the curtain (pass-and-play) */
+#curtain{ position:fixed; inset:0; z-index:50; background:var(--felt2); display:grid; place-items:center; text-align:center; } #curtain h2{ font:300 34px var(--serif); margin:0 0 6px; }
+</style>
+<script src="casino/vendor/peerjs.min.js"></script><script src="casino/vendor/qrcode.js"></script>
+</head><body>
+<div id="tv" class="hide">
+  <div id="top"><span class="t" id="tableName">MONTE CARLO CASINO</span><span class="bank" id="tvBoard"></span><a href="mcts.html">THE MACHINE</a><a href="index.html#wall">THE LAB</a></div>
+  <div id="stage">
+    <div id="floor"></div>
+    <div id="screen" class="hide"><video id="vA" playsinline muted preload="auto"></video><video id="vB" playsinline muted preload="auto"></video><img id="still" alt=""><div class="title" id="sTitle"></div><div class="tag" id="sTag"></div><div class="note" id="sNote"></div></div>
+    <div id="reels" class="hide"><div class="reel" id="rPic"><b>PICTURE</b></div><div class="reel" id="rSnd"><b>SOUND</b></div></div>
+    <div id="panel"></div>
+  </div>
+</div>
+<div id="phone" class="hide"></div>
+<div id="curtain" class="hide"></div>
+<video id="voice" playsinline preload="auto" style="display:none"></video><video id="bed" playsinline preload="auto" style="display:none"></video><video id="own" playsinline preload="auto" style="display:none"></video>
+<script src="monte/sim.js"></script><script src="casino/tables.js"></script>
+<script>
+(function () {
+  const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const qs = new URLSearchParams(location.search), ROOM = qs.get('room');
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  ROOM ? phone() : tv();
+
+  // ======================= THE PHONE: a hand ==========================================================================
+  function phone() {
+    $('#phone').classList.remove('hide'); const P = $('#phone'); let pid = store.get('mcc.pid', null) || Math.random().toString(36).slice(2, 10); store.set('mcc.pid', pid);
+    let name = store.get('mcc.name', ''), conn = null, S = { phase: 'join' }, alloc = {}, gold = null, sent = false;
+    const send = m => { try { conn && conn.open && conn.send(Object.assign({ pid }, m)); } catch (e) { } };
+    function connect() { P.innerHTML = '<div class="look">FINDING THE TABLE…</div>'; const peer = new Peer();
+      peer.on('open', () => { conn = peer.connect('mcc-' + ROOM, { reliable: true }); conn.on('open', () => send({ t: 'hello', name })); conn.on('data', m => { if (m.t === 'state') { if (m.round !== S.round || m.phase !== S.phase) { if (m.phase === 'hand') { alloc = m.alloc || {}; sent = !!m.locked; } if (m.phase === 'gold') { gold = m.gold || null; sent = !!m.locked; } } S = m; draw(); } });
+        conn.on('close', () => setTimeout(connect, 1500)); });
+      peer.on('error', e => { P.innerHTML = `<div class="look">THE TABLE IS NOT ANSWERING<br><small style="font-size:14px">room ${esc(ROOM)} · ${esc(e.type || '')}</small></div><button class="lock" onclick="location.reload()">TRY AGAIN</button>`; }); }
+    function ask() { P.innerHTML = `<div class="who"><span>MONTE CARLO CASINO</span><span>ROOM ${esc(ROOM)}</span></div><h2>Your name at the table</h2><input id="nm" maxlength="14" value="${esc(name)}" autofocus><button class="lock" id="go">SIT DOWN</button>`;
+      $('#go').onclick = () => { name = ($('#nm').value || 'Player').trim().slice(0, 14); store.set('mcc.name', name); connect(); }; }
+    const left = () => S.chips - Object.values(alloc).reduce((a, b) => a + b, 0);
+    function draw() { const head = `<div class="who"><span>${esc(name)}</span><span><b>${S.bank ?? 0}</b> REELS</span></div>`;
+      if (S.phase === 'hand' && !sent) { P.innerHTML = head + `<h2>${esc(S.prompt || 'YOUR HAND')}</h2><div class="hand">${S.cards.map(c => `<div class="hcard" data-k="${c.key}"><div class="im ${c.thumb ? '' : 'txt'}" style="${c.thumb ? `background-image:url('${c.thumb}')` : ''}">${c.thumb ? '' : c.key}</div><div class="lb">${esc(c.label)}${c.sub ? `<small>${esc(c.sub)}</small>` : ''}</div><div class="ctl"><button data-a="+">+</button><span class="c">${'●'.repeat(alloc[c.key] || 0)}</span><button data-a="-">−</button></div></div>`).join('')}</div><div class="left">${left()} CHIPS LEFT</div><button class="lock" id="lk">LOCK BET</button>`;
+        P.querySelectorAll('.hcard button').forEach(b => b.onclick = () => { const k = b.closest('.hcard').dataset.k; if (b.dataset.a === '+' && left() > 0) alloc[k] = (alloc[k] || 0) + 1; if (b.dataset.a === '-' && alloc[k]) alloc[k]--; send({ t: 'alloc', alloc }); draw(); if (navigator.vibrate) navigator.vibrate(8); });
+        $('#lk').onclick = () => { sent = true; send({ t: 'bet', alloc }); draw(); }; }
+      else if (S.phase === 'gold' && !sent) { P.innerHTML = head + `<h2>Lay your gold chip</h2><div class="hand">${S.visions.map((v, n) => `<div class="hcard ${gold === n ? 'gold' : ''}" data-n="${n}"><div class="im txt">${['I', 'II', 'III'][n]}</div><div class="lb">VISION ${['I', 'II', 'III'][n]}</div><div class="ctl"><span class="c">${gold === n ? '★' : ''}</span></div></div>`).join('')}</div><button class="lock" id="lk" ${gold == null ? 'disabled' : ''}>BACK IT</button>`;
+        P.querySelectorAll('.hcard').forEach(d => d.onclick = () => { gold = +d.dataset.n; draw(); }); $('#lk').onclick = () => { sent = true; send({ t: 'gold', gold }); draw(); }; }
+      else { const msg = { lobby: 'WAITING FOR THE HOST', watch: 'LOOK UP', open: 'LOOK UP', hand: 'BET LOCKED<br><small style="font-size:15px">look up when everyone is in</small>', reveal: 'LOOK UP', roll: 'THE HOUSE IS ROLLING', vision: 'LOOK UP', gold: 'GOLD LAID', cut: 'LOOK UP' }[S.phase] || 'LOOK UP';
+        P.innerHTML = head + `<div class="look">${msg}</div>${S.result ? `<div class="left">${esc(S.result)}</div>` : ''}`; } }
+    name ? connect() : ask();
+  }
+
+  // ======================= THE TV: the table ==========================================================================
+  async function tv() {
+    $('#tv').classList.remove('hide');
+    $('#floor').innerHTML = '<div class="big" style="padding-top:20vh"><div class="kick">MONTE CARLO CASINO</div><h1>Opening the archive…</h1></div>';
+    const [m, D, jokes] = await Promise.all([fetch('monte/material.json').then(r => r.json()), fetch('casino/deck.json').then(r => r.json()), fetch('monte/comic-jokes.json').then(r => r.json()).catch(() => [])]);
+    const M = MonteCinema.load(m), C = window.Casino; D.jokes = jokes.filter(j => M.lines[j[1]]);
+    const H = C.House(M, D), ix = new Map(M.shots.map((s, k) => [s.i, k])), R = C.rng(Date.now() % 1e9);
+    const url = p => p.id ? D.r2 + D.vid[p.id] : D.r2 + M.shots[p.k].v, thumbOf = u => u.replace('/clips/', '/thumbnails/').replace('.mp4', '.jpg');
+    const thumbK = k => k == null ? null : thumbOf(D.r2 + M.shots[k].v), thumbId = id => id && D.vid[id] ? thumbOf(D.r2 + D.vid[id]) : null;
+    // the room
+    const players = new Map(); let code = null, peer = null, local = false, table = null, tour = false, round = 0, phase = 'lobby', film = [], music = Math.floor(R() * M.music.length), houseScore = { room: 0, house: 0 };
+    const ctx = { M, D, R, H, ix, used: H.used, music, get lastK() { const s = [...film].reverse().find(p => p.k != null && !p.card); return s ? s.k : null; } };
+    let deal = null, cards = [], visions = [], deadline = 0;
+    function broadcast(extra = {}) { for (const p of players.values()) { if (!p.conn || !p.conn.open) continue;
+        const st = { t: 'state', phase, round, chips: 5, bank: p.bank, prompt: deal && deal.prompt, cards: cards.map(c => ({ key: c.key, label: c.label, sub: c.sub, thumb: c.thumb })), visions: visions.map(() => 1), alloc: p.alloc, locked: phase === 'hand' ? p.locked : phase === 'gold' ? p.goldLocked : false, gold: p.gold, result: p.result };
+        try { p.conn.send(Object.assign(st, extra)); } catch (e) { } } }
+    function openRoom() { code = String(1000 + Math.floor(Math.random() * 9000)); peer = new Peer('mcc-' + code);
+      peer.on('open', () => drawFloor()); peer.on('error', e => { if (e.type === 'unavailable-id') { peer.destroy(); openRoom(); } else { code = null; drawFloor('phones could not reach the table (' + e.type + '); play on this screen instead'); } });
+      peer.on('connection', conn => { conn.on('data', msg => { let p = players.get(msg.pid);
+        if (msg.t === 'hello') { if (!p) { p = { pid: msg.pid, name: msg.name || 'Player', bank: 20, alloc: {}, gold: null }; players.set(msg.pid, p); } p.conn = conn; p.name = msg.name || p.name; if (phase === 'lobby') drawFloor(); broadcast(); return; }
+        if (!p) return; if (msg.t === 'alloc' && phase === 'hand' && !p.locked) p.alloc = clamp(msg.alloc); if (msg.t === 'bet' && phase === 'hand') { p.alloc = clamp(msg.alloc); p.locked = true; checkAll(); }
+        if (msg.t === 'gold' && phase === 'gold') { p.gold = msg.gold; p.goldLocked = true; checkAll(); } }); }); }
+    const clamp = a => { const out = {}; let n = 0; for (const k of C.KEYS) { const v = Math.max(0, Math.min(5 - n, (a && a[k]) | 0)); if (v) { out[k] = v; n += v; } } return out; };
+    let wake = null; const checkAll = () => { const ps = [...players.values()]; if (ps.length && ps.every(p => phase === 'hand' ? p.locked : p.goldLocked) && wake) wake(); };
+    // ---- the floor: twelve tables
+    function drawFloor(err) { phase = 'lobby'; $('#screen').classList.add('hide'); $('#reels').classList.add('hide'); $('#panel').innerHTML = ''; $('#floor').classList.remove('hide'); $('#tableName').textContent = 'MONTE CARLO CASINO'; board();
+      const join = code && !local ? location.origin + location.pathname + '?room=' + code : null; let svg = '';
+      if (join && window.qrcode) { const q = qrcode(0, 'M'); q.addData(join); q.make(); svg = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); }
+      $('#floor').innerHTML = `<div class="head"><div><h1>Monte Carlo Casino</h1><div class="sub">Twelve tables for making films with friends from the archive. The TV is the table; your phone is your hand. Chips buy the house’s imagination; the visions play; the gold chip cuts the film.</div>
+        <div class="players">${[...players.values()].map(p => `<span>${esc(p.name)} · ${p.bank}</span>`).join('') || '<span>scan to sit down, or play on this screen</span>'}</div>
+        <div><button class="btn" id="tourBtn">THE TOUR · ALL TWELVE</button><button class="btn ghost" id="localBtn">${local ? 'PLAYERS ON THIS SCREEN: ' + players.size : 'PLAY ON THIS SCREEN'}</button></div>${err ? `<div class="sub" style="color:#e9a">${esc(err)}</div>` : ''}</div>
+        ${join ? `<div class="join">${svg}<b>${code}</b><small>${esc(join.replace(/^https?:\/\//, ''))}</small></div>` : ''}</div>
+        <div class="tables">${C.TABLES.map(t => `<button class="tbl" data-id="${t.id}"><div class="n">TABLE ${t.n}</div><h3>${esc(t.name)}</h3><div class="g">${esc(t.gap)}</div><p>${esc(t.rule)}</p></button>`).join('')}</div>`;
+      $('#floor').querySelectorAll('.tbl').forEach(b => b.onclick = () => start(b.dataset.id, false)); $('#tourBtn').onclick = () => start(C.TABLES[0].id, true);
+      $('#localBtn').onclick = () => { const n = prompt('A name for a player on this screen (cancel when everyone is in)'); if (n) { local = true; const pid = 'local-' + players.size; players.set(pid, { pid, name: n.slice(0, 14), bank: 20, alloc: {}, local: true }); } drawFloor(); };
+      broadcast(); }
+    function board() { const ps = [...players.values()].sort((a, b) => b.bank - a.bank); $('#tvBoard').innerHTML = ps.map(p => `${esc(p.name)} <b style="color:#e2b23c">${p.bank}</b>`).join(' · ') + (table && table.id === 'house' ? ` · ROOM ${houseScore.room} : HOUSE ${houseScore.house}` : ''); }
+    // ---- the screen: pieces played in order (shots, clips, frozen cards, black, a voice from another film, the music bed)
+    const V = [$('#vA'), $('#vB')], still = $('#still'), voice = $('#voice'), bed = $('#bed'), own = $('#own'); let vi = 0, playTok = 0, bedVol = .6;
+    function setBed(mi) { const x = M.music[mi], u = x && D.vid[x.i]; if (!u) return; music = ctx.music = mi; if (bed.dataset.u === u) return; bed.dataset.u = u; bed.src = D.r2 + u; bed.loop = true; bed.volume = 0; bed.play().catch(() => { }); fadeBed(bedVol, 1200); }
+    function fadeBed(to, ms) { const a = bed.volume, t0 = performance.now(); const f = () => { const k = Math.min(1, (performance.now() - t0) / ms); try { bed.volume = a + (to - a) * k; } catch (e) { } if (k < 1) requestAnimationFrame(f); }; f(); }
+    async function play(pieces, tag = '') { const tok = ++playTok; $('#screen').classList.remove('hide'); $('#sTag').textContent = tag;
+      for (const p of pieces) { if (tok !== playTok) return; $('#sTitle').textContent = p.title || ''; $('#sNote').textContent = p.note && !p.title ? p.note : (p.title && p.note ? p.note : '');
+        if (p.musicTo != null && p.musicTo !== music) { fadeBed(0, 700); await sleep(500); bed.dataset.u = ''; setBed(p.musicTo); }
+        fadeBed(p.mute ? (p.line ? .08 : 0) : bedVol, 400);
+        if (p.black) { V.forEach(v => v.classList.remove('on')); still.classList.remove('on'); }
+        else if (p.card) { still.src = thumbK(p.k); still.classList.add('on'); V.forEach(v => v.classList.remove('on')); }
+        else if (p.own) { const v = V[vi = 1 - vi]; v.src = url(p); v.muted = false; v.onloadedmetadata = () => { try { v.currentTime = p.at || 0; } catch (e) { } }; v.oncanplay = () => { v.oncanplay = null; v.play().catch(() => { }); v.classList.add('on'); V[1 - vi].classList.remove('on'); still.classList.remove('on'); }; }
+        else { const v = V[vi = 1 - vi]; v.muted = true; v.src = url(p); v.onloadedmetadata = () => { try { v.currentTime = Math.max(0, v.duration / 2 - p.dur / 2); } catch (e) { } }; v.oncanplay = () => { v.oncanplay = null; v.play().catch(() => { }); v.classList.add('on'); V[1 - vi].classList.remove('on'); still.classList.remove('on'); }; }
+        if (p.line && !p.own) { const L = p.line; setTimeout(() => { if (tok !== playTok) return; voice.src = D.r2 + (D.vid[L.i] || ''); voice.muted = false; voice.onloadedmetadata = () => { try { voice.currentTime = L.t0; } catch (e) { } voice.play().catch(() => { }); }; setTimeout(() => voice.pause(), (L.t1 - L.t0) * 1000 + 250); }, (p.lineAt || .3) * 1000); }
+        await sleep(p.dur * 1000); }
+      V.forEach(v => { v.pause(); v.muted = true; }); }
+    const stopPlay = () => { playTok++; voice.pause(); V.forEach(v => v.pause()); };
+    // ---- the two reels: the film so far, the open cut, the sound beneath
+    function reels(open) { $('#reels').classList.remove('hide'); const last = film.slice(-6);
+      $('#rPic').innerHTML = '<b>PICTURE</b>' + last.map(p => `<div class="f" style="background-image:url('${p.k != null ? thumbK(p.k) : thumbId(p.id) || ''}')"></div>`).join('') + '<div class="gap"></div>' + (open === 'pic' || open === 'both' ? '<span class="q">?</span>' : '');
+      $('#rSnd').innerHTML = '<b>SOUND</b>' + last.map(() => '<div class="f" style="background:none;display:flex;align-items:center"><div class="snd" style="width:100%"></div></div>').join('') + '<div class="gap"></div>' + `<div class="snd ${open === 'snd' || open === 'both' ? 'open' : ''}"></div>`; }   // one cut line through both reels
+    // ---- a round
+    async function start(id, isTour) { tour = isTour; table = C.TABLES.find(t => t.id === id); $('#floor').classList.add('hide'); round = 0; film = []; setBed(music); loop(); }
+    async function loop() { while (table) { await playRound(); if (!table) return; if (tour) { const k = C.TABLES.indexOf(table); table = C.TABLES[(k + 1) % C.TABLES.length]; } } }
+    function panel(html) { $('#panel').innerHTML = html ? `<div>${html}</div>` : ''; }
+    function cardsHTML(show, win) { return `<div class="card3">${cards.map(c => `<div class="cardT ${win === c.key ? 'win' : ''}"><div class="k">${c.key}</div>${c.thumb ? `<div class="im" style="background-image:url('${c.thumb}')"></div>` : ''}<div class="lb">${esc(c.label)}</div><div class="ch">${show ? '●'.repeat(c.chips || 0) + (c.house ? '<i>●</i>' : '') : ''}</div></div>`).join('')}</div>`; }
+    async function timer(sec, label) { deadline = Date.now() + sec * 1000; let left = sec;
+      await new Promise(res => { wake = res; const t = setInterval(() => { left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000)); const el = $('#tm'); if (el) el.textContent = left; if (left <= 0) { clearInterval(t); res(); } }, 250); const w = wake; wake = () => { clearInterval(t); w(); }; });
+      wake = null; }
+    async function playRound() { round++; const T = table; $('#tableName').textContent = `TABLE ${T.n} · ${T.name}`; board();
+      for (const p of players.values()) { p.alloc = {}; p.locked = false; p.gold = null; p.goldLocked = false; p.result = null; }
+      // WATCH: the film so far
+      phase = 'watch'; broadcast(); panel(''); reels(null);
+      if (round === 1) { panel(`<div class="big"><div class="kick">TABLE ${T.n} · ${esc(T.gap)}</div><h1>${esc(T.name)}</h1><p>${esc(T.rule)}</p></div>`); $('#screen').classList.add('hide'); await sleep(5200); panel(''); }
+      if (film.length) await play(film.slice(-2), 'THE FILM');
+      // OPEN: the gap
+      deal = T.deal(ctx); cards = deal.cards.map(c => Object.assign(c, { thumb: c.thumbK != null ? thumbK(c.thumbK) : c.thumbId ? thumbId(c.thumbId) : null, chips: 0, house: 0 }));
+      phase = 'open'; broadcast(); reels(T.gap.includes('SOUND') ? 'snd' : T.gap.includes('BOTH') ? 'both' : 'pic');
+      if (deal.setup.length) await play(deal.setup, T.gap);
+      // HAND: everyone bets in secret
+      phase = 'hand'; broadcast(); $('#screen').classList.add('hide');
+      const localPs = [...players.values()].filter(p => p.local);
+      panel(`<div class="big"><div class="kick">${esc(T.gap)}</div><h1>${esc(deal.prompt)}</h1><p>${players.size ? 'CHECK YOUR HAND' : 'no one at the table: the house plays alone'}</p><div class="timer" id="tm">25</div></div>`);
+      if (localPs.length) await localHands(localPs); else if (players.size) await timer(25); else await sleep(2500);
+      // REVEAL: the bets, and the house's secret chip
+      phase = 'reveal'; for (const p of players.values()) for (const [k, v] of Object.entries(p.alloc || {})) { const c = cards.find(c => c.key === k); if (c) c.chips += v; }
+      const hb = T.houseBets ? T.houseBets(ctx, cards) : null; if (hb) for (const [k, v] of Object.entries(hb)) cards.find(c => c.key === k).house = v;
+      else { const empty = cards.filter(c => !c.chips), hc = empty.length ? C.pick(R, empty) : C.pick(R, cards); hc.house = 1; }
+      broadcast(); panel(`<div class="big"><div class="kick">THE BETS${hb ? ' · THE HOUSE BETS IN THE OPEN' : ''}</div>${cardsHTML(true)}<p>${hb ? '' : 'the gold chip is the house’s: it bought one possibility nobody looked at'}</p></div>`); await sleep(4200);
+      // ROLL: chips become rollouts
+      phase = 'roll'; broadcast(); panel('<div class="big"><div class="kick">THE HOUSE IS ROLLING</div><h1>…</h1></div>'); await sleep(400);
+      const ranked = cards.slice().sort((a, b) => (b.chips + b.house) - (a.chips + a.house)), chosen = (T.truth ? cards : ranked.filter(c => c.chips + c.house > 0)).slice(0, 3);
+      if (chosen.length < 2) chosen.push(...ranked.filter(c => !chosen.includes(c)).slice(0, 2 - chosen.length));
+      visions = chosen.map(c => { const from = c.k ?? ctx.lastK ?? C.pick(R, M.good), r = H.roll(R, from, c.chips + c.house); return Object.assign({ card: c }, T.vision(ctx, c, r)); });
+      if (T.id === 'mishear' || T.id === 'missing') visions = [visions.find(v => v.card.key === T.truth(ctx)) || visions[0]];   // a quiz table: one revelation
+      // VISIONS: watched, unlabelled
+      phase = 'vision'; broadcast(); panel('');
+      for (let n = 0; n < visions.length; n++) { panel(`<div class="big"><h1>VISION ${['I', 'II', 'III'][n]}</h1></div>`); $('#screen').classList.add('hide'); await sleep(1300); panel(''); await play(visions[n].pieces, 'VISION ' + ['I', 'II', 'III'][n]); }
+      let win;
+      if (T.truth && visions.length === 1) { const t = T.truth(ctx), tk = typeof t === 'string' ? t : (cards.find(c => c.k === t) || {}).key; win = cards.find(c => c.key === tk) || cards[0];
+        visions = [Object.assign(visions[0], { card: win })]; }
+      else { // GOLD: one chip each, on the vision that should be film
+        phase = 'gold'; broadcast(); $('#screen').classList.add('hide'); panel(`<div class="big"><div class="kick">LAY YOUR GOLD CHIP</div><h1>Which vision becomes the film?</h1><div class="timer" id="tm">15</div></div>`);
+        if (localPs.length) await localGold(localPs); else if (players.size) await timer(15); else await sleep(1500);
+        const g = visions.map(() => 0); for (const p of players.values()) if (p.gold != null && g[p.gold] != null) g[p.gold]++;
+        let wi = g.indexOf(Math.max(...g)); if (!players.size || g.every(x => x === 0)) wi = visions.reduce((b, v, n) => (v.card.chips + v.card.house) > (visions[b].card.chips + visions[b].card.house) ? n : b, 0);
+        win = visions[wi].card; visions = [visions[wi]]; }
+      // CUT: the winner joins the film; the chips on it pay
+      const pot = cards.reduce((a, c) => a + c.chips, 0);
+      // five fresh chips a round; chips on the winning card pay at the table's odds; on a table with a truth, chips on the truth pay a bonus
+      const tKey = T.truth ? (t => typeof t === 'string' ? t : (cards.find(c => c.k === t) || {}).key)(T.truth(ctx)) : null;
+      for (const p of players.values()) { const on = (p.alloc || {})[win.key] || 0, onT = tKey ? (p.alloc || {})[tKey] || 0 : 0;
+        const pay = on ? Math.round(on * Math.max(2, pot / Math.max(1, win.chips))) : 0, bonus = onT * 2; p.bank += pay + bonus;
+        p.result = [pay ? `+${pay} on ${win.key}` : '', bonus ? `+${bonus} for knowing ${tKey}` : ''].filter(Boolean).join(' · '); }
+      if (T.id === 'house') { const hk = Object.keys(T.houseBets(ctx, cards))[0]; if (hk === win.key) houseScore.house++; else houseScore.room++; }
+      film.push(...visions[0].pieces.filter(p => !p.black)); visions[0].pieces.forEach(p => { if (p.k != null) H.used.add(p.k); });
+      phase = 'cut'; broadcast(); board(); reels(null);
+      panel(`<div class="big"><div class="kick">CUT</div>${cardsHTML(true, win.key)}<p>${esc(visions[0].note || '')}${tKey && tKey !== win.key ? ` · the truth was ${tKey}` : ''}</p><div id="board">${[...players.values()].map(p => `<span>${esc(p.name)} <b>${p.bank}</b> ${p.result ? '· ' + esc(p.result) : ''}</span>`).join('')}${T.id === 'house' ? `<span>ROOM <b>${houseScore.room}</b> · HOUSE <b>${houseScore.house}</b></span>` : ''}</div>
+        <button class="btn" id="nx">${tour ? 'NEXT TABLE' : 'NEXT ROUND'}</button><button class="btn ghost" id="fl">THE FLOOR</button></div>`); $('#screen').classList.add('hide');
+      await new Promise(res => { $('#nx').onclick = res; $('#fl').onclick = () => { table = null; stopPlay(); drawFloor(); res(); }; setTimeout(res, 20000); }); }
+    // ---- pass-and-play: each player bets behind a curtain on this screen
+    async function localHands(ps) { for (const p of ps) { await curtain(`PASS TO ${p.name.toUpperCase()}`, 'tap when only they can see');
+        await new Promise(res => { const draw = () => { const left = 5 - Object.values(p.alloc).reduce((a, b) => a + b, 0);
+          $('#curtain').innerHTML = `<div style="width:min(900px,94vw)"><h2>${esc(p.name)}: ${esc(deal.prompt)}</h2><div class="card3">${cards.map(c => `<div class="cardT" data-k="${c.key}" style="cursor:pointer"><div class="k">${c.key}</div>${c.thumb ? `<div class="im" style="background-image:url('${c.thumb}')"></div>` : ''}<div class="lb">${esc(c.label)}</div><div class="ch">${'●'.repeat(p.alloc[c.key] || 0)}</div></div>`).join('')}</div><p style="color:#9fb5a9">tap a card to add a chip, long-press to take one back · ${left} left</p><button class="btn" id="lk">LOCK</button></div>`;
+          $('#curtain').querySelectorAll('.cardT').forEach(d => { let t = 0; d.onpointerdown = () => t = Date.now(); d.onpointerup = () => { const k = d.dataset.k; if (Date.now() - t > 450) { if (p.alloc[k]) p.alloc[k]--; } else if (left > 0) p.alloc[k] = (p.alloc[k] || 0) + 1; draw(); }; });
+          $('#lk').onclick = () => { $('#curtain').classList.add('hide'); res(); }; }; $('#curtain').classList.remove('hide'); draw(); }); } }
+    async function localGold(ps) { for (const p of ps) { await curtain(`PASS TO ${p.name.toUpperCase()}`, 'one gold chip');
+        await new Promise(res => { $('#curtain').innerHTML = `<div><h2>${esc(p.name)}: which vision becomes film?</h2>${visions.map((v, n) => `<button class="btn" data-n="${n}">VISION ${['I', 'II', 'III'][n]}</button>`).join('')}</div>`;
+          $('#curtain').querySelectorAll('[data-n]').forEach(b => b.onclick = () => { p.gold = +b.dataset.n; $('#curtain').classList.add('hide'); res(); }); $('#curtain').classList.remove('hide'); }); } }
+    const curtain = (h, s) => new Promise(res => { $('#curtain').innerHTML = `<div><h2>${esc(h)}</h2><p style="color:#9fb5a9">${esc(s)}</p><button class="btn" id="cv">READY</button></div>`; $('#curtain').classList.remove('hide'); $('#cv').onclick = res; });
+    addEventListener('keydown', e => { if (e.key === 'Escape' && table) { table = null; stopPlay(); drawFloor(); } });
+    try { openRoom(); } catch (e) { drawFloor('the table could not open a room; play on this screen instead'); }
+    drawFloor();
+  }
+})();
+</script></body></html>
