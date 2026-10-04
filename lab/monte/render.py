@@ -4,7 +4,7 @@ before it), each shot playing its real motion over its steadiest, best-lit stret
 and the archive's music (the chosen piece, continued by the pieces nearest its mood), each piece levelled, silent in the acts the rules
 made silent, and the whole levelled in two passes. No added text, no grade, no borrowed voices.
 usage: python3 monte/render.py [k] [source]  -> monte/film-<k>.mp4, monte/film-<k>.json (the edit: every piece, its source and its moment)
-       source: evolution (the default, the bred rules), comic (the comedies: lines from one film over pictures from another) or mcts (the Grand Editing Machine, monte/mcts.json) -> monte/mcts-<k>.mp4, .json"""
+       source: evolution (the default, the bred rules), tactical (comedies built as routines: charge, pause, punch, laugh, exit), comic (the comedies: lines from one film over pictures from another) or mcts (the Grand Editing Machine, monte/mcts.json) -> monte/mcts-<k>.mp4, .json"""
 import json, os, re, subprocess, sys
 import numpy as np
 D = os.path.dirname(os.path.abspath(__file__)); L = os.path.dirname(D); T = os.path.join(D, "cache"); os.makedirs(T, exist_ok=True)
@@ -48,7 +48,7 @@ def moment(p, kind, need):
 dur = lambda p: float(subprocess.run(["ffprobe", "-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", p], capture_output=True, text=True).stdout or 0)
 ENC = ["-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p", "-r", str(FPS)]
 VF = f"scale={W_}:{H_}:force_original_aspect_ratio=decrease,pad={W_}:{H_}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={FPS},format=yuv420p"   # no grade
-parts, table, silent, voices, t = [], [], [], [], 0.0
+parts, table, silent, voices, rests, t = [], [], [], [], [], 0.0
 for n, e in enumerate(F["ev"]):
     src = fetch(e["i"]); d = dur(src); out = os.path.join(T, f"{PRE}{K}_{n:02d}.mp4"); L_ = e["dur"]
     if e["kind"] == "card":   # the archival frame itself, held to be read
@@ -60,10 +60,12 @@ for n, e in enumerate(F["ev"]):
         subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-ss", f"{a:.2f}", "-t", f"{L_:.2f}", "-i", src, "-an", "-vf", VF + (f",tpad=stop_mode=clone:stop_duration={L_:.2f}" if d < L_ + .1 else ""), "-t", f"{L_:.2f}", *ENC, out], check=True)
         v0, v1 = round(a, 2), round(a + L_, 2)
     if e.get("silent"): silent.append((t, t + L_))   # a silent act, or the card that stops the film
-    if e.get("line"): ln = e["line"]; voices.append((t + .3, fetch(ln["i"]), ln["t0"], ln["t1"]))   # a comedy: a line from another film, over this picture
+    if e.get("line"):   # a comedy: a line from another film, over this picture; a tactical routine waits its pause first, and leaves room for the laugh
+        ln = e["line"]; pz = (e.get("pause") or 300) / 1000; voices.append((t + pz, fetch(ln["i"]), ln["t0"], ln["t1"], (e.get("laugh") or 250) / 1000))
+        if e.get("punch"): rests.append((t + .05, t + pz - .05))   # [PAUSE]: the music cuts out while the picture sits there
     parts.append(out)
     table.append({"pos": n + 1, "at": round(t, 1), "dur": round(L_, 2), "kind": e["kind"], "id": e["i"], "film": e.get("film"), "year": e.get("year"), "score": e.get("score"),
-                  "source": [v0, v1] if v1 > v0 else f"frame at {v0} s, held", "text": e.get("text"), "silent": bool(e.get("silent")), "voice": ({"said": e["line"]["text"], "from": e["line"]["film"], "id": e["line"]["i"], "at": [e["line"]["t0"], e["line"]["t1"]]} if e.get("line") else None)})
+                  "source": [v0, v1] if v1 > v0 else f"frame at {v0} s, held", "text": e.get("text"), "silent": bool(e.get("silent")), "pause_ms": e.get("pause"), "laugh_ms": e.get("laugh"), "exit": bool(e.get("exit")), "voice": ({"said": e["line"]["text"], "from": e["line"]["film"], "id": e["line"]["i"], "at": [e["line"]["t0"], e["line"]["t1"]]} if e.get("line") else None)})
     t += L_
 # the joins: straight cuts, as in Precisely So
 pic = os.path.join(T, f"{PRE}{K}_picture.mp4")   # re-encoded through the concat filter: a stream copy can stop at a piece whose timing differs
@@ -84,10 +86,11 @@ ins = sum([["-i", aud(m["i"])] for m in music], [])
 fc = "".join(f"[{k}:a]atrim=0:{lens[k]:.2f},asetpts=PTS-STARTPTS,loudnorm=I=-20:TP=-2,aformat=sample_rates=48000:channel_layouts=stereo[a{k}];" for k in range(len(music))); ch = "[a0]"
 for k in range(1, len(music)): fc += f"{ch}[a{k}]acrossfade=d=2.5:c1=tri:c2=tri[x{k}];"; ch = f"[x{k}]"
 mute = "+".join(f"between(t,{a - .15:.2f},{b + .1:.2f})" for a, b in silent) or "0"
-duck = "+".join(f"between(t,{a - .25:.2f},{a + (t1 - t0) + .25:.2f})" for a, _, t0, t1 in voices) or "0"   # the music steps back for a voice
-fc += f"{ch}apad,atrim=0:{t:.2f},volume='if({mute},0,if({duck},0.25,1))':eval=frame,afade=t=in:d=1.2,afade=t=out:st={t - 2.5:.2f}:d=2.5[m]"
+duck = "+".join(f"between(t,{a - .25:.2f},{a + (t1 - t0) + tail:.2f})" for a, _, t0, t1, tail in voices) or "0"   # low under the line and through the laugh; up again for the exit [TONE SHIFT]
+rest = "+".join(f"between(t,{a:.2f},{b:.2f})" for a, b in rests) or "0"   # the music steps back for a voice
+fc += f"{ch}apad,atrim=0:{t:.2f},volume='if({mute}+{rest},0,if({duck},0.22,1))':eval=frame,afade=t=in:d=1.2,afade=t=out:st={t - 2.5:.2f}:d=2.5[m]"
 vins = []
-for k, (a, src, t0, t1) in enumerate(voices):   # each line cut from its own clip at the transcript's word times, levelled, set in place
+for k, (a, src, t0, t1, _) in enumerate(voices):   # each line cut from its own clip at the transcript's word times, levelled, set in place
     vins += ["-ss", f"{t0}", "-t", f"{t1 - t0}", "-i", src]
     fc += f";[{len(music) + k}:a]loudnorm=I=-16:TP=-2,aformat=sample_rates=48000:channel_layouts=stereo,afade=t=in:d=0.04,afade=t=out:st={max(.1, t1 - t0 - .1):.2f}:d=0.1,adelay={int(a * 1000)}|{int(a * 1000)}[v{k}]"
 if voices: fc += ";[m]" + "".join(f"[v{k}]" for k in range(len(voices))) + f"amix=inputs={1 + len(voices)}:duration=first:normalize=0[mix]"
