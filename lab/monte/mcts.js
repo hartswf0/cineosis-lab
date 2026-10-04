@@ -89,7 +89,7 @@
     function step(iters = P.iters) { if (rootN.s.phase === 'done') return null; for (let i = 0; i < iters; i++) iterate(); return commit(); }
     function run() { while (step()); return film(); }
     function film() { const f = reward(M, rootN.s, P.W); f.seed = P.seed; f.steps = steps; f.rollouts = total; return f; }
-    return { step, run, film, iterate, commit, get root() { return rootN; }, get steps() { return steps; }, get total() { return total; }, get done() { return rootN.s.phase === 'done'; }, P, BEAT, PLOT };
+    return { step, run, film, iterate, commit, get root() { return rootN; }, get recent() { return recent; }, kids: () => rootN.kids.map(c => ({ kind: c.m.kind, k: c.m.k, n: c.n, q: c.n ? c.w / c.n : 0 })).sort((a, b) => b.n - a.n), get steps() { return steps; }, get total() { return total; }, get done() { return rootN.s.phase === 'done'; }, P, BEAT, PLOT };
   }
   const api = { machine, BEAT, PLOT };
   if (typeof module !== 'undefined') module.exports = api; else root.GrandEditingMachine = api;
