@@ -16,7 +16,7 @@ header{ display:flex; align-items:center; gap:10px; padding:calc(8px + env(safe-
 main{ position:relative; background:#000; min-height:0; touch-action:pan-y; } main{ overflow:hidden; } main video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0; transition:filter .6s; transform-origin:50% 45%; will-change:opacity, transform; } main.rest video{ filter:brightness(.7); }
 main video.pool{ transition:opacity .6s, filter .6s, right .8s ease-in-out, bottom .8s ease-in-out; } main video.bs{ left:auto; width:50%; right:0; opacity:0; transition:opacity .7s ease-in-out; z-index:5000; border-left:2px solid #050505; }
 main.pair video.pool{ right:50%; width:auto; } main.pair video.bs.on{ opacity:1; }
-#who{ position:absolute; left:10px; top:10px; font:10px var(--mono); color:#d6cfc2; background:#000a; border-radius:12px; padding:4px 9px; max-width:calc(100% - 20px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } #who:empty{ display:none; }
+#who{ cursor:pointer; z-index:6500; } #who{ position:absolute; left:10px; top:10px; font:10px var(--mono); color:#d6cfc2; background:#000a; border-radius:12px; padding:4px 9px; max-width:calc(100% - 20px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } #who:empty{ display:none; }
 #tap{ position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; } #tap svg{ width:56px; height:56px; padding:14px; border-radius:50%; background:#0009; color:#efe9dd; opacity:0; transition:opacity .3s; } #tap.show svg{ opacity:1; }
 #line{ padding:10px 4vw 4px; min-height:140px; max-height:36vh; overflow:auto; }
 #line small{ display:block; font:500 10px var(--mono); letter-spacing:.2em; color:var(--hi); margin-bottom:8px; text-align:center; }
@@ -87,14 +87,14 @@ body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:no
   <button data-m="performance">PERFORMANCE<small>longer runs, fewer voices</small></button><button data-m="kinship">KINSHIP<small>kindred words where it lacks his</small></button>
   <button data-m="literal">LITERAL<small>Homer's words, his order</small></button></nav>
 <main id="stage"><video class="pool" playsinline muted preload="auto"></video><video class="pool" playsinline muted preload="auto"></video><video class="pool" playsinline muted preload="auto"></video><video class="pool" playsinline muted preload="auto"></video><video class="bs" playsinline muted preload="auto"></video><video class="bs" playsinline muted preload="auto"></video><div id="grid" aria-label="The call"></div><div id="who"></div><div id="cap"></div>
-  <div id="th"><button class="only" id="ccBtn" title="Subtitles: the line and its answer, the answer only, or none">CC · BOTH</button><button class="only" id="fitBtn" title="The whole picture, or fill the screen">FIT · WHOLE</button><button id="thBtn" title="Theatre: the film full screen, the words as subtitles">⛶ THEATRE</button></div>
+  <div id="th"><button class="only" id="ccBtn" title="Subtitles: the line and its answer, the answer only, or none">CC · BOTH</button><button class="only" id="fitBtn" title="The whole picture, or fill the screen">FIT · WHOLE</button><button id="srcBtn" title="Where this comes from: the original films, whole">SOURCE</button><button id="thBtn" title="Theatre: the film full screen, the words as subtitles">⛶ THEATRE</button></div>
   <div id="thBar"><button class="ico" id="tPrev" aria-label="Previous line"><svg><use href="#i-prev"/></svg></button><button class="ico" id="tPlay" aria-label="Play"><svg><use href="#i-play"/></svg></button><button class="ico" id="tNext" aria-label="Next line"><svg><use href="#i-next"/></svg></button></div>
   <div id="tap"><svg><use href="#i-play"/></svg></div></main>
 <div id="line"></div>
 <footer><button class="ico" id="bPrev" aria-label="Previous line"><svg><use href="#i-prev"/></svg></button><button class="ico" id="bPlay" aria-label="Play"><svg><use href="#i-play"/></svg></button><button class="ico" id="bNext" aria-label="Next line"><svg><use href="#i-next"/></svg></button>
   <button class="tg" id="deliv" title="How one voice gives way to the next">BREATH</button><button class="tg" id="ours" title="Our studio voice under the archive">STUDIO</button><div id="prog"></div></footer>
 <audio id="voice" preload="auto"></audio><audio id="track" preload="auto"></audio>
-<script src="markov/ui.js?v=3"></script>
+<script src="markov/ui.js?v=3"></script><script src="attrib/attrib.js"></script>
 <script>
 (function () {
   const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -116,7 +116,7 @@ body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:no
   const tr = u => u && (mode === 'call' ? u.modes.spoken : u.modes[mode] || (mode === 'spoken' || mode === 'sense' ? null : u.modes.kinship));
   const src = x => { const c = F.clips[x.id] || {}; return (c.title || '') + (c.year ? ' · ' + c.year : ''); };
   const keyOf = x => x.id + '@' + x.t0;
-  let shown = null, cur = null, z = 1;
+  let shown = null, cur = null, z = 1, heard = null;   // heard: the archive voice sounding now (its clip and where in it)
   // what the call and its answer have in common: the content words they share, by stem, lit in both
   const STOPW = new Set('a an the and or but of to in on at by for with from as is are was were be been it its this that i you he she we they me him her us them my your his our their not no so if then than there here what who which when where how all any some one into out up down over under o oh let now upon shall will would should could may might must do did does have has had am'.split(' '));
   const stem = w => w.toLowerCase().replace(/[^a-z']/g, '').replace(/'s$/, '').replace(/(ing|ed|es|s)$/, '');
@@ -175,7 +175,7 @@ body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:no
     if (!el) { const e = POOL.find(e => e !== shown && e !== cur); if (!e) { next(); return; } load(e, x); el = e; }
     const t0 = performance.now();
     const wait = () => { if (my !== guard) return; if (ready(el, x)) begin(); else if (performance.now() - t0 > 3000) next(); else { if (!el.seeking && Math.abs(el.currentTime - x.t0) > .3 && el.readyState >= 1) try { el.currentTime = x.t0; } catch (e) { } setTimeout(wait, 30); } };
-    function begin() { cur = el; el._unlock = false; try { el.volume = 0; } catch (e) { } el.muted = false; el.play().catch(() => { }); vol(el, 1, deliv === 'CUT' ? 1 : 60);
+    function begin() { cur = el; heard = { id: x.id, at: x.t0 }; el._unlock = false; try { el.volume = 0; } catch (e) { } el.muted = false; el.play().catch(() => { }); vol(el, 1, deliv === 'CUT' ? 1 : 60);
       const dur = x.t1 - x.t0;
       if (!shown || dur >= TAKE || deliv === 'CUT') take(el, deliv === 'CUT' ? 0 : Math.round(Math.min(650, Math.max(180, dur * 300))));
       $('#who').textContent = src(x) + ' · “' + x.words + '”';
@@ -230,7 +230,7 @@ body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:no
   function tkLoop() { cancelAnimationFrame(tkRaf); const t = trk(); if (!t) return; const now = track.currentTime;
     let L = null; for (const l of t.lines) if (l.at - .6 <= now) L = l; if (L && L.li !== li) { li = L.li; drawLine(); }
     let E = null; for (const e of t.ev) if (e.at - .05 <= now) E = e; else break;
-    if (E && E !== curEv && E.li === li && now <= E.end + .5) { curEv = E; mark(E.fi); const x = (tr(lines()[E.li]) || { frags: [] }).frags[E.fi] || {};
+    if (E && E !== curEv && E.li === li && now <= E.end + .5) { curEv = E; heard = E.id && !E.ours ? { id: E.id, at: E.t0 } : heard; mark(E.fi); const x = (tr(lines()[E.li]) || { frags: [] }).frags[E.fi] || {};
       $('#who').textContent = E.call ? 'the line' : E.ours ? 'our voice · “' + (x.gap || x.elided || '') + '”' : src(E) + ' · “' + (x.words || '') + '”'; }
     if (gridOn) { gridUpdate(now); if (playing) tkRaf = requestAnimationFrame(tkLoop); return; }
     beside(now);
@@ -336,6 +336,14 @@ body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:no
     $('#cap').innerHTML = `<span class="h">${esc(call ? u.text : u.who + ' · ' + u.text)}</span>${said ? `<span class="a">${esc(said)}</span>` : ''}${s_ ? `<span class="s">${esc(s_.textContent)}</span>` : ''}`; }
   new MutationObserver(caption).observe($('#line'), { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
   drawTh();
+  // SOURCE: the films on screen and in the ear now, each traced to the whole original
+  function sources(e) { if (e) { e.stopPropagation(); e.preventDefault(); } const pic = e => e && (e.currentSrc || e.src) ? { video: e.currentSrc || e.src, at: e.currentTime } : null, out = [];
+    if (gridOn && GT) GT.filter(g => g.el.classList.contains('live') && !g.line).forEach(g => out.push(Object.assign({ role: 'speaking, in the grid' }, pic(g.v))));
+    else { const p = pic(shown); if (p) out.push(Object.assign({ role: 'the picture' }, p)); if (bsOn) { const b = pic(bsOn); if (b) out.push(Object.assign({ role: 'beside it, the answer’s own footage' }, b)); } }
+    if (heard && F.clips[heard.id]) out.push({ role: 'the voice', video: F.clips[heard.id].video, at: heard.at });
+    if (!out.length) { const t = tr(lines()[li]); ((t && t.frags) || []).filter(x => x.id && F.clips[x.id]).forEach(x => out.push({ role: 'this line’s voices', video: F.clips[x.id].video, at: x.t0 })); }   // nothing playing yet: the line's own sources
+    Attrib.show(out.filter(x => x.video)); wake(); }
+  $('#srcBtn').onclick = sources; ['click', 'touchend'].forEach(ev => $('#who').addEventListener(ev, sources));
   document.querySelectorAll('#dial button').forEach(b => b.onclick = () => setMode(b.dataset.m));
   $('#bPlay').onclick = toggle; const jump = n => { if (trk()) tkLoad(Math.max(0, n), playing); else go(n); }; $('#bNext').onclick = () => jump(li + 1); $('#bPrev').onclick = () => jump(li - 1);
   $('#ours').onclick = () => { ours = !ours; $('#ours').classList.toggle('on', ours); };
