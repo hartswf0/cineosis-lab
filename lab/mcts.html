@@ -75,7 +75,7 @@ button{ font:inherit; color:inherit; cursor:pointer; } img{ display:block; }
     <div class="note" id="cNote"></div></section>
   <section class="pane p5"><div class="bar"><button aria-label="Back">‹</button><span>⇪</span></div><div class="head">Render</div>
     <div class="screen" id="screen"><video id="vid" playsinline preload="metadata"></video><audio id="voice" preload="none"></audio><img id="still" alt="" style="opacity:0"><div class="cap" id="rcap"></div></div>
-    <div class="strip" id="strip"></div>
+    <div class="strip" id="strip"></div><button class="also" id="srcBtn" style="margin-top:10px" title="Where this comes from: the original films, whole">SOURCE OF THIS PIECE ↗</button>
     <button class="go play" id="rPlay" title="Play the film">▶</button>
     <div class="crit" id="crit"></div></section>
 </div>
@@ -85,7 +85,7 @@ button{ font:inherit; color:inherit; cursor:pointer; } img{ display:block; }
   <div><b>3 · Rollout</b>From that branch it imagines the rest of the film, quickly and a little by chance, all the way to The End. Each rollout is a small film.</div>
   <div><b>4 · Backpropagation</b>The critic scores each imagined film (Andersonian frames, matched cuts, cards borne out, a story in order, pace, music) and the reward flows back up every branch that led to it. After 128 futures the most-visited piece is committed, and the search goes on from there.</div>
 </div>
-<script src="monte/sim.js"></script><script src="monte/mcts.js"></script>
+<script src="attrib/attrib.js"></script><script src="monte/sim.js"></script><script src="monte/mcts.js"></script>
 <script>
 (function () {
   const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -147,6 +147,11 @@ button{ font:inherit; color:inherit; cursor:pointer; } img{ display:block; }
         v.onloadedmetadata = () => { try { v.currentTime = Math.max(0, v.duration / 2 - e.dur / 2); } catch (x) { } }; v.onseeked = () => { v.onseeked = null; v.play().catch(() => { }); st.style.opacity = 0; }; }
       ptimer = setTimeout(() => go(n + 1), e.dur * 1000); };
     go(j); }
+  // SOURCE: the piece on screen (or the first), and in a comedy the film its voice is borrowed from, each traced to the whole original
+  $('#srcBtn').onclick = async () => { const on = $('#strip img.on'), e = F.ev[on ? +on.dataset.j : 0]; if (!e) return; const s = M.shots[e.k], out = [{ role: e.kind === 'card' ? 'the title card' : 'the picture', video: M.r2 + s.v, title: s.film, year: s.year }];
+    if (e.line) { if (!VIDX) VIDX = await fetch('aspect/video.json').then(r => r.json()).then(v => Object.fromEntries(Object.entries(v).map(([i, x]) => [i, x[0]]))).catch(() => ({}));
+      if (VIDX[e.line.i]) out.push({ role: 'the voice: “' + e.line.text + '”', video: M.r2 + VIDX[e.line.i], at: e.line.t0, title: e.line.film, year: e.line.year }); }
+    Attrib.show(out); };
   $('#rPlay').onclick = async () => { if (!F.video && F.ev.some(e => e.line) && !VIDX) VIDX = await fetch('aspect/video.json').then(r => r.json()).then(v => Object.fromEntries(Object.entries(v).map(([i, x]) => [i, x[0]]))).catch(() => ({})); playFrom(0); };
   $('#vid').ontimeupdate = () => { if (!F.video) return; let t = 0, j = 0; for (; j < F.ev.length; j++) { t += F.ev[j].dur; if (t > $('#vid').currentTime) break; } mark(j); };
   // ---- the machine, live in the browser

@@ -1,0 +1,25 @@
+# Look up every source film in the Internet Archive (lab/attrib/resolve.py), where archive.org can be reached, and commit the attributions.
+name: attrib
+on:
+  workflow_dispatch:
+  push:
+    branches: [ccr-2bb8215b-hn7o6f]
+    paths: [lab/attrib/resolve.py, lab/attrib/titles.json, .github/workflows/attrib.yml]
+permissions:
+  contents: write
+concurrency: { group: attrib, cancel-in-progress: true }
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 1, sparse-checkout: "lab/attrib\n.github", sparse-checkout-cone-mode: true }
+      - run: python3 lab/attrib/resolve.py
+      - name: commit
+        if: always()   # what was resolved is kept, even if the run stops early
+        run: |
+          git config user.name "attrib"; git config user.email "actions@users.noreply.github.com"
+          [ -f lab/attrib/sources.json ] || exit 0; git add lab/attrib/sources.json
+          git commit -m "ATTRIBUTION — every source film looked up in the Internet Archive (lab/attrib/resolve.py)" || exit 0
+          for i in 1 2 3; do git pull --rebase -q origin "$GITHUB_REF_NAME" && git push origin "HEAD:$GITHUB_REF_NAME" && break; sleep 5; done
