@@ -22,13 +22,13 @@
     el.innerHTML = `<div class="box"><button class="x" aria-label="Close">×</button><h4>THE SOURCES</h4>${html}</div>`; return el; }
   async function show(items) { const S_ = await load(); const seen = new Set();
     const rows = items.filter(x => x && x.video).filter(x => { const f = folder(x.video); if (seen.has(f + x.role)) return false; seen.add(f + x.role); return true; }).map(x => {
-      const f = folder(x.video), r = S_[f] || (T && T[f]) || {}, title = r.title || x.title || 'Unknown film', yr = r.year || x.year;
-      const meta = [r.found && r.found !== title ? `catalogued as “${esc(r.found)}”${r.found_year ? ' (' + esc(r.found_year) + ')' : ''}` : '', r.sponsor ? 'sponsor: ' + esc(r.sponsor) : '', r.creator ? 'by ' + esc(r.creator) : '',
+      const f = folder(x.video), r = S_[f] || (T && T[f]) || {}, title = r.title || x.title || 'Unknown film', yr = r.year || x.year, sure = r.url && r.conf >= .85;   // sure: the title and the year both agree
+      const meta = [r.found && (r.found !== title || !sure) ? `catalogued as “${esc(r.found)}”${r.found_year ? ' (' + esc(r.found_year) + ')' : ''}` : '', r.sponsor ? 'sponsor: ' + esc(r.sponsor) : '', r.creator ? 'by ' + esc(r.creator) : '',
         (r.collection || []).filter(c => !/^(stream_only|fav-|moviesandfilms)/.test(c)).slice(0, 2).map(esc).join(', '), lic(r.license)].filter(Boolean).join(' · ');
       const search = r.search || 'https://archive.org/search?query=' + encodeURIComponent('"' + title.replace(/\s*\((part|reel)[^)]*\)/gi, '') + '"');
       return `<div class="it"><div class="role">${esc(x.role || 'the clip')}${x.at != null ? ' · from ' + mmss(x.at) + ' of this clip' : ''}</div><div class="t">${esc(title)}${yr ? ' <span style="color:#8a8378">(' + esc(yr) + ')</span>' : ''}</div>
-        ${meta ? `<div class="m">${meta}</div>` : ''}<div class="bt">${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Watch the whole film ↗</a>` : `<a href="${esc(search)}" target="_blank" rel="noopener">Find the whole film ↗</a>`}
-        <a class="q" href="${esc(x.video)}" target="_blank" rel="noopener">This clip ↗</a>${r.url && r.conf != null && r.conf < .8 ? `<a class="q" href="${esc(search)}" target="_blank" rel="noopener">Other matches ↗</a>` : ''}</div></div>`; });
+        ${meta ? `<div class="m">${meta}</div>` : ''}<div class="bt">${sure ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Watch the whole film ↗</a>` : r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Possibly the whole film ↗</a><a href="${esc(search)}" target="_blank" rel="noopener">Search for it ↗</a>` : `<a href="${esc(search)}" target="_blank" rel="noopener">Find the whole film ↗</a>`}
+        <a class="q" href="${esc(x.video)}" target="_blank" rel="noopener">This clip ↗</a></div></div>`; });
     sheet((rows.join('') || '<div class="it">No clip on screen yet.</div>') + `<div class="note">Films from the Internet Archive and its collections (Prelinger and others), matched by title and year; a search is offered where no match was certain.</div>`); }
   root.Attrib = { show, load, folder };
 })(this);
