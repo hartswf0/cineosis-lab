@@ -22,8 +22,8 @@
   }
   const cos = (a, b) => { let s = 0, x = 0, y = 0; for (let k = 0; k < a.length; k++) { s += a[k] * b[k]; x += a[k] * a[k]; y += b[k] * b[k]; } return s / (Math.sqrt(x * y) || 1); };
   // ---- the state of a film being made: its pieces, where it is in the story, what it has used
-  function start(opts) { return { ev: [], phase: 'open', act: 0, inAct: 0, card: null, prev: null, used: new Set(), thread: new Set(), films: new Map(), stopped: false }; }
-  function clone(s) { return { ev: s.ev.slice(), phase: s.phase, act: s.act, inAct: s.inAct, card: s.card, prev: s.prev, used: new Set(s.used), thread: new Set(s.thread), films: new Map(s.films), stopped: s.stopped }; }
+  function start(opts) { return { ev: [], phase: 'open', act: 0, inAct: 0, card: null, prev: null, used: new Set(), thread: new Set(), films: new Map(), stopped: false, lines: new Set() }; }
+  function clone(s) { return { ev: s.ev.slice(), phase: s.phase, act: s.act, inAct: s.inAct, card: s.card, prev: s.prev, used: new Set(s.used), thread: new Set(s.thread), films: new Map(s.films), stopped: s.stopped, lines: new Set(s.lines) }; }
   // the moves open from a state, each with a prior (how good it looks before any search), best first, at most K
   function moves(M, X, s, P) {
     const out = [], free = k => !s.used.has(k) && !P.spent.has(k);
@@ -40,7 +40,9 @@
         if (pj != null) p -= Math.abs(X.S[pj * X.n + j] - .72) * 1.6;            // a cut that matches without repeating
         if (A && s.inAct < 3) p += A[j] * .9;                                   // the picture answers the card
         p -= (s.films.get(M.shots[k].film) || 0) * .5;
-        out.push({ kind: 'shot', k, p }); }
+        out.push({ kind: 'shot', k, p });
+        const jokes = P.comic && P.comic.get(k);   // a comedy: the same picture, with a line from another film over it
+        if (jokes) for (const J of jokes) if (!s.lines.has(J.line) && !P.spentLines.has(J.line)) { out.push({ kind: 'shot', k, line: J.line, funny: J.funny, p: p + J.funny / 10 * P.wComic }); break; } }
       if (s.stopped === false && PLOT[s.act] === 2 && s.inAct >= 1 && M.stop.length && free(M.stop[0])) out.push({ kind: 'stop', k: M.stop[0], p: .9 });   // the film may stop itself, once
       if (s.inAct >= P.minShots) out.push({ kind: 'turn', k: -1, p: .55 + .1 * s.inAct });   // turn the page: the next chapter
     }
@@ -55,6 +57,7 @@
     if (m.kind === 'card' && s.phase === 'open') { s.ev.push({ kind: 'card', k: m.k, dur: P.hold }); s.used.add(m.k); s.phase = 'card'; }
     else if (m.kind === 'card') { s.ev.push({ kind: 'card', k: m.k, dur: Math.max(P.hold, Math.min(4, 1.6 + X.words(m.k) * .22)), act: s.act, beat: PLOT[s.act] }); s.used.add(m.k); s.thread.add(sh.film); s.card = m.k; s.phase = 'shot'; s.inAct = 0; }
     else if (m.kind === 'stop') { s.ev.push({ kind: 'card', k: m.k, dur: 3.2, act: s.act, silent: true, stop: true }); s.used.add(m.k); s.stopped = true; }
+    else if (m.kind === 'shot' && m.line != null) { const L = M.lines[m.line]; s.ev.push({ kind: 'shot', k: m.k, dur: Math.max(P.shotDur, L.t1 - L.t0 + .9), act: s.act, line: m.line, funny: m.funny }); s.lines.add(m.line); s.used.add(m.k); s.prev = m.k; s.inAct++; s.films.set(sh.film, (s.films.get(sh.film) || 0) + 1); }
     else if (m.kind === 'shot') { s.ev.push({ kind: 'shot', k: m.k, dur: P.shotDur, act: s.act }); s.used.add(m.k); s.prev = m.k; s.inAct++; s.films.set(sh.film, (s.films.get(sh.film) || 0) + 1); }
     else if (m.kind === 'turn') { s.act++; s.inAct = 0; s.phase = s.act >= PLOT.length ? 'end' : 'card'; s.card = null; }
     else if (m.kind === 'end') { s.ev.push({ kind: 'card', k: m.k, dur: P.hold, end: true }); s.used.add(m.k); s.phase = 'done'; }
@@ -65,15 +68,20 @@
   function score(M, s) { const cm = s.ev.filter(e => e.kind === 'card').map(e => M.cardMood[M.cardIx.get(e.k)]).filter(Boolean);
     const mood = cm.length ? cm[0].map((_, j) => cm.reduce((a, x) => a + x[j], 0) / cm.length) : M.moods.map(() => 0);
     let best = 0, bv = -9; M.music.forEach((x, k) => { const c = cos(x.mood, mood); if (c > bv) { bv = c; best = k; } }); return { ev: s.ev, music: best, mood }; }
-  const reward = (M, s, W) => { const f = score(M, s); MC.critic(M, f, W); return f; };
+  const reward = (M, s, W, P) => { const f = score(M, s); MC.critic(M, f, W);
+    if (P && P.comic) {   // the comedy: how funny its lines are, and enough of them (about every other shot), weighed in with the critic
+      const sh = s.ev.filter(e => e.kind === 'shot'), jk = sh.filter(e => e.line != null), tw = Object.values(W).reduce((a, b) => a + b, 0);
+      f.parts.comedy = jk.length ? jk.reduce((a, e) => a + e.funny, 0) / jk.length / 10 * Math.min(1, jk.length / Math.max(1, sh.length * .5)) : 0;
+      f.score = (f.score * tw + P.wComedy * f.parts.comedy) / (tw + P.wComedy); }
+    return f; };
   // ---- the machine
   function machine(M, opts = {}) {
-    const X = prepare(M), P = Object.assign({ K: 8, iters: 128, c: .9, minShots: 2, maxShots: 4, shotDur: 2.6, hold: 2.6, seed: 1, spent: new Set(), avoid: new Set(), told: new Set(), W: Object.assign({}, MC.CRITIC) }, opts);
+    const X = prepare(M), P = Object.assign({ K: 8, iters: 128, c: .9, minShots: 2, maxShots: 4, shotDur: 2.6, hold: 2.6, seed: 1, spent: new Set(), avoid: new Set(), told: new Set(), comic: null, spentLines: new Set(), wComic: 1.6, wComedy: .45, W: Object.assign({}, MC.CRITIC) }, opts);
     const R = rng(P.seed), node = (s, m, parent) => ({ s, m, parent, kids: [], untried: s.phase === 'done' ? [] : moves(M, X, s, P), n: 0, w: 0 });
     let rootN = node(start(), null, null), lo = 1, hi = 0, total = 0; const steps = [], recent = [];
     function rollout(s) { let t = s, first = [];   // imagine the rest of the film: each next piece from the best three, by chance
       for (let g = 0; g < 80 && t.phase !== 'done'; g++) { const ms = moves(M, X, t, P); if (!ms.length) break; const m = ms[Math.floor(R() * Math.min(3, ms.length))]; t = apply(M, X, t, m, P); if (m.kind !== 'turn' && first.length < 6) first.push(m.k); }
-      return { f: reward(M, t, P.W), first }; }
+      return { f: reward(M, t, P.W, P), first }; }
     function iterate() {
       let v = rootN;
       while (!v.untried.length && v.kids.length) { const N = Math.log(v.n + 1); v = v.kids.reduce((b, c) => { const u = c.w / c.n + P.c * Math.sqrt(N / c.n); return u > b.u ? { c, u } : b; }, { c: null, u: -1e9 }).c; }   // 1 selection
@@ -88,7 +96,7 @@
       best.parent = null; rootN = best; return best.m; }
     function step(iters = P.iters) { if (rootN.s.phase === 'done') return null; for (let i = 0; i < iters; i++) iterate(); return commit(); }
     function run() { while (step()); return film(); }
-    function film() { const f = reward(M, rootN.s, P.W); f.seed = P.seed; f.steps = steps; f.rollouts = total; return f; }
+    function film() { const f = reward(M, rootN.s, P.W, P); f.seed = P.seed; f.steps = steps; f.rollouts = total; return f; }
     return { step, run, film, iterate, commit, get root() { return rootN; }, get recent() { return recent; }, kids: () => rootN.kids.map(c => ({ kind: c.m.kind, k: c.m.k, n: c.n, q: c.n ? c.w / c.n : 0 })).sort((a, b) => b.n - a.n), get steps() { return steps; }, get total() { return total; }, get done() { return rootN.s.phase === 'done'; }, P, BEAT, PLOT };
   }
   const api = { machine, BEAT, PLOT };
