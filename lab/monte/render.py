@@ -3,12 +3,14 @@
 before it), each shot playing its real motion over its steadiest, best-lit stretch (no fades, no black, no flash frames), straight cuts,
 and the archive's music (the chosen piece, continued by the pieces nearest its mood), each piece levelled, silent in the acts the rules
 made silent, and the whole levelled in two passes. No added text, no grade, no borrowed voices.
-usage: python3 monte/render.py [k]  -> monte/film-<k>.mp4, monte/film-<k>.json (the edit: every piece, its source and its moment)"""
+usage: python3 monte/render.py [k] [source]  -> monte/film-<k>.mp4, monte/film-<k>.json (the edit: every piece, its source and its moment)
+       source: evolution (the default, the bred rules) or mcts (the Grand Editing Machine, monte/mcts.json) -> monte/mcts-<k>.mp4, .json"""
 import json, os, re, subprocess, sys
 import numpy as np
 D = os.path.dirname(os.path.abspath(__file__)); L = os.path.dirname(D); T = os.path.join(D, "cache"); os.makedirs(T, exist_ok=True)
 K = int(sys.argv[1]) if len(sys.argv) > 1 else 0
-EV = json.load(open(os.path.join(D, "evolution.json"))); F = EV["best"][K]; M = json.load(open(os.path.join(D, "material.json")))
+SRC = sys.argv[2] if len(sys.argv) > 2 else "evolution"; PRE = "film" if SRC == "evolution" else SRC
+EV = json.load(open(os.path.join(D, SRC + ".json"))); F = EV["best"][K]; M = json.load(open(os.path.join(D, "material.json")))
 V = json.load(open(os.path.join(L, "aspect", "video.json"))); R2 = M["r2"]; W_, H_, FPS = 960, 720, 24
 def fetch(i):
     p = os.path.join(T, i + ".mp4")
@@ -48,9 +50,9 @@ ENC = ["-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p"
 VF = f"scale={W_}:{H_}:force_original_aspect_ratio=decrease,pad={W_}:{H_}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={FPS},format=yuv420p"   # no grade
 parts, table, silent, t = [], [], [], 0.0
 for n, e in enumerate(F["ev"]):
-    src = fetch(e["i"]); d = dur(src); out = os.path.join(T, f"f{K}_{n:02d}.mp4"); L_ = e["dur"]
+    src = fetch(e["i"]); d = dur(src); out = os.path.join(T, f"{PRE}{K}_{n:02d}.mp4"); L_ = e["dur"]
     if e["kind"] == "card":   # the archival frame itself, held to be read
-        _, at = moment(src, "card", L_); png = os.path.join(T, f"f{K}_{n:02d}.png")
+        _, at = moment(src, "card", L_); png = os.path.join(T, f"{PRE}{K}_{n:02d}.png")
         subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-ss", f"{at:.2f}", "-i", src, "-frames:v", "1", "-update", "1", png], check=True)
         subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-loop", "1", "-t", f"{L_:.2f}", "-i", png, "-vf", VF, *ENC, out], check=True); v0 = v1 = round(at, 2)
     else:                     # real motion over its best stretch
@@ -63,7 +65,7 @@ for n, e in enumerate(F["ev"]):
                   "source": [v0, v1] if v1 > v0 else f"frame at {v0} s, held", "text": e.get("text"), "silent": bool(e.get("silent"))})
     t += L_
 # the joins: straight cuts, as in Precisely So
-pic = os.path.join(T, f"f{K}_picture.mp4")   # re-encoded through the concat filter: a stream copy can stop at a piece whose timing differs
+pic = os.path.join(T, f"{PRE}{K}_picture.mp4")   # re-encoded through the concat filter: a stream copy can stop at a piece whose timing differs
 subprocess.run(["ffmpeg", "-v", "error", "-y", *sum([["-i", x] for x in parts], []), "-filter_complex", "".join(f"[{k}:v]settb=1/{FPS},setpts=PTS-STARTPTS[p{k}];" for k in range(len(parts))) + "".join(f"[p{k}]" for k in range(len(parts))) + f"concat=n={len(parts)}:v=1:a=0[v]", "-map", "[v]", *ENC, pic], check=True)
 assert abs(dur(pic) - t) < 1, f"picture is {dur(pic):.1f} s, the edit {t:.1f} s"
 # the music: the chosen piece, then the pieces nearest its mood, one per film, each levelled before they meet, crossfaded
@@ -82,13 +84,13 @@ fc = "".join(f"[{k}:a]atrim=0:{lens[k]:.2f},asetpts=PTS-STARTPTS,loudnorm=I=-20:
 for k in range(1, len(music)): fc += f"{ch}[a{k}]acrossfade=d=2.5:c1=tri:c2=tri[x{k}];"; ch = f"[x{k}]"
 mute = "+".join(f"between(t,{a - .15:.2f},{b + .1:.2f})" for a, b in silent) or "0"
 fc += f"{ch}apad,atrim=0:{t:.2f},volume='if({mute},0,1)':eval=frame,afade=t=in:d=1.2,afade=t=out:st={t - 2.5:.2f}:d=2.5[m]"
-wav = os.path.join(T, f"f{K}_score.wav"); subprocess.run(["ffmpeg", "-v", "quiet", "-y", *ins, "-filter_complex", fc, "-map", "[m]", wav], check=True)
+wav = os.path.join(T, f"{PRE}{K}_score.wav"); subprocess.run(["ffmpeg", "-v", "quiet", "-y", *ins, "-filter_complex", fc, "-map", "[m]", wav], check=True)
 _m = subprocess.run(["ffmpeg", "-hide_banner", "-i", wav, "-af", "loudnorm=I=-18:TP=-1.5:print_format=json", "-f", "null", "-"], capture_output=True, text=True).stderr
 _j = json.loads(_m[_m.rindex("{"):_m.rindex("}") + 1])
 LN = f"loudnorm=I=-18:TP=-1.5:linear=true:measured_I={_j['input_i']}:measured_TP={_j['input_tp']}:measured_LRA={_j['input_lra']}:measured_thresh={_j['input_thresh']}:offset={_j['target_offset']}"
-out = os.path.join(D, f"film-{K}.mp4")
+out = os.path.join(D, f"{PRE}-{K}.mp4")
 subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-i", pic, "-i", wav, "-map", "0:v", "-map", "1:a", "-af", LN, "-c:v", "libx264", "-preset", "slow", "-crf", "22", "-maxrate", "1800k", "-bufsize", "3600k",
                 "-c:a", "aac", "-b:a", "128k", "-shortest", "-movflags", "+faststart", out], check=True)
 assert abs(dur(out) - t) < 1, f"the film is {dur(out):.1f} s, the edit {t:.1f} s"
-json.dump({"seconds": round(t, 1), "music": [m["i"] for m in music], "edit": table}, open(os.path.join(D, f"film-{K}.json"), "w"), ensure_ascii=False, indent=1)
+json.dump({"seconds": round(t, 1), "music": [m["i"] for m in music], "edit": table}, open(os.path.join(D, f"{PRE}-{K}.json"), "w"), ensure_ascii=False, indent=1)
 print(f"wrote {out} · {t:.1f} s · {len(parts)} pieces · music {[m['film'] for m in music]} · {os.path.getsize(out) / 1e6:.1f} MB")

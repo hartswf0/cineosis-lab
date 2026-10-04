@@ -13,7 +13,8 @@
     M.opening = M.cards.filter(k => /present|produced|picture|productions?|films?\b/i.test(M.shots[k].text) && !/\bend\b|einde|stop projector/i.test(M.shots[k].text) && !said(k));
     M.ending = M.cards.filter(k => /\bthe end\b|^end\b|einde/i.test(M.shots[k].text));
     M.middle = M.cards.filter(k => !M.opening.includes(k) && !M.ending.includes(k) && M.shots[k].score >= 5);
-    M.opening = M.opening.filter(k => M.shots[k].score >= 7 && M.shots[k].text.split(' / ').length <= 6 && !/credits|cast of|direction|screenplay|photography|edited|narrated/i.test(M.shots[k].text));   // an opening, not a credit roll M.ending = M.ending.filter(k => M.shots[k].score >= 6 && /\bthe end\b/i.test(M.shots[k].text));   // Precisely So's floor: nothing the judge did not rate
+    M.opening = M.opening.filter(k => M.shots[k].score >= 7 && M.shots[k].text.split(' / ').length <= 6 && !/credits|cast of|direction|screenplay|photography|edited|narrated/i.test(M.shots[k].text));   // an opening, not a credit roll
+    M.ending = M.ending.filter(k => M.shots[k].score >= 6 && /\bthe end\b/i.test(M.shots[k].text));   // Precisely So's floor: nothing the judge did not rate
     M.good = M.plain.filter(k => M.shots[k].score >= 7);
     // the story grammar. Precisely So worked because its cards, in order, told one: an invitation, a voyage, a door that will not open,
     // "That night.", the King. Each middle card is read for the beat it can play and for how much it speaks (dialogue, I/you/we, a sentence)
