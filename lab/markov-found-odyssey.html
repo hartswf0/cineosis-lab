@@ -49,14 +49,35 @@ body.gridv #line{ min-height:0; max-height:22vh; padding:6px 16px 2px; } body.gr
 .cr .ans .a{ display:block; font:italic 300 clamp(19px,2.6vw,28px)/1.32 var(--serif); color:#8f887d; } .cr .ans.on .a, .cr .ans.done .a{ color:var(--ink); }
 .cr .ans .s{ display:block; font:10px var(--mono); color:#5f5951; margin-top:3px; }
 .cr mark{ background:none; color:var(--hi); border-bottom:1px solid #e8c07066; }
+/* captions over the picture (theatre), and the theatre's own controls */
+#cap{ position:absolute; left:0; right:0; bottom:0; z-index:7000; padding:40px 6vw calc(18px + env(safe-area-inset-bottom)); background:linear-gradient(transparent, #000c 55%); text-align:center; pointer-events:none; display:none; }
+#cap .h{ display:block; font:300 clamp(13px,2.2vw,20px)/1.3 var(--serif); color:#cfc8bb; margin-bottom:6px; } #cap .a{ display:block; font:italic 300 clamp(18px,3.4vw,34px)/1.28 var(--serif); color:#fff; text-shadow:0 1px 3px #000; } #cap .s{ display:block; font:10px var(--mono); color:#a59e93; margin-top:6px; letter-spacing:.06em; }
+#cap:empty{ display:none !important; } body.cc-off #cap{ display:none !important; } body.cc-words #cap .h{ display:none; }
+#th{ position:absolute; top:calc(8px + env(safe-area-inset-top)); right:10px; z-index:7100; display:flex; gap:6px; } #th button{ border:0; border-radius:16px; padding:7px 11px; background:#000a; color:#efe9dd; font:10px var(--mono); letter-spacing:.12em; cursor:pointer; }
+#th .only{ display:none; } body.theatre #th .only{ display:inline-block; } #thBar{ display:none; }
+body.theatre{ grid-template-rows:minmax(0,1fr) !important; grid-template-columns:minmax(0,1fr) !important; grid-template-areas:none !important; }
+body.theatre header, body.theatre #dial, body.theatre #line, body.theatre footer{ display:none !important; }
+body.theatre main{ grid-area:auto !important; height:100dvh !important; } body.theatre #cap{ display:block; } body.theatre #who{ display:none; }
+body.theatre.fill main video{ object-fit:cover; } body.theatre #th, body.theatre #thBar{ transition:opacity .4s; } body.theatre.calm #th, body.theatre.calm #thBar{ opacity:0; pointer-events:none; }
+body.theatre #thBar{ position:absolute; left:50%; bottom:calc(16px + env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:7100; display:flex; gap:10px; align-items:center; background:#000b; border-radius:30px; padding:4px 10px; }
+body.theatre:not(.calm) #cap{ padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
 body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:none !important; } body.bare{ grid-template-rows:minmax(0,1fr) !important; }   /* inside the operator console: the film only */
 @media (max-width:640px){
   body.gridv{ grid-template-rows:auto auto minmax(0,1fr) auto auto; }
   main.pair video.pool{ right:0; bottom:50%; height:auto; } main video.bs{ width:100%; left:0; top:50%; height:50%; border-left:0; border-top:2px solid #050505; }
-  body{ grid-template-rows:auto auto 34vh minmax(0,1fr) auto; }
+  body{ grid-template-rows:auto auto min(75vw, 58dvh) minmax(0,1fr) auto; }   /* portrait: the picture at its full 4:3 width, the words below */
+  .cr .call, .cr .ans .a{ font-size:clamp(20px,5.6vw,26px); } .sp .a{ font-size:clamp(20px,5.6vw,26px); } #cap .a{ font-size:clamp(18px,5.4vw,26px); }
   #markLink b{ display:none; } #dial{ margin:2px 10px 6px; } #dial button{ padding:8px 12px; } #dial button small{ display:none; }
   #line{ max-height:none; min-height:0; padding:12px 16px 6px; } .il{ gap:8px 10px; } .il .h{ font-size:16px; }
   footer{ justify-content:space-between; gap:2px; } #prog{ display:none; } .tg{ padding:7px 8px; font-size:9px; letter-spacing:.05em; } #deliv{ order:-1; } .ico{ width:44px; height:44px; } #bPlay{ width:54px; height:54px; }
+}
+/* landscape on a phone: the picture fills the height on the left; the words and the controls sit beside it */
+@media (orientation:landscape) and (max-height:540px){
+  body:not(.theatre){ grid-template-columns:minmax(0,1fr) min(40vw,380px); grid-template-rows:auto auto minmax(0,1fr) auto; grid-template-areas:'stage head' 'stage dial' 'stage line' 'stage foot'; }
+  body:not(.theatre) header{ grid-area:head; padding:calc(6px + env(safe-area-inset-top)) 8px 2px; flex-wrap:wrap; gap:6px; } body:not(.theatre) #markLink{ display:none; } body:not(.theatre) #scene{ flex:1 1 100%; order:9; }
+  body:not(.theatre) #dial{ grid-area:dial; margin:4px 8px; } body:not(.theatre) #dial button{ padding:6px 8px; } body:not(.theatre) #dial button small{ display:none; }
+  body:not(.theatre) main{ grid-area:stage; } body:not(.theatre) #line{ grid-area:line; max-height:none; min-height:0; padding:8px 10px; }
+  body:not(.theatre) .cr .call, body:not(.theatre) .cr .ans .a{ font-size:16px; } body:not(.theatre) footer{ grid-area:foot; padding-bottom:calc(6px + env(safe-area-inset-bottom)); } body:not(.theatre) #prog{ display:none; }
 }
 </style><script src="thumbfix.js"></script>
 </head><body>
@@ -65,7 +86,10 @@ body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:no
   <button data-m="call">CALL<small>the line, then the archive answers</small></button><button data-m="spoken">SPOKEN<small>whole sentences that say it</small></button><button data-m="sense">SENSE<small>one sentence for the line</small></button>
   <button data-m="performance">PERFORMANCE<small>longer runs, fewer voices</small></button><button data-m="kinship">KINSHIP<small>kindred words where it lacks his</small></button>
   <button data-m="literal">LITERAL<small>Homer's words, his order</small></button></nav>
-<main id="stage"><video class="pool" playsinline muted preload="auto"></video><video class="pool" playsinline muted preload="auto"></video><video class="pool" playsinline muted preload="auto"></video><video class="pool" playsinline muted preload="auto"></video><video class="bs" playsinline muted preload="auto"></video><video class="bs" playsinline muted preload="auto"></video><div id="grid" aria-label="The call"></div><div id="who"></div><div id="tap"><svg><use href="#i-play"/></svg></div></main>
+<main id="stage"><video class="pool" playsinline muted preload="auto"></video><video class="pool" playsinline muted preload="auto"></video><video class="pool" playsinline muted preload="auto"></video><video class="pool" playsinline muted preload="auto"></video><video class="bs" playsinline muted preload="auto"></video><video class="bs" playsinline muted preload="auto"></video><div id="grid" aria-label="The call"></div><div id="who"></div><div id="cap"></div>
+  <div id="th"><button class="only" id="ccBtn" title="Subtitles: the line and its answer, the answer only, or none">CC · BOTH</button><button class="only" id="fitBtn" title="The whole picture, or fill the screen">FIT · WHOLE</button><button id="thBtn" title="Theatre: the film full screen, the words as subtitles">⛶ THEATRE</button></div>
+  <div id="thBar"><button class="ico" id="tPrev" aria-label="Previous line"><svg><use href="#i-prev"/></svg></button><button class="ico" id="tPlay" aria-label="Play"><svg><use href="#i-play"/></svg></button><button class="ico" id="tNext" aria-label="Next line"><svg><use href="#i-next"/></svg></button></div>
+  <div id="tap"><svg><use href="#i-play"/></svg></div></main>
 <div id="line"></div>
 <footer><button class="ico" id="bPrev" aria-label="Previous line"><svg><use href="#i-prev"/></svg></button><button class="ico" id="bPlay" aria-label="Play"><svg><use href="#i-play"/></svg></button><button class="ico" id="bNext" aria-label="Next line"><svg><use href="#i-next"/></svg></button>
   <button class="tg" id="deliv" title="How one voice gives way to the next">BREATH</button><button class="tg" id="ours" title="Our studio voice under the archive">STUDIO</button><div id="prog"></div></footer>
@@ -117,15 +141,18 @@ body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:no
   function mark(n) { $('#line').querySelectorAll('.f, .call, .ans').forEach(f => { const k = +f.dataset.n; f.classList.toggle('on', k === n); f.classList.toggle('done', k < n); }); const on = $('#line .on'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
   function upcoming(n) { const out = []; for (let l = li; l < lines().length && l <= li + 2 && out.length < n; l++) { const t = tr(lines()[l]); if (!t) continue;
       t.frags.forEach((x, k) => { if ((l > li || k >= fi) && x.id && out.length < n) out.push(x); }); } return out; }
+  // a phone fetches only what is playing: a parked video is played for a moment, muted, so it buffers, and is stopped again on its first frame
+  function prime(el, at) { if (el._primed === el._key || el === cur || el === shown) return; el._primed = el._key; el.muted = true; const k = el._key;
+    const p = el.play(); if (p) p.then(() => setTimeout(() => { if (el._key === k && el !== cur && el !== shown) { el.pause(); try { el.currentTime = at; } catch (e) { } } }, 250), () => { }); }
   function load(el, x) { const c = F.clips[x.id]; if (!c) return; el._key = keyOf(x);
     if (el.dataset.id !== x.id) { el.src = c.video; el.dataset.id = x.id; el.load(); }
-    const seek = () => { if (el._key !== keyOf(x)) return; try { if (Math.abs(el.currentTime - x.t0) > .1) el.currentTime = x.t0; } catch (e) { } };
+    const seek = () => { if (el._key !== keyOf(x)) return; try { if (Math.abs(el.currentTime - x.t0) > .1) el.currentTime = x.t0; } catch (e) { } prime(el, x.t0); };
     if (el.readyState >= 1) seek(); else el.addEventListener('loadedmetadata', seek, { once: true }); }
   // keep the next three voices loaded and parked, never touching the one speaking or the one on screen
   function anticipate() { const want = upcoming(3), busy = new Set([cur, shown].filter(Boolean)), need = [];
     want.forEach(x => { const e = POOL.find(e => e._key === keyOf(x) && !busy.has(e)); if (e) busy.add(e); else need.push(x); });
     need.forEach(x => { const e = POOL.find(e => !busy.has(e)); if (e) { busy.add(e); load(e, x); } }); }
-  const ready = (el, x) => el.readyState >= 3 && !el.seeking && Math.abs(el.currentTime - x.t0) < .3;
+  const ready = (el, x) => el.readyState >= 2 && !el.seeking && Math.abs(el.currentTime - x.t0) < .35;
   function vol(el, to, ms) { const a = el.volume, t0 = performance.now(); const step = () => { const k = ms <= 1 ? 1 : Math.min(1, (performance.now() - t0) / ms); try { el.volume = Math.max(0, Math.min(1, a + (to - a) * k)); } catch (e) { } if (k < 1) requestAnimationFrame(step); }; step(); }
   function take(el, ms) { if (el === shown) return; const old = shown; el.style.transition = `opacity ${ms}ms ease, filter .6s`; el.style.zIndex = ++z; el.style.opacity = 1; shown = el;
     if (old) setTimeout(() => { if (old !== shown && old !== cur) { old.style.transition = 'none'; old.style.opacity = 0; old.pause(); } }, ms + 60); }
@@ -186,7 +213,7 @@ body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:no
       const sw = Math.max(e.at - 1.8, Math.min(e.at - .5, e.gap ? e.gap + .1 : e.at - 1.2)); out.push({ ...e, sw, dd: Math.round(Math.max(600, Math.min(1900, (e.at + .2 - sw) * 1000))) }); last = e.at; });
     return (t._pics = out); }
   function loadPic(el, e) { const v = e.video || (F.clips[e.id] || {}).video; if (!v) return; el._key = pkey(e); el._p = e; el.muted = true; if (el.dataset.id !== e.id) { el.src = v; el.dataset.id = e.id; el.load(); }
-    const at = e.in != null ? Math.max(0, e.in) : Math.max(0, e.t0 - (e.at - (e.sw ?? e.at - .4))), seek = () => { if (el._key === pkey(e)) try { el.currentTime = at; } catch (x) { } }; if (el.readyState >= 1) seek(); else el.addEventListener('loadedmetadata', seek, { once: true }); }
+    const at = e.in != null ? Math.max(0, e.in) : Math.max(0, e.t0 - (e.at - (e.sw ?? e.at - .4))), seek = () => { if (el._key === pkey(e)) { try { el.currentTime = at; } catch (x) { } prime(el, at); } }; if (el.readyState >= 1) seek(); else el.addEventListener('loadedmetadata', seek, { once: true }); }
   // the join: a cut, a dissolve, or a dip (the old picture sinks to dark through the first half of the pause, the new one rises
   // through the second); every story picture plays slower than life and pushes in slowly for as long as it is held
   function slowTake(el, ms = DISSOLVE, tr = 'dissolve') { if (el === shown) return; const old = shown, p = el._p || {};
@@ -209,9 +236,9 @@ body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:no
     beside(now);
     const ps = pics(); let P = null, k = -1; ps.forEach((p, n) => { if (p.sw <= now) { P = p; k = n; } });
     if (P && P !== curPic) { const el = POOL.find(e => e._key === pkey(P));
-      if (el && el.readyState >= 3 && !el.seeking) { if (!track.paused) el.play().catch(() => { }); slowTake(el, P.dd, P.tr); curPic = P; }
+      if (el && el.readyState >= 2 && !el.seeking) { if (!track.paused) el.play().catch(() => { }); slowTake(el, now - P.sw > 1 ? 500 : P.dd, P.tr); curPic = P; }   // late but ready: still taken, with a quicker dissolve
       else if (!el) { const f = POOL.find(e => e !== shown); if (f) loadPic(f, P); }
-      if (now - P.sw > 1.5) curPic = P; }                     // too late: let the picture on screen play on
+      else prime(el, el.currentTime); }                        // not ready yet: keep it buffering; it is taken the moment it can be, until the next picture's turn
     const busy = new Set([shown]); ps.slice(k + 1, k + 4).forEach(p => { const e = POOL.find(e => e._key === pkey(p)); if (e) busy.add(e); else { const f = POOL.find(e => !busy.has(e)); if (f) { busy.add(f); loadPic(f, p); } } });
     if (playing) tkRaf = requestAnimationFrame(tkLoop); }
   // beside the story, the footage the answer comes from, in sync with its voice; the next one waits loaded in the other pane
@@ -285,6 +312,30 @@ body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:no
   let lastToggle = 0;
   function toggle() { const nw = performance.now(); if (nw - lastToggle < 500) return; lastToggle = nw; playing = !playing; $('#bPlay').innerHTML = `<svg><use href="#i-${playing ? 'pause' : 'play'}"/></svg>`; if (trk()) tkPlay(playing); else { unlock(); if (playing) startLine(); else stop(); }
     const tp = $('#tap'); tp.innerHTML = `<svg><use href="#i-${playing ? 'play' : 'pause'}"/></svg>`; tp.classList.add('show'); setTimeout(() => tp.classList.remove('show'), 500); }
+  // ---- THEATRE: the film full screen (turned sideways where the phone allows), the words as subtitles, the controls fading away
+  const CC = ['BOTH', 'WORDS', 'OFF']; let cc = store.get('found.cc', 'BOTH'), fill = store.get('found.fill', false), calmT = 0;
+  const drawTh = () => { $('#ccBtn').textContent = 'CC · ' + cc; document.body.classList.toggle('cc-words', cc === 'WORDS'); document.body.classList.toggle('cc-off', cc === 'OFF');
+    $('#fitBtn').textContent = 'FIT · ' + (fill ? 'FILL' : 'WHOLE'); document.body.classList.toggle('fill', fill); $('#thBtn').textContent = document.body.classList.contains('theatre') ? '✕ EXIT' : '⛶ THEATRE'; };
+  function wake() { document.body.classList.remove('calm'); clearTimeout(calmT); calmT = setTimeout(() => { if (playing) document.body.classList.add('calm'); }, 2800); }
+  async function theatre(on) { document.body.classList.toggle('theatre', on); drawTh(); wake();
+    try { if (on && !document.fullscreenElement && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+      else if (!on && document.fullscreenElement) await document.exitFullscreen(); } catch (e) { }
+    try { if (on && screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape'); else if (!on && screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) { }   // where the phone allows it
+    if (gridOn) layoutGrid(); }
+  document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && document.body.classList.contains('theatre')) theatre(false); });
+  $('#thBtn').onclick = e => { e.stopPropagation(); theatre(!document.body.classList.contains('theatre')); };
+  $('#ccBtn').onclick = e => { e.stopPropagation(); cc = CC[(CC.indexOf(cc) + 1) % CC.length]; store.set('found.cc', cc); drawTh(); wake(); };
+  $('#fitBtn').onclick = e => { e.stopPropagation(); fill = !fill; store.set('found.fill', fill); drawTh(); wake(); };
+  ['th', 'thBar'].forEach(id => ['click', 'touchend'].forEach(ev => $('#' + id).addEventListener(ev, e => e.stopPropagation())));
+  $('#tPlay').onclick = () => { toggle(); wake(); }; $('#tNext').onclick = () => { jump(li + 1); wake(); }; $('#tPrev').onclick = () => { jump(li - 1); wake(); };
+  new MutationObserver(() => { $('#tPlay').innerHTML = $('#bPlay').innerHTML; if (!playing) document.body.classList.remove('calm'); else wake(); }).observe($('#bPlay'), { childList: true });
+  // the subtitles: the line, and the words being said for it (from the line panel as it lights), and whose film they come from
+  function caption() { const on = $('#line .on'), call = $('#line .call'), u = lines()[li]; if (!u) { $('#cap').innerHTML = ''; return; }
+    const a = on && (on.querySelector('.a') || (on.classList.contains('call') ? null : on)), s_ = on && on.querySelector('.s');
+    const said = on && on.classList.contains('call') ? '' : a ? a.textContent : '';
+    $('#cap').innerHTML = `<span class="h">${esc(call ? u.text : u.who + ' · ' + u.text)}</span>${said ? `<span class="a">${esc(said)}</span>` : ''}${s_ ? `<span class="s">${esc(s_.textContent)}</span>` : ''}`; }
+  new MutationObserver(caption).observe($('#line'), { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+  drawTh();
   document.querySelectorAll('#dial button').forEach(b => b.onclick = () => setMode(b.dataset.m));
   $('#bPlay').onclick = toggle; const jump = n => { if (trk()) tkLoad(Math.max(0, n), playing); else go(n); }; $('#bNext').onclick = () => jump(li + 1); $('#bPrev').onclick = () => jump(li - 1);
   $('#ours').onclick = () => { ours = !ours; $('#ours').classList.toggle('on', ours); };
@@ -296,9 +347,10 @@ body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:no
   [stage, $('#line')].forEach(el => { el.addEventListener('touchstart', e => { const p = e.touches[0]; sx = p.clientX; sy = p.clientY; st = Date.now(); }, { passive: true });
     el.addEventListener('touchend', e => { if (sx == null) return; const p = e.changedTouches[0], dx = p.clientX - sx, dy = p.clientY - sy; sx = null;
       if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { jump(li + (dx < 0 ? 1 : -1)); e.preventDefault(); }
-      else if (el === stage && Math.abs(dx) < 10 && Math.abs(dy) < 10 && Date.now() - st < 400) { toggle(); e.preventDefault(); } }); });
-  stage.addEventListener('click', () => { if (!touch) toggle(); });
-  addEventListener('keydown', e => { if (e.target.tagName === 'SELECT') return; if (e.key === ' ') { e.preventDefault(); toggle(); } else if (e.key === 'ArrowRight') jump(li + 1); else if (e.key === 'ArrowLeft') jump(li - 1); else if ('123456'.includes(e.key)) setMode(MODES[+e.key - 1]); });
+      else if (el === stage && Math.abs(dx) < 10 && Math.abs(dy) < 10 && Date.now() - st < 400) { if (document.body.classList.contains('theatre') && document.body.classList.contains('calm')) wake(); else { toggle(); wake(); } e.preventDefault(); } }); });
+  stage.addEventListener('click', () => { if (!touch) { toggle(); wake(); } });
+  stage.addEventListener('mousemove', () => { if (document.body.classList.contains('theatre')) wake(); });
+  addEventListener('keydown', e => { if (e.target.tagName === 'SELECT') return; if (e.key === ' ') { e.preventDefault(); toggle(); } else if (e.key === 'ArrowRight') jump(li + 1); else if (e.key === 'ArrowLeft') jump(li - 1); else if ('123456'.includes(e.key)) setMode(MODES[+e.key - 1]); else if (e.key === 'f' || e.key === 'F') theatre(!document.body.classList.contains('theatre')); else if (e.key === 'c' || e.key === 'C') $('#ccBtn').click(); });
   Promise.all([fetch('odyssey/found.json').then(r => r.json()), fetch('odyssey/radio.json').then(r => r.json()).catch(() => null), fetch('odyssey/found-pics.json').then(r => r.json()).catch(() => null)]).then(([f, r, pp]) => { F = f; PICS = pp; R = r ? r.books.flatMap(b => b.scenes) : null;
     const titles = R ? Object.fromEntries(R.map(s => [s.id, s.title])) : {};
     Object.keys(F.scenes).sort().forEach(id => { const o = document.createElement('option'); o.value = id; o.textContent = `${id.slice(3).replace('-', ' ')} · ${titles[id] || ''}`; $('#scene').append(o); });

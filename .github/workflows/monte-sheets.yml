@@ -1,0 +1,25 @@
+# Build the strict judge's contact sheets (lab/monte/judge3/sheets.py) where the archive's clips can be reached, and commit them back.
+name: monte-sheets
+on:
+  workflow_dispatch:
+  push:
+    branches: [ccr-2bb8215b-hn7o6f]
+    paths: [lab/monte/judge3/pool.json, lab/monte/judge3/sheets.py, .github/workflows/monte-sheets.yml]
+permissions:
+  contents: write
+concurrency: { group: monte-sheets, cancel-in-progress: true }
+jobs:
+  sheets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 1, sparse-checkout: "lab/monte/judge3\n.github", sparse-checkout-cone-mode: true }
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-dejavu-core > /dev/null && pip install -q pillow
+      - run: python3 lab/monte/judge3/sheets.py
+      - name: commit
+        run: |
+          git config user.name "monte-sheets"; git config user.email "actions@users.noreply.github.com"
+          git add -f lab/monte/judge3/sheets
+          git commit -m "MONTE CARLO CINEMA — contact sheets for the strict judge (lab/monte/judge3)" || exit 0
+          for i in 1 2 3; do git pull --rebase -q origin "$GITHUB_REF_NAME" && git push origin "HEAD:$GITHUB_REF_NAME" && break; sleep 5; done

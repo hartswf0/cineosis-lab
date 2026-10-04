@@ -1,0 +1,29 @@
+# Render the Grand Editing Machine's prints (lab/monte/mcts.json, by lab/monte/render.py <k> mcts) where the archive's clips can be reached.
+name: monte-mcts
+on:
+  workflow_dispatch:
+  push:
+    branches: [ccr-2bb8215b-hn7o6f]
+    paths: [lab/monte/mcts.json, lab/monte/render.py, .github/workflows/monte-mcts.yml]
+permissions:
+  contents: write
+concurrency: { group: monte-mcts, cancel-in-progress: true }
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 1, sparse-checkout: "lab/monte\nlab/aspect\n.github", sparse-checkout-cone-mode: true }
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null && pip install -q numpy
+      - name: render the prints
+        run: |
+          set -e
+          N=$(python3 -c "import json;print(len(json.load(open('lab/monte/mcts.json'))['best']))")
+          for k in $(seq 0 $((N-1))); do python3 lab/monte/render.py $k mcts; done
+      - name: commit
+        run: |
+          git config user.name "monte-mcts"; git config user.email "actions@users.noreply.github.com"
+          git add -f lab/monte/mcts-*.mp4 lab/monte/mcts-*.json
+          git commit -m "THE GRAND EDITING MACHINE — the prints, rendered from the archive (lab/monte/render.py <k> mcts)" || exit 0
+          for i in 1 2 3; do git pull --rebase -q origin "$GITHUB_REF_NAME" && git push origin "HEAD:$GITHUB_REF_NAME" && break; sleep 5; done

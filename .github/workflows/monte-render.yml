@@ -1,0 +1,30 @@
+# Render the Monte Carlo cinema's prints (lab/monte/render.py) on a runner that can reach the archive's clips, and commit them back.
+name: monte-render
+on:
+  workflow_dispatch:
+  push:
+    branches: [ccr-2bb8215b-hn7o6f]
+    paths: [lab/monte/evolution.json, lab/monte/render.py, .github/workflows/monte-render.yml]
+permissions:
+  contents: write
+concurrency: { group: monte-render, cancel-in-progress: true }
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 1, sparse-checkout: "lab/monte\nlab/aspect\n.github", sparse-checkout-cone-mode: true }
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null && pip install -q numpy
+      - name: render the prints
+        run: |
+          set -e
+          N=$(python3 -c "import json;print(len(json.load(open('lab/monte/evolution.json'))['best']))")
+          for k in $(seq 0 $((N-1))); do python3 lab/monte/render.py $k; done
+          for k in $(seq 0 $((N-1))); do ffmpeg -v quiet -y -i lab/monte/film-$k.mp4 -vf "fps=1/2,scale=192:-1,tile=8x6" -frames:v 1 lab/monte/film-$k-sheet.jpg; done
+      - name: commit
+        run: |
+          git config user.name "monte-render"; git config user.email "actions@users.noreply.github.com"
+          git add -f lab/monte/film-*.mp4 lab/monte/film-*.json lab/monte/film-*-sheet.jpg
+          git commit -m "MONTE CARLO CINEMA — the prints, rendered from the archive (lab/monte/render.py)" || exit 0
+          for i in 1 2 3; do git pull --rebase -q origin "$GITHUB_REF_NAME" && git push origin "HEAD:$GITHUB_REF_NAME" && break; sleep 5; done

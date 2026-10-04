@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Grand Editing Machine</title>
+<meta name="description" content="A Monte Carlo tree search that directs films from the Cineosis archive: it explores the next pieces the archive offers, imagines thousands of futures, lets a critic judge them, and keeps the branch that tells the best story.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@1,9..144,300&display=swap" rel="stylesheet">
+<style>
+:root{ --paper:#f1e8da; --ink:#3b2a2a; --soft:#8a6f68; --line:#d9c6b5; --rose:#c9483f; --gold:#e2b23c; --pink:#f3c4c0; --mustard:#ecc36e; --teal:#a9d3d3; --cream:#efe4d2; --sage:#b9cfb6; --deep:#264b45;
+  --jost:'Jost',Futura,'Century Gothic',sans-serif; }
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){ --paper:#211b1a; --ink:#f3e4d6; --soft:#c7a99f; --line:#4a3a37; --pink:#5c3a3a; --mustard:#5e4a22; --teal:#2c4a4a; --cream:#3a3128; --sage:#34442f; --deep:#9fd0c4; } }
+*{ box-sizing:border-box; } html,body{ margin:0; background:var(--paper); color:var(--ink); font:400 14px/1.45 var(--jost); }
+button{ font:inherit; color:inherit; cursor:pointer; } img{ display:block; }
+.top{ display:flex; justify-content:center; gap:16px; padding:12px 16px 0; font:500 10.5px var(--jost); letter-spacing:.3em; text-transform:uppercase; } .top a{ color:var(--soft); text-decoration:none; white-space:nowrap; } @media (max-width:500px){ .top{ gap:10px; letter-spacing:.14em; font-size:9.5px; } }
+.deck{ display:flex; gap:14px; padding:14px 16px 10px; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; }
+.pane{ flex:0 0 min(86vw,330px); width:min(86vw,330px); min-width:0; scroll-snap-align:center; min-height:640px; border-radius:16px; padding:16px 14px 18px; display:flex; flex-direction:column; position:relative; box-shadow:0 1px 0 #0001, 0 10px 30px -18px #0006; }
+.deck > .pane:first-child{ margin-left:auto; } .deck > .pane:last-child{ margin-right:auto; }   /* centred when they fit, scrollable when they do not */
+.p1{ background:var(--pink); } .p2{ background:var(--mustard); } .p3{ background:var(--teal); } .p4{ background:var(--cream); } .p5{ background:var(--sage); }
+.bar{ display:flex; align-items:center; justify-content:space-between; height:28px; } .bar button{ background:none; border:0; padding:4px; font-size:18px; line-height:1; }
+.head{ text-align:center; font:500 13px var(--jost); letter-spacing:.42em; text-transform:uppercase; margin:2px 0 12px; }
+.title{ text-align:center; color:var(--rose); font:500 22px/1.2 var(--jost); letter-spacing:.16em; margin:10px 0 4px; } .tag{ text-align:center; color:var(--rose); font:500 8.5px var(--jost); letter-spacing:.32em; }
+.hero{ margin:22px 0 0; aspect-ratio:4/3.4; border-radius:6px; overflow:hidden; background:#0002; } .hero img{ width:100%; height:100%; object-fit:cover; }
+.go{ width:62px; height:62px; border-radius:50%; border:0; background:var(--rose); color:#fff; font-size:26px; margin:22px auto 14px; display:grid; place-items:center; box-shadow:0 6px 14px -8px #000a; }
+.go:disabled{ opacity:.5; cursor:wait; } .play{ background:var(--deep); color:var(--paper); } .check{ background:var(--gold); color:var(--ink); }
+.thumbs{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:auto; } .thumbs img, .tile img{ width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:4px; background:#0002; }
+.dots{ display:flex; justify-content:center; gap:8px; margin-top:14px; } .dots button{ width:9px; height:9px; padding:0; border-radius:50%; border:1px solid var(--soft); background:none; } .dots button.on{ background:var(--rose); border-color:var(--rose); }
+.note{ text-align:center; font:italic 300 13px/1.4 'Fraunces',Georgia,serif; color:var(--soft); margin:8px 4px 0; min-height:36px; }
+.tile{ position:relative; border:3px solid #fff8; border-radius:6px; background:#fff6; box-shadow:0 2px 6px -3px #0006; overflow:hidden; }
+.tile.pick{ border-color:var(--rose); } .tile.gold{ border-color:var(--gold); } .tile.dim{ opacity:.42; } .tile.turn{ display:grid; place-items:center; aspect-ratio:4/3; font:500 8px/1.2 var(--jost); letter-spacing:.2em; text-align:center; color:var(--soft); }
+.tile .n{ position:absolute; right:3px; bottom:2px; font:500 9px var(--jost); color:#fff; text-shadow:0 0 3px #000; }
+.tile.card::after{ content:'CARD'; position:absolute; left:3px; top:2px; font:600 7px var(--jost); letter-spacing:.2em; color:#fff; text-shadow:0 0 3px #000; }
+.tree{ position:relative; flex:1; } .tree svg{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+.tree .row{ display:flex; justify-content:center; gap:10px; margin-bottom:30px; position:relative; } .tree .row .tile{ width:30%; }
+.tree .row.r0 .tile{ width:42%; }
+.sims{ display:flex; flex-direction:column; gap:10px; flex:1; }
+.sim{ display:grid; grid-template-columns:repeat(6,1fr); gap:3px; padding:4px; border-radius:6px; transition:opacity .3s; position:relative; } .sim img{ width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:3px; }
+.sim.now{ background:#fff7; } .sim.faint{ opacity:.45; } .sim .sc{ position:absolute; right:6px; top:-9px; font:500 9px var(--jost); letter-spacing:.1em; background:var(--teal); padding:0 4px; }
+.count{ position:absolute; right:22px; bottom:44px; text-align:center; font:500 11px var(--jost); letter-spacing:.08em; color:var(--deep); } .count b{ display:block; font-size:15px; }
+.chain{ flex:1; display:flex; flex-direction:column; align-items:center; gap:0; overflow:auto; max-height:420px; padding:2px 0; }
+.link{ display:grid; grid-template-columns:1fr 1.3fr 1fr; gap:8px; align-items:center; width:100%; position:relative; padding:6px 0; }
+.link::before{ content:''; position:absolute; left:50%; top:-6px; height:12px; border-left:2px solid var(--gold); } .link:first-child::before{ display:none; }
+.screen{ position:relative; aspect-ratio:4/3; background:#000; border-radius:4px; overflow:hidden; margin-top:6px; } .screen video, .screen img{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; }
+.screen img{ transition:opacity .3s; } .screen .cap{ position:absolute; left:0; right:0; bottom:0; padding:14px 8px 5px; background:linear-gradient(transparent,#000a); color:#f1e8da; font:500 9px var(--jost); letter-spacing:.14em; text-transform:uppercase; text-align:center; }
+.strip{ display:flex; gap:3px; margin-top:8px; overflow-x:auto; padding-bottom:4px; } .strip img{ flex:0 0 52px; height:39px; object-fit:cover; border-radius:3px; opacity:.55; cursor:pointer; } .strip img.on{ opacity:1; outline:2px solid var(--paper); }
+.steps{ display:flex; align-items:center; justify-content:center; gap:10px; font:500 10px var(--jost); letter-spacing:.2em; color:var(--soft); margin-top:4px; } .steps button{ background:none; border:1px solid var(--soft); border-radius:12px; padding:1px 9px; }
+.crit{ margin:10px 2px 0; font:400 11px/1.5 var(--jost); color:var(--soft); } .crit div{ display:flex; justify-content:space-between; border-top:1px solid #0001; padding:1px 0; } .crit b{ color:var(--ink); font-weight:500; }
+.how{ max-width:880px; margin:18px auto 50px; padding:0 16px; display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px 22px; font:300 13px/1.55 var(--jost); color:var(--soft); }
+.how b{ display:block; color:var(--rose); font:500 10.5px var(--jost); letter-spacing:.3em; text-transform:uppercase; margin-bottom:2px; }
+.also{ display:block; margin:-6px auto 4px; background:none; border:0; border-bottom:1px solid var(--rose); color:var(--rose); font:500 9px var(--jost); letter-spacing:.3em; text-transform:uppercase; padding:2px 0; }
+.dots + .dots button.on{ background:var(--deep); border-color:var(--deep); } #tdots button.on{ background:#b07a10; border-color:#b07a10; }
+.screen .cap i{ display:block; font:italic 300 13px/1.35 'Fraunces',Georgia,serif; letter-spacing:0; text-transform:none; margin-bottom:2px; }
+.load{ text-align:center; padding:60px 16px; color:var(--soft); letter-spacing:.2em; }
+</style></head><body>
+<nav class="top"><a href="index.html#wall">The Lab</a><a href="monte.html">The Slot Machine</a><a href="wes.html">Precisely So</a></nav>
+<div class="load" id="load">LOADING THE ARCHIVE…</div>
+<div class="deck" id="deck" hidden>
+  <section class="pane p1"><div class="bar"><button aria-label="Prints" id="cycle">☰</button><span>◉</span></div>
+    <div class="title">MONTE CARLO<br>CINEMA</div><div class="tag">MANY STORIES AHEAD</div>
+    <div class="hero"><img id="hero" alt=""></div>
+    <button class="go" id="direct" title="Direct a new film, live">→</button>
+    <button class="also" id="directC" title="Direct a new comedy, live: lines from one film over pictures from another">or a comedy</button>
+    <div class="note" id="tale"></div>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="dots" id="dots"></div><div class="dots" id="cdots"></div><div class="dots" id="tdots"></div><div class="tag" style="margin-top:6px">PRINTS · <span style="color:var(--deep)">COMEDIES</span> · <span style="color:#b07a10">ROUTINES</span></div></section>
+  <section class="pane p2"><div class="bar"><button id="ePrev" aria-label="Earlier">‹</button><span>⌕</span></div><div class="head">Explore</div>
+    <div class="tree" id="tree"></div>
+    <div class="steps"><button id="sPrev">‹</button><span id="stepAt">STEP 1</span><button id="sNext">›</button></div>
+    <div class="note" id="eNote"></div></section>
+  <section class="pane p3"><div class="bar"><button aria-label="Back">‹</button><span>⚄</span></div><div class="head">Simulate</div>
+    <div class="sims" id="sims"></div>
+    <button class="go play" id="simPlay" title="Search live">▶</button>
+    <div class="count"><b id="count">128</b>FUTURES</div></section>
+  <section class="pane p4"><div class="bar"><button aria-label="Back">‹</button><span>☷</span></div><div class="head">Choose</div>
+    <div class="chain" id="chain"></div>
+    <button class="go check" id="commit" title="Commit the most-visited piece">✓</button>
+    <div class="note" id="cNote"></div></section>
+  <section class="pane p5"><div class="bar"><button aria-label="Back">‹</button><span>⇪</span></div><div class="head">Render</div>
+    <div class="screen" id="screen"><video id="vid" playsinline preload="metadata"></video><audio id="voice" preload="none"></audio><img id="still" alt="" style="opacity:0"><div class="cap" id="rcap"></div></div>
+    <div class="strip" id="strip"></div>
+    <button class="go play" id="rPlay" title="Play the film">▶</button>
+    <div class="crit" id="crit"></div></section>
+</div>
+<div class="how">
+  <div><b>1 · Selection</b>From the timeline so far, the machine walks down its tree of choices by UCT, Q + c·√(ln N / n): the branches that have paid off, balanced against the ones it has barely tried.</div>
+  <div><b>2 · Expansion</b>At the tree's edge it opens a new branch: one of the eight next pieces the archive offers here, found by CLIP embedding, the strict judge's score, and the story (the beat it plays, the pictures that answer the card before it).</div>
+  <div><b>3 · Rollout</b>From that branch it imagines the rest of the film, quickly and a little by chance, all the way to The End. Each rollout is a small film.</div>
+  <div><b>4 · Backpropagation</b>The critic scores each imagined film (Andersonian frames, matched cuts, cards borne out, a story in order, pace, music) and the reward flows back up every branch that led to it. After 128 futures the most-visited piece is committed, and the search goes on from there.</div>
+</div>
+<script src="monte/sim.js"></script><script src="monte/mcts.js"></script>
+<script>
+(function () {
+  const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const MC = window.MonteCinema, GM = window.GrandEditingMachine; let M = null, IX = null, PR = null, SRC = { mcts: null, comic: null, tactical: null }, src = 'mcts', cur = 0, step = 0, live = null, F = null, JOKES = null, VIDX = null;
+  const thumb = k => k == null || k < 0 ? '' : M.r2 + M.shots[k].v.replace('/clips/', '/thumbnails/').replace('.mp4', '.jpg');
+  const said = L => L ? `<i>“${esc(L.text)}”</i>from ${esc(L.film || '')}${L.year ? ' · ' + L.year : ''}` : '';
+  const words = k => (M.shots[k].text || '').replace(/ \/ /g, ' ').replace(/"?ALICE IN WONDERLAND"?|V\.H\. Productions Co\.|HAGHE-?FILM/gi, '').trim();
+  const tile = (x, cls = '') => x.k < 0 || x.kind === 'turn' ? `<div class="tile turn ${cls}">NEXT<br>CHAPTER${x.n != null ? `<span class="n">${x.n}</span>` : ''}</div>`
+    : `<div class="tile ${M.shots[x.k].title ? 'card' : ''} ${cls}" title="${esc(M.shots[x.k].title ? words(x.k) : M.shots[x.k].why || '')}"><img loading="lazy" src="${thumb(x.k)}" alt="">${x.n != null ? `<span class="n">${x.n}</span>` : ''}</div>`;
+  // a print as the page works with it: pieces by index, and its search, step by step
+  function fromPrint(p) { const k = i => (i == null ? -1 : IX.get(i)); return { ev: p.ev.map(e => Object.assign({}, e, { k: k(e.i) })), score: p.score, parts: p.parts, seconds: p.seconds, rollouts: p.rollouts, music: p.music,
+    steps: p.steps.map(s => ({ at: s.at, chosen: { kind: s.chosen.kind, k: k(s.chosen.i) }, kids: s.kids.map(c => ({ kind: c.kind, k: k(c.i), n: c.n, q: c.q })), rollouts: s.rollouts.map(r => ({ score: r.score, first: r.first.map(k) })) })), video: `monte/${src}-${PR.best.indexOf(p)}.mp4` }; }
+  function fromLive(m) { const f = m.film(); return { ev: f.ev.map(e => Object.assign({}, e, { line: e.line != null ? M.lines[e.line] : null })), score: f.score, parts: f.parts, seconds: f.seconds, rollouts: m.total, steps: m.steps.map(s => ({ at: s.at, chosen: s.chosen, kids: s.kids, rollouts: s.rollouts })), video: null }; }
+  // ---- 1 home
+  function home() { const sh = F.ev.filter(e => e.kind === 'shot'); $('#hero').src = thumb((sh[0] || F.ev[0] || {}).k);
+    $('#thumbs').innerHTML = sh.slice(1, 9).map(e => `<img loading="lazy" src="${thumb(e.k)}" alt="">`).join('');
+    const ch = F.ev.filter(e => e.kind === 'card' && !e.end && M.beat.has(e.k)).map(e => words(e.k)).map(t => t.length > 46 ? t.slice(0, 44) + '…' : t);
+    $('#tale').innerHTML = live ? (live.done ? 'Your film, directed just now.' : `Directing… ${live.total.toLocaleString()} futures imagined`) : ch.map(esc).join(' · ');
+    [['#dots', 'mcts'], ['#cdots', 'comic'], ['#tdots', 'tactical']].forEach(([el, sname]) => { const P = SRC[sname]; $(el).innerHTML = P ? P.best.map((_, j) => `<button class="${!live && src === sname && j === cur ? 'on' : ''}" data-j="${j}" aria-label="${sname === 'comic' ? 'Comedy' : sname === 'tactical' ? 'Routine' : 'Print'} ${j + 1}"></button>`).join('') : '';
+      $(el).querySelectorAll('button').forEach(b => b.onclick = () => pick(+b.dataset.j, sname)); }); }
+  // ---- 2 explore: the tree around a step, three levels down the chosen branch
+  function explore() { const S = F.steps; if (!S.length) { $('#tree').innerHTML = ''; return; } step = Math.max(0, Math.min(step, S.length - 1));
+    const rows = [], lastK = S[step].at ? F.ev[S[step].at - 1] : null;
+    rows.push(`<div class="row r0">${lastK ? tile({ k: lastK.k }, 'gold') : '<div class="tile turn gold">THE<br>BEGINNING</div>'}</div>`);
+    for (let d = 0; d < 3 && step + d < S.length; d++) { const s = S[step + d], top = s.kids.slice(0, 3); if (!top.some(c => c.k === s.chosen.k && c.kind === s.chosen.kind)) top[2] = s.kids.find(c => c.k === s.chosen.k && c.kind === s.chosen.kind) || top[2];
+      rows.push(`<div class="row">${top.map(c => tile(c, c.k === s.chosen.k && c.kind === s.chosen.kind ? (d ? 'gold' : 'pick') : 'dim')).join('')}</div>`); }
+    $('#tree').innerHTML = rows.join('') + '<svg></svg>'; requestAnimationFrame(lines);
+    $('#stepAt').textContent = `STEP ${step + 1} OF ${S.length}`;
+    const s = S[step], tot = s.kids.reduce((a, c) => a + c.n, 0), ch = s.kids.find(c => c.k === s.chosen.k && c.kind === s.chosen.kind) || s.kids[0];
+    $('#eNote').textContent = `${s.kids.length} branches weighed · the chosen one visited ${ch.n} of ${tot} times · promise ${(ch.q * 100).toFixed(0)}%`; }
+  function lines() { const T = $('#tree'), svg = T.querySelector('svg'); if (!svg) return; const box = T.getBoundingClientRect(), rows = [...T.querySelectorAll('.row')]; let d = '';
+    for (let r = 1; r < rows.length; r++) { const from = rows[r - 1].querySelector('.gold,.pick') || rows[r - 1].querySelector('.tile'); if (!from) continue; const a = from.getBoundingClientRect();
+      rows[r].querySelectorAll('.tile').forEach(t => { const b = t.getBoundingClientRect(); d += `M${a.left + a.width / 2 - box.left},${a.bottom - box.top} L${b.left + b.width / 2 - box.left},${b.top - box.top} `; }); }
+    svg.innerHTML = `<path d="${d}" stroke="currentColor" stroke-opacity=".45" stroke-width="1.5" fill="none"/>`; }
+  // ---- 3 simulate: the futures imagined at this step
+  function simulate(R) { const rs = (R || (F.steps[step] || {}).rollouts || []).slice(-6).reverse(), best = Math.max(...rs.map(r => r.score), 0);
+    const sofar = F.ev.slice(Math.max(0, (F.steps[step] || { at: F.ev.length }).at - 5), (F.steps[step] || { at: F.ev.length }).at);
+    $('#sims').innerHTML = `<div class="sim now">${sofar.map(e => `<img src="${thumb(e.k)}" alt="">`).join('')}<span style="align-self:center;text-align:center">…</span></div>` +
+      rs.map(r => `<div class="sim ${r.score === best ? '' : 'faint'}"><span class="sc">${r.score.toFixed(3)}</span>${r.first.slice(0, 6).map(k => k >= 0 ? `<img loading="lazy" src="${thumb(k)}" alt="">` : '').join('')}</div>`).join('');
+    $('#count').textContent = (live ? live.total : F.rollouts || 0).toLocaleString(); }
+  // ---- 4 choose: the committed path, with what it was chosen over
+  function choose() { $('#chain').innerHTML = F.steps.filter(s => s.chosen.kind !== 'turn').map(s => { const alt = s.kids.filter(c => !(c.k === s.chosen.k && c.kind === s.chosen.kind) && c.kind !== 'turn').slice(0, 2);
+      return `<div class="link">${alt[0] ? tile(alt[0], 'dim') : '<span></span>'}${tile(s.chosen, 'gold')}${alt[1] ? tile(alt[1], 'dim') : '<span></span>'}</div>`; }).join('');
+    $('#cNote').textContent = live && !live.done ? 'The search goes on: ✓ commits the most-visited piece now.' : `${F.ev.length} pieces · ${F.seconds ? F.seconds.toFixed(0) : '–'} seconds · critic ${(F.score || 0).toFixed(3)}`; }
+  // ---- 5 render: the print itself where it has been rendered, else played from the archive's clips
+  let ptimer = null, pn = -1;
+  function render() { $('#strip').innerHTML = F.ev.map((e, j) => `<img data-j="${j}" src="${thumb(e.k)}" alt="">`).join(''); $('#strip').querySelectorAll('img').forEach(i => i.onclick = () => playFrom(+i.dataset.j));
+    const P = F.parts || {}; $('#crit').innerHTML = ['anderson', 'cuts', 'cards', 'story', 'structure', 'pace', 'music'].map(k => `<div><span>${k}</span><b>${(P[k] || 0).toFixed(2)}</b></div>`).join('') + `<div><span>THE CRITIC</span><b>${(F.score || 0).toFixed(3)}</b></div>`;
+    const v = $('#vid'); stopPlay(); if (F.video) { v.src = F.video; v.controls = true; v.onerror = () => { v.removeAttribute('src'); v.controls = false; }; } else { v.removeAttribute('src'); v.controls = false; }
+    $('#still').src = thumb(F.ev[0] && F.ev[0].k); $('#still').style.opacity = F.video ? 0 : 1; $('#rcap').textContent = ''; }
+  function stopPlay() { clearTimeout(ptimer); pn = -1; $('#voice').pause(); }
+  function mark(j) { const e = F.ev[j]; if (e) $('#rcap').innerHTML = e.line ? (e.punch ? `<small>[${esc((e.mechanism || '').toUpperCase())}${e.vice ? ' · ' + esc(e.vice) : ''}]</small> ` : '') + said(e.line) : e.kind === 'card' ? '' : esc(`${M.shots[e.k].film || ''}${M.shots[e.k].year ? ' · ' + M.shots[e.k].year : ''}`);
+    $('#strip').querySelectorAll('img').forEach((i, n) => i.classList.toggle('on', n === j)); const i = $('#strip').children[j]; if (i) i.scrollIntoView({ block: 'nearest', inline: 'center' }); }
+  function playFrom(j) { const v = $('#vid'), st = $('#still');
+    if (F.video && v.getAttribute('src')) { let t = 0; for (let n = 0; n < j; n++) t += F.ev[n].dur; v.currentTime = t; v.play().catch(() => { }); return; }
+    stopPlay(); v.controls = false; const go = n => { if (n >= F.ev.length) return; const e = F.ev[n], s = M.shots[e.k]; pn = n; mark(n);
+      if (e.line && VIDX && VIDX[e.line.i]) { const vo = $('#voice'); vo.src = M.r2 + VIDX[e.line.i]; vo.onloadedmetadata = () => { vo.currentTime = e.line.t0; vo.play().catch(() => { }); }; setTimeout(() => vo.pause(), (e.line.t1 - e.line.t0) * 1000 + 300); }   // the voice from its own film
+      if (e.kind === 'card') { st.src = thumb(e.k); st.style.opacity = 1; v.pause(); } else { v.src = M.r2 + s.v; v.muted = true;
+        v.onloadedmetadata = () => { try { v.currentTime = Math.max(0, v.duration / 2 - e.dur / 2); } catch (x) { } }; v.onseeked = () => { v.onseeked = null; v.play().catch(() => { }); st.style.opacity = 0; }; }
+      ptimer = setTimeout(() => go(n + 1), e.dur * 1000); };
+    go(j); }
+  $('#rPlay').onclick = async () => { if (!F.video && F.ev.some(e => e.line) && !VIDX) VIDX = await fetch('aspect/video.json').then(r => r.json()).then(v => Object.fromEntries(Object.entries(v).map(([i, x]) => [i, x[0]]))).catch(() => ({})); playFrom(0); };
+  $('#vid').ontimeupdate = () => { if (!F.video) return; let t = 0, j = 0; for (; j < F.ev.length; j++) { t += F.ev[j].dur; if (t > $('#vid').currentTime) break; } mark(j); };
+  // ---- the machine, live in the browser
+  function direct(comedy) { stopPlay(); const spent = new Set(), avoid = new Set(); let comic = null;
+    if (comedy && JOKES) { comic = new Map(); for (const [i, line, funny] of JOKES) { const k = IX.get(i); if (k == null) continue; if (!comic.has(k)) comic.set(k, []); comic.get(k).push({ line, funny }); } }
+    live = GM.machine(M, { seed: (Date.now() % 1e6) | 1, iters: 128, spent, avoid, comic }); $('#direct').disabled = true; $('#simPlay').disabled = true; tick(); }
+  let since = 0;
+  function tick() { if (!live) return; const t0 = performance.now(); while (performance.now() - t0 < 28 && !live.done) { for (let i = 0; i < 16; i++) live.iterate(); since += 16; if (since >= 128) { live.commit(); since = 0; } }   // 128 futures, then a piece is committed
+    F = fromLive(live); step = Math.max(0, F.steps.length - 1); draw(live.recent.map(r => ({ score: r.score, first: r.first }))); if (live.done) { $('#direct').disabled = false; $('#simPlay').disabled = false; render(); } else requestAnimationFrame(tick); }
+  $('#direct').onclick = () => direct(false); $('#directC').onclick = () => direct(true); $('#simPlay').onclick = () => direct(false);
+  $('#commit').onclick = () => { if (live && !live.done) { live.commit(); since = 0; } else document.querySelector('.p5').scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); };
+  $('#sPrev').onclick = $('#ePrev').onclick = () => { step--; explore(); simulate(); }; $('#sNext').onclick = () => { step++; explore(); simulate(); };
+  $('#cycle').onclick = () => pick((cur + 1) % PR.best.length, src);
+  function draw(R) { home(); explore(); simulate(R); choose(); }
+  function pick(j, sname = src) { live = null; src = sname; PR = SRC[sname]; cur = j; F = fromPrint(PR.best[j]); step = 0; draw(); render(); }
+  addEventListener('resize', () => requestAnimationFrame(lines));
+  Promise.all([fetch('monte/material.json').then(r => r.json()), fetch('monte/mcts.json').then(r => r.json()), fetch('monte/comic.json').then(r => r.json()).catch(() => null), fetch('monte/comic-jokes.json').then(r => r.json()).catch(() => null), fetch('monte/tactical.json').then(r => r.json()).catch(() => null)]).then(([m, pr, cm, jk, tc]) => {
+    M = MC.load(m); IX = new Map(M.shots.map((s, k) => [s.i, k])); SRC.mcts = pr; SRC.comic = cm; SRC.tactical = tc; JOKES = jk; PR = pr; if (!jk) $('#directC').hidden = true; $('#load').hidden = true; $('#deck').hidden = false; pick(0); })
+    .catch(e => { $('#load').textContent = 'could not load: ' + e.message; });
+})();
+</script></body></html>
