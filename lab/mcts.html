@@ -46,7 +46,7 @@ button{ font:inherit; color:inherit; cursor:pointer; } img{ display:block; }
 .how{ max-width:880px; margin:18px auto 50px; padding:0 16px; display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px 22px; font:300 13px/1.55 var(--jost); color:var(--soft); }
 .how b{ display:block; color:var(--rose); font:500 10.5px var(--jost); letter-spacing:.3em; text-transform:uppercase; margin-bottom:2px; }
 .also{ display:block; margin:-6px auto 4px; background:none; border:0; border-bottom:1px solid var(--rose); color:var(--rose); font:500 9px var(--jost); letter-spacing:.3em; text-transform:uppercase; padding:2px 0; }
-.dots + .dots button.on{ background:var(--deep); border-color:var(--deep); }
+.dots + .dots button.on{ background:var(--deep); border-color:var(--deep); } #tdots button.on{ background:#b07a10; border-color:#b07a10; }
 .screen .cap i{ display:block; font:italic 300 13px/1.35 'Fraunces',Georgia,serif; letter-spacing:0; text-transform:none; margin-bottom:2px; }
 .load{ text-align:center; padding:60px 16px; color:var(--soft); letter-spacing:.2em; }
 </style></head><body>
@@ -60,7 +60,7 @@ button{ font:inherit; color:inherit; cursor:pointer; } img{ display:block; }
     <button class="also" id="directC" title="Direct a new comedy, live: lines from one film over pictures from another">or a comedy</button>
     <div class="note" id="tale"></div>
     <div class="thumbs" id="thumbs"></div>
-    <div class="dots" id="dots"></div><div class="dots" id="cdots"></div><div class="tag" style="margin-top:6px">PRINTS · <span style="color:var(--deep)">COMEDIES</span></div></section>
+    <div class="dots" id="dots"></div><div class="dots" id="cdots"></div><div class="dots" id="tdots"></div><div class="tag" style="margin-top:6px">PRINTS · <span style="color:var(--deep)">COMEDIES</span> · <span style="color:#b07a10">ROUTINES</span></div></section>
   <section class="pane p2"><div class="bar"><button id="ePrev" aria-label="Earlier">‹</button><span>⌕</span></div><div class="head">Explore</div>
     <div class="tree" id="tree"></div>
     <div class="steps"><button id="sPrev">‹</button><span id="stepAt">STEP 1</span><button id="sNext">›</button></div>
@@ -89,7 +89,7 @@ button{ font:inherit; color:inherit; cursor:pointer; } img{ display:block; }
 <script>
 (function () {
   const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const MC = window.MonteCinema, GM = window.GrandEditingMachine; let M = null, IX = null, PR = null, SRC = { mcts: null, comic: null }, src = 'mcts', cur = 0, step = 0, live = null, F = null, JOKES = null, VIDX = null;
+  const MC = window.MonteCinema, GM = window.GrandEditingMachine; let M = null, IX = null, PR = null, SRC = { mcts: null, comic: null, tactical: null }, src = 'mcts', cur = 0, step = 0, live = null, F = null, JOKES = null, VIDX = null;
   const thumb = k => k == null || k < 0 ? '' : M.r2 + M.shots[k].v.replace('/clips/', '/thumbnails/').replace('.mp4', '.jpg');
   const said = L => L ? `<i>“${esc(L.text)}”</i>from ${esc(L.film || '')}${L.year ? ' · ' + L.year : ''}` : '';
   const words = k => (M.shots[k].text || '').replace(/ \/ /g, ' ').replace(/"?ALICE IN WONDERLAND"?|V\.H\. Productions Co\.|HAGHE-?FILM/gi, '').trim();
@@ -104,7 +104,7 @@ button{ font:inherit; color:inherit; cursor:pointer; } img{ display:block; }
     $('#thumbs').innerHTML = sh.slice(1, 9).map(e => `<img loading="lazy" src="${thumb(e.k)}" alt="">`).join('');
     const ch = F.ev.filter(e => e.kind === 'card' && !e.end && M.beat.has(e.k)).map(e => words(e.k)).map(t => t.length > 46 ? t.slice(0, 44) + '…' : t);
     $('#tale').innerHTML = live ? (live.done ? 'Your film, directed just now.' : `Directing… ${live.total.toLocaleString()} futures imagined`) : ch.map(esc).join(' · ');
-    [['#dots', 'mcts'], ['#cdots', 'comic']].forEach(([el, sname]) => { const P = SRC[sname]; $(el).innerHTML = P ? P.best.map((_, j) => `<button class="${!live && src === sname && j === cur ? 'on' : ''}" data-j="${j}" aria-label="${sname === 'comic' ? 'Comedy' : 'Print'} ${j + 1}"></button>`).join('') : '';
+    [['#dots', 'mcts'], ['#cdots', 'comic'], ['#tdots', 'tactical']].forEach(([el, sname]) => { const P = SRC[sname]; $(el).innerHTML = P ? P.best.map((_, j) => `<button class="${!live && src === sname && j === cur ? 'on' : ''}" data-j="${j}" aria-label="${sname === 'comic' ? 'Comedy' : sname === 'tactical' ? 'Routine' : 'Print'} ${j + 1}"></button>`).join('') : '';
       $(el).querySelectorAll('button').forEach(b => b.onclick = () => pick(+b.dataset.j, sname)); }); }
   // ---- 2 explore: the tree around a step, three levels down the chosen branch
   function explore() { const S = F.steps; if (!S.length) { $('#tree').innerHTML = ''; return; } step = Math.max(0, Math.min(step, S.length - 1));
@@ -137,7 +137,7 @@ button{ font:inherit; color:inherit; cursor:pointer; } img{ display:block; }
     const v = $('#vid'); stopPlay(); if (F.video) { v.src = F.video; v.controls = true; v.onerror = () => { v.removeAttribute('src'); v.controls = false; }; } else { v.removeAttribute('src'); v.controls = false; }
     $('#still').src = thumb(F.ev[0] && F.ev[0].k); $('#still').style.opacity = F.video ? 0 : 1; $('#rcap').textContent = ''; }
   function stopPlay() { clearTimeout(ptimer); pn = -1; $('#voice').pause(); }
-  function mark(j) { const e = F.ev[j]; if (e) $('#rcap').innerHTML = e.line ? said(e.line) : e.kind === 'card' ? '' : esc(`${M.shots[e.k].film || ''}${M.shots[e.k].year ? ' · ' + M.shots[e.k].year : ''}`);
+  function mark(j) { const e = F.ev[j]; if (e) $('#rcap').innerHTML = e.line ? (e.punch ? `<small>[${esc((e.mechanism || '').toUpperCase())}${e.vice ? ' · ' + esc(e.vice) : ''}]</small> ` : '') + said(e.line) : e.kind === 'card' ? '' : esc(`${M.shots[e.k].film || ''}${M.shots[e.k].year ? ' · ' + M.shots[e.k].year : ''}`);
     $('#strip').querySelectorAll('img').forEach((i, n) => i.classList.toggle('on', n === j)); const i = $('#strip').children[j]; if (i) i.scrollIntoView({ block: 'nearest', inline: 'center' }); }
   function playFrom(j) { const v = $('#vid'), st = $('#still');
     if (F.video && v.getAttribute('src')) { let t = 0; for (let n = 0; n < j; n++) t += F.ev[n].dur; v.currentTime = t; v.play().catch(() => { }); return; }
@@ -163,8 +163,8 @@ button{ font:inherit; color:inherit; cursor:pointer; } img{ display:block; }
   function draw(R) { home(); explore(); simulate(R); choose(); }
   function pick(j, sname = src) { live = null; src = sname; PR = SRC[sname]; cur = j; F = fromPrint(PR.best[j]); step = 0; draw(); render(); }
   addEventListener('resize', () => requestAnimationFrame(lines));
-  Promise.all([fetch('monte/material.json').then(r => r.json()), fetch('monte/mcts.json').then(r => r.json()), fetch('monte/comic.json').then(r => r.json()).catch(() => null), fetch('monte/comic-jokes.json').then(r => r.json()).catch(() => null)]).then(([m, pr, cm, jk]) => {
-    M = MC.load(m); IX = new Map(M.shots.map((s, k) => [s.i, k])); SRC.mcts = pr; SRC.comic = cm; JOKES = jk; PR = pr; if (!jk) $('#directC').hidden = true; $('#load').hidden = true; $('#deck').hidden = false; pick(0); })
+  Promise.all([fetch('monte/material.json').then(r => r.json()), fetch('monte/mcts.json').then(r => r.json()), fetch('monte/comic.json').then(r => r.json()).catch(() => null), fetch('monte/comic-jokes.json').then(r => r.json()).catch(() => null), fetch('monte/tactical.json').then(r => r.json()).catch(() => null)]).then(([m, pr, cm, jk, tc]) => {
+    M = MC.load(m); IX = new Map(M.shots.map((s, k) => [s.i, k])); SRC.mcts = pr; SRC.comic = cm; SRC.tactical = tc; JOKES = jk; PR = pr; if (!jk) $('#directC').hidden = true; $('#load').hidden = true; $('#deck').hidden = false; pick(0); })
     .catch(e => { $('#load').textContent = 'could not load: ' + e.message; });
 })();
 </script></body></html>
