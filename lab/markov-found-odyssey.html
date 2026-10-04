@@ -34,8 +34,12 @@ footer{ display:flex; align-items:center; gap:6px; padding:4px 10px calc(10px + 
 .ico{ width:44px; height:44px; display:grid; place-items:center; background:none; border:0; border-radius:50%; cursor:pointer; color:#bdb5a9; flex:none; } .ico:hover{ background:#ffffff12; } .ico svg{ width:20px; height:20px; } #bPlay{ background:#e8c07018; color:var(--hi); }
 .tg{ border:1px solid var(--faint); background:none; border-radius:16px; padding:7px 11px; cursor:pointer; color:var(--dim); font-size:10px; letter-spacing:.1em; white-space:nowrap; } .tg.on{ color:var(--hi); border-color:#5a4e33; }
 #prog{ flex:1; color:var(--dim); font-size:10.5px; text-align:right; }
-#grid{ position:absolute; inset:0; z-index:6000; display:none; place-content:center; gap:8px; padding:8px; background:#050505; } body.gridv #grid{ display:grid; } body.gridv #who{ display:none; }
-.tile{ position:relative; aspect-ratio:4/3; background:#000; border-radius:8px; overflow:hidden; border:2px solid #1d1b19; transition:border-color .35s, box-shadow .35s; }
+#grid{ position:absolute; inset:0; z-index:6000; display:none; background:#050505; overflow:hidden; } body.gridv #grid{ display:block; } body.gridv #who{ display:none; }
+.tile{ position:absolute; background:#000; border-radius:8px; overflow:hidden; border:2px solid #1d1b19; transition:left .6s cubic-bezier(.4,0,.2,1), top .6s cubic-bezier(.4,0,.2,1), width .6s cubic-bezier(.4,0,.2,1), height .6s cubic-bezier(.4,0,.2,1), border-color .35s, box-shadow .35s, opacity .5s; }
+.tile.small .nm span{ font-size:9px; padding:2px 6px; } .tile.small .nm img{ width:18px; height:18px; } .tile.small .tag{ font-size:8px; }
+.tile .ln{ position:absolute; inset:0; display:none; place-items:center; padding:28px 14px; text-align:center; font:300 clamp(14px,2.2vw,26px)/1.3 var(--serif); color:#d8d1c4; background:radial-gradient(#1a1714,#050505); } .tile.text .ln{ display:grid; } .tile.text video{ display:none; } .tile.small .ln{ font-size:12px; padding:18px 8px; } .tile.small.text .nm, .tile.small.text .tag{ display:none; } body.gridv:not(.theatre) #th{ top:auto; bottom:10px; }
+body.theatre.gridv #grid{ bottom:26dvh; } body.theatre.gridv #cap{ height:26dvh; padding:10px 6vw calc(10px + env(safe-area-inset-bottom)); background:#050505; display:flex; flex-direction:column; justify-content:center; }
+body.theatre.gridv:not(.calm) #cap{ padding-bottom:calc(70px + env(safe-area-inset-bottom)); } body.theatre.gridv #cap .a{ font-size:clamp(16px,2.6vw,28px); } body.theatre.gridv #cap .h{ font-size:clamp(12px,1.6vw,17px); }
 .tile video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; } #grid video{ opacity:1; transform:none; transition:none; }
 .tile.live{ border-color:var(--hi); box-shadow:0 0 0 1px #e8c07055, 0 0 28px #e8c07030; }
 .tile .nm{ position:absolute; left:6px; bottom:6px; right:6px; display:flex; gap:6px; align-items:center; font:10px var(--mono); color:#efe9dd; text-shadow:0 1px 2px #000; }
@@ -87,7 +91,7 @@ body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:no
   <button data-m="performance">PERFORMANCE<small>longer runs, fewer voices</small></button><button data-m="kinship">KINSHIP<small>kindred words where it lacks his</small></button>
   <button data-m="literal">LITERAL<small>Homer's words, his order</small></button></nav>
 <main id="stage"><video class="pool" playsinline muted preload="auto"></video><video class="pool" playsinline muted preload="auto"></video><video class="pool" playsinline muted preload="auto"></video><video class="pool" playsinline muted preload="auto"></video><video class="bs" playsinline muted preload="auto"></video><video class="bs" playsinline muted preload="auto"></video><div id="grid" aria-label="The call"></div><div id="who"></div><div id="cap"></div>
-  <div id="th"><button class="only" id="ccBtn" title="Subtitles: the line and its answer, the answer only, or none">CC · BOTH</button><button class="only" id="fitBtn" title="The whole picture, or fill the screen">FIT · WHOLE</button><button id="srcBtn" title="Where this comes from: the original films, whole">SOURCE</button><button id="thBtn" title="Theatre: the film full screen, the words as subtitles">⛶ THEATRE</button></div>
+  <div id="th"><button class="only" id="ccBtn" title="Subtitles: the line and its answer, the answer only, or none">CC · BOTH</button><button class="only" id="viewBtn" title="Stage, grid, or speaker">VIEW</button><button class="only" id="fitBtn" title="The whole picture, or fill the screen">FIT · WHOLE</button><button id="srcBtn" title="Where this comes from: the original films, whole">SOURCE</button><button id="thBtn" title="Theatre: the film full screen, the words as subtitles">⛶ THEATRE</button></div>
   <div id="thBar"><button class="ico" id="tPrev" aria-label="Previous line"><svg><use href="#i-prev"/></svg></button><button class="ico" id="tPlay" aria-label="Play"><svg><use href="#i-play"/></svg></button><button class="ico" id="tNext" aria-label="Next line"><svg><use href="#i-next"/></svg></button></div>
   <div id="tap"><svg><use href="#i-play"/></svg></div></main>
 <div id="line"></div>
@@ -234,6 +238,9 @@ body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:no
       $('#who').textContent = E.call ? 'the line' : E.ours ? 'our voice · “' + (x.gap || x.elided || '') + '”' : src(E) + ' · “' + (x.words || '') + '”'; }
     if (gridOn) { gridUpdate(now); if (playing) tkRaf = requestAnimationFrame(tkLoop); return; }
     beside(now);
+    if (curPic && shown && shown._p === curPic && curPic.kind === 'speaker') {   // a speaker on screen is kept in step with their voice
+      const at0 = curPic.in != null ? Math.max(0, curPic.in) : Math.max(0, curPic.t0 - (curPic.at - (curPic.sw ?? curPic.at - .4))), want = at0 + (now - curPic.sw) * (curPic.rate || 1);
+      if (shown.readyState >= 2 && !shown.seeking && Math.abs(shown.currentTime - want) > .3) try { shown.currentTime = want; } catch (x) { } }
     const ps = pics(); let P = null, k = -1; ps.forEach((p, n) => { if (p.sw <= now) { P = p; k = n; } });
     if (P && P !== curPic) { const el = POOL.find(e => e._key === pkey(P));
       if (el && el.readyState >= 2 && !el.seeking) { if (!track.paused) el.play().catch(() => { }); slowTake(el, now - P.sw > 1 ? 500 : P.dd, P.tr); curPic = P; }   // late but ready: still taken, with a quicker dissolve
@@ -246,6 +253,7 @@ body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:no
   function beside(now) { const list = mode === 'call' && PICS && PICS[sid] && PICS[sid].call_beside || [];
     const B = list.find(b => b.sw <= now && now < b.end), nx = list.find(b => b.sw > now);
     const key = b => b.id + '@' + b.in, ready = (el, b) => { el._k = key(b); if (el.dataset.id !== b.id) { el.src = b.video; el.dataset.id = b.id; el.load(); } const sk = () => { try { el.currentTime = b.in; } catch (e) { } }; if (el.readyState >= 1) sk(); else el.addEventListener('loadedmetadata', sk, { once: true }); };
+    if (B && bsOn && bsOn._k === key(B) && bsOn.readyState >= 2 && !bsOn.seeking) { const want = B.in + (now - B.sw); if (Math.abs(bsOn.currentTime - want) > .3) try { bsOn.currentTime = want; } catch (x) { } }   // the answer's footage kept in step
     if (B) { let el = BS.find(e => e._k === key(B)); if (!el) { el = BS.find(e => e !== bsOn) || BS[0]; ready(el, B); }
       if (bsOn !== el && el.readyState >= 2) { if (bsOn) { bsOn.classList.remove('on'); const o = bsOn; setTimeout(() => o.pause(), 700); } bsOn = el; el.classList.add('on'); try { el.currentTime = B.in + Math.max(0, now - B.sw); } catch (e) { } if (!track.paused) el.play().catch(() => { }); stage.classList.add('pair'); } }
     else if (bsOn) { bsOn.classList.remove('on'); const o = bsOn; bsOn = null; setTimeout(() => { o.pause(); if (!bsOn) stage.classList.remove('pair'); }, 700); }
@@ -255,35 +263,55 @@ body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:no
   // poem's own renders small, all moving at once
   const HWB = 'https://hartswf0.github.io/odyssey-halfworld/renders/tiles/';
   const slug = w => w.toLowerCase().replace(/'s\b/g, 's').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  let gridOn = store.get('found.grid', false), GT = null, gPic = null;
+  let gridOn = store.get('found.grid', false), GT = null, gPic = null, view = store.get('found.view', 'grid'), bigG = null, bigAt = 0;   // view: grid (equal tiles) or speaker (the voice speaking now, large)
   // a seat for each character in the scene (and one for the line itself); whoever in the archive is speaking for that character
   // sits in it, and the next actor for a seat is already loaded while it waits
   // one grid, laid out like a video call: the tile size that fills the space best at the archive's 4:3, footage never cropped
-  function layoutGrid() { const G = $('#grid'), n = G.children.length; if (!n) return; const W = G.clientWidth - 16, Hh = G.clientHeight - 16; let best = { w: 0 };
-    for (let c = 1; c <= n; c++) { const r = Math.ceil(n / c), w = Math.min((W - 8 * (c - 1)) / c, ((Hh - 8 * (r - 1)) / r) * 4 / 3); if (w > best.w) best = { w, c }; }
-    G.style.gridTemplateColumns = `repeat(${best.c}, ${Math.floor(best.w)}px)`; }
-  addEventListener('resize', () => { if (gridOn) layoutGrid(); });
+  // equal tiles in the arrangement that makes them largest at the archive's 4:3; never cropped
+  function fitGrid(n, x, y, W, H, gap) { let best = { w: 0 }; for (let c = 1; c <= n; c++) { const r = Math.ceil(n / c), w = Math.min((W - gap * (c - 1)) / c, ((H - gap * (r - 1)) / r) * 4 / 3); if (w > best.w) best = { w, c, r }; }
+    const w = best.w, h = w * 3 / 4, out = []; for (let k = 0; k < n; k++) { const row = Math.floor(k / best.c), inRow = Math.min(best.c, n - row * best.c), col = k % best.c;
+      const ox = x + (W - (inRow * w + (inRow - 1) * gap)) / 2, oy = y + (H - (best.r * h + (best.r - 1) * gap)) / 2; out.push({ x: ox + col * (w + gap), y: oy + row * (h + gap), w, h }); } return out; }
+  function layoutGrid() { const G = $('#grid'), tiles = [...G.children]; if (!tiles.length) return; const W = G.clientWidth, H = G.clientHeight, gap = 8, pad = 8; let rects;
+    if (view === 'speaker' && tiles.length > 1) { const big = bigG && bigG.el && tiles.includes(bigG.el) ? bigG.el : tiles[1] || tiles[0], rest = tiles.filter(t => t !== big);
+      if (W / H > 1.15) { const sw = Math.min(W * .26, (H - 2 * pad) * 4 / 3 * .5), bw = W - 3 * pad - sw;   // landscape: the speaker large on the left, the others down the right
+        const b = { w: Math.min(bw, (H - 2 * pad) * 4 / 3) }; b.h = b.w * 3 / 4; const x0 = (W - (b.w + pad + sw)) / 2; b.x = x0; b.y = (H - b.h) / 2;   // the speaker and the others, centred together
+        const side = fitGrid(rest.length, x0 + b.w + pad, pad, sw, H - 2 * pad, gap), sl = Math.min(...side.map(r => r.x)), sr = Math.max(...side.map(r => r.x + r.w));
+        const shift = (W - (b.w + pad + (sr - sl))) / 2 - b.x; b.x += shift; side.forEach(r => { r.x += (b.x + b.w + pad) - sl; }); rects = new Map([[big, b], ...rest.map((t, k) => [t, side[k]])]); }   // packed to the tiles' real width, centred as one
+      else { const bh = Math.min((W - 2 * pad) * 3 / 4, H * .62), b = { h: bh, w: bh * 4 / 3 }; b.x = (W - b.w) / 2; b.y = pad;   // portrait: the speaker large on top, the others below
+        const low = fitGrid(rest.length, pad, pad + bh + gap, W - 2 * pad, H - bh - 2 * pad - gap, gap); rects = new Map([[big, b], ...rest.map((t, k) => [t, low[k]])]); } }
+    else { const r = fitGrid(tiles.length, pad, pad, W - 2 * pad, H - 2 * pad, gap); rects = new Map(tiles.map((t, k) => [t, r[k]])); }
+    for (const [t, r] of rects) { if (!r) continue; Object.assign(t.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' }); t.classList.toggle('small', r.w < 220); } }
+  addEventListener('resize', () => { if (gridOn) layoutGrid(); }); document.addEventListener('fullscreenchange', () => setTimeout(() => { if (gridOn) layoutGrid(); }, 120));
   let HWI = null; fetch('odyssey/halfworld/index.json').then(r => r.json()).then(d => HWI = d).catch(() => { });
   function vtile(cls, html) { const d = document.createElement('div'); d.className = 'tile ' + cls; d.innerHTML = '<video muted playsinline preload="auto" loop></video>' + html; $('#grid').append(d); return d; }
   // the seats: the halfworld's own film of the scene (in step with our voice), a seat for each character with whoever in the archive
   // speaks for them, and the poem's footage: the captains' take and another
   function buildGrid() { const t = trk(), G = $('#grid'); G.innerHTML = ''; GT = null; gPic = null; if (!t || !gridOn) return;
     const order = []; t.ev.forEach(e => { if (!e.id || e.call || !F.clips[e.id]) return; const w = (lines()[e.li] || {}).who || ''; if (!order.includes(w)) order.push(w); });
-    const hw = vtile('hw', `<span class="tag">THE HALFWORLD</span><div class="nm"><span>THE LINE <i>· our voice</i></span></div>`), hv = hw.querySelector('video'); hv.src = `odyssey/halfworld/${sid}.mp4`;
+    const hw = vtile('hw', `<div class="ln"></div><span class="tag">THE HALFWORLD</span><div class="nm"><span>THE LINE <i>· our voice</i></span></div>`), hv = hw.querySelector('video'); hv.src = `odyssey/halfworld/${sid}.mp4`;
+    hv.onerror = () => { hw.classList.add('text'); hw.querySelector('.tag').textContent = 'THE LINE'; };   // no film of the halfworld here: the tile shows the line instead
+    hw.querySelector('.ln').textContent = (lines()[li] || {}).text || ''; bigG = null;
     GT = [{ line: true, el: hw, v: hv }];
     order.slice(0, 6).forEach(w => { const d = vtile('seat', `<div class="nm"><img src="${HWB}asset__character__${slug(w)}.png" alt="" onerror="this.remove()"><span>${esc(w)} <i></i></span></div>`);
       const g = { who: w, el: d, v: d.querySelector('video'), cur: null }; GT.push(g); const e = t.ev.find(e => e.id && !e.call && (lines()[e.li] || {}).who === w); if (e) seat(g, e); });
     const pm = vtile('poem', `<span class="tag">THE POEM</span><div class="nm"><span></span></div>`), al = vtile('alt', `<span class="tag">ANOTHER TAKE</span><div class="nm"><span></span></div>`);
     GT.poem = pm; GT.alt = al; layoutGrid(); if (!track.paused) gridPlay(true); }
   function seat(g, e) { if (g.cur === e) return; g.cur = e; const c = F.clips[e.id], v = g.v; g.el.querySelector('.nm i').textContent = '· ' + (c.title || '') + (c.year ? ', ' + c.year : '');
-    if (v.dataset.id !== e.id) { v.src = c.video; v.dataset.id = e.id; v.load(); } const sk = () => { try { v.currentTime = e.t0; } catch (x) { } }; if (v.readyState >= 1) sk(); else v.addEventListener('loadedmetadata', sk, { once: true }); }
+    if (v.dataset.id !== e.id) { v.src = c.video; v.dataset.id = e.id; v.load(); }
+    const sk = () => { if (g.cur !== e) return; const live = g.el.classList.contains('live'); try { v.currentTime = live ? e.t0 + Math.max(0, track.currentTime - e.at) : e.t0; } catch (x) { } if (live && !track.paused) v.play().catch(() => { }); };   // a clip that arrives late starts where its voice already is
+    if (v.readyState >= 1) sk(); else v.addEventListener('loadedmetadata', sk, { once: true }); }
   function gridPlay(on) { document.querySelectorAll('#grid video').forEach(v => on ? v.play().catch(() => { }) : v.pause()); }
   function gridUpdate(now) { if (!GT) return; const t = trk(); let E = null, k = -1; t.ev.forEach((e, n) => { if (e.at - .1 <= now) { E = e; k = n; } });
     const whoOf = e => (lines()[e.li] || {}).who, on = E && now <= E.end + .4;
     const live = on ? (E.call || E.ours ? GT[0] : GT.find(g => !g.line && g.who === whoOf(E))) : null;
     if (live && !live.line && live.cur !== E) seat(live, E);
+    if (GT[0] && GT[0].el.classList.contains('text')) { const u = lines()[E ? E.li : li], ln = GT[0].el.querySelector('.ln'); if (u && ln.textContent !== u.text) ln.textContent = u.text; }
+    if (live && live !== bigG && view === 'speaker' && (!bigG || performance.now() - bigAt > 1100) && (E.end - E.at >= .7 || now - E.at > .5)) { bigG = live; bigAt = performance.now(); layoutGrid(); }   // no flicker: a voice must hold before it takes the large place
+    if (live && !live.line && E && live.cur === E) { const v = live.v, want = E.t0 + (now - E.at);   // in step with the voice, always
+      if (v.readyState >= 2 && !v.seeking && Math.abs(v.currentTime - want) > .25) try { v.currentTime = want; } catch (x) { }
+      if (v.playbackRate !== 1) v.playbackRate = 1; if (v.paused && !track.paused) v.play().catch(() => { }); }
     GT.forEach(g => { const is = g === live; if (is === g.el.classList.contains('live')) return; g.el.classList.toggle('live', is);
-      if (g.line) { const u = lines()[E ? E.li : li], r = HWI && HWI[sid] ? HWI[sid].dur / (HWI[sid].voice || HWI[sid].dur) : 1;
+      if (g.line && !g.el.classList.contains('text')) { const u = lines()[E ? E.li : li], r = HWI && HWI[sid] ? HWI[sid].dur / (HWI[sid].voice || HWI[sid].dur) : 1;
         if (is && u) { try { g.v.currentTime = (u.t0 + Math.max(0, now - E.at)) * r; } catch (x) { } g.v.playbackRate = 1; } else g.v.playbackRate = .6; }   // the halfworld in step with our voice, then drifting on slowly
       else if (is) { try { g.v.currentTime = E.t0 + Math.max(0, now - E.at); } catch (x) { } }
       else { const nx = t.ev.slice(k + 1).find(e => e.id && !e.call && whoOf(e) === g.who); if (nx && g.v.currentTime > (g.cur ? g.cur.t0 + 12 : 0)) seat(g, nx); }
@@ -292,9 +320,10 @@ body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:no
     if (P && P !== gPic) { gPic = P; const run = (d, x, r) => { const v = d.querySelector('video'); v.src = x.video || (F.clips[x.id] || {}).video; d.querySelector('.nm span').textContent = src(x);
         v.addEventListener('loadedmetadata', () => { try { v.currentTime = x.in || 0; } catch (e) { } v.playbackRate = r; if (!track.paused) v.play().catch(() => { }); }, { once: true }); };
       run(GT.poem, P, .8); const a0 = (P.alts || [])[0] || ps.find(p => p !== P && p.kind !== 'speaker'); if (a0) run(GT.alt, a0, .6); } }
-  function setGrid(on) { gridOn = on; store.set('found.grid', on); document.body.classList.toggle('gridv', on); $('#gridBtn').classList.toggle('on', on); buildGrid();
+  function setGrid(on) { gridOn = on; setTimeout(() => { drawView(); layoutGrid(); }, 0); store.set('found.grid', on); document.body.classList.toggle('gridv', on); $('#gridBtn').classList.toggle('on', on); buildGrid();
     if (on) { POOL.forEach(v => v.pause()); BS && BS.forEach(v => v.pause()); } else if (playing && shown) shown.play().catch(() => { }); if (trk()) tkLoop(); }
-  $('#gridBtn').onclick = () => setGrid(!gridOn);
+  const drawView = () => { $('#gridBtn').textContent = !gridOn ? 'VIEW · STAGE' : view === 'speaker' ? 'VIEW · SPEAKER' : 'VIEW · GRID'; };
+  $('#gridBtn').onclick = () => { if (!gridOn) { view = 'grid'; setGrid(true); } else if (view === 'grid') { view = 'speaker'; bigG = null; layoutGrid(); } else setGrid(false); store.set('found.view', view); drawView(); };
   function tkLoad(atLine, autoplay) { const t = trk(); curPic = curEv = null; hush(); track.pause(); BS.forEach(v => { v.classList.remove('on'); v.pause(); }); bsOn = null; stage.classList.remove('pair');
     const l = t.lines.find(l => l.li >= atLine) || t.lines[0], go_ = () => { try { track.currentTime = Math.max(0, l ? l.at - .8 : 0); } catch (x) { } tkLoop(); if (autoplay) track.play().catch(() => { }); };
     li = l ? l.li : 0; drawLine(); buildGrid();
@@ -343,6 +372,7 @@ body.bare header, body.bare #dial, body.bare footer, body.bare #line{ display:no
     if (heard && F.clips[heard.id]) out.push({ role: 'the voice', video: F.clips[heard.id].video, at: heard.at });
     if (!out.length) { const t = tr(lines()[li]); ((t && t.frags) || []).filter(x => x.id && F.clips[x.id]).forEach(x => out.push({ role: 'this line’s voices', video: F.clips[x.id].video, at: x.t0 })); }   // nothing playing yet: the line's own sources
     Attrib.show(out.filter(x => x.video)); wake(); }
+  $('#viewBtn').onclick = e => { e.stopPropagation(); $('#gridBtn').click(); $('#viewBtn').textContent = $('#gridBtn').textContent; wake(); };
   $('#srcBtn').onclick = sources; ['click', 'touchend'].forEach(ev => $('#who').addEventListener(ev, sources));
   document.querySelectorAll('#dial button').forEach(b => b.onclick = () => setMode(b.dataset.m));
   $('#bPlay').onclick = toggle; const jump = n => { if (trk()) tkLoad(Math.max(0, n), playing); else go(n); }; $('#bNext').onclick = () => jump(li + 1); $('#bPrev').onclick = () => jump(li - 1);
