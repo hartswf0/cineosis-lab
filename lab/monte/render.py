@@ -87,8 +87,9 @@ fc = "".join(f"[{k}:a]atrim=0:{lens[k]:.2f},asetpts=PTS-STARTPTS,loudnorm=I=-20:
 for k in range(1, len(music)): fc += f"{ch}[a{k}]acrossfade=d=2.5:c1=tri:c2=tri[x{k}];"; ch = f"[x{k}]"
 mute = "+".join(f"between(t,{a - .15:.2f},{b + .1:.2f})" for a, b in silent) or "0"
 duck = "+".join(f"between(t,{a - .25:.2f},{a + (t1 - t0) + tail:.2f})" for a, _, t0, t1, tail in voices) or "0"   # low under the line and through the laugh; up again for the exit [TONE SHIFT]
+# the music is cut into 10 ms frames before its volume is set: acrossfade hands on a whole 2.5 s overlap as one frame, and a pause inside it would never fall silent
 rest = "+".join(f"between(t,{a:.2f},{b:.2f})" for a, b in rests) or "0"   # the music steps back for a voice
-fc += f"{ch}apad,atrim=0:{t:.2f},volume='if({mute}+{rest},0,if({duck},0.22,1))':eval=frame,afade=t=in:d=1.2,afade=t=out:st={t - 2.5:.2f}:d=2.5[m]"
+fc += f"{ch}apad,atrim=0:{t:.2f},asetnsamples=n=480:p=0,volume='if({mute}+{rest},0,if({duck},0.22,1))':eval=frame,afade=t=in:d=1.2,afade=t=out:st={t - 2.5:.2f}:d=2.5[m]"
 vins = []
 for k, (a, src, t0, t1, _) in enumerate(voices):   # each line cut from its own clip at the transcript's word times, levelled, set in place
     vins += ["-ss", f"{t0}", "-t", f"{t1 - t0}", "-i", src]
