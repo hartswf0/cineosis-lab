@@ -45,6 +45,9 @@ button{ font:inherit; color:inherit; cursor:pointer; } img{ display:block; }
 .crit{ margin:10px 2px 0; font:400 11px/1.5 var(--jost); color:var(--soft); } .crit div{ display:flex; justify-content:space-between; border-top:1px solid #0001; padding:1px 0; } .crit b{ color:var(--ink); font-weight:500; }
 .how{ max-width:880px; margin:18px auto 50px; padding:0 16px; display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px 22px; font:300 13px/1.55 var(--jost); color:var(--soft); }
 .how b{ display:block; color:var(--rose); font:500 10.5px var(--jost); letter-spacing:.3em; text-transform:uppercase; margin-bottom:2px; }
+.also{ display:block; margin:-6px auto 4px; background:none; border:0; border-bottom:1px solid var(--rose); color:var(--rose); font:500 9px var(--jost); letter-spacing:.3em; text-transform:uppercase; padding:2px 0; }
+.dots + .dots button.on{ background:var(--deep); border-color:var(--deep); }
+.screen .cap i{ display:block; font:italic 300 13px/1.35 'Fraunces',Georgia,serif; letter-spacing:0; text-transform:none; margin-bottom:2px; }
 .load{ text-align:center; padding:60px 16px; color:var(--soft); letter-spacing:.2em; }
 </style></head><body>
 <nav class="top"><a href="index.html#wall">The Lab</a><a href="monte.html">The Slot Machine</a><a href="wes.html">Precisely So</a></nav>
@@ -54,9 +57,10 @@ button{ font:inherit; color:inherit; cursor:pointer; } img{ display:block; }
     <div class="title">MONTE CARLO<br>CINEMA</div><div class="tag">MANY STORIES AHEAD</div>
     <div class="hero"><img id="hero" alt=""></div>
     <button class="go" id="direct" title="Direct a new film, live">→</button>
+    <button class="also" id="directC" title="Direct a new comedy, live: lines from one film over pictures from another">or a comedy</button>
     <div class="note" id="tale"></div>
     <div class="thumbs" id="thumbs"></div>
-    <div class="dots" id="dots"></div></section>
+    <div class="dots" id="dots"></div><div class="dots" id="cdots"></div><div class="tag" style="margin-top:6px">PRINTS · <span style="color:var(--deep)">COMEDIES</span></div></section>
   <section class="pane p2"><div class="bar"><button id="ePrev" aria-label="Earlier">‹</button><span>⌕</span></div><div class="head">Explore</div>
     <div class="tree" id="tree"></div>
     <div class="steps"><button id="sPrev">‹</button><span id="stepAt">STEP 1</span><button id="sNext">›</button></div>
@@ -70,7 +74,7 @@ button{ font:inherit; color:inherit; cursor:pointer; } img{ display:block; }
     <button class="go check" id="commit" title="Commit the most-visited piece">✓</button>
     <div class="note" id="cNote"></div></section>
   <section class="pane p5"><div class="bar"><button aria-label="Back">‹</button><span>⇪</span></div><div class="head">Render</div>
-    <div class="screen" id="screen"><video id="vid" playsinline preload="metadata"></video><img id="still" alt="" style="opacity:0"><div class="cap" id="rcap"></div></div>
+    <div class="screen" id="screen"><video id="vid" playsinline preload="metadata"></video><audio id="voice" preload="none"></audio><img id="still" alt="" style="opacity:0"><div class="cap" id="rcap"></div></div>
     <div class="strip" id="strip"></div>
     <button class="go play" id="rPlay" title="Play the film">▶</button>
     <div class="crit" id="crit"></div></section>
@@ -85,22 +89,23 @@ button{ font:inherit; color:inherit; cursor:pointer; } img{ display:block; }
 <script>
 (function () {
   const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const MC = window.MonteCinema, GM = window.GrandEditingMachine; let M = null, IX = null, PR = null, cur = 0, step = 0, live = null, F = null;
+  const MC = window.MonteCinema, GM = window.GrandEditingMachine; let M = null, IX = null, PR = null, SRC = { mcts: null, comic: null }, src = 'mcts', cur = 0, step = 0, live = null, F = null, JOKES = null, VIDX = null;
   const thumb = k => k == null || k < 0 ? '' : M.r2 + M.shots[k].v.replace('/clips/', '/thumbnails/').replace('.mp4', '.jpg');
+  const said = L => L ? `<i>“${esc(L.text)}”</i>from ${esc(L.film || '')}${L.year ? ' · ' + L.year : ''}` : '';
   const words = k => (M.shots[k].text || '').replace(/ \/ /g, ' ').replace(/"?ALICE IN WONDERLAND"?|V\.H\. Productions Co\.|HAGHE-?FILM/gi, '').trim();
   const tile = (x, cls = '') => x.k < 0 || x.kind === 'turn' ? `<div class="tile turn ${cls}">NEXT<br>CHAPTER${x.n != null ? `<span class="n">${x.n}</span>` : ''}</div>`
     : `<div class="tile ${M.shots[x.k].title ? 'card' : ''} ${cls}" title="${esc(M.shots[x.k].title ? words(x.k) : M.shots[x.k].why || '')}"><img loading="lazy" src="${thumb(x.k)}" alt="">${x.n != null ? `<span class="n">${x.n}</span>` : ''}</div>`;
   // a print as the page works with it: pieces by index, and its search, step by step
   function fromPrint(p) { const k = i => (i == null ? -1 : IX.get(i)); return { ev: p.ev.map(e => Object.assign({}, e, { k: k(e.i) })), score: p.score, parts: p.parts, seconds: p.seconds, rollouts: p.rollouts, music: p.music,
-    steps: p.steps.map(s => ({ at: s.at, chosen: { kind: s.chosen.kind, k: k(s.chosen.i) }, kids: s.kids.map(c => ({ kind: c.kind, k: k(c.i), n: c.n, q: c.q })), rollouts: s.rollouts.map(r => ({ score: r.score, first: r.first.map(k) })) })), video: `monte/mcts-${PR.best.indexOf(p)}.mp4` }; }
-  function fromLive(m) { const f = m.film(); return { ev: f.ev, score: f.score, parts: f.parts, seconds: f.seconds, rollouts: m.total, steps: m.steps.map(s => ({ at: s.at, chosen: s.chosen, kids: s.kids, rollouts: s.rollouts })), video: null }; }
+    steps: p.steps.map(s => ({ at: s.at, chosen: { kind: s.chosen.kind, k: k(s.chosen.i) }, kids: s.kids.map(c => ({ kind: c.kind, k: k(c.i), n: c.n, q: c.q })), rollouts: s.rollouts.map(r => ({ score: r.score, first: r.first.map(k) })) })), video: `monte/${src}-${PR.best.indexOf(p)}.mp4` }; }
+  function fromLive(m) { const f = m.film(); return { ev: f.ev.map(e => Object.assign({}, e, { line: e.line != null ? M.lines[e.line] : null })), score: f.score, parts: f.parts, seconds: f.seconds, rollouts: m.total, steps: m.steps.map(s => ({ at: s.at, chosen: s.chosen, kids: s.kids, rollouts: s.rollouts })), video: null }; }
   // ---- 1 home
   function home() { const sh = F.ev.filter(e => e.kind === 'shot'); $('#hero').src = thumb((sh[0] || F.ev[0] || {}).k);
     $('#thumbs').innerHTML = sh.slice(1, 9).map(e => `<img loading="lazy" src="${thumb(e.k)}" alt="">`).join('');
     const ch = F.ev.filter(e => e.kind === 'card' && !e.end && M.beat.has(e.k)).map(e => words(e.k)).map(t => t.length > 46 ? t.slice(0, 44) + '…' : t);
     $('#tale').innerHTML = live ? (live.done ? 'Your film, directed just now.' : `Directing… ${live.total.toLocaleString()} futures imagined`) : ch.map(esc).join(' · ');
-    $('#dots').innerHTML = PR.best.map((_, j) => `<button class="${!live && j === cur ? 'on' : ''}" data-j="${j}" aria-label="Print ${j + 1}"></button>`).join('');
-    $('#dots').querySelectorAll('button').forEach(b => b.onclick = () => pick(+b.dataset.j)); }
+    [['#dots', 'mcts'], ['#cdots', 'comic']].forEach(([el, sname]) => { const P = SRC[sname]; $(el).innerHTML = P ? P.best.map((_, j) => `<button class="${!live && src === sname && j === cur ? 'on' : ''}" data-j="${j}" aria-label="${sname === 'comic' ? 'Comedy' : 'Print'} ${j + 1}"></button>`).join('') : '';
+      $(el).querySelectorAll('button').forEach(b => b.onclick = () => pick(+b.dataset.j, sname)); }); }
   // ---- 2 explore: the tree around a step, three levels down the chosen branch
   function explore() { const S = F.steps; if (!S.length) { $('#tree').innerHTML = ''; return; } step = Math.max(0, Math.min(step, S.length - 1));
     const rows = [], lastK = S[step].at ? F.ev[S[step].at - 1] : null;
@@ -131,33 +136,35 @@ button{ font:inherit; color:inherit; cursor:pointer; } img{ display:block; }
     const P = F.parts || {}; $('#crit').innerHTML = ['anderson', 'cuts', 'cards', 'story', 'structure', 'pace', 'music'].map(k => `<div><span>${k}</span><b>${(P[k] || 0).toFixed(2)}</b></div>`).join('') + `<div><span>THE CRITIC</span><b>${(F.score || 0).toFixed(3)}</b></div>`;
     const v = $('#vid'); stopPlay(); if (F.video) { v.src = F.video; v.controls = true; v.onerror = () => { v.removeAttribute('src'); v.controls = false; }; } else { v.removeAttribute('src'); v.controls = false; }
     $('#still').src = thumb(F.ev[0] && F.ev[0].k); $('#still').style.opacity = F.video ? 0 : 1; $('#rcap').textContent = ''; }
-  function stopPlay() { clearTimeout(ptimer); pn = -1; }
-  function mark(j) { $('#strip').querySelectorAll('img').forEach((i, n) => i.classList.toggle('on', n === j)); const i = $('#strip').children[j]; if (i) i.scrollIntoView({ block: 'nearest', inline: 'center' }); }
+  function stopPlay() { clearTimeout(ptimer); pn = -1; $('#voice').pause(); }
+  function mark(j) { const e = F.ev[j]; if (e) $('#rcap').innerHTML = e.line ? said(e.line) : e.kind === 'card' ? '' : esc(`${M.shots[e.k].film || ''}${M.shots[e.k].year ? ' · ' + M.shots[e.k].year : ''}`);
+    $('#strip').querySelectorAll('img').forEach((i, n) => i.classList.toggle('on', n === j)); const i = $('#strip').children[j]; if (i) i.scrollIntoView({ block: 'nearest', inline: 'center' }); }
   function playFrom(j) { const v = $('#vid'), st = $('#still');
     if (F.video && v.getAttribute('src')) { let t = 0; for (let n = 0; n < j; n++) t += F.ev[n].dur; v.currentTime = t; v.play().catch(() => { }); return; }
     stopPlay(); v.controls = false; const go = n => { if (n >= F.ev.length) return; const e = F.ev[n], s = M.shots[e.k]; pn = n; mark(n);
-      $('#rcap').textContent = e.kind === 'card' ? '' : `${s.film || ''}${s.year ? ' · ' + s.year : ''}`;
+      if (e.line && VIDX && VIDX[e.line.i]) { const vo = $('#voice'); vo.src = M.r2 + VIDX[e.line.i]; vo.onloadedmetadata = () => { vo.currentTime = e.line.t0; vo.play().catch(() => { }); }; setTimeout(() => vo.pause(), (e.line.t1 - e.line.t0) * 1000 + 300); }   // the voice from its own film
       if (e.kind === 'card') { st.src = thumb(e.k); st.style.opacity = 1; v.pause(); } else { v.src = M.r2 + s.v; v.muted = true;
         v.onloadedmetadata = () => { try { v.currentTime = Math.max(0, v.duration / 2 - e.dur / 2); } catch (x) { } }; v.onseeked = () => { v.onseeked = null; v.play().catch(() => { }); st.style.opacity = 0; }; }
       ptimer = setTimeout(() => go(n + 1), e.dur * 1000); };
     go(j); }
-  $('#rPlay').onclick = () => playFrom(0);
+  $('#rPlay').onclick = async () => { if (!F.video && F.ev.some(e => e.line) && !VIDX) VIDX = await fetch('aspect/video.json').then(r => r.json()).then(v => Object.fromEntries(Object.entries(v).map(([i, x]) => [i, x[0]]))).catch(() => ({})); playFrom(0); };
   $('#vid').ontimeupdate = () => { if (!F.video) return; let t = 0, j = 0; for (; j < F.ev.length; j++) { t += F.ev[j].dur; if (t > $('#vid').currentTime) break; } mark(j); };
   // ---- the machine, live in the browser
-  function direct() { stopPlay(); const spent = new Set(), avoid = new Set();
-    live = GM.machine(M, { seed: (Date.now() % 1e6) | 1, iters: 128, spent, avoid }); $('#direct').disabled = true; $('#simPlay').disabled = true; tick(); }
+  function direct(comedy) { stopPlay(); const spent = new Set(), avoid = new Set(); let comic = null;
+    if (comedy && JOKES) { comic = new Map(); for (const [i, line, funny] of JOKES) { const k = IX.get(i); if (k == null) continue; if (!comic.has(k)) comic.set(k, []); comic.get(k).push({ line, funny }); } }
+    live = GM.machine(M, { seed: (Date.now() % 1e6) | 1, iters: 128, spent, avoid, comic }); $('#direct').disabled = true; $('#simPlay').disabled = true; tick(); }
   let since = 0;
   function tick() { if (!live) return; const t0 = performance.now(); while (performance.now() - t0 < 28 && !live.done) { for (let i = 0; i < 16; i++) live.iterate(); since += 16; if (since >= 128) { live.commit(); since = 0; } }   // 128 futures, then a piece is committed
     F = fromLive(live); step = Math.max(0, F.steps.length - 1); draw(live.recent.map(r => ({ score: r.score, first: r.first }))); if (live.done) { $('#direct').disabled = false; $('#simPlay').disabled = false; render(); } else requestAnimationFrame(tick); }
-  $('#direct').onclick = direct; $('#simPlay').onclick = direct;
+  $('#direct').onclick = () => direct(false); $('#directC').onclick = () => direct(true); $('#simPlay').onclick = () => direct(false);
   $('#commit').onclick = () => { if (live && !live.done) { live.commit(); since = 0; } else document.querySelector('.p5').scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); };
   $('#sPrev').onclick = $('#ePrev').onclick = () => { step--; explore(); simulate(); }; $('#sNext').onclick = () => { step++; explore(); simulate(); };
-  $('#cycle').onclick = () => pick((cur + 1) % PR.best.length);
+  $('#cycle').onclick = () => pick((cur + 1) % PR.best.length, src);
   function draw(R) { home(); explore(); simulate(R); choose(); }
-  function pick(j) { live = null; cur = j; F = fromPrint(PR.best[j]); step = 0; draw(); render(); }
+  function pick(j, sname = src) { live = null; src = sname; PR = SRC[sname]; cur = j; F = fromPrint(PR.best[j]); step = 0; draw(); render(); }
   addEventListener('resize', () => requestAnimationFrame(lines));
-  Promise.all([fetch('monte/material.json').then(r => r.json()), fetch('monte/mcts.json').then(r => r.json())]).then(([m, pr]) => {
-    M = MC.load(m); IX = new Map(M.shots.map((s, k) => [s.i, k])); PR = pr; $('#load').hidden = true; $('#deck').hidden = false; pick(0); })
+  Promise.all([fetch('monte/material.json').then(r => r.json()), fetch('monte/mcts.json').then(r => r.json()), fetch('monte/comic.json').then(r => r.json()).catch(() => null), fetch('monte/comic-jokes.json').then(r => r.json()).catch(() => null)]).then(([m, pr, cm, jk]) => {
+    M = MC.load(m); IX = new Map(M.shots.map((s, k) => [s.i, k])); SRC.mcts = pr; SRC.comic = cm; JOKES = jk; PR = pr; if (!jk) $('#directC').hidden = true; $('#load').hidden = true; $('#deck').hidden = false; pick(0); })
     .catch(e => { $('#load').textContent = 'could not load: ' + e.message; });
 })();
 </script></body></html>
