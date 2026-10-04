@@ -21,7 +21,7 @@ def ask(q):
     return []
 one = lambda x: (x[0] if isinstance(x, list) and x else x) or None
 def score(t, y, d):
-    a, b = toks(t), toks(d.get("title")); j = len(a & b) / max(1, len(a | b))
+    a, b = toks(t), toks(one(d.get("title")) or ""); j = len(a & b) / max(1, len(a | b))   # a record may list several titles: the first is its own
     dy = one(d.get("year")) or (str(one(d.get("date")) or "")[:4] or None)
     try: dy = int(dy)
     except Exception: dy = None
@@ -33,9 +33,11 @@ n = 0
 for folder, s in T.items():
     if folder in have: continue
     t, y = s["title"], s.get("year"); nt = norm(t)
-    docs = ask(f'title:("{nt}") AND mediatype:(movies)') if nt else []
-    if not docs and nt: docs = ask(" ".join(sorted(toks(t))) + " AND mediatype:(movies)")
-    best = max(docs, key=lambda d: score(t, y, d), default=None); sc = score(t, y, best) if best else 0
+    try:   # one odd record never stops the run
+        docs = ask(f'title:("{nt}") AND mediatype:(movies)') if nt else []
+        if not docs and nt: docs = ask(" ".join(sorted(toks(t))) + " AND mediatype:(movies)")
+        best = max(docs, key=lambda d: score(t, y, d), default=None); sc = score(t, y, best) if best else 0
+    except Exception as ex: print("skipped", folder, ex, flush=True); best, sc = None, 0
     rec = {"title": t, "year": y, "search": "https://archive.org/search?query=" + urllib.parse.quote(f'"{nt}"') + "&sin=&and[]=mediatype%3A%22movies%22"}
     if best and sc >= .62:
         col = best.get("collection") or []; col = col if isinstance(col, list) else [col]
