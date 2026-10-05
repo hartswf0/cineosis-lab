@@ -125,7 +125,7 @@
       draw(); }
     const handOf = id => { if (!G.hands[id]) { G.hands[id] = deal(G.prob); G.picks[id] = {}; } return G.hands[id]; };
     const voters = () => H.players.filter(p => p.local || p.conn);
-    function pickCard(pid, row, k) { if (G.phase !== 'deal') return; const h = handOf(pid), c = h[row][k]; if (!c || c.off || c.stub) return; G.picks[pid][row] = k; if (G.sent[pid]) { G.sent[pid] = false; delete H.sign[pid]; } draw(); }
+    function pickCard(pid, row, k) { if (G.phase !== 'deal') return; const h = handOf(pid), c = h[row][k]; if (!c || c.off || c.stub) return; G.picks[pid][row] = k; if (G.sent[pid]) { G.sent[pid] = false; delete H.sign[pid]; if (H._gate) H.ungate(); } draw(); }
     function send(pid) { if (G.phase !== 'deal') return; const pk = G.picks[pid] || {}; if (pk.F == null || pk.S == null || pk.E == null) return; G.sent[pid] = true; H.sign[pid] = 'ready'; H.act(pid, 'hop', 820); H.say(pid, pick(['in the can', 'done!', 'print it', 'trust me']));
       if (voters().every(p => G.sent[p.id])) H.gate(G.note ? 'Studio note ▸' : 'Roll the takes ▸', 'any', G.note ? studioNote : rollAll); draw(); }
     function studioNote() { G.phase = 'note'; H.paper(`<div class="ledger" style="font-size:7cqh;line-height:1.3"><div class="hd">STUDIO NOTE · REEL ${G.reel}</div><div style="border:0;padding-top:2cqh">${esc(G.note.n)}</div><div style="border:0;font-size:3.6cqh;color:#7a6a58">Your hands stay. The note goes into every take.</div></div>`); H.gate('Fine. Roll the takes ▸', 'any', rollAll); draw(); }
