@@ -90,7 +90,7 @@
   function host(games) {
     document.body.classList.add('is-host');
     const app = $('#app');
-    app.innerHTML = `<div id="host"><header id="top"><div class="pegs"><i></i><i></i><i></i></div><div class="logo" id="logo">Party</div><div class="tagline" id="tagline">one room · every game · the archive’s films</div><span id="roomTag"></span><button class="btn" id="lobbyB" hidden>lobby</button><button class="btn" id="fsB">full screen</button><a href="index.html">lab</a></header>
+    app.innerHTML = `<div id="host"><header id="top"><div class="pegs"><i></i><i></i><i></i></div><div class="logo" id="logo">Party</div><div class="tagline" id="tagline">one room · every game · the archive’s films</div><span id="roomTag"></span><button class="btn" id="earsB" title="the key that lets the room be heard: only this screen holds it">ears</button><button class="btn" id="lobbyB" hidden>lobby</button><button class="btn" id="fsB">full screen</button><a href="index.html">lab</a></header>
       <main id="stage"><div id="stand"><div id="screen"><div id="vids"></div><div id="slate"></div><div id="paper" hidden></div><div id="cap"></div><div id="splats"></div><div id="crowd"></div><div id="bug"></div><div id="log"></div></div></div><aside id="side"></aside></main>
       <footer id="crew"><div class="pl"><svg viewBox="0 0 200 100" preserveAspectRatio="none"><path d="M0 40 Q20 22 44 34 T90 30 T140 36 T200 28 V100 H0Z" fill="#86a58a"/><path d="M0 58 Q30 48 60 56 T120 54 T200 56 V100 H0Z" fill="#6c8c63"/></svg></div><div id="toons"></div><div class="pl"><svg viewBox="0 0 200 100" preserveAspectRatio="none" style="top:auto;bottom:0;height:30%"><path d="M0 100 V60 Q4 40 8 62 Q12 36 16 64 Q20 44 24 70 V100Z M176 100 V70 Q180 44 184 64 Q188 36 192 62 Q196 40 200 60 V100Z" fill="#3e5a36"/></svg></div></footer></div>`;
     $('#fsB').onclick = () => fullscreen(true);
@@ -99,6 +99,8 @@
     H.P = id => H.players.find(p => p.id === id);
     H.VP = Array.from({ length: 14 }, () => { const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; $('#vids').append(v); return v; });
     H.AP = Array.from({ length: 6 }, () => { const a = new Audio(); a.preload = 'auto'; return a; });
+    H.ears = window.Ears ? Ears.host(H) : null; const earsTag = () => { const b = $('#earsB'); if (!H.ears) { b.hidden = true; return; } b.textContent = H.ears.has() ? 'ears on' : 'ears'; b.classList.toggle('on', H.ears.has()); };
+    $('#earsB').onclick = () => H.ears && H.ears.sheet(() => earsTag()); earsTag();
     H.unlock = () => { [...H.VP, ...H.AP].forEach(m => { m.muted = true; m.play().catch(() => { }); m.pause(); m.muted = m.tagName === 'VIDEO'; }); try { H.actx = H.actx || new (window.AudioContext || window.webkitAudioContext)(); H.actx.resume(); } catch (e) { } wake(); };
     H.clap = () => { try { const a = H.actx = H.actx || new (window.AudioContext || window.webkitAudioContext)(); const n = a.sampleRate * .12, b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0); for (let i = 0; i < n; i++) d[i] = (rnd() * 2 - 1) * Math.pow(1 - i / n, 6); const s = a.createBufferSource(); s.buffer = b; s.connect(a.destination); s.start(); } catch (e) { } };
     H.show = id => { ['#slate', '#paper'].forEach(s => $(s).hidden = s !== id); if (id) H.VP.forEach(v => v.classList.remove('on')); };
@@ -139,6 +141,7 @@
       if (m.t === 'gate') { if (H._gate && H._gate.id === m.id && gateOK(p)) H.pass(p.id); return; }
       if (m.t === 'me') return move(p, m.m);
       if (m.t === 'throw' && THROWS.includes(m.w)) return throwFrom(p, m.w);
+      if (m.t === 'ear' && H.ears) { H.ears.onMsg(p, m); return; }
       if (H.game && H.game.onMsg) H.game.onMsg(p, m);
     }
     setInterval(() => { const now = performance.now(); let ch = false; H.players.forEach(p => { if (!p.local && p.conn && now - p.seen > 15000) { p.conn = false; ch = true; } }); if (ch) syncCrew(); }, 5000);
@@ -259,7 +262,7 @@
       $('#jn').onclick = () => { me.name = ($('#nm').value || '').trim().slice(0, 12) || 'Crew'; store.set('party.me', me); joined = true; try { sessionStorage.setItem('party.joined', ROOM); } catch (e) { } fullscreen(false); wake(); connect(); draw(); };
     }
     function connect() { if (net) return;
-      net = Net.join(ROOM, pid, m => { lastMsg = performance.now(); if (m.t === 'state') { S = m; draw(); } if (m.t === 'full') { S = { phase: 'full' }; draw(); } if (m.t === 'who') api.send({ t: 'hello', name: me.name, av: me.av }); },
+      net = Net.join(ROOM, pid, m => { lastMsg = performance.now(); if (m.t === 'state') { S = m; draw(); } if (m.t === 'full') { S = { phase: 'full' }; draw(); } if (m.t === 'who') api.send({ t: 'hello', name: me.name, av: me.av }); if (m.t && !/^(state|full|who|pong)$/.test(m.t)) { if (!(window.Ears && Ears.onHost(m)) && root.Party.onHost) root.Party.onHost(m); } },
         st => { wire = st === 'open' ? 'open' : st; if (st === 'open') { lastMsg = performance.now(); api.send({ t: 'hello', name: me.name, av: me.av }); } if (!S) draw(); });
       setInterval(() => { api.send({ t: 'ping' }); if (lastMsg && performance.now() - lastMsg > 12000) { lastMsg = performance.now(); net.restart(); } }, 4000);
       document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') api.send({ t: 'hello', name: me.name, av: me.av }); }); }
@@ -288,9 +291,10 @@
       built = key;
       app.innerHTML = `<div class="phone ${view.cls || ''}"><div class="me">${mini(S.you.av)}${esc(S.you.name)}${S.noScore ? '' : `<b id="myScore">${S.you.score} ★</b>`}</div>${view.status != null ? `<div class="status" id="st">${view.status}</div>` : ''}
         ${g ? `<button class="btn gate" id="gateB">${esc(g.label)}</button>` : ''}
-        ${view.takeover ? `<div class="pane" id="pane"></div>` : `${tabs.length > 1 ? `<div class="tabs">${tabs.map(t => `<button class="btn ${tab === t.k ? 'on' : ''}" data-tab="${t.k}">${esc(t.name)}</button>`).join('')}</div>` : ''}<div class="pane" id="pane"></div>`}</div>`;
+        ${view.takeover ? `<div class="pane" id="pane"></div>${view.throws && S.throwable !== false ? `<div class="tstrip">${THROWS.map(w => `<button class="th-${w}" data-w="${w}" aria-label="${w}">${ICON[w]}</button>`).join('')}</div>` : ''}` : `${tabs.length > 1 ? `<div class="tabs">${tabs.map(t => `<button class="btn ${tab === t.k ? 'on' : ''}" data-tab="${t.k}">${esc(t.name)}</button>`).join('')}</div>` : ''}<div class="pane" id="pane"></div>`}</div>`;
       if (g) $('#gateB').onclick = () => { api.buzz(20); api.send({ t: 'gate', id: g.id }); $('#gateB').disabled = true; };
       app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => api.setTab(b.dataset.tab));
+      app.querySelectorAll('.tstrip [data-w]').forEach(b => b.onclick = () => { const now = performance.now(); if (now - lastThrow < 500) return; lastThrow = now; api.buzz(18); thrown[b.dataset.w]++; api.act(b, 'fly', 450); api.send({ t: 'throw', w: b.dataset.w }); });
       const pane = $('#pane'); if (view.takeover) view.takeover.render(pane, api); else { const t = tabs.find(t => t.k === tab); if (t) t.render(pane, api); }
     }
     function patch(g) { const st = $('#st'); if (st && view.status != null && st.innerHTML !== view.status) st.innerHTML = view.status; const sc = $('#myScore'); if (sc) sc.textContent = S.you.score + ' ★';

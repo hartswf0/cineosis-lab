@@ -90,15 +90,10 @@
       H.act(p.id, 'hop', 820); players().forEach(q => { sel[q.id] = id; deal(q.id); }); show(pan); draw();
       if (url) { A.voice.src = url; A.voice.play().catch(() => { }); }
       let text = String(m.text || '').trim();
-      if (!text && m.a && G.ears !== 'none') { G.hearing++; draw(); text = await hear(m.a).catch(() => ''); G.hearing--; }
+      if (!text && m.a) { G.hearing++; draw(); text = H.ears ? await H.ears.read(m.a, m.mime).catch(() => '') : ''; G.hearing--; }
       pan.hearing = false; if (text) { pan.text = text.slice(0, 200); H.say(p.id, pan.text.slice(0, 60), 3200); const v = await vec(text); if (v) { if (!pan.touched) answer(pan, v, true); pan.fc = figCands(v); } pan.ec = echoes(text); players().forEach(q => { if (sel[q.id] === id) deal(q.id); }); }
       show(panel(sel.__tv) || pan); draw(); }
     function answer(pan, v, refine) { const gs = grounds(v, pan.who); if (!gs.length) return; const g = refine ? gs[0] : soft(gs.slice(0, 12), 3); pan.g = g; pan.alts = gs; if (!home[pan.who] || v) home[pan.who] = LIB.shots[g].src; }
-    async function hear(buf) { const AC = window.AudioContext || window.webkitAudioContext, OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext; const ac = new AC();
-      try { const ab = await new Promise((ok, no) => { const r = ac.decodeAudioData(buf.slice(0), ok, no); if (r && r.catch) r.catch(no); }), d = ab.getChannelData(0);
-        const off = new OAC(1, Math.max(1, Math.ceil(d.length * 16000 / ab.sampleRate)), 16000), b = off.createBuffer(1, d.length, ab.sampleRate); b.copyToChannel(d, 0); const s = off.createBufferSource(); s.buffer = b; s.connect(off.destination); s.start();
-        const pcm = (await off.startRendering()).getChannelData(0).slice(); const r = await MPHear.words(pcm); G.ears = 'yes'; return (r && r.text || '').trim(); }
-      catch (e) { if (/load|start|fetch|listener/i.test(e.message || '')) G.ears = 'none'; return ''; } finally { try { ac.close(); } catch (e) { } } }
     // ---- what a phone or the stand sees: a panel resolved into pictures and sounds
     const figOf = (g, by) => { const F = SAM.figs[g.f]; return { id: g.id, x: g.x, y: g.y, s: g.s, flip: g.flip, png: F.png.replace(/\.png$/, EXT), sp: F.sprite ? F.sprite.replace(/\.png$/, EXT) : '', sw: F.sw, sh: F.sh, fps: F.fps, w: F.w, h: F.h }; };
     function res(p) { const s = p.g != null ? LIB.shots[p.g] : null; return { text: p.text, dur: p.dur, g: s ? { v: s.video, th: thumbOf(s.video) } : null, figs: p.figs.map(g => figOf(g)), voice: p.url ? { u: p.url, dur: p.dur } : null,
@@ -109,11 +104,12 @@
     function mark(p, pan, what) { pan.touched = true; undo.push({ what, id: pan.id, snap: JSON.stringify({ g: pan.g, figs: pan.figs, bed: pan.bed, echo: pan.echo }) }); if (undo.length > 80) undo.shift(); if (p) H.act(p.id, 'hit', 260); }
     function onMsg(p, m) { if (!p) return;
       if (m.t === 'say') { if (!G.ready) return; if (m.find) return find(p, m); if (G.mic && G.mic !== p.id && P(G.mic) && P(G.mic).conn) return; G.mic = p.id; G.rec = null; G.raised.delete(p.id); H.bug(''); line(p, m); return; }
+      if (m.t === 'heard') { const t = String(m.part || '').slice(-80); if (t) { H.say(p.id, t, 2200); H.cap(t); } return; }
       if (m.t === 'rec') { if (G.mic && G.mic !== p.id && P(G.mic) && P(G.mic).conn) return; G.mic = p.id; G.rec = m.on ? p.id : null; if (m.on) { stopIt(); H.act(p.id, 'hop', 820); } H.bug(m.on ? `<span class="onair">${mini(p.av)}${I.mic}</span>` : ''); draw(); return; }
       if (m.t === 'pass') { if (G.mic !== p.id && G.mic) return; const q = P(m.to); if (!q) return; G.mic = q.id; G.raised.delete(q.id); H.act(q.id, 'cheer', 1600); draw(); return; }
       if (m.t === 'raise') { if (G.raised.has(p.id)) G.raised.delete(p.id); else G.raised.add(p.id); H.act(p.id, 'hop', 820); draw(); return; }
       if (m.t === 'sel') { if (panel(m.pan)) { sel[p.id] = m.pan; deal(p.id); show(panel(m.pan)); H.broadcast(); } return; }
-      if (m.t === 'more') { const h = hands[p.id]; if (h) { h.page = (h.page || 0) + 1; deal(p.id, m.kind); } H.send(p, stateFor(p)); return; }
+      if (m.t === 'more') { const h = hands[p.id]; if (h) { h.page = (h.page || 0) + 1; deal(p.id, m.kind); } H.broadcast(); return; }
       if (m.t === 'play') return playAll(m.from);
       if (m.t === 'stop') return stopIt();
       if (m.t === 'undo') return undoIt(p);
@@ -132,7 +128,7 @@
       else if (m.t === 'drop') { undo.push({ what: 'order', order: G.panels.map(x => x.id), gone: pan }); G.panels = G.panels.filter(x => x !== pan); players().forEach(q => { if (sel[q.id] === pan.id) sel[q.id] = (G.panels[G.panels.length - 1] || {}).id; }); H.act(p.id, 'hit', 260); }
       else return;
       if (sel.__tv === pan.id || m.t === 'drop') show(panel(sel.__tv) || G.panels[G.panels.length - 1]); draw(); }
-    async function find(p, m) { let text = String(m.text || '').trim(); if (!text && m.a && G.ears !== 'none') { G.hearing++; draw(); text = await hear(m.a).catch(() => ''); G.hearing--; }
+    async function find(p, m) { let text = String(m.text || '').trim(); if (!text && m.a) { G.hearing++; draw(); text = H.ears ? await H.ears.read(m.a, m.mime).catch(() => '') : ''; G.hearing--; }
       const h = hands[p.id]; if (!h) return; const v = await vec(text); if (v) { h.figs = []; const seen = new Set(); for (const f of ranked(figSims(v), 40)) { if (seen.has(SAM.figs[f].shot)) continue; seen.add(SAM.figs[f].shot); h.figs.push(f); if (h.figs.length >= 7) break; }
         const pan = panel(sel[p.id]); if (pan) { const gs = ranked(LIB.sims(v), 8, isArc); h.gr = gs; pan.alts = [...new Set([...gs, ...pan.alts])].slice(0, 30); } }
       else { h.page = (h.page || 0) + 1; deal(p.id, 'figs'); }
@@ -174,11 +170,11 @@ document.getElementById('go').onclick=()=>{if(stop){stop();stop=null;return;}sto
         crew: players().map(q => ({ id: q.id, av: q.av, name: q.name, c: col(q.av), on: q.conn !== false })),
         panels: G.panels.map(x => { const s = x.g != null ? LIB.shots[x.g] : null, q = P(x.who); return { id: x.id, who: x.who, av: q ? q.av : 0, c: q ? col(q.av) : '#999', th: s ? thumbOf(s.video) : '', text: x.text, hearing: !!x.hearing, lv: x.lv.length > 36 ? x.lv.filter((_, i) => i % Math.ceil(x.lv.length / 36) === 0) : x.lv,
           figs: x.figs.map(g => ({ id: g.id, x: g.x, y: g.y, s: g.s, flip: g.flip, png: SAM.figs[g.f].png.replace(/\.png$/, EXT), ar: SAM.figs[g.f].w / SAM.figs[g.f].h, c: P(g.by) ? col(P(g.by).av) : '#999' })),
-          bed: x.bed ? { th: thumbOf(musicUrl(R.music[x.bed.k])), c: P(x.bed.by) ? col(P(x.bed.by).av) : '#999' } : null, echo: x.echo ? { th: TR[x.echo.c].thumb, c: P(x.echo.by) ? col(P(x.echo.by).av) : '#999' } : null }; }),
+          bed: x.bed ? { th: thumbOf(musicUrl(R.music[x.bed.k])), c: P(x.bed.by) ? col(P(x.bed.by).av) : '#999' } : null, echo: x.echo ? { th: thumbOf(TR[x.echo.c].video), c: P(x.echo.by) ? col(P(x.echo.by).av) : '#999' } : null }; }),
         hand: G.ready ? { figs: (h.figs || []).map(f => ({ f, png: SAM.figs[f].png.replace(/\.png$/, EXT), ar: SAM.figs[f].w / SAM.figs[f].h })), beds: (h.beds || []).map(k => ({ k, th: thumbOf(musicUrl(R.music[k])), u: musicUrl(R.music[k]), t0: Math.min(4, Math.max(0, (R.music[k].d || 20) - 30)) })),
-          echo: (h.echo || []).map(e => ({ c: e.c, t0: e.t0, t1: e.t1, th: TR[e.c].thumb, u: TR[e.c].video })), gr: (h.gr || []).map(pk), heard: h.heard || '' } : null }; }
+          echo: (h.echo || []).map(e => ({ c: e.c, t0: e.t0, t1: e.t1, th: thumbOf(TR[e.c].video), u: TR[e.c].video })), gr: (h.gr || []).map(pk), heard: h.heard || '' } : null }; }
     G.mic = null; draw();
-    return { stateFor, draw, onMsg, crowdTarget: () => G.mic, performer: () => G.mic, throwable: false, onJoin: p => { deal(p.id); draw(); },
+    return { stateFor, draw, onMsg, crowdTarget: () => { const p = G.playing ? G.panels[G.at] : panel(sel.__tv); if (p) { p.by = p.who; return p; } return null; }, performer: () => { const p = G.playing ? G.panels[G.at] : panel(sel.__tv); return p ? p.who : null; }, onJoin: p => { deal(p.id); draw(); },
       stop() { stopIt(); ST.stop(); host$.hidden = true; host$.innerHTML = ''; H.cap(''); [A.voice, A.bed, A.echo].forEach(a => { try { a.pause(); } catch (e) { } }); } };
   }
 
@@ -238,16 +234,14 @@ document.getElementById('go').onclick=()=>{if(stop){stop();stop=null;return;}sto
     // ---- hold to speak; let go to send. ask: a word to find figures, not a line of the show
     function wireTalk(b, api, ask) {
       const start = e => { e.preventDefault(); if (L.rec || L.sending) return; api.buzz(16);
-        if (!window.MPHear || !navigator.mediaDevices) { L.flash = 'nomic'; if (!ask) api.send({ t: 'say', dur: 2, lv: [], text: window.__sayText || '' }); return; }
-        L.lv = []; const lvEl = () => document.getElementById('hLv');
-        try { L.rec = MPHear.take({ onLevel: v => { L.lv.push(+v.toFixed(3)); const i = lvEl(); if (i) i.style.transform = `scale(${1 + Math.min(1, v * 3)})`; } }); } catch (x) { L.rec = null; return; }
-        const mine = L.rec; try { b.setPointerCapture(e.pointerId); } catch (x) { } b.classList.add('on'); if (!ask) api.send({ t: 'rec', on: 1 });
-        mine.catch(() => { if (L.rec !== mine) return; L.rec = null; b.classList.remove('on'); if (!ask) { api.send({ t: 'rec', on: 0 }); api.send({ t: 'say', dur: 2, lv: [], text: window.__sayText || '' }); } }); };
-      const end = async e => { if (!L.rec) return; e.preventDefault(); const pr = L.rec; L.rec = null; b.classList.remove('on'); L.sending = true; api.buzz(10);
-        try { const t = await pr, r = await t.stop(); let a = r.blob && r.blob.size > 800 ? await r.blob.arrayBuffer() : (r.pcm ? wav(r.pcm) : null), mime = r.blob && r.blob.size > 800 ? r.blob.type : 'audio/wav';
-          const n = L.lv.length, lv = n > 60 ? Array.from({ length: 60 }, (_, i) => Math.max(...L.lv.slice(Math.floor(i * n / 60), Math.floor((i + 1) * n / 60) || 1))) : L.lv;
-          api.send({ t: 'say', find: ask ? 1 : 0, a, mime, dur: r.seconds, lv, text: window.__sayText || '' }); }
-        catch (x) { if (!ask) api.send({ t: 'say', dur: 2, lv: [], text: window.__sayText || '' }); }
+        if (!window.Ears || !navigator.mediaDevices) { if (!ask) api.send({ t: 'say', dur: 2, lv: [], text: window.__sayText || '' }); return; }
+        let last = 0; const lvEl = () => document.getElementById('hLv');
+        const mine = L.rec = Ears.hold(api, { onLevel: v => { const i = lvEl(); if (i) i.style.transform = `scale(${1 + Math.min(1, v * 3)})`; }, onPartial: t => { const now = performance.now(); if (now - last > 200) { last = now; api.send({ t: 'heard', part: t }); } } });
+        try { b.setPointerCapture(e.pointerId); } catch (x) { } b.classList.add('on'); if (!ask) api.send({ t: 'rec', on: 1 });
+        mine.ready.catch(() => { if (L.rec !== mine) return; L.rec = null; b.classList.remove('on'); if (!ask) { api.send({ t: 'rec', on: 0 }); api.send({ t: 'say', dur: 2, lv: [], text: window.__sayText || '' }); } }); };
+      const end = async e => { if (!L.rec) return; e.preventDefault(); const h = L.rec; L.rec = null; b.classList.remove('on'); L.sending = true; api.buzz(10);
+        const r = await h.stop().catch(() => null);
+        if (r) api.send({ t: 'say', find: ask ? 1 : 0, a: r.a, mime: r.mime, dur: r.dur, lv: r.lv, text: r.text }); else if (!ask) api.send({ t: 'rec', on: 0 });
         L.sending = false; if (L.take) L.take.patch(document.getElementById('pane'), api, true); };
       b.addEventListener('pointerdown', start); b.addEventListener('pointerup', end); b.addEventListener('pointercancel', end); b.oncontextmenu = e => e.preventDefault(); }
     function wav(pcm) { const n = pcm.length, b = new ArrayBuffer(44 + n * 2), v = new DataView(b), w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
@@ -289,7 +283,7 @@ document.getElementById('go').onclick=()=>{if(stop){stop();stop=null;return;}sto
         const out = d.x < -.08 || d.x > 1.08 || d.y < -.08 || d.y > 1.08; if (out) { api.buzz(20); d.el.remove(); api.send({ t: 'del', pan: L.S.sel, id: d.id }); } else api.send({ t: 'move', pan: L.S.sel, id: d.id, x: d.x, y: d.y, s: d.s, first: d.first, end: 1 }); };
       st.onpointerup = up; st.onpointercancel = up; }
     L.take = take;
-    return { key: 'show', status: null, cls: 'showp', takeover: take };
+    return { key: 'show', status: null, cls: 'showp', throws: true, takeover: take };
   }
 
   // the stand's figures and the kept file share these rules
