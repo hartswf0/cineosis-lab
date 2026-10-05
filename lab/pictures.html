@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Monte Carlo Pictures</title>
+<meta name="description" content="Make the movie with what you've got. Six reels from the Cineosis archive: each reel a production problem, a hand of footage, sound and a cut; the house rolls the takes, the room prints one; at the wrap, the film and the making of.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{ --pink:#f2c9c4; --pink2:#e7aea9; --cream:#fbf3e6; --cream2:#f1e3cc; --red:#a8322d; --teal:#2f8a78; --teal2:#21665a; --gold:#c49a45; --ink:#3a2826; --felt:#2d6a59; --film:#1f2a28;
+  --serif:'Fraunces',Georgia,serif; --sans:'Jost',Futura,sans-serif; color-scheme:light; }
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{ margin:0; min-height:100%; color:var(--ink); font:400 15px/1.4 var(--sans); }
+body{ min-height:100vh; background:var(--pink) repeating-linear-gradient(90deg, #ffffff14 0 22px, transparent 22px 44px); }
+button{ font:inherit; color:inherit; cursor:pointer; border:0; background:none; padding:0; }
+button:disabled{ cursor:default; }
+[hidden]{ display:none !important; }
+.wrap{ width:min(1180px,100%); margin:0 auto; padding:10px 16px 28px; }
+/* the marquee */
+.marq{ position:relative; text-align:center; background:var(--cream); border:2px solid var(--gold); border-radius:22px 22px 10px 10px; padding:12px 54px 10px; box-shadow:0 6px 0 var(--pink2), 0 10px 24px #a8322d22; }
+.marq h1{ margin:0; font:700 clamp(22px,4.4vw,40px)/1.05 var(--serif); letter-spacing:.04em; color:var(--red); text-transform:uppercase; }
+.marq p{ margin:4px 0 0; font:500 10px var(--sans); letter-spacing:.34em; color:#9a6d63; text-transform:uppercase; }
+.marq a{ position:absolute; left:14px; top:50%; transform:translateY(-50%); font:500 12px var(--sans); letter-spacing:.14em; color:var(--red); text-decoration:none; }
+#hud{ text-align:center; margin:12px 0 0; font:600 11px var(--sans); letter-spacing:.28em; color:var(--red); text-transform:uppercase; min-height:14px; }
+.stage{ display:grid; gap:16px; margin-top:12px; } .stage > div{ min-width:0; }
+@media (min-width:980px){ .stage{ grid-template-columns:1.25fr 1fr; align-items:start; } }
+.plaque{ display:table; margin:0 auto -12px; position:relative; z-index:2; background:var(--cream); border:2px solid var(--gold); border-radius:8px; padding:3px 22px; font:700 13px var(--serif); letter-spacing:.18em; color:var(--red); text-transform:uppercase; box-shadow:0 3px 0 var(--pink2); }
+/* the monitor */
+.mon{ background:var(--cream); border:2px solid var(--gold); border-radius:16px; padding:18px 12px 12px; box-shadow:0 10px 30px #a8322d2a; }
+#screen{ position:relative; aspect-ratio:16/9; background:#000; border-radius:10px; overflow:hidden; box-shadow:inset 0 0 0 3px #00000040; }
+#screen video, #screen img.still{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; opacity:0; }
+#screen .on{ opacity:1 !important; }
+#slate{ position:absolute; inset:0; display:grid; place-items:center; padding:0 8%; text-align:center; background:#000; color:var(--cream); font:600 clamp(18px,3.4vw,40px)/1.15 var(--serif); letter-spacing:.06em; text-transform:uppercase; }
+#slate small{ display:block; margin-top:10px; font:500 clamp(10px,1.4vw,13px) var(--sans); letter-spacing:.3em; color:#d9b98a; }
+#cap{ position:absolute; left:0; right:0; bottom:0; padding:26px 7% 12px; text-align:center; font:italic 400 clamp(14px,2.2vw,22px)/1.3 var(--serif); color:#fff; background:linear-gradient(transparent,#000c); pointer-events:none; }
+#tag{ position:absolute; left:10px; top:10px; background:#000a; color:#f3d9a8; font:600 10px var(--sans); letter-spacing:.24em; padding:4px 8px; border-radius:4px; text-transform:uppercase; }
+#cap:empty, #tag:empty{ display:none; }
+#stopB{ position:absolute; right:10px; top:10px; background:#000a; color:#fff; font:600 10px var(--sans); letter-spacing:.2em; padding:5px 10px; border-radius:12px; }
+/* the film so far */
+.path{ margin-top:12px; display:flex; align-items:center; gap:8px; padding:8px 10px; background:var(--film); border-radius:8px; color:#e9d5ad; font:600 9px var(--sans); letter-spacing:.24em; overflow-x:auto;
+  background-image:repeating-linear-gradient(90deg,#fbf3e622 0 6px,transparent 6px 14px), repeating-linear-gradient(90deg,#fbf3e622 0 6px,transparent 6px 14px); background-size:100% 4px, 100% 4px; background-position:0 3px, 0 calc(100% - 3px); background-repeat:no-repeat; }
+.path b{ flex:0 0 auto; padding-right:4px; }
+.path i{ flex:0 0 auto; width:62px; aspect-ratio:4/3; border-radius:3px; background:#000 center/cover; border:1px solid #fbf3e655; }
+.path i.o{ width:16px; height:16px; aspect-ratio:auto; border-radius:50%; background:none; border:2px solid #fbf3e666; margin:0 6px; }
+/* the panel */
+.panel{ background:var(--cream); border:2px solid var(--gold); border-radius:16px; padding:22px 14px 16px; box-shadow:0 10px 30px #a8322d2a; }
+.problem{ border:3px double var(--red); border-radius:8px; padding:10px 12px; text-align:center; background:#fff8f0; transform:rotate(-.6deg); margin-bottom:14px; }
+.problem b{ display:block; font:700 clamp(17px,2.6vw,23px)/1.15 var(--serif); letter-spacing:.06em; color:var(--red); text-transform:uppercase; }
+.problem span{ display:block; margin-top:3px; font-size:13px; color:#7d5a52; }
+.row h3{ margin:12px 0 6px; font:600 10px var(--sans); letter-spacing:.3em; color:#9a6d63; text-transform:uppercase; }
+.cards{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.cd{ position:relative; background:#fff; border-radius:9px; padding:5px; text-align:left; box-shadow:0 2px 0 var(--cream2), 0 4px 10px #3a282614; border:2px solid transparent; transition:transform .12s; min-height:52px; }
+.cd:active{ transform:scale(.97); }
+.cd.sel{ border-color:#e0587a; box-shadow:0 0 0 3px #f7a8bd88, 0 6px 14px #e0587a44; }
+.cd img, .cd video{ display:block; width:100%; aspect-ratio:4/3; object-fit:cover; background:#000; border-radius:6px; }
+.cd .w{ display:block; margin-top:4px; font-size:11px; line-height:1.25; color:#6d5450; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.cd .n{ display:block; font:600 13px/1.2 var(--serif); color:var(--ink); }
+.cd .x{ display:block; margin-top:2px; font:italic 400 12px/1.25 var(--serif); color:#6d5450; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.cd.edit{ text-align:center; padding:8px 4px; } .cd.edit .n{ font:700 12px var(--sans); letter-spacing:.14em; text-transform:uppercase; color:var(--teal2); } .cd.edit .x{ font:400 11px var(--sans); }
+.cd .stamp{ position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; }
+.cd .stamp span{ transform:rotate(-14deg); border:3px solid var(--red); color:var(--red); background:#fff8f0dd; font:700 13px var(--sans); letter-spacing:.2em; padding:3px 8px; border-radius:4px; }
+.cd.off{ opacity:.75; } .cd.soft img{ filter:blur(3px); }
+.cta{ display:flex; align-items:center; justify-content:center; gap:12px; width:100%; margin-top:16px; padding:15px 18px; border-radius:40px; background:linear-gradient(var(--teal),var(--teal2)); color:var(--cream); font:700 clamp(16px,2.4vw,21px) var(--serif); letter-spacing:.16em; text-transform:uppercase; box-shadow:0 0 0 3px var(--cream), 0 0 0 5px var(--gold), 0 8px 18px #21665a55; }
+.cta:disabled{ background:#b9c9c3; box-shadow:0 0 0 3px var(--cream), 0 0 0 5px #d9c7a4; }
+.cta .reel{ width:24px; height:24px; border-radius:50%; background:radial-gradient(circle at 50% 50%, var(--teal2) 0 3px, var(--cream) 3px 4px, transparent 4px), radial-gradient(circle at 50% 22%, var(--teal2) 0 3px, transparent 3.5px), radial-gradient(circle at 50% 78%, var(--teal2) 0 3px, transparent 3.5px), radial-gradient(circle at 22% 50%, var(--teal2) 0 3px, transparent 3.5px), radial-gradient(circle at 78% 50%, var(--teal2) 0 3px, transparent 3.5px), var(--cream); }
+.hint{ text-align:center; margin-top:8px; font-size:12px; color:#9a6d63; }
+/* rollouts and dailies */
+.ro{ display:flex; align-items:center; gap:8px; width:100%; margin-top:8px; padding:6px 8px; background:#fff; border-radius:10px; border:2px solid transparent; box-shadow:0 3px 10px #3a282614; text-align:left; }
+.ro.sel{ border-color:#e0587a; background:#fff4f6; }
+.ro .k{ flex:0 0 30px; height:30px; border-radius:50%; display:grid; place-items:center; background:var(--cream2); font:700 15px var(--serif); color:var(--red); }
+.ro.sel .k{ background:#e0587a; color:#fff; }
+.ro .strip{ flex:1; display:flex; gap:4px; align-items:center; padding:4px; background:var(--film); border-radius:4px; overflow:hidden; }
+.ro .strip i{ flex:1 1 0; max-width:64px; aspect-ratio:4/3; background:#000 center/cover; border-radius:2px; }
+.ro .strip i.blk{ background:#000; display:grid; place-items:center; }
+.ro .strip em{ color:#e9d5ad; font-style:normal; font-size:10px; }
+.ro .pc{ flex:0 0 auto; background:var(--cream); border:1px solid var(--gold); border-radius:14px; padding:3px 9px; font:600 13px var(--serif); color:var(--ink); }
+.ro .who{ flex:0 0 auto; font:600 10px var(--sans); letter-spacing:.16em; text-transform:uppercase; color:var(--teal2); max-width:96px; text-align:right; }
+.ro.win{ border-color:var(--gold); background:#fff8e6; }
+.sub{ text-align:center; margin:2px 0 4px; font:600 10px var(--sans); letter-spacing:.3em; color:#9a6d63; text-transform:uppercase; }
+.headline{ text-align:center; margin:4px 0 8px; font:700 clamp(19px,3vw,28px)/1.15 var(--serif); color:var(--red); text-transform:uppercase; letter-spacing:.04em; }
+.score{ text-align:center; font:600 12px var(--sans); letter-spacing:.24em; color:var(--teal2); text-transform:uppercase; }
+.two{ display:grid; grid-template-columns:1fr 1fr; gap:10px; } .two .cta{ margin-top:10px; padding:13px 8px; font-size:clamp(13px,3.6vw,16px); letter-spacing:.06em; }
+.ghost{ display:block; margin:12px auto 0; font:600 11px var(--sans); letter-spacing:.2em; color:var(--red); text-transform:uppercase; text-decoration:underline; text-underline-offset:3px; }
+.intro{ font:400 16px/1.5 var(--serif); text-align:center; margin:6px 4px 0; }
+.intro b{ color:var(--red); }
+/* the studio note */
+#note{ position:fixed; inset:0; z-index:20; display:grid; place-items:center; background:#3a282688; padding:16px; }
+#note .box{ width:min(440px,100%); background:#fffdf6; border-radius:6px; padding:20px 22px; box-shadow:0 20px 50px #0006; transform:rotate(1.2deg); font-family:'Courier New',monospace; }
+#note .hd{ font:700 12px 'Courier New',monospace; letter-spacing:.3em; color:var(--red); border-bottom:1px dashed #c9b; padding-bottom:6px; }
+#note .tx{ margin:14px 0 6px; font:700 22px/1.25 'Courier New',monospace; }
+#note .ft{ font-size:12px; color:#8a7a70; }
+</style></head>
+<body>
+<div class="wrap">
+  <div class="marq"><a href="index.html" aria-label="Back to the lab">←&nbsp;Lab</a><h1>Monte Carlo Pictures</h1><p>Make the movie with what you've got</p></div>
+  <div id="hud"></div>
+  <div class="stage">
+    <div>
+      <div class="plaque" id="monLabel">Now</div>
+      <div class="mon"><div id="screen"><video id="vA" playsinline preload="auto"></video><video id="vB" playsinline preload="auto"></video><img class="still" id="still" alt="">
+        <div id="slate"><div>Monte Carlo Pictures<small>presents</small></div></div><div id="cap"></div><div id="tag"></div><button id="stopB" hidden>■ Stop</button></div></div>
+      <div class="path" id="path"></div>
+    </div>
+    <div>
+      <div class="plaque" id="panLabel">The picture</div>
+      <div class="panel" id="panel"></div>
+    </div>
+  </div>
+</div>
+<div id="note" hidden><div class="box"><div class="hd">STUDIO NOTE</div><div class="tx" id="noteTx"></div><div class="ft">Your hand stays. The note goes into every take.</div><button class="cta" id="noteOk">Fine.</button></div></div>
+<script src="attrib/attrib.js"></script>
+<script>
+(async function () {
+  const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const REELS = 6, NOTE_REELS = [2, 4];
+  const R = await fetch('pictures/rushes.json').then(r => r.json());
+  const url = v => Array.isArray(v) ? R.r2 + R.P[v[0]] + '/clips/' + v[1] + '.mp4' : R.r2 + v;
+  const thumb = v => url(v).replace('/clips/', '/thumbnails/').replace('.mp4', '.jpg');
+  const rnd = Math.random, pick = xs => xs[Math.floor(rnd() * xs.length)], shuffle = xs => { xs = xs.slice(); for (let k = xs.length - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [xs[k], xs[j]] = [xs[j], xs[k]]; } return xs; };
+  const SH = R.shots, has = (s, t) => s.t.includes(t);
+  const words = s => new Set(((s.w || '') + ' ' + (s.s || []).join(' ') + ' ' + (s.x || '')).toLowerCase().match(/[a-z]{4,}/g) || []);
+  const jac = (a, b) => { let n = 0; a.forEach(w => b.has(w) && n++); return n / Math.max(1, Math.min(a.size, b.size)); };
+  const SKIP = /^(and|the|for|its|two|row|off|top|set|one|three|four|five|many|pink|golden|green|blue|yellow|orange|pastel|dead|retro|overhead|single|tidy|grid|array|pair|group|with|from|over|under|into|onto|through|frame|shot|wide|close|frontal|distant|empty|small|large|black|white|colour|color|light|dark|washed|centre|center|left|right|half|low|high|soft|flat|deep|pale|tight|loose|b&w)$|(y|ed|al|ive|ous|ful|ic|ish|less|ing|ly)$/i;
+  const noun = s => (s.s && s.s[0]) || ((s.w || '').toLowerCase().match(/[a-z]{3,}/g) || []).find(w => !SKIP.test(w)) || 'shot';
+  const UP = s => String(s).toUpperCase();
+
+  // ---- the cards: footage is a real shot; sound is a voice from another film, a music bed, silence, or the shot's own sound; an edit is a verb
+  const EDITS = [
+    { id: 'hold', n: 'Hold', x: 'stay on it' }, { id: 'early', n: 'Cut early', x: 'get out fast' }, { id: 'repeat', n: 'Repeat', x: 'say it twice' },
+    { id: 'interrupt', n: 'Interrupt', x: 'break in, come back' }, { id: 'withhold', n: 'Withhold', x: 'sound first, picture later' },
+    { id: 'away', n: 'Cut away', x: 'look elsewhere, return' }, { id: 'bridge', n: 'Bridge', x: 'sound starts on the last shot' }, { id: 'late', n: 'Enter late', x: 'start at the end' }];
+  const E = id => EDITS.find(e => e.id === id);
+  const voiceCard = l => ({ kind: 'voice', v: l.v, t0: l.t0, t1: l.t1, x: l.x, f: l.f });
+  const musicCard = m => ({ kind: 'music', v: m.v, f: m.f, d: m.d });
+  const SILENCE = { kind: 'silence' }, ROOM = { kind: 'room' };
+
+  // ---- the production problems: each changes what is dealt, or what a take is allowed to be
+  const PROBLEMS = [
+    { id: 'nocu', n: 'No close-up', x: 'Every take we have is wide.', foot: s => !has(s, 'close') && !has(s, 'people') },
+    { id: 'dialogue', n: 'We lost the dialogue', x: 'The production sound is gone. Find another.', noRoom: true },
+    { id: 'dog', n: 'Keep the dog', x: 'The animal is in the contract.', foot: s => has(s, 'animal') },
+    { id: 'shorter', n: 'The studio wants it shorter', x: 'Under two and a half seconds.', edits: ['early', 'interrupt', 'late'], apply: t => cap(t, 2.4) },
+    { id: 'longer', n: 'The studio now wants it longer', x: 'Fill eight seconds.', edits: ['hold', 'repeat', 'withhold'], apply: t => { while (total(t.pieces) < 8) t.pieces.push(Object.assign({}, t.pieces.find(p => p.main) || t.pieces[0], { len: 2.2 })); } },
+    { id: 'used', n: 'We already used that shot', x: 'One card in your hand is already in the film.', needFilm: true },
+    { id: 'soft', n: 'The best take is out of focus', x: 'It is still the best take.' },
+    { id: 'early', n: 'The sound arrives two seconds early', x: 'Sync is off. It stays off.', apply: t => t.pieces.unshift({ black: true, len: 2 }) },
+    { id: 'bw', n: 'No colour', x: 'The colour stock was lost in the post.', foot: s => has(s, 'bw') },
+    { id: 'back', n: 'The star won’t turn around', x: 'Every take is from behind.', foot: s => has(s, 'back') },
+    { id: 'gone', n: 'The location is gone in four seconds', x: 'Then the permit runs out.', apply: t => { cap(t, 4); t.pieces.push({ black: true, len: 1.4, slate: 'Permit expired' }); } },
+    { id: 'prop', n: 'That prop cannot be shown', x: 'Legal has not cleared it.' },
+    { id: 'nocov', n: 'No coverage', x: 'One shot. That is all there is.' }];
+  const NOTES = [
+    { id: 'dog', n: 'We need the dog.', apply: t => { const a = pick(SH.filter(s => has(s, 'animal'))); t.pieces.push({ v: a.v, t0: 0, len: 1.8, shot: a }); t.extra = a; } },
+    { id: 'funnier', n: 'Make it funnier. Without changing the tone.', apply: t => { const l = pick(R.funny); t.sounds = t.sounds.filter(s => s.kind === 'music'); t.pieces.forEach(p => p.own = false); t.sounds.push({ kind: 'voice', v: l.v, t0: l.t0, len: l.t1 - l.t0 + .2, at: .4, x: l.x }); cover(t); } },
+    { id: 'lost8', n: 'We’ve lost eight seconds.', apply: t => cap(t, 1.8) },
+    { id: 'legal', n: 'Legal has concerns about the last shot.', apply: t => { const k = t.pieces.length - 1; t.pieces[k] = { black: true, len: t.pieces[k].len || 1.8, slate: 'This shot has been removed' }; } },
+    { id: 'music', n: 'Add music. Any music.', apply: t => { const m = pick(R.music); t.sounds = t.sounds.filter(s => s.kind !== 'music'); t.sounds.push({ kind: 'music', v: m.v, t0: Math.min(4, Math.max(0, (m.d || 20) - 12)), len: 99, at: 0, vol: .7 }); } },
+    { id: 'face', n: 'Can it end on a face?', apply: t => { const a = pick(SH.filter(s => has(s, 'close'))); t.pieces.push({ v: a.v, t0: 0, len: 1.8, shot: a }); t.extra = a; } }];
+
+  const total = P => P.reduce((a, p) => a + p.len, 0);
+  function cap(t, T) { let a = 0; t.pieces = t.pieces.filter(p => { if (a >= T - .05) return false; p.len = Math.min(p.len, T - a); a += p.len; return true; }); }
+  function cover(t) { const end = Math.max(0, ...t.sounds.filter(s => s.kind === 'voice').map(s => s.at + s.len + .4)), T = total(t.pieces); if (end > T) t.pieces[t.pieces.length - 1].len += end - T; }
+
+  // ---- a take: the hand played through its edit, with the house's continuation (the tail) after it; then the problem and the note
+  function build(h, o, prob, note) {
+    const F = h.F, S = h.S, d = Math.max(1.5, F.d || 4), P = [];
+    const at = len => Math.max(0, (d - len) * o.j);
+    const fp = (len, t0) => ({ v: F.v, t0, len, own: S.kind === 'room', blur: !!F.soft, shot: F, main: true });
+    const tp = len => ({ v: o.tail.v, t0: Math.max(0, Math.min(1, (o.tail.d || 3) - len)), len, shot: o.tail });
+    const prev = o.prev ? { v: o.prev.v, t0: 0, len: 1.5, shot: o.prev } : { black: true, len: 1.5 };
+    if (h.E.id === 'hold') P.push(fp(Math.max(4, Math.min(6.5, d)), 0));
+    if (h.E.id === 'early') P.push(fp(1.6, at(1.6)));
+    if (h.E.id === 'repeat') { const a = at(2); P.push(fp(2, a), fp(2, a)); }
+    if (h.E.id === 'interrupt') { const a = at(3.4); P.push(fp(1.8, a), Object.assign({}, prev, { len: .5 }), fp(1.6, a + 1.8)); }
+    if (h.E.id === 'withhold') P.push({ black: true, len: 1.6 }, fp(3, at(3)));
+    if (h.E.id === 'away') { const a = at(3.5); P.push(fp(2, a), tp(2), fp(1.5, a + 2)); }
+    if (h.E.id === 'bridge') P.push(prev, fp(3, at(3)));
+    if (h.E.id === 'late') P.push(fp(2.5, Math.max(0, d - 2.5)));
+    if (h.E.id !== 'away') P.push(tp(1.8));
+    const t = { pieces: P, sounds: [], F, S, E: h.E, tail: o.tail };
+    if (S.kind === 'voice') t.sounds.push({ kind: 'voice', v: S.v, t0: S.t0, len: S.t1 - S.t0 + .2, at: h.E.id === 'bridge' ? 0 : h.E.id === 'withhold' ? .2 : o.delay, x: S.x });
+    if (S.kind === 'music') t.sounds.push({ kind: 'music', v: S.v, t0: o.mo * Math.max(0, (S.d || 20) - 12), len: 99, at: 0, vol: .8 });
+    cover(t);
+    if (prob.apply) prob.apply(t);
+    if (note) note.apply(t);
+    return t;
+  }
+  // ---- the critic: the judge's scores for what is on screen, whether the cut holds (shared things), whether the sound lands on the picture
+  function critic(t) {
+    const a = words(t.F), b = words(t.tail), sfit = t.S.kind === 'voice' ? (jac(words({ x: t.S.x }), a) > 0 ? 1 : .45) : t.S.kind === 'music' ? .62 : t.S.kind === 'silence' ? .5 : .38;
+    const v = .3 * t.F.sc / 10 + .2 * t.tail.sc / 10 + .18 * jac(a, b) + .2 * sfit + .12 * rnd();
+    return Math.max(4, Math.min(97, Math.round((v - .28) / .5 * 100)));
+  }
+  function tailFor(F) { const a = words(F); let best = null, bv = -1;
+    for (let k = 0; k < 40; k++) { const c = pick(SH); if (c === F || c.v === F.v || c.d < 1.5) continue; const v = .55 * c.sc / 10 + .45 * jac(a, words(c)) + rnd() * .35; if (v > bv) { bv = v; best = c; } }
+    return best; }
+  // n futures of one hand: the tail, where in the shot, when the voice comes in; kept by the critic
+  function roll(h, prob, note, n) { const out = [];
+    for (let k = 0; k < n; k++) { const t = build(h, { tail: tailFor(h.F), j: rnd(), delay: .2 + rnd() * .9, mo: rnd(), prev: G.film.length ? G.film[G.film.length - 1].take.tail : null }, prob, note); t.pct = critic(t); out.push(t); }
+    return out.sort((a, b) => b.pct - a.pct); }
+
+  // ---- dealing a hand under a problem
+  function deal(prob) {
+    const printed = new Set(G.film.map(f => f.take.F.v.join ? f.take.F.v.join() : f.take.F.v));
+    const ok = s => s.d >= 2 && !printed.has(s.v.join ? s.v.join() : s.v) && (!prob.foot || prob.foot(s));
+    let pool = SH.filter(ok); if (pool.length < 6) pool = SH.filter(s => s.d >= 2);
+    const films = new Set(), F = [];
+    for (const band of [s => s.sc >= 6, s => s.sc >= 3 && s.sc <= 5, () => true]) { const c = shuffle(pool.filter(band)).find(s => !films.has(s.f)) || pick(pool); films.add(c.f); F.push(Object.assign({}, c)); }
+    let name = prob.n;
+    if (prob.id === 'used') { const u = pick(G.film).take.F; F[0] = Object.assign({}, u, { stamp: 'Used', off: true }); }
+    if (prob.id === 'soft') { const b = F.reduce((a, c) => c.sc > a.sc ? c : a); b.soft = true; b.stamp = 'Soft'; }
+    if (prob.id === 'prop') { const c = F.find(s => s.s && s.s[0]) || F[0]; const w = noun(c); c.stamp = 'Not cleared'; c.off = true; name = 'The ' + w + ' cannot be shown'; }
+    if (prob.id === 'nocov') { F[1] = { stub: true, stamp: 'Not shot', off: true }; F[2] = { stub: true, stamp: 'Not shot', off: true }; }
+    const S = shuffle([voiceCard(pick(R.lines)), musicCard(pick(R.music)), prob.noRoom ? (rnd() < .5 ? SILENCE : voiceCard(pick(R.lines))) : pick([SILENCE, ROOM, ROOM])]);
+    const Ed = prob.edits ? prob.edits.map(E) : shuffle(EDITS).slice(0, 3);
+    return { F: shuffle(F), S, E: Ed, name };
+  }
+
+  // ---- the projector: two pictures that swap at the cut (the next shot loads while this one plays), stills, slates, voices and beds on their own channels
+  const vids = [$('#vA'), $('#vB')], auds = [0, 1, 2, 3].map(() => { const a = new Audio(); a.preload = 'auto'; return a; });
+  let ptok = 0, timers = [];
+  const later = (ms, f) => timers.push(setTimeout(f, ms));
+  function load(el, p) { const u = url(p.v); el.dataset.t0 = p.t0 || 0; if (el.dataset.u !== u) { el.dataset.u = u; el.src = u; el.addEventListener('loadedmetadata', () => { try { el.currentTime = +el.dataset.t0; } catch (e) { } }, { once: true }); } else { try { el.currentTime = p.t0 || 0; } catch (e) { } } }
+  function hush() { ptok++; timers.forEach(clearTimeout); timers = []; vids.forEach(v => v.pause()); auds.forEach(a => { a.pause(); a.dataset.busy = ''; }); $('#cap').textContent = ''; $('#tag').textContent = ''; $('#stopB').hidden = true; }
+  function slate(html) { $('#slate').innerHTML = '<div>' + html + '</div>'; $('#slate').hidden = false; vids.forEach(v => v.classList.remove('on')); $('#still').classList.remove('on'); }
+  function project(pieces, sounds, onEnd) {
+    hush(); const my = ptok; let n = 0, t = 0, side = 0; const loaded = new Map();
+    $('#stopB').hidden = false;
+    const nextV = from => { for (let k = from; k < pieces.length; k++) if (pieces[k].v) return k; return -1; };
+    const first = nextV(0); if (first >= 0) { load(vids[0], pieces[first]); loaded.set(first, 0); }
+    const step = () => { if (my !== ptok) return; const p = pieces[n]; if (!p) { hush(); onEnd && onEnd(); return; }
+      $('#tag').textContent = p.tag || '';
+      if (p.slate || p.black) { slate(p.slate ? esc(p.slate).replace(/\n/g, '<br>') : ''); if (!p.slate) $('#slate').innerHTML = ''; }
+      else if (p.still) { $('#slate').hidden = true; vids.forEach(v => v.classList.remove('on')); const im = $('#still'); im.src = p.still; im.classList.add('on'); }
+      else { $('#slate').hidden = true; $('#still').classList.remove('on');
+        let k = loaded.has(n) ? loaded.get(n) : side; if (!loaded.has(n)) load(vids[k], p);
+        const el = vids[k], other = vids[1 - k]; el.muted = !p.own; el.style.filter = p.blur ? 'blur(7px)' : ''; el.classList.add('on'); other.classList.remove('on'); other.pause(); el.play().catch(() => { });
+        side = 1 - k; const nv = nextV(n + 1); if (nv >= 0 && !loaded.has(nv)) { load(other, pieces[nv]); loaded.set(nv, 1 - k); } }
+      n++; later(p.len * 1000, step); };
+    (sounds || []).forEach(s => later(Math.max(0, s.at) * 1000, () => { if (my !== ptok) return;
+      const a = auds.find(x => !x.dataset.busy) || auds[0]; a.dataset.busy = '1'; const u = url(s.v);
+      if (a.dataset.u !== u) { a.dataset.u = u; a.src = u; a.addEventListener('loadedmetadata', () => { try { a.currentTime = s.t0 || 0; } catch (e) { } }, { once: true }); } else { try { a.currentTime = s.t0 || 0; } catch (e) { } }
+      a.volume = s.vol || 1; a.play().catch(() => { });
+      if (s.x) { $('#cap').textContent = '“' + s.x + '”'; }
+      if (s.len < 90) later(s.len * 1000, () => { if (my !== ptok) return; a.pause(); a.dataset.busy = ''; if (s.x && $('#cap').textContent === '“' + s.x + '”') $('#cap').textContent = ''; }); }));
+    step(); }
+  const playTake = (t, done, x = {}) => project(x.slate ? [{ black: true, len: 1.1, slate: x.slate }, ...t.pieces] : t.pieces, (t.sounds || []).map(s => Object.assign({}, s, { at: s.at + (x.slate ? 1.1 : 0) })), done);
+  $('#stopB').onclick = () => { hush(); slate('Stopped'); };
+
+  // ---- the production
+  const G = { reel: 0, film: [], crew: 0, house: 0 };
+  const P = $('#panel'), setLabels = (m, p) => { $('#monLabel').textContent = m; $('#panLabel').textContent = p; };
+  const hud = () => { $('#hud').textContent = G.reel ? `Reel ${Math.min(G.reel, REELS)} of ${REELS} · Crew ${G.crew} · House ${G.house}` : ''; };
+  function drawPath() { $('#path').innerHTML = '<b>THE FILM</b>' + G.film.map(f => `<i style="background-image:url('${esc(thumb(f.take.F.v))}')"></i>`).join('') + Array.from({ length: Math.max(0, REELS - G.film.length) }, () => '<i class="o"></i>').join(''); }
+  const img = (v, alt) => `<img alt="${esc(alt || '')}" src="${esc(thumb(v))}" data-v="${esc(url(v))}" onerror="const x=document.createElement('video');x.muted=true;x.playsInline=true;x.preload='metadata';x.src=this.dataset.v+'#t=1';this.replaceWith(x)">`;
+  const stripOf = t => t.pieces.slice(0, 6).map(p => p.v ? `<i style="background-image:url('${esc(thumb(p.v))}')${p.blur ? ';filter:blur(2px)' : ''}"></i>` : `<i class="blk"><em>${p.slate ? '✕' : ''}</em></i>`).join('');
+
+  function rest() {
+    G.reel = 0; G.film = []; G.crew = 0; G.house = 0; hud(); drawPath(); setLabels('Now', 'The picture');
+    slate('Monte Carlo Pictures<small>make the movie with what you\'ve got</small>');
+    P.innerHTML = `<p class="intro">Six reels. Every reel has a <b>production problem</b>.<br>Pick one shot, one sound, one cut.<br>The house rolls the takes. The room prints one.<br>At the wrap: <b>the film</b>, and <b>the making of</b>.</p>
+      <button class="cta" id="go"><span class="reel"></span>Start the picture</button><div class="hint">Rushes: ${SH.length.toLocaleString()} judged shots · ${R.lines.length} voices · ${R.music.length} music beds</div>`;
+    $('#go').onclick = () => { [...vids, ...auds].forEach(el => { el.muted = true; el.src = url(R.lines[0].v); el.play().then(() => { el.pause(); el.muted = false; }).catch(() => { el.muted = false; }); el.dataset.u = ''; }); G.reel = 1; reel(); };
+  }
+
+  let H, sel, prob, note;
+  function reel() {
+    hud(); drawPath(); setLabels(G.film.length ? 'Previously' : 'Now', 'The problem');
+    const valid = PROBLEMS.filter(p => !(p.needFilm && !G.film.length) && !(G.film.some(f => f.prob.id === p.id)));
+    prob = pick(valid); note = NOTE_REELS.includes(G.reel) ? pick(NOTES.filter(n => !G.film.some(f => f.note && f.note.id === n.id))) : null;
+    H = deal(prob); sel = { F: null, S: null, E: null };
+    if (G.film.length) playTake(G.film[G.film.length - 1].take, () => slate('Reel ' + G.reel + '<small>' + esc(H.name) + '</small>')); else slate('Reel 1<small>' + esc(H.name) + '</small>');
+    drawHand(); }
+  function drawHand() {
+    const fc = (c, k) => c.stub ? `<button class="cd off" disabled><div style="aspect-ratio:4/3;background:#2a2220;border-radius:6px"></div><span class="w">—</span><span class="stamp"><span>${esc(c.stamp)}</span></span></button>`
+      : `<button class="cd ${sel.F === k ? 'sel' : ''} ${c.off ? 'off' : ''} ${c.soft ? 'soft' : ''}" data-r="F" data-k="${k}">${img(c.v, c.w)}<span class="w">${esc(c.w)}</span>${c.stamp ? `<span class="stamp"><span>${esc(c.stamp)}</span></span>` : ''}</button>`;
+    const sc = (c, k) => `<button class="cd ${sel.S === k ? 'sel' : ''}" data-r="S" data-k="${k}">${c.kind === 'voice' ? `<span class="n">A voice</span><span class="x">“${esc(c.x)}”</span>` : c.kind === 'music' ? `<span class="n">♪ Music</span><span class="x">${esc(c.f)}</span>` : c.kind === 'silence' ? `<span class="n">Silence</span><span class="x">nothing at all</span>` : `<span class="n">Room tone</span><span class="x">the shot's own sound</span>`}</button>`;
+    const ec = (c, k) => `<button class="cd edit ${sel.E === k ? 'sel' : ''}" data-r="E" data-k="${k}"><span class="n">${esc(c.n)}</span><span class="x">${esc(c.x)}</span></button>`;
+    const ready = sel.F != null && sel.S != null && sel.E != null;
+    P.innerHTML = `<div class="problem"><b>${esc(H.name)}</b><span>${esc(prob.x)}</span></div>
+      <div class="row"><h3>Footage · tap to see it</h3><div class="cards">${H.F.map(fc).join('')}</div></div>
+      <div class="row"><h3>Sound · tap to hear it</h3><div class="cards">${H.S.map(sc).join('')}</div></div>
+      <div class="row"><h3>Edit</h3><div class="cards">${H.E.map(ec).join('')}</div></div>
+      <button class="cta" id="rollB" ${ready ? '' : 'disabled'}><span class="reel"></span>${ready ? 'Roll the takes' : 'Pick ' + [sel.F == null && 'a shot', sel.S == null && 'a sound', sel.E == null && 'a cut'].filter(Boolean).join(', ')}</button>`;
+    P.querySelectorAll('.cd[data-r]').forEach(b => b.onclick = () => { const r = b.dataset.r, k = +b.dataset.k;
+      if (r === 'F') { const c = H.F[k]; if (c.off) { slate(esc(c.stamp) + '<small>' + esc(H.name) + '</small>'); return; } sel.F = k; setLabels('Footage', 'The problem'); project([{ v: c.v, t0: 0, len: Math.min(4, c.d), blur: c.soft, own: false }], []); }
+      if (r === 'S') { const c = H.S[k]; sel.S = k; setLabels('Sound', 'The problem');
+        if (c.kind === 'voice') project([{ black: true, len: c.t1 - c.t0 + .5, slate: '' }], [{ v: c.v, t0: c.t0, len: c.t1 - c.t0 + .2, at: 0, x: c.x }]);
+        else if (c.kind === 'music') project([{ black: true, len: 4, slate: '♪' }], [{ v: c.v, t0: Math.max(0, (c.d || 20) - 12) * .3, len: 4, at: 0, vol: .8 }]);
+        else slate(c.kind === 'silence' ? 'Silence' : 'Room tone<small>whatever the shot heard</small>'); }
+      if (r === 'E') sel.E = k;
+      drawHand(); });
+    $('#rollB').onclick = () => { if (!ready) return; if (note && !G.noteShown) { G.noteShown = true; $('#noteTx').textContent = note.n; $('#note').hidden = false; } else rollout(); };
+  }
+  $('#noteOk').onclick = () => { $('#note').hidden = true; rollout(); };
+
+  let takes, pickT;
+  function rollout() {
+    const h = { F: H.F[sel.F], S: H.S[sel.S], E: H.E[sel.E] }, N = 12, all = roll(h, prob, note, N);
+    const seen = new Set(); takes = all.filter(t => { const k = (t.tail.v.join ? t.tail.v.join() : t.tail.v); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 3); pickT = 0;
+    G.hand = h; setLabels('Take', 'Rollout');
+    const draw = () => { P.innerHTML = `<div class="sub">${N} futures rolled from your hand · the critic's top three</div>` + takes.map((t, k) => `<button class="ro ${k === pickT ? 'sel' : ''}" data-k="${k}"><span class="k">${k === 0 ? '♛' : k + 1}</span><span class="strip">${stripOf(t)}</span><span class="pc">♣ ${t.pct}%</span></button>`).join('')
+      + (note ? `<div class="hint">Studio note in every take: “${esc(note.n)}”</div>` : '') + `<button class="cta" id="toD"><span class="reel"></span>Send to dailies</button><div class="hint">Tap a take to watch it. Send one.</div>`;
+      P.querySelectorAll('.ro').forEach(b => b.onclick = () => { pickT = +b.dataset.k; draw(); playTake(takes[pickT]); });
+      $('#toD').onclick = dailies; };
+    draw(); playTake(takes[0]);
+  }
+
+  // ---- dailies: your take, the second unit's (the cards you left), the house's wildcard (anything in the rushes), unlabelled
+  let D, watched, vote;
+  function dailies() {
+    const h = G.hand, other = (xs, x, ok = () => true) => shuffle(xs.filter(c => c !== x && ok(c)))[0] || x;
+    const unit = { F: other(H.F, h.F, c => !c.off && !c.stub), S: other(H.S, h.S), E: other(H.E, h.E) };
+    const wildPool = prob.foot ? SH.filter(s => prob.foot(s) && s.d >= 2) : SH.filter(s => s.d >= 2 && (has(s, 'animal') || s.sc <= 3 || rnd() < .05));
+    const wild = { F: Object.assign({}, pick(wildPool.length ? wildPool : SH)), S: pick([voiceCard(pick(R.lines)), voiceCard(pick(R.lines)), musicCard(pick(R.music)), SILENCE, ROOM].filter(c => !(prob.noRoom && c === ROOM))), E: pick(H.E) };
+    D = shuffle([{ who: 'crew', take: takes[pickT] }, { who: 'unit', take: roll(unit, prob, note, 6)[0] }, { who: 'house', take: roll(wild, prob, note, 6)[0] }]);
+    watched = new Set(); vote = null; setLabels('Dailies', 'Dailies'); screen(0);
+  }
+  const WHO = { crew: 'The crew', unit: 'Second unit', house: 'The house' };
+  function drawDailies(now, printed) {
+    const all = watched.size === 3;
+    P.innerHTML = (printed == null ? `<div class="sub">${all ? 'Best take? Tap one, then print it' : 'Screening the takes · nobody knows whose is whose'}</div>` : '')
+      + D.map((d, k) => `<button class="ro ${now === k ? 'sel' : ''} ${printed === k ? 'win' : ''}" data-k="${k}"><span class="k">${k + 1}</span><span class="strip">${stripOf(d.take)}</span>${printed != null ? `<span class="who">${WHO[d.who]}</span>` : `<span class="pc">${watched.has(k) ? '▶' : '…'}</span>`}</button>`).join('')
+      + (printed != null ? '' : all ? `<button class="cta" id="printB" ${vote == null ? 'disabled' : ''}><span class="reel"></span>${vote == null ? 'Pick the best take' : 'Print take ' + (vote + 1)}</button>` : `<button class="ghost" id="skipB">Skip to the next take ▸</button>`);
+    if (printed != null) return;
+    P.querySelectorAll('.ro').forEach(b => b.onclick = () => { const k = +b.dataset.k; if (!all) return; vote = k; drawDailies(k); playTake(D[k].take, null, { slate: 'Take ' + (k + 1) }); });
+    if ($('#skipB')) $('#skipB').onclick = () => { watched.add(now); screen(now + 1); };
+    if ($('#printB')) $('#printB').onclick = () => vote != null && print(vote);
+  }
+  function screen(k) { if (k >= 3) { watched = new Set([0, 1, 2]); hush(); slate('Best take?<small>tap one, then print it</small>'); drawDailies(null); return; }
+    drawDailies(k); playTake(D[k].take, () => { watched.add(k); screen(k + 1); }, { slate: 'Take ' + (k + 1) }); }
+
+  function print(k) {
+    const d = D[k]; if (d.who === 'crew') G.crew++; else G.house++;
+    const head = d.who === 'crew' ? 'The crew’s own take is printed.' : d.who === 'unit' ? 'Second unit saved the day.' : 'Nobody bet on the ' + noun(d.take.F) + '.';
+    G.film.push({ reel: G.reel, prob: Object.assign({}, prob, { n: H.name }), note, hand: H.F.filter(c => !c.stub).map(c => c.v), takes: D, printed: k, take: d.take, head }); G.noteShown = false;
+    hud(); drawPath(); setLabels('Printed', 'Printed');
+    drawDailies(null, k);
+    P.insertAdjacentHTML('afterbegin', `<div class="headline">${esc(head)}</div><div class="score">Print take ${k + 1} · ${WHO[d.who]}</div>`);
+    P.insertAdjacentHTML('beforeend', `<button class="cta" id="nx"><span class="reel"></span>${G.reel < REELS ? 'Next reel' : 'That’s a wrap'}</button><button class="ghost" id="srcB">Where this footage comes from ↗</button>`);
+    $('#nx').onclick = () => { if (G.reel < REELS) { G.reel++; reel(); } else wrap(); };
+    $('#srcB').onclick = () => Attrib.show([{ role: 'the shot', video: url(d.take.F.v) }, { role: 'the house’s next shot', video: url(d.take.tail.v) }, ...(d.take.S.v ? [{ role: d.take.S.kind === 'music' ? 'the music' : 'the voice', video: url(d.take.S.v) }] : [])]);
+    playTake(d.take, null, { slate: 'Print' });
+  }
+
+  // ---- the wrap: the film, and the film of how it got made
+  // the title: the thing the judge saw most often in the printed shots
+  function title() { const c = {}; G.film.forEach(f => (f.take.F.s && f.take.F.s.length ? f.take.F.s.map(x => x.toLowerCase()) : [...words(f.take.F)]).forEach(w => c[w] = (c[w] || 0) + 1)); const w = Object.entries(c).filter(([w]) => !/^(with|from|frame|shot|symmetrical|centred|centered|frontal|colour|color|light|dark)$/.test(w)).sort((a, b) => b[1] - a[1])[0]; return w ? 'The ' + w[0] : 'Untitled'; }
+  function seq(list) { const pieces = [], sounds = []; let t = 0; list.forEach(x => { if (x.take) { x.take.sounds.forEach(s => sounds.push(Object.assign({}, s, { at: s.at + t, len: Math.min(s.len, total(x.take.pieces) - s.at + .2) }))); x.take.pieces.forEach(p => { pieces.push(Object.assign({}, p, x.tag ? { tag: x.tag } : {})); t += p.len; }); } else { pieces.push(x); t += x.len; } }); return { pieces, sounds, t }; }
+  function filmA() { const T = title(), films = [...new Set(G.film.flatMap(f => [f.take.F.f, f.take.tail.f]).filter(Boolean))];
+    const s = seq([{ black: true, len: 2.2, slate: 'A Monte Carlo Picture' }, { black: true, len: 2.4, slate: T }, ...G.film.map(f => ({ take: f.take })), { black: true, len: 2.6, slate: 'Made with what we had' },
+      ...Array.from({ length: Math.ceil(films.length / 4) }, (_, k) => ({ black: true, len: 2.6, slate: 'Footage from\n' + films.slice(k * 4, k * 4 + 4).join('\n') }))]);
+    setLabels('The film', 'The wrap'); project(s.pieces, s.sounds); }
+  function filmB() { const T = title(), L = [{ black: true, len: 2.4, slate: 'The making of\n' + T }];
+    G.film.forEach(f => { L.push({ black: true, len: 2.2, slate: 'Reel ' + f.reel + '\n“' + f.prob.n + '”' });
+      f.hand.forEach(v => L.push({ still: thumb(v), len: .55, tag: 'the rushes' }));
+      if (f.note) L.push({ black: true, len: 2, slate: 'Studio note:\n' + f.note.n });
+      f.takes.forEach((d, k) => { if (k !== f.printed) { const p = d.take.pieces.find(p => p.v); if (p) L.push(Object.assign({}, p, { len: Math.min(1.8, p.len + 1), own: false, tag: 'Take ' + (k + 1) + ' · ' + WHO[d.who] + ' · outtake' })); } });
+      const pr = f.take.pieces.filter(p => p.v); pr.slice(0, 2).forEach(p => L.push(Object.assign({}, p, { tag: 'Printed · ' + WHO[f.takes[f.printed].who] })));
+      L.push({ black: true, len: 1.9, slate: f.head }); });
+    L.push({ black: true, len: 2.6, slate: 'Crew ' + G.crew + ' · House ' + G.house });
+    const s = seq(L), m = pick(R.music); s.sounds.push({ kind: 'music', v: m.v, t0: 2, len: s.t, at: 0, vol: .55 });
+    setLabels('The making of', 'The wrap'); project(s.pieces, s.sounds); }
+  function wrap() {
+    G.reel = REELS + 1; hud(); setLabels('That’s a wrap', 'The wrap'); hush(); slate(esc(title()) + '<small>a Monte Carlo picture</small>');
+    const ashore = G.film.flatMap(f => f.takes.map((d, k) => ({ d, k, f })).filter(x => x.k !== x.f.printed));
+    P.innerHTML = `<div class="headline">That’s a wrap</div><div class="score">Crew ${G.crew} · House ${G.house}</div>
+      <div class="two"><button class="cta" id="fa">▶ The film</button><button class="cta" id="fb">▶ The making of</button></div>
+      <div class="sub" style="margin-top:16px">What washed ashore · the takes nobody printed</div>
+      ${ashore.map((x, n) => `<button class="ro" data-n="${n}"><span class="k">${x.f.reel}</span><span class="strip">${stripOf(x.d.take)}</span><span class="who">${WHO[x.d.who]}</span></button>`).join('')}
+      <button class="ghost" id="again">Make another picture</button>`;
+    $('#fa').onclick = filmA; $('#fb').onclick = filmB; $('#again').onclick = rest;
+    P.querySelectorAll('.ro').forEach(b => b.onclick = () => { const x = ashore[+b.dataset.n]; setLabels('Outtake', 'The wrap'); playTake(x.d.take, null, { slate: 'Reel ' + x.f.reel + ' · outtake' }); });
+  }
+  rest();
+})();
+</script>
+</body></html>
