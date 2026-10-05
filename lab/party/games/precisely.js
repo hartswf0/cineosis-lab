@@ -39,8 +39,7 @@
     function toggle(pid, k) { if (G.phase !== 'deal') return; const pk = G.picks[pid] || (G.picks[pid] = []), i = pk.indexOf(k); if (i >= 0) pk.splice(i, 1); else if (pk.length < 3) pk.push(k); unsend(pid); draw(); }
     function title(pid, t) { if (G.phase !== 'deal') return; G.titles[pid] = String(t || '').slice(0, 60); draw(); }
     const unsend = pid => { if (G.sent[pid]) { G.sent[pid] = false; delete H.sign[pid]; if (H._gate) H.ungate(); } };
-    function send(pid) { if (G.phase !== 'deal' || (G.picks[pid] || []).length !== 3) return; G.sent[pid] = true; H.sign[pid] = 'in the can'; H.act(pid, 'hop', 820); H.say(pid, pick(['precisely so', 'symmetrical', 'wait for it', 'very tidy']));
-      if (voters().every(p => G.sent[p.id])) H.gate('Screen the chapters ▸', 'any', screen0); draw(); }
+    function send(pid) { if (G.phase !== 'deal' || (G.picks[pid] || []).length !== 3) return; G.sent[pid] = true; H.sign[pid] = 'in the can'; H.act(pid, 'hop', 820);       if (voters().every(p => G.sent[p.id])) H.gate('Screen the chapters ▸', 'any', screen0); draw(); }
     function screen0() { G.subs = shuffle(H.players.filter(p => G.sent[p.id]).map(p => { const h = handOf(p.id), shots = G.picks[p.id].map(k => h[k]); return { by: p.id, theme: G.theme, shots, title: (G.titles[p.id] || '').trim() || pick(PROMPTS), judge: shots.reduce((a, s) => a + (s.js || s.a * 2.5 || 0) + (s.sym || 0) * 2, 0) / 3, r: {} }; }));
       G.phase = 'screen'; G.k = 0; one(); }
     function one() { const s = G.subs[G.k]; G.watching = true; H.crowdShow(s); draw();
@@ -61,8 +60,12 @@
       H.slate(H.card(`<div class="big">A film in ${G.film.length} chapters<small>made by the room, precisely</small></div>`, 'gold'));
       const next = () => { if (G.phase !== 'film') return; if (i >= G.film.length) { stop(); H.slate(H.card(`<div class="big">The end</div>`, 'gold')); wrap(); return; } const c = G.film[i++]; screenChapter(c, c.n, next, { keepBed: i < G.film.length, music: i === 1 }); };
       tm.push(setTimeout(next, 2500));
-      H.gate('Skip to the scores ▸', 'any', () => { stop(); wrap(); }); draw(); }
-    function wrap() { if (G.phase === 'wrap') return; G.phase = 'wrap'; const r = rank(); if (r[0]) H.act(r[0].id, 'cheer', 2200); G.awards = H.awards(G.all); H.gate('Back to the lobby ▸', 'any', () => H.end()); draw(); }
+      H.gate('Skip ▸', 'any', () => { stop(); wrap(); }); draw(); }
+    function wrap() { if (G.phase === 'wrap') return; G.phase = 'wrap'; const r = rank(); if (r[0]) H.act(r[0].id, 'cheer', 2200); G.awards = H.awards(G.all); H.gate('Edit the film ▸', 'any', () => { H.seed = toFilm(); H.playGame('cut'); }); draw(); }
+    function toFilm() { const F = Cut.blank('A film in ' + G.film.length + ' chapters');
+      G.film.forEach(c => { const card = Cut.card('Chapter ' + c.n + '\n' + c.title, 3); F.clips.push(card); c.shots.forEach(s => { const d = s.d || 4, t0 = Math.min(1, d / 4); F.clips.push(Cut.shot(url(s.v), +t0.toFixed(2), +Math.min(d, t0 + 2.7).toFixed(2), { d, label: s.f })); }); });
+      if (music.length && F.clips.length) F.sounds.push(Cut.music(F.clips[0].id, pick(music), 0, Cut.starts(F).total, { vol: .5 }));
+      return F; }
     const rank = () => H.players.slice().sort((a, b) => b.score - a.score);
     function drawSide() { const ph = G.phase;
       if (ph === 'loading') return H.side(`<div class="ph">Precisely So <small>loading</small></div>`, ph);
@@ -77,7 +80,7 @@
       if (ph === 'circle') { const locals = H.players.filter(p => p.local);
         const S = H.side(`<div class="ph">Circle one <small>${Object.keys(G.votes).length} of ${voters().length}</small></div>${rows(false)}${locals.map(p => `<div class="vrow"><span>${mini(p.av)} ${esc(p.name)}</span>${G.subs.map((s, k) => `<button class="btn chip ${G.votes[p.id] === k ? 'on' : ''}" data-p="${p.id}" data-k="${k}" ${s.by === p.id ? 'disabled' : ''}>${k + 1}</button>`).join('')}</div>`).join('')}${!H._gate ? `<button class="btn chip" id="force" style="margin-top:8px">reveal now</button>` : ''}`, ph);
         S.querySelectorAll('[data-p]').forEach(b => b.onclick = () => vote(b.dataset.p, +b.dataset.k)); const f = $('#force'); if (f) f.onclick = reveal; return; }
-      if (ph === 'reveal') return H.side(`<div class="ph">Chapter ${G.ch} <small>+1 a circle · +2 the chapter · +1 the judge’s pick</small></div>${rows(true)}`, ph + G.ch);
+      if (ph === 'reveal') return H.side(`<div class="ph">Chapter ${G.ch} <small>circles</small></div>${rows(true)}`, ph + G.ch);
       if (ph === 'film' || ph === 'wrap') return H.side(`<div class="ph">Our film <small>${G.film.length} chapters</small></div><div class="ledger" style="font-size:13px">${G.film.map(c => `<div><b>CHAPTER ${c.n}</b> — ${esc(c.title)} <span style="color:#7a6a58">(${esc(W.chapters[c.theme].name)} · ${esc((P(c.by) || {}).name || '')})</span></div>`).join('')}</div>${rank().map((p, k) => `<div class="rk">#${k + 1} ${mini(p.av)} ${esc(p.name)}<b>${p.score}</b></div>`).join('')}${G.awards ? H.awardsHTML(G.awards) : ''}`, ph);
     }
     function draw() { drawSide(); H.syncCrew(); H.broadcast(); }
@@ -102,7 +105,7 @@
       el.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { api.buzz(); api.send({ t: 'toggle', k: +b.dataset.k }); });
       const t = el.querySelector('#ttl'); let tt = 0; t.oninput = () => { clearTimeout(tt); tt = setTimeout(() => api.send({ t: 'title', v: t.value }), 350); }; t.onchange = () => api.send({ t: 'title', v: t.value });
       el.querySelector('#sendB').onclick = () => { api.buzz(30); api.send({ t: 'send', v: t.value }); }; } } };
-    if (P === 'screen') return { key: 'screen' + S.k, status: 'Chapter ' + S.k + ' of ' + S.nS + ' · unsigned · throw something', tab: 'throw', tabs: ['throw', 'me'] };
+    if (P === 'screen') return { key: 'screen' + S.k, status: 'Chapter ' + S.k + ' of ' + S.nS + ' · unsigned', tab: 'throw', tabs: ['throw', 'me'] };
     if (P === 'circle') return { key: 'circle', takeover: { key: 'c' + S.mine, render(el) {
       el.innerHTML = `<div class="center"><div class="say">Circle one</div><div class="sub">the chapter that goes in the film · not your own</div><div class="answers" style="width:100%;margin-top:10px">${S.titles.map((t, k) => `<button class="btn ${S.mine === k ? 'on' : ''}" data-k="${k}" ${k === S.own ? 'disabled' : ''}><span class="k">${k + 1}</span>“${esc(t)}”</button>`).join('')}</div></div>`;
       el.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { api.buzz(); api.send({ t: 'vote', k: +b.dataset.k }); }); } } };

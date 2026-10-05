@@ -53,7 +53,7 @@
       draw(); }
     const voters = () => H.players.filter(p => p.local || p.conn);
     function answer(pid, k) { if (G.phase !== 'ask' || k < 0 || k >= G.cur.opts.length) return; const first = G.answers[pid] == null; G.answers[pid] = k; G.at[pid] = performance.now(); H.sign[pid] = 'locked';
-      if (first) { H.act(pid, 'hit', 280); H.say(pid, pick(['got it', 'easy', 'hmm…', 'final answer', 'sure?'])); }
+      if (first) { H.act(pid, 'hit', 280); }
       if (voters().every(p => G.answers[p.id] != null)) H.gate('Reveal ▸', 'any', reveal); draw(); }
     function reveal() {
       const right = G.cur.opts.findIndex(o => o.ok), ok = H.players.filter(p => G.answers[p.id] === right).sort((a, b) => G.at[a.id] - G.at[b.id]);
@@ -77,7 +77,7 @@
           ${locals.map(p => `<div class="vrow"><span>${mini(p.av)} ${esc(p.name)}</span>${G.cur.opts.map((o, k) => `<button class="btn chip ${G.answers[p.id] === k ? 'on' : ''}" data-p="${p.id}" data-k="${k}">${LETTERS[k]}</button>`).join('')}</div>`).join('')}
           <div class="row" style="margin-top:8px"><button class="btn chip" id="rp">↻ replay the clip</button>${!H._gate ? `<button class="btn chip" id="force">reveal now</button>` : ''}</div>`, ph + G.n);
         S.querySelectorAll('[data-p]').forEach(b => b.onclick = () => answer(b.dataset.p, +b.dataset.k)); $('#rp').onclick = () => play(G.cur.ask); const f = $('#force'); if (f) f.onclick = reveal; return; }
-      if (ph === 'reveal') { const S = H.side(`<div class="ph">Round ${G.n} · the answer <small>+2 right · +1 fastest</small></div>
+      if (ph === 'reveal') { const S = H.side(`<div class="ph">Round ${G.n} · the answer <small>answers</small></div>
           <div class="takes">${G.cur.opts.map((o, k) => optHTML(o, k, k === G.right ? 'win' : '') + `<span class="by vs">${H.players.filter(p => G.answers[p.id] === k).map(p => mini(p.av)).join('') || '·'}</span></div>`).join('')}</div>
           <div class="hint" style="text-align:left">${esc(G.cur.fact)}</div><div class="row" style="margin-top:6px"><button class="btn chip" id="rp">↻ replay</button><button class="btn chip" id="srcB">source ↗</button></div>
           ${rank().map((p, k) => `<div class="rk">#${k + 1} ${mini(p.av)} ${esc(p.name)}${G.gain[p.id] ? ` <span class="hint" style="margin:0">+${G.gain[p.id]}</span>` : ''}<b>${p.score}</b></div>`).join('')}`, ph + G.n);
@@ -102,7 +102,7 @@
         <div class="sub" style="text-align:center;margin-top:8px">${S.mine != null ? 'Locked in ' + LETTERS[S.mine] + ' · tap another to change' : 'watch the TV, then tap'}</div>`;
       el.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { api.buzz(); api.send({ t: 'answer', k: +b.dataset.k }); }); } } };
     if (P === 'reveal') { const right = S.mine === S.right, none = S.mine == null;
-      return { key: 'reveal' + S.n, status: (none ? 'No answer · ' : right ? (S.fastest ? 'Right, and fastest! +' : 'Right! +') + S.gain + ' · ' : 'Not this time · ') + 'the answer is ' + LETTERS[S.right] + ' · throw something', tab: 'throw', tabs: ['throw', 'me'] }; }
+      return { key: 'reveal' + S.n, status: (none ? 'No answer · ' : right ? (S.fastest ? 'Right, and fastest! +' : 'Right! +') + S.gain + ' · ' : 'Not this time · ') + 'the answer is ' + LETTERS[S.right] + '', tab: 'throw', tabs: ['throw', 'me'] }; }
     if (P === 'wrap') return { key: 'wrap', takeover: { key: 'wrap', render(el) { el.innerHTML = `<div class="center">${api.hero(S.you.av, S.rank === 1 ? 'cheer' : 'bow')}<div class="say">#${S.rank} of ${S.of}</div><div class="sub">${S.you.score} points</div></div>`; } } };
     return null;
   }

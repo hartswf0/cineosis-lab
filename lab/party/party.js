@@ -90,10 +90,11 @@
   function host(games) {
     document.body.classList.add('is-host');
     const app = $('#app');
-    app.innerHTML = `<div id="host"><header id="top"><div class="pegs"><i></i><i></i><i></i></div><div class="logo" id="logo">Party</div><div class="tagline" id="tagline">one room · every game · the archive’s films</div><span id="roomTag"></span><button class="btn" id="fsB">full screen</button><a href="index.html">lab</a></header>
+    app.innerHTML = `<div id="host"><header id="top"><div class="pegs"><i></i><i></i><i></i></div><div class="logo" id="logo">Party</div><div class="tagline" id="tagline">one room · every game · the archive’s films</div><span id="roomTag"></span><button class="btn" id="lobbyB" hidden>lobby</button><button class="btn" id="fsB">full screen</button><a href="index.html">lab</a></header>
       <main id="stage"><div id="stand"><div id="screen"><div id="vids"></div><div id="slate"></div><div id="paper" hidden></div><div id="cap"></div><div id="splats"></div><div id="crowd"></div><div id="bug"></div><div id="log"></div></div></div><aside id="side"></aside></main>
       <footer id="crew"><div class="pl"><svg viewBox="0 0 200 100" preserveAspectRatio="none"><path d="M0 40 Q20 22 44 34 T90 30 T140 36 T200 28 V100 H0Z" fill="#86a58a"/><path d="M0 58 Q30 48 60 56 T120 54 T200 56 V100 H0Z" fill="#6c8c63"/></svg></div><div id="toons"></div><div class="pl"><svg viewBox="0 0 200 100" preserveAspectRatio="none" style="top:auto;bottom:0;height:30%"><path d="M0 100 V60 Q4 40 8 62 Q12 36 16 64 Q20 44 24 70 V100Z M176 100 V70 Q180 44 184 64 Q188 36 192 62 Q196 40 200 60 V100Z" fill="#3e5a36"/></svg></div></footer></div>`;
     $('#fsB').onclick = () => fullscreen(true);
+    $('#lobbyB').onclick = () => H.end();
     const saved = store.get('party.host', null), H = { players: [], code: null, gameId: null, game: null, gate: null, opts: store.get('party.opts', {}), wireNote: '', card, esc, pad, UP, rnd, pick, shuffle, toon, mini, ICON };
     H.P = id => H.players.find(p => p.id === id);
     H.VP = Array.from({ length: 14 }, () => { const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; $('#vids').append(v); return v; });
@@ -210,14 +211,14 @@
     H.awardsHTML = list => list.map(a => `<div class="rk" style="font-size:15px">${esc(a.name)}: ${a.id === 'house' ? mini('house') + ' the house' : mini(H.P(a.id).av) + ' ' + esc(H.P(a.id).name)} <span class="hint" style="margin:0 0 0 auto">${esc(a.why)}</span></div>`).join('');
 
     // ---- the lobby: the crew gathers; the stand picks a game
-    function lobbyCard() { H.slate(card(`<div><div class="big">Party<small>one room · every game · the archive’s films</small></div><div class="steps"><div><b>1</b>scan the code · pick a character</div><div><b>2</b>pick a game on the stand</div><div><b>3</b>your phone is your hand, your remote, your tomatoes</div><div><b>4</b>switch games · same crew</div></div></div>`, 'dawn')); }
+    function lobbyCard() { H.slate(card(`<div class="big">Party<small>${H.code ? 'room ' + H.code : ''}</small></div>`, 'dawn')); }
     function drawLobby() {
       let svg = ''; if (H.code && !H.wireNote && root.qrcode) { const q = qrcode(0, 'M'); q.addData(H.joinURL()); q.make(); svg = q.createSvgTag({ cellSize: 4, margin: 1, scalable: true }); }
       const ids = Object.keys(games).sort((a, b) => (b === H.wantPlay) - (a === H.wantPlay));
       const S = H.side(`<div class="ph">The crew <small>${H.players.length} joined · 12 at most</small></div>
         ${H.wireNote ? `<p class="hint" style="color:var(--verm)">${esc(H.wireNote)}</p>` : `<div class="lob"><div class="qr">${svg}</div><div style="min-width:0"><div class="hint" style="text-align:left;margin:0">scan to join · room</div><div class="code">${esc(H.code || '')}</div><div class="url">${esc(H.joinURL().replace(/^https?:\/\//, ''))}</div><div class="row" style="margin-top:6px"><input type="text" id="lname" maxlength="12" placeholder="add a player here"><button class="btn chip" id="ladd">+</button></div></div></div>`}
         ${H.wireNote ? `<div class="row" style="margin-top:6px"><input type="text" id="lname" maxlength="12" placeholder="add a player here"><button class="btn chip" id="ladd">+</button></div>` : ''}
-        <div class="ph" style="margin-top:10px">Pick a game <small>the crew stays</small></div>
+        <div class="ph" style="margin-top:10px">Games</div>
         ${ids.map(id => { const g = games[id], o = H.opts[id] || {}; return `<div class="game"><div><b>${esc(g.title)}</b><span>${esc(g.blurb)}</span>${(g.options || []).map(op => `<div class="row" style="margin-top:3px"><span>${esc(op.name)}</span>${op.values.map(v => `<button class="btn chip ${(o[op.k] != null ? o[op.k] : op.def) === v ? 'on' : ''}" data-g="${id}" data-o="${op.k}" data-v="${v}">${v}</button>`).join('')}</div>`).join('')}</div><button class="btn cta" data-play="${id}" ${H.players.length ? '' : 'disabled'}>${H.players.length ? 'play ▸' : 'waiting…'}</button></div>`; }).join('')}`, 'lobby');
       const add = () => { const v = ($('#lname').value || '').trim().slice(0, 12); if (!v) return; H.addPlayer('L' + Date.now(), v, null, true); draw(); };
       const lb = $('#ladd'); if (lb) { lb.onclick = add; $('#lname').onkeydown = e => { if (e.key === 'Enter') add(); }; }
@@ -227,9 +228,10 @@
     function play(id) { const g = games[id]; if (!g || !H.players.length) return; fullscreen(true); H.unlock();
       H.players.forEach(p => { p.score = 0; p.threw = {}; p.late = false; }); H.houseScore = 0; H.sign = {}; H.spot = null; H._gate = null; H.bug(''); H.crowdShow(null); $('#splats').innerHTML = '';
       H.gameId = id; $('#logo').textContent = g.title; $('#tagline').textContent = g.blurb; H.opt = Object.assign({}, ...(g.options || []).map(o => ({ [o.k]: o.def })), H.opts[id] || {});
-      H.game = g.host(H) || {}; draw(); }
+      H.game = g.host(H) || {}; $('#lobbyB').hidden = false; draw(); }
+    H.playGame = play;
     H.end = () => { if (H.game && H.game.stop) H.game.stop(); H.game = null; H.gameId = null; H._gate = null; H.spot = null; H.sign = {}; H.bug(''); H.crowdShow(null); H.cap('');
-      $('#logo').textContent = 'Party'; $('#tagline').textContent = 'one room · every game · the archive’s films'; lobbyCard(); draw(); };
+      $('#logo').textContent = 'Party'; $('#tagline').textContent = 'one room · every game · the archive’s films'; $('#lobbyB').hidden = true; [H.VP, H.AP].flat().forEach(m => m.pause()); lobbyCard(); draw(); };
     function draw() { $('#roomTag').textContent = H.code && !H.wireNote ? 'ROOM ' + H.code : ''; syncCrew(); if (!H.game) drawLobby(); else if (H.game.draw) H.game.draw(); H.broadcast(); }
     H.draw = draw;
     addEventListener('resize', () => syncCrew());
@@ -270,7 +272,7 @@
         el.querySelectorAll('[data-m]').forEach(b => { const go = () => { api.buzz(8); const m = b.dataset.m; api.send({ t: 'me', m }); const h = $('#heroJ'); if (m === 'jump') api.act(h, 'hop', 820); if (m === 'dance') api.act(h, 'dance', 1600); if (m === 'bow') api.act(h, 'bow', 1300); if (m === 'wave' || m === 'left' || m === 'right') api.act(h, 'hit', 300); };
           b.onclick = go; if (b.dataset.m === 'left' || b.dataset.m === 'right') { let iv = 0; b.onpointerdown = () => { iv = setInterval(go, 260); }; b.onpointerup = b.onpointerleave = () => clearInterval(iv); } });
         const h = $('#heroJ'); if (h) h.onclick = () => { api.buzz(); api.act(h, 'hop', 820); api.send({ t: 'me', m: 'jump' }); }; } } };
-    function lobbyView() { return { key: 'lobby', status: 'You’re on the crew. The stand is picking a game.', tab: 'me', tabs: ['me', 'throw'] }; }
+    function lobbyView() { return { key: 'lobby', status: 'Joined. Waiting for the stand to start a game.', tab: 'me', tabs: ['me', 'throw'] }; }
     function draw() {
       if (!joined) return form();
       if (!S) { built = ''; app.innerHTML = `<div class="phone"><div class="me">${mini(me.av)}${esc(me.name)}</div><div class="center">${api.hero(me.av)}<div class="say">Finding<br>the stand…</div><div class="sub">${wire === 'open' ? 'room ' + esc(ROOM) : wire === 'error' || wire === 'lost' ? 'the stand is not answering yet · still trying' : 'connecting'}</div></div></div>`; return; }
@@ -284,7 +286,7 @@
       const key = pk + '|' + (view.takeover ? 'T' + view.takeover.key : 'tabs:' + tabs.map(t => t.k).join(',') + '|' + tab + '|' + ((tabs.find(t => t.k === tab) || {}).key || '')) + '|g:' + (g ? g.id : '');
       if (key === built) return patch(g);
       built = key;
-      app.innerHTML = `<div class="phone ${view.cls || ''}"><div class="me">${mini(S.you.av)}${esc(S.you.name)}<b id="myScore">${S.you.score} ★</b></div>${view.status != null ? `<div class="status" id="st">${view.status}</div>` : ''}
+      app.innerHTML = `<div class="phone ${view.cls || ''}"><div class="me">${mini(S.you.av)}${esc(S.you.name)}${S.noScore ? '' : `<b id="myScore">${S.you.score} ★</b>`}</div>${view.status != null ? `<div class="status" id="st">${view.status}</div>` : ''}
         ${g ? `<button class="btn gate" id="gateB">${esc(g.label)}</button>` : ''}
         ${view.takeover ? `<div class="pane" id="pane"></div>` : `${tabs.length > 1 ? `<div class="tabs">${tabs.map(t => `<button class="btn ${tab === t.k ? 'on' : ''}" data-tab="${t.k}">${esc(t.name)}</button>`).join('')}</div>` : ''}<div class="pane" id="pane"></div>`}</div>`;
       if (g) $('#gateB').onclick = () => { api.buzz(20); api.send({ t: 'gate', id: g.id }); $('#gateB').disabled = true; };

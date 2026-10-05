@@ -30,5 +30,11 @@
   }
   // what a card or a shot says, for a phone: the card's words, or the film it came from
   const label = (M, k) => { const s = M.shots[k]; if (!s) return ''; return s.title ? (s.text || '').split(' / ').slice(0, 3).join(' · ') : (s.why || s.film || ''); };
-  Party.monte = { load, Player, label };
+  // a Monte Carlo film as an edit list for the Cut: cards and shots from their clips, spoken lines laid on their shots, the music under all
+  function toFilm(M, f, title) { const F = Cut.blank(title || 'Untitled');
+    f.ev.forEach(e => { const s = M.shots[e.k]; if (!s) return; const c = Cut.shot(M.r2 + s.v, 0, +e.dur.toFixed(2), { d: s.dur || null, label: s.title ? (s.text || '').split(' / ')[0] : (s.why || s.film) }); F.clips.push(c);
+      if (e.line != null) { const L = M.lines[e.line]; if (M.VX[L.i]) F.sounds.push(Cut.voice(c.id, M.r2 + M.VX[L.i], L.t0, L.t1, { off: (e.pause || 0) / 1000 + .2, text: L.text })); } });
+    const m = f.music != null && M.music[f.music]; if (m && M.VX[m.i] && F.clips.length) F.sounds.push(Cut.music(F.clips[0].id, M.r2 + M.VX[m.i], 0, Cut.starts(F).total, { vol: .6 }));
+    return F; }
+  Party.monte = { load, Player, label, toFilm };
 })();

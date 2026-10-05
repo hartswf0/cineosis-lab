@@ -126,8 +126,7 @@
     const handOf = id => { if (!G.hands[id]) { G.hands[id] = deal(G.prob); G.picks[id] = {}; } return G.hands[id]; };
     const voters = () => H.players.filter(p => p.local || p.conn);
     function pickCard(pid, row, k) { if (G.phase !== 'deal') return; const h = handOf(pid), c = h[row][k]; if (!c || c.off || c.stub) return; G.picks[pid][row] = k; if (G.sent[pid]) { G.sent[pid] = false; delete H.sign[pid]; if (H._gate) H.ungate(); } draw(); }
-    function send(pid) { if (G.phase !== 'deal') return; const pk = G.picks[pid] || {}; if (pk.F == null || pk.S == null || pk.E == null) return; G.sent[pid] = true; H.sign[pid] = 'ready'; H.act(pid, 'hop', 820); H.say(pid, pick(['in the can', 'done!', 'print it', 'trust me']));
-      if (voters().every(p => G.sent[p.id])) H.gate(G.note ? 'Studio note ▸' : 'Roll the takes ▸', 'any', G.note ? studioNote : rollAll); draw(); }
+    function send(pid) { if (G.phase !== 'deal') return; const pk = G.picks[pid] || {}; if (pk.F == null || pk.S == null || pk.E == null) return; G.sent[pid] = true; H.sign[pid] = 'ready'; H.act(pid, 'hop', 820);       if (voters().every(p => G.sent[p.id])) H.gate(G.note ? 'Studio note ▸' : 'Roll the takes ▸', 'any', G.note ? studioNote : rollAll); draw(); }
     function studioNote() { G.phase = 'note'; H.paper(`<div class="ledger" style="font-size:7cqh;line-height:1.3"><div class="hd">STUDIO NOTE · REEL ${G.reel}</div><div style="border:0;padding-top:2cqh">${esc(G.note.n)}</div><div style="border:0;font-size:3.6cqh;color:#7a6a58">Your hands stay. The note goes into every take.</div></div>`); H.gate('Fine. Roll the takes ▸', 'any', rollAll); draw(); }
     function rollAll() {
       G.phase = 'rolled'; H.sign = {};
@@ -152,6 +151,13 @@
       H.act(d.by, 'cheer', 2200); G.takes.forEach((t, k) => { if (k !== win && !n[k]) setTimeout(() => H.act(t.by, 'slump', 2000), 400); });
       setTimeout(() => { if (G.phase === 'printed') playTake(d.take, null, { slate: 'Print' }); }, 2400);
       H.gate(G.reel < G.reels ? 'Next reel ▸' : 'That’s a wrap ▸', 'any', () => { if (G.reel < G.reels) reel(); else wrap(); }); draw(); }
+    function toFilm() { const F = Cut.blank(title());
+      G.film.forEach(f => { F.clips.push(Cut.card('Reel ' + f.reel + '\n' + f.prob.n, 1.8)); const firstIx = F.clips.length, at = [];
+        let t = 0; f.take.pieces.forEach(p => { const c = p.v ? Cut.shot(url(p.v), +(p.t0 || 0), +(p.t0 || 0) + p.len, { d: p.shot && p.shot.d, own: !!p.own, label: p.shot && p.shot.w }) : Cut.card(p.slate || '', p.len); at.push([t, c]); t += p.len; F.clips.push(c); });
+        const T = t; f.take.sounds.forEach(s => { const hit = at.filter(([a]) => a <= s.at + .001).pop() || at[0]; if (!hit) return; const off = s.at - hit[0];
+          if (s.kind === 'voice') F.sounds.push(Cut.voice(hit[1].id, url(s.v), s.t0, s.t0 + s.len - .2, { off, text: s.x }));
+          if (s.kind === 'music') F.sounds.push(Cut.music(hit[1].id, url(s.v), s.t0, Math.max(1, T - s.at), { off, vol: s.vol || .7 })); }); });
+      return F; }
     const rank = () => H.players.slice().sort((a, b) => b.score - a.score);
     function title() { const c = {}; G.film.forEach(f => (f.take.F.s && f.take.F.s.length ? f.take.F.s.map(x => x.toLowerCase()) : [...words(f.take.F)]).forEach(w => c[w] = (c[w] || 0) + 1)); const w = Object.entries(c).filter(([w]) => !SKIP.test(w)).sort((a, b) => b[1] - a[1])[0]; return w ? 'The ' + w[0] : 'Untitled'; }
     function seq(list) { const pieces = [], sounds = []; let t = 0; list.forEach(x => { if (x.take) { x.take.sounds.forEach(s => sounds.push(Object.assign({}, s, { at: s.at + t, len: Math.min(s.len, total(x.take.pieces) - s.at + .2) }))); x.take.pieces.forEach(p => { pieces.push(Object.assign({}, p, x.tag ? { tag: x.tag } : {})); t += p.len; }); } else { pieces.push(x); t += x.len; } }); return { pieces, sounds, t }; }
@@ -168,7 +174,7 @@
     function wrap() { hush(); G.phase = 'wrap'; const r = rank(), top = r[0], houseWins = H.houseScore > (top ? top.score : 0); G.awards = H.awards(G.all);
       H.slate(H.card(houseWins ? `<div class="big">The house directed<br>this picture<small>${H.houseScore} ★</small></div>` : `<div class="big">Best director<br>${H.who(top.id)}<small>${top.score} ★ · the house ${H.houseScore} ★</small></div>`, 'gold'));
       const champ = houseWins ? 'house' : top.id; H.act(champ, 'cheer', 2200); [...H.players.map(p => p.id), 'house'].filter(id => id !== champ).forEach((id, i) => setTimeout(() => H.act(id, 'bow', 1300), 500 + i * 160));
-      H.gate('Back to the lobby ▸', 'any', () => H.end()); draw(); }
+      H.gate('Edit the film ▸', 'any', () => { H.seed = toFilm(); H.playGame('cut'); }); draw(); }
 
     // ---- the exposure sheet
     function handRows(p) { const h = handOf(p.id), pk = G.picks[p.id] || {};
@@ -187,7 +193,7 @@
           ${ph === 'circle' && !H._gate ? `<button class="btn chip" id="force" style="margin-top:8px">print now (skip the stragglers)</button>` : ''}`, ph + (G.daily || 0));
         S.querySelectorAll('[data-v]').forEach(b => b.onclick = () => vote(b.dataset.v, +b.dataset.k)); const f = $('#force'); if (f) f.onclick = print; return; }
       if (ph === 'printed') return H.side(`<div class="ph">Printed <small>who made what · who circled it</small></div><div class="takes">${G.takes.map((d, k) => `<div class="tk ${k === G.win ? 'win' : ''}"><span class="n">${k + 1}</span><span class="strip">${stripOf(d.take)}</span><span class="by">${H.who(d.by)} <span class="hint" style="margin:0">♣ ${d.take.pct}%</span><br><span class="vs">${Object.entries(G.votes).filter(([, v]) => v === k).map(([id]) => P(id) ? mini(P(id).av) : '').join('') || '·'}</span>${H.crowdText(d) ? `<br><span class="hint" style="margin:0">${esc(H.crowdText(d))}</span>` : ''}</span></div>`).join('')}</div>`, ph + G.reel);
-      if (ph === 'wrap') { const S = H.side(`<div class="ph">That’s a wrap <small>+1 a circle · +2 printed</small></div>${rank().map((p, k) => `<div class="rk">#${k + 1} ${mini(p.av)} ${esc(p.name)}<b>${p.score}</b></div>`).join('')}<div class="rk">· ${mini('house')} the house<b>${H.houseScore}</b></div>${H.awardsHTML(G.awards)}
+      if (ph === 'wrap') { const S = H.side(`<div class="ph">That’s a wrap <small>circles · printed</small></div>${rank().map((p, k) => `<div class="rk">#${k + 1} ${mini(p.av)} ${esc(p.name)}<b>${p.score}</b></div>`).join('')}<div class="rk">· ${mini('house')} the house<b>${H.houseScore}</b></div>${H.awardsHTML(G.awards)}
           <div class="row" style="margin-top:8px"><button class="btn chip" id="fa">▶ the film</button><button class="btn chip" id="fb">▶ the making of</button></div>`, ph); $('#fa').onclick = filmA; $('#fb').onclick = filmB; return S; }
     }
     function draw() { drawSide(); H.syncCrew(); H.broadcast(); }
@@ -217,7 +223,7 @@
       el.querySelectorAll('[data-row]').forEach(b => b.onclick = () => { api.buzz(); api.send({ t: 'pick', row: b.dataset.row, k: +b.dataset.k }); });
       const sb = el.querySelector('#sendB'); if (sb) sb.onclick = () => { api.buzz(30); api.send({ t: 'send' }); }; } } };
     if (P === 'rolled') return { key: 'rolled' + S.reel, status: 'The house rolled every hand twelve ways', tabs: ['throw', 'me'] };
-    if (P === 'dailies') return { key: 'dailies' + S.daily, status: 'Dailies · take ' + S.daily + ' of ' + S.nTakes + ' · nobody knows whose · throw something', tab: 'throw', tabs: ['throw', 'me'] };
+    if (P === 'dailies') return { key: 'dailies' + S.daily, status: 'Dailies · take ' + S.daily + ' of ' + S.nTakes + '', tab: 'throw', tabs: ['throw', 'me'] };
     if (P === 'circle') return { key: 'circle', takeover: { key: 'circle' + S.mine, render(el) {
       el.innerHTML = `<div class="center"><div class="say">Circle one</div><div class="sub">the take that gets printed · not your own</div>
         <div class="vote">${Array.from({ length: S.nTakes }, (_, k) => `<button data-k="${k}" class="${S.mine === k ? 'on' : ''}" ${k === S.own ? 'disabled' : ''}><svg viewBox="0 0 100 100"><ellipse cx="50" cy="52" rx="44" ry="38" transform="rotate(-8 50 52)"/></svg>${k + 1}</button>`).join('')}</div>
