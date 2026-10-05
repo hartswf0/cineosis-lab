@@ -6,7 +6,7 @@
      BACKLOT          rescue a rejected take · someone decides where it goes · someone gives it a sound
      AUDITION         cast a hero · someone gives them an entrance · a voice · somebody to look at them · the room casts one
      TELEPHONE        find a shot · the next hears only its sound and finds what they imagine · the next sees only that and sounds it
-     CHEMISTRY JAM    a molecule of shots: add atoms, bond them (cut, rhyme, contrast, merge, overlay, transform), attach sound; synthesize
+     CHEMISTRY JAM    find a shot · someone joins another to it · someone decides how they meet (cut, rhyme, contrast, merge, overlay, transform) · a sound
      BREAKAWAY        pick something small out of a shot · its neighbour · keep going · it becomes a film of its own
    Tomatoes reject: a take the room pelts leaves the film for the backlot, where anyone can keep it (it comes back gold, with its
    provenance) or the Backlot card can rescue it. The hero stays cast, sounds that survive become motifs, a cut too soon leaves
@@ -29,7 +29,7 @@
     backlot: { name: 'Backlot', sub: 'nothing is really gone', kind: 'chain', steps: ['rescue', 'place', 'sound'], need: 'backlot' },
     audition: { name: 'Audition', sub: 'anything can be a hero', kind: 'chain', steps: ['cast', 'entrance', 'voice', 'reaction'], vote: true },
     phone: { name: 'Cutting-Room Telephone', sub: 'mishear → missee → new story', kind: 'chain', steps: ['find', 'listen', 'look'], hide: true },
-    chem: { name: 'Chemistry Jam', sub: 'combine → react → transmute', kind: 'chem' },
+    chem: { name: 'Chemistry Jam', sub: 'combine → react → transmute', kind: 'chain', steps: ['find', 'attach', 'bond', 'sound'] },
     away: { name: 'Breakaway', sub: 'follow the irrelevant', kind: 'chain', steps: ['detail', 'neighbor', 'carry'], branch: true } };
   const STEP = {
     find: { say: 'Find a shot.', verb: 'finds', deal: 'shots', act: 'Pass it' },
@@ -50,7 +50,9 @@
     listen: { say: 'You only hear it. What do you see?', verb: 'imagines it', deal: 'shots', act: 'Pass it' },
     neighbor: { say: 'Find its neighbour.', verb: 'finds a neighbour', deal: 'shots', near: 1, act: 'Pass it' },
     carry: { say: 'Keep going.', verb: 'carries on', deal: 'shots', near: 1, act: 'Pass it' },
-    place: { say: 'Where does it go in the film?', verb: 'places it', deal: 'place', act: 'Put it here' } };
+    place: { say: 'Where does it go in the film?', verb: 'places it', deal: 'place', act: 'Put it here' },
+    attach: { say: 'Find a shot to join it.', verb: 'joins one', deal: 'shots', near: 1, act: 'Pass it' },
+    bond: { say: 'How do they meet?', verb: 'bonds them', deal: 'bonds', act: 'Pass it' } };
   const OPS = ['hold', 'repeat', 'reverse', 'early', 'soon', 'silence', 'interrupt'];
   const OPN = { hold: 'HOLD', repeat: 'REPEAT', reverse: 'REVERSE', early: 'ENTER EARLY', soon: 'CUT TOO SOON', silence: 'SILENCE', interrupt: 'INTERRUPT' };
   const BONDS = ['cut', 'rhyme', 'contrast', 'merge', 'overlay', 'transform'], BCOL = { cut: '#e8e8e8', rhyme: '#ffc93c', contrast: '#ff5e5e', merge: '#3aa0ff', overlay: '#b06bff', transform: '#32d17c' };
@@ -80,7 +82,7 @@
     silence: '<svg viewBox="0 0 40 40"><path d="M6 15 H12 L20 8 V32 L12 25 H6Z" fill="currentColor"/><path d="M26 14 L36 26 M36 14 L26 26" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg>',
     interrupt: '<svg viewBox="0 0 40 40"><rect x="3" y="10" width="13" height="20" rx="2" fill="currentColor"/><rect x="24" y="10" width="13" height="20" rx="2" fill="currentColor"/><rect x="16" y="6" width="8" height="28" rx="1" fill="#ff4fa3"/></svg>' };
   const famIcon = f => f === 'music' ? I.note : f === 'voice' ? I.mouth : I.wave;
-  const stepIcon = s => { const d = (STEP[s] || {}).deal; return d === 'sounds' ? I.wave : d === 'ops' ? I.time : d === 'place' ? I.pass : d === 'figs' ? I.branch : d === 'backlot' ? I.star : I.eye; };
+  const stepIcon = s => { const d = (STEP[s] || {}).deal; return d === 'sounds' ? I.wave : d === 'ops' ? I.time : d === 'bonds' ? I.combine : d === 'place' ? I.pass : d === 'figs' ? I.branch : d === 'backlot' ? I.star : I.eye; };
 
   // ---- one piece of film on a layer: its picture (or a detail of it), a sound, a change of time
   function run(o, L, h = {}) {
@@ -113,7 +115,7 @@
     let root$ = $('#cinv'); if (!root$) { root$ = document.createElement('div'); root$.id = 'cinv'; $('#vids').after(root$); } root$.hidden = false;
     root$.innerHTML = `<div class="chead" id="cHead"></div><div class="cboard" id="cBoard"></div><div class="csolo" id="cSolo" hidden>${[0, 1].map(i => `<div class="cly" data-l="${i}"><video playsinline preload="auto"></video><div class="cb"></div><img class="cx" alt=""></div>`).join('')}<div class="cflash" id="cFlash"></div><div class="cauth" id="cAuth"></div></div><div class="cfoot" id="cFoot"></div>`;
     const lays = [...root$.querySelectorAll('.cly')].map((el, i) => ({ el, V: el.querySelector('video'), A: H.AP[i], X: el.querySelector('.cx'), B: el.querySelector('.cb') }));
-    const C = { ready: false, why: 'opening the archive', round: 0, mode: null, phase: 'next', step: 0, order: [], chains: [], films: [{ id: 0, name: 'The film', pieces: [] }], cur: 0, playing: null, at: -1, votes: {}, keeps: {}, t0: performance.now(), molecule: null, surf: {} };
+    const C = { ready: false, why: 'opening the archive', round: 0, mode: null, phase: 'load', step: 0, order: [], chains: [], films: [{ id: 0, name: 'The film', pieces: [] }], cur: 0, playing: null, at: -1, votes: {}, keeps: {}, t0: performance.now(), molecule: null, surf: {} };
     const ST = { att: [], cast: {}, motifs: [], debts: [], backlot: [], mine: {}, style: {}, log: [] };
     const hands = {}; let LIB = null, X = null, XV = null, XI = null, R = null, SK = null, SND = [], TR = null, TW = null, SAM = null, FE = null, EXT = '.webp', byId = null, nid = 1, stopPlay = [], advT = 0;
     window.__cin = { C, ST, hands, begin: m => begin(m) };
@@ -142,24 +144,23 @@
     const allPieces = () => C.films.flatMap(f => f.pieces);
     // ---- a round begins: the card, the chains, the hands
     function begin(mode) { stopIt(); H.crowdShow && H.crowdShow(null); C.round++; C.mode = mode; C.step = 0; C.votes = {}; C.keeps = {}; C.t0 = performance.now(); C.order = players().map(p => p.id); if (!C.order.length) C.order = ['__house'];
-      const M = MODES[mode]; C.order.forEach(id => { hands[id] = { depth: 0, n: 0 }; });
+      const M = MODES[mode]; C.order.forEach(id => { hands[id] = { depth: 0, n: 0 }; }); C.keeps = {}; C.pending = [];
       if (M.kind === 'chain') { C.phase = 'steps'; C.chains = C.order.map((id, i) => ({ id: nid++, slot: i, shots: [], pos: null, done: {}, who: M.steps.map((_, s) => C.order[(i + s) % C.order.length]) })); C.order.forEach(id => deal(id)); }
       else if (M.kind === 'surf') { C.phase = 'surf'; C.chains = []; C.surf = {}; C.order.forEach((id, i) => { const k = seedShot(i); C.surf[id] = { at: k, trail: [{ k, t: performance.now() }], rec: null, mom: vecK(k) }; ring(id); }); }
-      else if (M.kind === 'chem') { C.phase = 'chem'; C.chains = []; const k = film().pieces.length ? film().pieces[film().pieces.length - 1].k : seedShot(0); C.molecule = { atoms: [{ id: nid++, k, by: null, x: .5, y: .5 }], bonds: [], ligs: [] }; C.order.forEach(id => { hands[id].moves = 3; hands[id].mk = 'add'; deal(id); }); }
-      speak(M.name + '. ' + (M.kind === 'chain' ? STEP[M.steps[0]].say : M.kind === 'surf' ? 'Wander the archive. Press record somewhere strange.' : 'Add a shot, bond it, give it a sound.')); draw(); }
+      speak(M.name + '. ' + (M.kind === 'chain' ? STEP[M.steps[0]].say : 'Wander the archive. Record somewhere strange.')); draw(); }
     function seedShot(i) { const v = steer(); if (empty(v)) { let k; do { k = Math.floor(rnd() * LIB.n); } while (!isArc(k)); return k; } const s = LIB.sims(v), idx = []; for (let j = 0; j < s.length; j++) if (isArc(j)) idx.push(j); idx.sort((a, b) => s[b] - s[a]); return idx[i * 7 + Math.floor(rnd() * 20)]; }
     const N = () => C.order.length, chainOf = (id, s = C.step) => { const i = C.order.indexOf(id); if (i < 0) return null; return C.chains[((i - s) % N() + N()) % N()]; };
     const stepName = () => MODES[C.mode].steps[C.step];
     const last = c => c.shots[c.shots.length - 1];
     // ---- what a hand holds
     function deal(id) { if (!C.ready) return; const h = hands[id] = hands[id] || { depth: 0, n: 0 }, M = MODES[C.mode];
-      if (M.kind === 'chem') { h.items = dealShots(id, { near: C.molecule.atoms[C.molecule.atoms.length - 1].k }, h); h.discs = dealSounds(id, C.molecule.atoms[0].k, h, {}); return; }
       if (C.phase !== 'steps') return; const c = chainOf(id), st = STEP[stepName()]; if (!c) return; h.kind = st.deal;
       if (st.deal === 'shots') { const near = st.near && c.shots.length ? (stepName() === 'neighbor' && c.shots[0].fig != null ? { fig: c.shots[0].fig } : { near: stepName() === 'entrance' ? c.shots[0].k : last(c).k }) : {}; h.items = dealShots(id, { ...near, w: st.w }, h); }
       else if (st.deal === 'sounds') h.discs = dealSounds(id, last(c).k, h, st);
       else if (st.deal === 'ops') h.ops = dealOps(id);
       else if (st.deal === 'figs') h.figs = dealFigs(id, h);
       else if (st.deal === 'backlot') h.items = dealBacklot(id);
+      else if (st.deal === 'bonds') h.bonds = BONDS.slice();
       else if (st.deal === 'place') h.items = null; }
     function dealShots(id, o, h) { const used = new Set(allPieces().map(p => p.k).concat(C.chains.flatMap(c => c.shots.map(s => s.k))));
       const gold = (ST.mine[id] || []).filter(x => !x.spent).map(x => x.p.k).filter(k => !used.has(k)).slice(0, 2);
@@ -201,16 +202,6 @@
       let w; do { w = Math.floor(rnd() * LIB.n); } while (!isArc(w)); out.push(w); s.ring = out; }
     function surf(p, k) { const s = C.surf[p.id]; if (!s || !s.ring.includes(k)) return; s.trail.push({ k, t: performance.now() }); if (s.trail.length > 12) s.trail.shift(); s.at = k; for (let j = 0; j < 512; j++) s.mom[j] = s.mom[j] * .6 + vecK(k)[j] * .4; hands[p.id].depth = 0; hands[p.id].q = null; ring(p.id); }
     function rec(p) { const s = C.surf[p.id]; if (!s) return; const tr = s.trail.slice(-4); s.rec = tr.map((x, i) => ({ k: x.k, len: Math.max(1.2, Math.min(3, ((tr[i + 1] ? tr[i + 1].t : performance.now()) - x.t) / 1000)) })); H.act(p.id, 'cheer', 1600); }
-    // ---- the molecule
-    function chem(p, m) { const M = C.molecule, h = hands[p.id]; if (!M || !h || h.moves <= 0) return;
-      if (m.a === 'add') { const it = (h.items || []).find(x => x.k === +m.k), at = M.atoms.find(a => a.id === +m.to); if (!it || !at || !BONDS.includes(m.bond)) return; const sib = M.bonds.filter(b => b.a === at.id).length, ang = (M.atoms.length * 2.39996) + sib * .9, r = .2 + .03 * (M.atoms.length % 3);
-        const nu = { id: nid++, k: it.k, by: p.id, x: Math.max(.08, Math.min(.92, at.x + Math.cos(ang) * r * .75)), y: Math.max(.1, Math.min(.9, at.y + Math.sin(ang) * r)) }; M.atoms.push(nu); M.bonds.push({ id: nid++, a: at.id, b: nu.id, type: m.bond, by: p.id }); }
-      else if (m.a === 'bond') { const b = M.bonds.find(b => b.id === +m.id); if (!b || !BONDS.includes(m.bond)) return; b.type = m.bond; b.by = p.id; }
-      else if (m.a === 'sound') { const at = M.atoms.find(a => a.id === +m.to), s = (h.discs || []).find(d => keyOf(d) === m.key); if (!at || !s) return; M.ligs = M.ligs.filter(l => l.atom !== at.id); M.ligs.push({ atom: at.id, snd: { ...s, by: p.id }, by: p.id }); }
-      else return; h.moves--; H.act(p.id, 'hop', 820); deal(p.id); if (C.order.every(id => (hands[id] || {}).moves <= 0)) later(synth, 900); draw(); }
-    function synth() { if (C.phase !== 'chem') return; const M = C.molecule, out = [], seen = new Set(), walk = (id, tr) => { if (seen.has(id)) return; seen.add(id); const a = M.atoms.find(x => x.id === id), lg = M.ligs.find(l => l.atom === id);
-        out.push(piece({ k: a.k, by: a.by, snd: lg ? lg.snd : null, tr: tr || 'cut' })); M.bonds.filter(b => b.a === id).forEach(b => walk(b.b, b.type)); };
-      walk(M.atoms[0].id); if (out.length && M.atoms[0].by === null && film().pieces.some(p => p.k === M.atoms[0].k)) out.shift(); finishRound(out); }
     // ---- moves
     const piece = o => ({ id: nid++, round: C.round, mode: C.mode, r: {}, ...o });
     function onMsg(p, m) { if (!C.ready) return; const h = hands[p.id] = hands[p.id] || { depth: 0, n: 0 };
@@ -219,10 +210,11 @@
       if (m.t === 'far') { h.depth = (h.depth || 0) + 1; h.n++; if (C.phase === 'surf') ring(p.id); else deal(p.id); H.broadcast(); return; }
       if (m.t === 'surf' && C.phase === 'surf') { surf(p, +m.k); drawBoard(); H.broadcast(); return; }
       if (m.t === 'rec' && C.phase === 'surf') { rec(p); if (C.order.every(id => C.surf[id] && C.surf[id].rec)) later(endSurf, 900); draw(); return; }
-      if (m.t === 'chem' && C.phase === 'chem') return chem(p, m);
+      if (m.t === 'back' && C.phase === 'surf') { const s = C.surf[p.id]; if (s && s.trail.length > 1) { s.trail.pop(); s.at = s.trail[s.trail.length - 1].k; ring(p.id); } H.broadcast(); drawBoard(); return; }
       if (m.t === 'pass' && C.phase === 'steps') return pass(p, m);
-      if (m.t === 'vote' && (C.phase === 'vote' || C.phase === 'next')) { C.votes[p.id] = m.v; H.act(p.id, 'hop', 820); if (C.order.filter(id => P(id)).every(id => C.votes[id] != null)) later(C.phase === 'vote' ? endVote : endNext, 900); draw(); return; }
-      if (m.t === 'keep' && C.phase === 'keep') { C.keeps[p.id] = m.v; H.act(p.id, 'cheer', 1600); if (C.order.filter(id => P(id)).every(id => C.keeps[id] !== undefined)) later(endKeep, 900); draw(); return; }
+      if (m.t === 'next' && C.phase === 'between') { begin(C.nextMode); return; }
+      if (m.t === 'vote' && C.phase === 'vote') { C.votes[p.id] = m.v; H.act(p.id, 'hop', 820); if (C.order.filter(id => P(id)).every(id => C.votes[id] != null)) later(endVote, 900); draw(); return; }
+      if (m.t === 'keep') { const cur = C.playing ? C.playing[C.at] : null; if (!cur) return; C.keeps[p.id] = cur.id; H.act(p.id, 'cheer', 1600); H.logLine(chip(p.id) + ' kept this one'); H.broadcast(); return; }
       if (m.t === 'play') { if (C.playing) { stopIt(); draw(); } else playList(film().pieces); return; } }
     function pass(p, m) { const c = chainOf(p.id), sn = stepName(), st = STEP[sn], h = hands[p.id]; if (!c || c.done[C.step]) return;
       if (st.deal === 'shots' || st.deal === 'backlot') { const it = (h.items || []).find(x => x.k === +m.key); if (!it) return; const s = { k: it.k, by: p.id }; if (it.from && it.from.snd && sn === 'rescue') s.snd = it.from.snd;
@@ -231,6 +223,7 @@
       else if (st.deal === 'sounds') { const s = (h.discs || []).find(d => keyOf(d) === m.key); if (!s) return; const t = last(c); t.snd = { ...s, by: p.id }; delete t.snd.motif; delete t.snd.gold; }
       else if (st.deal === 'ops') { if (!(h.ops || []).includes(m.key)) return; const t = last(c); t.op = m.key; t.opBy = p.id; t.len = Math.max(1, Math.min(6, +m.len || 4.2)); }
       else if (st.deal === 'figs') { const f = +m.key, F = SAM.figs[f]; if (!F || !(h.figs || []).includes(f)) return; c.shots.push({ k: byId.get(F.shot), by: p.id, fig: f, box: F.box, desc: F.desc }); }
+      else if (st.deal === 'bonds') { if (!BONDS.includes(m.key)) return; const t = last(c); t.tr = m.key; t.trBy = p.id; }
       else if (st.deal === 'place') { const n = film().pieces.length; c.pos = Math.max(0, Math.min(n, +m.key)); c.posBy = p.id; }
       c.done[C.step] = p.id; H.act(p.id, 'hop', 820);
       if (C.chains.every(x => x.done[C.step])) { clearTimeout(advT); advT = setTimeout(nextStep, 1200); } draw(); }
@@ -240,11 +233,11 @@
           if (st.deal === 'shots' || st.deal === 'backlot') { const k = (h.items || dealShots(id, {}, h))[0].k; if (sn === 'entrance') c.shots.unshift({ k, by: null }); else c.shots.push({ k, by: null }); }
           else if (st.deal === 'sounds' && c.shots.length) { last(c).snd = { ...dealSounds(id, last(c).k, h, st)[0], by: null }; }
           else if (st.deal === 'ops' && c.shots.length && rnd() < .6) { last(c).op = pick(OPS); last(c).opBy = null; }
+          else if (st.deal === 'bonds' && c.shots.length) last(c).tr = pick(BONDS);
           else if (st.deal === 'figs') { const f = (h.figs || dealFigs(id, h))[0], F = SAM.figs[f]; c.shots.push({ k: byId.get(F.shot), by: null, fig: f, box: F.box, desc: F.desc }); }
           c.done[C.step] = c.done[C.step] || '__house'; }); nextStep(); }
       else if (C.phase === 'surf') { C.order.forEach(id => { if (C.surf[id] && !C.surf[id].rec) rec({ id }); }); endSurf(); }
-      else if (C.phase === 'chem') synth();
-      else if (C.phase === 'vote') endVote(); else if (C.phase === 'keep') endKeep(); else if (C.phase === 'next') endNext(); }
+      else if (C.phase === 'vote') endVote(); else if (C.phase === 'between') begin(C.nextMode); }
     function nextStep() { if (C.phase !== 'steps') return; const M = MODES[C.mode]; C.step++;
       if (C.step >= M.steps.length) { const out = []; C.chains.forEach(c => { if (!c.shots.length) return;
           if (M.branch) { const head = c.shots[0], f = { id: nid++, name: (head.desc && head.desc.split(' ').length > 1 ? head.desc : 'the ' + (head.desc || 'detail') + ' from ' + label(head.k)).slice(0, 60), pieces: [], from: C.cur, by: head.by }; c.shots.forEach(s => f.pieces.push(piece({ ...s }))); C.films.push(f); ST.log.unshift({ html: `${chip(head.by)} BREAKAWAY: <b>${esc(f.name)}</b> became a film of its own` }); out.push(...f.pieces); }
@@ -260,11 +253,11 @@
     // ---- a round's pieces join the film, play, and the room keeps or rejects
     function finishRound(out) { stopIt(); const F = film();
       out.forEach(p => { if (p.placed != null) { F.pieces.splice(Math.min(p.placed, F.pieces.length), 0, p); p.placed = null; } else if (!C.films.some(f => f !== F && f.pieces.includes(p))) F.pieces.push(p); });
-      C.pending = out; C.phase = 'play'; playList(out, () => { C.phase = 'keep'; speak('Keep something. Or let it go.'); draw(); }); draw(); }
+      C.pending = out; C.phase = 'play'; playList(out, () => settle()); draw(); }
     function endVote() { if (C.phase !== 'vote') return; const t = {}; Object.values(C.votes).forEach(v => t[v] = (t[v] || 0) + 1); const best = C.chains.slice().sort((a, b) => (t[b.id] || 0) - (t[a.id] || 0))[0];
       const hero = best && best.shots.find(s => s.by === best.who[0]) || (best && best.shots[0]); if (hero) { ST.cast.hero = { k: hero.k, by: hero.by, round: C.round }; ST.att = ST.att.filter(a => a.role !== 'hero'); ST.att.unshift({ v: vecK(hero.k), w: 1.6, decay: .88, k: hero.k, by: hero.by, role: 'hero' }); ST.log.unshift({ html: `${chip(hero.by)} CAST: <b>${esc(label(hero.k))}</b> is the hero` }); }
-      const F = film(); (C.pending || []).forEach(p => F.pieces.push(p)); C.phase = 'keep'; C.votes = {}; speak('Keep something. Or let it go.'); draw(); }
-    function endKeep() { if (C.phase !== 'keep') return; const sc = p => (p.r.rose || 0) + 2 * (p.r.bravo || 0) - (p.r.tomato || 0) - (p.r.cut || 0);
+      const F = film(); (C.pending || []).forEach(p => F.pieces.push(p)); C.votes = {}; settle(); }
+    function settle() { const sc = p => (p.r.rose || 0) + 2 * (p.r.bravo || 0) - (p.r.tomato || 0) - (p.r.cut || 0);
       const out = C.pending || []; out.forEach(p => { if ((p.r.tomato || 0) + (p.r.cut || 0) > (p.r.rose || 0) + (p.r.bravo || 0) && (p.r.tomato || 0) > 0) p.rej = true; });
       Object.entries(C.keeps).forEach(([id, v]) => { const p = out.find(x => x.id === v); if (!p) return; (ST.mine[id] = ST.mine[id] || []).push({ p, round: C.round }); ST.att.push({ v: vecK(p.k), w: .7, decay: .75, k: p.k, by: id }); ST.log.unshift({ html: `${chip(id)} BACKLOT: kept <b>${esc(label(p.k))}</b>${p.rej ? ' (rejected)' : ''}` }); });
       out.filter(p => p.rej).forEach(p => { C.films.forEach(f => f.pieces = f.pieces.filter(x => x !== p)); if (!Object.values(C.keeps).includes(p.id)) ST.backlot.push({ p, round: C.round, rej: true }); ST.log.unshift({ html: `${chip(p.by)} REJECTED: <b>${esc(label(p.k))}</b> went to the backlot` }); });
@@ -274,11 +267,9 @@
       const best = out.filter(p => !p.rej).sort((a, b) => sc(b) - sc(a))[0]; if (best && best.snd && sc(best) > 0) { ST.motifs.unshift({ k: best.k, snd: best.snd, by: [best.by, best.snd.by] }); ST.motifs = ST.motifs.slice(0, 6); ST.log.unshift({ html: `${chip(best.by)}${chip(best.snd.by)} MOTIF: <b>${esc(label(best.k))}</b> with <b>${esc(best.snd.x || best.snd.label || best.snd.fam)}</b>` }); }
       out.forEach(p => { if (p.op === 'soon' && !p.rej) ST.debts.unshift({ k: p.k, by: p.opBy }); if (p.op) ST.style[p.op] = (ST.style[p.op] || 0) + 1; });
       ST.att.sort((a, b) => b.w - a.w); ST.att = ST.att.slice(0, 12); ST.log = ST.log.slice(0, 14);
-      C.phase = 'next'; C.votes = {}; C.offer = offer(); speak('What do we play next?'); draw(); }
-    function offer() { const all = Object.keys(MODES).filter(m => m !== C.mode && (MODES[m].need !== 'backlot' || ST.backlot.some(x => !x.spent) || Object.values(ST.mine).some(l => l.some(x => !x.spent))));
-      const order = ['pass', 'spoil', 'surf', 'backlot', 'audition', 'phone', 'chem', 'away'], nxt = order.filter(m => all.includes(m))[(C.round) % Math.max(1, all.length)];
-      return [...new Set([nxt, ...shuffle(all)])].slice(0, 3); }
-    function endNext() { if (C.phase !== 'next') return; const t = {}; Object.values(C.votes).forEach(v => t[v] = (t[v] || 0) + 1); const m = (C.offer || ['pass']).slice().sort((a, b) => (t[b] || 0) - (t[a] || 0))[0]; begin(m); }
+      C.phase = 'between'; C.votes = {}; C.nextMode = nextCard(); speak('Next: ' + MODES[C.nextMode].name); draw(); }
+    const ROT = ['pass', 'spoil', 'surf', 'audition', 'phone', 'backlot', 'chem', 'away'];
+    function nextCard() { const ok = m => MODES[m].need !== 'backlot' || ST.backlot.some(x => !x.spent) || Object.values(ST.mine).some(l => l.some(x => !x.spent)); let i = ROT.indexOf(C.mode); for (let n = 0; n < ROT.length; n++) { i = (i + 1) % ROT.length; if (ok(ROT[i])) return ROT[i]; } return 'pass'; }
     const later = (f, ms) => setTimeout(f, ms);
     // ---- the stand plays pieces with their transitions: cut, rhyme, contrast, merge, overlay, transform
     function res(p, list, i) { const s = shot(p.k), nx = list[i + 1] || list[0]; return { v: s.video, snd: p.snd ? { u: p.snd.u, t0: p.snd.t0, t1: p.snd.t1 } : null, op: p.op, len: p.len, box: p.box, flash: nx ? thumbOf(shot(nx.k).video) : '' }; }
@@ -298,7 +289,7 @@
     const authHTML = p => `<span style="--c:${colOf(p.by)}">${I.eye}${esc(nameOf(p.by))}</span>${p.snd ? `<span style="--c:${colOf(p.snd.by)}">${famIcon(p.snd.fam)}${esc(nameOf(p.snd.by))}</span>` : ''}${p.op ? `<span style="--c:${colOf(p.opBy)}">${I[p.op]}${OPN[p.op]}</span>` : ''}${p.tr && p.tr !== 'cut' ? `<span style="--c:${BCOL[p.tr]}">${I.combine}${p.tr.toUpperCase()}</span>` : ''}<em>${esc(MODES[p.mode] ? MODES[p.mode].name : '')} · round ${p.round}</em>`;
     const mmss = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
     function drawHead() { const M = MODES[C.mode] || { name: 'Cineosis', sub: '' }, ph = C.phase, sn = ph === 'steps' ? stepName() : '';
-      root$.querySelector('#cHead').innerHTML = `<b>CINEOSIS</b><span class="m">${esc(M.name)}</span><span class="s">${ph === 'steps' ? esc(STEP[sn].say) : ph === 'surf' ? 'Wander. Press REC somewhere strange.' : ph === 'chem' ? 'Add. Bond. Sound. Then it synthesizes.' : ph === 'vote' ? 'Who is the hero?' : ph === 'keep' ? 'Keep something. Or let it go.' : ph === 'next' ? 'What do we play next?' : esc(M.sub)}</span><span class="r">round ${C.round} · ${mmss((performance.now() - C.t0) / 1000)}</span>`; }
+      root$.querySelector('#cHead').innerHTML = `<b>CINEOSIS</b><span class="m">${esc(M.name)}</span><span class="s">${ph === 'steps' ? esc(STEP[sn].say) : ph === 'surf' ? 'Wander. Press REC somewhere strange.' : ph === 'vote' ? 'Who is the hero?' : ph === 'between' ? 'Next: ' + esc(MODES[C.nextMode].name) : ph === 'play' ? 'Throw things. Tap ★ to keep one.' : esc(M.sub)}</span><span class="r">round ${C.round} · ${mmss((performance.now() - C.t0) / 1000)}</span>`; }
     function drawFoot() { const F = film(), cur = C.playing ? C.playing[C.at] : null;
       root$.querySelector('#cFoot').innerHTML = `<div class="cstrip">${F.pieces.slice(-14).map(p => `<span class="${cur === p ? 'now' : ''}" style="--c:${colOf(p.by)}"><img src="${esc(thumbOf(shot(p.k).video))}" alt=""></span>`).join('') || '<em>the film we make together starts here</em>'}</div><div class="cdots">${C.order.filter(id => P(id)).map(id => `<i style="--c:${colOf(id)}"></i>`).join('')}<small>${esc(F.name)} · ${F.pieces.length} shots</small></div>`; }
     function drawBoard() { const B = root$.querySelector('#cBoard'), ph = C.phase, M = MODES[C.mode] || {};
@@ -309,31 +300,22 @@
           return `<div class="cchain"><div class="ccells">${cells}</div><div class="cthumbs">${thumbs}${c.pos != null ? `<span class="pos">${I.pass}<small>at ${c.pos + 1}</small></span>` : ''}</div></div>`; }).join('')}</div>`; }
       else if (ph === 'surf') { const cells = []; C.order.forEach(id => { const s = C.surf[id]; if (!s) return; cells.push({ k: s.at, who: id, at: 1, rec: !!s.rec }); s.ring.forEach(k => cells.push({ k, who: id })); s.trail.slice(-5, -1).forEach(x => cells.push({ k: x.k, who: id, past: 1 })); });
         B.innerHTML = `<div class="cwall">${cells.slice(0, 32).map(c => `<span class="${c.at ? 'at' : ''} ${c.past ? 'past' : ''}" style="--c:${colOf(c.who)}"><img src="${esc(thumbOf(shot(c.k).video))}" alt="">${c.at ? `<b class="pin">${P(c.who) ? mini(P(c.who).av) : ''}</b>${c.rec ? '<i class="recd">REC</i>' : ''}` : ''}</span>`).join('')}</div>`; }
-      else if (ph === 'chem') { const Mo = C.molecule; const at = id => Mo.atoms.find(a => a.id === id);
-        B.innerHTML = `<div class="cmol"><svg viewBox="0 0 100 56" preserveAspectRatio="none">${Mo.bonds.map(b => { const a = at(b.a), c = at(b.b); return `<line x1="${a.x * 100}" y1="${a.y * 56}" x2="${c.x * 100}" y2="${c.y * 56}" stroke="${BCOL[b.type]}" stroke-width="${b.type === 'merge' ? 1.1 : .6}" ${b.type === 'rhyme' ? 'stroke-dasharray="1.5 1"' : ''}/>`; }).join('')}</svg>
-          ${Mo.bonds.map(b => { const a = at(b.a), c = at(b.b); return `<em class="bl" style="left:${(a.x + c.x) * 50}%;top:${(a.y + c.y) * 50}%;--c:${BCOL[b.type]}">${b.type}</em>`; }).join('')}
-          ${Mo.atoms.map((a, i) => { const lg = Mo.ligs.find(l => l.atom === a.id); return `<span class="atom ${i ? '' : 'seed'}" style="left:${a.x * 100}%;top:${a.y * 100}%;--c:${colOf(a.by)}"><img src="${esc(thumbOf(shot(a.k).video))}" alt="">${lg ? `<b style="color:${FAM[lg.snd.fam]}">${famIcon(lg.snd.fam)}</b>` : ''}</span>`; }).join('')}</div>`; }
       else if (ph === 'vote') { const t = {}; Object.values(C.votes).forEach(v => t[v] = (t[v] || 0) + 1);
         B.innerHTML = `<div class="cvote">${C.chains.filter(c => c.shots.length).map(c => { const h = c.shots.find(s => s.by === c.who[0]) || c.shots[0]; return `<span style="--c:${colOf(c.who[0])}"><img src="${esc(thumbOf(shot(h.k).video))}" alt=""><b>${t[c.id] || 0}</b><small>${esc(nameOf(c.who[0]))}’s</small></span>`; }).join('')}</div>`; }
-      else if (ph === 'keep') { const ps = C.pending || [];
-        B.innerHTML = `<div class="ckeep">${ps.map(p => { const rj = (p.r.tomato || 0) + (p.r.cut || 0) > (p.r.rose || 0) + (p.r.bravo || 0) && (p.r.tomato || 0) > 0, kept = Object.entries(C.keeps).filter(([, v]) => v === p.id).map(([id]) => id);
-          return `<span class="${rj ? 'rej' : ''}" style="--c:${colOf(p.by)}"><img src="${esc(thumbOf(shot(p.k).video))}" alt="">${rj ? '<i class="stamp">REJECTED</i>' : ''}${kept.length ? `<b class="kp">${I.star}${kept.map(chip).join('')}</b>` : ''}</span>`; }).join('')}</div>`; }
-      else if (ph === 'next') { const t = {}; Object.values(C.votes).forEach(v => t[v] = (t[v] || 0) + 1);
-        B.innerHTML = `<div class="cnext">${(C.offer || []).map((m, i) => `<span><small>${i + 1}</small><b>${esc(MODES[m].name)}</b><em>${esc(MODES[m].sub)}</em><i>${Object.entries(C.votes).filter(([, v]) => v === m).map(([id]) => chip(id)).join('')}</i></span>`).join('')}</div>`; }
+      else if (ph === 'between') { const F = film();
+        B.innerHTML = `<div class="cbetween"><div class="cbs">${F.pieces.slice(-12).map(p => `<span style="--c:${colOf(p.by)}"><img src="${esc(thumbOf(shot(p.k).video))}" alt=""></span>`).join('')}</div><b>${esc(F.name)} · ${F.pieces.length} shots</b><em>next: ${esc(MODES[C.nextMode].name)}</em></div>`; }
       else B.innerHTML = C.ready ? '' : `<div class="cwait">${esc(C.why)}</div>`; }
     function drawSide() { const ph = C.phase;
       const rows = C.order.filter(id => P(id)).map(id => { let what = '', done = false;
         if (ph === 'steps') { const c = chainOf(id), s = stepName(); done = !!(c && c.done[C.step]); const from = c && c.who[(C.step + c.who.length - 1) % c.who.length]; what = `${stepIcon(s)}<small>${esc(STEP[s].verb)}${C.step ? ' · ' + esc(nameOf(from)) + '’s' : ''}</small>`; }
         else if (ph === 'surf') { const s = C.surf[id]; done = !!(s && s.rec); what = `${I.eye}<small>${s ? s.trail.length + ' channels' : ''}</small>`; }
-        else if (ph === 'chem') { const h = hands[id] || {}; done = h.moves <= 0; what = `${I.combine}<small>${Math.max(0, h.moves || 0)} moves left</small>`; }
-        else if (ph === 'vote' || ph === 'next') { done = C.votes[id] != null; what = `<small>${done ? 'voted' : 'choosing'}</small>`; }
-        else if (ph === 'keep') { done = C.keeps[id] !== undefined; what = `${I.star}<small>${done ? (C.keeps[id] ? 'kept one' : 'let it go') : 'choosing'}</small>`; }
+        else if (ph === 'vote') { done = C.votes[id] != null; what = `<small>${done ? 'voted' : 'choosing'}</small>`; }
         return `<div class="cp" style="--c:${colOf(id)}"><span class="m">${mini(P(id).av)}</span><b>${esc(P(id).name)}</b><span class="i">${what}</span><span class="ok">${done ? '✓' : (hands[id] && hands[id].heard ? '“' + esc(hands[id].heard) + '”' : '')}</span></div>`; }).join('');
       const world = [ST.cast.hero && `<span class="cw"><img src="${esc(thumbOf(shot(ST.cast.hero.k).video))}" alt="">${chip(ST.cast.hero.by)}<em>hero</em></span>`].concat(ST.motifs.slice(0, 2).map(m => `<span class="cw"><img src="${esc(thumbOf(shot(m.k).video))}" alt=""><b style="color:${FAM[m.snd.fam]}">${famIcon(m.snd.fam)}</b><em>motif</em></span>`))
         .concat(ST.debts.slice(0, 1).map(d => `<span class="cw debt"><img src="${esc(thumbOf(shot(d.k).video))}" alt=""><em>unseen</em></span>`)).concat(ST.backlot.filter(x => !x.spent).slice(0, 2).map(x => `<span class="cw lost"><img src="${esc(thumbOf(shot(x.p.k).video))}" alt=""><em>backlot</em></span>`)).filter(Boolean).join('');
       const films = C.films.length > 1 ? `<div class="ph" style="margin-top:6px">Films <small>a new film can emerge anywhere</small></div><div class="cfilms">${C.films.map(f => `<div class="${f.id === C.cur ? 'on' : ''}"><b>${esc(f.name)}</b><small>${f.pieces.length}</small><button class="btn chip" data-fplay="${f.id}">▶</button>${f.id === C.cur ? '' : `<button class="btn chip" data-follow="${f.id}">follow</button>`}</div>`).join('')}</div>` : '';
       H.side(`<div class="ph">Cineosis <small>${esc(film().name)} · ${film().pieces.length} shots</small></div>
-        <div class="row" style="margin-bottom:6px"><button class="btn chip" id="cPlay" ${film().pieces.length ? '' : 'disabled'}>${C.playing ? '■ stop' : '▶ play together'}</button><button class="btn chip" id="cCut" ${film().pieces.length ? '' : 'disabled'}>edit the film</button><button class="btn chip" id="cFill">${ph === 'next' ? 'deal it' : 'fill the rest ▸'}</button></div>
+        <div class="row" style="margin-bottom:6px"><button class="btn chip" id="cPlay" ${film().pieces.length ? '' : 'disabled'}>${C.playing ? '■ stop' : '▶ play together'}</button><button class="btn chip" id="cCut" ${film().pieces.length ? '' : 'disabled'}>edit the film</button><button class="btn chip" id="cFill">${ph === 'between' ? 'next card ▸' : 'fill the rest ▸'}</button></div>
         ${C.ready ? '' : `<div class="hint">${esc(C.why)}</div>`}<div class="cps">${rows}</div>
         ${world ? `<div class="ph" style="margin-top:6px">The world <small>what the room made true</small></div><div class="cworld">${world}</div>` : ''}${films}
         ${ST.log.length ? `<div class="clog">${ST.log.slice(0, 5).map(l => `<div>${l.html}</div>`).join('')}</div>` : ''}`, 'cin');
@@ -350,7 +332,7 @@
     function stateFor(p) { const h = hands[p.id] || {}, ph = C.phase, M = MODES[C.mode] || {}, base = { phase: 'cin', noScore: true, me: p.id, ready: C.ready, round: C.round, mode: C.mode, modeName: M.name || '', modeSub: M.sub || '', ph, heard: h.heard || '', heardN: h.n || 0, miss: !!h.miss,
         crew: C.order.filter(id => P(id)).map(id => ({ id, av: P(id).av, c: colOf(id), name: P(id).name })), playing: !!C.playing };
       const sv = k => ({ k, th: thumbOf(shot(k).video), v: shot(k).video });
-      if (C.playing) { const cur = C.playing[C.at]; return { ...base, now: cur ? { ...sv(cur.k), by: nameOf(cur.by), c: colOf(cur.by), snd: cur.snd ? { fam: cur.snd.fam, by: nameOf(cur.snd.by), c: colOf(cur.snd.by) } : null, op: cur.op || null } : null }; }
+      if (C.playing) { const cur = C.playing[C.at]; return { ...base, kept: !!cur && C.keeps[p.id] === cur.id, now: cur ? { ...sv(cur.k), by: nameOf(cur.by), c: colOf(cur.by), snd: cur.snd ? { fam: cur.snd.fam, by: nameOf(cur.snd.by), c: colOf(cur.snd.by) } : null, op: cur.op || null } : null }; }
       if (ph === 'steps') { const c = chainOf(p.id), sn = stepName(), st = STEP[sn], hide = M.hide; if (!c) return base;
         const prev = c.who[(C.step + c.who.length - 1) % c.who.length], next = c.who[(C.step + 1) % c.who.length], t = c.shots.length ? (sn === 'entrance' ? c.shots[0] : last(c)) : null;
         const hand = t ? { ...sv(t.k), box: t.box || null, snd: t.snd ? { fam: t.snd.fam, u: t.snd.u, t0: t.snd.t0, t1: t.snd.t1, by: nameOf(t.snd.by), c: colOf(t.snd.by) } : null, op: t.op || null, by: nameOf(t.by), c: colOf(t.by), listen: hide && sn === 'listen', look: hide && sn === 'look' } : null;
@@ -359,13 +341,11 @@
           discs: st.deal === 'sounds' ? (h.discs || []).map(d => ({ key: keyOf(d), th: d.th, u: d.u, t0: d.t0, t1: d.t1, fam: d.fam, x: d.x || '', gold: !!d.gold, motif: !!d.motif })) : null,
           ops: st.deal === 'ops' ? (h.ops || []).map(o => ({ key: o, n: OPN[o] })) : null,
           figs: st.deal === 'figs' ? (h.figs || []).map(f => ({ key: String(f), png: SAM.figs[f].png.replace(/\.png$/, EXT), desc: SAM.figs[f].desc })) : null,
+          bonds: st.deal === 'bonds' ? BONDS : null, pair: st.deal === 'bonds' && c.shots.length > 1 ? c.shots.slice(-2).map(x => sv(x.k)) : null,
           slots: st.deal === 'place' ? film().pieces.map(x => ({ th: thumbOf(shot(x.k).video), c: colOf(x.by) })) : null }; }
       if (ph === 'surf') { const s = C.surf[p.id]; if (!s) return base; return { ...base, at: sv(s.at), ring: s.ring.map(sv), rec: !!s.rec, trail: s.trail.slice(-6).map(x => thumbOf(shot(x.k).video)) }; }
-      if (ph === 'chem') { const Mo = C.molecule; return { ...base, moves: Math.max(0, h.moves || 0), atoms: Mo.atoms.map(a => ({ id: a.id, th: thumbOf(shot(a.k).video), x: a.x, y: a.y, c: colOf(a.by), snd: !!Mo.ligs.find(l => l.atom === a.id) })), bonds: Mo.bonds.map(b => ({ id: b.id, a: b.a, b: b.b, type: b.type })),
-          items: (h.items || []).map(x => ({ key: String(x.k), ...sv(x.k) })), discs: (h.discs || []).map(d => ({ key: keyOf(d), th: d.th, u: d.u, t0: d.t0, t1: d.t1, fam: d.fam, x: d.x || '' })) }; }
       if (ph === 'vote') return { ...base, options: C.chains.filter(c => c.shots.length).map(c => { const hh = c.shots.find(s => s.by === c.who[0]) || c.shots[0]; return { key: c.id, ...sv(hh.k), by: nameOf(c.who[0]), c: colOf(c.who[0]) }; }), voted: C.votes[p.id] };
-      if (ph === 'keep') return { ...base, pieces: (C.pending || []).map(x => ({ key: x.id, ...sv(x.k), c: colOf(x.by), rej: (x.r.tomato || 0) + (x.r.cut || 0) > (x.r.rose || 0) + (x.r.bravo || 0) && (x.r.tomato || 0) > 0 })), kept: C.keeps[p.id] };
-      if (ph === 'next') return { ...base, cards: (C.offer || []).map(m => ({ key: m, name: MODES[m].name, sub: MODES[m].sub })), voted: C.votes[p.id] };
+      if (ph === 'between') return { ...base, next: MODES[C.nextMode].name, nextSub: MODES[C.nextMode].sub, filmN: film().pieces.length, kept: Object.values(ST.mine[p.id] || []).length };
       return base; }
     draw();
     return { stateFor, draw, onMsg, onJoin: p => { draw(); },
@@ -373,105 +353,103 @@
       stop() { stopIt(); clearInterval(clock); clearTimeout(advT); root$.hidden = true; root$.innerHTML = ''; $('#host').classList.remove('cin'); try { speechSynthesis.cancel(); } catch (e) { } } };
   }
 
-  // ======================================================================= a phone: the thing in your hands, the archive, one big move
-  const L = { prev: null, talk: null, sending: false, sel: '', selFor: '', note: '', asked: 0, far: false, len: 4.2, chem: { mode: 'add', atom: null, bond: 'cut', id: null } };
+  // ======================================================================= a phone: one thing on screen, ‹ › to browse, one big button
+  const L = { i: 0, key: '', sig: '', prev: null, talk: null, sending: false, note: '', asked: 0, heardWas: 0, stop: null, shown: '' };
+  const SEARCH = '<svg viewBox="0 0 40 40"><circle cx="17" cy="17" r="10" fill="none" stroke="currentColor" stroke-width="3.4"/><path d="M25 25 L35 35" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/></svg>';
   function phone(S, api) {
     if (S.phase !== 'cin') return null; L.S = S;
     const ph = S.ph, sk = [ph, S.round, S.step || '', S.playing].join('|');
-    if (L.selFor !== sk) { L.selFor = sk; L.sel = ''; L.note = ''; L.len = 4.2; L.heardOnce = 0; }
+    if (L.key !== sk) { L.key = sk; L.i = 0; L.note = ''; L.heardOnce = 0; L.shown = ''; }
     const take = {
       key: 'cin' + sk,
-      render(el) { el.innerHTML = `<div class="cm"><div class="chd"><span class="cmode">${esc(S.modeName)}</span><span class="csay" id="cSay"></span><span class="ccrew" id="cCrew"></span></div><div class="cbd" id="cBd"></div></div>`; L.take = take; take.patch(el, api, true); },
-      patch(el, api, force) { const S = L.S;
-        el.querySelector('#cSay').textContent = S.playing ? 'Play together.' : ph === 'steps' ? S.say : ph === 'surf' ? 'Wander. REC somewhere strange.' : ph === 'chem' ? 'Combine.' : ph === 'vote' ? 'Who is the hero?' : ph === 'keep' ? 'Keep something. Or let it go.' : ph === 'next' ? 'What do we play next?' : S.ready ? '' : 'Opening the archive…';
-        el.querySelector('#cCrew').innerHTML = S.crew.map(c => `<i style="--c:${c.c}" title="${esc(c.name)}">${esc(c.name[0])}</i>`).join('');
-        const bd = el.querySelector('#cBd');
-        if (S.playing) { const n = S.now, k = 'p' + (n ? n.k : ''); if (bd.dataset.k !== k) { bd.dataset.k = k; bd.innerHTML = n ? `<div class="cprev"><img src="${esc(n.th)}" alt=""></div><div class="cby"><span style="--c:${n.c}">${I.eye}${esc(n.by)}</span>${n.snd ? `<span style="--c:${n.snd.c}">${famIcon(n.snd.fam)}${esc(n.snd.by)}</span>` : ''}${n.op ? `<span>${I[n.op]}${OPN[n.op]}</span>` : ''}</div><div class="cthrowhint">${I.play}</div>` : ''; } return; }
-        if (ph === 'steps') return steps(bd, api, force);
-        if (ph === 'surf') return surf(bd, api, force);
-        if (ph === 'chem') return chem(bd, api, force);
-        if (ph === 'vote' || ph === 'next' || ph === 'keep') return choose(bd, api); }
+      render(el) { el.innerHTML = `<div class="cm"><div class="chd"><span class="cmode">${esc(S.modeName)}</span><span class="csay" id="cSay"></span><button class="cmag" id="cMag" aria-label="search" hidden>${SEARCH}</button></div>
+          <div class="cstage" id="cStage"><div class="cmedia" id="cMedia"></div><button class="cnav l" id="cPrev" aria-label="back">${I.left}</button><button class="cnav r" id="cNext" aria-label="next">${I.right}</button><div class="cdots2" id="cDots"></div></div>
+          <div class="cmeta" id="cMeta"></div><button class="cbig" id="cBig"></button>
+          <div class="csheet" id="cSheet" hidden><div class="cfind"><button class="cmic" id="cTalk" aria-label="hold to talk">${I.mic}<i id="cLv"></i></button><form class="ctype" id="cForm"><input id="cType" type="text" enterkeyhint="search" autocomplete="off" maxlength="80" placeholder="say or type what you want"><button type="submit">find</button></form><button class="cx2" id="cClose" aria-label="close">✕</button></div><div class="cnote" id="cNote"></div></div></div>`;
+        wire(el, api); take.patch(el, api, true); },
+      patch(el, api, force) { const S = L.S, list = items();
+        el.querySelector('#cSay').textContent = S.playing ? 'Throw things. Keep one.' : ph === 'steps' ? (S.passed ? 'Passed.' : S.say) : ph === 'surf' ? 'Wander. Record somewhere strange.' : ph === 'vote' ? 'Who is the hero?' : ph === 'between' ? 'That’s in the film.' : S.ready ? '' : 'Opening the archive…';
+        const sig = JSON.stringify(list.map(x => x.key)); if (sig !== L.sig) { L.sig = sig; if (!L.keepI) L.i = 0; L.keepI = 0; }
+        if (L.i >= list.length) L.i = Math.max(0, list.length - 1);
+        const mag = el.querySelector('#cMag'); mag.hidden = !(ph === 'surf' || (ph === 'steps' && !S.passed && ['shots', 'sounds', 'figs'].includes(S.kind)));
+        const browse = list.length > 1 || ph === 'surf' || (ph === 'steps' && ['shots', 'sounds', 'figs'].includes(S.kind));
+        el.querySelector('#cPrev').hidden = !browse || (ph !== 'surf' && L.i === 0); el.querySelector('#cNext').hidden = !browse;
+        el.querySelector('#cDots').innerHTML = browse && ph !== 'surf' ? list.map((_, i) => `<i class="${i === L.i ? 'on' : ''}"></i>`).join('') : '';
+        show(el, api, list[L.i], force); big(el, api, list[L.i]); note(); }
     };
-    // ---- the chain step: the thing passed to you, the archive, PASS
-    function steps(bd, api, force) { const S = L.S;
-      if (S.passed) { const k = 'passed' + S.step; if (bd.dataset.k !== k) { bd.dataset.k = k; bd.innerHTML = `<div class="cdone">${I.pass}<b>${S.to ? 'Passed to ' + esc(S.to) : 'Passed'}</b><small>waiting for the others</small></div>`; } return; }
-      if (!bd.querySelector('#cHand') || force) { bd.dataset.k = ''; bd.innerHTML = `<div class="cl" id="cHand"></div><div class="cr" id="cArch"></div>`; }
-      hand(bd.querySelector('#cHand'), api, force); arch(bd.querySelector('#cArch'), api, force); }
-    function hand(el, api, force) { const S = L.S, h = S.hand, sel = pickedItem();
-      const k = JSON.stringify([S.step, h && h.k, L.sel, L.len]); if (!force && el.dataset.k === k) return; el.dataset.k = k;
-      let pic; if (S.kind === 'shots' || S.kind === 'backlot') pic = sel ? `<video src="${esc(sel.v)}" muted loop playsinline autoplay></video>${sel.prov ? `<i class="prov">${I.star}${esc(sel.prov)}</i>` : ''}` : h && !h.listen ? `<img src="${esc(h.th)}" alt="" class="dim">` : h && h.listen ? `<button class="clisten" id="cListen">${I.ear}<small>tap to hear it again</small></button>` : `<div class="cempty">${I.eye}<small>tap something to look at it</small></div>`;
-      else if (S.kind === 'figs') pic = sel ? `<img class="fig" src="${esc(sel.png)}" alt="">` : `<div class="cempty">${I.branch}<small>pick something small</small></div>`;
-      else if (S.kind === 'place') pic = h ? `<img src="${esc(h.th)}" alt="">` : '';
-      else pic = h ? (h.listen ? `<button class="clisten" id="cListen">${I.ear}</button>` : `<video src="${esc(h.v)}" muted loop playsinline autoplay ${h.box ? `style="transform-origin:${(h.box[0] + h.box[2] / 2) * 100}% ${(h.box[1] + h.box[3] / 2) * 100}%;transform:scale(${Math.min(3.2, .85 / Math.max(h.box[2], h.box[3]))})"` : ''}></video>`) : '';
-      const badge = S.kind === 'ops' && L.sel ? `<b class="cop">${I[L.sel]}</b>` : S.kind === 'sounds' && sel ? `<b class="csd" style="--f:${FAM[sel.fam]}">${famIcon(sel.fam)}</b>` : '';
-      const from = S.from && h ? `<div class="cfrom" style="--c:${h.c}">${esc(S.from)}’s ${S.kind === 'sounds' || S.kind === 'ops' ? 'shot' : 'shot'}${h.snd ? ` · <span style="color:${FAM[h.snd.fam]}">${famIcon(h.snd.fam)}</span>${esc(h.snd.by)}` : ''}</div>` : '';
-      const len = S.kind === 'ops' && L.sel ? `<label class="clen">${I.time}<input type="range" id="cLen" min="1" max="6" step=".1" value="${L.len}"><b>${L.len.toFixed(1)}s</b></label>` : '';
-      const label = !L.sel ? (S.kind === 'place' ? 'tap where it goes' : 'pick one') : (S.act || 'Pass it') + ' ▸' + (S.to ? ' ' + S.to : '');
-      el.innerHTML = `${from}<div class="cprev">${pic}${badge}</div>${len}<button class="cpass" id="cPass" ${L.sel === '' ? 'disabled' : ''}>${I.pass}<span>${esc(label)}</span></button>`;
-      const b = el.querySelector('#cPass'); b.onclick = () => { if (L.sel === '') return; api.buzz(26); api.send({ t: 'pass', key: L.sel, len: L.len }); b.disabled = true; b.querySelector('span').textContent = 'passing…'; };
-      const r = el.querySelector('#cLen'); if (r) r.oninput = () => { L.len = +r.value; el.querySelector('.clen b').textContent = L.len.toFixed(1) + 's'; };
-      const li = el.querySelector('#cListen'); if (li && h) { const play = () => { const a = L.prev || (L.prev = new Audio()); a.src = h.v; a.currentTime = 0; a.play().catch(() => { }); clearTimeout(a._t); a._t = setTimeout(() => a.pause(), 5000); }; li.onclick = play; if (!L.heardOnce) { L.heardOnce = 1; play(); } } }
-    function pickedItem() { const S = L.S; if (L.sel === '') return null; return (S.items || []).find(x => x.key === L.sel) || (S.discs || []).find(x => x.key === L.sel) || (S.figs || []).find(x => x.key === L.sel) || null; }
-    function arch(el, api, force) { const S = L.S, kind = S.kind;
-      const rk = JSON.stringify([S.step, S.items, S.discs, S.ops, S.figs, S.slots]); if (!force && el.dataset.k === rk) { note(el); return; } if ((L.talk || (document.activeElement && document.activeElement.tagName === 'INPUT')) && !force) return; el.dataset.k = rk;
-      const keepQ = (el.querySelector('#cType') || {}).value || '';
-      const items = kind === 'shots' || kind === 'backlot' ? (S.items || []).map(c => `<button class="ci ${c.key === L.sel ? 'on' : ''} ${c.gold ? 'gold' : ''}" data-pick="${c.key}"><img src="${esc(c.th)}" alt="" draggable="false">${c.prov ? `<small>${esc(c.prov)}</small>` : ''}</button>`).join('')
-        : kind === 'sounds' ? (S.discs || []).map(d => `<button class="ci cd ${d.key === L.sel ? 'on' : ''} ${d.gold ? 'gold' : ''} ${d.motif ? 'motif' : ''}" data-pick="${esc(d.key)}" data-u="${esc(d.u)}" data-t0="${d.t0}" data-t1="${d.t1}" style="--f:${FAM[d.fam]}"><img src="${esc(d.th)}" alt="" draggable="false"><b>${famIcon(d.fam)}</b>${d.x ? `<small>${esc(d.x)}</small>` : ''}</button>`).join('')
-        : kind === 'ops' ? (S.ops || []).map(o => `<button class="ci co ${o.key === L.sel ? 'on' : ''}" data-pick="${o.key}">${I[o.key]}<small>${o.n}</small></button>`).join('')
-        : kind === 'figs' ? (S.figs || []).map(f => `<button class="ci cf ${f.key === L.sel ? 'on' : ''}" data-pick="${f.key}"><img src="${esc(f.png)}" alt="" draggable="false"></button>`).join('')
-        : kind === 'place' ? (S.slots || []).map((s, i) => `<button class="cslot ${String(i) === L.sel ? 'on' : ''}" data-pick="${i}"><i></i></button><span class="cs" style="--c:${s.c}"><img src="${esc(s.th)}" alt=""></span>`).join('') + `<button class="cslot ${String((S.slots || []).length) === L.sel ? 'on' : ''}" data-pick="${(S.slots || []).length}"><i></i></button>` : '';
-      const finder = kind === 'ops' || kind === 'place' ? '' : `<div class="cfind"><button class="cmic" id="cTalk" aria-label="hold to talk">${I.mic}<i id="cLv"></i></button><form class="ctype" id="cForm"><input id="cType" type="text" enterkeyhint="search" autocomplete="off" maxlength="80" placeholder="${kind === 'sounds' ? 'say or type a sound: bells, rain, “hello”' : 'say or type: a dog, rain, a door'}"><button type="submit">find</button></form><button class="cfar" id="cFar" aria-label="farther">${I.far}</button></div><div class="cnote" id="cNote"></div>`;
-      el.innerHTML = `${finder}<div class="cgrid ${kind}">${items}</div>`;
-      const ti = el.querySelector('#cType'); if (ti) { ti.value = keepQ; el.querySelector('#cForm').onsubmit = e => { e.preventDefault(); const q = ti.value.trim(); if (!q) return; ti.blur(); api.buzz(10); ask(api, { text: q }, 'looking for “' + q + '”…'); }; }
-      el.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { api.buzz(8); L.sel = b.dataset.pick; el.querySelectorAll('[data-pick]').forEach(x => x.classList.toggle('on', x === b)); const hd = document.getElementById('cHand'); if (hd) hand(hd, api, true); if (b.dataset.u) hearDisc(b); });
-      const f = el.querySelector('#cFar'); if (f) f.onclick = () => { api.buzz(8); ask(api, { far: 1 }, 'going farther…'); };
-      const t = el.querySelector('#cTalk'); if (t) talk(t, api); note(el); }
-    function note(el) { const S = L.S, nt = el.querySelector('#cNote'); if (!nt) return; if (L.asked && S.heardN !== L.heardWas) { L.asked = 0; L.note = L.far ? 'farther out · stranger things below' : S.miss ? 'nothing heard: type it instead' : S.heard ? 'heard “' + S.heard + '” · new things below' : 'new things below'; }
-      else if (L.asked && performance.now() - L.asked > 15000) { L.asked = 0; L.note = 'no answer: try again or type'; } nt.textContent = L.note; nt.classList.toggle('busy', !!L.asked); }
-    function ask(api, m, n) { L.far = !!m.far; L.asked = performance.now(); L.heardWas = L.S.heardN; L.note = n; const nt = document.getElementById('cNote'); if (nt) { nt.textContent = n; nt.classList.add('busy'); } api.send(m.far ? { t: 'far' } : { t: 'say', ...m }); }
-    function hearDisc(b) { const a = L.prev || (L.prev = new Audio()); a.src = b.dataset.u; const t0 = +b.dataset.t0 || 0, t1 = +b.dataset.t1 || t0 + 5; a.addEventListener('loadedmetadata', () => { try { a.currentTime = t0; } catch (e) { } a.play().catch(() => { }); }, { once: true }); clearTimeout(a._t); a._t = setTimeout(() => a.pause(), Math.min(6, t1 - t0) * 1000 + 200);
-      const v = document.querySelector('#cHand video'); if (v) { try { v.currentTime = 0; } catch (e) { } v.play().catch(() => { }); } }
+    // what can be browsed right now
+    function items() { const S = L.S;
+      if (S.playing) return S.now ? [{ key: 'now', show: 'img', th: S.now.th }] : [];
+      if (ph === 'steps') { if (S.passed) return [];
+        if (S.kind === 'shots' || S.kind === 'backlot') return (S.items || []).map(x => ({ key: x.key, show: 'video', v: x.v, th: x.th, prov: x.prov, gold: x.gold }));
+        if (S.kind === 'sounds') return (S.discs || []).map(d => ({ key: d.key, show: 'sound', d }));
+        if (S.kind === 'ops') return (S.ops || []).map(o => ({ key: o.key, show: 'op', o }));
+        if (S.kind === 'figs') return (S.figs || []).map(f => ({ key: f.key, show: 'fig', png: f.png }));
+        if (S.kind === 'bonds') return (S.bonds || []).map(b => ({ key: b, show: 'bond', b }));
+        if (S.kind === 'place') { const sl = S.slots || []; return Array.from({ length: sl.length + 1 }, (_, i) => ({ key: String(sl.length - i), show: 'place', a: sl[sl.length - i - 1], b: sl[sl.length - i] })); } }
+      if (ph === 'surf') return S.at ? [{ key: String(S.at.k), show: 'video', v: S.at.v, th: S.at.th }] : [];
+      if (ph === 'vote') return (S.options || []).map(o => ({ key: String(o.key), show: 'img', th: o.th, by: o.by, c: o.c }));
+      return []; }
+    // the thing on screen; sounds play on the phone, cuts happen on the phone
+    function show(el, api, it, force) { const S = L.S, m = el.querySelector('#cMedia'), meta = el.querySelector('#cMeta'), id = it ? it.key + '|' + it.show : (S.passed ? 'passed' : ph);
+      if (!force && L.shown === id + S.heardN) return; L.shown = id + S.heardN; if (L.stop) { L.stop(); L.stop = null; } const a = L.prev || (L.prev = new Audio()); a.pause();
+      const h = S.hand;
+      if (S.passed) { m.innerHTML = `<div class="cdone">${I.pass}<b>${S.to ? 'Passed to ' + esc(S.to) : 'In the film'}</b><small>waiting for the others</small></div>`; meta.innerHTML = ''; return; }
+      if (ph === 'between') { m.innerHTML = `<div class="cdone">${I.star}<b>${S.filmN} shots in the film</b><small>next: ${esc(S.next)} · ${esc(S.nextSub)}</small></div>`; meta.innerHTML = ''; return; }
+      if (!it) { m.innerHTML = `<div class="cdone"><small>${S.ready ? '…' : 'opening the archive…'}</small></div>`; meta.innerHTML = ''; return; }
+      const vid = (v, box, th) => `<video src="${esc(v)}" ${th ? `poster="${esc(th)}"` : ''} muted loop playsinline autoplay ${box ? `style="transform-origin:${(box[0] + box[2] / 2) * 100}% ${(box[1] + box[3] / 2) * 100}%;transform:scale(${Math.min(3.2, .85 / Math.max(box[2], box[3]))})"` : ''}></video>`;
+      if (it.show === 'video') m.innerHTML = vid(it.v, null, it.th) + (it.prov ? `<i class="prov">${I.star}${esc(it.prov)}</i>` : '');
+      else if (it.show === 'img') m.innerHTML = `<img src="${esc(it.th)}" alt="">`;
+      else if (it.show === 'fig') m.innerHTML = `<img class="fig" src="${esc(it.png)}" alt="">`;
+      else if (it.show === 'sound') { m.innerHTML = (h ? vid(h.v, h.box, h.th) : '') + `<b class="csd2" style="--f:${FAM[it.d.fam]}">${famIcon(it.d.fam)}</b>${it.d.x ? `<i class="cline">“${esc(it.d.x)}”</i>` : ''}`; a.src = it.d.u; a.addEventListener('loadedmetadata', () => { try { a.currentTime = it.d.t0 || 0; } catch (e) { } a.play().catch(() => { }); }, { once: true }); clearTimeout(a._t); a._t = setTimeout(() => a.pause(), Math.min(6, (it.d.t1 || 5) - (it.d.t0 || 0)) * 1000 + 200); }
+      else if (it.show === 'op' && h) { m.innerHTML = `<video playsinline muted></video><div class="cb"></div><img class="cx" alt=""><b class="copw">${I[it.o.key]}<span>${it.o.n}</span></b>`; const V = m.querySelector('video'); L.stop = run({ v: h.v, snd: h.snd ? { u: h.snd.u, t0: h.snd.t0, t1: h.snd.t1 } : null, op: it.o.key, len: 4.2, box: h.box, flash: h.th }, { V, A: a, X: m.querySelector('.cx'), B: m.querySelector('.cb') }, { done: () => { if (L.shown.startsWith(id)) { L.shown = ''; show(el, api, it, true); } } }); }
+      else if (it.show === 'bond') { const pr = S.pair || []; m.innerHTML = `<div class="cpair">${pr[0] ? `<img src="${esc(pr[0].th)}" alt="">` : ''}<b style="--c:${BCOL[it.b]}">${I.combine}<span>${it.b}</span></b>${pr[1] ? `<img src="${esc(pr[1].th)}" alt="">` : ''}</div>`; }
+      else if (it.show === 'place') m.innerHTML = `<div class="cpair">${it.a ? `<img src="${esc(it.a.th)}" alt="">` : '<em>start</em>'}<b class="slot">${I.star}</b>${it.b ? `<img src="${esc(it.b.th)}" alt="">` : '<em>end</em>'}</div>`;
+      // the line under it: whose it is, what you are adding
+      if (S.playing && S.now) meta.innerHTML = `<span style="--c:${S.now.c}">${I.eye}${esc(S.now.by)}</span>${S.now.snd ? `<span style="--c:${S.now.snd.c}">${famIcon(S.now.snd.fam)}${esc(S.now.snd.by)}</span>` : ''}${S.now.op ? `<span>${I[S.now.op]}${OPN[S.now.op]}</span>` : ''}`;
+      else if (ph === 'steps' && h && S.from) meta.innerHTML = `<span style="--c:${h.c}">${esc(S.from)}’s shot</span>${h.listen ? `<button class="chear" id="cHear">${I.ear}hear it</button>` : ''}`;
+      else if (ph === 'steps' && h && h.listen) meta.innerHTML = `<button class="chear" id="cHear">${I.ear}hear it</button>`;
+      else if (ph === 'vote') meta.innerHTML = `<span style="--c:${it.c}">${esc(it.by)}’s</span>`;
+      else meta.innerHTML = '';
+      const hb = meta.querySelector('#cHear'); if (hb && h) { const go = () => { a.src = h.v; a.currentTime = 0; a.play().catch(() => { }); clearTimeout(a._t); a._t = setTimeout(() => a.pause(), 5000); }; hb.onclick = go; if (!L.heardOnce) { L.heardOnce = 1; go(); } } }
+    // the one big button
+    function big(el, api, it) { const S = L.S, b = el.querySelector('#cBig'); let label = '', on = !!it, cls = '';
+      if (S.playing) { label = S.kept ? '★ Kept' : '★ Keep this one'; cls = S.kept ? 'gold' : 'gold-o'; on = !S.kept; }
+      else if (ph === 'steps') { if (S.passed) { label = 'Passed ✓'; on = false; } else label = (S.act || 'Pass it') + ' ▸ ' + (S.to || 'the film'); }
+      else if (ph === 'surf') { label = S.rec ? '● Recorded · again' : '● REC'; cls = 'rec'; on = true; }
+      else if (ph === 'vote') { label = S.voted != null && it && String(S.voted) === it.key ? 'Voted ✓' : 'Vote'; cls = 'pink'; }
+      else if (ph === 'between') { label = '▶ Next: ' + S.next; on = true; }
+      else { label = '…'; on = false; }
+      b.textContent = label; b.className = 'cbig ' + cls; b.disabled = !on; }
+    function wire(el, api) {
+      const go = d => { const S = L.S, list = items(); api.buzz(6);
+        if (ph === 'surf') { if (d < 0) api.send({ t: 'back' }); else { const r = S.ring || []; const k = r[Math.min(r.length - 1, Math.floor(Math.random() * 3))]; if (k) api.send({ t: 'surf', k: k.k }); } return; }
+        if (d > 0 && L.i >= list.length - 1) { if (ph === 'steps' && ['shots', 'sounds', 'figs'].includes(S.kind)) { ask(api, { far: 1 }, 'more…'); } return; }
+        L.i = Math.max(0, Math.min(list.length - 1, L.i + d)); take.patch(el, api); };
+      el.querySelector('#cPrev').onclick = () => go(-1); el.querySelector('#cNext').onclick = () => go(1);
+      const st = el.querySelector('#cStage'); let x0 = null; st.addEventListener('pointerdown', e => { x0 = e.clientX; }); st.addEventListener('pointerup', e => { if (x0 == null) return; const dx = e.clientX - x0; x0 = null; if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1); });
+      el.querySelector('#cBig').onclick = () => { const S = L.S, it = items()[L.i]; api.buzz(26);
+        if (S.playing) api.send({ t: 'keep' });
+        else if (ph === 'steps' && it) { api.send({ t: 'pass', key: it.key }); const b = el.querySelector('#cBig'); b.disabled = true; b.textContent = 'passing…'; }
+        else if (ph === 'surf') api.send({ t: 'rec' });
+        else if (ph === 'vote' && it) api.send({ t: 'vote', v: +it.key });
+        else if (ph === 'between') api.send({ t: 'next' }); };
+      const sh = el.querySelector('#cSheet'); el.querySelector('#cMag').onclick = () => { sh.hidden = false; L.note = ''; note(); }; el.querySelector('#cClose').onclick = () => { sh.hidden = true; };
+      const ti = el.querySelector('#cType'); el.querySelector('#cForm').onsubmit = e => { e.preventDefault(); const q = ti.value.trim(); if (!q) return; ti.blur(); ask(api, { text: q }, 'looking for “' + q + '”…'); };
+      talk(el.querySelector('#cTalk'), api); }
+    function note() { const S = L.S, nt = document.getElementById('cNote'); if (!nt) return;
+      if (L.asked && S.heardN !== L.heardWas) { L.asked = 0; L.note = L.far ? '' : S.miss ? 'nothing heard: type it instead' : S.heard ? 'found things for “' + S.heard + '”' : ''; const sh = document.getElementById('cSheet'); if (sh && !S.miss) sh.hidden = true; }
+      else if (L.asked && performance.now() - L.asked > 15000) { L.asked = 0; L.note = 'no answer: try again or type'; }
+      nt.textContent = L.note; nt.classList.toggle('busy', !!L.asked); }
+    function ask(api, m, n) { L.far = !!m.far; L.asked = performance.now(); L.heardWas = L.S.heardN; L.note = n; if (m.far) L.keepI = 0; note(); api.send(m.far ? { t: 'far' } : { t: 'say', ...m }); }
     function talk(b, api) {
-      const say = t => { const n = document.getElementById('cNote'); if (n) { n.textContent = t; n.classList.add('busy'); } L.note = t; };
+      const say = t => { L.note = t; const n = document.getElementById('cNote'); if (n) { n.textContent = t; n.classList.add('busy'); } };
       b.onpointerdown = e => { e.preventDefault(); if (L.talk || L.sending) return; api.buzz(16); try { b.setPointerCapture(e.pointerId); } catch (x) { } b.classList.add('on'); let last = 0; say('listening… let go to send');
         L.talk = window.Ears ? Ears.hold(api, { onLevel: v => { const i = document.getElementById('cLv'); if (i) i.style.transform = `scale(${1 + Math.min(1, v * 3)})`; }, onPartial: t => { const now = performance.now(); if (now - last > 200) { last = now; api.send({ t: 'heard', part: t }); } if (t) say('“' + t + '”'); } }) : null;
         if (L.talk) L.talk.ready.catch(() => { L.talk = null; b.classList.remove('on'); say('no microphone: type it instead'); }); else say('no microphone: type it instead'); };
       const up = async () => { const h = L.talk; if (!h) return; L.talk = null; b.classList.remove('on'); L.sending = true; say('sending…'); const r = await h.stop().catch(() => null); L.sending = false;
-        if (r) ask(api, { a: r.a, mime: r.mime, dur: r.dur, text: r.text }, r.text ? 'looking for “' + r.text + '”…' : 'listening to it…'); else say('too short: hold the button while you talk'); };
+        if (r) ask(api, { a: r.a, mime: r.mime, dur: r.dur, text: r.text }, r.text ? 'looking for “' + r.text + '”…' : 'listening to it…'); else say('too short: hold it while you talk'); };
       b.onpointerup = up; b.onpointercancel = up; b.oncontextmenu = e => e.preventDefault(); }
-    // ---- surfing: the channel you are on, the channels around it, REC
-    function surf(bd, api, force) { const S = L.S, k = JSON.stringify([S.at && S.at.k, S.ring && S.ring.map(r => r.k), S.rec]); if (!force && bd.dataset.k === k) { const n = bd.querySelector('#cNote'); if (n) note(bd); return; } if ((L.talk || (document.activeElement && document.activeElement.tagName === 'INPUT')) && !force) return; bd.dataset.k = k;
-      bd.innerHTML = `<div class="cl"><div class="cprev"><video src="${esc(S.at.v)}" muted loop playsinline autoplay></video><i class="ctrail">${(S.trail || []).map(t => `<img src="${esc(t)}" alt="">`).join('')}</i></div><button class="crec ${S.rec ? 'done' : ''}" id="cRec">${I.rec}<span>${S.rec ? 'Recorded · REC again' : 'REC · keep your path'}</span></button></div>
-        <div class="cr"><div class="cfind"><button class="cmic" id="cTalk">${I.mic}<i id="cLv"></i></button><form class="ctype" id="cForm"><input id="cType" type="text" enterkeyhint="go" autocomplete="off" maxlength="80" placeholder="say or type where to go"><button type="submit">go</button></form><button class="cfar" id="cFar">${I.far}</button></div><div class="cnote" id="cNote"></div>
-        <div class="cgrid surf">${S.ring.map((r, i) => `<button class="ci ${i === S.ring.length - 1 ? 'static' : ''}" data-surf="${r.k}"><img src="${esc(r.th)}" alt="" draggable="false"></button>`).join('')}</div></div>`;
-      bd.querySelectorAll('[data-surf]').forEach(b => b.onclick = () => { api.buzz(10); api.send({ t: 'surf', k: +b.dataset.surf }); b.classList.add('on'); });
-      bd.querySelector('#cRec').onclick = () => { api.buzz(30); api.send({ t: 'rec' }); };
-      const ti = bd.querySelector('#cType'); bd.querySelector('#cForm').onsubmit = e => { e.preventDefault(); const q = ti.value.trim(); if (!q) return; ti.blur(); ask(api, { text: q }, 'tuning to “' + q + '”…'); };
-      bd.querySelector('#cFar').onclick = () => { api.buzz(8); ask(api, { far: 1 }, 'going farther…'); }; talk(bd.querySelector('#cTalk'), api); note(bd); }
-    // ---- the molecule: tap an atom, pick a bond, pick a shot (or a sound); COMBINE
-    function chem(bd, api, force) { const S = L.S, Cm = L.chem; if (!S.atoms) return; if (Cm.atom == null || !S.atoms.some(a => a.id === Cm.atom)) Cm.atom = S.atoms[S.atoms.length - 1].id;
-      const k = JSON.stringify([S.atoms.length, S.bonds, S.moves, Cm, L.sel, S.items && S.items.map(x => x.key), S.atoms.map(a => a.snd)]); if (!force && bd.dataset.k === k) return; if (document.activeElement && document.activeElement.tagName === 'INPUT' && !force) return; bd.dataset.k = k;
-      const at = id => S.atoms.find(a => a.id === id);
-      const mol = `<div class="cmol p"><svg viewBox="0 0 100 56" preserveAspectRatio="none">${S.bonds.map(b => { const a = at(b.a), c = at(b.b); return `<line data-bond="${b.id}" x1="${a.x * 100}" y1="${a.y * 56}" x2="${c.x * 100}" y2="${c.y * 56}" stroke="${BCOL[b.type]}" stroke-width="${Cm.mode === 'bond' && Cm.id === b.id ? 2.2 : 1}"/>`; }).join('')}</svg>${S.atoms.map(a => `<button class="atom ${a.id === Cm.atom && Cm.mode !== 'bond' ? 'on' : ''}" data-atom="${a.id}" style="left:${a.x * 100}%;top:${a.y * 100}%;--c:${a.c}"><img src="${esc(a.th)}" alt="">${a.snd ? `<b>${I.wave}</b>` : ''}</button>`).join('')}${S.bonds.map(b => { const a = at(b.a), c = at(b.b); return `<button class="bl ${Cm.mode === 'bond' && Cm.id === b.id ? 'on' : ''}" data-bond="${b.id}" style="left:${(a.x + c.x) * 50}%;top:${(a.y + c.y) * 50}%;--c:${BCOL[b.type]}">${b.type}</button>`; }).join('')}</div>`;
-      const tabs = `<div class="ctabs">${[['add', 'Add'], ['bond', 'Bond'], ['sound', 'Sound']].map(([m, n]) => `<button data-cm="${m}" class="${Cm.mode === m ? 'on' : ''}">${n}</button>`).join('')}<span class="cmoves">${S.moves} moves</span></div>`;
-      const bonds = Cm.mode !== 'sound' ? `<div class="cbonds">${BONDS.map(b => `<button data-bt="${b}" class="${Cm.bond === b ? 'on' : ''}" style="--c:${BCOL[b]}">${b}</button>`).join('')}</div>` : '';
-      const grid = Cm.mode === 'add' ? (S.items || []).map(c => `<button class="ci ${c.key === L.sel ? 'on' : ''}" data-pick="${c.key}"><img src="${esc(c.th)}" alt=""></button>`).join('') : Cm.mode === 'sound' ? (S.discs || []).map(d => `<button class="ci cd ${d.key === L.sel ? 'on' : ''}" data-pick="${esc(d.key)}" data-u="${esc(d.u)}" data-t0="${d.t0}" data-t1="${d.t1}" style="--f:${FAM[d.fam]}"><img src="${esc(d.th)}" alt=""><b>${famIcon(d.fam)}</b></button>`).join('') : '';
-      const ready = S.moves > 0 && (Cm.mode === 'bond' ? Cm.id != null : L.sel !== '');
-      bd.innerHTML = `<div class="cl">${mol}${tabs}${bonds}<button class="cpass" id="cGo" ${ready ? '' : 'disabled'}>${I.combine}<span>${S.moves <= 0 ? 'no moves left' : Cm.mode === 'bond' ? (Cm.id == null ? 'tap a bond' : 'Change the bond ▸') : L.sel === '' ? (Cm.mode === 'add' ? 'pick a shot' : 'pick a sound') : 'Combine ▸'}</span></button></div><div class="cr">${Cm.mode === 'bond' ? '' : `<div class="cfind"><form class="ctype" id="cForm"><input id="cType" type="text" autocomplete="off" maxlength="80" placeholder="type what you want"><button type="submit">find</button></form><button class="cfar" id="cFar">${I.far}</button></div>`}<div class="cgrid">${grid}</div></div>`;
-      bd.querySelectorAll('[data-cm]').forEach(b => b.onclick = () => { Cm.mode = b.dataset.cm; L.sel = ''; chem(bd, api, true); });
-      bd.querySelectorAll('[data-atom]').forEach(b => b.onclick = () => { Cm.atom = +b.dataset.atom; if (Cm.mode === 'bond') Cm.mode = 'add'; chem(bd, api, true); });
-      bd.querySelectorAll('[data-bond]').forEach(b => b.onclick = e => { e.stopPropagation(); Cm.mode = 'bond'; Cm.id = +b.dataset.bond; chem(bd, api, true); });
-      bd.querySelectorAll('[data-bt]').forEach(b => b.onclick = () => { Cm.bond = b.dataset.bt; chem(bd, api, true); });
-      bd.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { L.sel = b.dataset.pick; if (b.dataset.u) hearDisc(b); chem(bd, api, true); });
-      const fm = bd.querySelector('#cForm'); if (fm) fm.onsubmit = e => { e.preventDefault(); const q = fm.querySelector('input').value.trim(); if (q) { api.send({ t: 'say', text: q }); fm.querySelector('input').blur(); } };
-      const fr = bd.querySelector('#cFar'); if (fr) fr.onclick = () => api.send({ t: 'far' });
-      bd.querySelector('#cGo').onclick = () => { api.buzz(26); if (Cm.mode === 'add') api.send({ t: 'chem', a: 'add', k: +L.sel, to: Cm.atom, bond: Cm.bond }); else if (Cm.mode === 'sound') api.send({ t: 'chem', a: 'sound', key: L.sel, to: Cm.atom }); else api.send({ t: 'chem', a: 'bond', id: Cm.id, bond: Cm.bond }); L.sel = ''; Cm.id = null; }; }
-    // ---- votes and keeps: one tap
-    function choose(bd, api) { const S = L.S, k = JSON.stringify([ph, S.options, S.cards, S.pieces, S.voted, S.kept]); if (bd.dataset.k === k) return; bd.dataset.k = k;
-      if (ph === 'next') bd.innerHTML = `<div class="ccards">${(S.cards || []).map(c => `<button class="ccard ${S.voted === c.key ? 'on' : ''}" data-v="${c.key}"><b>${esc(c.name)}</b><small>${esc(c.sub)}</small></button>`).join('')}</div>`;
-      else if (ph === 'vote') bd.innerHTML = `<div class="cvotes">${(S.options || []).map(o => `<button class="cvo ${S.voted === o.key ? 'on' : ''}" data-v="${o.key}" style="--c:${o.c}"><img src="${esc(o.th)}" alt=""><small>${esc(o.by)}’s</small><b>VOTE</b></button>`).join('')}</div>`;
-      else bd.innerHTML = `<div class="ckeeps">${(S.pieces || []).map(o => `<button class="ckp ${S.kept === o.key ? 'on' : ''} ${o.rej ? 'rej' : ''}" data-v="${o.key}" style="--c:${o.c}"><img src="${esc(o.th)}" alt="">${o.rej ? '<i>REJECTED</i>' : ''}<b>${I.star}</b></button>`).join('')}<button class="ckp go ${S.kept === null ? 'on' : ''}" data-v="">let it go</button></div>`;
-      bd.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { api.buzz(18); const v = b.dataset.v; api.send(ph === 'keep' ? { t: 'keep', v: v === '' ? null : +v } : { t: 'vote', v: ph === 'vote' ? +v : v }); }); }
     L.take = take;
     return { key: take.key, status: null, cls: 'cinp', throws: true, takeover: take };
   }
