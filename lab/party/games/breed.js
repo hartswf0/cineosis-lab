@@ -52,8 +52,9 @@
     function finale() { G.phase = 'film'; let best = null; for (let s = 0; s < 4; s++) { const f = MC.generate(M, G.base, Math.floor(rnd() * 1e9)); MC.critic(M, f); if (!best || f.score > best.score) best = f; } G.final = best;
       H.slate(H.card(`<div class="big">The film we bred<small>${G.gens} generations · the critic gives it ${Math.round(best.score * 100)}</small></div>`, 'gold'));
       setTimeout(() => { if (G.phase === 'film') play.play(best, {}, () => wrap()); }, 2400);
-      H.gate('Skip to the scores ▸', 'any', () => { play.stop(); wrap(); }); draw(); }
-    function wrap() { G.phase = 'wrap'; const r = rank(); if (r[0]) { H.act(r[0].id, 'cheer', 2200); H.say(r[0].id, 'good genes', 2200); } G.awards = H.awards(G.all); H.gate('Back to the lobby ▸', 'any', () => H.end()); draw(); }
+      H.gate('Skip ▸', 'any', () => { play.stop(); wrap(); }); draw(); }
+    function wrap() { G.phase = 'wrap'; const r = rank(); if (r[0]) { H.act(r[0].id, 'cheer', 2200); H.say(r[0].id, 'good genes', 2200); } G.awards = H.awards(G.all); H.gate('Edit the film ▸', 'any', () => { H.seed = toFilm(); H.playGame('cut'); }); draw(); }
+    const toFilm = () => Party.monte.toFilm(M, G.final || G.films[0].f, 'The film we bred');
     const rank = () => H.players.slice().sort((a, b) => b.score - a.score);
     function drawSide() { const ph = G.phase;
       if (ph === 'loading') return H.side(`<div class="ph">The Breeding Ground <small>loading</small></div>`, ph);
@@ -67,7 +68,7 @@
       if (ph === 'circle') { const locals = H.players.filter(p => p.local);
         const S = H.side(`<div class="ph">Circle one <small>${Object.keys(G.votes).length} of ${voters().length}</small></div>${rows(false)}${locals.map(p => `<div class="vrow"><span>${mini(p.av)} ${esc(p.name)}</span>${G.films.map((d, k) => `<button class="btn chip ${G.votes[p.id] === k ? 'on' : ''}" data-p="${p.id}" data-k="${k}" ${d.by === p.id ? 'disabled' : ''}>${k + 1}</button>`).join('')}</div>`).join('')}${!H._gate ? `<button class="btn chip" id="force" style="margin-top:8px">breed now</button>` : ''}`, ph);
         S.querySelectorAll('[data-p]').forEach(b => b.onclick = () => vote(b.dataset.p, +b.dataset.k)); const f = $('#force'); if (f) f.onclick = breed; return; }
-      if (ph === 'bred') return H.side(`<div class="ph">Generation ${G.gen} <small>+1 a circle · +2 the room’s pick · +2 the critic’s</small></div>${rows(true)}${lineageHTML()}`, ph + G.gen);
+      if (ph === 'bred') return H.side(`<div class="ph">Generation ${G.gen} <small>circles · picks</small></div>${rows(true)}${lineageHTML()}`, ph + G.gen);
       if (ph === 'film' || ph === 'wrap') return H.side(`<div class="ph">The lineage <small>${G.gens} generations</small></div>${lineageHTML()}${rank().map((p, k) => `<div class="rk">#${k + 1} ${mini(p.av)} ${esc(p.name)}<b>${p.score}</b></div>`).join('')}${G.awards ? H.awardsHTML(G.awards.filter(a => a.id !== 'house')) : ''}`, ph);
     }
     const lineageHTML = () => `<div class="ledger" style="font-size:13px;margin-top:6px">${G.lineage.map(l => `<div><b>GEN ${l.gen + 1}</b> — born of ${esc(l.of)}</div>`).join('') || '<div>generation 1: the machine’s own overnight rules</div>'}</div>`;
@@ -91,7 +92,7 @@
       el.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { api.buzz(); api.send({ t: 'dial', k: +b.dataset.k, v: +b.dataset.v }); });
       el.querySelector('#sendB').onclick = () => { api.buzz(30); api.send({ t: 'send' }); }; } } };
     if (P === 'made') return { key: 'made', status: 'The machine made a film from everyone’s rules', tabs: ['throw', 'me'] };
-    if (P === 'screen') return { key: 'screen' + S.k, status: 'Trailer ' + S.k + ' of ' + S.nF + ' · ' + esc(S.whose || '') + '’s rules · throw something', tab: 'throw', tabs: ['throw', 'me'] };
+    if (P === 'screen') return { key: 'screen' + S.k, status: 'Trailer ' + S.k + ' of ' + S.nF + ' · ' + esc(S.whose || '') + '’s rules', tab: 'throw', tabs: ['throw', 'me'] };
     if (P === 'circle') return { key: 'circle', takeover: { key: 'c' + S.mine, render(el) {
       el.innerHTML = `<div class="center"><div class="say">Circle one</div><div class="sub">the rules that should breed · not your own</div><div class="vote">${S.names.map((n, k) => `<button data-k="${k}" class="${S.mine === k ? 'on' : ''}" ${k === S.own ? 'disabled' : ''}><svg viewBox="0 0 100 100"><ellipse cx="50" cy="52" rx="44" ry="38" transform="rotate(-8 50 52)"/></svg>${k + 1}</button>`).join('')}</div><div class="sub">${S.names.map((n, k) => (k + 1) + ': ' + esc(n)).join(' · ')}</div></div>`;
       el.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { api.buzz(); api.send({ t: 'vote', k: +b.dataset.k }); }); } } };

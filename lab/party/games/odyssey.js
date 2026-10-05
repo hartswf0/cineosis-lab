@@ -55,15 +55,19 @@
       H.slate(H.card(`<div class="big">The Found Odyssey<small>${esc(book())} · cast by the room</small></div>`, 'sea'));
       const go = () => { if (G.phase !== 'film') return; if (k >= G.cast.length) { hush(); wrap(); return; } play(G.cast[k++], go); };
       tm.push(setTimeout(go, 2600));
-      H.gate('Skip to the scores ▸', 'any', () => { hush(); wrap(); }); draw(); }
-    function wrap() { if (G.phase === 'wrap') return; G.phase = 'wrap'; H.slate(H.card(`<div class="big">The chorus<small>who chose with the room most often</small></div>`, 'gold')); const r = rank(); if (r[0]) H.act(r[0].id, 'cheer', 2200); G.awards = H.awards(G.cast.map(c => ({ by: null, r: c.r }))); H.gate('Back to the lobby ▸', 'any', () => H.end()); draw(); }
+      H.gate('Skip ▸', 'any', () => { hush(); wrap(); }); draw(); }
+    function wrap() { if (G.phase === 'wrap') return; G.phase = 'wrap'; H.slate(H.card(`<div class="big">The chorus<small>who chose with the room most often</small></div>`, 'gold')); const r = rank(); if (r[0]) H.act(r[0].id, 'cheer', 2200); G.awards = H.awards(G.cast.map(c => ({ by: null, r: c.r }))); H.gate('Edit the film ▸', 'any', () => { H.seed = toFilm(); H.playGame('cut'); }); draw(); }
+    function toFilm() { const F = Cut.blank('The Found Odyssey · ' + book()); F.clips.push(Cut.card('The Found Odyssey\n' + book(), 2.5));
+      G.cast.forEach(c => { const fr = c.voice.fr.map(x => [url(x[0]), x[1], x[2], x[3]]), L = fr.reduce((a, x) => a + Math.max(.1, x[2] - x[1]) + .06, 0) + .9, t0 = c.pic.in || 0;
+        const clip = Cut.shot(url(c.pic.v), t0, t0 + L, { label: c.text }); F.clips.push(clip); F.sounds.push(Cut.frags(clip.id, fr, { text: c.text })); });
+      return F; }
     const rank = () => H.players.slice().sort((a, b) => b.score - a.score);
     function drawSide() { const ph = G.phase;
       if (ph === 'loading') return H.side(`<div class="ph">The Found Odyssey <small>loading</small></div>`, ph);
       const L = G.lines[G.i];
       if (ph === 'cast' || ph === 'cast-done') { const locals = ph === 'cast' ? H.players.filter(p => p.local) : [], show = ph === 'cast-done', ps = picsFor(G.i);
         const tally = (kind, k) => H.players.filter(p => G.votes[p.id] && G.votes[p.id][kind] === k).map(p => mini(p.av)).join('');
-        const S = H.side(`<div class="ph">Line ${G.i + 1} of ${G.lines.length} <small>${show ? '+1 for each choice you share with the room' : Object.values(G.votes).filter(v => v.v != null && v.p != null).length + ' of ' + voters().length + ' cast'}</small></div><div class="hint" style="text-align:left;color:var(--ink);font-size:16px">“${esc(L.text)}” <span style="color:#7a6a58">— ${esc(L.who)}</span></div>
+        const S = H.side(`<div class="ph">Line ${G.i + 1} of ${G.lines.length} <small>${show ? 'with the room' : Object.values(G.votes).filter(v => v.v != null && v.p != null).length + ' of ' + voters().length + ' cast'}</small></div><div class="hint" style="text-align:left;color:var(--ink);font-size:16px">“${esc(L.text)}” <span style="color:#7a6a58">— ${esc(L.who)}</span></div>
           <div class="lbl">voices</div><div class="takes">${L.vs.map((v, k) => `<div class="tk ${show && G.choice.v === k ? 'win' : ''}"><span class="n">${AB[k]}</span><span style="flex:1;font-size:14px">${esc(v.label)} · <span class="hint" style="margin:0">${esc(v.fr.map(f => f[3]).join(' ').slice(0, 80))}</span></span><span class="by vs">${show ? tally('v', k) : ''}</span><button class="btn chip" data-hear="${k}">▶</button></div>`).join('')}</div>
           <div class="lbl">pictures</div><div class="takes">${ps.map((p, k) => `<div class="tk ${show && G.choice.p === k ? 'win' : ''}"><span class="n">${k + 1}</span><span class="strip"><i style="background-image:url('${esc(thumb(p.v))}');max-width:70px"></i></span><span class="by vs">${show ? tally('p', k) : ''}</span><button class="btn chip" data-see="${k}">▶</button></div>`).join('')}</div>
           ${locals.map(p => `<div class="vrow"><span>${mini(p.av)} ${esc(p.name)}</span>${L.vs.map((v, k) => `<button class="btn chip ${(G.votes[p.id] || {}).v === k ? 'on' : ''}" data-p="${p.id}" data-kind="v" data-k="${k}">${AB[k]}</button>`).join('')}${ps.map((x, k) => `<button class="btn chip ${(G.votes[p.id] || {}).p === k ? 'on' : ''}" data-p="${p.id}" data-kind="p" data-k="${k}">${k + 1}</button>`).join('')}</div>`).join('')}
@@ -83,7 +87,7 @@
   }
   function phone(S, api) { const P = S.phase, { esc } = api;
     if (P === 'loading') return { key: 'loading', status: 'loading the archive’s voices', tabs: ['me', 'throw'] };
-    if (P === 'cast') return { key: 'cast' + S.i, status: 'Line ' + S.i + ' of ' + S.n + ' · ' + S.in + ' of ' + S.of + ' cast · +1 for each choice the room shares', takeover: { key: 'cast' + S.i + JSON.stringify(S.mine), render(el) {
+    if (P === 'cast') return { key: 'cast' + S.i, status: 'Line ' + S.i + ' of ' + S.n + ' · ' + S.in + ' of ' + S.of + ' cast', takeover: { key: 'cast' + S.i + JSON.stringify(S.mine), render(el) {
       el.innerHTML = `<div class="problem"><b style="font-size:18px">“${esc(S.text)}”</b>${esc(S.who)}</div>
         <div class="lbl">which voice says it best?</div><div class="answers compact">${S.vs.map((v, k) => `<button class="btn ${S.mine.v === k ? 'on' : ''}" data-kind="v" data-k="${k}"><span class="k">${AB[k]}</span>${esc(v.label)}${v.n > 1 ? ' · ' + v.n + ' voices' : ''}<br><small style="color:#6d6052">${esc(v.words)}</small></button>`).join('')}</div>
         <div class="lbl">which picture goes under it?</div><div class="tiles">${S.ps.map((t, k) => `<button class="tile ${S.mine.p === k ? 'on' : ''}" data-kind="p" data-k="${k}"><img alt="" src="${esc(t)}"><span>${k + 1}</span></button>`).join('')}</div>`;

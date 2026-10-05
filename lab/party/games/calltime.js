@@ -147,7 +147,7 @@
     function afterTake(fromId) {
       G.turn++; const nid = G.order[G.turn], n = nid && P(nid);
       if (n) { G.phase = 'pass'; G.air = { by: nid }; H.spot = null;
-        H.slate(H.card(`<div class="big">The remote passes to<br>${H.who(nid)}<small>${n.local ? 'tap the button when you’re ready' : 'tap your phone when you’re ready'}</small></div>`, 'dawn'));
+        H.slate(H.card(`<div class="big">The remote passes to<br>${H.who(nid)}<small>${n.local ? 'take the remote on the stand' : 'on your phone'}</small></div>`, 'dawn'));
         setTimeout(() => H.throwRemote(fromId, nid), 250);
         H.gate('Take the remote ▸', n.local ? 'any' : [nid], () => nextTurn()); draw(); }
       else { G.air = null; H.spot = null; houseTurn(); }
@@ -179,7 +179,7 @@
     function circle() { G.phase = 'circle'; G.votes = {}; H.crowdShow(null); H.slate(H.card(`<div class="big">Circle one<small>every phone · not your own take</small></div>`, 'night')); draw(); }
     const voters = () => H.players.filter(p => p.local || p.conn);
     function castVote(pid, k) { if (G.phase !== 'circle' || k < 0 || k >= G.takes.length || G.takes[k].by === pid) return; const first = G.votes[pid] == null; G.votes[pid] = k; H.sign[pid] = 'circled';
-      if (first) { H.act(pid, 'hit', 280); H.say(pid, pick(['that one!', 'circle it', 'got mine', 'easy'])); }
+      if (first) { H.act(pid, 'hit', 280); }
       if (voters().every(p => G.votes[p.id] != null)) H.gate('Reveal ▸', 'any', reveal); draw(); }
     function reveal() {
       const n = G.takes.map(() => 0); Object.values(G.votes).forEach(k => n[k]++);
@@ -190,8 +190,7 @@
       G.film.push({ day: G.day, scene: G.today.scene.n, take: w, shots: usage(w).shots }); G.all = G.all.concat(G.takes);
       G.phase = 'result'; G.n = n;
       H.slate(H.card(`<div class="big">On air: take ${win + 1}<br>${H.who(w.by)}<small>${n[win]} circled · +${n[win] + 2} ★</small></div>`, 'gold'));
-      H.act(w.by, 'cheer', 2200); H.say(w.by, pick(['we did it!', 'print!', 'that’s the one', 'magic!']), 2200);
-      G.takes.forEach((t, k) => { if (k !== win && !n[k]) setTimeout(() => H.act(t.by, 'slump', 2000), 400); });
+      H.act(w.by, 'cheer', 2200);       G.takes.forEach((t, k) => { if (k !== win && !n[k]) setTimeout(() => H.act(t.by, 'slump', 2000), 400); });
       setTimeout(() => { if (G.phase !== 'result') return; Engine(w.lu, {}).start(w.edl); }, 2600);
       H.gate('Continuity ▸', 'any', continuity); draw();
     }
@@ -221,12 +220,27 @@
       H.paper(`<div class="ledger"><div class="hd">CONTINUITY REPORT · AFTER DAY ${G.day}</div>${L.map(([a, b]) => `<div><b>${esc(a)}</b> — ${esc(b)}</div>`).join('')}</div>`);
       H.gate(G.day < G.days ? 'Tomorrow’s call sheet ▸' : 'That’s a wrap ▸', 'any', () => { if (G.day < G.days) { G.day++; callSheet(); } else wrap(); }); draw();
     }
+    // ---- the film for the Cut: each day's printed take, segment by segment, with the sound it carried
+    function toFilm() { const F = Cut.blank('Call Time');
+      G.film.forEach(f => { F.clips.push(Cut.card('Day ' + f.day + '\n' + f.scene, 2));
+        const t = f.take, lu = t.lu, ev = t.edl.ev.slice().sort((a, b) => a.t - b.t).concat([{ t: t.edl.end, k: 'end' }]); let cam = 0, snd = 0, slip = 0, mute = false, last = 0; const segs = [];
+        ev.forEach(e => { if (e.t > last) (last < SPLIT && e.t > SPLIT ? [[last, SPLIT], [SPLIT, e.t]] : [[last, e.t]]).forEach(([a, b]) => segs.push({ a, b, cam, snd, slip, mute })); last = Math.max(last, e.t);
+          if (e.k === 'cam') cam = e.v; if (e.k === 'snd') snd = e.v; if (e.k === 'slip') slip = Math.max(-3, Math.min(3, slip + e.v)); if (e.k === 'mute') mute = !mute; });
+        let prev = null;
+        segs.forEach((sg, i) => { const part = sg.a < SPLIT ? 'A' : 'B', sh = lu.pics[sg.cam][part], d = Math.max(1, sh.d || 4), ln = sg.b - sg.a; let pos = ((part === 'A' ? sg.a : sg.a - SPLIT) % d); if (pos + ln > d) pos = Math.max(0, d - ln);
+          const s = lu.snds[sg.snd], c = Cut.shot(url(sh.v), pos, Math.min(d, pos + ln), { d, label: sh.w, own: s.kind === 'room' && !sg.mute, by: t.by }); F.clips.push(c);
+          const key = sg.snd + '|' + sg.mute + '|' + sg.slip;
+          if (key !== prev && !sg.mute) { let span = 0; for (let j = i; j < segs.length && segs[j].snd + '|' + segs[j].mute + '|' + segs[j].slip === key; j++) span += segs[j].b - segs[j].a;
+            if (s.kind === 'voice') F.sounds.push(Cut.voice(c.id, url(s.l.v), s.l.t0 + Math.max(0, -sg.slip), s.l.t1, { off: Math.max(0, sg.slip), text: s.l.x }));
+            if (s.kind === 'music') F.sounds.push(Cut.music(c.id, url(s.m.v), s.st + sg.a + sg.slip, span)); }
+          prev = key; }); });
+      return F; }
     const rank = () => H.players.slice().sort((a, b) => b.score - a.score);
     function wrap() { hushAll(); G.phase = 'wrap'; const r = rank(), top = r[0], houseWins = H.houseScore > (top ? top.score : 0); G.awards = H.awards(G.all);
       H.slate(H.card(houseWins ? `<div class="big">The house directed<br>this picture<small>${H.houseScore} ★ · the crew’s best: ${top ? esc(top.name) + ' ' + top.score + ' ★' : '—'}</small></div>` : `<div class="big">Best director<br>${H.who(top.id)}<small>${top.score} ★ · the house ${H.houseScore} ★</small></div>`, 'gold'));
       const champ = houseWins ? 'house' : top.id; H.act(champ, 'cheer', 2200); H.say(champ, 'thank you all!', 2400);
       [...H.players.map(p => p.id), 'house'].filter(id => id !== champ).forEach((id, i) => setTimeout(() => H.act(id, 'bow', 1300), 500 + i * 160));
-      H.gate('Back to the lobby ▸', 'any', () => H.end()); draw(); }
+      H.gate('Edit the film ▸', 'any', () => { H.seed = toFilm(); H.playGame('cut'); }); draw(); }
     function playFilm() { let k = 0; const next = () => { if (k >= G.film.length) { H.slate(H.card(`<div class="big">The end<small>made with whatever survived</small></div>`, 'gold')); return; } const f = G.film[k++];
         H.slate(H.card(`<div class="big">Day ${f.day}<small>${esc(f.scene)}</small></div>`, 'dawn')); setTimeout(() => { Engine(f.take.lu, { onEnd: next }).start(f.take.edl); }, 1700); }; next(); }
     function callSheet() { hushAll(); newDay(); G.phase = 'call'; H.spot = null; H.sign = {}; H.paper(`<div class="sheet">${sheetHTML(G.sheets[G.sheets.length - 1], false)}</div>`); H.bug(''); H.gate('Roll camera ▸', 'any', nextTurn); draw(); }
@@ -251,7 +265,7 @@
         const S = H.side(`<div class="ph">The guide <small>${p ? esc(p.name) + '’s remote' : ''}</small></div>${local ? localRemote() : ''}${p ? guideHTML(p.id) : ''}`, ph);
         if (local) S.querySelectorAll('[data-b]').forEach(b => b.onclick = () => press(p.id, b.dataset.b)); return; }
       if (ph === 'house') return H.side(`<div class="ph">The house <small>rolled</small></div>${guideHTML('house')}`, ph);
-      if (ph === 'dailies') return H.side(`<div class="ph">Dailies <small>nobody knows whose is whose</small></div><div class="takes">${G.takes.map((t, k) => `<div class="tk ${k === G.daily ? 'now' : ''}"><span class="n">${k + 1}</span><span class="strip">${k < G.daily || (k === G.daily && !G.watching) ? stripOf(t) : ''}</span><span class="by hint" style="margin:0">${esc(H.crowdText(t))}</span></div>`).join('')}</div>${!G.watching ? `<button class="btn chip" id="again" style="margin-top:8px">↻ replay take ${G.daily + 1}</button>` : ''}`, ph + G.daily);
+      if (ph === 'dailies') return H.side(`<div class="ph">Dailies <small>unsigned</small></div><div class="takes">${G.takes.map((t, k) => `<div class="tk ${k === G.daily ? 'now' : ''}"><span class="n">${k + 1}</span><span class="strip">${k < G.daily || (k === G.daily && !G.watching) ? stripOf(t) : ''}</span><span class="by hint" style="margin:0">${esc(H.crowdText(t))}</span></div>`).join('')}</div>${!G.watching ? `<button class="btn chip" id="again" style="margin-top:8px">↻ replay take ${G.daily + 1}</button>` : ''}`, ph + G.daily);
       if (ph === 'circle') { const locals = H.players.filter(p => p.local);
         const S = H.side(`<div class="ph">Circle take <small>${Object.keys(G.votes).length} of ${voters().length} circled</small></div><div class="takes">${G.takes.map((t, k) => `<div class="tk"><span class="n">${k + 1}</span><span class="strip">${stripOf(t)}</span><span class="by hint" style="margin:0">${esc(H.crowdText(t))}</span></div>`).join('')}</div>
           ${locals.map(p => `<div class="vrow"><span>${mini(p.av)} ${esc(p.name)}</span>${G.takes.map((t, k) => `<button class="btn chip ${G.votes[p.id] === k ? 'on' : ''}" data-p="${p.id}" data-k="${k}" ${t.by === p.id ? 'disabled' : ''}>${k + 1}</button>`).join('')}</div>`).join('')}
@@ -262,7 +276,7 @@
         const sb = $('#srcB'); if (sb) sb.onclick = () => window.Attrib && Attrib.show(usage(G.takes[G.win]).shots.map(s => ({ role: 'on air', video: url(s.v) }))); return S; }
       if (ph === 'continuity') return H.side(`<div class="ph">Tomorrow <small>these are facts now</small></div><div class="sheet">${sheetHTML(G.sheets[G.sheets.length - 1], true)}</div>`, ph);
       if (ph === 'wrap') { const r = rank();
-        const S = H.side(`<div class="ph">That’s a wrap <small>+1 a circle · +2 on air</small></div>${r.map((p, k) => `<div class="rk">#${k + 1} ${mini(p.av)} ${esc(p.name)}<b>${p.score}</b></div>`).join('')}<div class="rk">· ${mini('house')} the house<b>${H.houseScore}</b></div>${H.awardsHTML(G.awards)}
+        const S = H.side(`<div class="ph">That’s a wrap <small>circles · on air</small></div>${r.map((p, k) => `<div class="rk">#${k + 1} ${mini(p.av)} ${esc(p.name)}<b>${p.score}</b></div>`).join('')}<div class="rk">· ${mini('house')} the house<b>${H.houseScore}</b></div>${H.awardsHTML(G.awards)}
           <button class="btn cta alt" id="pf">▶ The film</button><div class="ph" style="margin-top:12px">The call sheets <small>the history of the production</small></div><div class="stack">${G.sheets.map(s => `<div class="sheet">${sheetHTML(s, false)}${s.ledger ? `<div class="k">CONTINUITY</div>${s.ledger.map(([a, b]) => `<div class="sm"><b>${esc(a)}</b> — ${esc(b)}</div>`).join('')}` : ''}</div>`).join('')}</div>`, ph);
         $('#pf').onclick = playFilm; return S; }
     }
@@ -317,9 +331,9 @@
     if (P === 'result') return look('result' + S.win, 'On air:<br>take ' + (S.win + 1), esc(S.winBy) + (S.gain ? ' · you +' + S.gain + ' ★' : ''), S.gain ? S.you.av : S.winAv == null ? 'house' : S.winAv, S.gain ? 'cheer' : '');
     if (P === 'wrap') return look('wrap', 'That’s a<br>wrap', 'you placed #' + S.rank + ' of ' + S.of + ' · ' + S.you.score + ' ★' + (S.awards && S.awards.length ? '<br>' + S.awards.map(esc).join(' · ') : ''), S.you.av, S.rank === 1 ? 'cheer' : 'bow');
     const st = P === 'call' ? 'Day ' + S.day + ' · ' + esc(S.scene || '') + ' · plan your turn' + (S.youNext ? ' · you’re first' : '')
-      : P === 'slate' || P === 'air' ? esc(S.onAir ? S.onAir.name : '') + (P === 'slate' ? ' is getting ready' : ' is on air') + ' · throw something'
+      : P === 'slate' || P === 'air' ? esc(S.onAir ? S.onAir.name : '') + (P === 'slate' ? ' is getting ready' : ' is on air') + ''
       : P === 'pass' ? (S.nextYou ? 'You get the remote next · tap when you’re ready' : 'The remote passes to ' + esc(S.onAir ? S.onAir.name : ''))
-      : P === 'house' ? 'The house rolled its own take' : P === 'dailies' ? 'Dailies · take ' + S.daily + ' of ' + S.nTakes + ' · nobody knows whose · throw something'
+      : P === 'house' ? 'The house rolled its own take' : P === 'dailies' ? 'Dailies · take ' + S.daily + ' of ' + S.nTakes + ''
       : P === 'continuity' ? 'Continuity · what changed is on the TV · tomorrow it’s true' : '';
     const tab = P === 'call' ? 'plan' : (P === 'air' || P === 'dailies' || P === 'slate') ? 'throw' : null;
     return { key: P + (P === 'dailies' ? S.daily : ''), status: st, tab, tabs: P === 'continuity' ? ['throw', 'me'] : ['throw', planTab, 'me'] };

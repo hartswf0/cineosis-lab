@@ -31,7 +31,7 @@
       draw(); }
     const voters = () => H.players.filter(p => p.local || p.conn);
     function vote(pid, i) { if (G.phase !== 'vote' || i < 0 || i >= G.opts.length) return; const first = G.votes[pid] == null; G.votes[pid] = i; H.sign[pid] = 'picked';
-      if (first) { H.act(pid, 'hit', 280); H.say(pid, pick(['that one', 'trust me', 'obviously', 'the machine will hate it'])); }
+      if (first) { H.act(pid, 'hit', 280); }
       if (voters().every(p => G.votes[p.id] != null)) H.gate('Cut it in ▸', 'any', () => tally()); draw(); }
     function tally() { const n = G.opts.map(() => 0); Object.values(G.votes).forEach(i => n[i]++); const max = Math.max(...n); const tied = n.map((v, i) => v === max ? i : -1).filter(i => i >= 0); const room = tied.includes(0) ? 0 : pick(tied);
       G.gain = {}; H.players.forEach(p => { const v = G.votes[p.id]; if (v == null) return; let g = 0; if (v === room) g += 1; if (v === 0) g += 2; if (g) { p.score += g; G.gain[p.id] = g; } if (v === 0) H.act(p.id, 'hop', 820); });
@@ -43,20 +43,21 @@
       G.phase = 'cut'; G.last = { i, n: n || [] }; H.sign = {};
       const lastEv = live.root.s.ev.slice(-1)[0];
       H.slate(H.card(`<div class="big">${i === 0 ? 'The room and the machine agree' : 'The room overrules the machine'}<small>${esc(kindName(o))} · the machine gave it ${Math.round(o.share * 100)}% of its futures${G.opts[0] && i !== 0 ? ' · its favourite had ' + Math.round(G.opts[0].share * 100) + '%' : ''}</small></div>`, i === 0 ? 'gold' : 'stage'));
-      if (i === 0) H.act('house', 'hop', 820); else { H.act('house', 'slump', 1600); H.say('house', pick(['as you wish', 'bold.', 'I’ll remember this', 'hm.']), 1800); }
+      if (i === 0) H.act('house', 'hop', 820); else { H.act('house', 'slump', 1600); }
       setTimeout(() => { if (G.phase === 'cut' && lastEv) play.play({ ev: [lastEv], music: null }, { music: false }); }, 1800);
       H.gate(live.done || G.n >= G.pieces ? 'Watch our film ▸' : 'Think again ▸', 'any', think); draw(); }
     function finale() { G.phase = 'film'; const f = live.film(); H.sign = {};
       H.slate(H.card(`<div class="big">Directed by the room<br>and the machine<small>they agreed ${G.agree} of ${G.all.length} times · the critic gives it ${Math.round(f.score * 100)}</small></div>`, 'gold'));
-      setTimeout(() => { if (G.phase === 'film') play.play(f, {}, () => { G.phase = 'wrap'; draw(); H.gate('Back to the lobby ▸', 'any', () => H.end()); }); }, 2600);
-      H.gate('Skip to the scores ▸', 'any', () => { play.stop(); G.phase = 'wrap'; const r = rank(); if (r[0]) H.act(r[0].id, 'cheer', 2200); draw(); H.gate('Back to the lobby ▸', 'any', () => H.end()); }); draw(); }
+      setTimeout(() => { if (G.phase === 'film') play.play(f, {}, () => { G.phase = 'wrap'; draw(); H.gate('Edit the film ▸', 'any', () => { H.seed = toFilm(); H.playGame('cut'); }); }); }, 2600);
+      H.gate('Skip ▸', 'any', () => { play.stop(); G.phase = 'wrap'; const r = rank(); if (r[0]) H.act(r[0].id, 'cheer', 2200); draw(); H.gate('Edit the film ▸', 'any', () => { H.seed = toFilm(); H.playGame('cut'); }); }); draw(); }
+    const toFilm = () => Party.monte.toFilm(M, live.film(), 'Directed by the room and the machine');
     const rank = () => H.players.slice().sort((a, b) => b.score - a.score);
     function drawSide() { const ph = G.phase;
       if (ph === 'loading') return H.side(`<div class="ph">Steer the Machine <small>loading the archive</small></div>`, ph);
       const optRows = (show) => `<div class="takes">${G.opts.map((o, i) => `<div class="tk ${show && i === G.last.i ? 'win' : ''}"><span class="n">${'ABC'[i]}</span><span class="strip">${o.k != null ? `<i style="background-image:url('${esc(play.thumb(o.k))}');max-width:72px"></i>` : ''}</span><span class="by" style="max-width:55%;text-align:left">${esc(kindName(o))}<br><span class="hint" style="margin:0">${esc(optLabel(o)).slice(0, 70)}</span>${show ? `<br><b style="color:var(--verm)">machine ${Math.round(o.share * 100)}%</b> · <span class="vs">${H.players.filter(p => G.votes[p.id] === i).map(p => mini(p.av)).join('') || '·'}</span>` : ''}</span></div>`).join('')}</div>`;
       if (ph === 'think') return H.side(`<div class="ph">Piece ${G.n} of ${G.pieces} <small>the machine is imagining futures</small></div><div class="hint" style="text-align:left">Selection, expansion, rollout, backpropagation: ${THINK} times. Its three most-visited next pieces become the room’s choice.</div>${rankHTML()}`, ph + G.n);
       if (ph === 'vote') { const locals = H.players.filter(p => p.local);
-        const S = H.side(`<div class="ph">Piece ${G.n} · pick one <small>${Object.keys(G.votes).length} of ${voters().length} picked · +1 with the room · +2 with the machine</small></div>${optRows(false)}
+        const S = H.side(`<div class="ph">Piece ${G.n} · pick one <small>${Object.keys(G.votes).length} of ${voters().length} picked</small></div>${optRows(false)}
           ${locals.map(p => `<div class="vrow"><span>${mini(p.av)} ${esc(p.name)}</span>${G.opts.map((o, i) => `<button class="btn chip ${G.votes[p.id] === i ? 'on' : ''}" data-p="${p.id}" data-i="${i}">${'ABC'[i]}</button>`).join('')}</div>`).join('')}
           ${!H._gate ? `<button class="btn chip" id="force" style="margin-top:8px">cut it in now</button>` : ''}`, ph + G.n);
         S.querySelectorAll('[data-p]').forEach(b => b.onclick = () => vote(b.dataset.p, +b.dataset.i)); const f = $('#force'); if (f) f.onclick = tally; return; }
@@ -75,7 +76,7 @@
   function phone(S, api) { const P = S.phase, { esc } = api;
     if (P === 'loading') return { key: 'loading', status: 'the machine is warming up', tabs: ['me', 'throw'] };
     if (P === 'think') return { key: 'think' + S.n, status: 'Piece ' + S.n + ' of ' + S.pieces + ' · the machine is imagining futures', tabs: ['throw', 'me'] };
-    if (P === 'vote') return { key: 'vote' + S.n, status: 'Piece ' + S.n + ' · +1 if you side with the room · +2 if you think like the machine', takeover: { key: 'v' + S.n + '|' + S.mine, render(el) {
+    if (P === 'vote') return { key: 'vote' + S.n, status: 'Piece ' + S.n + ' of ' + S.pieces, takeover: { key: 'v' + S.n + '|' + S.mine, render(el) {
       el.innerHTML = `<div class="say" style="text-align:center;font-size:26px;margin:4px 0 8px">Which piece next?</div><div class="answers">${S.opts.map((o, i) => `<button class="btn ${S.mine === i ? 'on' : ''}" data-k="${i}" style="display:flex;gap:10px;align-items:center">${o.th ? `<img alt="" src="${esc(o.th)}" style="width:42%;aspect-ratio:4/3;object-fit:cover;border:2px solid var(--ink);border-radius:4px">` : ''}<span><span class="k">${'ABC'[i]}</span>${esc(o.kind)}<br><small style="color:#6d6052">${esc(o.label)}</small></span></button>`).join('')}</div>`;
       el.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { api.buzz(); api.send({ t: 'vote', k: +b.dataset.k }); }); } } };
     if (P === 'cut') return { key: 'cut' + S.n, status: (S.room === 0 ? 'The room went with the machine' : 'The room overruled the machine') + ' · machine: ' + S.shares.map((v, i) => 'ABC'[i] + ' ' + v + '%').join(' · ') + (S.gain ? ' · you +' + S.gain : ''), tabs: ['throw', 'me'] };
