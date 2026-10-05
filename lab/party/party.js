@@ -90,11 +90,13 @@
   function host(games) {
     document.body.classList.add('is-host');
     const app = $('#app');
-    app.innerHTML = `<div id="host"><header id="top"><div class="pegs"><i></i><i></i><i></i></div><div class="logo" id="logo">Party</div><div class="tagline" id="tagline">one room · every game · the archive’s films</div><span id="roomTag"></span><button class="btn" id="earsB" title="the key that lets the room be heard: only this screen holds it">ears</button><button class="btn" id="lobbyB" hidden>lobby</button><button class="btn" id="fsB">full screen</button><a href="index.html">lab</a></header>
+    app.innerHTML = `<div id="host"><header id="top"><div class="pegs"><i></i><i></i><i></i></div><div class="logo" id="logo">Party</div><div class="tagline" id="tagline">one room · every game · the archive’s films</div><span id="roomTag"></span><button class="btn" id="earsB" title="the key that lets the room be heard: only this screen holds it">ears</button><button class="btn" id="goneB" hidden title="take everyone who has left off the stand">clear gone</button><button class="btn" id="newB" title="a fresh room: new code, nobody joined">new room</button><button class="btn" id="lobbyB" hidden>lobby</button><button class="btn" id="fsB">full screen</button><a href="index.html">lab</a></header>
       <main id="stage"><div id="stand"><div id="screen"><div id="vids"></div><div id="slate"></div><div id="paper" hidden></div><div id="cap"></div><div id="splats"></div><div id="crowd"></div><div id="bug"></div><div id="log"></div></div></div><aside id="side"></aside></main>
       <footer id="crew"><div class="pl"><svg viewBox="0 0 200 100" preserveAspectRatio="none"><path d="M0 40 Q20 22 44 34 T90 30 T140 36 T200 28 V100 H0Z" fill="#86a58a"/><path d="M0 58 Q30 48 60 56 T120 54 T200 56 V100 H0Z" fill="#6c8c63"/></svg></div><div id="toons"></div><div class="pl"><svg viewBox="0 0 200 100" preserveAspectRatio="none" style="top:auto;bottom:0;height:30%"><path d="M0 100 V60 Q4 40 8 62 Q12 36 16 64 Q20 44 24 70 V100Z M176 100 V70 Q180 44 184 64 Q188 36 192 62 Q196 40 200 60 V100Z" fill="#3e5a36"/></svg></div></footer></div>`;
     $('#fsB').onclick = () => fullscreen(true);
     $('#lobbyB').onclick = () => H.end();
+    $('#goneB').onclick = () => H.clearGone();
+    $('#newB').onclick = () => { const b = $('#newB'); if (b.classList.contains('sure')) return H.newRoom(); b.classList.add('sure'); b.textContent = 'sure? tap again'; setTimeout(() => { b.classList.remove('sure'); b.textContent = 'new room'; }, 3000); };
     const saved = store.get('party.host', null), H = { players: [], code: null, gameId: null, game: null, gate: null, opts: store.get('party.opts', {}), wireNote: '', card, esc, pad, UP, rnd, pick, shuffle, toon, mini, ICON };
     H.P = id => H.players.find(p => p.id === id);
     H.VP = Array.from({ length: 14 }, () => { const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; $('#vids').append(v); return v; });
@@ -126,14 +128,18 @@
       net = Net.host(H.code, onMsg, (st, why) => {
         if (st === 'taken') { net.close(); if (saved && saved.code === H.code && tries++ < 6) setTimeout(() => openRoom(H.code), 2500); else openRoom(); return; }
         H.wireNote = st === 'open' ? '' : 'Phones cannot reach this stand (' + why + '). Add players here instead, or reload.'; persist(); draw(); }); }
-    const persist = () => store.set('party.host', { code: H.code, players: H.players.map(p => ({ id: p.id, name: p.name, av: p.av, local: p.local })) });
+    const persist = () => store.set('party.host', { code: H.code, players: H.players.map(p => ({ id: p.id, name: p.name, av: p.av, local: p.local, at: p.conn || p.local ? Date.now() : (p.at || 0) })) });
     H.joinURL = () => location.origin + location.pathname + '?room=' + H.code + (NET === 'bc' ? '&net=bc' : '');
     const freeAv = want => { const used = new Set(H.players.map(p => p.av)); if (want != null && !used.has(want)) return want; for (let k = 0; k < NK; k++) if (!used.has(k)) return k; return 0; };
     H.addPlayer = (id, name, av, local) => { if (H.players.length >= 12) return null; const p = { id, name: String(name || 'Crew').slice(0, 12), av: freeAv(av), local: !!local, score: 0, conn: !!local, seen: performance.now() }; H.players.push(p); persist(); return p; };
-    if (saved && saved.players) saved.players.forEach(x => { const p = H.addPlayer(x.id, x.name, x.av, x.local); if (p && !p.local) p.conn = false; });
+    if (saved && saved.players) saved.players.filter(x => x.local || (x.at && Date.now() - x.at < 30 * 60000)).forEach(x => { const p = H.addPlayer(x.id, x.name, x.av, x.local); if (p && !p.local) { p.conn = false; p.at = x.at; } });
+    // taking players off the stand: one at a time (tap a greyed-out character twice), everyone who has gone, or a whole new room
+    H.removePlayer = id => { const i = H.players.findIndex(p => p.id === id); if (i < 0) return; H.players.splice(i, 1); persist(); syncCrew(); if (H.game && H.game.draw) H.game.draw(); else draw(); };
+    H.clearGone = () => { H.players.filter(p => !p.local && !p.conn).forEach(p => H.removePlayer(p.id)); };
+    H.newRoom = () => { try { localStorage.removeItem('party.host'); } catch (e) { } location.href = location.pathname + (NET === 'bc' ? '?net=bc' : ''); };
     function onMsg(pid, m) {
       let p = H.P(pid); if (!m) return;
-      if (m.t === 'hello') { if (!p) { p = H.addPlayer(pid, m.name, m.av, false); if (!p) { net.send(pid, { t: 'full' }); return; } p.late = !!H.game; } p.conn = true; p.seen = performance.now(); p.name = String(m.name || p.name).slice(0, 12); persist(); draw(); H.send(p, { t: 'pong' }); H.send(p, stateFor(p)); if (H.game && H.game.onJoin) H.game.onJoin(p); return; }
+      if (m.t === 'hello') { if (!p) { const nm = String(m.name || '').trim().toLowerCase(), ghost = nm && H.players.find(x => !x.local && !x.conn && x.name.trim().toLowerCase() === nm); if (ghost) { const sc = ghost.score; H.players.splice(H.players.indexOf(ghost), 1); p = H.addPlayer(pid, m.name, ghost.av, false); if (p) p.score = sc || 0; } else p = H.addPlayer(pid, m.name, m.av, false); if (!p) { net.send(pid, { t: 'full' }); return; } p.late = !!H.game; } p.conn = true; p.back = true; p.seen = performance.now(); p.name = String(m.name || p.name).slice(0, 12); persist(); draw(); H.send(p, { t: 'pong' }); H.send(p, stateFor(p)); if (H.game && H.game.onJoin) H.game.onJoin(p); return; }
       if (!p) { net.send(pid, { t: 'who' }); return; }
       p.seen = performance.now(); if (!p.conn) { p.conn = true; syncCrew(); }
       if (m.t === 'ping') { H.send(p, { t: 'pong' }); return; }
@@ -163,11 +169,13 @@
       [...box.children].forEach(c => { if (!ids.includes(c.dataset.id)) c.remove(); });
       ids.forEach(id => { let t = tw(id); const p = H.P(id);
         if (!t) { t = document.createElement('div'); t.className = 'tw enter'; t.dataset.id = id; t.innerHTML = `<div class="bubble"></div><div class="sign"></div><div class="jump"><div class="rig">${toon(p ? p.av : 'house')}</div></div><div class="tag"></div>`; setTimeout(() => t.classList.remove('enter'), 1200);
-          if (id === 'house') box.append(t); else { const h = tw('house'); h ? box.insertBefore(t, h) : box.append(t); } setTimeout(() => H.act(id, 'hop', 820), 900); }
+          if (id === 'house') box.append(t); else { const h = tw('house'); h ? box.insertBefore(t, h) : box.append(t); } setTimeout(() => H.act(id, 'hop', 820), 900);
+          if (id !== 'house') t.onclick = () => { const q = H.P(id); if (!q || q.local || q.conn) return; if (t.classList.contains('bye')) { H.removePlayer(id); return; } t.classList.add('bye'); t.querySelector('.bubble').textContent = 'tap again to remove'; t.classList.add('say'); setTimeout(() => { t.classList.remove('bye', 'say'); }, 2500); }; }
         t.querySelector('.tag').innerHTML = p ? `${esc(p.name)}${p.local ? ' · here' : ''}<b>${H.score(p)}</b>` : `the house<b>${H.houseScore || 0}</b>`;
         t.classList.toggle('air', H.spot === id);
         const sg = H.sign[id]; t.querySelector('.sign').textContent = sg || ''; t.classList.toggle('voted', !!sg);
         t.classList.toggle('off', !!(p && !p.local && !p.conn)); t.style.translate = p && p.x ? p.x + 'px 0' : ''; });
+      const gb = $('#goneB'); if (gb) { const n = H.players.filter(p => !p.local && !p.conn).length; gb.hidden = !n; gb.textContent = 'clear gone (' + n + ')'; }
     }
     H.syncCrew = syncCrew;
     H.throwRemote = (fromId, toId) => { const a = tw(fromId), b = tw(toId); if (!a || !b) return; const r0 = a.getBoundingClientRect(), r1 = b.getBoundingClientRect();
@@ -228,7 +236,8 @@
       S.querySelectorAll('[data-o]').forEach(b => b.onclick = () => { const o = H.opts[b.dataset.g] = H.opts[b.dataset.g] || {}; o[b.dataset.o] = isNaN(+b.dataset.v) ? b.dataset.v : +b.dataset.v; store.set('party.opts', H.opts); draw(); });
       S.querySelectorAll('[data-play]').forEach(b => b.onclick = () => play(b.dataset.play));
     }
-    function play(id) { const g = games[id]; if (!g || !H.players.length) return; fullscreen(true); H.unlock();
+    function play(id) { const g = games[id]; if (!g || !H.players.length) return;
+      const nowT = performance.now(); H.players.filter(p => !p.local && !p.conn && (!p.back || nowT - p.seen > 120000)).forEach(p => H.removePlayer(p.id)); fullscreen(true); H.unlock();
       H.players.forEach(p => { p.score = 0; p.threw = {}; p.late = false; }); H.houseScore = 0; H.sign = {}; H.spot = null; H._gate = null; H.bug(''); H.crowdShow(null); $('#splats').innerHTML = '';
       H.gameId = id; $('#logo').textContent = g.title; $('#tagline').textContent = g.blurb; H.opt = Object.assign({}, ...(g.options || []).map(o => ({ [o.k]: o.def })), H.opts[id] || {});
       H.game = g.host(H) || {}; $('#lobbyB').hidden = false; draw(); }

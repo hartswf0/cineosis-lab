@@ -42,7 +42,7 @@
     const ST = ShowCore.Stage(host$), A = { voice: H.AP[0], bed: H.AP[1], echo: H.AP[2] };
     const G = { ready: false, mic: null, rec: null, hearing: 0, raised: new Set(), panels: [], playing: false, at: -1, ears: window.MPHear ? 'maybe' : 'none', why: 'waking the archive' };
     const hands = {}, home = {}, sel = {}, undo = []; let nid = 1, stopPlay = null, LIB = null, SAM = null, FE = null, X = null, XV = null, XI = null, R = null, TW = null, TR = null, EXT = '.webp';
-    const players = () => H.players.filter(p => !p.house);
+    const players = () => H.players.filter(p => !p.house && (p.conn || p.local));
     // ---- the archive, the cast, the words: everything the stand needs to answer a line
     Promise.all([ARC.load({ light: true }), fetch('markov/sam.json').then(r => r.json()), fetch('markov/sam-emb.bin').then(r => r.arrayBuffer()), fetch('party/lexicon.json').then(r => r.json()), fetch('party/lexicon.bin').then(r => r.arrayBuffer()),
       fetch('pictures/rushes.json').then(r => r.json()), new Promise(r => { const i = new Image(); i.onload = () => r('.webp'); i.onerror = () => r('.png'); i.src = 'seg/' + '0046aa70-365f-5128-88eb-90cfe9e075e4/0.webp'; })])
