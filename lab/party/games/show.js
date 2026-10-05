@@ -47,7 +47,7 @@
     Promise.all([ARC.load({ light: true }), fetch('markov/sam.json').then(r => r.json()), fetch('markov/sam-emb.bin').then(r => r.arrayBuffer()), fetch('party/lexicon.json').then(r => r.json()), fetch('party/lexicon.bin').then(r => r.arrayBuffer()),
       fetch('pictures/rushes.json').then(r => r.json()), new Promise(r => { const i = new Image(); i.onload = () => r('.webp'); i.onerror = () => r('.png'); i.src = 'seg/' + '0046aa70-365f-5128-88eb-90cfe9e075e4/0.webp'; })])
       .then(([d, sj, sb, xj, xb, rj, ext]) => { LIB = d.LIB; SAM = sj; FE = new Int8Array(sb); X = xj; XV = new Int8Array(xb); XI = new Map(X.words.map((w, i) => [w, i])); R = rj; EXT = ext; G.ready = true; G.why = '';
-        players().forEach(p => deal(p.id)); draw(); })
+        players().forEach(p => deal(p.id)); draw(); (G.queue || []).splice(0).forEach(([id, m]) => P(id) && onMsg(P(id), m)); })
       .catch(e => { G.why = 'the archive did not load: ' + e.message; draw(); });
     fetch('odyssey/transcripts.json').then(r => r.json()).then(t => { TR = t; }).catch(() => { });
     if (window.MPHear && MPHear.prefetch) try { MPHear.prefetch(); } catch (e) { }
@@ -103,7 +103,7 @@
     const clamp = (v, a, b) => Math.max(a, Math.min(b, +v || 0));
     function mark(p, pan, what) { pan.touched = true; undo.push({ what, id: pan.id, snap: JSON.stringify({ g: pan.g, figs: pan.figs, bed: pan.bed, echo: pan.echo }) }); if (undo.length > 80) undo.shift(); if (p) H.act(p.id, 'hit', 260); }
     function onMsg(p, m) { if (!p) return;
-      if (m.t === 'say') { if (!G.ready) return; if (m.find) return find(p, m); if (G.mic && G.mic !== p.id && P(G.mic) && P(G.mic).conn) return; G.mic = p.id; G.rec = null; G.raised.delete(p.id); H.bug(''); line(p, m); return; }
+      if (m.t === 'say') { if (!G.ready) { (G.queue = G.queue || []).push([p.id, m]); return; } if (m.find) return find(p, m); if (G.mic && G.mic !== p.id && P(G.mic) && P(G.mic).conn) return; G.mic = p.id; G.rec = null; G.raised.delete(p.id); H.bug(''); line(p, m); return; }
       if (m.t === 'heard') { const t = String(m.part || '').slice(-80); if (t) { H.say(p.id, t, 2200); H.cap(t); } return; }
       if (m.t === 'rec') { if (G.mic && G.mic !== p.id && P(G.mic) && P(G.mic).conn) return; G.mic = p.id; G.rec = m.on ? p.id : null; if (m.on) { stopIt(); H.act(p.id, 'hop', 820); } H.bug(m.on ? `<span class="onair">${mini(p.av)}${I.mic}</span>` : ''); draw(); return; }
       if (m.t === 'pass') { if (G.mic !== p.id && G.mic) return; const q = P(m.to); if (!q) return; G.mic = q.id; G.raised.delete(q.id); H.act(q.id, 'cheer', 1600); draw(); return; }
@@ -194,23 +194,25 @@ document.getElementById('go').onclick=()=>{if(stop){stop();stop=null;return;}sto
       patch(el, api, force) { const H = S.hand;
         // the microphone, or a raised hand and the face that has it
         const m = el.querySelector('#hMic'), mk = [mine, holder, (S.raised || []).join(), S.crew.map(c => c.id + c.on).join(), S.hearing, S.ready].join('|');
-        if (!L.rec && !L.sending && (force || m.dataset.k !== mk)) { m.dataset.k = mk;
+        if (!L.rec && !L.sending && !(m.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') && (force || m.dataset.k !== mk)) { m.dataset.k = mk;
           if (mine) m.innerHTML = `<button class="bigmic ${L.rec ? 'on' : ''} ${L.sending ? 'busy' : ''}" id="hTalk" aria-label="hold and speak">${I.mic}<i id="hLv"></i></button>
-            <div class="faces">${S.crew.filter(c => c.id !== me).map(c => `<button data-pass="${c.id}" class="${(S.raised || []).includes(c.id) ? 'up' : ''}" style="--c:${c.c}" aria-label="${esc(c.name)}">${mini(c.av)}${(S.raised || []).includes(c.id) ? `<b>${I.hand}</b>` : ''}</button>`).join('')}</div>`;
+            <form class="htype" id="hLine"><input type="text" maxlength="200" enterkeyhint="send" autocomplete="off" placeholder="or type the line"><button type="submit">say</button></form><div class="faces">${S.crew.filter(c => c.id !== me).map(c => `<button data-pass="${c.id}" class="${(S.raised || []).includes(c.id) ? 'up' : ''}" style="--c:${c.c}" aria-label="${esc(c.name)}">${mini(c.av)}${(S.raised || []).includes(c.id) ? `<b>${I.hand}</b>` : ''}</button>`).join('')}</div>`;
           else { const h = S.crew.find(c => c.id === holder) || {}; m.innerHTML = `<div class="holder" style="--c:${h.c}">${mini(h.av || 0)}<span class="${S.rec === holder ? 'live' : ''}">${I.mic}</span></div><button class="raise ${(S.raised || []).includes(me) ? 'on' : ''}" id="hRaise" aria-label="raise your hand">${I.hand}</button>`; }
           const t = m.querySelector('#hTalk'); if (t) wireTalk(t, api, false);
+          const fl = m.querySelector('#hLine'); if (fl) fl.onsubmit = e => { e.preventDefault(); const i = fl.querySelector('input'), v = i.value.trim(); if (!v) return; i.value = ''; i.blur(); api.buzz(16); api.send({ t: 'say', dur: Math.max(2, v.split(/\s+/).length * .42), lv: [], text: v }); };
           m.querySelectorAll('[data-pass]').forEach(b => b.onclick = () => { api.buzz(14); api.send({ t: 'pass', to: b.dataset.pass }); });
           const r = m.querySelector('#hRaise'); if (r) r.onclick = () => { api.buzz(10); api.send({ t: 'raise' }); }; }
         el.querySelectorAll('[data-tab2]').forEach(b => b.classList.toggle('on', b.dataset.tab2 === L.tab));
         // the hand
         const tr = el.querySelector('#hTray'), tk = JSON.stringify([L.tab, H, S.sel]);
-        if (!L.rec && !(L.drag && !L.drag.stage) && (force || tr.dataset.k !== tk)) { tr.dataset.k = tk;
+        if (!L.rec && !(L.drag && !L.drag.stage) && !(tr.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') && (force || tr.dataset.k !== tk)) { tr.dataset.k = tk;
           if (!H) tr.innerHTML = `<div class="wait">${I.ear}</div>`;
-          else if (L.tab === 'figs') tr.innerHTML = H.figs.map(f => `<button class="it fig" data-f="${f.f}" data-png="${esc(f.png)}" data-ar="${f.ar}"><img src="${esc(f.png)}" alt="" draggable="false"></button>`).join('') + `<button class="it more" data-more="figs" aria-label="more">${I.more}</button><button class="it ask" id="hAsk" aria-label="say what you want">${I.mic}</button>`;
+          else if (L.tab === 'figs') tr.innerHTML = H.figs.map(f => `<button class="it fig" data-f="${f.f}" data-png="${esc(f.png)}" data-ar="${f.ar}"><img src="${esc(f.png)}" alt="" draggable="false"></button>`).join('') + `<button class="it more" data-more="figs" aria-label="more">${I.more}</button><button class="it ask" id="hAsk" aria-label="say what you want">${I.mic}</button><form class="htype wide" id="hFind"><input type="text" maxlength="60" enterkeyhint="search" autocomplete="off" placeholder="type a figure: a dog, a hat"><button type="submit">find</button></form>`;
           else if (L.tab === 'gr') tr.innerHTML = H.gr.map(g => `<button class="it gr" data-k="${g.k}"><img src="${esc(g.th)}" alt="" draggable="false"></button>`).join('') + `<button class="it more" data-more="gr" aria-label="more">${I.more}</button>`;
           else if (L.tab === 'beds') tr.innerHTML = H.beds.map(b => `<button class="it disc bed" data-k="${b.k}" data-u="${esc(b.u)}" data-t0="${b.t0}"><img src="${esc(b.th)}" alt="" draggable="false"><b>${I.music}</b></button>`).join('') + `<button class="it more" data-more="beds" aria-label="more">${I.more}</button>`;
           else tr.innerHTML = H.echo.length ? H.echo.map(e => `<button class="it disc echo" data-c="${e.c}" data-t0="${e.t0}" data-t1="${e.t1}" data-u="${esc(e.u)}"><img src="${esc(e.th)}" alt="" draggable="false"><b>${I.mouth}</b></button>`).join('') : `<div class="wait">${I.mouth}</div>`;
-          wireTray(tr, api); const ask = tr.querySelector('#hAsk'); if (ask) wireTalk(ask, api, true); }
+          wireTray(tr, api); const ask = tr.querySelector('#hAsk'); if (ask) wireTalk(ask, api, true);
+          const ff = tr.querySelector('#hFind'); if (ff) ff.onsubmit = e => { e.preventDefault(); const i = ff.querySelector('input'), v = i.value.trim(); if (!v) return; i.blur(); api.buzz(10); api.send({ t: 'say', find: 1, text: v }); }; }
         // the scene
         const st = el.querySelector('#hStage'); st.classList.toggle('empty', !cur); const im = st.querySelector('.hg'); const th = cur ? cur.th : ''; if (im.dataset.u !== th) { im.dataset.u = th; im.src = th || 'data:,'; }
         const fl = st.querySelector('.hfigs'), have = new Map([...fl.children].map(d => [d.dataset.id, d])), keep = new Set();

@@ -156,8 +156,8 @@
     // ---- moves from the phones
     function onMsg(p, m) { if (!J.ready) return; const h = hands[p.id];
       if (m.t === 'heard') { const t = String(m.part || '').slice(-80); if (t) H.say(p.id, t, 2200); return; }
-      if (m.t === 'say' && h) { (async () => { let text = String(m.text || '').trim(); if (!text && m.a && H.ears) text = await H.ears.read(m.a, m.mime).catch(() => ''); h.text = text; h.heard = text.slice(0, 60); h.q = vecW(text); h.depth = 0; if (text) H.say(p.id, text.slice(0, 60), 2600); deal(p.id); H.broadcast(); drawSide(); })(); return; }
-      if (m.t === 'far' && h) { h.depth = (h.depth || 0) + 1; deal(p.id); H.broadcast(); return; }
+      if (m.t === 'say' && h) { (async () => { let text = String(m.text || '').trim(); if (!text && m.a && H.ears) text = await H.ears.read(m.a, m.mime).catch(() => ''); h.text = text; h.heard = text.slice(0, 60); h.miss = !text; h.n = (h.n || 0) + 1; h.q = vecW(text); h.depth = 0; if (text) H.say(p.id, text.slice(0, 60), 2600); deal(p.id); H.broadcast(); drawSide(); })(); return; }
+      if (m.t === 'far' && h) { h.depth = (h.depth || 0) + 1; h.n = (h.n || 0) + 1; deal(p.id); H.broadcast(); return; }
       if (m.t === 'near' && h) { h.depth = 0; h.q = null; h.text = ''; h.heard = ''; deal(p.id); H.broadcast(); return; }
       if (m.t === 'pick') { const o = slotOf(p.id, J.phase); if (!o || !h) return;
         if (J.phase === 'find') { const k = +m.key; if (!h.cands.includes(k)) return; o.img = { k, by: p.id }; spend(p.id, 'img', x => x.item.k === k); }
@@ -239,7 +239,7 @@
     function stateFor(p) { const h = hands[p.id] || {}, ph = J.phase, o = ph === 'keep' || ph === 'play' ? null : slotOf(p.id, ph);
       const ob = x => x && ({ id: x.id, th: thumbOf(shot(x.img.k).video), v: shot(x.img.k).video, img: { c: colOf(x.img.by), n: nameOf(x.img.by) }, snd: x.snd ? { c: colOf(x.snd.by), n: nameOf(x.snd.by), fam: x.snd.fam, u: x.snd.u, t0: x.snd.t0, t1: x.snd.t1, th: x.snd.th } : null, op: x.op ? { o: x.op.o, c: colOf(x.op.by), n: nameOf(x.op.by) } : null, kept: x.keeps.filter(k => k.by === p.id).map(k => k.layer) });
       const cur = J.playing ? J.playing[J.at] : null;
-      return { phase: 'jam', noScore: true, me: p.id, ready: J.ready, round: J.round, pass: ph, card: J.card ? { q: J.card.q, move: J.card.move, snd: J.card.snd } : null, playing: !!J.playing, now: cur ? ob(cur) : null, heard: h.heard || '',
+      return { phase: 'jam', noScore: true, me: p.id, ready: J.ready, round: J.round, pass: ph, card: J.card ? { q: J.card.q, move: J.card.move, snd: J.card.snd } : null, playing: !!J.playing, now: cur ? ob(cur) : null, heard: h.heard || '', heardN: h.n || 0, miss: !!h.miss,
         mine: o ? ob(o.img ? o : null) : null, from: o && o.img ? nameOf(o.img.by) : '', crew: J.order.filter(id => P(id)).map(id => ({ id, av: P(id).av, c: col(P(id).av), done: ph === 'keep' ? J.objs.some(x => x.keeps.some(k => k.by === id)) : !!(slotOf(id, ph) && (ph === 'find' ? slotOf(id, ph).img : ph === 'sound' ? slotOf(id, ph).snd : slotOf(id, ph).op)) })),
         pickd: o ? (ph === 'find' ? (o.img && o.img.by === p.id ? String(o.img.k) : '') : ph === 'sound' ? (o.snd && o.snd.by === p.id ? keyOf(o.snd) : '') : ph === 'spoil' ? (o.op && o.op.by === p.id ? o.op.o : '') : '') : '',
         cands: ph === 'find' && h.cands ? h.cands.map(k => ({ key: String(k), th: thumbOf(shot(k).video), v: shot(k).video, gold: ST.keeps.some(x => x.owner === p.id && x.layer === 'img' && !x.spent && x.item.k === k) })) : null,
@@ -253,10 +253,13 @@
   }
 
   // ======================================================================= the phone: point at things, talk to the archive
-  const L = { prev: null, talk: null, sending: false, sel: '' };
+  const L = { prev: null, talk: null, sending: false, sel: '', selFor: '', note: '', noteAt: 0, asked: 0 };
+  const VERB = { find: 'Cast it', sound: 'Give it', spoil: 'Cut it' };
   function phone(S, api) {
     if (S.phase !== 'jam') return null; L.S = S;
-    const ph = S.pass, mk = () => [ph, S.round, S.playing].join('|');
+    const ph = S.pass, mk = () => [ph, S.round, S.playing].join('|'), pk = ph + '|' + S.round;
+    if (L.selFor !== pk) { L.selFor = pk; L.sel = ''; L.note = ''; }
+    if (!L.sel && S.pickd) L.sel = S.pickd;
     const take = {
       key: 'jam' + mk(),
       render(el) { el.innerHTML = `<div class="jm"><div class="jhd"><span class="jpi">${I[PASS[ph]] || I.play}</span><span class="jq" id="jQ"></span><span class="jcrew" id="jCrew"></span></div><div class="jbd"><div class="jlf" id="jLf"></div><div class="jrt" id="jRt"></div></div></div>`; L.take = take; take.patch(el, api, true); },
@@ -268,31 +271,46 @@
         if (ph === 'keep') { const k = JSON.stringify(S.objs); if (rt.dataset.k !== k) { rt.dataset.k = k; lf.dataset.k = ''; lf.innerHTML = `<div class="jbig">${I.keep}</div>`;
             rt.innerHTML = `<div class="jkeeps">${(S.objs || []).map(o => `<div class="jko"><button data-keep="${o.id}" data-l="img" class="${o.kept.includes('img') ? 'on' : ''}"><img src="${esc(o.th)}" alt=""><i style="--c:${o.img.c}"></i></button>${o.snd ? `<button data-keep="${o.id}" data-l="snd" class="snd ${o.kept.includes('snd') ? 'on' : ''}" style="--f:${FAM[o.snd.fam]}">${famIcon(o.snd.fam)}<i style="--c:${o.snd.c}"></i></button>` : ''}${o.op ? `<button data-keep="${o.id}" data-l="op" class="op ${o.kept.includes('op') ? 'on' : ''}">${I[o.op.o]}<i style="--c:${o.op.c}"></i></button>` : ''}<button data-keep="${o.id}" data-l="all" class="all ${o.kept.includes('all') ? 'on' : ''}">${I.keep}</button></div>`).join('')}</div>`;
             rt.querySelectorAll('[data-keep]').forEach(b => b.onclick = () => { api.buzz(16); api.send({ t: 'keep', obj: +b.dataset.keep, layer: b.dataset.l }); }); } return; }
-        // the thing in your hands: your find, or the one passed to you
-        const lk = JSON.stringify([ph, S.mine && S.mine.id, S.mine && S.mine.snd && S.mine.snd.u, S.mine && S.mine.op && S.mine.op.o, S.pickd, S.from]);
-        if (lf.dataset.k !== lk) { lf.dataset.k = lk; const m = S.mine;
-          if (ph === 'find') { const c = (S.cands || []).find(c => c.key === S.pickd); lf.innerHTML = `<div class="jprev">${c ? `<video src="${esc(c.v)}" muted loop playsinline autoplay></video>` : `<div class="jbig dim">${I.eye}</div>`}</div>`; }
-          else if (m) { lf.innerHTML = `<div class="jprev"><video src="${esc(m.v)}" muted loop playsinline autoplay></video>${m.op ? `<b class="jop">${I[m.op.o]}</b>` : ''}</div><div class="jby">${who3(m)}</div>`; }
-          else lf.innerHTML = '<div class="jbig dim">…</div>'; }
-        const rk = JSON.stringify([ph, S.cands, S.discs, S.ops, S.pickd, S.heard]);
-        if (force || rt.dataset.k !== rk) { if (L.talk && !force) return; rt.dataset.k = rk;
-          const grid = ph === 'find' ? (S.cands || []).map(c => `<button class="jc ${c.key === S.pickd ? 'on' : ''} ${c.gold ? 'gold' : ''}" data-pick="${c.key}"><img src="${esc(c.th)}" alt="" draggable="false"></button>`).join('')
-            : ph === 'sound' ? (S.discs || []).map(d => `<button class="jc jd ${d.key === S.pickd ? 'on' : ''} ${d.gold ? 'gold' : ''} ${d.motif ? 'motif' : ''}" data-pick="${esc(d.key)}" data-u="${esc(d.u)}" data-t0="${d.t0}" data-t1="${d.t1}" style="--f:${FAM[d.fam]}"><img src="${esc(d.th)}" alt="" draggable="false"><b>${famIcon(d.fam)}</b></button>`).join('')
-            : ph === 'spoil' ? (S.ops || []).map(o => `<button class="jc jo ${o.key === S.pickd ? 'on' : ''}" data-pick="${o.key}">${I[o.key]}<small>${o.n}</small></button>`).join('') : '';
-          rt.innerHTML = `<div class="jgrid ${ph}">${grid}</div>${ph === 'spoil' ? '' : `<div class="jtools"><button class="jmic" id="jTalk" aria-label="talk">${I.mic}<i id="jLv"></i></button><span class="jheard">${S.heard ? '“' + esc(S.heard) + '”' : ''}</span><button class="jfar" id="jFar" aria-label="farther">${I.far}</button></div>`}`;
-          rt.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { api.buzz(14); api.send({ t: 'pick', key: b.dataset.pick }); if (b.dataset.u) hear(b); });
-          const f = rt.querySelector('#jFar'); if (f) f.onclick = () => { api.buzz(8); api.send({ t: 'far' }); };
-          const t = rt.querySelector('#jTalk'); if (t) talk(t, api); } }
+        // the thing in your hands (your find, or the one passed to you), and the button that sends it
+        drawHand(lf, api);
+        // the archive: talk or type what you want; tap one to look at it
+        const rk = JSON.stringify([ph, S.cands, S.discs, S.ops, S.pickd]);
+        if (force || rt.dataset.k !== rk) { if ((L.talk || (document.activeElement && document.activeElement.tagName === 'INPUT')) && !force) return; rt.dataset.k = rk;
+          const items = ph === 'find' ? (S.cands || []).map(c => `<button class="jc ${c.key === L.sel ? 'on' : ''} ${c.key === S.pickd ? 'sent' : ''} ${c.gold ? 'gold' : ''}" data-pick="${c.key}"><img src="${esc(c.th)}" alt="" draggable="false"></button>`).join('')
+            : ph === 'sound' ? (S.discs || []).map(d => `<button class="jc jd ${d.key === L.sel ? 'on' : ''} ${d.key === S.pickd ? 'sent' : ''} ${d.gold ? 'gold' : ''} ${d.motif ? 'motif' : ''}" data-pick="${esc(d.key)}" data-u="${esc(d.u)}" data-t0="${d.t0}" data-t1="${d.t1}" style="--f:${FAM[d.fam]}"><img src="${esc(d.th)}" alt="" draggable="false"><b>${famIcon(d.fam)}</b>${d.x ? `<small>${esc(d.x)}</small>` : ''}</button>`).join('')
+            : ph === 'spoil' ? (S.ops || []).map(o => `<button class="jc jo ${o.key === L.sel ? 'on' : ''} ${o.key === S.pickd ? 'sent' : ''}" data-pick="${o.key}">${I[o.key]}<small>${o.n}</small></button>`).join('') : '';
+          const keepQ = (rt.querySelector('#jType') || {}).value || '';
+          rt.innerHTML = `${ph === 'spoil' ? '' : `<div class="jfind"><button class="jmic" id="jTalk" aria-label="hold to talk">${I.mic}<i id="jLv"></i></button><form id="jForm" class="jtype"><input id="jType" type="text" enterkeyhint="search" autocomplete="off" placeholder="${ph === 'sound' ? 'say or type a sound: bells, rain, “hello”' : 'say or type what you want: a dog, rain'}" maxlength="80"><button type="submit" aria-label="find">find</button></form><button class="jfar" id="jFar" aria-label="farther">${I.far}</button></div><div class="jnote" id="jNote"></div>`}<div class="jgrid ${ph}">${items}</div>`;
+          const ti = rt.querySelector('#jType'); if (ti) { ti.value = keepQ; rt.querySelector('#jForm').onsubmit = e => { e.preventDefault(); const q = ti.value.trim(); if (!q) return; ti.blur(); api.buzz(10); ask(api, { text: q }, 'looking for “' + q + '”…'); }; }
+          rt.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { api.buzz(8); L.sel = b.dataset.pick; rt.querySelectorAll('[data-pick]').forEach(x => x.classList.toggle('on', x === b)); drawHand(lf, api, true); if (b.dataset.u) hear(b); });
+          const f = rt.querySelector('#jFar'); if (f) f.onclick = () => { api.buzz(8); ask(api, { far: 1 }, 'going farther…'); };
+          const t = rt.querySelector('#jTalk'); if (t) talk(t, api); }
+        // what happened to what you asked for
+        const nt = rt.querySelector('#jNote'); if (nt) { if (L.asked && S.heardN !== L.heardWas) { L.asked = 0; L.note = L.far ? 'farther out · stranger ' + (ph === 'sound' ? 'sounds' : 'shots') + ' below' : S.miss ? 'nothing heard: type it instead' : S.heard ? 'heard “' + S.heard + '” · new ' + (ph === 'sound' ? 'sounds' : 'shots') + ' below' : 'new ' + (ph === 'sound' ? 'sounds' : 'shots') + ' below'; }
+          else if (L.asked && performance.now() - L.asked > 15000) { L.asked = 0; L.note = 'no answer: try again or type'; } nt.textContent = L.note; nt.classList.toggle('busy', !!L.asked); } }
     };
+    function drawHand(lf, api, now) { const S = L.S, m = S.mine;
+      const sel = ph === 'find' ? (S.cands || []).find(c => c.key === L.sel) : null, disc = ph === 'sound' ? (S.discs || []).find(d => d.key === L.sel) : null, op = ph === 'spoil' ? L.sel : '';
+      const sent = L.sel && L.sel === S.pickd, k = JSON.stringify([ph, m && m.id, m && m.snd && m.snd.u, m && m.op && m.op.o, L.sel, S.pickd]);
+      if (!now && lf.dataset.k === k) return; lf.dataset.k = k;
+      const v = ph === 'find' ? (sel ? sel.v : '') : m ? m.v : '';
+      const pic = v ? `<video src="${esc(v)}" muted loop playsinline autoplay></video>` : `<div class="jbig dim">${I.eye}<small>tap a shot to look at it</small></div>`;
+      const badge = op ? `<b class="jop big">${I[op]}</b>` : m && m.op ? `<b class="jop">${I[m.op.o]}</b>` : '', dl = disc ? `<b class="jsd" style="--f:${FAM[disc.fam]}">${famIcon(disc.fam)}</b>` : '';
+      const label = !L.sel ? (ph === 'find' ? 'pick a shot' : ph === 'sound' ? 'pick a sound' : 'pick a cut') : sent ? '✓ sent · on the TV' : (S.pickd ? 'Send this instead ▸' : VERB[ph] + ' ▸');
+      lf.innerHTML = `<div class="jprev">${pic}${badge}${dl}</div>${m && ph !== 'find' ? `<div class="jby">${who3(m)}</div>` : ''}<button class="jsend ${sent ? 'sent' : ''}" id="jSend" ${!L.sel || sent ? 'disabled' : ''}>${label}</button>`;
+      const b = lf.querySelector('#jSend'); b.onclick = () => { if (!L.sel) return; api.buzz(24); api.send({ t: 'pick', key: L.sel }); b.disabled = true; b.textContent = 'sending…'; }; }
+    function ask(api, m, note) { L.far = !!m.far; L.asked = performance.now(); L.heardWas = L.S.heardN; L.note = note; const nt = document.getElementById('jNote'); if (nt) { nt.textContent = note; nt.classList.add('busy'); } api.send(m.far ? { t: 'far' } : { t: 'say', ...m }); }
     function who3(o) { return `<span style="--c:${o.img.c}">${I.eye}${esc(o.img.n)}</span>${o.snd ? `<span style="--c:${o.snd.c}">${famIcon(o.snd.fam)}${esc(o.snd.n)}</span>` : ''}${o.op ? `<span style="--c:${o.op.c}">${I[o.op.o]}${esc(o.op.n)}</span>` : ''}`; }
     function hear(b) { const a = L.prev || (L.prev = new Audio()); a.src = b.dataset.u; const t0 = +b.dataset.t0 || 0, t1 = +b.dataset.t1 || t0 + 5; a.addEventListener('loadedmetadata', () => { try { a.currentTime = t0; } catch (e) { } a.play().catch(() => { }); }, { once: true }); clearTimeout(a._t); a._t = setTimeout(() => a.pause(), Math.min(6, t1 - t0) * 1000 + 200);
       const v = document.querySelector('#jLf video'); if (v) { try { v.currentTime = 0; } catch (e) { } v.play().catch(() => { }); } }
     // talk to the archive: hold, say what you're looking for, let go
     function talk(b, api) {
-      b.onpointerdown = e => { e.preventDefault(); if (L.talk || L.sending) return; api.buzz(16); try { b.setPointerCapture(e.pointerId); } catch (x) { } b.classList.add('on'); let last = 0;
-        L.talk = window.Ears ? Ears.hold(api, { onLevel: v => { const i = document.getElementById('jLv'); if (i) i.style.transform = `scale(${1 + Math.min(1, v * 3)})`; }, onPartial: t => { const now = performance.now(); if (now - last > 200) { last = now; api.send({ t: 'heard', part: t }); } const h = document.querySelector('.jheard'); if (h) h.textContent = t; } }) : null;
-        if (L.talk) L.talk.ready.catch(() => { L.talk = null; b.classList.remove('on'); }); };
-      const up = async e => { const h = L.talk; if (!h) return; L.talk = null; b.classList.remove('on'); L.sending = true; const r = await h.stop().catch(() => null); L.sending = false; if (r) api.send({ t: 'say', a: r.a, mime: r.mime, dur: r.dur, text: r.text }); };
+      const note = t => { const n = document.getElementById('jNote'); if (n) { n.textContent = t; n.classList.add('busy'); } L.note = t; };
+      b.onpointerdown = e => { e.preventDefault(); if (L.talk || L.sending) return; api.buzz(16); try { b.setPointerCapture(e.pointerId); } catch (x) { } b.classList.add('on'); let last = 0; note('listening… let go to send');
+        L.talk = window.Ears ? Ears.hold(api, { onLevel: v => { const i = document.getElementById('jLv'); if (i) i.style.transform = `scale(${1 + Math.min(1, v * 3)})`; }, onPartial: t => { const now = performance.now(); if (now - last > 200) { last = now; api.send({ t: 'heard', part: t }); } if (t) note('“' + t + '”'); } }) : null;
+        if (L.talk) L.talk.ready.catch(() => { L.talk = null; b.classList.remove('on'); note('no microphone: type it instead'); }); else note('no microphone: type it instead'); };
+      const up = async e => { const h = L.talk; if (!h) return; L.talk = null; b.classList.remove('on'); L.sending = true; note('sending…'); const r = await h.stop().catch(() => null); L.sending = false;
+        if (r) ask(api, { a: r.a, mime: r.mime, dur: r.dur, text: r.text }, r.text ? 'looking for “' + r.text + '”…' : 'listening to it…'); else note('too short: hold the button while you talk'); };
       b.onpointerup = up; b.onpointercancel = up; b.oncontextmenu = e => e.preventDefault(); }
     return { key: take.key, status: null, cls: 'jamp', throws: true, takeover: take };
   }
