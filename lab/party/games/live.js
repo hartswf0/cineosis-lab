@@ -24,7 +24,7 @@
     const G = { ready: false, why: 'opening the archive', phase: 'load', reel: 0, len: 30, t0: 0, song: null, log: [], on: null, onAt: 0, air: 0, lastCut: -9, ch: {}, pts: {}, film: [], replay: null, at: -1, press: {} };
     window.__live = G;
     let LIB = null, MUS = [], top = 0, tick = 0, timers = [];
-    const players = () => H.players.filter(p => !p.house);
+    const players = () => H.players.filter(p => !p.house && (p.conn || p.local));
     const shot = k => LIB.shots[k], nameOf = id => (P(id) || {}).name || 'the archive', colOf = id => P(id) ? col(P(id).av) : HOUSE;
     const later = (f, ms) => timers.push(setTimeout(f, ms));
     Promise.all([ARC.load({ light: true }), fetch('tools/sound-kinds.json').then(r => r.json())]).then(([d, sk]) => { LIB = d.LIB; const byId = new Map(LIB.shots.map((s, i) => [s.id, i]));

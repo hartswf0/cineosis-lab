@@ -119,7 +119,7 @@
     const ST = { att: [], cast: {}, motifs: [], debts: [], backlot: [], mine: {}, style: {}, log: [] };
     const hands = {}; let LIB = null, X = null, XV = null, XI = null, R = null, SK = null, SND = [], TR = null, TW = null, SAM = null, FE = null, EXT = '.webp', byId = null, nid = 1, stopPlay = [], advT = 0;
     window.__cin = { C, ST, hands, begin: m => begin(m) };
-    const players = () => H.players.filter(p => !p.house);
+    const players = () => H.players.filter(p => !p.house && (p.conn || p.local));
     Promise.all([ARC.load({ light: true }), fetch('party/lexicon.json').then(r => r.json()), fetch('party/lexicon.bin').then(r => r.arrayBuffer()), fetch('pictures/rushes.json').then(r => r.json()), fetch('tools/sound-kinds.json').then(r => r.json()),
       fetch('markov/sam.json').then(r => r.json()), fetch('markov/sam-emb.bin').then(r => r.arrayBuffer()), new Promise(r => { const i = new Image(); i.onload = () => r('.webp'); i.onerror = () => r('.png'); i.src = 'seg/0046aa70-365f-5128-88eb-90cfe9e075e4/0.webp'; })])
       .then(([d, xj, xb, rj, sk, sj, sb, ext]) => { LIB = d.LIB; X = xj; XV = new Int8Array(xb); XI = new Map(X.words.map((w, i) => [w, i])); R = rj; SK = sk.clips; SAM = sj; FE = new Int8Array(sb); EXT = ext;

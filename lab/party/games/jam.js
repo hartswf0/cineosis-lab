@@ -92,7 +92,7 @@
     const J = { ready: false, why: 'opening the archive', round: 0, phase: 'find', card: null, order: [], objs: [], reel: [], playing: null, at: -1, said: {}, heard: {} };
     const ST = { att: [], cast: {}, motifs: [], debts: [], keeps: [], style: {}, log: [], seen: new Set() };
     const hands = {}; let LIB = null, X = null, XV = null, XI = null, R = null, SK = null, SND = [], TR = null, TW = null, nid = 1, stopPlay = null, spot = null, spotQ = [];
-    const players = () => H.players.filter(p => !p.house);
+    const players = () => H.players.filter(p => !p.house && (p.conn || p.local));
     window.__jam = { J, ST, hands };
     Promise.all([ARC.load({ light: true }), fetch('party/lexicon.json').then(r => r.json()), fetch('party/lexicon.bin').then(r => r.arrayBuffer()), fetch('pictures/rushes.json').then(r => r.json()), fetch('tools/sound-kinds.json').then(r => r.json())])
       .then(([d, xj, xb, rj, sk]) => { LIB = d.LIB; X = xj; XV = new Int8Array(xb); XI = new Map(X.words.map((w, i) => [w, i])); R = rj; SK = sk.clips;
