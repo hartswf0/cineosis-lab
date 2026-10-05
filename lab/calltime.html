@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Call Time</title>
+<meta name="description" content="Make today's movie with whatever survived yesterday. A multiplayer production: one screen is the TV, every phone is a remote. Call sheet, channel guide, hot remote, dailies, circle take, continuity, tomorrow's call sheet.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Jost:wght@400;500;600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{ --bg:#14213d; --bg2:#0d1630; --panel:#1d2c52; --line:#2e4275; --cyan:#7fe3ff; --yel:#ffd34d; --red:#ff5a5f; --grn:#61e294; --paper:#fbf6e9; --ink:#222; --dim:#9fb0d6;
+  --tv:'VT323',ui-monospace,monospace; --sans:'Jost',system-ui,sans-serif; --type:'Courier Prime','Courier New',monospace; color-scheme:dark; }
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{ margin:0; min-height:100%; background:var(--bg2); color:#eef2ff; font:400 15px/1.4 var(--sans); }
+body{ min-height:100vh; background:radial-gradient(ellipse at 50% 0%, #22346a, var(--bg2) 70%); }
+button{ font:inherit; color:inherit; cursor:pointer; border:0; background:none; padding:0; touch-action:manipulation; }
+button:disabled{ opacity:.35; cursor:default; }
+[hidden]{ display:none !important; }
+a{ color:var(--cyan); }
+.wrap{ width:min(1280px,100%); margin:0 auto; padding:10px 14px 24px; }
+/* the station bar */
+#top{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:6px 2px 10px; }
+#top .logo{ font:400 34px/1 var(--tv); letter-spacing:.06em; color:var(--yel); text-shadow:0 0 12px #ffd34d55; }
+#top .logo small{ font:500 10px var(--sans); letter-spacing:.3em; color:var(--dim); margin-left:8px; text-transform:uppercase; text-shadow:none; }
+#top .sp{ flex:1; } #top .room{ font:400 22px var(--tv); color:var(--cyan); letter-spacing:.08em; } #top a{ font-size:12px; color:var(--dim); text-decoration:none; }
+/* the crew */
+#crew{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+.mem{ display:flex; align-items:center; gap:6px; padding:4px 10px 4px 4px; border-radius:20px; background:var(--panel); border:2px solid transparent; font-size:13px; }
+.mem .av{ width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-size:17px; }
+.mem b{ font:400 20px var(--tv); color:var(--yel); margin-left:2px; }
+.mem.air{ border-color:var(--red); box-shadow:0 0 12px #ff5a5f88; } .mem.done{ opacity:.6; } .mem .st{ font-size:10px; color:var(--dim); letter-spacing:.08em; }
+.mem.off{ opacity:.4; }
+/* the set */
+.stage{ display:grid; gap:14px; }
+@media (min-width:960px){ .stage{ grid-template-columns:1.45fr 1fr; align-items:start; } }
+.stage > div{ min-width:0; }
+#tvbox{ background:#0a0a0a; border-radius:18px; padding:12px; box-shadow:inset 0 0 0 2px #333, 0 18px 40px #0008; }
+#screen{ position:relative; aspect-ratio:16/9; background:#000; border-radius:10px; overflow:hidden; }
+#screen video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; opacity:0; }
+#screen video.on{ opacity:1; }
+#paper{ position:absolute; inset:0; overflow:auto; background:#000; }
+#slate{ position:absolute; inset:0; display:grid; place-items:center; background:#000; text-align:center; }
+#cap{ position:absolute; left:0; right:0; bottom:0; padding:22px 6% 10px; text-align:center; font:italic 400 clamp(14px,2.2vw,22px)/1.3 Georgia,serif; background:linear-gradient(transparent,#000c); pointer-events:none; }
+#cap:empty{ display:none; }
+#bug{ position:absolute; left:10px; top:10px; right:10px; display:flex; gap:8px; align-items:flex-start; pointer-events:none; font:400 clamp(15px,2vw,22px)/1.1 var(--tv); }
+#bug:empty{ display:none; }
+#bug .onair{ background:var(--red); color:#fff; padding:2px 8px; border-radius:4px; letter-spacing:.1em; animation:blink 1.2s infinite; }
+@keyframes blink{ 50%{ opacity:.55; } }
+#bug .who{ background:#000b; padding:2px 8px; border-radius:4px; } #bug .ch{ background:#000b; color:var(--cyan); padding:2px 8px; border-radius:4px; } #bug .sp{ flex:1; } #bug .left{ background:#000b; color:var(--yel); padding:2px 8px; border-radius:4px; }
+#log{ position:absolute; right:10px; bottom:46px; display:flex; flex-direction:column; align-items:flex-end; gap:3px; pointer-events:none; font:400 clamp(13px,1.6vw,18px) var(--tv); }
+#log div{ background:#000b; padding:1px 8px; border-radius:3px; animation:fade 4s forwards; }
+@keyframes fade{ 0%{ opacity:1; transform:translateX(0); } 80%{ opacity:1; } 100%{ opacity:0; } }
+/* the clapboard */
+.clap{ width:min(78%,520px); font:700 clamp(14px,2.4vw,24px)/1.25 var(--type); color:#fff; text-align:left; }
+.clap .sticks{ height:clamp(22px,4vw,40px); background:repeating-linear-gradient(-45deg,#fff 0 18px,#111 18px 36px); border-radius:4px 4px 0 0; transform-origin:0 100%; transform:rotate(-14deg); transition:transform .12s ease-in; border:2px solid #fff; }
+.clap.shut .sticks{ transform:rotate(0); }
+.clap .body{ background:#111; border:2px solid #fff; border-top:0; padding:10px 14px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px 10px; }
+.clap .body div small{ display:block; font:500 9px var(--sans); letter-spacing:.24em; color:#aaa; } .clap .body .w{ grid-column:1/-1; }
+.big{ font:400 clamp(30px,6vw,64px)/1 var(--tv); color:var(--yel); letter-spacing:.04em; text-align:center; padding:0 6%; }
+.big small{ display:block; margin-top:8px; font:500 clamp(10px,1.4vw,14px) var(--sans); letter-spacing:.28em; color:var(--dim); text-transform:uppercase; }
+/* the call sheet (paper) */
+.sheet{ background:var(--paper); color:var(--ink); font:400 13px/1.35 var(--type); padding:16px 18px; border-radius:4px; box-shadow:0 8px 24px #0007; }
+#paper .sheet{ min-height:100%; border-radius:0; font-size:clamp(12px,1.6vw,16px); }
+.sheet h3{ margin:0; font:700 1.5em var(--type); letter-spacing:.06em; display:flex; justify-content:space-between; border-bottom:2px solid #222; padding-bottom:4px; }
+.sheet .g{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:4px 18px; margin-top:8px; }
+.sheet .k{ font-weight:700; letter-spacing:.12em; font-size:.8em; margin-top:8px; color:#555; }
+.sheet .call{ margin-top:10px; padding:6px 8px; border:2px solid #222; font-weight:700; letter-spacing:.08em; text-align:center; font-size:1.15em; }
+.sheet .note{ margin-top:8px; color:#b3261e; font-weight:700; } .sheet .no{ text-decoration:line-through; color:#b3261e; }
+.sheet .sm{ font-size:.85em; color:#555; }
+/* the guide */
+.panel{ background:var(--panel); border-radius:14px; padding:12px; box-shadow:0 10px 30px #0006; }
+.ph{ font:400 24px var(--tv); color:var(--yel); letter-spacing:.06em; margin:0 0 6px; display:flex; justify-content:space-between; align-items:baseline; }
+.ph small{ font:500 10px var(--sans); letter-spacing:.2em; color:var(--dim); text-transform:uppercase; }
+.guide{ width:100%; border-collapse:collapse; font:400 17px/1 var(--tv); }
+.guide td{ border-bottom:1px solid var(--line); padding:3px 4px; vertical-align:middle; }
+.guide .no{ color:var(--cyan); width:30px; } .guide .nm{ color:#fff; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.guide .th{ width:56px; } .guide .th i{ display:block; width:52px; aspect-ratio:4/3; background:#000 center/cover; border-radius:2px; }
+.guide .th i.q{ display:grid; place-items:center; color:var(--dim); background:#0b1430; font-style:normal; }
+.guide .vis{ color:var(--yel); font-size:13px; letter-spacing:-.1em; width:34px; }
+.guide tr.cur td{ background:#ff5a5f22; } .guide tr.cur .nm{ color:var(--red); }
+.guide tr.off td{ color:#7b86a8; text-decoration:line-through; } .guide tr.off .rs{ text-decoration:none; color:var(--red); font-size:13px; }
+.guide .hd td{ color:var(--dim); font-size:13px; letter-spacing:.1em; border-bottom:2px solid var(--line); }
+.guide .sec td{ color:var(--yel); font-size:14px; letter-spacing:.14em; padding-top:10px; }
+.guide .mine td{ background:#7fe3ff0d; }
+.cta{ display:block; width:100%; margin-top:12px; padding:14px; border-radius:12px; background:var(--yel); color:#1a1a1a; font:400 28px/1 var(--tv); letter-spacing:.08em; box-shadow:0 4px 0 #b38f1a; }
+.cta:active{ transform:translateY(2px); box-shadow:0 2px 0 #b38f1a; }
+.cta.red{ background:var(--red); color:#fff; box-shadow:0 4px 0 #a3292d; }
+.hint{ color:var(--dim); font-size:12px; text-align:center; margin-top:6px; }
+/* lobby */
+.lob{ display:grid; gap:14px; } @media (min-width:760px){ .lob{ grid-template-columns:auto 1fr; } }
+.qr{ background:#fff; padding:10px; border-radius:12px; width:min(250px,70vw); margin:0 auto; } .qr svg{ display:block; width:100%; height:auto; }
+.url{ font:400 18px var(--tv); color:var(--cyan); word-break:break-all; text-align:center; margin-top:6px; }
+.row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+input[type=text]{ font:inherit; padding:10px 12px; border-radius:10px; border:2px solid var(--line); background:#0d1630; color:#fff; min-width:0; flex:1; }
+.chip{ padding:6px 12px; border-radius:16px; border:2px solid var(--line); font:400 18px var(--tv); } .chip.on{ border-color:var(--yel); color:var(--yel); }
+.avs{ display:grid; grid-template-columns:repeat(6,1fr); gap:6px; } .avs button{ font-size:26px; padding:6px 0; border-radius:10px; border:2px solid transparent; background:#0d1630; } .avs button.on{ border-color:var(--yel); }
+.intro{ font:400 15px/1.5 var(--sans); color:#dfe6ff; } .intro b{ color:var(--yel); font-weight:600; }
+/* dailies, the circle */
+.takes{ display:grid; gap:8px; } .tk{ display:flex; align-items:center; gap:8px; padding:6px; border-radius:10px; background:#0d1630; border:2px solid transparent; text-align:left; width:100%; }
+.tk .n{ flex:0 0 40px; font:400 30px var(--tv); color:var(--yel); text-align:center; } .tk .strip{ flex:1; display:flex; gap:3px; } .tk .strip i{ flex:1; max-width:56px; aspect-ratio:4/3; background:#000 center/cover; border-radius:2px; }
+.tk .by{ flex:0 0 auto; text-align:right; font-size:12px; } .tk .vs{ font-size:16px; letter-spacing:-.1em; } .tk.win{ border-color:var(--yel); box-shadow:0 0 16px #ffd34d55; } .tk.now{ border-color:var(--red); }
+.ledger{ font:400 14px/1.45 var(--type); background:var(--paper); color:var(--ink); padding:12px 14px; border-radius:4px; }
+.ledger div{ border-bottom:1px dashed #bbb; padding:4px 0; } .ledger b{ letter-spacing:.06em; }
+.stack{ display:grid; gap:10px; } .stack .sheet{ transform:rotate(-.4deg); } .stack .sheet:nth-child(2n){ transform:rotate(.5deg); }
+/* the remote */
+.remote{ max-width:360px; margin:0 auto; background:linear-gradient(#2b2b30,#18181b); border-radius:36px; padding:18px 16px 22px; box-shadow:inset 0 2px 0 #ffffff22, 0 14px 30px #000a; }
+.remote .scr{ background:#0f2a1c; color:var(--grn); font:400 20px/1.1 var(--tv); border-radius:10px; padding:8px 10px; min-height:62px; box-shadow:inset 0 0 12px #000; }
+.remote .scr .t{ float:right; color:var(--yel); }
+.remote .grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+.remote .k{ padding:16px 0; border-radius:18px; background:linear-gradient(#45454d,#2e2e34); font:400 24px var(--tv); letter-spacing:.06em; box-shadow:0 4px 0 #111; color:#fff; }
+.remote .k:active, .remote .k.hit{ transform:translateY(3px); box-shadow:0 1px 0 #111; background:#5a5a64; }
+.remote .k.on{ color:var(--yel); box-shadow:0 4px 0 #111, inset 0 0 0 2px var(--yel); }
+.remote .k.full{ grid-column:1/-1; }
+.remote .rec{ background:radial-gradient(circle at 50% 40%, #ff6b6f, #c3262b); font-size:30px; padding:20px 0; }
+.remote .lbl{ grid-column:1/-1; text-align:center; font:600 9px var(--sans); letter-spacing:.3em; color:#999; margin:4px 0 -4px; }
+.remote .chs{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:8px; } .remote .chs button{ padding:8px 4px; border-radius:8px; background:#222; font:400 17px var(--tv); text-align:left; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; } .remote .chs button.on{ color:var(--red); }
+/* the phone */
+.phone{ max-width:440px; margin:0 auto; padding:12px 14px 30px; }
+.look{ text-align:center; padding:40px 10px; font:400 44px/1 var(--tv); color:var(--yel); }
+.look small{ display:block; font:500 13px var(--sans); color:var(--dim); letter-spacing:.14em; margin-top:12px; text-transform:uppercase; }
+.look .av{ font-size:64px; display:block; margin-bottom:10px; }
+.vote{ display:grid; grid-template-columns:repeat(auto-fit,minmax(70px,1fr)); gap:10px; margin-top:12px; }
+.vote button{ aspect-ratio:1; border-radius:50%; border:3px solid var(--yel); font:400 40px var(--tv); color:var(--yel); }
+.vote button.on{ background:var(--yel); color:#111; } .vote button:disabled{ border-style:dashed; }
+.me{ display:flex; align-items:center; gap:10px; justify-content:center; font:400 22px var(--tv); color:var(--dim); }
+</style></head>
+<body>
+<div class="wrap" id="app"></div>
+<script src="casino/vendor/peerjs.min.js"></script>
+<script src="casino/vendor/qrcode.js"></script>
+<script src="attrib/attrib.js"></script>
+<script>
+(async function () {
+  const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const Q = new URLSearchParams(location.search), ROOM = (Q.get('room') || '').toUpperCase().replace(/[^A-Z0-9]/g, ''), NET = Q.get('net') === 'bc' ? 'bc' : 'peer';
+  const AV = ['🦊', '🐙', '🦉', '🐸', '🐯', '🐼', '🦄', '🐝', '🐢', '🦖', '🐧', '🦁'], COL = ['#ff7a45', '#7fe3ff', '#ffd34d', '#61e294', '#c792ea', '#ff8fb1', '#9ad0ff', '#f6c177', '#8bd5ca', '#f28fad', '#b5e8a0', '#ffb86c'];
+  const rnd = Math.random, pick = xs => xs[Math.floor(rnd() * xs.length)], shuffle = xs => { xs = xs.slice(); for (let k = xs.length - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [xs[k], xs[j]] = [xs[j], xs[k]]; } return xs; };
+  const UP = s => String(s).toUpperCase(), pad = n => String(n).padStart(2, '0');
+
+  // ---- the wire: PeerJS between devices; BroadcastChannel between tabs of one browser (?net=bc)
+  const Net = {
+    host(code, onMsg, onState) {
+      if (NET === 'bc') { const ch = new BroadcastChannel('calltime-' + code); ch.onmessage = e => { if (e.data.to === 'host') onMsg(e.data.pid, e.data.msg); }; setTimeout(() => onState('open')); return { send: (pid, msg) => ch.postMessage({ to: pid, msg }), close: () => ch.close() }; }
+      const peer = new Peer('calltime-' + code), conns = new Map();
+      peer.on('open', () => onState('open')); peer.on('error', e => onState(e.type === 'unavailable-id' ? 'taken' : 'error', e.type));
+      peer.on('connection', c => { c.on('data', m => { if (m && m.pid) { conns.set(m.pid, c); onMsg(m.pid, m.msg); } });
+        c.on('close', () => { for (const [k, v] of conns) if (v === c) { conns.delete(k); onMsg(k, { t: 'gone' }); } }); });
+      return { send: (pid, msg) => { const c = conns.get(pid); if (c && c.open) c.send(msg); }, close: () => peer.destroy() };
+    },
+    join(code, pid, onMsg, onState) {
+      if (NET === 'bc') { const ch = new BroadcastChannel('calltime-' + code); ch.onmessage = e => { if (e.data.to === pid) onMsg(e.data.msg); }; setTimeout(() => onState('open')); return { send: msg => ch.postMessage({ to: 'host', pid, msg }) }; }
+      let conn = null; const go = () => { const peer = new Peer();
+        peer.on('open', () => { conn = peer.connect('calltime-' + code, { reliable: true }); conn.on('open', () => onState('open')); conn.on('data', onMsg); conn.on('close', () => { onState('lost'); setTimeout(go, 1500); }); });
+        peer.on('error', e => { onState('error', e.type); if (e.type === 'peer-unavailable' || e.type === 'network') setTimeout(go, 2500); }); };
+      go(); return { send: msg => { if (conn && conn.open) conn.send({ pid, msg }); } };
+    }
+  };
+
+  if (ROOM) return phone();
+  return host();
+
+  // =====================================================================  THE PHONE: a name, an avatar, then a remote
+  function phone() {
+    const app = $('#app'); let pid = null; try { pid = sessionStorage.getItem('ct.pid'); } catch (e) { }
+    if (!pid) { pid = 'p' + Math.random().toString(36).slice(2, 9); try { sessionStorage.setItem('ct.pid', pid); } catch (e) { } }
+    let me = { name: '', av: 0 }; try { me = JSON.parse(localStorage.getItem('ct.me')) || me; } catch (e) { }
+    let S = null, net = null, joined = false, guideOpen = false, wire = 'connecting';
+    const send = m => net && net.send(m);
+    const buzz = () => { try { navigator.vibrate && navigator.vibrate(12); } catch (e) { } };
+    function form() {
+      app.innerHTML = `<div class="phone"><div class="logo" style="font:400 40px var(--tv);color:var(--yel);text-align:center">CALL TIME</div>
+        <p class="hint" style="font-size:14px">Room ${esc(ROOM)} · you're joining the crew</p>
+        <div class="row" style="margin-top:14px"><input type="text" id="nm" maxlength="12" placeholder="Your name" value="${esc(me.name)}" autocomplete="off"></div>
+        <p class="hint" style="text-align:left;margin-top:14px">Pick your face</p><div class="avs">${AV.map((a, k) => `<button data-a="${k}" class="${k === me.av ? 'on' : ''}">${a}</button>`).join('')}</div>
+        <button class="cta" id="jn">Join the crew</button></div>`;
+      app.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { me.av = +b.dataset.a; app.querySelectorAll('[data-a]').forEach(x => x.classList.toggle('on', x === b)); });
+      $('#jn').onclick = () => { me.name = ($('#nm').value || '').trim().slice(0, 12) || 'Crew'; try { localStorage.setItem('ct.me', JSON.stringify(me)); } catch (e) { } joined = true; try { sessionStorage.setItem('ct.joined', '1'); } catch (e) { } connect(); draw(); };
+    }
+    function connect() { if (net) return; net = Net.join(ROOM, pid, m => { if (m.t === 'state') { S = m; draw(); } if (m.t === 'full') { S = { phase: 'full' }; draw(); } }, (st, why) => { wire = st === 'open' ? 'open' : st; if (st === 'open') send({ t: 'hello', name: me.name, av: me.av }); draw(); }); }
+    function draw() {
+      if (!joined) return form();
+      if (!S) { app.innerHTML = `<div class="phone"><div class="look">FINDING<br>THE SET…<small>${wire === 'open' ? 'room ' + esc(ROOM) : wire === 'error' || wire === 'lost' ? 'the set is not answering yet · still trying' : 'connecting'}</small></div></div>`; return; }
+      const head = `<div class="me"><span style="font-size:26px">${AV[S.you ? S.you.av : me.av]}</span>${esc(S.you ? S.you.name : me.name)}${S.you ? ` · <span style="color:var(--yel)">${S.you.score} ★</span>` : ''}</div>`;
+      const look = (big, sub, av) => `<div class="phone">${head}<div class="look">${av != null ? `<span class="av">${AV[av]}</span>` : ''}${big}<small>${sub || ''}</small></div></div>`;
+      const P = S.phase;
+      if (P === 'full') { app.innerHTML = look('THE CREW<br>IS FULL', 'twelve is the limit'); return; }
+      if (P === 'lobby') { app.innerHTML = look('YOU’RE ON<br>THE CREW', 'look at the TV · waiting for call time', S.you.av); return; }
+      if (P === 'call') { app.innerHTML = `<div class="phone">${head}<div class="sheet" style="margin-top:14px">${S.sheet}</div><div class="look" style="padding:20px 0;font-size:30px">LOOK UP<small>${S.youNext ? 'you have the remote first' : 'today’s call sheet is on the TV'}</small></div></div>`; return; }
+      if ((P === 'slate' || P === 'air') && S.isYou) return remote();
+      if (P === 'slate' || P === 'air' || P === 'pass') { app.innerHTML = look('LOOK UP', esc(S.onAir.name) + (P === 'pass' ? ' gets the remote' : ' is on air'), S.onAir.av); return; }
+      if (P === 'house') { app.innerHTML = look('THE HOUSE<br>IS ROLLING', 'it makes a take too · you won’t know which'); return; }
+      if (P === 'dailies') { app.innerHTML = look('DAILIES', 'take ' + S.daily + ' of ' + S.nTakes + ' · watch the TV'); return; }
+      if (P === 'circle') {
+        app.innerHTML = `<div class="phone">${head}<div class="look" style="padding:18px 0 6px;font-size:38px">CIRCLE ONE<small>the take that goes on air · not your own</small></div>
+          <div class="vote">${Array.from({ length: S.nTakes }, (_, k) => `<button data-k="${k}" class="${S.mine === k ? 'on' : ''}" ${k === S.own ? 'disabled' : ''}>${k + 1}</button>`).join('')}</div>
+          ${S.own >= 0 ? `<p class="hint">Take ${S.own + 1} is yours.</p>` : ''}${S.mine != null ? `<p class="hint" style="color:var(--yel)">Circled take ${S.mine + 1}. Tap another to change it.</p>` : ''}</div>`;
+        app.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { buzz(); send({ t: 'vote', k: +b.dataset.k }); });
+        return; }
+      if (P === 'result') { app.innerHTML = look('ON AIR:<br>TAKE ' + (S.win + 1), esc(S.winBy) + (S.gain ? ' · you +' + S.gain + ' ★' : ''), S.winAv); return; }
+      if (P === 'continuity') { app.innerHTML = look('CONTINUITY', 'what changed is on the TV · tomorrow it’s true'); return; }
+      if (P === 'wrap') { app.innerHTML = look('THAT’S A<br>WRAP', 'you placed #' + S.rank + ' of ' + S.of + ' · ' + S.you.score + ' ★', S.you.av); return; }
+      app.innerHTML = look('LOOK UP', '');
+    }
+    function remote() {
+      const A = S.air, live = S.phase === 'air';
+      app.innerHTML = `<div class="phone"><div class="remote">
+        <div class="scr">${live ? 'ON AIR' : 'STAND BY'}<span class="t">${live ? A.left + 's' : 'CLAP'}</span><br>CH ${esc(A.chNo)} ${esc(A.chName)}<br>SND ${esc(A.sndNo)} ${esc(A.sndName)}${A.slip ? ' ' + (A.slip > 0 ? '+' : '') + A.slip + 's' : ''}${A.mute ? ' · MUTE' : ''}${A.hold ? ' · HOLD' : ''}</div>
+        <div class="grid">
+          <button class="k full ${guideOpen ? 'on' : ''}" data-b="guide">GUIDE</button>
+          ${guideOpen ? `<div class="full" style="grid-column:1/-1"><div class="chs">${A.chs.map((c, k) => `<button data-b="ch" data-v="${k}" class="${k === A.cam ? 'on' : ''}">${esc(c)}</button>`).join('')}</div></div>` : ''}
+          <div class="lbl">PICTURE</div><button class="k" data-b="cam-">CAM −</button><button class="k" data-b="cam+">CAM +</button>
+          <div class="lbl">SOUND</div><button class="k" data-b="snd-">SND −</button><button class="k" data-b="snd+">SND +</button>
+          <div class="lbl">SLIP THE SOUND</div><button class="k" data-b="slip-">◀ EARLIER</button><button class="k" data-b="slip+">LATER ▶</button>
+          <button class="k ${A.mute ? 'on' : ''}" data-b="mute">MUTE</button><button class="k ${A.hold ? 'on' : ''}" data-b="hold">HOLD</button>
+          <button class="k full rec" data-b="rec" ${live ? '' : 'disabled'}>● REC</button>
+        </div><p class="hint" style="color:#999">REC prints the take. It also ends at 12 seconds.</p></div></div>`;
+      app.querySelectorAll('[data-b]').forEach(b => b.onclick = () => { buzz(); b.classList.add('hit'); setTimeout(() => b.classList.remove('hit'), 120);
+        if (b.dataset.b === 'guide') { guideOpen = !guideOpen; remote(); return; }
+        send({ t: 'btn', b: b.dataset.b, v: b.dataset.v != null ? +b.dataset.v : undefined }); });
+    }
+    let again = false; try { again = sessionStorage.getItem('ct.joined') === '1'; } catch (e) { }
+    if (again && me.name) { joined = true; connect(); }
+    draw();
+  }
+
+  // =====================================================================  THE TV: the set, the guide, the takes
+  async function host() {
+    const app = $('#app');
+    app.innerHTML = `<div id="top"><div class="logo">CALL TIME<small>make today’s movie with whatever survived yesterday</small></div><div class="sp"></div><span class="room" id="roomTag"></span><a href="index.html">← Lab</a></div>
+      <div id="crew"></div>
+      <div class="stage"><div><div id="tvbox"><div id="screen"><div id="vids"></div><div id="slate"><div class="big">CALL TIME<small>loading the rushes…</small></div></div><div id="paper" hidden></div><div id="cap"></div><div id="bug"></div><div id="log"></div></div></div></div>
+      <div><div class="panel" id="side"></div></div></div>`;
+    const R = await fetch('pictures/rushes.json').then(r => r.json());
+    const url = v => Array.isArray(v) ? R.r2 + R.P[v[0]] + '/clips/' + v[1] + '.mp4' : R.r2 + v;
+    const thumb = v => url(v).replace('/clips/', '/thumbnails/').replace('.mp4', '.jpg');
+    const SH = R.shots.filter(s => s.d >= 2), key = s => Array.isArray(s.v) ? s.v[1] : s.v, txt = s => (s.w || '') + ' ' + (s.s || []).join(' ');
+    const SKIP = /^(and|the|for|its|two|row|off|top|set|one|three|four|five|many|pink|golden|green|blue|yellow|orange|pastel|dead|retro|overhead|single|tidy|grid|array|pair|group|with|from|over|under|into|onto|through|frame|shot|wide|close|frontal|distant|empty|small|large|black|white|colour|color|light|dark|washed|centre|center|left|right|half|low|high|soft|flat|deep|pale|tight|loose|b&w)$|(y|ed|al|ive|ous|ful|ic|ish|less|ing|ly)$/i;
+    const noun = s => (s && s.s && s.s[0]) || ((s && s.w || '').toLowerCase().match(/[a-z]{3,}/g) || []).find(w => !SKIP.test(w)) || 'shot';
+    const words = s => new Set(txt(s).toLowerCase().match(/[a-z]{4,}/g) || []);
+    const jac = (a, b) => { let n = 0; a.forEach(w => b.has(w) && n++); return n / Math.max(1, Math.min(a.size, b.size)); };
+    const SCENES = [
+      { n: 'Odysseus leaves home', call: 'MAKE THE GOODBYE', cast: ['Odysseus', 'Penelope', 'a dog'], re: /house|home|door|gate|woman|women|family|road|dog|garden|street|window/i },
+      { n: 'Out to sea', call: 'GET US ONTO THE WATER', cast: ['Odysseus', '6 sailors'], re: /water|sea|boat|ship|wave|harbou?r|river|dock|sail|lake/i },
+      { n: 'The Cyclops cave', call: 'FIND THE MONSTER', cast: ['Odysseus', 'the Cyclops', '2 sailors', 'sheep'], re: /cave|dark|rock|fire|giant|eye|sheep|goat|tunnel|machine|mine|furnace/i },
+      { n: 'The escape', call: 'MAKE THE ESCAPE', cast: ['Odysseus', '3 sailors', 'sheep'], re: /run|sheep|boat|crowd|car|train|road|smoke|water|horse/i },
+      { n: 'The Sirens', call: 'SURVIVE THE SONG', cast: ['Odysseus, tied to the mast', 'the Sirens'], re: /woman|women|girl|sing|dancer|dance|music|water|rock|stage/i },
+      { n: 'Home at last', call: 'BRING HIM HOME', cast: ['Odysseus', 'Penelope', 'the old dog'], re: /house|home|dog|door|bed|woman|old|table|family|window/i }];
+    const SPLIT = 6, MAX = 12;
+
+    // ---- the house's rushes for a scene: the judged shots that answer it, the best first with some luck; each channel's next program is the shot most like it
+    function pickShots(scene, n, avoid) {
+      let pool = SH.filter(s => scene.re.test(txt(s)) && !avoid.has(key(s)));
+      if (pool.length < n * 4) pool = pool.concat(shuffle(SH.filter(s => !avoid.has(key(s)))).slice(0, 200));
+      const out = [], films = new Set();
+      for (const s of pool.map(s => [s, s.sc + rnd() * 5]).sort((a, b) => b[1] - a[1]).map(x => x[0])) { if (out.length >= n) break; if (films.has(s.f) || avoid.has(key(s))) continue; films.add(s.f); avoid.add(key(s)); out.push(s); }
+      return out; }
+    function tailFor(F, avoid) { const a = words(F); let best = null, bv = -1;
+      for (let k = 0; k < 60; k++) { const c = pick(SH); if (key(c) === key(F) || avoid.has(key(c))) continue; const v = .5 * c.sc / 10 + .5 * jac(a, words(c)) + rnd() * .3; if (v > bv) { bv = v; best = c; } }
+      avoid.add(key(best)); return best; }
+    const chanOf = (A, avoid, x = {}) => Object.assign({ A, B: tailFor(A, avoid), name: UP(noun(A)) + ' CAM', visits: 0, seenB: false }, x);
+    const voiceOf = l => ({ kind: 'voice', l, name: 'VOICE “' + l.x.split(' ').slice(0, 3).join(' ') + '…”' });
+    const musicOf = m => ({ kind: 'music', m, st: Math.max(0, ((m.d || 20) - 14) * rnd()), name: 'MUSIC · ' + (m.f || '').slice(0, 18) });
+    const ROOMT = () => ({ kind: 'room', name: 'ROOM TONE' });
+
+    // ---- the production
+    const G = { phase: 'lobby', day: 0, days: 4, players: [], code: null, sheets: [], ledger: [], film: [], cont: {}, house: 0, takes: [], votes: {}, turn: 0, order: [] };
+    const P = id => G.players.find(p => p.id === id);
+    let net = null, wireNote = '';
+    function openRoom() { G.code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(rnd() * 24)]).join('');
+      net = Net.host(G.code, onMsg, (st, why) => { if (st === 'taken') { net.close(); openRoom(); return; } wireNote = st === 'open' ? '' : 'Phones cannot reach this set (' + why + '). Add players on this screen instead.'; draw(); }); }
+    const joinURL = () => location.origin + location.pathname + '?room=' + G.code + (NET === 'bc' ? '&net=bc' : '');
+    function addPlayer(id, name, av, local) { if (G.players.length >= 12) return null;
+      const used = new Set(G.players.map(p => p.av)); if (used.has(av)) av = AV.findIndex((_, k) => !used.has(k));
+      const p = { id, name, av, col: COL[av], local, score: 0, conn: true }; G.players.push(p); return p; }
+    function onMsg(pid, m) {
+      let p = P(pid);
+      if (m.t === 'hello') { if (!p) { if (G.phase !== 'lobby') { p = addPlayer(pid, m.name, m.av, false); if (p) p.late = true; } else p = addPlayer(pid, m.name, m.av, false); if (!p) { net.send(pid, { t: 'full' }); return; } } else { p.conn = true; p.name = m.name || p.name; } draw(); return; }
+      if (!p) return;
+      if (m.t === 'gone') { p.conn = false; draw(); return; }
+      if (m.t === 'btn') press(pid, m.b, m.v);
+      if (m.t === 'vote') castVote(pid, m.k);
+    }
+    // what each phone is told: only what is true for that person now
+    function stateFor(p) {
+      const s = { t: 'state', phase: G.phase, day: G.day, you: { name: p.name, av: p.av, score: p.score } };
+      const air = G.air && P(G.air.by);
+      if (air) { s.onAir = { name: air.name, av: air.av }; s.isYou = air.id === p.id; }
+      if (G.phase === 'call') { s.sheet = sheetHTML(G.sheets[G.sheets.length - 1], true); s.youNext = G.order[0] === p.id; }
+      if (s.isYou && G.eng) { const st = G.eng.st(), lu = G.air.lu; s.air = { left: Math.max(0, Math.ceil(MAX - G.eng.now())), cam: st.cam, chNo: pad(lu.pics[st.cam].no), chName: lu.pics[st.cam].name, sndNo: pad(lu.snds[st.snd].no), sndName: lu.snds[st.snd].name, slip: st.slip, mute: st.mute, hold: st.hold, chs: lu.pics.map(c => pad(c.no) + ' ' + c.name) }; }
+      if (G.phase === 'slate' && s.isYou) s.air = { left: MAX, cam: 0, chNo: pad(G.air.lu.pics[0].no), chName: G.air.lu.pics[0].name, sndNo: pad(G.air.lu.snds[0].no), sndName: G.air.lu.snds[0].name, slip: 0, chs: G.air.lu.pics.map(c => pad(c.no) + ' ' + c.name) };
+      if (G.phase === 'dailies') { s.daily = G.daily + 1; s.nTakes = G.takes.length; }
+      if (G.phase === 'circle') { s.nTakes = G.takes.length; s.own = G.takes.findIndex(t => t.by === p.id); s.mine = G.votes[p.id]; }
+      if (G.phase === 'result') { const w = G.takes[G.win], b = P(w.by); s.win = G.win; s.winBy = b ? b.name : 'the house'; s.winAv = b ? b.av : null; s.gain = G.gain[p.id] || 0; }
+      if (G.phase === 'wrap') { const r = rank(); s.rank = r.findIndex(x => x.id === p.id) + 1; s.of = r.length; }
+      return s; }
+    function broadcast() { if (!net) return; G.players.forEach(p => { if (!p.local) net.send(p.id, stateFor(p)); }); }
+
+    // ---- a shooting day: the call sheet, made from yesterday's continuity
+    function newDay() {
+      const scene = SCENES[(G.day - 1) % SCENES.length], C = G.cont, avoid = new Set(G.film.flatMap(f => f.shots.map(key)));
+      const shared = [];
+      if (C.regular) shared.push(chanOf(C.regular.shot, avoid, { name: C.regular.name, star: true }));
+      pickShots(scene, 3 - shared.length, avoid).forEach(s => shared.push(chanOf(s, avoid)));
+      { const u = new Set(C.off ? [C.off.name] : []); shared.forEach(c => { if (u.has(c.name)) { const alt = (c.A.s || []).map(x => UP(x) + ' CAM').find(n => !u.has(n)); c.name = alt || c.name + ' II'; while (u.has(c.name)) c.name += 'I'; } u.add(c.name); }); }
+      shared.forEach((c, k) => c.no = 2 + k);
+      const sSnd = [C.heard ? Object.assign({}, C.heard, { star: true }) : voiceOf(pick(R.lines)), musicOf(pick(R.music))].slice(0, C.strike ? 1 : 2); sSnd.forEach((c, k) => c.no = 17 + k);
+      const mine = {}; [...G.players.map(p => p.id), 'house'].forEach(id => { mine[id] = { pics: pickShots(scene, 3, avoid).map((s, k) => chanOf(s, avoid, { no: 5 + k, own: id })), snds: [voiceOf(pick(R.lines)), ROOMT()].map((c, k) => Object.assign(c, { no: 19 + k, own: id })) }; });
+      const seen = new Set([...(C.off ? [C.off.name] : []), ...shared.map(c => c.name)]);
+      const rename = c => { if (!seen.has(c.name)) { seen.add(c.name); return; } const alt = (c.A.s || []).map(x => UP(x) + ' CAM').find(n => !seen.has(n)); c.name = alt || c.name + ' ' + 'IIIIII'.slice(0, 2); while (seen.has(c.name)) c.name += 'I'; seen.add(c.name); };
+      Object.values(mine).forEach(m => { const keep = new Set(seen); m.pics.forEach(rename); seen.clear(); keep.forEach(n => seen.add(n)); });
+      G.today = { scene, shared, sSnd, mine, off: C.off || null };
+      const sheet = { day: G.day, scene: scene.n, call: scene.call, cast: scene.cast, props: C.props || [], off: C.off ? [C.off] : [], notes: C.notes || [], cams: shared.map(c => pad(c.no) + ' ' + c.name + (c.star ? ' ★' : '')), sound: sSnd.map(c => pad(c.no) + ' ' + c.name), crew: G.players.map(p => AV[p.av] + ' ' + p.name) };
+      G.sheets.push(sheet); G.takes = []; G.votes = {}; G.turn = 0;
+      const ids = G.players.map(p => p.id); const r = (G.day - 1) % Math.max(1, ids.length); G.order = ids.slice(r).concat(ids.slice(0, r));
+    }
+    const lineup = id => ({ pics: [...G.today.shared, ...G.today.mine[id].pics], snds: [...G.today.sSnd, ...G.today.mine[id].snds] });
+    function sheetHTML(s, small) { if (!s) return '';
+      return `<h3><span>DAY ${s.day}</span><span>CALL SHEET</span></h3><div class="k">SCENE</div><div>${esc(s.day)} · ${esc(s.scene)}</div>
+        <div class="g"><div><div class="k">CAST</div>${s.cast.map(esc).join('<br>')}</div>
+        <div><div class="k">PROPS</div>${s.props.length ? s.props.map(x => esc(UP(x))).join('<br>') : '<span class="sm">whatever is on set</span>'}${s.off.map(o => `<br><span class="no">${esc(o.name)}</span>`).join('')}</div>
+        ${small ? '' : `<div><div class="k">CAMERAS</div>${s.cams.map(esc).join('<br>')}<br><span class="sm">+ 3 private channels on each remote</span></div><div><div class="k">SOUND</div>${s.sound.map(esc).join('<br>')}<br><span class="sm">+ a voice and room tone on each remote</span></div>`}</div>
+        ${s.notes.map(n => `<div class="note">PRODUCTION NOTE · ${esc(n)}</div>`).join('')}<div class="call">CALL: ${esc(s.call)}</div>
+        ${small ? '' : `<div class="k">CREW</div><div>${s.crew.map(esc).join(' · ')}</div>`}${s.onAir ? `<div class="k">ON AIR</div><div>${esc(s.onAir)}</div>` : ''}`; }
+
+    // ---- the screen: video channels drawn from a pool unlocked at the start, voices and beds on their own players
+    const VP = Array.from({ length: 14 }, () => { const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; $('#vids').append(v); return v; });
+    const AP = Array.from({ length: 6 }, () => { const a = new Audio(); a.preload = 'auto'; return a; });
+    let actx = null, CUR = null;
+    const hushAll = () => { if (CUR) CUR.stop(true); CUR = null; };
+    function clap() { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); const n = actx.sampleRate * .12, b = actx.createBuffer(1, n, actx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < n; i++) d[i] = (rnd() * 2 - 1) * Math.pow(1 - i / n, 6); const s = actx.createBufferSource(); s.buffer = b; s.connect(actx.destination); s.start(); } catch (e) { } }
+    const show = id => { ['#slate', '#paper'].forEach(s => $(s).hidden = s !== id); if (id) VP.forEach(v => v.classList.remove('on')); };
+    function slate(html) { $('#slate').innerHTML = html; show('#slate'); }
+    const cap = t => { $('#cap').textContent = t || ''; };
+    function logLine(html) { const d = document.createElement('div'); d.innerHTML = html; $('#log').prepend(d); setTimeout(() => d.remove(), 4000); while ($('#log').children.length > 5) $('#log').lastChild.remove(); }
+    function Engine(lu, o) {
+      const used = new Map(), free = VP.slice(), sounds = lu.snds.map(s => s.kind === 'room' ? null : AP[lu.snds.indexOf(s) % AP.length]);
+      let t0 = 0, st = { cam: 0, snd: 0, slip: 0, mute: false, hold: false }, cur = null, curKey = '', tick = 0, timers = [], ended = false, sT = [];
+      lu.snds.forEach((s, k) => { const a = sounds[k]; if (!a) return; const u = url(s.kind === 'voice' ? s.l.v : s.m.v); if (a.dataset.u !== u) { a.dataset.u = u; a.src = u; } a.pause(); });
+      function el(i, part) { const k = i + part; if (!used.has(k)) { const v = free.shift() || VP[0], sh = lu.pics[i][part]; const u = url(sh.v); if (v.dataset.u !== u) { v.dataset.u = u; v.src = u; } v._sh = sh; used.set(k, v); } return used.get(k); }
+      lu.pics.forEach((_, i) => el(i, 'A'));
+      const now = () => t0 ? (performance.now() - t0) / 1000 : 0;
+      const livePos = (sh, local) => { const d = Math.max(1, sh.d || 4); return local % d; };
+      function showPic() { const t = now(), part = t < SPLIT ? 'A' : 'B', v = el(st.cam, part);
+        if (o.live && part === 'B') lu.pics[st.cam].seenB = true;
+        if (cur !== v) { if (cur) { cur.pause(); cur.classList.remove('on'); } cur = v; try { v.currentTime = livePos(v._sh, part === 'A' ? t : t - SPLIT); } catch (e) { } v.classList.add('on'); }
+        v.muted = !(lu.snds[st.snd].kind === 'room' && !st.mute); if (st.hold) v.pause(); else v.play().catch(() => { });
+        curKey = st.cam + part; if (part === 'A') el(st.cam, 'B'); }
+      function sound() { sounds.forEach(a => a && a.pause()); sT.forEach(clearTimeout); sT = []; cap('');
+        const s = lu.snds[st.snd], a = sounds[st.snd];
+        if (!st.mute && s.kind === 'voice') { const skip = Math.max(0, -st.slip); sT.push(setTimeout(() => { if (ended) return; try { a.currentTime = s.l.t0 + skip; } catch (e) { } a.play().catch(() => { }); cap('“' + s.l.x + '”'); sT.push(setTimeout(() => { a.pause(); cap(''); }, Math.max(.3, s.l.t1 - s.l.t0 - skip) * 1000 + 200)); }, Math.max(0, st.slip) * 1000)); }
+        if (!st.mute && s.kind === 'music') { try { a.currentTime = s.st + Math.max(0, now() + st.slip); } catch (e) { } a.volume = .85; a.play().catch(() => { }); }
+        showPic(); }
+      function apply(ev) { const n = lu.pics.length, m = lu.snds.length;
+        if (ev.k === 'cam') st.cam = ((ev.v % n) + n) % n; if (ev.k === 'snd') st.snd = ((ev.v % m) + m) % m;
+        if (ev.k === 'slip') st.slip = Math.max(-3, Math.min(3, Math.round((st.slip + ev.v) * 10) / 10)); if (ev.k === 'mute') st.mute = !st.mute; if (ev.k === 'hold') st.hold = !st.hold;
+        if (ev.k === 'cam' && o.live) lu.pics[st.cam].visits++;
+        if (ev.k === 'cam' || ev.k === 'hold') showPic(); else sound(); o.onChange && o.onChange(st); }
+      function start(edl) { if (CUR && CUR !== api) CUR.stop(true); CUR = api; t0 = performance.now(); show(null); sound(); tick = setInterval(() => { const t = now(); if (t >= SPLIT && curKey === st.cam + 'A') showPic(); o.onTick && o.onTick(t, st); if (t >= (edl ? edl.end : MAX)) stop(); }, 100);
+        if (edl) edl.ev.forEach(e => timers.push(setTimeout(() => !ended && apply(e), e.t * 1000))); }
+      function stop(quiet) { if (ended) return; ended = true; if (CUR === api) CUR = null; clearInterval(tick); timers.forEach(clearTimeout); sT.forEach(clearTimeout); used.forEach(v => { v.pause(); v.classList.remove('on'); }); sounds.forEach(a => a && a.pause()); cap(''); if (!quiet && o.onEnd) o.onEnd(Math.min(now(), MAX)); }
+      const api = { start, apply, stop, now, st: () => st };
+      return api;
+    }
+
+    // ---- the turn: the clapboard, then the remote is live
+    function bug(p, st, lu, t) { const c = lu.pics[st.cam], s = lu.snds[st.snd];
+      $('#bug').innerHTML = `<span class="onair">ON AIR</span><span class="who" style="color:${p ? p.col : '#fff'}">${p ? AV[p.av] + ' ' + esc(p.name) : 'THE HOUSE'}</span><span class="ch">CH ${pad(c.no)} ${esc(c.name)}<br>SND ${pad(s.no)} ${esc(s.name.slice(0, 22))}${st.slip ? ' ' + (st.slip > 0 ? '+' : '') + st.slip + 's' : ''}${st.mute ? ' · MUTE' : ''}${st.hold ? ' · HOLD' : ''}</span><span class="sp"></span><span class="left">${Math.max(0, Math.ceil(MAX - t))}</span>`; }
+    function clapboard(take, shut) { const s = G.today.scene, p = P(take.by);
+      return `<div class="clap ${shut ? 'shut' : ''}"><div class="sticks"></div><div class="body"><div><small>DAY</small>${G.day}</div><div><small>SCENE</small>${G.day}</div><div><small>TAKE</small>${take.n}</div><div class="w"><small>PRODUCTION</small>${esc(s.n.toUpperCase())}</div><div class="w"><small>ON THE REMOTE</small>${p ? AV[p.av] + ' ' + esc(p.name) : 'THE HOUSE'}</div></div></div>`; }
+    function nextTurn() {
+      if (G.turn >= G.order.length) return houseTurn();
+      const id = G.order[G.turn], p = P(id); if (!p) { G.turn++; return nextTurn(); }
+      const lu = lineup(id), take = { by: id, n: G.takes.length + 1, lu, edl: { ev: [], end: MAX } }; G.air = take; G.phase = 'slate'; draw();
+      slate(clapboard(take, false)); broadcast();
+      setTimeout(() => { if (G.air !== take) return; $('#slate').innerHTML = clapboard(take, true); clap(); setTimeout(() => goLive(take), 450); }, 2300);
+    }
+    function goLive(take) {
+      const p = P(take.by); G.phase = 'air'; let lastSec = -1;
+      G.eng = Engine(take.lu, { live: true, onChange: st => { bug(p, st, take.lu, G.eng.now()); drawSide(); broadcast(); }, onTick: (t, st) => { bug(p, st, take.lu, t); const s = Math.ceil(MAX - t); if (s !== lastSec) { lastSec = s; broadcast(); } },
+        onEnd: t => { take.edl.end = Math.max(2, Math.round(t * 10) / 10); G.eng = null; $('#bug').innerHTML = ''; G.takes.push(take); G.air = null; logLine('● REC · take ' + take.n); passRemote(); } });
+      take.lu.pics[0].visits++; G.eng.start(); draw(); broadcast();
+    }
+    const LABEL = { 'cam+': 'CAM +', 'cam-': 'CAM −', 'snd+': 'SND +', 'snd-': 'SND −', 'slip-': '◀ SLIP', 'slip+': 'SLIP ▶', mute: 'MUTE', hold: 'HOLD', rec: '● REC', ch: 'CH' };
+    function press(pid, b, v) {
+      if (!G.air || G.air.by !== pid || !G.eng || G.phase !== 'air') return;
+      const st = G.eng.st(), t = Math.round(G.eng.now() * 10) / 10, p = P(pid), take = G.air;
+      if (b === 'rec') { if (t >= 2) G.eng.stop(); return; }
+      const ev = b === 'cam+' ? { k: 'cam', v: st.cam + 1 } : b === 'cam-' ? { k: 'cam', v: st.cam - 1 } : b === 'ch' ? { k: 'cam', v: v | 0 } : b === 'snd+' ? { k: 'snd', v: st.snd + 1 } : b === 'snd-' ? { k: 'snd', v: st.snd - 1 } : b === 'slip-' ? { k: 'slip', v: -.5 } : b === 'slip+' ? { k: 'slip', v: .5 } : b === 'mute' ? { k: 'mute' } : b === 'hold' ? { k: 'hold' } : null;
+      if (!ev) return;
+      G.eng.apply(ev); take.edl.ev.push(Object.assign({ t }, ev, { v: ev.k === 'cam' ? G.eng.st().cam : ev.k === 'snd' ? G.eng.st().snd : ev.v }));
+      const s2 = G.eng.st(), what = ev.k === 'cam' ? '→ ' + pad(take.lu.pics[s2.cam].no) + ' ' + take.lu.pics[s2.cam].name : ev.k === 'snd' ? '→ ' + take.lu.snds[s2.snd].name : ev.k === 'slip' ? (s2.slip > 0 ? '+' : '') + s2.slip + 's' : ev.k === 'mute' ? (s2.mute ? 'on' : 'off') : (s2.hold ? 'on' : 'off');
+      logLine(`<span style="color:${p.col}">${AV[p.av]}</span> ${LABEL[b]} ${esc(what)}`);
+    }
+    function passRemote() {
+      G.turn++; const nid = G.order[G.turn], n = nid && P(nid);
+      if (n) { G.phase = 'pass'; G.air = { by: nid }; slate(`<div class="big">REMOTE PASSES TO<br><span style="color:${n.col}">${AV[n.av]} ${esc(n.name)}</span><small>${n.local ? 'take the remote on this screen' : 'look at your phone'}</small></div>`); draw(); broadcast(); setTimeout(nextTurn, 1900); }
+      else { G.air = null; nextTurn(); }
+    }
+    // ---- the house makes a take too: forty random cuts through its channels, kept by the critic (the judge's scores, the scene, a few cuts)
+    function houseTurn() {
+      G.phase = 'house'; G.air = null; draw(); broadcast(); slate(`<div class="big">THE HOUSE<br>IS ROLLING<small>forty takes through its own channels · it keeps one</small></div>`);
+      const lu = lineup('house'), sc = G.today.scene; let best = null;
+      for (let k = 0; k < 40; k++) { const ev = []; let t = 0, cam = 0, v = 0, cuts = 0, snd = Math.floor(rnd() * lu.snds.length); ev.push({ t: 0, k: 'snd', v: snd });
+        let segs = [], last = 0;
+        while (true) { const dt = 1.4 + rnd() * 2.6; if (t + dt > 10) break; t += dt; segs.push([cam, t - last]); last = t; cam = Math.floor(rnd() * lu.pics.length); ev.push({ t: Math.round(t * 10) / 10, k: 'cam', v: cam }); cuts++; if (rnd() < .15) ev.push({ t: Math.round(t * 10) / 10, k: 'slip', v: rnd() < .5 ? -.5 : .5 }); }
+        segs.push([cam, 10 - last]);
+        segs.forEach(([c, d]) => { const s = lu.pics[c].A; v += d * (s.sc / 10 + (sc.re.test(txt(s)) ? .4 : 0)); });
+        v = v / 10 + .3 * (1 - Math.abs(cuts - 3) * .15) + (lu.snds[snd].kind === 'voice' ? .15 : 0) + rnd() * .1;
+        if (!best || v > best.v) best = { v, ev, end: 10 }; }
+      const take = { by: 'house', n: G.takes.length + 1, lu, edl: { ev: best.ev, end: best.end } }; G.takes.push(take);
+      setTimeout(dailies, 2200);
+    }
+
+    // ---- dailies: every take, unlabelled, in a shuffled order
+    function dailies() { G.takes = shuffle(G.takes); G.phase = 'dailies'; G.daily = 0; draw(); playDaily(); }
+    function playDaily() {
+      if (G.daily >= G.takes.length) { G.phase = 'circle'; G.votes = {}; slate(`<div class="big">CIRCLE ONE<small>every phone · not your own take</small></div>`); draw(); broadcast(); return; }
+      const k = G.daily, t = G.takes[k]; broadcast(); draw();
+      slate(`<div class="big">DAILIES<br>TAKE ${k + 1}<small>day ${G.day} · ${esc(G.today.scene.n)}</small></div>`);
+      setTimeout(() => { const e = Engine(t.lu, { onEnd: () => { G.daily++; setTimeout(playDaily, 300); } }); G.eng2 = e; e.start(t.edl); }, 1300);
+    }
+    const voters = () => G.players.filter(p => p.local || p.conn);
+    function castVote(pid, k) { if (G.phase !== 'circle' || k < 0 || k >= G.takes.length || G.takes[k].by === pid) return; G.votes[pid] = k; draw(); broadcast();
+      if (voters().every(p => G.votes[p.id] != null || G.takes.every((t, j) => t.by === p.id || false))) setTimeout(() => G.phase === 'circle' && closeVote(), 700); }
+    function closeVote() {
+      const n = G.takes.map(() => 0); Object.values(G.votes).forEach(k => n[k]++);
+      const max = Math.max(...n); let win = n.indexOf(max); const tied = n.map((v, k) => v === max ? k : -1).filter(k => k >= 0); if (tied.length > 1) win = pick(tied);
+      G.win = win; G.gain = {};
+      G.takes.forEach((t, k) => { const g = n[k] + (k === win ? 2 : 0); if (!g) return; if (t.by === 'house') G.house += g; else { const p = P(t.by); if (p) { p.score += g; G.gain[p.id] = g; } } });
+      const w = G.takes[win], wp = P(w.by); G.sheets[G.sheets.length - 1].onAir = 'take ' + (win + 1) + ' · ' + (wp ? wp.name : 'the house') + ' · ' + n[win] + ' circled';
+      G.film.push({ day: G.day, scene: G.today.scene.n, take: w, shots: usedShots(w) });
+      G.phase = 'result'; G.n = n; draw(); broadcast();
+      slate(`<div class="big">ON AIR<br>TAKE ${win + 1}<small>${wp ? AV[wp.av] + ' ' + esc(wp.name) : 'the house'} · ${n[win]} circled</small></div>`);
+      setTimeout(() => { if (G.phase !== 'result') return; const e = Engine(w.lu, {}); e.start(w.edl); }, 1600);
+    }
+    // the shots a take really showed, and for how long
+    function usage(t) { const lu = t.lu, cams = {}, snds = {}; let cam = 0, snd = 0, last = 0, slip = false, mute = false, hold = false;
+      const ev = t.edl.ev.slice().sort((a, b) => a.t - b.t).concat([{ t: t.edl.end, k: 'end' }]);
+      ev.forEach(e => { const d = e.t - last; if (d > 0) { const part = last < SPLIT ? 'A' : 'B'; const sh = lu.pics[cam][part]; cams[cam] = (cams[cam] || 0) + d; (cams['s' + cam + part] = sh); snds[snd] = (snds[snd] || 0) + d; } last = e.t;
+        if (e.k === 'cam') cam = e.v; if (e.k === 'snd') snd = e.v; if (e.k === 'slip') slip = true; if (e.k === 'mute') mute = true; if (e.k === 'hold') hold = true; });
+      const shots = Object.keys(cams).filter(k => k[0] === 's').map(k => cams[k]);
+      const topCam = Object.keys(cams).filter(k => k[0] !== 's').sort((a, b) => cams[b] - cams[a])[0], topSnd = Object.keys(snds).sort((a, b) => snds[b] - snds[a])[0];
+      return { shots, topCam: +topCam, topSnd: +topSnd, slip, mute, hold }; }
+    const usedShots = t => usage(t).shots;
+
+    // ---- continuity: what the circled take changed becomes tomorrow's facts
+    function continuity() {
+      const w = G.takes[G.win], u = usage(w), lu = w.lu, wp = P(w.by), main = lu.pics[u.topCam], mainShot = u.shots[0] || main.A, L = [], C = {};
+      const shared = G.today.shared, most = shared.slice().sort((a, b) => b.visits - a.visits)[0], least = shared.filter(c => c !== most).sort((a, b) => a.visits - b.visits)[0];
+      if (most && most.visits > 0) { C.regular = { name: most.name, shot: most.B }; L.push([most.name, `tuned ${most.visits}× today · it stays on tomorrow, and the house runs what comes next on it`]); }
+      const gone = least ? least.name.replace(/ CAM$/, '') : '', built = (u.shots.map(x => UP(noun(x))).find(x => x !== gone) || UP(noun(mainShot)) === gone && 'NEXT' || UP(noun(mainShot)));
+      if (least) { C.off = { name: least.name, why: 'dismantled to build the ' + built + ' set (day ' + G.day + ')' }; L.push([least.name, (least.visits ? 'barely watched' : 'nobody tuned in') + ' · dismantled to build the ' + built + ' set · OFF AIR tomorrow']);
+        C.notes = [least.name + ' UNAVAILABLE · currently the ' + built + ' set']; }
+      C.props = [...new Set(u.shots.map(noun).map(x => x.toLowerCase()))].slice(0, 3);
+      C.props.forEach(x => L.push(['THE ' + UP(x), 'on air today · survives to tomorrow’s call sheet']));
+      const hs = lu.snds[u.topSnd]; if (hs && hs.kind !== 'room') { C.heard = Object.assign({}, hs); delete C.heard.own; L.push([hs.name, 'heard on air · it will be heard again']); }
+      if (u.mute) { C.strike = true; L.push(['SOUND DEPARTMENT', 'muted on air · tomorrow one sound channel short']); (C.notes = C.notes || []).push('SOUND IS ONE CHANNEL SHORT · they were muted on day ' + G.day); }
+      if (u.hold) L.push(['THE ' + UP(noun(mainShot)), 'held on air · still holding the pose']);
+      if (u.slip) L.push(['SYNC', 'slipped on air · nobody fixed it']);
+      if (!wp) L.push(['THE HOUSE', 'directed today’s scene · ' + G.house + ' ★ so far']); else L.push([AV[wp.av] + ' ' + wp.name.toUpperCase(), 'directed today’s scene']);
+      G.cont = C; G.ledger.push({ day: G.day, lines: L }); G.sheets[G.sheets.length - 1].ledger = L;
+      hushAll(); G.phase = 'continuity'; draw(); broadcast();
+      $('#paper').innerHTML = `<div class="ledger" style="min-height:100%;border-radius:0"><div style="border:0;font-weight:700;letter-spacing:.14em">CONTINUITY REPORT · AFTER DAY ${G.day}</div>${L.map(([a, b]) => `<div><b>${esc(a)}</b> — ${esc(b)}</div>`).join('')}</div>`; show('#paper');
+    }
+    function rank() { return G.players.slice().sort((a, b) => b.score - a.score); }
+    function wrap() { hushAll(); G.phase = 'wrap'; draw(); broadcast(); const r = rank(), top = r[0];
+      slate(G.house > (top ? top.score : 0) ? `<div class="big">THE HOUSE<br>DIRECTED THIS PICTURE<small>${G.house} ★ · the crew’s best: ${top ? esc(top.name) + ' ' + top.score + ' ★' : '—'}</small></div>` : `<div class="big">BEST DIRECTOR<br><span style="color:${top.col}">${AV[top.av]} ${esc(top.name)}</span><small>${top.score} ★ · the house ${G.house} ★</small></div>`); }
+    function playFilm() { let k = 0; const next = () => { if (k >= G.film.length) { slate(`<div class="big">THE END<small>made with whatever survived</small></div>`); return; } const f = G.film[k++];
+        slate(`<div class="big">DAY ${f.day}<small>${esc(f.scene)}</small></div>`); setTimeout(() => { const e = Engine(f.take.lu, { onEnd: next }); e.start(f.take.edl); }, 1500); }; next(); }
+
+    // ---- drawing the set
+    function drawCrew() { const air = G.air && G.air.by;
+      $('#crew').innerHTML = G.players.map(p => `<div class="mem ${air === p.id ? 'air' : ''} ${!p.conn && !p.local ? 'off' : ''}"><span class="av" style="background:${p.col}33">${AV[p.av]}</span>${esc(p.name)}${p.local ? ' <span class="st">HERE</span>' : ''}${G.phase === 'circle' ? (G.votes[p.id] != null ? ' <span class="st" style="color:var(--grn)">✓ CIRCLED</span>' : ' <span class="st">…</span>') : ''}<b>${p.score}</b></div>`).join('')
+        + (G.day ? `<div class="mem"><span class="av" style="background:#ffffff22">🎰</span>The house<b>${G.house}</b></div>` : ''); }
+    function guideHTML(id) {
+      const lu = id ? lineup(id) : { pics: G.today.shared, snds: G.today.sSnd }, nowShot = G.film.length ? G.film[G.film.length - 1].shots.slice(-1)[0] : null, cur = G.eng && G.air && G.air.by === id ? G.eng.st() : null;
+      const th = (s, q) => q ? '<i class="q">?</i>' : s ? `<i style="background-image:url('${esc(thumb(s.v))}')"></i>` : '<i class="q">—</i>';
+      return `<table class="guide"><tr class="hd"><td>CH</td><td>PROGRAM</td><td class="th">NOW</td><td class="th">+0</td><td class="th">+${SPLIT}s</td><td class="vis">TUNED</td></tr>
+        ${lu.pics.map((c, k) => `<tr class="${cur && cur.cam === k ? 'cur' : ''} ${c.own ? 'mine' : ''}"><td class="no">${pad(c.no)}</td><td class="nm">${esc(c.name)}${c.star ? ' ★' : ''}</td><td class="th">${th(nowShot)}</td><td class="th">${th(c.A)}</td><td class="th">${th(c.B, !(c.seenB || c.visits >= 2))}</td><td class="vis">${'●'.repeat(Math.min(5, c.visits))}</td></tr>`).join('')}
+        ${G.today.off ? `<tr class="off"><td class="no">··</td><td class="nm" colspan="4">${esc(G.today.off.name)} <span class="rs">OFF AIR · ${esc(G.today.off.why)}</span></td><td></td></tr>` : ''}
+        <tr class="sec"><td colspan="6">SOUND</td></tr>
+        ${lu.snds.map((s, k) => `<tr class="${cur && cur.snd === k ? 'cur' : ''} ${s.own ? 'mine' : ''}"><td class="no">${pad(s.no)}</td><td class="nm" colspan="5">${esc(s.name)}${s.star ? ' ★' : ''}</td></tr>`).join('')}</table>
+        ${id ? '' : '<div class="hint">Each remote also gets three private channels (05–07), a voice (19) and room tone (20).</div>'}`; }
+    function stripOf(t) { return usage(t).shots.slice(0, 5).map(s => `<i style="background-image:url('${esc(thumb(s.v))}')"></i>`).join(''); }
+    function drawSide() {
+      const S = $('#side'), ph = G.phase;
+      if (ph === 'lobby') {
+        let svg = ''; if (G.code && !wireNote && window.qrcode) { const q = qrcode(0, 'M'); q.addData(joinURL()); q.make(); svg = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); }
+        S.innerHTML = `<div class="ph">THE CREW <small>${G.players.length} joined</small></div>
+          <p class="intro">Every phone is a <b>remote</b>. Each shooting day the remote passes round the crew: <b>CAM ±</b> changes the picture, <b>SND ±</b> the sound, <b>◀ ▶</b> slips one against the other, <b>REC</b> prints the take. The house makes one too. Everyone circles the best; it goes on air; tomorrow lives with it.</p>
+          ${wireNote ? `<p class="hint" style="color:var(--red)">${esc(wireNote)}</p>` : `<div class="qr">${svg}</div><div class="url">${esc(joinURL().replace(/^https?:\/\//, ''))}</div><p class="hint">Scan to join · room <b style="color:var(--cyan)">${esc(G.code || '')}</b></p>`}
+          <div class="row" style="margin-top:10px"><input type="text" id="lname" maxlength="12" placeholder="Or add a player on this screen"><button class="chip" id="ladd">+ ADD</button></div>
+          <div class="row" style="margin-top:10px"><span class="hint" style="margin:0">Shooting days:</span>${[2, 3, 4, 6].map(d => `<button class="chip ${G.days === d ? 'on' : ''}" data-d="${d}">${d}</button>`).join('')}</div>
+          <button class="cta" id="startB" ${G.players.length ? '' : 'disabled'}>${G.players.length ? 'CALL TIME ▸' : 'WAITING FOR THE CREW'}</button>`;
+        const add = () => { const v = ($('#lname').value || '').trim().slice(0, 12); if (!v) return; const used = new Set(G.players.map(p => p.av)); addPlayer('L' + Date.now(), v, AV.findIndex((_, k) => !used.has(k)), true); draw(); };
+        $('#ladd').onclick = add; $('#lname').onkeydown = e => { if (e.key === 'Enter') add(); };
+        S.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { G.days = +b.dataset.d; draw(); });
+        $('#startB').onclick = () => { if (!G.players.length) return; [...VP, ...AP].forEach(m => { m.muted = true; m.play().catch(() => { }); m.pause(); m.muted = m.tagName === 'VIDEO'; }); try { actx = new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) { } G.day = 1; callSheet(); };
+        return; }
+      if (ph === 'call') { S.innerHTML = `<div class="ph">TV GUIDE <small>day ${G.day} · shared channels</small></div>${guideHTML(null)}<button class="cta red" id="go">ROLL CAMERA ▸</button><div class="hint">First on the remote: ${esc((P(G.order[0]) || {}).name || '')}</div>`; $('#go').onclick = nextTurn; return; }
+      if (ph === 'slate' || ph === 'air' || ph === 'pass') { const p = G.air && P(G.air.by), local = p && p.local && ph === 'air';
+        S.innerHTML = `<div class="ph">TV GUIDE <small>${p ? AV[p.av] + ' ' + esc(p.name) + '’s remote' : ''}</small></div>${p ? guideHTML(p.id) : ''}${local ? localRemote() : ''}`;
+        if (local) S.querySelectorAll('[data-b]').forEach(b => b.onclick = () => press(p.id, b.dataset.b, b.dataset.v != null ? +b.dataset.v : undefined));
+        return; }
+      if (ph === 'house') { S.innerHTML = `<div class="ph">THE HOUSE <small>rolling</small></div>${guideHTML('house')}`; return; }
+      if (ph === 'dailies') { S.innerHTML = `<div class="ph">DAILIES <small>nobody knows whose is whose</small></div><div class="takes">${G.takes.map((t, k) => `<div class="tk ${k === G.daily ? 'now' : ''}"><span class="n">${k + 1}</span><span class="strip">${k < G.daily ? stripOf(t) : ''}</span><span class="by">${k === G.daily ? '▶ now' : k < G.daily ? 'seen' : ''}</span></div>`).join('')}</div>`; return; }
+      if (ph === 'circle') { const locals = G.players.filter(p => p.local);
+        S.innerHTML = `<div class="ph">CIRCLE TAKE <small>${Object.keys(G.votes).length} of ${voters().length} circled</small></div><div class="takes">${G.takes.map((t, k) => `<div class="tk"><span class="n">${k + 1}</span><span class="strip">${stripOf(t)}</span><span class="by"></span></div>`).join('')}</div>
+          ${locals.map(p => `<div class="row" style="margin-top:10px"><span style="min-width:90px">${AV[p.av]} ${esc(p.name)}</span>${G.takes.map((t, k) => `<button class="chip ${G.votes[p.id] === k ? 'on' : ''}" data-p="${p.id}" data-k="${k}" ${t.by === p.id ? 'disabled' : ''}>${k + 1}</button>`).join('')}</div>`).join('')}
+          <button class="cta" id="cv">CLOSE THE VOTE</button>`;
+        S.querySelectorAll('[data-p]').forEach(b => b.onclick = () => castVote(b.dataset.p, +b.dataset.k)); $('#cv').onclick = closeVote; return; }
+      if (ph === 'result') { S.innerHTML = `<div class="ph">ON AIR <small>who made what · who circled it</small></div><div class="takes">${G.takes.map((t, k) => { const b = P(t.by), vs = Object.entries(G.votes).filter(([, v]) => v === k).map(([id]) => AV[(P(id) || {}).av] || ''); return `<div class="tk ${k === G.win ? 'win' : ''}"><span class="n">${k + 1}</span><span class="strip">${stripOf(t)}</span><span class="by">${b ? `<span style="color:${b.col}">${AV[b.av]} ${esc(b.name)}</span>` : '🎰 the house'}<br><span class="vs">${vs.join('') || '·'}</span></span></div>`; }).join('')}</div>
+          <button class="cta" id="ct">CONTINUITY ▸</button><button class="hint" id="srcB" style="display:block;margin:8px auto 0;text-decoration:underline">where this footage comes from ↗</button>`;
+        $('#ct').onclick = continuity; $('#srcB').onclick = () => Attrib.show(usage(G.takes[G.win]).shots.map(s => ({ role: 'on air', video: url(s.v) }))); return; }
+      if (ph === 'continuity') { S.innerHTML = `<div class="ph">TOMORROW <small>these are facts now</small></div><div class="sheet">${sheetHTML(G.sheets[G.sheets.length - 1], true)}</div><button class="cta" id="nd">${G.day < G.days ? 'TOMORROW’S CALL SHEET ▸' : 'THAT’S A WRAP ▸'}</button>`;
+        $('#nd').onclick = () => { if (G.day < G.days) { G.day++; callSheet(); } else wrap(); }; return; }
+      if (ph === 'wrap') { const r = rank();
+        S.innerHTML = `<div class="ph">THAT’S A WRAP <small>circles received · +2 for going on air</small></div>${r.map((p, k) => `<div class="mem" style="margin:4px 0"><span class="av" style="background:${p.col}33">${AV[p.av]}</span>#${k + 1} ${esc(p.name)}<b>${p.score}</b></div>`).join('')}<div class="mem" style="margin:4px 0"><span class="av">🎰</span>the house<b>${G.house}</b></div>
+          <button class="cta" id="pf">▶ THE FILM</button><div class="ph" style="margin-top:14px">THE CALL SHEETS <small>the history of the production</small></div><div class="stack">${G.sheets.map(s => `<div class="sheet">${sheetHTML(s, false)}${s.ledger ? `<div class="k">CONTINUITY</div>${s.ledger.map(([a, b]) => `<div class="sm"><b>${esc(a)}</b> — ${esc(b)}</div>`).join('')}` : ''}</div>`).join('')}</div>
+          <button class="cta" id="again" style="background:#2e4275;color:#fff;box-shadow:none">NEW PRODUCTION</button>`;
+        $('#pf').onclick = playFilm; $('#again').onclick = () => { G.phase = 'lobby'; G.day = 0; G.sheets = []; G.ledger = []; G.film = []; G.cont = {}; G.house = 0; G.players.forEach(p => p.score = 0); slate(`<div class="big">CALL TIME</div>`); draw(); broadcast(); }; return; }
+    }
+    function localRemote() { const st = G.eng ? G.eng.st() : { mute: false, hold: false };
+      return `<div class="remote" style="margin-top:12px"><div class="grid"><button class="k" data-b="cam-">CAM −</button><button class="k" data-b="cam+">CAM +</button><button class="k" data-b="snd-">SND −</button><button class="k" data-b="snd+">SND +</button><button class="k" data-b="slip-">◀</button><button class="k" data-b="slip+">▶</button><button class="k ${st.mute ? 'on' : ''}" data-b="mute">MUTE</button><button class="k ${st.hold ? 'on' : ''}" data-b="hold">HOLD</button><button class="k full rec" data-b="rec">● REC</button></div><p class="hint" style="color:#999">Keys: ↑↓ cam · [ ] sound · ←→ slip · M mute · H hold · Enter rec</p></div>`; }
+    function draw() { $('#roomTag').textContent = G.code && !wireNote ? 'ROOM ' + G.code : ''; drawCrew(); drawSide(); }
+    function callSheet() { hushAll(); newDay(); G.phase = 'call'; $('#paper').innerHTML = `<div class="sheet">${sheetHTML(G.sheets[G.sheets.length - 1], false)}</div>`; show('#paper'); $('#bug').innerHTML = ''; draw(); broadcast(); }
+    addEventListener('keydown', e => { if (G.phase !== 'air' || !G.air) return; const p = P(G.air.by); if (!p || !p.local) return;
+      const b = { ArrowUp: 'cam+', ArrowDown: 'cam-', ']': 'snd+', '[': 'snd-', ArrowLeft: 'slip-', ArrowRight: 'slip+', m: 'mute', h: 'hold', Enter: 'rec' }[e.key]; if (b) { e.preventDefault(); press(p.id, b); } });
+    openRoom(); slate(`<div class="big">CALL TIME<small>scan the code to join the crew</small></div>`); draw();
+  }
+})();
+</script>
+</body></html>
