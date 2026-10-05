@@ -204,8 +204,8 @@
       const best = (w, f) => { let id = null, n = 0; Object.entries(f).forEach(([k, v]) => { if ((v[w] || 0) > n) { n = v[w]; id = k; } }); return id ? { id, n } : null; };
       const threw = {}; H.players.forEach(p => threw[p.id] = p.threw || {});
       const out = [], A = (name, r, why) => { if (r && (r.id === 'house' || H.P(r.id))) out.push({ name, id: r.id, why: why(r.n) }); };
-      A('the Golden Tomato', best('tomato', got), n => n + ' tomatoes received'); A('the Bouquet', best('rose', got), n => n + ' roses received'); A('the Standing Ovation', best('bravo', got), n => n + ' bravos');
-      A('the Heckler', best('cut', threw), n => 'shouted CUT! ' + n + ' times'); A('the Tomato Arm', best('tomato', threw), n => n + ' tomatoes thrown');
+      A('the Golden Tomato', best('tomato', got), n => n + (n === 1 ? ' tomato' : ' tomatoes') + ' received'); A('the Bouquet', best('rose', got), n => n + (n === 1 ? ' rose' : ' roses') + ' received'); A('the Standing Ovation', best('bravo', got), n => n + (n === 1 ? ' bravo' : ' bravos'));
+      A('the Heckler', best('cut', threw), n => 'shouted CUT! ' + (n === 1 ? 'once' : n + ' times')); A('the Tomato Arm', best('tomato', threw), n => n + (n === 1 ? ' tomato' : ' tomatoes') + ' thrown');
       return out; };
     H.awardsHTML = list => list.map(a => `<div class="rk" style="font-size:15px">${esc(a.name)}: ${a.id === 'house' ? mini('house') + ' the house' : mini(H.P(a.id).av) + ' ' + esc(H.P(a.id).name)} <span class="hint" style="margin:0 0 0 auto">${esc(a.why)}</span></div>`).join('');
 
