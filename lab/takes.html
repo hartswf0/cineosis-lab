@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Takes</title>
+<meta name="description" content="Takes: an instrument that plays a possibility from the archive, lets you change it, keeps its exact history, and lets a branch that looked like nothing become the start of a different film.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
+<style>
+:root{ --bg:#0d0c0b; --pan:#171513; --line:#2c2824; --ink:#efe9dd; --dim:#8a8378; --gold:#e8c070; --pic:#6fa8dc; --voice:#ff8a5c; --amb:#7cc98a; --mus:#a98bf0; --mono:'IBM Plex Mono',ui-monospace,monospace; --serif:'Fraunces',Georgia,serif; color-scheme:dark; }
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; } html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); font:15px/1.35 var(--mono); overscroll-behavior:none; }
+button{ font:inherit; color:inherit; background:none; border:0; cursor:pointer; } input{ font:inherit; }
+#app{ height:100dvh; display:flex; flex-direction:column; max-width:720px; margin:0 auto; padding:max(8px,env(safe-area-inset-top)) 12px 0; }
+/* the player: always on top, always the exact take */
+#stage{ position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; overflow:hidden; flex:none; }
+#stage video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; } #stage video.on{ opacity:1; }
+#stage .id{ position:absolute; left:10px; top:8px; font:600 12px var(--mono); letter-spacing:.12em; color:#fff; text-shadow:0 1px 3px #000; }
+#stage .line{ position:absolute; left:0; right:0; bottom:0; padding:18px 14px 10px; font:400 17px/1.25 var(--serif); color:#fff; text-shadow:0 1px 4px #000; background:linear-gradient(#0000,#000a); } #stage .line:empty{ display:none; }
+#stage .tap{ position:absolute; inset:0; }
+/* the take's structure, visible: picture lane, sound lanes, the playhead; drag a sound to move it, drag a shot's end to trim */
+#tl{ position:relative; margin-top:8px; flex:none; user-select:none; touch-action:none; }
+#tl .lane{ position:relative; height:24px; margin-bottom:3px; border-radius:4px; background:#141210; }
+#tl .seg{ position:absolute; top:0; bottom:0; border-radius:4px; overflow:hidden; } #tl .seg img{ height:100%; width:100%; object-fit:cover; opacity:.8; }
+#tl .seg.pic{ border:1px solid var(--pic); } #tl .seg .grip{ position:absolute; right:0; top:0; bottom:0; width:14px; background:linear-gradient(90deg,#0000,var(--pic)); opacity:.7; cursor:ew-resize; }
+#tl .seg.snd{ background:color-mix(in srgb,var(--c) 30%,transparent); border:1px solid var(--c); color:var(--ink); font-size:11px; line-height:22px; padding:0 6px; white-space:nowrap; text-overflow:ellipsis; cursor:grab; }
+#tl .seg.snd.drag{ cursor:grabbing; box-shadow:0 0 0 2px var(--gold); }
+#tl .ph{ position:absolute; top:0; bottom:0; width:2px; background:#fff; pointer-events:none; } #tl .zero{ position:absolute; top:-2px; bottom:-2px; width:1px; background:var(--pic); opacity:.6; pointer-events:none; }
+#tl .scale{ display:flex; justify-content:space-between; font-size:10px; color:var(--dim); }
+.locks{ display:flex; gap:6px; align-items:center; margin-top:6px; font-size:12px; color:var(--dim); flex-wrap:wrap; }
+.locks button{ border:1px solid var(--line); border-radius:99px; padding:3px 10px; color:var(--dim); } .locks button.on{ border-color:var(--gold); color:var(--gold); }
+/* views */
+#views{ flex:1; min-height:0; overflow-y:auto; padding:8px 0 12px; } .view[hidden]{ display:none; }
+h2{ font:600 22px/1.15 var(--serif); margin:6px 0 2px; } .note{ color:var(--dim); font-size:13px; margin:2px 0 8px; } .why{ font:400 18px/1.3 var(--serif); margin:4px 0; }
+.rel{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 10px; } .rel button{ border:1px dashed var(--line); border-radius:8px; padding:4px 10px; font-size:12px; color:var(--ink); text-align:left; } .rel button b{ color:var(--gold); font-weight:600; } .rel button.kept{ border-style:solid; border-color:var(--gold); }
+.acts{ display:flex; gap:8px; margin:8px 0; } .big{ flex:1; height:56px; border-radius:14px; font:600 18px var(--mono); letter-spacing:.04em; }
+.keep{ border:2px solid var(--gold); color:var(--gold); } .keep.on{ background:var(--gold); color:#1b1408; } .explore{ background:var(--ink); color:#111; }
+.small{ display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; } .small button{ border:1px solid var(--line); border-radius:10px; padding:8px 12px; font-size:13px; }
+.chg{ display:flex; gap:6px; margin-top:8px; } .chg input{ flex:1; min-width:0; background:var(--pan); border:1px solid var(--line); border-radius:10px; padding:10px 12px; color:var(--ink); } .chg button{ border:1px solid var(--line); border-radius:10px; padding:0 14px; }
+.cards{ display:grid; grid-template-columns:1fr 1fr; gap:8px; } .card{ background:var(--pan); border:1px solid var(--line); border-radius:12px; overflow:hidden; text-align:left; } .card.on{ border-color:var(--ink); }
+.card .strip{ display:flex; height:54px; background:#000; } .card .strip img{ flex:1; min-width:0; object-fit:cover; } .card .strip i{ flex:0 0 18%; background:#000; }
+.card .t{ padding:6px 8px; } .card .t b{ font-size:11px; letter-spacing:.1em; color:var(--dim); } .card .t div{ font-size:13px; margin-top:2px; } .card .row{ display:flex; gap:4px; padding:0 6px 6px; } .card .row button{ flex:1; border:1px solid var(--line); border-radius:8px; padding:6px 4px; font-size:12px; } .card .row button.k{ color:var(--gold); } .card .row button.k.on{ background:var(--gold); color:#1b1408; }
+.kind{ font-size:11px; color:var(--dim); letter-spacing:.08em; text-transform:uppercase; margin:12px 0 6px; }
+.ops{ display:flex; flex-direction:column; gap:6px; } .op{ display:flex; align-items:center; gap:8px; background:var(--pan); border:1px solid var(--line); border-radius:10px; padding:8px 10px; } .op span{ flex:1; font-size:13px; } .op button{ border:1px solid var(--gold); color:var(--gold); border-radius:8px; padding:6px 10px; font-size:12px; }
+/* the trail: where each possibility came from */
+.path{ display:flex; flex-direction:column; } .node{ display:grid; grid-template-columns:64px 1fr auto; gap:10px; align-items:center; padding:6px 0; border-left:2px solid var(--line); margin-left:31px; padding-left:12px; position:relative; }
+.node img{ width:64px; aspect-ratio:16/9; object-fit:cover; border-radius:5px; margin-left:-45px; border:1px solid var(--line); } .node.cur img{ border-color:var(--ink); } .node.kept img{ box-shadow:0 0 0 2px var(--gold); }
+.node .d{ font-size:12px; margin-left:-30px; } .node .d b{ color:var(--dim); font-size:11px; letter-spacing:.08em; } .node .x{ display:flex; gap:4px; } .node .x button{ border:1px solid var(--line); border-radius:8px; padding:5px 8px; font-size:11px; } .node .x button.br{ color:var(--gold); border-color:var(--gold); }
+.sib{ margin:-2px 0 4px 43px; display:flex; gap:4px; flex-wrap:wrap; } .sib button{ display:flex; align-items:center; gap:4px; border:1px dashed var(--line); border-radius:6px; padding:2px 6px 2px 2px; font-size:11px; color:var(--dim); } .sib img{ width:34px; aspect-ratio:16/9; object-fit:cover; border-radius:3px; }
+.gens{ display:flex; flex-direction:column; gap:6px; } .gen{ display:flex; gap:4px; overflow-x:auto; align-items:center; } .gen small{ flex:none; width:22px; color:var(--dim); font-size:10px; } .gen button{ flex:none; padding:0; border-radius:4px; overflow:hidden; border:1px solid var(--line); } .gen button.cur{ border-color:var(--ink); } .gen button.kept{ box-shadow:0 0 0 2px var(--gold); } .gen img{ width:52px; aspect-ratio:16/9; object-fit:cover; display:block; }
+.films .film{ background:var(--pan); border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:8px; } .film h3{ margin:0 0 6px; font:600 17px var(--serif); } .film .strip{ display:flex; gap:4px; overflow-x:auto; } .film .strip button{ flex:none; position:relative; padding:0; } .film .strip img{ width:72px; aspect-ratio:16/9; object-fit:cover; border-radius:4px; display:block; }
+.film .strip b{ position:absolute; right:2px; top:0; font-size:12px; color:#fff; text-shadow:0 1px 2px #000; }
+/* tabs */
+nav{ flex:none; display:grid; grid-template-columns:repeat(5,1fr); border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom); background:var(--bg); }
+nav button{ padding:10px 0 12px; font-size:11px; color:var(--dim); letter-spacing:0; min-width:0; overflow:hidden; text-overflow:ellipsis; } nav button.on{ color:var(--ink); } nav button i{ display:block; font-style:normal; font-size:10px; color:var(--gold); min-height:12px; }
+.sheet{ position:fixed; inset:0; background:#000a; display:grid; place-items:end center; z-index:20; } .sheet>div{ width:min(720px,100%); background:var(--pan); border-radius:16px 16px 0 0; padding:16px 14px calc(16px + env(safe-area-inset-bottom)); }
+.sheet button.row{ display:block; width:100%; text-align:left; padding:12px; border:1px solid var(--line); border-radius:10px; margin-top:8px; }
+#boot{ position:fixed; inset:0; display:grid; place-items:center; background:var(--bg); color:var(--dim); font-size:13px; text-align:center; padding:20px; z-index:30; } #boot b{ display:block; font:600 26px var(--serif); color:var(--ink); margin-bottom:8px; }
+</style></head>
+<body>
+<div id="boot"><div><b>Takes</b>opening the archive…</div></div>
+<div id="app">
+  <div id="stage"><video playsinline muted preload="auto"></video><video playsinline muted preload="auto"></video><span class="id" id="sid"></span><div class="line" id="sline"></div><div class="tap" id="stap"></div></div>
+  <div id="tl"></div>
+  <div id="views">
+    <section class="view" id="v-enc"></section>
+    <section class="view" id="v-var" hidden></section>
+    <section class="view" id="v-kept" hidden></section>
+    <section class="view" id="v-trail" hidden></section>
+    <section class="view" id="v-film" hidden></section>
+  </div>
+  <nav id="nav"><button data-v="enc" class="on">Encounter<i></i></button><button data-v="var">Variations<i id="nvar"></i></button><button data-v="kept">Kept<i id="nkept"></i></button><button data-v="trail">Trail<i id="ntrail"></i></button><button data-v="film">Films<i id="nfilm"></i></button></nav>
+</div>
+<script src="markov/engine.js"></script>
+<script src="markov/shared.js"></script>
+<script src="party/cut-core.js"></script>
+<script>
+/* TAKES. A take is an exact audiovisual result: shots with their in and out points, sounds with their own in and out points and
+   where they enter on the take's clock, and when the picture begins (it can begin after the sound). Takes never change. Exploring
+   makes descendants that inherit most of a take and vary one relation, each with a plain note of what changed. Keeping preserves a
+   take without a reason or a rating. A kept take stays a possible parent: explore from it, graft it onto the current one, revisit it.
+   A relation found in a take (a place heard before it is seen; the picture outlasting the sound) can be kept as an operation and
+   tried on other material. The trail keeps every take's origin; going back and exploring starts a new branch and leaves the others
+   intact. Films are separate: a film is an arrangement you commit to, and a take can be in several films or none.
+   Material: the lab's archive (markov/library.json, 16,153 shots with CLIP vectors), sounds measured as voice, music or noise
+   (tools/sound-kinds.json), spoken lines and music (pictures/rushes.json), words to pictures (party/lexicon). Everything stays
+   in this browser; export to keep it elsewhere. */
+(async function () {
+  const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const rnd = Math.random, pick = a => a[Math.floor(rnd() * a.length)], R2 = x => Math.round(x * 10) / 10;
+  const thumbOf = u => u ? u.replace('/clips/', '/thumbnails/').replace(/\.mp4.*$/, '.jpg') : '';
+  // ---- the archive
+  let LIB, R, SK, X, XV, XI, SND = [], AMB = [];
+  try { const [d, rj, sk, xj, xb] = await Promise.all([SH.load({ light: true }), fetch('pictures/rushes.json').then(r => r.json()), fetch('tools/sound-kinds.json').then(r => r.json()), fetch('party/lexicon.json').then(r => r.json()), fetch('party/lexicon.bin').then(r => r.arrayBuffer())]);
+    LIB = d.LIB; R = rj; SK = sk.clips; X = xj; XV = new Int8Array(xb); XI = new Map(X.words.map((w, i) => [w, i]));
+    const byId = new Map(LIB.shots.map((s, i) => [s.id, i])); for (const id in SK) { const k = byId.get(id), kind = SK[id][0]; if (k == null) continue; if (/noise|mixed|speech|music/.test(kind)) SND.push(k); if (/noise|mixed/.test(kind)) AMB.push(k); } }
+  catch (e) { $('#boot').innerHTML = `<div><b>Takes</b>the archive did not load: ${esc(e.message)}</div>`; return; }
+  const shot = k => LIB.shots[k], film = k => { const s = shot(k); return s ? (s.title || '').replace(/\s*\(.*$/, '').slice(0, 30) + (s.year ? ' ' + s.year : '') : ''; };
+  const isArc = k => shot(k) && shot(k).kind !== 'presence' && (shot(k).dur || 0) >= 2.5;
+  const norm = v => { let n = 0; for (const x of v) n += x * x; n = Math.sqrt(n) || 1; for (let j = 0; j < v.length; j++) v[j] /= n; return v; };
+  const vecK = k => { const o = new Float32Array(512), r = k * 512; for (let j = 0; j < 512; j++) o[j] = LIB.q[r + j]; return norm(o); };
+  const stem = w => { for (const x of ['ing', 'ed', 'es', 's']) if (w.length > x.length + 3 && w.endsWith(x)) return w.slice(0, -x.length); return w; };
+  const vecW = t => { const ws = ((t || '').toLowerCase().match(/[a-z]+/g) || []).map(stem).filter(w => XI.has(w)); if (!ws.length) return null; const v = new Float32Array(512); ws.forEach(w => { const i = XI.get(w), f = X.idf[i]; for (let j = 0; j < 512; j++) v[j] += XV[i * 512 + j] * f; }); return norm(v); };
+  const dotK = (v, k) => { let a = 0; const r = k * 512; for (let j = 0; j < 512; j++) a += v[j] * LIB.q[r + j]; return a; };
+  function near(v, from = 4, to = 60, avoid = new Set()) { const s = LIB.sims(v), idx = []; for (let i = 0; i < s.length; i++) if (isArc(i) && !avoid.has(i)) idx.push(i); idx.sort((a, b) => s[b] - s[a]); return pick(idx.slice(from, to)); }
+  const soundNear = (k, wrong) => { const v = vecK(k), r = AMB.slice().sort((a, b) => dotK(v, b) - dotK(v, a)); return wrong ? pick(r.slice(-80)) : pick(r.slice(0, 25)); };
+  // ---- sounds: what they are and where they come from
+  function src(s) { if (s.type === 'clip') return { u: shot(s.id).video, name: film(s.id), max: shot(s.id).dur || 6 };
+    if (s.type === 'line') { const l = R.lines[s.id]; return { u: R.r2 + R.P[l.v[0]] + '/clips/' + l.v[1] + '.mp4', name: '“' + l.x + '”', text: l.x, max: 40 }; }
+    if (s.type === 'music') { const m = R.music[s.id]; return { u: R.r2 + R.P[m.v[0]] + '/clips/' + m.v[1] + '.mp4', name: m.f, max: m.d || 30 }; } }
+  const roleName = s => s.role === 'voice' ? 'The voice' : s.role === 'music' ? 'The music' : 'The sound of ' + (src(s.src).name || 'the place');
+  const COL = { voice: 'var(--voice)', ambient: 'var(--amb)', music: 'var(--mus)' };
+  // ---- the store: everything in this browser
+  const KEY = 'takes.v1', load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch (e) { return null; } };
+  let D = load() || { n: 0, takes: {}, kept: [], ops: [], films: [], cur: null, branches: 0, seen: {}, lastVar: [] };
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) { } };
+  const T = id => D.takes[id];
+  // ---- a take's clock
+  const plen = s => s.t1 - s.t0, slen = s => s.t1 - s.t0;
+  const picEnd = t => t.pic0 + t.shots.reduce((a, s) => a + plen(s), 0);
+  const dur = t => Math.max(picEnd(t), ...t.snds.map(s => s.at + slen(s)), .5);
+  const t0 = t => Math.min(0, ...t.snds.map(s => s.at));
+  // relations a take actually has, in words, each one keepable as an operation
+  function relations(t) { const out = [], pe = picEnd(t);
+    t.snds.forEach(s => { if (s.at < t.pic0 - .2) out.push({ type: 'lead', s: R2(t.pic0 - s.at), role: s.role, text: `${roleName(s)} begins <b>${R2(t.pic0 - s.at)}s</b> before the picture` }); });
+    const se = Math.max(0, ...t.snds.map(s => s.at + slen(s))); if (t.snds.length && pe - se > .7) out.push({ type: 'tail', s: R2(pe - se), text: `The picture continues <b>${R2(pe - se)}s</b> after the sound ends` });
+    t.snds.filter(s => s.role === 'voice').forEach(s => { let st = t.pic0; for (const sh of t.shots) { if (s.at >= st && s.at < st + plen(sh)) { out.push({ type: 'voiceAt', s: R2(s.at - st), text: `The line starts <b>${R2(s.at - st)}s</b> into a shot` }); break; } st += plen(sh); } });
+    const marks = t.snds.map(s => [s.at, s.at + slen(s)]).sort((a, b) => a[0] - b[0]); let end = Math.min(t.pic0, ...marks.map(m => m[0])); for (const [a, b] of marks) { if (a - end > .8) out.push({ type: 'gap', s: R2(a - end), text: `<b>${R2(a - end)}s</b> of silence` }); end = Math.max(end, b); }
+    const ks = t.shots.map(s => s.k); if (ks.some((k, i) => ks.indexOf(k) !== i)) out.push({ type: 'return', text: 'A shot <b>returns</b>' });
+    return out; }
+  const describe = t => { const r = relations(t)[0]; return r ? r.text.replace(/<[^>]+>/g, '') + '.' : `${t.shots.length} shot${t.shots.length > 1 ? 's' : ''}, ${t.snds.length} sound${t.snds.length === 1 ? '' : 's'}.`; };
+  // ---- making takes: a first one, and descendants that inherit
+  function make(base, parent, note, how) { const t = JSON.parse(JSON.stringify(base)); D.n++; t.id = 'T' + String(D.n).padStart(3, '0'); t.parent = parent ? parent.id : null; t.note = note || ''; t.how = how || ''; t.at = Date.now();
+    t.branch = parent ? parent.branch : ++D.branches; t.shots.forEach(s => { s.t0 = R2(Math.max(0, s.t0)); s.t1 = R2(Math.max(s.t0 + .6, Math.min(shot(s.k).dur || s.t1, s.t1))); }); t.snds.forEach(s => { s.at = R2(s.at); s.t0 = R2(s.t0); s.t1 = R2(s.t1); });
+    D.takes[t.id] = t; return t; }
+  function seed() { const lines = R.lines.map((l, i) => i).filter(i => R.lines[i].t1 - R.lines[i].t0 < 4.5), li = pick(lines), L = R.lines[li], v = vecW(L.x);
+    const k1 = v ? near(v, 0, 40) : near(vecK(Math.floor(rnd() * LIB.n)), 0, 400), k2 = near(vecK(k1), 6, 50, new Set([k1])), a = soundNear(k1);
+    const s1 = shot(k1), i1 = Math.max(0, Math.min((s1.dur || 4) - 3.4, (s1.in || 0) - .5)), s2 = shot(k2), i2 = Math.max(0, Math.min((s2.dur || 4) - 2.6, (s2.in || 0) - .3));
+    const base = { pic0: 0, shots: [{ k: k1, t0: i1, t1: i1 + 3.4 }, { k: k2, t0: i2, t1: i2 + 2.6 }], snds: [{ role: 'ambient', src: { type: 'clip', id: a }, t0: 0, t1: Math.min(6, shot(a).dur || 6), at: 0, vol: .7 }, { role: 'voice', src: { type: 'line', id: li }, t0: L.t0, t1: L.t1, at: .9, vol: 1 }] };
+    return make(base, null, 'A first take from the archive.', 'seed'); }
+  // one change to one relation; locks say what must stay
+  const LOCK = { picture: ['swapShot', 'addShot', 'repeat', 'far'], sound: ['swapSound', 'dropVoice', 'wrongSound'], timing: ['shiftVoice', 'lead', 'tail', 'trim', 'gap', 'carry'] };
+  function allowed(m) { return !Object.keys(D.locks || {}).some(l => D.locks[l] && LOCK[l].includes(m)); }
+  function mutate(p, m, arg) { const t = JSON.parse(JSON.stringify(p)), V = t.snds.filter(s => s.role === 'voice'), A = t.snds.filter(s => s.role !== 'voice');
+    switch (m) {
+      case 'shiftVoice': { const s = V[0] || t.snds[0]; if (!s) return null; const d = arg != null ? arg : (rnd() < .5 ? -1 : 1) * R2(.5 + rnd() * 1.4); s.at = R2(s.at + d); return [t, `${roleName(s)} enters ${Math.abs(d)}s ${d < 0 ? 'earlier' : 'later'}.`]; }
+      case 'lead': { const s = A[0] || t.snds[0]; if (!s) return null; const l = arg != null ? arg : R2(.8 + rnd() * 1.6); const sh = l - (t.pic0 - s.at); if (sh > 0) { t.pic0 = R2(t.pic0 + sh); V.forEach(v => v.at = R2(v.at + sh)); } s.at = R2(t.pic0 - l); return [t, `${roleName(s)} begins ${l}s before the picture.`]; }
+      case 'tail': { const x = arg != null ? arg : R2(1 + rnd() * 1.5), se = Math.max(0, ...t.snds.map(s => s.at + slen(s))), want = se + x - picEnd(t), last = t.shots[t.shots.length - 1]; if (want <= 0) { t.snds.forEach(s => { if (s.at + slen(s) > picEnd(t) - x) s.t1 = R2(Math.max(s.t0 + .5, s.t1 - (s.at + slen(s) - (picEnd(t) - x)))); }); } else last.t1 = R2(Math.min(shot(last.k).dur || last.t1 + want, last.t1 + want)); return [t, `The picture continues ${x}s after the sound ends.`]; }
+      case 'trim': { const i = Math.floor(rnd() * t.shots.length), s = t.shots[i], d = arg != null ? arg : (rnd() < .5 ? -1 : 1) * R2(.5 + rnd()); s.t1 = R2(Math.max(s.t0 + .6, Math.min(shot(s.k).dur || s.t1, s.t1 + d))); return [t, `Shot ${i + 1} is ${Math.abs(d)}s ${d < 0 ? 'shorter' : 'longer'}.`]; }
+      case 'gap': { const s = V[0]; if (!s) return null; const g = arg != null ? arg : R2(1 + rnd()); t.snds.forEach(x => { if (x.at >= s.at - .01) x.at = R2(x.at + g); }); return [t, `${g}s of silence before the line.`]; }
+      case 'carry': { const s = A[0]; if (!s) return null; const x = R2(1 + rnd() * 2), mx = src(s.src).max; s.t1 = R2(Math.min(mx, s.t1 + x)); return [t, `${roleName(s)} carries ${x}s further.`]; }
+      case 'swapShot': { const i = arg != null ? arg.i : Math.floor(rnd() * t.shots.length), s = t.shots[i], k = arg && arg.k != null ? arg.k : near(vecK(s.k), 3, 50, new Set(t.shots.map(x => x.k))), L = plen(s), sd = shot(k).dur || 4, in0 = Math.max(0, Math.min(sd - L, (shot(k).in || 0) - .3)); t.shots[i] = { k, t0: R2(in0), t1: R2(in0 + Math.min(L, sd)) }; return [t, `Same timing, a different place: ${film(k)}.`]; }
+      case 'far': { const i = Math.floor(rnd() * t.shots.length), s = t.shots[i]; let k, n = 0; do { k = Math.floor(rnd() * LIB.n); n++; } while ((!isArc(k) || D.seen[k]) && n < 50); const L = plen(s), sd = shot(k).dur || 4, in0 = Math.max(0, Math.min(sd - L, (shot(k).in || 0) - .3)); t.shots[i] = { k, t0: R2(in0), t1: R2(in0 + Math.min(L, sd)) }; return [t, `A shot nobody has looked at: ${film(k)}.`]; }
+      case 'swapSound': case 'wrongSound': { const s = A[0]; if (!s) return null; const a = arg != null ? arg : soundNear(t.shots[0].k, m === 'wrongSound'), L = slen(s); s.src = { type: 'clip', id: a }; s.t0 = 0; s.t1 = R2(Math.min(shot(a).dur || L, L)); return [t, `Same timing, ${m === 'wrongSound' ? 'a sound from somewhere else' : 'a different sound'}: ${film(a)}.`]; }
+      case 'dropVoice': { if (!V.length || !A.length) return null; t.snds = t.snds.filter(s => s !== V[0]); return [t, 'The line is gone; the sound of the place stays.']; }
+      case 'addShot': { const last = t.shots[t.shots.length - 1], k = near(vecK(last.k), 4, 60, new Set(t.shots.map(x => x.k))), sd = shot(k).dur || 4, in0 = Math.max(0, Math.min(sd - 2.4, (shot(k).in || 0) - .3)); t.shots.push({ k, t0: R2(in0), t1: R2(in0 + Math.min(2.4, sd)) }); return [t, `A shot follows: ${film(k)}.`]; }
+      case 'repeat': { if (t.shots.length > 5) return null; const f = t.shots[0]; t.shots.push({ k: f.k, t0: f.t0, t1: R2(Math.min(f.t1, f.t0 + 1.6)) }); return [t, 'The first shot returns at the end.']; }
+    } return null; }
+  // a relation kept from one take, tried on another
+  function applyOp(p, op) { if (op.type === 'lead') return mutate(p, 'lead', op.s); if (op.type === 'tail') return mutate(p, 'tail', op.s); if (op.type === 'gap') return mutate(p, 'gap', op.s); if (op.type === 'return') return mutate(p, 'repeat');
+    if (op.type === 'voiceAt') { const t = JSON.parse(JSON.stringify(p)), v = t.snds.find(s => s.role === 'voice'); if (!v) return null; v.at = R2(t.pic0 + op.s); return [t, `The line starts ${op.s}s into the first shot.`]; } return null; }
+  // grafting: something from a kept take on the current one
+  function graft(p, q) { const t = JSON.parse(JSON.stringify(p));
+    if (rnd() < .5 && q.snds.length) { const s = JSON.parse(JSON.stringify(pick(q.snds))); const same = t.snds.findIndex(x => x.role === s.role); s.at = same >= 0 ? t.snds[same].at : 0; if (same >= 0) t.snds[same] = s; else t.snds.push(s); return [t, `${roleName(s)} from ${q.id}, on this picture.`]; }
+    const s = JSON.parse(JSON.stringify(q.shots[0])); t.shots.push(s); return [t, `${q.id}'s first shot follows.`]; }
+  // explore: four descendants. Most from this take; one from somewhere this take does not come from: a kept take, or what nobody has looked at
+  function explore(p) { const out = [], kinds = ['shiftVoice', 'lead', 'tail', 'swapShot', 'swapSound', 'trim', 'gap', 'carry', 'dropVoice', 'addShot', 'repeat', 'wrongSound'].filter(allowed);
+    const tries = new Set(); let n = 0; while (out.length < 3 && n++ < 40) { const m = pick(kinds); if (!m || tries.has(m)) continue; tries.add(m); let r = mutate(p, m); if (!r) continue;
+      if (rnd() < .2) { const m2 = pick(kinds.filter(x => x !== m)); const r2 = m2 && mutate(r[0], m2); if (r2) r = [r2[0], r[1] + ' ' + r2[1]]; } out.push(make(r[0], p, r[1], m)); }
+    const others = D.kept.map(T).filter(q => q && q.id !== p.id); let r = null;
+    if (others.length && rnd() < .6 && allowed('swapSound')) { const q = others.slice().sort((a, b) => (D.seen['t' + a.id] || 0) - (D.seen['t' + b.id] || 0))[0]; r = graft(p, q); if (r) { D.seen['t' + q.id] = Date.now(); out.push(make(r[0], p, r[1], 'graft')); } }
+    if (!r && allowed('far')) { r = mutate(p, 'far'); if (r) out.push(make(r[0], p, r[1], 'far')); }
+    out.forEach(t => t.shots.forEach(s => D.seen[s.k] = (D.seen[s.k] || 0) + 1)); D.lastVar = out.map(t => t.id); save(); return out; }
+  // a spoken or typed local change: "keep this picture, move the voice earlier"
+  function change(p, text) { const w = text.toLowerCase(); const has = (...a) => a.some(x => w.includes(x));
+    let r = null; if (has('earlier', 'sooner')) r = mutate(p, 'shiftVoice', -1); else if (has('later')) r = mutate(p, 'shiftVoice', 1);
+    else if (has('before', 'lead', 'first hear', 'hear it first')) r = mutate(p, 'lead'); else if (has('linger', 'hold', 'longer', 'after the sound')) r = mutate(p, 'tail');
+    else if (has('silence', 'pause', 'quiet')) r = mutate(p, 'gap'); else if (has('without', 'remove the', 'no line', 'no voice', 'drop')) r = mutate(p, 'dropVoice');
+    else if (has('shorter', 'cut it')) r = mutate(p, 'trim', -1); else if (has('again', 'return', 'repeat')) r = mutate(p, 'repeat');
+    else if (has('different sound', 'other sound', 'wrong sound')) r = mutate(p, has('wrong') ? 'wrongSound' : 'swapSound');
+    else if (has('different place', 'other place', 'different shot', 'different picture', 'elsewhere')) r = mutate(p, 'swapShot');
+    else { const v = vecW(text); if (v) { const s = LIB.sims(v), idx = []; for (let i = 0; i < s.length; i++) if (isArc(i)) idx.push(i); idx.sort((a, b) => s[b] - s[a]); const k = pick(idx.slice(0, 12)); r = mutate(p, 'swapShot', { i: 0, k }); if (r) r[1] = `The first shot becomes “${text}”: ${film(k)}.`; } }
+    return r ? make(r[0], p, r[1], 'asked') : null; }
+  // ---- the player: plays the exact take, on its own clock
+  const V = [...document.querySelectorAll('#stage video')], A = Array.from({ length: 4 }, () => { const a = new Audio(); a.preload = 'auto'; return a; });
+  let tok = 0, timers = [], playing = null, startAt = 0, raf = 0;
+  function stop() { tok++; timers.forEach(clearTimeout); timers = []; V.forEach(v => { v.pause(); v.classList.remove('on'); }); A.forEach(a => a.pause()); cancelAnimationFrame(raf); playing = null; }
+  const seek = (m, t) => { const go = () => { try { m.currentTime = t; } catch (e) { } }; if (m.readyState >= 1) go(); else m.addEventListener('loadedmetadata', go, { once: true }); };
+  function play(t, loop = true) { stop(); const my = tok, z = t0(t), total = dur(t) - z; playing = t; startAt = performance.now();
+    const at = (s, f) => timers.push(setTimeout(() => { if (my === tok) f(); }, Math.max(0, (s - z) * 1000)));
+    let side = 0, st = t.pic0; const load = (v, s) => { const u = shot(s.k).video; if (v.dataset.u !== u) { v.dataset.u = u; v.src = u; v.poster = thumbOf(u); } seek(v, s.t0); };
+    if (t.shots[0]) load(V[0], t.shots[0]);
+    t.shots.forEach((s, i) => { const v = () => V[side]; at(st, () => { const cur = V[side]; load(cur, s); seek(cur, s.t0); cur.play().catch(() => { }); cur.classList.add('on'); V[1 - side].classList.remove('on'); V[1 - side].pause(); side = 1 - side; if (t.shots[i + 1]) load(V[side], t.shots[i + 1]); }); st += plen(s); });
+    at(st, () => V.forEach(v => { v.classList.remove('on'); v.pause(); }));
+    t.snds.forEach((s, i) => { const a = A[i % 4], S = src(s.src); at(s.at - .25, () => { if (a.dataset.u !== S.u) { a.dataset.u = S.u; a.src = S.u; } seek(a, s.t0); }); at(s.at, () => { seek(a, s.t0); a.volume = s.vol == null ? 1 : s.vol; a.play().catch(() => { }); }); at(s.at + slen(s), () => a.pause()); });
+    $('#sline').textContent = ''; const vl = t.snds.find(s => s.role === 'voice' && s.src.type === 'line'); if (vl) { at(vl.at, () => $('#sline').textContent = src(vl.src).text); at(vl.at + slen(vl) + .4, () => $('#sline').textContent = ''); }
+    at(z + total + .05, () => { if (loop) timers.push(setTimeout(() => { if (my === tok) play(t, true); }, 700)); else stop(); });
+    const tick = () => { if (my !== tok) return; const x = (performance.now() - startAt) / 1000, ph = $('#tl .ph'); if (ph) ph.style.left = Math.min(100, x / total * 100) + '%'; raf = requestAnimationFrame(tick); }; tick(); }
+  // ---- the timeline: the take's structure, and a place to change it by hand
+  function drawTL(t) { const z = t0(t), total = dur(t) - z, pct = x => ((x - z) / total * 100) + '%', w = x => (x / total * 100) + '%'; let st = t.pic0;
+    const pic = t.shots.map((s, i) => { const h = `<div class="seg pic" data-i="${i}" style="left:${pct(st)};width:${w(plen(s))}"><img src="${esc(thumbOf(shot(s.k).video))}" alt=""><i class="grip" data-trim="${i}"></i></div>`; st += plen(s); return h; }).join('');
+    const lanes = ['voice', 'ambient', 'music'].map(role => { const ss = t.snds.map((s, i) => [s, i]).filter(([s]) => s.role === role); if (!ss.length) return ''; return `<div class="lane">${ss.map(([s, i]) => `<div class="seg snd" data-s="${i}" style="left:${pct(s.at)};width:${w(slen(s))};--c:${COL[role]}">${esc(src(s.src).name)}</div>`).join('')}</div>`; }).join('');
+    $('#tl').innerHTML = `<div class="lane">${pic}<i class="zero" style="left:${pct(t.pic0)}"></i></div>${lanes}<i class="ph"></i><div class="scale"><span>${R2(z)}s</span><span>picture starts ${R2(t.pic0)}s</span><span>${R2(z + total)}s</span></div>`;
+    // drag a sound to move it; drag a shot's end to trim it; letting go makes a new take, the old one stays
+    $('#tl').querySelectorAll('[data-s]').forEach(el => el.onpointerdown = e => { e.preventDefault(); const i = +el.dataset.s, x0 = e.clientX, W = $('#tl').getBoundingClientRect().width, left0 = el.offsetLeft; el.classList.add('drag'); el.setPointerCapture(e.pointerId);
+      el.onpointermove = ev => { el.style.left = (left0 + ev.clientX - x0) + 'px'; }; el.onpointerup = ev => { el.onpointermove = null; el.classList.remove('drag'); const d = R2((ev.clientX - x0) / W * total); if (Math.abs(d) < .1) return drawTL(t); if (D.locks && D.locks.timing) { flash('timing is locked'); return drawTL(t); }
+        const nt = JSON.parse(JSON.stringify(t)); nt.snds[i].at = R2(nt.snds[i].at + d); const c = make(nt, t, `${roleName(t.snds[i])} moved ${Math.abs(d)}s ${d < 0 ? 'earlier' : 'later'} (by hand).`, 'hand'); go(c); }; });
+    $('#tl').querySelectorAll('[data-trim]').forEach(el => el.onpointerdown = e => { e.preventDefault(); e.stopPropagation(); const i = +el.dataset.trim, x0 = e.clientX, W = $('#tl').getBoundingClientRect().width, seg = el.parentElement, w0 = seg.offsetWidth; el.setPointerCapture(e.pointerId);
+      el.onpointermove = ev => { seg.style.width = Math.max(10, w0 + ev.clientX - x0) + 'px'; }; el.onpointerup = ev => { el.onpointermove = null; const d = R2((ev.clientX - x0) / W * total); if (Math.abs(d) < .1) return drawTL(t); if (D.locks && D.locks.timing) { flash('timing is locked'); return drawTL(t); }
+        const nt = JSON.parse(JSON.stringify(t)), s = nt.shots[i]; s.t1 = R2(Math.max(s.t0 + .6, Math.min(shot(s.k).dur || s.t1, s.t1 + d))); const c = make(nt, t, `Shot ${i + 1} is ${Math.abs(d)}s ${d < 0 ? 'shorter' : 'longer'} (by hand).`, 'hand'); go(c); }; }); }
+  // ---- views
+  let view = 'enc';
+  const isKept = id => D.kept.includes(id), cur = () => T(D.cur);
+  function go(t, v) { D.cur = t.id; save(); show(t); if (v) tab(v); else render(); }
+  function show(t) { $('#sid').textContent = t.id + (isKept(t.id) ? ' · kept' : ''); drawTL(t); play(t); }
+  function tab(v) { view = v; document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); document.querySelectorAll('.view').forEach(s => s.hidden = s.id !== 'v-' + v); render(); }
+  const strip = t => `<div class="strip">${t.pic0 > .2 ? '<i></i>' : ''}${t.shots.map(s => `<img src="${esc(thumbOf(shot(s.k).video))}" alt="">`).join('')}</div>`;
+  const flash = msg => { const n = $('#v-enc .note'); if (n) { n.textContent = msg; } };
+  function render() { const t = cur(); if (!t) return; document.querySelectorAll('.view').forEach(s => { if (s.id !== 'v-' + view) s.innerHTML = ''; }); $('#nvar').textContent = D.lastVar.length || ''; $('#nkept').textContent = D.kept.length || ''; $('#ntrail').textContent = Object.keys(D.takes).length || ''; $('#nfilm').textContent = D.films.length || '';
+    if (view === 'enc') { const rel = relations(t), locks = D.locks || {};
+      $('#v-enc').innerHTML = `<h2>${t.id}</h2><div class="why">${esc(describe(t))}</div><div class="note">${esc(t.note)}${t.parent ? ' · from ' + t.parent : ''}</div>
+        ${rel.length ? `<div class="rel">${rel.map((r, i) => `<button data-op="${i}" class="${D.ops.some(o => o.type === r.type && o.s === r.s) ? 'kept' : ''}" title="keep this relation as an operation">${r.text} ${D.ops.some(o => o.type === r.type && o.s === r.s) ? '· kept' : '· keep'}</button>`).join('')}</div>` : ''}
+        <div class="acts"><button class="big keep ${isKept(t.id) ? 'on' : ''}" id="eKeep">${isKept(t.id) ? 'Kept' : 'Keep'}</button><button class="big explore" id="eExp">Explore</button></div>
+        <div class="locks">stays fixed when exploring:${['picture', 'sound', 'timing'].map(l => `<button data-lock="${l}" class="${locks[l] ? 'on' : ''}">${l}</button>`).join('')}</div>
+        <form class="chg" id="eChg"><input type="text" id="eText" placeholder="change one thing: move the voice earlier · a door · silence" autocomplete="off"><button>try</button></form>
+        <div class="small"><button id="eFilm">Use in a film…</button><button id="eRev">Revisit something kept</button></div>`;
+      $('#eKeep').onclick = () => { if (isKept(t.id)) D.kept = D.kept.filter(x => x !== t.id); else D.kept.unshift(t.id); save(); $('#sid').textContent = t.id + (isKept(t.id) ? ' · kept' : ''); render(); };
+      $('#eExp').onclick = () => { explore(t); tab('var'); };
+      document.querySelectorAll('[data-lock]').forEach(b => b.onclick = () => { D.locks = D.locks || {}; D.locks[b.dataset.lock] = !D.locks[b.dataset.lock]; save(); render(); });
+      document.querySelectorAll('[data-op]').forEach(b => b.onclick = () => { const r = rel[+b.dataset.op], i = D.ops.findIndex(o => o.type === r.type && o.s === r.s); if (i >= 0) D.ops.splice(i, 1); else D.ops.unshift({ type: r.type, s: r.s, text: r.text, from: t.id }); save(); render(); });
+      $('#eChg').onsubmit = e => { e.preventDefault(); const q = $('#eText').value.trim(); if (!q) return; const c = change(t, q); if (c) go(c); else flash('nothing to change that way here'); };
+      $('#eFilm').onclick = () => toFilm(t); $('#eRev').onclick = revisit; }
+    if (view === 'var') { const vs = D.lastVar.map(T).filter(Boolean), from = vs[0] && T(vs[0].parent);
+      $('#v-var').innerHTML = vs.length ? `<h2>From ${from ? from.id : '…'}</h2><div class="note">Each one changes one thing. None is ranked. Tap to watch; continue from any.</div><div class="cards">${vs.map(v => `<div class="card ${v.id === D.cur ? 'on' : ''}"><button data-play="${v.id}" style="width:100%;padding:0;text-align:left">${strip(v)}<div class="t"><b>${v.id}</b><div>${esc(v.note)}</div></div></button><div class="row"><button class="k ${isKept(v.id) ? 'on' : ''}" data-keep="${v.id}">${isKept(v.id) ? 'kept' : 'keep'}</button><button data-cont="${v.id}">continue</button></div></div>`).join('')}</div>
+        <div class="small"><button id="vMore">Explore ${from ? from.id : ''} again</button><button id="vBack">Back to ${from ? from.id : 'the take'}</button></div>` : `<div class="note">Explore a take to see what else can happen from it.</div>`;
+      document.querySelectorAll('[data-play]').forEach(b => b.onclick = () => { const v = T(b.dataset.play); $('#sid').textContent = v.id + ' · watching'; drawTL(v); play(v); document.querySelectorAll('#v-var .card').forEach(c => c.classList.toggle('on', c.contains(b))); });
+      document.querySelectorAll('[data-cont]').forEach(b => b.onclick = () => go(T(b.dataset.cont), 'enc'));
+      document.querySelectorAll('[data-keep]').forEach(b => b.onclick = () => { const id = b.dataset.keep; if (isKept(id)) D.kept = D.kept.filter(x => x !== id); else D.kept.unshift(id); save(); render(); });
+      const m = $('#vMore'); if (m) m.onclick = () => { explore(from); render(); }; const bk = $('#vBack'); if (bk) bk.onclick = () => go(from, 'enc'); }
+    if (view === 'kept') { const ks = D.kept.map(T).filter(Boolean);
+      $('#v-kept').innerHTML = `<h2>Kept</h2><div class="note">Kept without a reason. Any of these can start something.</div>${ks.length ? `<div class="cards">${ks.map(k => `<div class="card ${k.id === D.cur ? 'on' : ''}"><button data-play="${k.id}" style="width:100%;padding:0;text-align:left">${strip(k)}<div class="t"><b>${k.id}${D.films.some(f => f.items.includes(k.id)) ? ' · in a film' : ''}</b><div>${esc(describe(k))}</div></div></button><div class="row"><button data-from="${k.id}">explore from here</button><button data-graft="${k.id}">graft onto ${D.cur}</button></div></div>`).join('')}</div>` : '<div class="note">Nothing kept yet.</div>'}
+        <div class="kind">operations · relations kept to try on other material</div>${D.ops.length ? `<div class="ops">${D.ops.map((o, i) => `<div class="op"><span>${o.text} <small style="color:var(--dim)">from ${o.from}</small></span><button data-try="${i}">try on ${D.cur}</button></div>`).join('')}</div>` : '<div class="note">Tap a relation under a take to keep it here.</div>'}
+        <div class="small"><button id="kRev">Revisit the one I looked at longest ago</button><button id="kExport">Export everything</button><label style="border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px">Import<input type="file" id="kImport" accept="application/json" hidden></label></div>`;
+      document.querySelectorAll('[data-play]').forEach(b => b.onclick = () => go(T(b.dataset.play)));
+      document.querySelectorAll('[data-from]').forEach(b => b.onclick = () => { const k = T(b.dataset.from); D.cur = k.id; D.branches++; const kids = explore(k); kids.forEach(c => c.branch = D.branches); save(); show(k); tab('var'); });
+      document.querySelectorAll('[data-graft]').forEach(b => b.onclick = () => { const r = graft(cur(), T(b.dataset.graft)); if (r) go(make(r[0], cur(), r[1], 'graft'), 'enc'); });
+      document.querySelectorAll('[data-try]').forEach(b => b.onclick = () => { const r = applyOp(cur(), D.ops[+b.dataset.try]); if (r) go(make(r[0], cur(), r[1] + ' (operation from ' + D.ops[+b.dataset.try].from + ')', 'op'), 'enc'); });
+      $('#kRev').onclick = revisit; $('#kExport').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(D)], { type: 'application/json' })); a.download = 'takes-' + new Date().toISOString().slice(0, 10) + '.json'; a.click(); };
+      $('#kImport').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const d = JSON.parse(await f.text()); if (d && d.takes) { D = d; save(); go(cur() || Object.values(D.takes)[0], 'enc'); } } catch (x) { } }; }
+    if (view === 'trail') { const path = []; for (let x = t; x; x = T(x.parent)) path.unshift(x); const kids = id => Object.values(D.takes).filter(c => c.parent === id);
+      const gens = {}; Object.values(D.takes).forEach(c => { let d = 0; for (let x = c; x.parent && T(x.parent); x = T(x.parent)) d++; (gens[d] = gens[d] || []).push(c); });
+      $('#v-trail').innerHTML = `<h2>Trail</h2><div class="note">Where ${t.id} came from. Tap to watch; start a branch from any take. Nothing is overwritten.</div>
+        <div class="path">${path.map((x, i) => { const others = kids(x.id).filter(c => !path[i + 1] || c.id !== path[i + 1].id); return `<div class="node ${x.id === t.id ? 'cur' : ''} ${isKept(x.id) ? 'kept' : ''}"><img src="${esc(thumbOf(shot(x.shots[0].k).video))}" alt=""><div class="d"><b>${x.id} · branch ${x.branch}</b><div>${esc(x.note)}</div></div><div class="x"><button data-watch="${x.id}">▶</button>${x.id === t.id ? '' : `<button class="br" data-branch="${x.id}">branch</button>`}</div></div>${others.length ? `<div class="sib">${others.slice(0, 8).map(c => `<button data-watch="${c.id}"><img src="${esc(thumbOf(shot(c.shots[0].k).video))}" alt="">${c.id}</button>`).join('')}${others.length > 8 ? `<span class="note">+${others.length - 8}</span>` : ''}</div>` : ''}`; }).join('')}</div>
+        <div class="kind">everything, by generation</div><div class="gens">${Object.keys(gens).sort((a, b) => a - b).map(g => `<div class="gen"><small>${g}</small>${gens[g].map(c => `<button data-watch="${c.id}" class="${c.id === t.id ? 'cur' : ''} ${isKept(c.id) ? 'kept' : ''}" title="${c.id}: ${esc(c.note)}"><img src="${esc(thumbOf(shot(c.shots[0].k).video))}" alt=""></button>`).join('')}</div>`).join('')}</div>`;
+      document.querySelectorAll('[data-watch]').forEach(b => b.onclick = () => go(T(b.dataset.watch)));
+      document.querySelectorAll('[data-branch]').forEach(b => b.onclick = () => { const x = T(b.dataset.branch); D.branches++; D.cur = x.id; const kids2 = explore(x); kids2.forEach(c => c.branch = D.branches); save(); show(x); tab('var'); }); }
+    if (view === 'film') {
+      $('#v-film').innerHTML = `<h2>Films</h2><div class="note">A film is something you commit to. A take can be in several, or in none.</div><div class="films">${D.films.map((f, i) => `<div class="film"><h3>${esc(f.name)}</h3><div class="strip">${f.items.map((id, j) => `<button data-fw="${id}"><img src="${esc(thumbOf(shot(T(id).shots[0].k).video))}" alt=""><b data-fx="${i}:${j}">×</b></button>`).join('') || '<span class="note">empty</span>'}</div><div class="small"><button data-fplay="${i}">▶ play</button><button data-fshare="${i}">share as a link</button></div></div>`).join('') || '<div class="note">No films yet. Use a take in a film from Encounter.</div>'}</div>`;
+      document.querySelectorAll('[data-fw]').forEach(b => b.onclick = e => { if (e.target.dataset.fx) { const [i, j] = e.target.dataset.fx.split(':').map(Number); D.films[i].items.splice(j, 1); save(); render(); return; } go(T(b.dataset.fw)); });
+      document.querySelectorAll('[data-fplay]').forEach(b => b.onclick = () => playFilm(D.films[+b.dataset.fplay]));
+      document.querySelectorAll('[data-fshare]').forEach(b => b.onclick = async () => { const link = location.origin + location.pathname.replace(/takes\.html$/, '') + 'film.html#' + await Cut.encode(cutFilm(D.films[+b.dataset.fshare])); try { await navigator.clipboard.writeText(link); b.textContent = 'link copied'; } catch (e) { prompt('the film:', link); } }); } }
+  function revisit() { const ks = D.kept.map(T).filter(Boolean); if (!ks.length) { flash('nothing kept yet'); return; } const q = ks.slice().sort((a, b) => (D.seen['t' + a.id] || a.at) - (D.seen['t' + b.id] || b.at))[0]; D.seen['t' + q.id] = Date.now(); go(q, 'enc'); }
+  function toFilm(t) { const s = document.createElement('div'); s.className = 'sheet'; s.innerHTML = `<div><h2>Use ${t.id} in…</h2>${D.films.map((f, i) => `<button class="row" data-f="${i}">${esc(f.name)} <span class="note">· ${f.items.length} takes</span></button>`).join('')}<button class="row" data-f="new">a new film</button><button class="row" data-f="x" style="color:var(--dim)">cancel</button></div>`;
+    document.body.append(s); s.onclick = e => { const b = e.target.closest('[data-f]'); if (!b && e.target !== s) return; s.remove(); if (!b || b.dataset.f === 'x') return; let f; if (b.dataset.f === 'new') { f = { name: 'Film ' + (D.films.length + 1), items: [] }; D.films.push(f); const n = window.prompt('Name it (or leave it):', f.name); if (n) f.name = n.slice(0, 60); } else f = D.films[+b.dataset.f]; f.items.push(t.id); save(); render(); }; }
+  function playFilm(f) { const list = f.items.map(T).filter(Boolean); let i = 0; const next = () => { const t = list[i++]; if (!t) return; drawTL(t); $('#sid').textContent = f.name + ' · ' + t.id; play(t, false); const my = tok; setTimeout(() => { if (my === tok) next(); }, (dur(t) - t0(t)) * 1000 + 150); }; next(); }
+  function cutFilm(f) { const F = Cut.blank(f.name); f.items.map(T).filter(Boolean).forEach(t => { const z = t0(t), clips = []; if (t.pic0 - z > .2) clips.push(Cut.card('', R2(t.pic0 - z)));
+      t.shots.forEach(s => clips.push(Cut.shot(shot(s.k).video, s.t0, s.t1, { d: shot(s.k).dur || null, label: film(s.k) }))); F.clips.push(...clips);
+      t.snds.forEach(s => { const S = src(s.src), off = R2(s.at - z); F.sounds.push(s.role === 'music' ? Cut.music(clips[0].id, S.u, s.t0, slen(s), { off, vol: s.vol }) : Cut.voice(clips[0].id, S.u, s.t0, s.t1, { off, vol: s.vol, text: S.text || null })); }); }); return F; }
+  document.querySelectorAll('#nav button').forEach(b => b.onclick = () => tab(b.dataset.v));
+  $('#stap').onclick = () => { const t = playing || cur(); if (playing) stop(); else play(t); };
+  window.__takes = { D: () => D, explore: () => explore(cur()), change: q => change(cur(), q), go: id => go(T(id)) };
+  // ---- begin: open straight onto something playable
+  let start = cur(); if (!start) { start = seed(); D.cur = start.id; save(); }
+  $('#boot').remove(); show(start); tab('enc');
+})();
+</script>
+</body></html>
