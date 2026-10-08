@@ -55,13 +55,13 @@ ol li::before{ content:counter(c, upper-roman) '.'; font:500 .62em var(--sans); 
       $('#prog').innerHTML = `<div class="empty">Nothing kept yet. In the machine, pull the lever and star the film you like; it will hang here.</div><div class="acts" style="margin-top:16px;justify-content:center"><a class="b main" href="monte.html">TO THE MACHINE</a></div>`; $('#thumbs').innerHTML = ''; return; }
     at = (at + list.length) % list.length; const x = list[at];
     $('#pic').innerHTML = ''; $('#pic').style.backgroundImage = `url('${esc(x.pic)}')`;
-    $('#plate').textContent = x.mp4 ? `PRINT NO. ${at + 1}` : x.sent ? 'A FILM SENT TO YOU' : `KEPT · GENERATION ${x.at ?? '—'}`;
+    $('#plate').textContent = x.mp4 ? `PRINT NO. ${x.n + 1}` : x.sent ? 'A FILM SENT TO YOU' : `KEPT · GENERATION ${x.at ?? '—'}`;
     $('#prog').innerHTML = `<div class="kind">${x.mp4 ? 'A PRINTED FILM' : 'A FILM OF CHANCE'} · IN ${NUM[x.ch.length - 1] || x.ch.length} CHAPTERS</div>
       <div id="title">“${esc(x.title)}”</div>
-      <div class="meta">${x.sec} SECONDS · ${x.f.ev.filter(e => e.kind === 'shot').length} SHOTS · ${x.f.ev.filter(e => e.line != null).length} VOICES · ${x.f.score.toFixed(2)}</div>
+      <div class="meta">${x.sec} SECONDS · ${x.f.ev.filter(e => e.kind === 'shot').length} SHOTS · ${x.ch.length} CARDS · ${x.f.score.toFixed(2)}</div>
       <ol>${x.ch.map(c => `<li>${esc(c)}</li>`).join('')}</ol>
       <div class="acts">${x.mp4 ? `<button class="b main" id="play">▶ PLAY</button><a class="b" href="${esc(x.mp4)}" download="${esc(x.title.replace(/[^\w ]+/g, '').trim().replace(/ +/g, '-').toLowerCase() || 'monte-film')}.mp4">SAVE</a>` : `<a class="b main" href="monte.html#f=${x.code}">▶ WATCH IN THE MACHINE</a>`}<button class="b" id="send">SEND</button>${x.kept ? '<button class="b" id="forget">TAKE DOWN</button>' : ''}</div>
-      <div class="note">${x.mp4 ? 'Every picture, card, voice and note is archival; every join a dissolve. Nothing typed, nothing graded.' : 'Plays from the archive itself, piece by piece. Its link carries the whole film: whoever opens it sees exactly this one.'}</div>`;
+      <div class="note">${x.mp4 ? 'Every picture, card and note is archival, cut the way Precisely So was cut. Nothing typed, nothing graded.' : 'Plays from the archive itself, piece by piece. Its link carries the whole film: whoever opens it sees exactly this one.'}</div>`;
     const p = $('#play'); if (p) p.onclick = () => { $('#pic').innerHTML = `<video src="${esc(x.mp4)}" controls autoplay playsinline></video>`; };
     $('#send').onclick = () => send(x); const fg = $('#forget'); if (fg) fg.onclick = () => forget(x);
     $('#thumbs').innerHTML = list.map((y, k) => `<div class="th${k === at ? ' on' : ''}" data-k="${k}" title="${esc(y.title)}" style="background-image:url('${esc(y.pic)}')"></div>`).join('');
@@ -76,14 +76,15 @@ ol li::before{ content:counter(c, upper-roman) '.'; font:500 .62em var(--sans); 
   $('#prev').onclick = () => { at--; show(); }; $('#nextb').onclick = () => { at++; show(); };
   addEventListener('keydown', e => { if (e.key === 'ArrowLeft') $('#prev').onclick(); if (e.key === 'ArrowRight') $('#nextb').onclick(); });
   let tx = null; $('#room').addEventListener('touchstart', e => tx = e.touches[0].clientX, { passive: true }); $('#room').addEventListener('touchend', e => { if (tx == null) return; const d = e.changedTouches[0].clientX - tx; if (Math.abs(d) > 50) { at += d < 0 ? 1 : -1; show(); } tx = null; });
-  Promise.all([fetch('monte/material.json').then(r => r.json()), fetch('monte/evolution.json').then(r => r.json())]).then(([m, ev]) => {
+  Promise.all([fetch('monte/material.json').then(r => r.json()), fetch('monte/evolution.json').then(r => r.json())]).then(async ([m, ev]) => {
     M = MC.load(m);
-    rooms.prints = ev.best.slice(0, 3).map((b, n) => film(MC.generate(M, ev.genome, b.seed, new Set(b.av || []), new Set(b.sp || [])), { mp4: `monte/film-${n}.mp4`, n }));
+    const have = await Promise.all(ev.best.map((b, n) => fetch(`monte/film-${n}.mp4`, { method: 'HEAD' }).then(r => r.ok).catch(() => false)));
+    rooms.prints = ev.best.map((b, n) => { if (!have[n]) return null; try { return film(MF.fromPrint(M, b), { mp4: `monte/film-${n}.mp4`, n }); } catch (e) { return null; } }).filter(Boolean);
     let kept = []; try { kept = JSON.parse(localStorage.getItem('monte-kept') || '[]'); } catch (e) { }
     rooms.kept = kept.map(r => { try { const f = r.code ? MF.decode(M, r.code) : MC.generate(M, r.g, r.seed, new Set(r.av || []), new Set(r.sp || [])); return film(f, { kept: true, at: r.at, seed: r.seed }); } catch (e) { return null; } }).filter(Boolean);
-    const h = location.hash, f = (h.match(/f=([\w-]+)/) || [])[1], p = +((h.match(/p=(\d)/) || [])[1] || 0);
+    const h = location.hash, f = (h.match(/f=([\w-]+)/) || [])[1], p = +((h.match(/p=(\d+)/) || [])[1] || 0);
     if (f) try { const x = film(MF.decode(M, f), { sent: true }); const k = rooms.kept.findIndex(y => y.code === x.code); if (k >= 0) at = k; else rooms.kept.unshift(x); tab = 'kept'; } catch (e) { }
-    if (p) { tab = 'prints'; at = p - 1; }
+    if (p) { tab = 'prints'; at = Math.max(0, rooms.prints.findIndex(y => y.n === p - 1)); }
     $$('.tabs button')[1].textContent = `KEPT (${rooms.kept.length})`; show();
   });
 })();

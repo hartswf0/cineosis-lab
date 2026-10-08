@@ -86,6 +86,7 @@ nav .main{ background:var(--ink); color:var(--cream); border-radius:24px; paddin
 #cab.spin .reel:not(.landed) .stopb{ display:block; } #cab.spin .reel:not(.landed) .pl span, #cab.spin .reel:not(.landed) .star{ display:none; }
 .reel .star{ font-size:24px; } header h1{ font-size:12px; letter-spacing:.3em; } #cap{ font-size:18px; line-height:1.25; } .tale{ font-size:.82em; color:var(--ink); opacity:.85; } .tale b{ color:var(--mustard); font-style:normal; margin:0 .2em; }
 #cap small{ font-size:10.5px; letter-spacing:.16em; } #three{ gap:10px; } #why{ font-size:11.5px; letter-spacing:.1em; line-height:1.5; } nav{ gap:16px; } nav button{ font-size:12px; letter-spacing:.14em; } nav .main{ padding:10px 16px; } #hint{ font-size:13px; letter-spacing:.3em; } .mark{ width:46px !important; height:46px !important; font-size:20px !important; } .two{ grid-template-columns:1fr; } .taste{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+#ptab{ width:100%; border-collapse:collapse; margin-top:10px; font:400 12px/1.4 var(--serif, Georgia, serif); } #ptab td{ border-top:1px solid #0002; padding:4px 6px; vertical-align:top; } #ptab td:first-child{ white-space:nowrap; } @media (max-width:700px){ #ptab td:nth-child(3){ display:none; } }
 </style></head><body>
 <div id="room">
   <header><h1>THE MONTE CARLO CINEMA</h1></header>
@@ -94,7 +95,7 @@ nav .main{ background:var(--ink); color:var(--cream); border-radius:24px; paddin
   <div id="cap"></div>
   <div id="three"></div>
   <div id="cab"><div id="reels"><div class="reel" data-k="0"><div class="win"><div class="col"></div><i class="pay l"></i><i class="pay r"></i></div><div class="pl"><span></span><button class="stopb">STOP</button><button class="star" title="keep this one: the rules breed from it">☆</button></div></div><div class="reel" data-k="1"><div class="win"><div class="col"></div><i class="pay l"></i><i class="pay r"></i></div><div class="pl"><span></span><button class="stopb">STOP</button><button class="star" title="keep this one: the rules breed from it">☆</button></div></div><div class="reel" data-k="2"><div class="win"><div class="col"></div><i class="pay l"></i><i class="pay r"></i></div><div class="pl"><span></span><button class="stopb">STOP</button><button class="star" title="keep this one: the rules breed from it">☆</button></div></div></div><button class="lever" id="next" title="pull: the rules breed three generations and deal three new films (Enter)"><span class="slot"></span><span class="arm"><span class="knob"></span></span><span class="lab">PULL</span></button></div>
-  <div><div id="why"></div><nav><button id="undo" disabled>UNDO</button><button id="share" title="a link that plays this exact film anywhere">SHARE</button><a class="navlink" href="monte-gallery.html">THE GALLERY</a><button id="back">THE BACK ROOM</button></nav></div>
+  <div><div id="why"></div><nav><button id="undo" disabled>UNDO</button><button id="share" title="a link that plays this exact film anywhere">SHARE</button><a class="navlink" href="monte-gallery.html">THE GALLERY</a><button id="back">THE BACK ROOM</button><button onclick="location.href='mcts.html'">THE GRAND EDITING MACHINE</button><button onclick="location.href='party.html?play=breed'" title="Breed the rules with friends: every phone turns the dials">BREED IT TOGETHER</button></nav></div>
 </div>
 <video id="voice" playsinline style="display:none"></video><video id="music" playsinline style="display:none"></video>
 <div class="drawer" id="dr"><div class="card"><button class="x">×</button><h2>THE BACK ROOM</h2><div class="sub" id="drsub"></div>
@@ -102,7 +103,7 @@ nav .main{ background:var(--ink); color:var(--cream); border-radius:24px; paddin
   <div class="pane on" id="pk"><div class="keptl" id="kept"></div></div>
   <div class="pane" id="pt"><h3>THIS</h3><div class="taste" id="tyes"></div><h3>NOT THIS</h3><div class="taste" id="tno"></div><div class="sub" style="text-transform:none;letter-spacing:.04em;font:italic 400 14px var(--serif)">Every ♥ and ✕, and every film you star, moves one direction in CLIP space. The critic's “yours” measures how far a film leans that way, and the rules evolve toward it.</div><div style="text-align:center"><button id="forget" style="font-size:9px;letter-spacing:.26em;border-bottom:1.5px solid var(--mustard)">FORGET MY TASTE</button></div></div>
   <div class="pane" id="pw"><canvas id="chart"></canvas><div class="two"><div><h3>THE RULES</h3><div id="rules"></div></div><div><h3>THE CRITIC</h3><div id="critic"></div></div></div></div>
-  <div class="pane" id="pp"><div class="prints"><button class="on" data-k="0">NO. 1</button><button data-k="1">NO. 2</button><button data-k="2">NO. 3</button></div><video id="print" controls playsinline preload="metadata" src="monte/film-0.mp4"></video></div>
+  <div class="pane" id="pp"><div class="prints"><button class="on" data-k="0">NO. 1</button><button data-k="1">NO. 2</button><button data-k="2">NO. 3</button><button data-k="3" hidden>NO. 4</button><button data-k="4" hidden>NO. 5</button><button data-k="5" hidden>NO. 6</button></div><video id="print" controls playsinline preload="metadata" src="monte/film-0.mp4"></video><table class="edit" id="ptab"></table></div>
 </div></div>
 <script src="monte/sim.js"></script>
 <script src="monte/film.js"></script>
@@ -249,12 +250,16 @@ nav .main{ background:var(--ink); color:var(--cream); border-radius:24px; paddin
   $$('.tabs button').forEach(b => b.onclick = () => tab(b.dataset.p));
   $('#dr').onclick = ev => { if (ev.target.id === 'dr' || ev.target.classList.contains('x')) closeAll(); };
   $('#forget').onclick = () => { marks = {}; save('monte-marks', marks); retaste(); drawTaste(); drawThree(); };
+  const editOf = k => fetch(`monte/film-${k}.json`).then(r => r.json()).then(c => { $('#ptab').innerHTML = c.edit.map(e => `<tr><td>${e.at.toFixed(1)} s</td><td>${e.kind === 'card' ? '<i>“' + esc((e.text || '').replace(/ \/ /g, ' ')) + '”</i>' : esc(e.film || '')}${e.year ? ' (' + e.year + ')' : ''}${e.silent ? ' · silence' : ''}</td><td>${Array.isArray(e.source) ? e.source.join('–') + ' s' : esc(e.source)} · judged ${e.score}/10</td></tr>`).join(''); }).catch(() => { $('#ptab').innerHTML = ''; });
+  editOf(0);
+  $$('.prints button').forEach(b => b.addEventListener('click', () => editOf(b.dataset.k)));
   $$('.prints button').forEach(b => b.onclick = () => { $$('.prints button').forEach(x => x.classList.toggle('on', x === b)); $('#print').src = `monte/film-${b.dataset.k}.mp4`; $('#print').play().catch(() => { }); });
   Promise.all([fetch('monte/material.json').then(r => r.json()), fetch('monte/evolution.json').then(r => r.json()).catch(() => null), fetch('aspect/video.json').then(r => r.json()).catch(() => ({}))]).then(([m, ev, vids]) => {
     M = MC.load(m); M.lines.forEach(l => { if (vids[l.i]) VIDX[l.i] = vids[l.i][0]; }); M.music.forEach(x => { if (vids[x.i]) x.v = vids[x.i][0]; });
     retaste();
     const g0 = ev ? ev.genome : null; breed(g0 ? Array.from({ length: 24 }, (_, k) => k ? mutate(g0, .2) : g0.slice()) : undefined);
     const h = (location.hash.match(/f=([\w-]+)/) || [])[1]; if (h) try { sent = MonteFilm.decode(M, h); MC.critic(M, sent, W); sent.g = ev ? ev.genome : null; } catch (e) { }
+    if (ev) $$('.prints button').forEach(b => { b.hidden = +b.dataset.k >= ev.best.length; });   // one button per print
     if (ev) { hist = ev.generations.map(h => ({ best: h.best, mean: h.mean })); next({ g: g0, s: ev.best.slice(0, 3).map(b => b.seed), av: ev.best.slice(0, 3).map(b => b.av), sp: ev.best.slice(0, 3).map(b => b.sp) }); }
     else next();
   });

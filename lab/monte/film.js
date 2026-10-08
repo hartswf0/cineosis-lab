@@ -19,7 +19,12 @@
     const named = j >= 0 ? op.slice(j + 1).filter(x => !CREDIT.test(x) && !/^in$/i.test(x)) : [];
     let t = named.length ? named.join(' ') : (chapters(M, f).slice(-1)[0] || '');
     t = clean(t.split(/(?<=[.!?])\s/)[0]); return t.length > 44 ? t.slice(0, 42).replace(/\s\S*$/, '') + '…' : t; }
+  // a print, exactly as evolution.json records it (its pieces by id), as a film
+  function fromPrint(M, b) { const ix = M._ix || (M._ix = new Map(M.shots.map((s, k) => [s.i, k])));
+    const li = l => l ? M.lines.findIndex(x => x.i === l.i && Math.abs(x.t0 - l.t0) < .02) : -1, mi = M.music.findIndex(x => x.i === (b.music && b.music.i));
+    const e = b.ev.map(x => [ix.get(x.i), Math.round(x.dur * 100), li(x.line), (x.kind === 'card' ? 1 : 0) | (x.silent ? 2 : 0) | (x.ret ? 4 : 0) | (x.end ? 8 : 0), x.act == null ? -1 : x.act]);
+    if (e.some(x => x[0] == null)) throw new Error('missing piece'); return decode(M, b64(JSON.stringify({ v: 1, m: Math.max(0, mi), e }))); }
   const seconds = f => Math.round(f.ev.reduce((s, e) => s + e.dur, 0));
-  const api = { encode, decode, chapters, title, seconds };
+  const api = { fromPrint, encode, decode, chapters, title, seconds };
   if (typeof module !== 'undefined') module.exports = api; else root.MonteFilm = api;
 })(this);

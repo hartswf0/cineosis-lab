@@ -1,65 +1,107 @@
-"""Render a film the Monte Carlo cinema found (monte/evolution.json, best[k]) from the archive itself: each shot around its judged
-moment (the clip's middle frame), each title card frozen on its own archival frame, each spoken line cut from its clip's sound at the
-transcript's word times, and the archive's music (the chosen piece, continued by the pieces nearest its mood), dipped under the voices
-and silent in the acts the rules made silent. No added text, no grade.   usage: python3 monte/render.py [k]  -> monte/film-<k>.mp4"""
+"""Render a film the Monte Carlo cinema found (monte/evolution.json, best[k]) from the archive itself, the way Precisely So was made
+(wes/precisely_cut.py): each title card frozen on its own archival frame at the moment it is fully up (never mid-fade, never the black
+before it), each shot playing its real motion over its steadiest, best-lit stretch (no fades, no black, no flash frames), straight cuts,
+and the archive's music (the chosen piece, continued by the pieces nearest its mood), each piece levelled, silent in the acts the rules
+made silent, and the whole levelled in two passes. No added text, no grade, no borrowed voices.
+usage: python3 monte/render.py [k] [source]  -> monte/film-<k>.mp4, monte/film-<k>.json (the edit: every piece, its source and its moment)
+       source: evolution (the default, the bred rules), tactical (comedies built as routines: charge, pause, punch, laugh, exit), comic (the comedies: lines from one film over pictures from another) or mcts (the Grand Editing Machine, monte/mcts.json) -> monte/mcts-<k>.mp4, .json"""
 import json, os, re, subprocess, sys
+import numpy as np
 D = os.path.dirname(os.path.abspath(__file__)); L = os.path.dirname(D); T = os.path.join(D, "cache"); os.makedirs(T, exist_ok=True)
-M = json.load(open(os.path.join(D, "material.json")))
-if len(sys.argv) > 2 and sys.argv[1] == "--code":   # a film from a gallery link: python3 monte/render.py --code <code> [name]  -> monte/<name>.mp4
-    import base64
-    c = sys.argv[2].split("f=")[-1]; o = json.loads(base64.urlsafe_b64decode(c + "=" * (-len(c) % 4)).decode("utf-8"))
-    ev = [{"kind": "card" if fl & 1 else "shot", "i": M["shots"][k]["i"], "dur": d / 100, "silent": bool(fl & 2), "line": M["lines"][l] if l >= 0 else None} for k, d, l, fl, a_ in o["e"]]
-    F = {"ev": ev, "music": M["music"][o["m"]]}; K = sys.argv[3] if len(sys.argv) > 3 else "kept-" + str(abs(hash(c)) % 10**6)
-else:
-    K = int(sys.argv[1]) if len(sys.argv) > 1 else 0
-    EV = json.load(open(os.path.join(D, "evolution.json"))); F = EV["best"][K]
+K = int(sys.argv[1]) if len(sys.argv) > 1 else 0
+SRC = sys.argv[2] if len(sys.argv) > 2 else "evolution"; PRE = "film" if SRC == "evolution" else SRC
+EV = json.load(open(os.path.join(D, SRC + ".json"))); F = EV["best"][K]; M = json.load(open(os.path.join(D, "material.json")))
 V = json.load(open(os.path.join(L, "aspect", "video.json"))); R2 = M["r2"]; W_, H_, FPS = 960, 720, 24
-DX = 0.8   # every join is a dissolve this long: no blinking; each piece runs DX longer and the next fades in over its tail
 def fetch(i):
     p = os.path.join(T, i + ".mp4")
     if not os.path.exists(p) or os.path.getsize(p) < 1000: subprocess.run(["curl", "-sfL", "--retry", "3", "-A", "cineosis-44-research", "-o", p, R2 + V[i][0]], check=True)
     return p
+# ---- the moment: read the clip small and grey, eight frames a second, and find where the picture is really there
+SR, SW, SH = 8, 64, 48
+def frames(p):
+    raw = subprocess.run(["ffmpeg", "-v", "quiet", "-i", p, "-vf", f"fps={SR},scale={SW}:{SH},format=gray", "-f", "rawvideo", "-"], capture_output=True).stdout
+    return np.frombuffer(raw, np.uint8).reshape(-1, SH, SW).astype(np.float32)
+def moment(p, kind, need):
+    """(start, the frame to hold) in seconds. The judge saw the clip's middle frame, so everything is anchored there. A card: the steady,
+    fully-lit stretch of the same card as the middle frame (nearest it), held at its middle, so never mid-fade and never the next card.
+    A shot: the window of `need` seconds around the middle with no black, no fade and no cut inside it."""
+    f = frames(p); n = len(f)
+    if n < 2: return 0.0, 0.0
+    m = n // 2; lum, con = f.mean((1, 2)), f.std((1, 2)); diff = np.r_[0, np.abs(np.diff(f, axis=0)).mean((1, 2))]
+    z = (f - lum[:, None, None]) / (con[:, None, None] + 1e-3); ref = z[m]; same = (z * ref).mean((1, 2))   # each frame against the judged one
+    up = (lum > 5) & (con > max(6, 0.6 * np.percentile(con, 90)))
+    if kind == "card":
+        if con[m] < 6: same[:] = 1                                   # the judged frame was black: any steady card will do
+        ok = up & (diff < 2.5) & (same > .7); runs, a = [], None
+        for k in range(n + 1):
+            if k < n and ok[k]: a = k if a is None else a
+            elif a is not None: runs.append((a, k - 1)); a = None
+        if not runs: return m / SR, m / SR
+        a, b = min(runs, key=lambda r: (0 if r[0] <= m <= r[1] else min(abs(r[0] - m), abs(r[1] - m)), -(r[1] - r[0])))
+        full = [k for k in range(a, b + 1) if con[k] >= .97 * con[a:b + 1].max()]; k = full[len(full) // 2]   # the card at full strength
+        return k / SR, k / SR
+    w = max(1, int(round(need * SR))); good = up & (diff < 22) & (same > .35)   # a jump this big, or a frame this unlike the judged one, is a cut
+    if n <= w: return 0.0, m / SR
+    ok = np.convolve(good.astype(np.float32), np.ones(w), "valid") / w; c = np.clip(m - w / 2, 0, len(ok) - 1)
+    score = ok - 0.4 * np.abs(np.arange(len(ok)) - c) / max(1, n)  # all-good first, then nearest the judged moment
+    a = int(np.argmax(score)); return a / SR, (a + w / 2) / SR
 dur = lambda p: float(subprocess.run(["ffprobe", "-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", p], capture_output=True, text=True).stdout or 0)
 ENC = ["-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p", "-r", str(FPS)]
-VF = f"scale={W_}:{H_}:force_original_aspect_ratio=decrease,pad={W_}:{H_}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={FPS},format=yuv420p"
-parts, voices, silent, t = [], [], [], 0.0
+VF = f"scale={W_}:{H_}:force_original_aspect_ratio=decrease,pad={W_}:{H_}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={FPS},format=yuv420p"   # no grade
+parts, table, silent, voices, rests, t = [], [], [], [], [], 0.0
 for n, e in enumerate(F["ev"]):
-    src = fetch(e["i"]); d = dur(src); mid = d / 2; out = os.path.join(T, f"f{K}_{n:02d}.mp4"); L_ = e["dur"]; LL = L_ + (DX if n < len(F["ev"]) - 1 else 0)
-    if e["kind"] == "card":
-        png = os.path.join(T, f"f{K}_{n:02d}.png"); subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-ss", f"{mid:.2f}", "-i", src, "-frames:v", "1", "-update", "1", png], check=True)
-        subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-loop", "1", "-t", f"{LL:.2f}", "-i", png, "-vf", VF, *ENC, out], check=True)
-    else:
-        a = max(0.0, min(mid - LL / 2, d - LL - .05))
-        subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-ss", f"{a:.2f}", "-t", f"{LL:.2f}", "-i", src, "-an", "-vf", VF + (f",tpad=stop_mode=clone:stop_duration={LL:.2f}" if d < LL + .1 else ""), "-t", f"{LL:.2f}", *ENC, out], check=True)
-        if e.get("line"):
-            ln = e["line"]; flac = os.path.join(L, "odyssey", "cache", "aud", ln["i"] + ".flac")
-            voices.append((t + .35, flac if os.path.exists(flac) else fetch(ln["i"]), ln["t0"], ln["t1"]))
-        if e.get("silent"): silent.append((t, t + L_))
-    parts.append(out); t += L_
-# the joins: dissolves between shots, a dip through black into and out of a card
-pic = os.path.join(T, f"f{K}_picture.mp4"); vfc, ch, at = "", "[0:v]", 0.0
-for n in range(1, len(parts)):
-    at += F["ev"][n - 1]["dur"]; kind = "fadeblack" if "card" in (F["ev"][n - 1]["kind"], F["ev"][n]["kind"]) else "fade"
-    vfc += f"{ch}[{n}:v]xfade=transition={kind}:duration={DX}:offset={at:.3f}[j{n}];"; ch = f"[j{n}]"
-subprocess.run(["ffmpeg", "-v", "error", "-y", *sum([["-i", p] for p in parts], []), "-filter_complex", vfc + f"{ch}format=yuv420p[v]", "-map", "[v]", *ENC, pic], check=True)
-# the music: the chosen piece, then the pieces nearest its mood, crossfaded, long enough for the film
+    src = fetch(e["i"]); d = dur(src); out = os.path.join(T, f"{PRE}{K}_{n:02d}.mp4"); L_ = e["dur"]
+    if e["kind"] == "card":   # the archival frame itself, held to be read
+        _, at = moment(src, "card", L_); png = os.path.join(T, f"{PRE}{K}_{n:02d}.png")
+        subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-ss", f"{at:.2f}", "-i", src, "-frames:v", "1", "-update", "1", png], check=True)
+        subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-loop", "1", "-t", f"{L_:.2f}", "-i", png, "-vf", VF, *ENC, out], check=True); v0 = v1 = round(at, 2)
+    else:                     # real motion over its best stretch
+        a, _ = moment(src, "shot", L_); a = max(0.0, min(a, d - L_ - .05))
+        subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-ss", f"{a:.2f}", "-t", f"{L_:.2f}", "-i", src, "-an", "-vf", VF + (f",tpad=stop_mode=clone:stop_duration={L_:.2f}" if d < L_ + .1 else ""), "-t", f"{L_:.2f}", *ENC, out], check=True)
+        v0, v1 = round(a, 2), round(a + L_, 2)
+    if e.get("silent"): silent.append((t, t + L_))   # a silent act, or the card that stops the film
+    if e.get("line"):   # a comedy: a line from another film, over this picture; a tactical routine waits its pause first, and leaves room for the laugh
+        ln = e["line"]; pz = (e.get("pause") or 300) / 1000; voices.append((t + pz, fetch(ln["i"]), ln["t0"], ln["t1"], (e.get("laugh") or 250) / 1000))
+        if e.get("punch"): rests.append((t + .05, t + pz - .05))   # [PAUSE]: the music cuts out while the picture sits there
+    parts.append(out)
+    table.append({"pos": n + 1, "at": round(t, 1), "dur": round(L_, 2), "kind": e["kind"], "id": e["i"], "film": e.get("film"), "year": e.get("year"), "score": e.get("score"),
+                  "source": [v0, v1] if v1 > v0 else f"frame at {v0} s, held", "text": e.get("text"), "silent": bool(e.get("silent")), "pause_ms": e.get("pause"), "laugh_ms": e.get("laugh"), "exit": bool(e.get("exit")), "voice": ({"said": e["line"]["text"], "from": e["line"]["film"], "id": e["line"]["i"], "at": [e["line"]["t0"], e["line"]["t1"]]} if e.get("line") else None)})
+    t += L_
+# the joins: straight cuts, as in Precisely So
+pic = os.path.join(T, f"{PRE}{K}_picture.mp4")   # re-encoded through the concat filter: a stream copy can stop at a piece whose timing differs
+subprocess.run(["ffmpeg", "-v", "error", "-y", *sum([["-i", x] for x in parts], []), "-filter_complex", "".join(f"[{k}:v]settb=1/{FPS},setpts=PTS-STARTPTS[p{k}];" for k in range(len(parts))) + "".join(f"[p{k}]" for k in range(len(parts))) + f"concat=n={len(parts)}:v=1:a=0[v]", "-map", "[v]", *ENC, pic], check=True)
+assert abs(dur(pic) - t) < 1, f"picture is {dur(pic):.1f} s, the edit {t:.1f} s"
+# the music: the chosen piece, then the pieces nearest its mood, one per film, each levelled before they meet, crossfaded
 mood = F["music"]["mood"]; cosv = lambda a, b: sum(x * y for x, y in zip(a, b)) / ((sum(x * x for x in a) * sum(y * y for y in b)) ** .5 or 1)
 order = [F["music"]] + sorted([m for m in M["music"] if m["film"] != F["music"]["film"] and not re.search(r"interview|lecture|speech", m["film"] or "", re.I)], key=lambda m: -cosv(m["mood"], mood))
-seenf = set(); order = [m for m in order if not (m["film"] in seenf or seenf.add(m["film"]))]   # one piece per film
-music = order[: int(t // 24) + 2]
-ins = sum([["-i", os.path.join(L, "odyssey", "cache", "aud", m["i"] + ".flac")] for m in music], [])
-fc = "".join(f"[{k}:a]atrim=0:27,asetpts=PTS-STARTPTS,loudnorm=I=-21:TP=-2,aformat=sample_rates=48000:channel_layouts=stereo[m{k}];" for k in range(len(music))); ch = "[m0]"
-for k in range(1, len(music)): fc += f"{ch}[m{k}]acrossfade=d=2.5:c1=tri:c2=tri[x{k}];"; ch = f"[x{k}]"
-duck = "+".join(f"between(t,{a - .2:.2f},{a + (t1 - t0) + .2:.2f})" for a, _, t0, t1 in voices) or "0"
-mute = "+".join(f"between(t,{a:.2f},{b:.2f})" for a, b in silent) or "0"
-fc += f"{ch}atrim=0:{t:.2f},volume='if({mute},0.0,if({duck},0.3,1))':eval=frame,afade=t=in:d=1,afade=t=out:st={t - 2.5:.2f}:d=2.5[mus];"
-vin = len(music); vins = []
-for k, (a, src, t0, t1) in enumerate(voices):
+seenf = set(); order = [m for m in order if not (m["film"] in seenf or seenf.add(m["film"]))]
+aud = lambda i: (lambda f: f if os.path.exists(f) else fetch(i))(os.path.join(L, "odyssey", "cache", "aud", i + ".flac"))   # the clip's own sound if the local copy is missing
+music, lens, have = [], [], 0.0
+for m in order:                                    # piece after piece until the film is covered (some pieces are short)
+    d = min(27.0, dur(aud(m["i"])))
+    if d < 6: continue
+    music.append(m); lens.append(d); have += d - (2.5 if len(music) > 1 else 0)
+    if have > t + 3: break
+ins = sum([["-i", aud(m["i"])] for m in music], [])
+fc = "".join(f"[{k}:a]atrim=0:{lens[k]:.2f},asetpts=PTS-STARTPTS,loudnorm=I=-20:TP=-2,aformat=sample_rates=48000:channel_layouts=stereo[a{k}];" for k in range(len(music))); ch = "[a0]"
+for k in range(1, len(music)): fc += f"{ch}[a{k}]acrossfade=d=2.5:c1=tri:c2=tri[x{k}];"; ch = f"[x{k}]"
+mute = "+".join(f"between(t,{a - .15:.2f},{b + .1:.2f})" for a, b in silent) or "0"
+duck = "+".join(f"between(t,{a - .25:.2f},{a + (t1 - t0) + tail:.2f})" for a, _, t0, t1, tail in voices) or "0"   # low under the line and through the laugh; up again for the exit [TONE SHIFT]
+# the music is cut into 10 ms frames before its volume is set: acrossfade hands on a whole 2.5 s overlap as one frame, and a pause inside it would never fall silent
+rest = "+".join(f"between(t,{a:.2f},{b:.2f})" for a, b in rests) or "0"   # the music steps back for a voice
+fc += f"{ch}apad,atrim=0:{t:.2f},asetnsamples=n=480:p=0,volume='if({mute}+{rest},0,if({duck},0.22,1))':eval=frame,afade=t=in:d=1.2,afade=t=out:st={t - 2.5:.2f}:d=2.5[m]"
+vins = []
+for k, (a, src, t0, t1, _) in enumerate(voices):   # each line cut from its own clip at the transcript's word times, levelled, set in place
     vins += ["-ss", f"{t0}", "-t", f"{t1 - t0}", "-i", src]
-    fc += f"[{vin + k}:a]loudnorm=I=-17:TP=-2,aformat=sample_rates=48000:channel_layouts=stereo,afade=t=in:d=0.05,afade=t=out:st={max(.1, t1 - t0 - .12):.2f}:d=0.12,adelay={int(a * 1000)}|{int(a * 1000)}[v{k}];"
-fc += "[mus]" + "".join(f"[v{k}]" for k in range(len(voices))) + f"amix=inputs={1 + len(voices)}:duration=first,volume={1 + len(voices)}[a]"   # this ffmpeg's amix divides by the inputs: give it back
-wav = os.path.join(T, f"f{K}_sound.wav"); subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, *vins, "-filter_complex", fc, "-map", "[a]", wav], check=True)
-out = os.path.join(D, f"film-{K}.mp4")
-subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-i", pic, "-i", wav, "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "slow", "-crf", "23", "-maxrate", "1800k", "-bufsize", "3600k",
+    fc += f";[{len(music) + k}:a]loudnorm=I=-16:TP=-2,aformat=sample_rates=48000:channel_layouts=stereo,afade=t=in:d=0.04,afade=t=out:st={max(.1, t1 - t0 - .1):.2f}:d=0.1,adelay={int(a * 1000)}|{int(a * 1000)}[v{k}]"
+if voices: fc += ";[m]" + "".join(f"[v{k}]" for k in range(len(voices))) + f"amix=inputs={1 + len(voices)}:duration=first:normalize=0[mix]"
+wav = os.path.join(T, f"{PRE}{K}_score.wav"); subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, *vins, "-filter_complex", fc, "-map", "[mix]" if voices else "[m]", wav], check=True)
+_m = subprocess.run(["ffmpeg", "-hide_banner", "-i", wav, "-af", "loudnorm=I=-18:TP=-1.5:print_format=json", "-f", "null", "-"], capture_output=True, text=True).stderr
+_j = json.loads(_m[_m.rindex("{"):_m.rindex("}") + 1])
+LN = f"loudnorm=I=-18:TP=-1.5:linear=true:measured_I={_j['input_i']}:measured_TP={_j['input_tp']}:measured_LRA={_j['input_lra']}:measured_thresh={_j['input_thresh']}:offset={_j['target_offset']}"
+out = os.path.join(D, f"{PRE}-{K}.mp4")
+subprocess.run(["ffmpeg", "-v", "quiet", "-y", "-i", pic, "-i", wav, "-map", "0:v", "-map", "1:a", "-af", LN, "-c:v", "libx264", "-preset", "slow", "-crf", "22", "-maxrate", "1800k", "-bufsize", "3600k",
                 "-c:a", "aac", "-b:a", "128k", "-shortest", "-movflags", "+faststart", out], check=True)
-print(f"wrote {out} · {t:.1f} s · {len(parts)} pieces · {len(voices)} voices · music {[m['film'] for m in music]}")
+assert abs(dur(out) - t) < 1, f"the film is {dur(out):.1f} s, the edit {t:.1f} s"
+json.dump({"seconds": round(t, 1), "music": [m["i"] for m in music], "edit": table}, open(os.path.join(D, f"{PRE}-{K}.json"), "w"), ensure_ascii=False, indent=1)
+print(f"wrote {out} · {t:.1f} s · {len(parts)} pieces · music {[m['film'] for m in music]} · {os.path.getsize(out) / 1e6:.1f} MB")
