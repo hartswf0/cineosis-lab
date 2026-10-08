@@ -20,9 +20,10 @@ dur = lambda p: float(subprocess.run(["ffprobe", "-v", "quiet", "-show_entries",
 parts, n = [], 0
 for si, sec in enumerate(song["sections"]):
     for sh in sec["shots"]:
-        src = os.path.join(D, "cartoon", sh["cartoon"] + ".mp4") if sh.get("cartoon") else fetch(sh["clip"]) or next((fetch(a) for a in sh["alts"] if fetch(a)), None)
+        ai = sh["clip"].get("ai") if not sh.get("cartoon") else None
+        src = os.path.join(D, "cartoon", sh["cartoon"] + ".mp4") if sh.get("cartoon") else os.path.join(D, ai["file"]) if ai and os.path.exists(os.path.join(D, ai["file"])) else fetch(sh["clip"]) or next((fetch(a) for a in sh["alts"] if fetch(a)), None)
         if not src: continue
-        L = sh["dur"]; d = dur(src); a = 0.0 if sh.get("cartoon") else max(0.0, min(d / 2 - L / 2, d - L - .05)); out = os.path.join(T, f"{n:03d}.mp4"); n += 1   # a cartoon plays from its first drawing
+        L = sh["dur"]; d = dur(src); a = 0.0 if sh.get("cartoon") else (max(ai["t0"], min((ai["t0"] + ai["t1"]) / 2 - L / 2, ai["t1"] - L)) if ai else max(0.0, min(d / 2 - L / 2, d - L - .05))); out = os.path.join(T, f"{n:03d}.mp4"); n += 1   # a cartoon plays from its first drawing
         ins = ["-ss", f"{a:.2f}", "-t", f"{L:.2f}", "-i", src]; fc = f"[0:v]{FILL}" + (f",tpad=stop_mode=clone:stop_duration={L:.2f}" if d < L + .1 else "") + "[p]"; last = "[p]"; k = 1
         lay = []
         if sh.get("cutout") and sh["cutout"] in cuts: lay.append(("cut", os.path.join(D, cuts[sh["cutout"]]["packed"]), .62, "bottom"))
@@ -44,5 +45,5 @@ lst = os.path.join(T, "list.txt"); open(lst, "w").write("".join(f"file '{p}'\n" 
 pic = os.path.join(T, "picture.mp4"); subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", pic], check=True)
 out = os.path.join(OUTD, f"song-{N}-{MODE}.mp4")
 subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", pic, "-i", os.path.join(ALB, song["file"]), "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "slow", "-crf", "23",
-                "-maxrate", "2500k", "-bufsize", "5000k", "-af", "loudnorm=I=-14:TP=-1.5", "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", out], check=True)
+                "-maxrate", "1300k", "-bufsize", "2600k", "-af", "loudnorm=I=-14:TP=-1.5", "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", out], check=True)
 print("wrote", out, f"{dur(out):.1f} s ·", len(parts), "shots")

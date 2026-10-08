@@ -6,7 +6,7 @@
    Runs in the browser (slopfeeder-cartoon.html) and in node (render-cartoon.js -> frames -> mp4).            */
 (function (root) {
   const W = 1280, H = 720, FPS = 24, TAU = Math.PI * 2;
-  const C = { purple: '#5b1fe6', black: '#1d1d1f', orange: '#f2591a', yellow: '#e8c21a', ivory: '#efe6d2', shoulder: '#e8692c', ink: '#1a1612',
+  const C = { purple: '#5600f5', black: '#1a1b1f', orange: '#f25a17', yellow: '#e6c808', ivory: '#efe6d2', shoulder: '#e8692c', ink: '#1a1612',
     sea: '#4e5f6b', sea2: '#3b4a55', foam: '#dfe3dc', sky: '#b9b2a2', sky2: '#d9cdb4', sand: '#c9b38c', sand2: '#a8916c', brick: '#8f4a34', brick2: '#6d3626',
     smoke: '#6c6862', fire: '#f39b2b', steel: '#9aa3a8', screen: '#2f6b4a', glow: '#9df2b4', bun: '#d69a4a', patty: '#5a2f1c' };
   // ---- noise, easing, tracks
@@ -23,7 +23,11 @@
   // ---- the hand: every outline drawn twice (a light construction pass, then the clean line), its points boiling per drawing
   function wob(pts, d, amt) { return pts.map(([x, y], k) => [x + (hash(d * 31.7 + k * 7.3) - .5) * amt, y + (hash(d * 17.1 + k * 3.9 + 99) - .5) * amt]); }
   function path(g, pts, closed) { g.beginPath(); pts.forEach(([x, y], k) => k ? g.lineTo(x, y) : g.moveTo(x, y)); if (closed) g.closePath(); }
+  let STYLE = 'meme';   // 'meme': flat, crisp, unoutlined, as the login page draws them · 'pencil': the hand-drawn pass
   function ink(g, pts, o = {}) { const d = o.d || 0, closed = o.closed !== false;
+    if (STYLE === 'meme') { g.lineJoin = g.lineCap = 'round';
+      if (o.fill) { path(g, pts, closed); g.fillStyle = o.fill; g.fill(); if (o.edge) { g.strokeStyle = o.stroke || C.ink; g.lineWidth = o.w || 2; g.stroke(); } return; }
+      if (o.line !== false) { path(g, pts, closed); g.strokeStyle = o.stroke || C.ink; g.lineWidth = o.w || 2.4; g.stroke(); } return; }
     if (o.fill) { path(g, wob(pts, d, (o.boil ?? 1.6) * .5), closed); g.fillStyle = o.fill; g.fill(); if (o.grain !== false) hatch(g, pts, d, o.fill); }
     if (o.line !== false) { g.lineJoin = g.lineCap = 'round';
       g.strokeStyle = 'rgba(40,30,25,.22)'; g.lineWidth = (o.w || 2.4) * .7; path(g, wob(pts, d + 500, (o.boil ?? 1.6) * 1.8), closed); g.stroke();   // construction pass
@@ -36,21 +40,32 @@
   function ell(cx, cy, rx, ry, a0 = 0, a1 = TAU, n = N) { const p = []; for (let k = 0; k <= n; k++) { const a = a0 + (a1 - a0) * k / n; p.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]); } return p; }
   function rr(x, y, w, h, r = 6) { return [...ell(x + w - r, y + r, r, r, -Math.PI / 2, 0, 4), ...ell(x + w - r, y + h - r, r, r, 0, Math.PI / 2, 4), ...ell(x + r, y + h - r, r, r, Math.PI / 2, Math.PI, 4), ...ell(x + r, y + r, r, r, Math.PI, 1.5 * Math.PI, 4)]; }
   const sq = (pts, fx, fy, s, lean = 0) => pts.map(([x, y]) => { const dy = y - fy; return [fx + (x - fx) * s + dy * lean, fy + dy / s]; });   // volume kept: width*s, height/s
-  // ---- the login characters, grown: shape + dot eyes that look at something + a mouth that changes its mind
-  function eyes(g, x, y, sp, r, look, blink, d) { for (const s of [-1, 1]) { const ex = x + s * sp, lx = Math.max(-1, Math.min(1, look[0])), ly = Math.max(-1, Math.min(1, look[1]));
-      if (blink > .5) ink(g, [[ex - r * 1.4, y], [ex + r * 1.4, y]], { closed: false, d, w: 2.4 }); else { ink(g, ell(ex, y, r * 1.7, r * 1.7), { fill: '#fff', d, w: 1.6, grain: false }); ink(g, ell(ex + lx * r * .7, y + ly * r * .7, r, r), { fill: C.ink, d: d + 3, line: false, grain: false }); } } }
-  function mouth(g, x, y, w, kind, d) { const p = kind === 'smile' ? ell(x, y - w * .25, w, w * .55, .2, Math.PI - .2, 8) : kind === 'frown' ? ell(x, y + w * .35, w, w * .5, Math.PI + .3, TAU - .3, 8) : kind === 'o' ? ell(x, y, w * .35, w * .45) : [[x - w, y], [x + w, y]];
-    ink(g, p, { closed: kind === 'o', fill: kind === 'o' ? C.ink : null, d, w: 2.6, grain: false }); }
-  function shape(g, kind, x, y, s, o) {   // x,y = foot; s = scale; o = {squash, lean, look, blink, mouth, f}
-    const d = o.d, q = o.squash || 1, ln = o.lean || 0; let pts, face;
-    if (kind === 'purple') { pts = rr(x - 55 * s, y - 230 * s, 110 * s, 230 * s, 8 * s); face = [x + 8 * s, y - 190 * s, 15 * s]; }
-    if (kind === 'black') { pts = rr(x - 42 * s, y - 165 * s, 84 * s, 165 * s, 6 * s); face = [x + 4 * s, y - 135 * s, 12 * s]; }
-    if (kind === 'orange') { pts = ell(x, y, 120 * s, 115 * s, Math.PI, TAU, 24).concat([[x + 120 * s, y], [x - 120 * s, y]]); face = [x, y - 62 * s, 16 * s]; }
-    if (kind === 'yellow') { pts = [[x - 48 * s, y], [x - 48 * s, y - 120 * s], ...ell(x, y - 120 * s, 48 * s, 48 * s, Math.PI, TAU, 14), [x + 48 * s, y]]; face = [x + 6 * s, y - 128 * s, 11 * s]; }
-    pts = sq(pts, x, y, q, ln); const fy = y + (face[1] - y) / q, fx = x + (face[0] - x) * q + (face[1] - y) * ln;
-    ink(g, pts, { fill: C[kind], d, w: 3 * Math.max(.6, s) });
-    eyes(g, fx, fy, face[2] * 1.15, face[2] * .42, o.look || [0, 0], o.blink || 0, d + 7);
-    if (o.mouth) mouth(g, fx, fy + face[2] * 1.4, face[2] * .7, o.mouth, d + 9); }
+  // ---- the four, as the login page draws them (measured from the tracked cut-outs): flat colour, no outline, faces at the top right.
+  // They lean by shearing (the top slides, the foot stays), squash keeping volume, and their eyes follow whatever they are watching.
+  const FACE = { purple: { w: 150, h: 330, eye: [10, 292, 22], white: 5.6, pupil: 2.6, mouth: [10, 266] }, black: { w: 92, h: 232, eye: [16, 206, 12], white: 8.5, pupil: 4.4, mouth: null },
+    yellow: { w: 100, h: 172, eye: [16, 130, 0], dot: 4.2, mouth: [-6, 112, 76] }, orange: { w: 236, h: 131, eye: [0, 74, 26], dot: 5.6, mouth: [0, 50] } };
+  function shape(g, kind, x, y, s, o = {}) {   // x,y = the foot; o = {lean, squash, look:[-1..1,-1..1], blink, mouth: smile|frown|line|o|sleep|flat}
+    const F = FACE[kind], q = o.squash || 1, ln = o.lean || 0, look = o.look || [0, 0], lx = Math.max(-1, Math.min(1, look[0])), ly = Math.max(-1, Math.min(1, look[1]));
+    const P = (u, v) => [x + u * s * q + v * s / q * ln, y - v * s / q];
+    let body;
+    if (kind === 'purple' || kind === 'black') body = [P(-F.w / 2, 0), P(F.w / 2, 0), P(F.w / 2, F.h), P(-F.w / 2, F.h)];
+    if (kind === 'yellow') { body = [P(-50, 0), P(-50, 122)]; for (let k = 0; k <= 16; k++) { const a = Math.PI - Math.PI * k / 16; body.push(P(Math.cos(a) * 50, 122 + Math.sin(a) * 50)); } body.push(P(50, 0)); }
+    if (kind === 'orange') { body = []; for (let k = 0; k <= 32; k++) { const a = Math.PI - Math.PI * k / 32; body.push(P(Math.cos(a) * 118, Math.sin(a) * 131)); } }
+    ink(g, body, { fill: C[kind] });
+    const [eu, ev, sp] = F.eye, R = s / Math.sqrt(q);
+    for (const sg of sp ? [-1, 1] : [1]) { const [ex, ey] = P(eu + sg * sp, ev);
+      if (o.blink > .5 || o.mouth === 'sleep') { ink(g, [[ex - 6 * R, ey], [ex + 6 * R, ey]], { closed: false, w: 2.2 * R, stroke: F.white ? '#fff' : C.ink }); continue; }
+      if (F.white) { ink(g, ell(ex, ey, F.white * R, F.white * R, 0, TAU, 14), { fill: '#fff' }); ink(g, ell(ex + lx * F.white * .5 * R, ey - ly * F.white * .45 * R, F.pupil * R, F.pupil * R, 0, TAU, 10), { fill: C.ink }); }
+      else ink(g, ell(ex + lx * 3 * R, ey - ly * 2 * R, F.dot * R, F.dot * R, 0, TAU, 10), { fill: C.ink }); }
+    const m = o.mouth || (kind === 'yellow' ? 'flat' : null); if (!m || !F.mouth) return; const [mu, mv, len] = F.mouth, [mx, my] = P(mu, mv);
+    if (kind === 'yellow') { const [ax, ay] = P(mu, mv), [bx, by] = P(mu + (m === 'o' ? 30 : len), mv + (m === 'frown' ? -8 : 0)); ink(g, [[ax, ay], [bx, by]], { closed: false, w: 3.4 * R }); return; }   // the long line that runs past its own edge
+    if (m === 'line') ink(g, [[mx, my + 9 * R], [mx, my - 9 * R]], { closed: false, w: 2.6 * R });
+    if (m === 'smile') ink(g, ell(mx, my + 4 * R, 9 * R, 7 * R, .25, Math.PI - .25, 10), { closed: false, w: 2.8 * R });
+    if (m === 'frown') ink(g, ell(mx, my - 6 * R, 9 * R, 6 * R, Math.PI + .3, TAU - .3, 10), { closed: false, w: 2.8 * R });
+    if (m === 'o') ink(g, ell(mx, my, 5 * R, 6.5 * R, 0, TAU, 12), { fill: C.ink }); }
+  // the huddle: they always stand together the way the login page stacked them, orange in front, purple behind, black peeking, yellow at the edge
+  function gang(g, x, y, s, o = {}) { const e = o.each || {}, at = { purple: [-58, 0], black: [52, 0], yellow: [118, 0], orange: [-34, 0] };
+    for (const k of ['purple', 'black', 'yellow', 'orange']) { const c = e[k] || {}; shape(g, k, x + at[k][0] * s, y - (c.dy || 0) * s, s, { look: o.look, ...c }); } }
   // ---- the series' figures in the same hand
   function crew(g, x, y, s, o) {   // ivory pressure suit, orange shoulder, round helmet; o: crouch (0..1), arm (rad), lean, d
     const d = o.d, c = o.crouch || 0, ln = o.lean || 0, hip = y - (62 - 26 * c) * s, chest = hip - 46 * s;
@@ -110,36 +125,42 @@
       g.scale(z, z); g.translate(-cam.x * p + Math.sin(f * 1.9) * shake * p, -H / 2 - cam.y * p + Math.cos(f * 2.3) * shake * p);   // world x = 0 is the centre of frame, y is the screen's
       pl.draw(g, f, twos(f)); g.restore(); }
     // the paper: tone and grain over everything (on twos, like a new sheet)
+    if (STYLE === 'meme') { g.save(); g.globalAlpha = .025; for (let k = 0; k < 200; k++) { g.fillStyle = hash(k + twos(f)) > .5 ? '#000' : '#fff'; g.fillRect(hash(k * 3.1 + twos(f)) * W, hash(k * 7.7 + twos(f)) * H, 2, 2); } g.restore(); return; }
     g.save(); g.globalAlpha = .06; for (let k = 0; k < 260; k++) { g.fillStyle = hash(k + twos(f)) > .5 ? '#000' : '#fff'; g.fillRect(hash(k * 3.1 + twos(f)) * W, hash(k * 7.7 + twos(f)) * H, 2, 2); } g.restore();
     const v = g.createRadialGradient(W / 2, H / 2, H * .45, W / 2, H / 2, H * .95); v.addColorStop(0, 'rgba(60,40,20,0)'); v.addColorStop(1, 'rgba(60,40,20,.28)'); g.fillStyle = v; g.fillRect(0, 0, W, H); }
   const cam = (keys) => { const t = track(keys); return f => { const [x, y, zoom] = t(f); return { x, y, zoom }; }; };
   const sky = (top, bot) => (g) => { const gr = g.createLinearGradient(0, -H, 0, H); gr.addColorStop(0, top); gr.addColorStop(1, bot); g.fillStyle = gr; g.fillRect(-W, -H, W * 3, H * 3); };
   // ======================== the shots: one per part of the world ========================
   const SHOTS = {
-  'THE FLEET': (() => {   // the render arrives: the sea bulges (anticipation), four shapes rise, overshoot, settle, and their eyes find the beach
-    const rise = [0, 1, 2, 3].map(k => track([{ f: 0, v: 260 }, { f: 30 + k * 10, v: 250, e: 'io' }, { f: 70 + k * 10, v: -30, e: 'out' }, { f: 84 + k * 10, v: 12, e: 'io' }, { f: 98 + k * 10, v: 0, e: 'io' }]));
-    const squash = [0, 1, 2, 3].map(k => track([{ f: 0, v: 1 }, { f: 66 + k * 10, v: .82, e: 'out' }, { f: 80 + k * 10, v: 1.12, e: 'io' }, { f: 96 + k * 10, v: 1, e: 'io' }]));
-    const look = track([{ f: 0, v: [0, -1] }, { f: 120, v: [0, -1] }, { f: 132, v: [-.2, .9], e: 'back' }, { f: 168, v: [-.2, .9] }, { f: 176, v: [.9, .6], e: 'out' }]);
-    const blink = f => (f > 150 && f < 154) || (f > 186 && f < 189) ? 1 : 0, kinds = ['purple', 'black', 'orange', 'yellow'], xs = [-260, -90, 90, 280];
-    return { dur: 200, camera: cam([{ f: 0, v: [0, 40, 1] }, { f: 110, v: [0, 30, 1] }, { f: 200, v: [0, -10, 1.35], e: 'io' }]),
-      planes: [{ z: 9, draw: sky('#8e98a2', '#d6c9ad') },
-        { z: 4, draw: (g, f, d) => { waves(g, 400, 6, 90, C.sea2, f, .05, d); for (const [x, b] of [[-420, 1], [380, 0]]) ship(g, x, 404, .6, { d: d + 50 + x, burn: b, f }); } },
-        { z: 2.2, draw: (g, f, d) => kinds.forEach((k, i) => { const y = 430 + rise[i](f); if (y > 520) return; g.save(); g.beginPath(); g.rect(-W, -H, W * 3, H + 432); g.clip();
-            shape(g, k, xs[i], y, 1.25, { d: d + i * 100, squash: squash[i](f), look: look(f), blink: blink(f + i * 3), mouth: f > 176 ? 'line' : null }); g.restore(); }) },
-        { z: 2.2, draw: (g, f, d) => { waves(g, 432, 9, 70, C.sea, f, .08, d + 7); if (f > 26 && f < 72) [0, 1, 2, 3].forEach(i => { const b = Math.sin(Math.min(1, (f - 26 - i * 10) / 30) * Math.PI) * 26; if (b > 0) ink(g, ell(xs[i], 434, 120, b, Math.PI, TAU, 16), { fill: C.foam, d: d + 300 + i, w: 2 }); }); } },
-        { z: 1, draw: (g, f, d) => { ink(g, [[-W, 560], [W * 2, 540], [W * 2, H * 2], [-W, H * 2]], { fill: C.sand, d, w: 2.4 }); [-420, -300, 340, 470].forEach((x, i) => pail(g, x, 600 + (i % 2) * 18, .9, { d: d + 20 + i })); } },
-        { z: .55, draw: (g, f, d) => { ink(g, [[-W, 700], [-80, 660], [120, 690], [W * 2, 640], [W * 2, H * 2], [-W, H * 2]], { fill: C.sand2, d, w: 3 }); crew(g, -380, 720, 1.6, { d: d + 9, crouch: .6, lean: .1, arm: -1.2 }); } }],
-      xsheet: [[1, 'K01', 30, 'the sea, still; two ships burn', 'hold', 'swell'], [27, 'K02', 40, 'the sea bulges four times (anticipation)', 'hold', 'low rumble'], [66, 'K03', 14, 'the shapes break the surface, stretched', 'hold', 'roar of water'],
-        [84, 'B01', 14, 'overshoot, squash', 'slow push begins', ''], [98, 'K04', 30, 'settle: four colossi on the horizon', 'push', ''], [120, 'K05', 12, 'eyes snap down to the beach', 'push', 'click'], [176, 'K06', 24, 'eyes slide to the crew; mouths go flat', 'push in 35%', '']] }; })(),
+  'THE FLEET': (() => {   // the render arrives: the sea bulges (anticipation); the huddle rises as one, each in its own time; overshoot, settle; then each looks its own way
+    const K = ['purple', 'black', 'yellow', 'orange'], lag = { purple: 0, black: 10, yellow: 18, orange: 26 };
+    const rise = K.map(k => track([{ f: 0, v: 360 }, { f: 34 + lag[k], v: 352, e: 'io' }, { f: 74 + lag[k], v: -26, e: 'out' }, { f: 88 + lag[k], v: 10, e: 'io' }, { f: 102 + lag[k], v: 0, e: 'io' }]));
+    const sq_ = K.map(k => track([{ f: 0, v: 1 }, { f: 70 + lag[k], v: .84, e: 'out' }, { f: 84 + lag[k], v: 1.1, e: 'io' }, { f: 100 + lag[k], v: 1, e: 'io' }]));
+    const look = track([{ f: 0, v: [0, 1] }, { f: 128, v: [0, 1] }, { f: 136, v: [-.6, -1], e: 'back' }, { f: 172, v: [-.6, -1] }, { f: 180, v: [-1, -.4], e: 'out' }]);
+    const plean = track([{ f: 0, v: 0 }, { f: 140, v: 0 }, { f: 156, v: -.14, e: 'out' }, { f: 200, v: -.12 }]), peek = track([{ f: 0, v: 0 }, { f: 150, v: 0 }, { f: 160, v: .1, e: 'back' }, { f: 186, v: .1 }, { f: 192, v: -.02, e: 'io' }]);
+    return { dur: 210, camera: cam([{ f: 0, v: [0, 40, 1] }, { f: 110, v: [0, 30, 1] }, { f: 210, v: [-40, -20, 1.32], e: 'io' }]),
+      planes: [{ z: 9, draw: sky('#9aa3ab', '#dcd2bd') },
+        { z: 4, draw: (g, f, d) => { waves(g, 404, 5, 90, C.sea2, f, .05, d); for (const [x, b] of [[-470, 1], [430, 0]]) ship(g, x, 406, .55, { d: d + 50 + x, burn: b, f }); } },
+        { z: 2.2, draw: (g, f, d) => { g.save(); g.beginPath(); g.rect(-W, -H, W * 3, H + 434); g.clip();
+            const e = {}; K.forEach((k, i) => { e[k] = { dy: -rise[i](f), squash: sq_[i](f), blink: (f + i * 5) % 97 < 3 ? 1 : 0 }; });
+            e.purple.lean = plean(f); e.purple.mouth = f > 176 ? 'line' : null; e.black.lean = peek(f); e.orange.mouth = f > 136 ? (f > 186 ? 'frown' : 'smile') : null; e.yellow.mouth = f > 170 ? 'o' : 'flat';
+            gang(g, 20, 434, .88, { look: look(f), each: e }); g.restore(); } },
+        { z: 2.2, draw: (g, f, d) => { waves(g, 434, 8, 70, C.sea, f, .08, d + 7); if (f > 28 && f < 104) { const b = Math.sin(Math.min(1, (f - 28) / 50) * Math.PI) * 30; if (b > 0) ink(g, ell(20, 436, 190, b, Math.PI, TAU, 24), { fill: C.foam }); } } },
+        { z: 1, draw: (g, f, d) => { ink(g, [[-W, 560], [W * 2, 540], [W * 2, H * 2], [-W, H * 2]], { fill: C.sand }); [-420, -300, 340, 470].forEach((x, i) => pail(g, x, 600 + (i % 2) * 18, .9, { d: d + 20 + i })); } },
+        { z: .55, draw: (g, f, d) => { ink(g, [[-W, 700], [-80, 660], [120, 690], [W * 2, 640], [W * 2, H * 2], [-W, H * 2]], { fill: C.sand2 }); crew(g, -380, 720, 1.6, { d: d + 9, crouch: .6, lean: .1, arm: -1.2 }); } }],
+      xsheet: [[1, 'K01', 34, 'the sea, still; two ships burn', 'hold', 'swell'], [29, 'K02', 40, 'one long bulge (anticipation)', 'hold', 'low rumble'], [74, 'K03', 14, 'purple breaks the surface first, stretched; the others follow 10, 18, 26 frames behind', 'hold', 'water roar'],
+        [88, 'B01', 14, 'each overshoots and squashes in its own time', 'slow push begins', ''], [128, 'K04', 8, 'eyes snap down to the beach', 'push', 'click'], [140, 'K05', 30, 'purple leans in, curious; black peeks out from behind it', 'push', ''],
+        [176, 'K06', 34, "purple concentrates (the line mouth); orange's smile turns; yellow's line mouth opens", 'push in 32%', '']] }; })(),
   'THE RENDER': (() => {   // a cursor the size of the sky drags across; the shapes' eyes follow it; it clicks; a change request falls onto the beach
     const cur = track([{ f: 0, v: [-760, 40] }, { f: 50, v: [-120, 70], e: 'out' }, { f: 80, v: [-80, 60], e: 'io' }, { f: 92, v: [-80, 60] }, { f: 132, v: [300, 120], e: 'io', via: [100, -10] }, { f: 150, v: [290, 120] }]);
     const click = f => f > 150 && f < 156 ? .82 : 1, shell = track([{ f: 156, v: [290, 150] }, { f: 196, v: [-120, 470], e: 'in', via: [140, 0] }]);
     return { dur: 230, shake: f => f > 196 && f < 214 ? 10 : 0, camera: cam([{ f: 0, v: [0, -40, 1] }, { f: 150, v: [40, -60, 1.08] }, { f: 196, v: [-60, 60, 1.18], e: 'io' }, { f: 230, v: [-60, 60, 1.18] }]),
       planes: [{ z: 9, draw: sky('#7d7690', '#cdbfa6') },
-        { z: 3, draw: (g, f, d) => { const [cx, cy] = cur(f); ['purple', 'black', 'orange', 'yellow'].forEach((k, i) => { const x = -330 + i * 210, y = 330, dx = cx - x, dy = cy - (y - 150) + 120;
-            shape(g, k, x, y, .95, { d: d + i * 50, look: [dx / 260, dy / 200], lean: Math.max(-.12, Math.min(.12, dx / 4000)), mouth: f > 156 && f < 200 ? 'o' : 'line', blink: (f + i * 7) % 90 < 3 ? 1 : 0 }); }); waves(g, 330, 5, 80, C.sea2, f, .05, d); } },
-        { z: 1.6, draw: (g, f, d) => { const [cx, cy] = cur(f), s = click(f); ink(g, sq([[cx, cy], [cx, cy + 120], [cx + 30, cy + 92], [cx + 52, cy + 140], [cx + 70, cy + 132], [cx + 48, cy + 86], [cx + 88, cy + 86]], cx, cy, 1 / s), { fill: '#fff', d, w: 4 });
-            if (f >= 156 && f < 196) { const [sx, sy] = shell(f); ink(g, rr(sx - 60, sy - 18, 120, 36, 8), { fill: '#f7f3e8', d: d + 3, w: 2.4 }); g.save(); g.fillStyle = C.ink; g.font = '600 15px "IBM Plex Mono",monospace'; g.fillText('move it left?', sx - 54, sy + 5); g.restore(); } } },
+        { z: 3, draw: (g, f, d) => { const [cx, cy] = cur(f), dx = cx - 20, dy = -(cy - 160) / 220, L_ = Math.max(-.16, Math.min(.16, dx / 2600)), oo = f > 156 && f < 200;
+            gang(g, 20, 330, .95, { look: [dx / 300, dy], each: { purple: { lean: L_, mouth: oo ? 'o' : 'line' }, black: { lean: L_ * .7, blink: f % 83 < 3 ? 1 : 0 }, yellow: { lean: L_ * .5, mouth: oo ? 'o' : 'flat' }, orange: { mouth: oo ? 'o' : f > 92 ? 'smile' : null } } });
+            waves(g, 330, 5, 80, C.sea2, f, .05, d); } },
+        { z: 1.6, draw: (g, f, d) => { const [cx, cy] = cur(f), s = click(f); ink(g, sq([[cx, cy], [cx, cy + 120], [cx + 30, cy + 92], [cx + 52, cy + 140], [cx + 70, cy + 132], [cx + 48, cy + 86], [cx + 88, cy + 86]], cx, cy, 1 / s), { fill: '#111', d, w: 4, edge: true, stroke: '#fff' });
+            if (f >= 156 && f < 196) { const [sx, sy] = shell(f); ink(g, rr(sx - 60, sy - 18, 120, 36, 8), { fill: '#f7f3e8', d: d + 3, w: 2.4, edge: true }); g.save(); g.fillStyle = C.ink; g.font = '600 15px "IBM Plex Mono",monospace'; g.fillText('move it left?', sx - 54, sy + 5); g.restore(); } } },
         { z: 1, draw: (g, f, d) => { ink(g, [[-W, 470], [W * 2, 450], [W * 2, H * 2], [-W, H * 2]], { fill: C.sand, d, w: 2.4 }); fort(g, 420, 470, .7, d + 9); [-300, -170, -40].forEach((x, i) => crew(g, x, 520 + i * 6, 1, { d: d + 30 + i, crouch: f > 190 ? .7 : .1, arm: f > 190 ? -1.4 : .6, lean: f > 190 ? -.2 : 0 })); blast(g, -120, 470, 196, f, 1, d + 80); } }],
       xsheet: [[1, 'K01', 50, 'a cursor enters the sky', 'drift', 'hum'], [50, 'K02', 42, 'it hovers; four pairs of eyes follow it', 'hold', ''], [92, 'B01', 40, 'it drags on an arc to the fort', 'drift R', 'drag'],
         [150, 'K03', 6, 'click: the cursor squashes', 'hold', 'CLICK'], [156, 'K04', 40, 'a change request falls on a parabola; mouths open', 'tilt down', 'whistle'], [196, 'K05', 34, 'impact; the crew dive', 'shake', 'boom']] }; })(),
@@ -161,7 +182,10 @@
         { z: 3, draw: (g, f, d) => { fort(g, 640, 420, 1, d); ink(g, [[-W, 430], [W * 2, 425], [W * 2, H * 2], [-W, H * 2]], { fill: C.sand2, d: d + 5, w: 2 }); } },
         { z: 1, draw: (g, f, d) => { ink(g, [[-W, 470], [W * 2, 465], [W * 2, H * 2], [-W, H * 2]], { fill: C.sand, d, w: 2.4 });
             for (let k = 0; k < 7; k++) { const x = -560 + k * 210, ph = (twos(f) - k * 4) / 16 * TAU, up = (Math.sin(ph) + 1) / 2;   // the stroke: down hard, up slow
-              const u = Math.pow(up, 1.6); pail(g, x, 560, 1.1, { d: d + k * 20, up: u }); crew(g, x - 50, 566, 1.05, { d: d + k * 20 + 9, crouch: .2 + (1 - u) * .7, arm: -.9 - u * .9, lean: .15 }); } } },
+              const u = Math.pow(up, 1.6), born = Math.max(0, Math.floor((twos(f) - k * 4 + 12) / 16));
+              for (let b = 0; b < Math.min(born, 4); b++) { const age = (twos(f) - k * 4 + 12) - (b + 1) * 16 + 16, pop = age < 10 ? E.back(Math.max(0, age) / 10) : 1;   // the newborns, smallest last
+                g.save(); g.translate(x + 62 + b * 26, 572); g.scale(.32 * pop, .32 * pop * (age < 4 ? .7 : 1)); pail(g, 0, 0, 1, { d: d + k * 20 + 50 + b }); g.restore(); }
+              pail(g, x, 560, 1.1, { d: d + k * 20, up: u }); crew(g, x - 50, 566, 1.05, { d: d + k * 20 + 9, crouch: .2 + (1 - u) * .7, arm: -.9 - u * .9, lean: .15 }); } } },
         { z: .45, draw: (g, f, d) => { for (let k = 0; k < 8; k++) ink(g, rr(-900 + k * 520, 380, 30, 400, 6), { fill: '#5a4632', d: d + k, w: 2.4 }); ink(g, [[-W * 2, 520], [W * 3, 470]], { closed: false, d: d + 30, w: 5, stroke: '#2c6fb5' }); } }],
       xsheet: [[1, 'CYC', 16, 'the drill stroke: down fast, up slow (a 16-frame cycle on twos)', 'truck R', 'rope rasp'], [1, 'OVL', 4, 'each man four frames behind the last: a wave down the line', '', 'the chant'],
         [1, 'MP', 200, 'posts in the foreground race past; the fort barely moves', 'lateral truck', 'surf']] }; })(),
@@ -182,7 +206,8 @@
     return { dur: 220, camera: cam([{ f: 0, v: [-120, 0, 1] }, { f: 220, v: [100, -30, 1.3], e: 'io' }]),
       planes: [{ z: 6, draw: (g) => { g.fillStyle = '#2b2622'; g.fillRect(-W, -H, W * 3, H * 3); for (let r = 0; r < 14; r++) ink(g, [[-W, r * 60 - 100], [W * 2, r * 60 - 100]], { closed: false, d: r, w: 1, stroke: '#3a322c' }); } },
         { z: 2.5, draw: (g, f, d) => { const n = Math.floor(Math.max(0, f - 10) * 1.1); screen(g, -360, 140, 330, 240, msg, n, d); screen(g, 60, 110, 260, 200, '', 0, d + 9); screen(g, 380, 150, 280, 220, '', 0, d + 18);
-            if (f > 60) shape(g, 'purple', 190, 300, .55, { d: d + 30, look: [Math.sin(f * .05), .3], blink: f % 70 < 3 ? 1 : 0 }); if (f > 100) shape(g, 'orange', 520, 360, .6, { d: d + 40, look: [-1, .2], mouth: f > 160 ? 'frown' : 'smile' }); } },
+            if (f > 60) { g.save(); g.beginPath(); g.rect(60, 110, 260, 200); g.clip(); shape(g, 'purple', 190, 330 - Math.min(1, (f - 60) / 14) * 30, .5, { look: [Math.sin(f * .05), -.2], blink: f % 70 < 3 ? 1 : 0, mouth: 'line', lean: Math.sin(f * .03) * .08 }); g.restore(); }
+            if (f > 100) { g.save(); g.beginPath(); g.rect(380, 150, 280, 220); g.clip(); shape(g, 'orange', 520, 370, .62, { look: [-1, .2], mouth: f > 160 ? 'frown' : 'smile' }); shape(g, 'yellow', 610, 370, .5, { look: [-1, 0], mouth: f > 170 ? 'o' : 'flat' }); g.restore(); } } },
         { z: 1, draw: (g, f, d) => { ink(g, rr(-W, 470, W * 3, 400, 0), { fill: '#4a3d33', d, w: 2 }); cook(g, -40, 760, 1.6, { d: d + 9, turn: .15, tray: false, flip: 1.2 }); } },
         { z: .5, draw: (g, f, d) => { for (const x of [-720, 820]) ink(g, rr(x, -200, 240, 1200, 20), { fill: '#1d1916', d: d + x, w: 3 }); } }],
       xsheet: [[1, 'K01', 60, 'the screens wake; a change request types itself', 'slow truck R', 'keys'], [60, 'K02', 40, 'the purple character surfaces in a screen, eyes searching', 'truck', 'chime'],
@@ -215,6 +240,6 @@
   // one sheet of the stack on its own (for the exploded view): the same camera, only plane i
   function sheet(g, shot, f, i) { const cam = shot.camera(f), pl = shot.planes[i], p = 1 / pl.z, z = 1 + (cam.zoom - 1) * p;
     g.save(); g.translate(W / 2, H / 2); g.scale(z, z); g.translate(-cam.x * p, -H / 2 - cam.y * p); pl.draw(g, f, twos(f)); g.restore(); }
-  const api = { W, H, FPS, SHOTS, photograph, sheet };
+  const api = { W, H, FPS, SHOTS, photograph, sheet, shape, gang, style: v => { if (v) STYLE = v; return STYLE; } };
   if (typeof module !== 'undefined') module.exports = api; else root.SlopCartoon = api;
 })(this);

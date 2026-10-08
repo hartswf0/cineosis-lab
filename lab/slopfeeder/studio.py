@@ -35,6 +35,7 @@ def lit(c):   # a plate has to be a picture: not blown out to white, not black, 
     except Exception: return False
 # each world's plates: chosen by CLIP across everything (pools.json); the landing and the fleet also take the forage's guns and blasts
 PO = json.load(open(os.path.join(D, "pools.json")))["pools"]
+AJ = os.path.join(D, "ai", "ai.json"); AI = json.load(open(AJ)) if os.path.exists(AJ) else {"clips": []}
 EXTRA = {"THE LANDING": ["the guns", "the blast", "the landing"], "THE FLEET": ["the sea", "the guns"]}
 for w in WORLDS:
     lst = list(PO[w]); ex = [c for q in EXTRA.get(w, []) for c in pool.get(q, [])[:60] if lit(c)]
@@ -42,7 +43,9 @@ for w in WORLDS:
     for k in range(max(len(lst), len(ex))):
         for src in ((lst, ex) if k % 2 else (ex, lst)):
             if k < len(src) and src[k]["id"] not in seen: seen.add(src[k]["id"]); mixed.append(src[k])
-    WORLDS[w]["plates"] = mixed
+    pick = [{"id": f"ai-{c['name']}-{sh['k']}", "title": "AI · " + c["title"], "year": 2026, "v": "slopfeeder/" + c["web"], "t": "slopfeeder/" + sh["key"], "dur": round(sh["t1"] - sh["t0"], 2),
+             "ai": {"file": f"ai/src/{c['name']}.mp4", "t0": sh["t0"], "t1": sh["t1"]}} for c in AI["clips"] for sh in c["shots"] if sh["world"] == w and sh["t1"] - sh["t0"] >= 1.2 and "subtitle" not in sh["motifs"]]
+    WORLDS[w]["plates"] = [x for pair in zip(pick, mixed) for x in pair] + pick[len(mixed):] + mixed[len(pick):]
 # a cut-out has to be a figure, not a box of sky: reject masks that fill their own bounding box, or are too small
 from PIL import Image
 def solid(c):
@@ -51,6 +54,7 @@ def solid(c):
 import numpy as np
 C = [c for c in C if c.get("fit", 0) >= .22 and .12 < solid(c) < .82]
 CJ = os.path.join(D, "cartoon", "cartoon.json"); CART = json.load(open(CJ)) if os.path.exists(CJ) else {}
+BJ = os.path.join(D, "bible.json"); TOGEN = {c["n"]: c["shots"] for c in json.load(open(BJ))["chapters"]} if os.path.exists(BJ) else {}
 plans = []
 PACE = {"THE LANDING": 3, "THE DRILL LINE": 4, "THE RENDER": 6, "THE SCREEN": 5, "THE FLEET": 8, "THE KITCHEN": 7, "THE AFTERMATH": 10, "THE TIDE": 12}   # half-beats a shot
 def arc(song):
@@ -73,9 +77,23 @@ def split(song):   # no part of the world outstays its welcome: a section over 3
             m = round((x["t0"] + x["t1"]) / 2, 2); out += [{**x, "t1": m}, {**x, "t0": m, "world": NEXT[x["world"]]}]
         else: out.append(x)
     song["sections"] = out
+CHAPTER = {   # song -> (worlds in order, the climax world for its loudest sections); 26 keeps the beach-landing opening
+ "14": (["THE FLEET", "THE RENDER", "THE FLEET", "THE LANDING", "THE RENDER", "THE FLEET", "THE TIDE"], "THE RENDER"),
+ "13": (["THE KITCHEN", "THE KITCHEN", "THE TIDE", "THE KITCHEN"], "THE KITCHEN"),
+ "23": (["THE AFTERMATH", "THE RENDER", "THE KITCHEN", "THE DRILL LINE", "THE AFTERMATH"], "THE AFTERMATH"),
+ "20": (["THE SCREEN", "THE RENDER", "THE SCREEN", "THE DRILL LINE", "THE SCREEN", "THE KITCHEN", "THE SCREEN", "THE RENDER", "THE TIDE"], "THE SCREEN"),
+ "09": (["THE DRILL LINE", "THE DRILL LINE", "THE RENDER", "THE DRILL LINE", "THE DRILL LINE", "THE TIDE"], "THE DRILL LINE"),
+ "06": (["THE AFTERMATH", "THE KITCHEN", "THE TIDE", "THE RENDER", "THE AFTERMATH", "THE TIDE"], "THE TIDE"),
+ "07": (["THE TIDE", "THE AFTERMATH", "THE TIDE", "THE RENDER", "THE TIDE", "THE AFTERMATH"], "THE TIDE")}
+def chapter(song):
+    if song["n"] not in CHAPTER: return arc(song)
+    order, climax = CHAPTER[song["n"]]; ss = song["sections"]; n = len(ss); es = [x["energy"] for x in ss]; mx = max(es)
+    for i, x in enumerate(ss): x["world"] = order[round(i * (len(order) - 1) / max(1, n - 1))]
+    for i, x in enumerate(ss):
+        if 0 < i < n - 1 and x["energy"] >= .85 * mx: x["world"] = climax
 for song in S["songs"]:
-    arc(song); split(song); half = 60 / song["tempo"] / 2 if song["tempo"] < 140 else 60 / song["tempo"]
-    rnd = random.Random(int(song["n"])); used = set(); secs = []; drawn = set()
+    chapter(song); split(song); half = 60 / song["tempo"] / 2 if song["tempo"] < 140 else 60 / song["tempo"]
+    rnd = random.Random(int(song["n"])); used = set(); secs = []; drawn = set(); placed = set()
     for sec in song["sections"]:
         W_ = WORLDS[sec["world"]]; e = sec["energy"]; per = PACE[sec["world"]] * (1.25 if e < .3 else .85 if e > .6 else 1)
         bs = [b for b in song["beats"] if sec["t0"] <= b < sec["t1"]]; grid = sorted(set(bs + [round((x + y) / 2, 2) for x, y in zip(bs, bs[1:])])) or [sec["t0"]]   # half-beats
@@ -89,14 +107,14 @@ for song in S["songs"]:
             if b - a < .4: continue
             lst = [c for c in plates if c["id"] not in used]
             if not lst: continue
-            top = lst[:6]; c = top[rnd.randrange(len(top))]; used.add(c["id"]); p = c.get("why") or (c.get("found") or [["", ""]])[0][1]
+            top = lst[:2] if lst[0].get("ai") else lst[:6]; c = top[rnd.randrange(len(top))]; used.add(c["id"]); p = c.get("why") or (c.get("found") or [["", ""]])[0][1]
             alts = [x for x in lst if x["id"] != c["id"]][:3]
             cut = [x for x in C if x["world"] in W_["cuts"]]; layer = {}
             if cut and k % 4 == 3 and sec["world"] != "THE LANDING": layer["cutout"] = cut[(k // 3) % len(cut)]["id"]
             if W_["track"] and k % 4 == 1:
                 names = [t["name"] for t in TR if t["name"].startswith(W_["track"])]
                 if names: layer["track"] = names[(k // 4) % len(names)]
-            shots.append({"t0": a, "dur": round(b - a, 2), "pool": p, "clip": {x: c.get(x) for x in ("id", "title", "year", "v", "t", "dur")}, "alts": [{x: y.get(x) for x in ("id", "title", "t", "v")} for y in alts], **layer})
+            shots.append({"t0": a, "dur": round(b - a, 2), "pool": p, "clip": {x: c.get(x) for x in ("id", "title", "year", "v", "t", "dur", "ai") if c.get(x) is not None}, "alts": [{x: y.get(x) for x in ("id", "title", "t", "v")} for y in alts], **layer})
         # the cartoon opens the section: its first beats become one coded shot (the multiplane cartoon of this world), then it match-cuts into the archive
         ca = CART.get(sec["world"]); span = sec["t1"] - sec["t0"]
         if ca and span >= 10 and shots and ca["slug"] not in drawn:
@@ -108,6 +126,9 @@ for song in S["songs"]:
                 rest = shots[k:]
                 if rest and ca.get("match") and ca["match"]["id"] not in used: m_ = ca["match"]; rest[0] = {**rest[0], "clip": {x: m_.get(x) for x in ("id", "title", "year", "v", "t", "dur")}, "matchcut": True}; used.add(m_["id"])
                 shots = [head] + rest
+        for m_ in [x for x in TOGEN.get(song["n"], []) if x["world"] == sec["world"] and x["id"] not in placed][:1]:
+            k_ = next((i for i, x in enumerate(shots) if not x.get("cartoon") and x["dur"] >= 1.5), None)
+            if k_ is not None: shots[k_] = {**shots[k_], "generate": {"id": m_["id"], "moment": m_["moment"], "prompt": m_["full_prompt"], "refs": m_["refs"]}}; placed.add(m_["id"])
         secs.append({**sec, "per": per, "code": W_["code"], "prompt": W_["prompt"], "shots": shots})
     plans.append({k: song[k] for k in ("n", "title", "note", "file", "dur", "tempo", "sound")} | {"sections": secs, "energy": song["energy"]})
     print(song["n"], song["title"], "·", sum(len(s["shots"]) for s in secs), "shots ·", " → ".join(f"{s['world'][4:]}" for s in secs))
