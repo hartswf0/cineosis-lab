@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Slopfeeder Multiplane</title>
+<meta name="description" content="The SLOPFEEDER cartoons, one per part of the world, drawn in code as a multiplane animation department would: keys, breakdowns on arcs, eased in-betweens on twos, planes at depth, an exposure sheet, read by CLIP and match-cut into the archive.">
+<meta name="theme-color" content="#1b1814">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ --bg:#1b1814; --deep:#120f0c; --ink:#efe6d2; --dim:#9a9184; --faint:#2d2822; --orange:#f2591a; --sans:'Barlow Condensed',Impact,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace; }
+*{ box-sizing:border-box; } html,body{ margin:0; height:100%; } body{ background:var(--bg); color:var(--ink); font:400 12px var(--mono); overflow:hidden; }
+button{ font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; }
+#app{ height:100dvh; display:grid; grid-template-rows:auto minmax(0,1fr); }
+header{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:calc(10px + env(safe-area-inset-top)) 16px 8px; } header h1{ margin:0; font:700 21px var(--sans); letter-spacing:.14em; } header h1 b{ color:var(--orange); }
+header a{ color:var(--dim); text-decoration:none; font:600 12px var(--sans); letter-spacing:.16em; } #worlds{ display:flex; gap:4px; flex-wrap:wrap; margin-left:auto; }
+#worlds button{ font:600 12px var(--sans); letter-spacing:.12em; padding:5px 9px; border:1px solid var(--faint); border-radius:2px; color:var(--dim); } #worlds button.on{ border-color:var(--orange); color:var(--ink); }
+main{ display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:14px; padding:0 16px 14px; min-height:0; }
+#left{ display:grid; grid-template-rows:minmax(0,1fr) auto auto; gap:8px; min-height:0; }
+#stagewrap{ min-height:0; container-type:size; display:grid; place-items:center; } #stage{ width:min(100cqw, 100cqh * 16 / 9); aspect-ratio:16/9; background:#000; display:block; border-radius:2px; }
+#planes{ display:none; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:6px; width:100%; height:100%; align-content:center; } #planes.on{ display:grid; } #planes figure{ margin:0; } #planes canvas{ width:100%; aspect-ratio:16/9; background:repeating-conic-gradient(#2a2520 0 25%, #231f1b 0 50%) 0 0/14px 14px; display:block; border-radius:2px; } #planes figcaption{ font-size:10px; color:var(--dim); margin-top:2px; }
+#bar{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; } .b{ border:1px solid var(--faint); border-radius:2px; padding:6px 11px; font:600 12px var(--sans); letter-spacing:.14em; color:var(--dim); } .b.on{ border-color:var(--orange); color:var(--ink); background:#2d1a10; }
+#scrub{ flex:1; min-width:160px; accent-color:#f2591a; } #fno{ color:var(--dim); min-width:120px; text-align:right; }
+#keys{ display:flex; gap:4px; overflow-x:auto; } #keys img{ height:58px; border:2px solid transparent; cursor:pointer; border-radius:2px; } #keys img.on{ border-color:var(--orange); }
+#right{ min-height:0; overflow:auto; } h2{ font:700 15px var(--sans); letter-spacing:.16em; margin:0 0 6px; } .lbl{ font-size:10px; letter-spacing:.14em; color:var(--dim); margin:12px 0 5px; }
+table{ width:100%; border-collapse:collapse; font-size:11px; } td,th{ border-bottom:1px solid var(--faint); padding:4px 5px; text-align:left; vertical-align:top; } th{ color:var(--dim); font-weight:400; font-size:10px; letter-spacing:.1em; } tr.now td{ background:#2d1a10; }
+.verdict{ font:600 15px var(--sans); letter-spacing:.06em; } .verdict b{ color:var(--orange); }
+.mc{ display:grid; grid-template-columns:1fr 24px 1fr; gap:6px; align-items:center; } .mc img, .mc video{ width:100%; aspect-ratio:16/9; object-fit:cover; background:#000; border-radius:2px; } .mc i{ text-align:center; color:var(--orange); font-style:normal; font-size:18px; }
+.rh{ display:grid; grid-template-columns:repeat(4,1fr); gap:4px; } .rh div{ aspect-ratio:4/3; background:#000 center/cover; border-radius:2px; }
+.note{ color:var(--dim); line-height:1.5; }
+@media (max-width:860px){ body{ overflow:auto; } #app{ height:auto; } main{ grid-template-columns:1fr; } #stagewrap{ height:56vw; } }
+</style></head><body>
+<div id="app">
+  <header><h1>SLOP<b>FEEDER</b> MULTIPLANE</h1><a href="slopfeeder-studio.html">THE STUDIO ↗</a><a href="slopfeeder.html">THE WORLD ↗</a><div id="worlds"></div></header>
+  <main>
+    <div id="left"><div id="stagewrap"><canvas id="stage" width="1280" height="720"></canvas><div id="planes"></div></div>
+      <div id="bar"><button class="b on" id="play">▶ PLAY</button><button class="b" id="keyt" title="play only the key drawings: does the story read without the in-betweens?">KEYS ONLY</button><button class="b" id="onion" title="the drawings before and after, ghosted">ONION SKIN</button><button class="b" id="pl" title="the multiplane stack, each sheet on its own">PLANES</button><input type="range" id="scrub" min="0" value="0"><span id="fno"></span></div>
+      <div id="keys"></div></div>
+    <div id="right"></div>
+  </main>
+</div>
+<script src="slopfeeder/cartoon.js"></script>
+<script>
+(function () {
+  const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)], esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const SC = window.SlopCartoon; let J = {}, w = null, shot = null, f = 0, playing = true, keyt = false, onion = false, planes = false, last = 0, acc = 0;
+  const g = $('#stage').getContext('2d'), off = document.createElement('canvas'); off.width = SC.W; off.height = SC.H; const og = off.getContext('2d');
+  const keyFrames = () => shot.xsheet.map(r => r[0] - 1).filter(x => x >= 0 && x < shot.dur);
+  function draw() {
+    if (planes) { $$('#planes canvas').forEach((c, i) => { const x = c.getContext('2d'); x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, c.width, c.height); x.scale(c.width / SC.W, c.height / SC.H); SC.sheet(x, shot, f, i); }); }
+    else { g.setTransform(1, 0, 0, 1, 0, 0);
+      SC.photograph(g, shot, f);
+      if (onion) { g.globalAlpha = .3; for (const df of [-4, 4]) { og.setTransform(1, 0, 0, 1, 0, 0); SC.photograph(og, shot, Math.max(0, Math.min(shot.dur - 1, f + df))); g.drawImage(off, 0, 0); } g.globalAlpha = 1; } }
+    $('#scrub').value = f; $('#fno').textContent = `frame ${String(f + 1).padStart(3, '0')} / ${shot.dur} · ${(f / SC.FPS).toFixed(2)} s`;
+    const rows = $$('#xs tr[data-f]'); let cur = null; rows.forEach(r => { if (+r.dataset.f - 1 <= f) cur = r; r.classList.remove('now'); }); if (cur) cur.classList.add('now'); }
+  function loop(t) { if (playing) { acc += Math.min(100, t - last); const step = 1000 / SC.FPS * (keyt ? 6 : 1);
+      while (acc >= step) { acc -= step; if (keyt) { const ks = keyFrames(); const nx = ks.find(k => k > f); f = nx == null ? ks[0] : nx; } else f = (f + 1) % shot.dur; } draw(); } last = t; requestAnimationFrame(loop); }
+  function pick(name) { w = name; shot = SC.SHOTS[name]; f = 0; $$('#worlds button').forEach(b => b.classList.toggle('on', b.dataset.w === name)); $('#scrub').max = shot.dur - 1;
+    $('#planes').innerHTML = shot.planes.map((p, i) => `<figure><canvas width="320" height="180"></canvas><figcaption>PLANE ${i} · depth ${p.z}${p.z > 1 ? ' · moves ' + (1 / p.z).toFixed(2) + '×' : p.z < 1 ? ' · moves ' + (1 / p.z).toFixed(2) + '× (foreground)' : ' · the action'}</figcaption></figure>`).join('');
+    const c = J[name] || {};
+    $('#keys').innerHTML = (c.keys || []).map(k => `<img src="slopfeeder/${esc(k)}" data-f="${+k.match(/-(\d+)\.png/)[1]}" title="frame ${+k.match(/-(\d+)\.png/)[1] + 1}">`).join('');
+    $$('#keys img').forEach(i => i.onclick = () => { playing = false; $('#play').textContent = '▶ PLAY'; $('#play').classList.remove('on'); f = +i.dataset.f; draw(); });
+    const cl = c.clip, m = c.match;
+    $('#right').innerHTML = `<h2>${esc(name)} · ${shot.dur} FRAMES · ${(shot.dur / SC.FPS).toFixed(1)} S</h2>
+      <div class="lbl">THE EXPOSURE SHEET</div><table id="xs"><tr><th>FRAME</th><th>DRAWING</th><th>EXP</th><th>ACTION</th><th>CAMERA</th><th>FX</th></tr>${shot.xsheet.map(r => `<tr data-f="${r[0]}"><td>${String(r[0]).padStart(3, '0')}</td><td>${esc(r[1])}</td><td>${r[2]}</td><td>${esc(r[3])}</td><td>${esc(r[4])}</td><td>${esc(r[5])}</td></tr>`).join('')}</table>
+      <div class="lbl">THE MULTIPLANE STACK</div><div class="note">${shot.planes.length} sheets, from the sky at depth ${shot.planes[0].z} to the nearest at ${shot.planes[shot.planes.length - 1].z}. Each sheet moves 1/depth as fast as the camera, so near sheets cross the far ones. Characters are drawn on twos and their lines boil like pencil; the camera moves on ones.</div>
+      ${cl ? `<div class="lbl">CLIP READS THE KEY DRAWINGS</div><div class="verdict">${cl.rank === 1 ? 'Reads as <b>' + esc(name) + '</b>' : 'Reads as <b>' + esc(cl.reads_as) + '</b> first; its own world ranks ' + cl.rank + ' of 8'}</div><div class="note">per drawing: ${cl.per_key.map(x => esc(x.replace('THE ', '').toLowerCase())).join(' · ')}</div>` : ''}
+      ${m ? `<div class="lbl">THE MATCH CUT: THE LAST DRAWING → THE ARCHIVE'S NEAREST SHOT IN THIS WORLD</div><div class="mc"><img src="slopfeeder/${esc(c.keys[c.keys.length - 1])}"><i>→</i><video src="${esc(m.v)}" muted loop playsinline autoplay></video></div><div class="note">${esc(m.title)}${m.year ? ' · ' + m.year : ''}</div>
+        <div class="lbl">ITS OTHER RHYMES IN THE ARCHIVE</div><div class="rh">${(c.rhymes || []).map(r => `<div style="background-image:url('${esc(r.t)}')" title="${esc(r.title)}"></div>`).join('')}</div>` : ''}
+      <div class="lbl">IN THE FILMS</div><div class="note">In the studio's rough cuts this cartoon opens its part of the world (its first beats), then cuts to the archive shot above.</div>`;
+    draw(); }
+  $('#play').onclick = () => { playing = !playing; $('#play').textContent = playing ? '❚❚ PAUSE' : '▶ PLAY'; $('#play').classList.toggle('on', playing); };
+  $('#keyt').onclick = () => { keyt = !keyt; $('#keyt').classList.toggle('on', keyt); if (keyt) f = keyFrames()[0] || 0; };
+  $('#onion').onclick = () => { onion = !onion; $('#onion').classList.toggle('on', onion); draw(); };
+  $('#pl').onclick = () => { planes = !planes; $('#pl').classList.toggle('on', planes); $('#stage').style.display = planes ? 'none' : ''; $('#planes').classList.toggle('on', planes); draw(); };
+  $('#scrub').oninput = e => { f = +e.target.value; draw(); };
+  addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); $('#play').click(); } if (e.key === 'ArrowRight') { f = Math.min(shot.dur - 1, f + 1); draw(); } if (e.key === 'ArrowLeft') { f = Math.max(0, f - 1); draw(); } });
+  $('#worlds').innerHTML = Object.keys(SC.SHOTS).map(k => `<button data-w="${k}">${k.replace('THE ', '')}</button>`).join(''); $$('#worlds button').forEach(b => b.onclick = () => pick(b.dataset.w));
+  $('#play').textContent = '❚❚ PAUSE';
+  fetch('slopfeeder/cartoon/cartoon.json').then(r => r.json()).catch(() => ({})).then(j => { J = j; pick('THE FLEET'); requestAnimationFrame(t => { last = t; loop(t); }); });
+})();
+</script></body></html>

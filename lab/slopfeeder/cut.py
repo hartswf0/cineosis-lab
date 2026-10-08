@@ -20,9 +20,9 @@ dur = lambda p: float(subprocess.run(["ffprobe", "-v", "quiet", "-show_entries",
 parts, n = [], 0
 for si, sec in enumerate(song["sections"]):
     for sh in sec["shots"]:
-        src = fetch(sh["clip"]) or next((fetch(a) for a in sh["alts"] if fetch(a)), None)
+        src = os.path.join(D, "cartoon", sh["cartoon"] + ".mp4") if sh.get("cartoon") else fetch(sh["clip"]) or next((fetch(a) for a in sh["alts"] if fetch(a)), None)
         if not src: continue
-        L = sh["dur"]; d = dur(src); a = max(0.0, min(d / 2 - L / 2, d - L - .05)); out = os.path.join(T, f"{n:03d}.mp4"); n += 1
+        L = sh["dur"]; d = dur(src); a = 0.0 if sh.get("cartoon") else max(0.0, min(d / 2 - L / 2, d - L - .05)); out = os.path.join(T, f"{n:03d}.mp4"); n += 1   # a cartoon plays from its first drawing
         ins = ["-ss", f"{a:.2f}", "-t", f"{L:.2f}", "-i", src]; fc = f"[0:v]{FILL}" + (f",tpad=stop_mode=clone:stop_duration={L:.2f}" if d < L + .1 else "") + "[p]"; last = "[p]"; k = 1
         lay = []
         if sh.get("cutout") and sh["cutout"] in cuts: lay.append(("cut", os.path.join(D, cuts[sh["cutout"]]["packed"]), .62, "bottom"))
@@ -35,7 +35,7 @@ for si, sec in enumerate(song["sections"]):
             pos = {"bottom": "x=(W-w)/2:y=H-h", "horizon": f"x=(W-w)/2+{(n * 211) % 420 - 210}:y=H*0.56-h", "right": "x=W-w-40:y=H-h"}[where]
             fc += (f";[{k}:v]fps={FPS},split[c{k}][m{k}];[c{k}]crop=iw/2:ih:0:0,format=rgba[cc{k}];[m{k}]crop=iw/2:ih:iw/2:0,format=gray[mm{k}];[cc{k}][mm{k}]alphamerge,scale=-2:{int(H * sc)}[o{k}]"
                    f";{last}[o{k}]overlay={pos}:shortest=1[v{k}]"); last = f"[v{k}]"; k += 1
-        if sec["world"] == "THE LANDING":   # code: the shell hits on the downbeat (shake, then a white flash that fades)
+        if sec["world"] == "THE LANDING" and not sh.get("cartoon"):   # code: the shell hits on the downbeat (shake, then a white flash that fades)
             fc += f";{last}crop=iw-24:ih-24:12+10*sin(t*53):12+10*cos(t*41),scale={W}:{H},fade=t=in:st=0:d=0.12:color=white[sh]"; last = "[sh]"
         subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", fc, "-map", last, "-t", f"{L:.2f}", *ENC, out], check=True)
         parts.append(out)

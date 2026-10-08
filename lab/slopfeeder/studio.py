@@ -50,6 +50,7 @@ def solid(c):
     except Exception: return 1
 import numpy as np
 C = [c for c in C if c.get("fit", 0) >= .22 and .12 < solid(c) < .82]
+CJ = os.path.join(D, "cartoon", "cartoon.json"); CART = json.load(open(CJ)) if os.path.exists(CJ) else {}
 plans = []
 PACE = {"THE LANDING": 3, "THE DRILL LINE": 4, "THE RENDER": 6, "THE SCREEN": 5, "THE FLEET": 8, "THE KITCHEN": 7, "THE AFTERMATH": 10, "THE TIDE": 12}   # half-beats a shot
 def arc(song):
@@ -74,7 +75,7 @@ def split(song):   # no part of the world outstays its welcome: a section over 3
     song["sections"] = out
 for song in S["songs"]:
     arc(song); split(song); half = 60 / song["tempo"] / 2 if song["tempo"] < 140 else 60 / song["tempo"]
-    rnd = random.Random(int(song["n"])); used = set(); secs = []
+    rnd = random.Random(int(song["n"])); used = set(); secs = []; drawn = set()
     for sec in song["sections"]:
         W_ = WORLDS[sec["world"]]; e = sec["energy"]; per = PACE[sec["world"]] * (1.25 if e < .3 else .85 if e > .6 else 1)
         bs = [b for b in song["beats"] if sec["t0"] <= b < sec["t1"]]; grid = sorted(set(bs + [round((x + y) / 2, 2) for x, y in zip(bs, bs[1:])])) or [sec["t0"]]   # half-beats
@@ -96,6 +97,17 @@ for song in S["songs"]:
                 names = [t["name"] for t in TR if t["name"].startswith(W_["track"])]
                 if names: layer["track"] = names[(k // 4) % len(names)]
             shots.append({"t0": a, "dur": round(b - a, 2), "pool": p, "clip": {x: c.get(x) for x in ("id", "title", "year", "v", "t", "dur")}, "alts": [{x: y.get(x) for x in ("id", "title", "t", "v")} for y in alts], **layer})
+        # the cartoon opens the section: its first beats become one coded shot (the multiplane cartoon of this world), then it match-cuts into the archive
+        ca = CART.get(sec["world"]); span = sec["t1"] - sec["t0"]
+        if ca and span >= 10 and shots and ca["slug"] not in drawn:
+            drawn.add(ca["slug"])
+            want, acc, k = min(ca["dur"] * .92, max(4.0, span * .35)), 0.0, 0
+            while k < len(shots) and acc + shots[k]["dur"] <= ca["dur"] * .98 and acc < want: acc += shots[k]["dur"]; k += 1
+            if k >= 1 and acc >= 3:
+                head = {"t0": shots[0]["t0"], "dur": round(acc, 2), "pool": "the cartoon", "cartoon": ca["slug"], "clip": {"id": "cartoon-" + ca["slug"], "title": f"cartoon · {sec['world'].lower()}", "v": "slopfeeder/" + ca["mp4"], "t": "slopfeeder/" + ca["keys"][len(ca["keys"]) // 2], "dur": ca["dur"]}, "alts": shots[0]["alts"]}
+                rest = shots[k:]
+                if rest and ca.get("match") and ca["match"]["id"] not in used: m_ = ca["match"]; rest[0] = {**rest[0], "clip": {x: m_.get(x) for x in ("id", "title", "year", "v", "t", "dur")}, "matchcut": True}; used.add(m_["id"])
+                shots = [head] + rest
         secs.append({**sec, "per": per, "code": W_["code"], "prompt": W_["prompt"], "shots": shots})
     plans.append({k: song[k] for k in ("n", "title", "note", "file", "dur", "tempo", "sound")} | {"sections": secs, "energy": song["energy"]})
     print(song["n"], song["title"], "·", sum(len(s["shots"]) for s in secs), "shots ·", " → ".join(f"{s['world'][4:]}" for s in secs))
