@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Slopfeeder Studio</title>
+<meta name="description" content="Music videos for the Liturgy of the Two Buttons, built from the archive, moving SAM cut-outs, code and AI prompts: each song a rough arc through the SLOPFEEDER world, every shot a slot to choose.">
+<meta name="theme-color" content="#14171c">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ --bg:#14171c; --deep:#0e1014; --ink:#ece4d4; --dim:#8d939c; --faint:#272c34; --orange:#e8692c; --ivory:#efe6d2; --sans:'Barlow Condensed',Impact,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --LANDING:#d8452b; --FLEET:#3a6ea8; --RENDER:#7d5cd6; --SCREEN:#3fa57a; --KITCHEN:#e8a32c; --DRILL:#b98a5a; --TIDE:#4f8f9c; --AFTERMATH:#6d6f75; }
+*{ box-sizing:border-box; } html,body{ margin:0; height:100%; } body{ background:var(--bg); color:var(--ink); font:400 12px var(--mono); overflow:hidden; }
+button,select,textarea{ font:inherit; color:inherit; } button{ background:none; border:0; cursor:pointer; padding:0; }
+#app{ height:100dvh; display:grid; grid-template-rows:auto auto minmax(0,1fr); }
+header{ display:flex; align-items:center; gap:14px; padding:calc(10px + env(safe-area-inset-top)) 16px 8px; flex-wrap:wrap; }
+header h1{ margin:0; font:700 21px var(--sans); letter-spacing:.14em; } header h1 b{ color:var(--orange); } header a{ color:var(--dim); text-decoration:none; font:600 12px var(--sans); letter-spacing:.16em; }
+#songs{ display:flex; gap:4px; flex-wrap:wrap; margin-left:auto; } #songs button{ font:600 12px var(--sans); letter-spacing:.08em; padding:5px 8px; border:1px solid var(--faint); border-radius:2px; color:var(--dim); max-width:190px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } #songs button.on{ border-color:var(--orange); color:var(--ink); }
+#tl{ padding:0 16px 10px; } #tlbar{ position:relative; height:74px; cursor:pointer; background:var(--deep); border-radius:2px; overflow:hidden; }
+#tlbar canvas{ position:absolute; inset:0; width:100%; height:100%; } #head{ position:absolute; top:0; bottom:0; width:2px; background:var(--ivory); pointer-events:none; }
+#tlinfo{ display:flex; gap:12px; align-items:center; margin-top:6px; color:var(--dim); font-size:11px; flex-wrap:wrap; } #play{ background:var(--orange); color:#1c1208; font:700 13px var(--sans); letter-spacing:.14em; padding:5px 14px; border-radius:2px; }
+.leg{ display:inline-flex; align-items:center; gap:4px; } .leg i{ width:10px; height:10px; display:inline-block; border-radius:1px; }
+main{ display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:14px; padding:0 16px 14px; min-height:0; }
+#stage{ display:grid; grid-template-rows:minmax(0,1fr) auto; gap:8px; min-height:0; }
+#screen{ position:relative; background:#000; min-height:0; overflow:hidden; border-radius:2px; } #screen video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; } #screen canvas{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+#cap{ position:absolute; left:10px; top:10px; padding:3px 7px; background:#000a; font:600 12px var(--sans); letter-spacing:.12em; } #cap b{ color:var(--orange); font-weight:600; }
+#tabs{ display:flex; gap:4px; } #tabs button{ font:600 12px var(--sans); letter-spacing:.14em; padding:5px 10px; color:var(--dim); border-radius:2px; } #tabs button.on{ background:var(--faint); color:var(--ink); }
+#side{ min-height:0; display:grid; grid-template-rows:auto minmax(0,1fr); gap:8px; } .pane{ min-height:0; overflow:auto; display:none; } .pane.on{ display:block; }
+h2{ font:700 14px var(--sans); letter-spacing:.16em; margin:0 0 6px; } .dim{ color:var(--dim); } .lbl{ font-size:10px; letter-spacing:.14em; color:var(--dim); margin:10px 0 4px; }
+.modes{ display:grid; grid-template-columns:repeat(4,1fr); gap:4px; } .modes button{ border:1px solid var(--faint); padding:7px 4px; font:600 12px var(--sans); letter-spacing:.12em; border-radius:2px; color:var(--dim); } .modes button.on{ border-color:var(--orange); color:var(--ink); background:#2a1a10; }
+.alts{ display:grid; grid-template-columns:repeat(4,1fr); gap:4px; } .alts div{ aspect-ratio:4/3; background:#000 center/cover; cursor:pointer; border:2px solid transparent; } .alts div.on{ border-color:var(--orange); }
+textarea{ width:100%; min-height:110px; background:var(--deep); border:1px solid var(--faint); border-radius:2px; padding:8px; line-height:1.45; resize:vertical; }
+.btn{ border:1px solid var(--faint); padding:6px 10px; border-radius:2px; font:600 12px var(--sans); letter-spacing:.12em; } .btn:hover{ border-color:var(--orange); }
+#cutlib{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; } .cut{ background:var(--deep); border:1px solid var(--faint); border-radius:2px; padding:4px; cursor:pointer; } .cut canvas{ width:100%; aspect-ratio:4/3; display:block; background:repeating-conic-gradient(#20242b 0 25%, #191c22 0 50%) 0 0/14px 14px; } .cut div{ font-size:9.5px; color:var(--dim); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#arc ol{ margin:0; padding-left:18px; } #arc li{ margin-bottom:8px; line-height:1.4; } #arc li b{ font:600 13px var(--sans); letter-spacing:.1em; }
+video.rc{ width:100%; background:#000; border-radius:2px; }
+@media (max-width:860px){ body{ overflow:auto; } #app{ height:auto; } main{ grid-template-columns:1fr; } #screen{ aspect-ratio:16/9; } #songs{ margin-left:0; } #side{ min-height:60vh; } }
+</style></head><body>
+<div id="app">
+  <header><h1>SLOP<b>FEEDER</b> STUDIO</h1><a href="slopfeeder.html">THE WORLD ↗</a><div id="songs"></div></header>
+  <div id="tl"><div id="tlbar"><canvas id="tlc"></canvas><div id="head"></div></div>
+    <div id="tlinfo"><button id="play">▶ PLAY</button><span id="clock">0:00</span><span id="songinfo"></span><span id="legend"></span></div></div>
+  <main>
+    <div id="stage"><div id="screen"><video id="va" muted playsinline></video><video id="vb" muted playsinline style="opacity:0"></video><canvas id="ov"></canvas><div id="cap"></div></div>
+      <div class="dim" id="hint">Touch the timeline to jump; touch a shot to open its slot. The plates play from the archive as the song plays.</div></div>
+    <div id="side"><div id="tabs"><button data-p="slot" class="on">THE SLOT</button><button data-p="arc">THE ARC</button><button data-p="cuts">CUT-OUTS</button><button data-p="rough">ROUGH CUT</button><button data-p="out">EXPORT</button></div>
+      <div class="pane on" id="slot"></div><div class="pane" id="arc"></div><div class="pane" id="cuts"><div class="lbl">MOVING SAM CUT-OUTS FROM THE ARCHIVE · TRACKED THROUGH FOUR SECONDS · DROP ONE ON A SLOT</div><div id="cutlib"></div></div>
+      <div class="pane" id="rough"></div><div class="pane" id="out"></div></div>
+  </main>
+</div>
+<audio id="song" preload="auto" crossorigin="anonymous"></audio>
+<script>
+(function () {
+  const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)], esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const MUSIC = 'https://hartswf0.github.io/moto/THE%20LITURGY%20OF%20THE%20TWO%20BUTTONS/';
+  const COL = w => getComputedStyle(document.documentElement).getPropertyValue('--' + w.replace('THE ', '').split(' ')[0]).trim() || '#888';
+  let P = null, S = null, shots = [], cur = -1, sel = 0, choice = {}, raf = null;
+  const fmt = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  const key = () => 'sf-studio-' + S.n;
+  function load() { try { choice = JSON.parse(localStorage.getItem(key()) || '{}'); } catch (e) { choice = {}; } }
+  function save() { try { localStorage.setItem(key(), JSON.stringify(choice)); } catch (e) { } }
+  const ch = i => choice[i] || (choice[i] = {});
+  const plate = i => { const s = shots[i], c = ch(i); return c.alt != null ? s.alts[c.alt] || s.clip : s.clip; };
+  const mode = i => ch(i).mode || (shots[i].track ? 'CUT-OUT' : shots[i].cutout ? 'CUT-OUT' : 'ARCHIVE');
+  // ---- the song and its plan
+  function pick(n) { S = P.songs.find(s => s.n === n); shots = []; S.sections.forEach((sec, si) => sec.shots.forEach(sh => shots.push({ ...sh, si, world: sec.world, prompt: sec.prompt, code: sec.code })));
+    load(); $$('#songs button').forEach(b => b.classList.toggle('on', b.dataset.n === n)); stop(); const a = $('#song'); a.src = MUSIC + encodeURIComponent(S.file); a.load();
+    $('#songinfo').textContent = `${S.title} · ${Math.round(S.dur)} s · ${S.tempo} bpm · ${shots.length} shots · ${S.sound.slice(0, 2).join(', ')}${S.note ? ' · “' + S.note + '”' : ''}`;
+    drawTL(); arc(); openSlot(0); rough(); exportPane(); show(0, true); }
+  function drawTL() { const c = $('#tlc'), d = devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight; c.width = w * d; c.height = h * d; const g = c.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0);
+    const X = t => t / S.dur * w;
+    S.sections.forEach(sec => { g.fillStyle = COL(sec.world); g.globalAlpha = .55; g.fillRect(X(sec.t0), 0, X(sec.t1) - X(sec.t0), h); g.globalAlpha = 1;
+      g.fillStyle = '#000a'; g.font = '600 11px Barlow Condensed'; g.fillText(sec.world.replace('THE ', ''), X(sec.t0) + 4, 13); });
+    g.strokeStyle = '#efe6d2'; g.lineWidth = 1.2; g.beginPath(); S.energy.forEach((e, k) => { const x = k / 2 / S.dur * w, y = h - 6 - e * (h - 24); k ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
+    shots.forEach((s, i) => { g.fillStyle = i === sel ? '#e8692c' : '#0008'; g.fillRect(X(s.t0), h - 12, Math.max(1, X(s.dur) - 1), 12); if (s.cutout || s.track) { g.fillStyle = '#efe6d2'; g.fillRect(X(s.t0) + 1, h - 16, 3, 3); } });
+    $('#legend').innerHTML = [...new Set(S.sections.map(s => s.world))].map(w => `<span class="leg"><i style="background:${COL(w)}"></i>${w.replace('THE ', '')}</span>`).join(' '); }
+  $('#tlbar').onclick = e => { const r = $('#tlbar').getBoundingClientRect(), t = (e.clientX - r.left) / r.width * S.dur; const i = shots.findIndex(s => t >= s.t0 && t < s.t0 + s.dur);
+    if (e.clientY - r.top > r.height - 18 && i >= 0) { openSlot(i); } $('#song').currentTime = t; if (i >= 0) show(i, true); };
+  // ---- the live preview: plates switch on the cut, two videos so the next one is ready
+  let front = 'va';
+  function show(i, force) { if (i === cur && !force) return; cur = i; const s = shots[i]; if (!s) return; const p = plate(i), back = front === 'va' ? 'vb' : 'va', v = $('#' + back);
+    v.src = p.v; v.onloadedmetadata = () => { try { v.currentTime = Math.max(0, v.duration / 2 - s.dur / 2); } catch (e) { } v.play().catch(() => { }); };
+    v.onplaying = () => { v.style.opacity = 1; $('#' + front).style.opacity = 0; $('#' + front).pause(); front = back; v.onplaying = null; };
+    $('#cap').innerHTML = `<b>${s.world.replace('THE ', '')}</b> · ${i + 1}/${shots.length} · ${esc(p.title || '')} · ${mode(i)}`; overlay(i); }
+  // the slot's cut-out, drawn over the plate from its packed (colour | matte) video
+  const ovv = document.createElement('video'); ovv.muted = true; ovv.loop = true; ovv.playsInline = true; ovv.crossOrigin = 'anonymous'; let ovOn = false;
+  const off = document.createElement('canvas'), oc = off.getContext('2d', { willReadFrequently: true });
+  function overlay(i) { const s = shots[i], c = ch(i), id = c.cutout !== undefined ? c.cutout : s.cutout; ovOn = mode(i) === 'CUT-OUT' && id && P.cuts.find(x => x.id === id);
+    if (ovOn) { ovv.src = 'slopfeeder/' + ovOn.packed; ovv.play().catch(() => { }); } else { ovv.pause(); const cv = $('#ov'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); } }
+  function drawOverlay() { const cv = $('#ov'); if (!ovOn || ovv.readyState < 2) return; const w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== w) { cv.width = w; cv.height = h; }
+    const vw = ovv.videoWidth / 2, vh = ovv.videoHeight; off.width = vw; off.height = vh; oc.drawImage(ovv, 0, 0, vw, vh, 0, 0, vw, vh); const col = oc.getImageData(0, 0, vw, vh);
+    oc.drawImage(ovv, vw, 0, vw, vh, 0, 0, vw, vh); const m = oc.getImageData(0, 0, vw, vh).data; for (let k = 0; k < m.length; k += 4) col.data[k + 3] = m[k]; oc.putImageData(col, 0, 0);
+    const g = cv.getContext('2d'); g.clearRect(0, 0, w, h); const sh = h * .62, sw = sh * vw / vh; g.drawImage(off, (w - sw) / 2, h - sh, sw, sh); }
+  function tick() { const t = $('#song').currentTime; $('#clock').textContent = fmt(t) + ' / ' + fmt(S.dur); $('#head').style.left = (t / S.dur * 100) + '%';
+    const i = shots.findIndex(s => t >= s.t0 && t < s.t0 + s.dur); if (i >= 0) show(i); drawOverlay(); raf = requestAnimationFrame(tick); }
+  function stop() { $('#song').pause(); cancelAnimationFrame(raf); $('#play').textContent = '▶ PLAY'; }
+  $('#play').onclick = () => { const a = $('#song'); if (a.paused) { a.play().then(() => { $('#play').textContent = '■ STOP'; tick(); }).catch(() => { $('#hint').textContent = 'The song could not load from the album page; the plates still play.'; }); } else stop(); };
+  // ---- the slot: one shot, its plate, its mode, its prompt
+  function openSlot(i) { sel = i; const s = shots[i], c = ch(i), p = plate(i), cuts = P.cuts.filter(x => P.worlds[s.world].cuts.includes(x.world));
+    $('#slot').innerHTML = `<h2>SHOT ${i + 1} · <span style="color:${COL(s.world)}">${s.world}</span></h2><div class="dim">${fmt(s.t0)} · ${s.dur.toFixed(2)} s · plate from “${esc(s.pool)}”</div>
+      <div class="lbl">HOW THIS SHOT IS MADE</div><div class="modes">${['ARCHIVE', 'CUT-OUT', 'CODE', 'AI'].map(m => `<button data-m="${m}" class="${mode(i) === m ? 'on' : ''}">${m}</button>`).join('')}</div>
+      <div class="lbl">THE PLATE · ${esc(p.title || '')} — OR ONE OF ITS ALTERNATIVES</div><div class="alts">${[s.clip, ...s.alts].map((a, k) => `<div data-a="${k - 1}" class="${(c.alt ?? -1) === k - 1 ? 'on' : ''}" style="background-image:url('${esc(a.t)}')" title="${esc(a.title)}"></div>`).join('')}</div>
+      <div class="lbl">A MOVING CUT-OUT OVER IT</div><div class="alts">${['', ...cuts.map(x => x.id)].slice(0, 8).map(id => { const x = P.cuts.find(y => y.id === id); const on = (c.cutout !== undefined ? c.cutout : s.cutout || '') === id;
+        return `<div data-c="${id}" class="${on ? 'on' : ''}" style="${x ? `background:#20242b url('slopfeeder/${esc(x.still)}') center/contain no-repeat` : 'display:grid;place-items:center;color:#8d939c'}" title="${esc(x ? x.title + ' · ' + x.target : 'none')}">${x ? '' : 'NONE'}</div>`; }).join('')}</div>
+      ${s.track ? `<div class="lbl">IN THE HYBRID CUT · ${esc(s.track)} (tracked from the source video, kept on the studio machine)</div>` : ''}
+      <div class="lbl">CODE · ${esc(s.code)}</div>
+      <div class="lbl">AI VIDEO · THE PROMPT FOR THIS SHOT (EDIT IT; IT IS SAVED)</div><textarea id="pr">${esc(c.prompt || s.prompt)}</textarea>
+      <div style="display:flex;gap:6px;margin-top:6px"><button class="btn" id="cp">COPY PROMPT</button><button class="btn" id="prev">‹ SHOT</button><button class="btn" id="next">SHOT ›</button></div>`;
+    $$('#slot .modes button').forEach(b => b.onclick = () => { ch(i).mode = b.dataset.m; save(); openSlot(i); show(i, true); });
+    $$('#slot [data-a]').forEach(d => d.onclick = () => { ch(i).alt = +d.dataset.a < 0 ? null : +d.dataset.a; save(); openSlot(i); show(i, true); });
+    $$('#slot [data-c]').forEach(d => d.onclick = () => { ch(i).cutout = d.dataset.c || ''; if (d.dataset.c) ch(i).mode = 'CUT-OUT'; save(); openSlot(i); show(i, true); });
+    $('#pr').oninput = e => { ch(i).prompt = e.target.value; save(); }; $('#cp').onclick = () => navigator.clipboard && navigator.clipboard.writeText($('#pr').value);
+    $('#prev').onclick = () => { openSlot(Math.max(0, i - 1)); show(sel, true); }; $('#next').onclick = () => { openSlot(Math.min(shots.length - 1, i + 1)); show(sel, true); };
+    drawTL(); }
+  // ---- the arc: the song's story, section by section
+  function arc() { $('#arc').innerHTML = `<h2>THE ARC OF “${esc(S.title)}”</h2><div class="dim" style="margin-bottom:10px">The shape of a beach-landing opening laid over the song: the approach, the landing at its loudest, the line held right after, the tide at the end.</div><ol>${S.sections.map(sec => `<li><b style="color:${COL(sec.world)}">${sec.world}</b> · ${fmt(sec.t0)}–${fmt(sec.t1)} · ${sec.shots.length} shots<br><span class="dim">the song: ${esc(sec.sound.slice(0, 2).join(', '))} · energy ${sec.energy.toFixed(2)}</span><br>${esc(sec.prompt)}</li>`).join('')}</ol>`; }
+  function rough() { const f = `slopfeeder/roughcut/song-${S.n}-archive.mp4`;
+    fetch(f, { method: 'HEAD' }).then(r => { $('#rough').innerHTML = r.ok ? `<h2>ROUGH CUT · ARCHIVE ONLY</h2><video class="rc" src="${f}" controls playsinline preload="metadata"></video><div class="dim" style="margin-top:8px">Cut from this plan by slopfeeder/cut.py: archival plates on the beat, moving cut-outs composited, the landing's downbeats shaken and flashed in code. The hybrid cut (with the tracked source-video elements) is rendered on the studio machine.</div>`
+      : `<h2>ROUGH CUT</h2><div class="dim">Not cut yet for this song. On the studio machine: <code>python3 slopfeeder/cut.py ${S.n} archive</code></div>`; }); }
+  function exportPane() { $('#out').innerHTML = `<h2>EXPORT</h2><div class="dim">Your choices for this song are saved in this browser. Take them out as a cut list for the renderer, or all the AI prompts at once.</div>
+    <div style="display:flex;gap:6px;margin:10px 0"><button class="btn" id="ecut">COPY CUT LIST</button><button class="btn" id="epr">COPY ALL AI PROMPTS</button></div><textarea id="eout" style="min-height:300px" readonly></textarea>`;
+    const cutlist = () => JSON.stringify({ song: S.n, title: S.title, shots: shots.map((s, i) => ({ t0: s.t0, dur: s.dur, world: s.world, mode: mode(i), plate: plate(i).id, cutout: ch(i).cutout !== undefined ? ch(i).cutout : s.cutout || null, prompt: mode(i) === 'AI' ? ch(i).prompt || s.prompt : undefined })) }, null, 1);
+    const prompts = () => shots.map((s, i) => mode(i) === 'AI' ? `[${fmt(s.t0)} · ${s.dur.toFixed(1)} s · ${s.world}] ${ch(i).prompt || s.prompt}` : null).filter(Boolean).join('\n\n') || '(no shot is set to AI yet: open a slot and choose AI)';
+    $('#ecut').onclick = () => { $('#eout').value = cutlist(); navigator.clipboard && navigator.clipboard.writeText($('#eout').value); };
+    $('#epr').onclick = () => { $('#eout').value = prompts(); navigator.clipboard && navigator.clipboard.writeText($('#eout').value); }; }
+  // ---- the cut-out library: every moving SAM segment, playing with its matte
+  function lib() { $('#cutlib').innerHTML = P.cuts.map(c => `<div class="cut" data-id="${c.id}"><canvas width="160" height="120"></canvas><div>${esc(c.world.replace('the ', ''))} · ${esc(c.target)} · ${esc(c.title)}</div></div>`).join('') || '<div class="dim">The archive cut-outs are still being made.</div>';
+    $$('#cutlib .cut').forEach(d => { const c = P.cuts.find(x => x.id === d.dataset.id), v = document.createElement('video'); v.src = 'slopfeeder/' + c.packed; v.muted = true; v.loop = true; v.playsInline = true;
+      const cv = d.querySelector('canvas'), g = cv.getContext('2d', { willReadFrequently: true });
+      const draw = () => { if (v.readyState >= 2 && $('#cuts').classList.contains('on')) { const vw = v.videoWidth / 2, vh = v.videoHeight, s_ = Math.min(160 / vw, 120 / vh), w = vw * s_, h = vh * s_;
+          g.clearRect(0, 0, 160, 120); g.drawImage(v, 0, 0, vw, vh, (160 - w) / 2, (120 - h) / 2, w, h); const col = g.getImageData(0, 0, 160, 120);
+          g.drawImage(v, vw, 0, vw, vh, (160 - w) / 2, (120 - h) / 2, w, h); const m = g.getImageData(0, 0, 160, 120).data; for (let k = 0; k < m.length; k += 4) col.data[k + 3] = m[k]; g.putImageData(col, 0, 0); }
+        requestAnimationFrame(draw); };
+      v.play().catch(() => { }); draw();
+      d.onclick = () => { ch(sel).cutout = c.id; ch(sel).mode = 'CUT-OUT'; save(); openSlot(sel); show(sel, true); $$('#tabs button')[0].click(); }; }); }
+  $$('#tabs button').forEach(b => b.onclick = () => { $$('#tabs button').forEach(x => x.classList.toggle('on', x === b)); $$('#side .pane').forEach(p => p.classList.toggle('on', p.id === b.dataset.p)); });
+  addEventListener('resize', () => S && drawTL());
+  fetch('slopfeeder/studio.json').then(r => r.json()).then(p => { P = p;
+    $('#songs').innerHTML = P.songs.map(s => `<button data-n="${s.n}" title="${esc(s.note || s.title)}">${s.n} · ${esc(s.title)}</button>`).join('');
+    $$('#songs button').forEach(b => b.onclick = () => pick(b.dataset.n)); lib(); pick('26'); });
+})();
+</script></body></html>
