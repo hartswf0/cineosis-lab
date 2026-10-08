@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Griddle</title>
+<meta name="description" content="The Slopfeeder's editor: a shared timeline for each song, a searchable deck of every asset (archive, AI pickups, cartoons, cut-out figures, sounds), and a duel between versions in which steering is how the film gets made.">
+<meta name="theme-color" content="#111418">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23161a1f'/%3E%3Cpath d='M8.5 25 L11.5 11 H20.5 L23.5 25 Z' fill='%23f25a17'/%3E%3Crect x='7.5' y='24' width='17' height='3' rx='1.2' fill='%23f25a17'/%3E%3Cpath d='M16 11 V5' stroke='%23e9e1cf' stroke-width='2'/%3E%3Cpath d='M10 7 H22' stroke='%23b98a5a' stroke-width='2.2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ --bg:#111418; --panel:#171b20; --deep:#0b0d10; --ink:#ece4d4; --dim:#8a919b; --faint:#262c34; --orange:#f25a17; --steel:#c9ced3; --sans:'Barlow Condensed',Impact,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --LANDING:#d8452b; --FLEET:#3a6ea8; --RENDER:#5600f5; --SCREEN:#3fa57a; --KITCHEN:#e8a32c; --DRILL:#b98a5a; --TIDE:#4f8f9c; --AFTERMATH:#6d6f75; }
+*{ box-sizing:border-box; } html,body{ margin:0; height:100%; } body{ background:var(--bg); color:var(--ink); font:400 11.5px var(--mono); overflow:hidden; }
+button,input,select{ font:inherit; color:inherit; } button{ background:none; border:0; padding:0; cursor:pointer; }
+#app{ height:100dvh; display:grid; grid-template-rows:46px minmax(0,1fr) 250px; }
+/* ---- header */
+header{ display:flex; align-items:center; gap:10px; padding:0 12px; border-bottom:1px solid var(--faint); min-width:0; }
+header h1{ margin:0; font:700 19px var(--sans); letter-spacing:.14em; white-space:nowrap; } header h1 b{ color:var(--orange); }
+#songs{ display:flex; gap:3px; overflow-x:auto; min-width:0; flex:1; } #songs button{ font:600 12px var(--sans); letter-spacing:.06em; padding:4px 8px; border:1px solid var(--faint); border-radius:2px; color:var(--dim); white-space:nowrap; } #songs button.on{ border-color:var(--orange); color:var(--ink); background:#22150e; }
+.hb{ font:700 13px var(--sans); letter-spacing:.14em; padding:5px 11px; border-radius:2px; border:1px solid var(--faint); white-space:nowrap; } .hb.go{ background:var(--orange); color:#1a0d06; border-color:var(--orange); } .hb:hover{ border-color:var(--orange); }
+#lp{ font:700 15px var(--sans); letter-spacing:.1em; white-space:nowrap; } #lp b{ color:var(--orange); font-size:19px; } #menu{ position:relative; } #menu div{ display:none; position:absolute; right:0; top:30px; background:var(--panel); border:1px solid var(--faint); z-index:20; min-width:220px; } #menu:hover div{ display:block; } #menu a{ display:block; padding:7px 10px; color:var(--dim); text-decoration:none; font:600 12px var(--sans); letter-spacing:.12em; } #menu a:hover{ color:var(--ink); background:#1f242b; }
+/* ---- the work area: deck · monitor · the burger */
+#work{ display:grid; grid-template-columns:330px minmax(0,1fr) 300px; min-height:0; }
+#deck{ border-right:1px solid var(--faint); display:grid; grid-template-rows:auto auto minmax(0,1fr) auto; min-height:0; }
+#q{ margin:8px; padding:7px 9px; background:var(--deep); border:1px solid var(--faint); border-radius:2px; } #qstat{ color:var(--dim); font-size:10px; margin:-4px 9px 4px; min-height:13px; }
+.filters{ display:flex; gap:3px; flex-wrap:wrap; padding:0 8px 6px; } .filters button{ font:600 11px var(--sans); letter-spacing:.1em; padding:2px 6px; border:1px solid var(--faint); border-radius:10px; color:var(--dim); } .filters button.on{ color:var(--ink); border-color:var(--steel); }
+#cards{ overflow:auto; padding:0 8px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; align-content:start; } .card{ position:relative; cursor:grab; border-radius:2px; overflow:hidden; background:#000; border:2px solid transparent; }
+.card .th{ aspect-ratio:16/10; background:#000 center/cover; } .card .tt{ font-size:9.5px; padding:2px 4px 3px; color:#cfc8ba; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; background:var(--panel); } .card .ty{ position:absolute; top:3px; left:3px; font:700 9.5px var(--sans); letter-spacing:.1em; padding:0 4px; border-radius:2px; background:#000b; }
+.card.sel{ border-color:var(--orange); } .card .sim{ position:absolute; top:3px; right:3px; font-size:9px; background:#000b; padding:0 3px; } .card.figure .th{ background-color:#2a2f37; background-size:contain; background-repeat:no-repeat; }
+#deckbar{ padding:6px 8px; color:var(--dim); font-size:10px; display:flex; gap:6px; align-items:center; } #deckbar button{ border:1px solid var(--faint); border-radius:2px; padding:3px 7px; font:600 11px var(--sans); letter-spacing:.1em; color:var(--ink); }
+#mon{ display:grid; grid-template-rows:minmax(0,1fr) auto; min-height:0; padding:8px; gap:6px; } #screens{ display:grid; grid-template-columns:1fr; gap:8px; min-height:0; } #screens.duel{ grid-template-columns:1fr 1fr; }
+.view{ position:relative; background:#000; border-radius:2px; overflow:hidden; min-height:0; container-type:size; } .view video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transition:opacity .08s; } .view canvas{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+.view .cap{ position:absolute; left:8px; top:8px; font:600 12px var(--sans); letter-spacing:.1em; background:#000a; padding:2px 7px; } .view .say{ position:absolute; left:0; right:0; bottom:12px; text-align:center; font:600 16px var(--sans); letter-spacing:.04em; text-shadow:0 1px 3px #000; }
+.view .win{ position:absolute; right:8px; top:8px; display:none; } #screens.duel .view .win{ display:block; } .view .win button{ font:700 14px var(--sans); letter-spacing:.14em; padding:6px 12px; border-radius:2px; background:var(--orange); color:#1a0d06; }
+#transport{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; } #clock{ font:600 15px var(--sans); letter-spacing:.08em; min-width:110px; } .tb{ border:1px solid var(--faint); border-radius:2px; padding:5px 10px; font:700 12px var(--sans); letter-spacing:.12em; } .tb.on{ border-color:var(--orange); color:var(--orange); }
+#hint{ color:var(--dim); font-size:10px; margin-left:auto; }
+#burger{ border-left:1px solid var(--faint); overflow:auto; padding:10px; } #burger h2{ font:700 15px var(--sans); letter-spacing:.14em; margin:0 0 2px; } .sub{ color:var(--dim); font-size:10px; margin-bottom:8px; }
+.layer{ border:1px solid var(--faint); border-radius:14px; padding:7px 9px; margin-bottom:5px; position:relative; } .layer small{ display:block; font:700 10px var(--sans); letter-spacing:.2em; color:var(--dim); } .layer .x{ display:flex; gap:7px; align-items:center; margin-top:4px; }
+.layer img{ width:74px; aspect-ratio:16/10; object-fit:cover; border-radius:2px; background:#000; } .layer.bun{ border-radius:22px 22px 6px 6px; background:#2a2016; } .layer.patty{ background:#2a1712; } .layer.cheese{ background:#2a2611; } .layer.onion{ background:#1d2622; } .layer.bottom{ border-radius:6px 6px 18px 18px; background:#2a2016; }
+.lb{ border:1px solid var(--faint); border-radius:2px; padding:3px 7px; font:600 11px var(--sans); letter-spacing:.1em; margin:2px 2px 0 0; } .lb:hover{ border-color:var(--orange); }
+textarea{ width:100%; min-height:90px; background:var(--deep); border:1px solid var(--faint); border-radius:2px; padding:6px; font-size:10.5px; line-height:1.45; color:#cfc8ba; resize:vertical; }
+/* ---- the griddle (the shared timeline) */
+#griddle{ border-top:1px solid var(--faint); display:grid; grid-template-columns:64px minmax(0,1fr); min-height:0; background:var(--deep); }
+#lanes{ display:grid; grid-template-rows:56px 52px 28px 30px 20px; font:700 10px var(--sans); letter-spacing:.16em; color:var(--dim); padding-top:18px; } #lanes div{ display:flex; align-items:center; padding-left:8px; border-bottom:1px solid #1a1e24; }
+#scroll{ overflow-x:auto; overflow-y:hidden; position:relative; } #track{ position:relative; height:100%; } #ruler{ position:absolute; top:0; left:0; right:0; height:18px; }
+#song{ position:absolute; top:18px; height:56px; left:0; } .row{ position:absolute; left:0; } #rplate{ top:74px; height:52px; } #rfig{ top:126px; height:28px; } #rsnd{ top:154px; height:30px; } #rtrap{ top:184px; height:20px; }
+.slot{ position:absolute; top:1px; bottom:1px; background:#000 center/cover; border-right:2px solid var(--deep); cursor:pointer; overflow:hidden; } .slot.sel{ outline:2px solid var(--orange); outline-offset:-2px; z-index:2; } .slot.lock::after{ content:'●'; position:absolute; right:3px; top:1px; color:var(--orange); font-size:9px; } .slot.drawn{ box-shadow:inset 0 0 0 2px var(--yellow,#e6c808); } .slot.gen{ box-shadow:inset 0 -4px 0 #7d5cd6; } .slot.drop{ outline:2px dashed var(--steel); }
+.fig{ position:absolute; top:3px; bottom:3px; border-radius:3px; background:#3a2a24 center/contain no-repeat; border:1px solid #6b4a3a; cursor:pointer; } .snd{ position:absolute; top:3px; bottom:3px; border-radius:3px; background:#2e2a14; border:1px solid #57511f; font-size:9px; padding:2px 4px; overflow:hidden; white-space:nowrap; color:#e8dfa2; cursor:pointer; } .snd.off{ opacity:.3; }
+.trap{ position:absolute; top:3px; width:14px; height:14px; margin-left:-7px; border-radius:50%; background:#2b3038; border:1px solid #4b525c; font:700 8px var(--sans); display:grid; place-items:center; cursor:pointer; color:var(--dim); } .trap.flash{ background:#e9e1cf; color:#000; } .trap.dissolve{ background:#4f8f9c; color:#000; }
+#head{ position:absolute; top:0; bottom:0; width:2px; background:var(--orange); pointer-events:none; z-index:5; }
+#zoom{ position:absolute; right:8px; top:2px; z-index:6; width:120px; accent-color:#f25a17; }
+#toast{ position:fixed; left:50%; bottom:270px; transform:translateX(-50%); background:var(--panel); border:1px solid var(--orange); padding:8px 14px; font:600 13px var(--sans); letter-spacing:.1em; display:none; z-index:30; } #toast.on{ display:block; }
+#drop{ position:fixed; inset:0; background:#f25a1733; border:3px dashed var(--orange); display:none; place-items:center; font:700 28px var(--sans); letter-spacing:.2em; z-index:40; pointer-events:none; } #drop.on{ display:grid; }
+@media (max-width:1100px){ #work{ grid-template-columns:260px minmax(0,1fr); } #burger{ display:none; } }
+@media (max-width:760px){ body{ overflow:auto; } #app{ height:auto; grid-template-rows:auto auto 250px; } #work{ grid-template-columns:1fr; } #deck{ height:50vh; } #mon{ height:56vw; } }
+</style></head><body>
+<div id="app">
+  <header><h1>THE <b>GRIDDLE</b></h1><div id="songs"></div><div id="lp">LP <b>0</b></div>
+    <button class="hb" id="shuffle" title="draw a new version of every unlocked slot (S)">SHUFFLE</button><button class="hb go" id="duelb" title="a challenger version plays beside yours; pick the better one, section by section (D)">DUEL</button>
+    <button class="hb" id="undo" title="Z">UNDO</button><button class="hb" id="serve" title="the cut list for the renderer">SERVE</button>
+    <div id="menu"><button class="hb">ROOMS ▾</button><div><a href="slopfeeder-chapters.html">THE CHAPTERS · the eight bets</a><a href="slopfeeder-cartoon.html">THE CARTOONS · multiplane</a><a href="slopfeeder.html">THE WORLD · segmented</a><a href="slopfeeder-studio.html">THE OLD STUDIO</a><a href="index.html#wall">THE LAB WALL</a></div></div></header>
+  <div id="work">
+    <section id="deck"><input id="q" placeholder="search the deck: words, or drop an image anywhere"><div id="qstat"></div>
+      <div><div class="filters" id="ftype"></div><div class="filters" id="fworld"></div></div>
+      <div id="cards"></div><div id="deckbar"><span id="dcount"></span><button id="like">LIKE THIS SLOT</button><button id="more">MORE</button></div></section>
+    <section id="mon"><div id="screens"><div class="view" id="vA"><video muted playsinline></video><video muted playsinline style="opacity:0"></video><canvas></canvas><div class="cap"></div><div class="say"></div><div class="win"><button data-w="A">KEEP MINE</button></div></div>
+        <div class="view" id="vB" style="display:none"><video muted playsinline></video><video muted playsinline style="opacity:0"></video><canvas></canvas><div class="cap"></div><div class="say"></div><div class="win"><button data-w="B">THIS ONE WINS</button></div></div></div>
+      <div id="transport"><button class="tb" id="play">▶ PLAY</button><span id="clock">0:00</span><button class="tb" id="loop" title="loop the selected section (O)">LOOP SECTION</button><button class="tb" id="sndb" title="let the pickups' own sound under the song">SLOP SOUND</button><span id="hint">space play · ←→ slot · F flip · X to graveyard · L lock · S shuffle · D duel · Z undo</span></div></section>
+    <aside id="burger"></aside>
+  </div>
+  <section id="griddle"><div id="lanes"><div>SONG</div><div>PLATE</div><div>FIGURE</div><div>SOUND</div><div>TRAP</div></div>
+    <div id="scroll"><input type="range" id="zoom" min="4" max="60" value="10"><div id="track"><canvas id="ruler"></canvas><canvas id="song"></canvas><div class="row" id="rplate"></div><div class="row" id="rfig"></div><div class="row" id="rsnd"></div><div class="row" id="rtrap"></div><div id="head"></div></div></div></section>
+</div>
+<div id="toast"></div><div id="drop">DROP AN IMAGE TO FIND ITS RHYMES</div>
+<audio id="music" preload="auto" crossorigin="anonymous"></audio>
+<script src="markov/clip-text.js"></script>
+<script>
+(function () {
+  const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)], esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const MUSIC = 'https://hartswf0.github.io/moto/THE%20LITURGY%20OF%20THE%20TWO%20BUTTONS/', WORLDS = ['THE LANDING', 'THE FLEET', 'THE RENDER', 'THE DRILL LINE', 'THE KITCHEN', 'THE SCREEN', 'THE TIDE', 'THE AFTERMATH'];
+  const COL = w => getComputedStyle(document.documentElement).getPropertyValue('--' + (w || '').replace('THE ', '').split(' ')[0]).trim() || '#555';
+  const url = p => !p ? '' : /^(https?:|data:)/.test(p) ? p : 'slopfeeder/' + p, fmt = t => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}`;
+  const toast = t => { const d = $('#toast'); d.textContent = t; d.classList.add('on'); clearTimeout(d._t); d._t = setTimeout(() => d.classList.remove('on'), 1800); };
+  let DK = null, EMB = null, CARD = {}, PLAN = null, S = null, V = null, sel = 0, hist = [], grave = new Set(), pref = new Float32Array(512), px = 10, filt = { type: 'all', world: 'all' }, order = null, shown = 60, duel = null, loopSec = false, slopSound = false;
+  // ---- vectors
+  const emb = id => { const k = CARD[id]?._k; return k == null ? null : EMB.subarray(k * 512, k * 512 + 512); };
+  const dot = (a, b) => { let s = 0; for (let k = 0; k < 512; k++) s += a[k] * b[k]; return s; };
+  const norm = v => { let s = 0; for (let k = 0; k < 512; k++) s += v[k] * v[k]; s = Math.sqrt(s) || 1; return v.map(x => x / s); };
+  // ---- a song's version: slots on the song's own cuts, each a burger (plate, figure, sound, trap)
+  function fromPlan(song) { const out = [];
+    song.sections.forEach((sec, si) => sec.shots.forEach(sh => { let p = sh.clip?.id; if (sh.cartoon) p = 'drawn-' + sh.cartoon; if (!CARD[p]) p = (sh.alts || []).map(a => a.id).find(i => CARD[i]) || pickFor(sec.world, new Set(), null)?.id;
+      out.push({ t0: sh.t0, dur: sh.dur, w: sec.world, si, p, f: sh.cutout && CARD['fig-' + sh.cutout] ? 'fig-' + sh.cutout : null, s: false, x: 'cut', k: false, g: sh.generate || null }); }));
+    return out; }
+  const sections = () => S.sections.map((x, i) => ({ i, t0: x.t0, t1: x.t1, w: x.world }));
+  // draw a card for a slot: its world's plates, not in the graveyard, not used, leaning toward your taste and rhyming with its neighbour
+  function pickFor(world, used, prev, temp = .08) { const c = DK.cards.filter(x => (x.type === 'ai' || x.type === 'archive') && x.world === world && !grave.has(x.id) && !used.has(x.id));
+    if (!c.length) return null; const pe = prev && emb(prev), pn = Math.hypot(...pref) > 1e-6;
+    const sc = c.map(x => { const e = emb(x.id); let s = (x.type === 'ai' ? .06 : 0) + (pn ? .9 * dot(e, pref) : 0) + (pe ? -.6 * Math.abs(dot(e, pe) - .72) : 0); return s + temp * (Math.random() - .5) * 2; });
+    let b = 0; sc.forEach((s, i) => { if (s > sc[b]) b = i; }); return c[b]; }
+  function shuffle(ver, only) { const used = new Set(ver.filter((s, i) => s.k || (only != null && s.si !== only)).map(s => s.p)); let prev = null;
+    return ver.map((s, i) => { if (s.k || (only != null && s.si !== only) || CARD[s.p]?.type === 'drawn') { prev = s.p; return { ...s }; }
+      const c = pickFor(s.w, used, prev, .22); if (!c) { prev = s.p; return { ...s }; } used.add(c.id); prev = c.id;
+      const figs = DK.cards.filter(x => x.type === 'figure' && (x.world === s.w || !x.world) && !grave.has(x.id)); const f = s.f || (figs.length && Math.random() < .12 ? figs[Math.floor(Math.random() * figs.length)].id : null);
+      return { ...s, p: c.id, f }; }); }
+  // ---- life points: the cut read as a whole (its worlds held, its cuts rhyming, your taste, its variety), out of 4000 like a duel
+  function lp(ver) { let w = 0, r = 0, t = 0, n = 0; const src = new Set(); let prev = null; const pn = Math.hypot(...pref) > 1e-6;
+    ver.forEach(s => { const c = CARD[s.p]; if (!c) return; n++; w += c.world === s.w || c.type === 'drawn' ? 1 : 0; src.add(c.title); const e = emb(s.p);
+      if (prev && e) r += Math.exp(-(((dot(e, emb(prev)) - .72) / .14) ** 2)); if (pn && e) t += Math.max(0, dot(e, pref) + .1); prev = s.p; });
+    if (!n) return 0; const v = .35 * w / n + .3 * r / Math.max(1, n - 1) + .2 * (pn ? Math.min(1, t / n * 3) : .5) + .15 * Math.min(1, src.size / n * 1.3); return Math.round(4000 * v); }
+  // ---- history (every change can be undone)
+  const snap = () => { hist.push(JSON.stringify({ V, grave: [...grave], pref: [...pref] })); if (hist.length > 80) hist.shift(); };
+  function undo() { const h = hist.pop(); if (!h) return; const o = JSON.parse(h); V = o.V; grave = new Set(o.grave); pref = Float32Array.from(o.pref); save(); drawAll(); toast('UNDONE'); }
+  const key = () => 'griddle-' + S.n; function save() { try { localStorage.setItem(key(), JSON.stringify({ V, grave: [...grave], pref: [...pref] })); } catch (e) { } }
+  function load() { try { const o = JSON.parse(localStorage.getItem(key()) || 'null'); if (o && o.V?.length) { V = o.V; grave = new Set(o.grave); pref = Float32Array.from(o.pref); return true; } } catch (e) { } return false; }
+  function taste(id, w) { const e = emb(id); if (!e) return; for (let k = 0; k < 512; k++) pref[k] += w * e[k]; pref = Float32Array.from(norm(Array.from(pref))); }
+  // ---- the song
+  function pickSong(n) { stop(); S = PLAN.songs.find(s => s.n === n); hist = []; if (!load()) { V = fromPlan(S); grave = new Set(); pref = new Float32Array(512); }
+    $$('#songs button').forEach(b => b.classList.toggle('on', b.dataset.n === n)); const a = $('#music'); a.src = MUSIC + encodeURIComponent(S.file); a.load(); sel = 0; px = Math.max(4, ($('#scroll').clientWidth - 20) / S.dur); $('#zoom').value = px; drawAll(); seek(0); }
+  // ---- the griddle (timeline)
+  function drawAll() { drawTrack(); drawBurger(); $('#lp b').textContent = lp(V); if (duel) $('#lp').innerHTML = `LP <b>${lp(V)}</b> vs <b style="color:var(--steel)">${lp(duel.B)}</b>`; }
+  function drawTrack() { const W = Math.ceil(S.dur * px) + 40; $('#track').style.width = W + 'px';
+    const sc = $('#song'), d = devicePixelRatio || 1; sc.width = W * d; sc.height = 56 * d; sc.style.width = W + 'px'; sc.style.height = '56px'; const g = sc.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0);
+    S.sections.forEach(x => { g.fillStyle = COL(x.world); g.globalAlpha = .45; g.fillRect(x.t0 * px, 0, (x.t1 - x.t0) * px, 56); g.globalAlpha = 1; g.fillStyle = '#000c'; g.font = '700 11px Barlow Condensed'; g.fillText(x.world.replace('THE ', ''), x.t0 * px + 4, 12); g.fillStyle = '#eee8'; g.font = '10px IBM Plex Mono'; g.fillText((x.sound || []).slice(0, 1).join(''), x.t0 * px + 4, 24); });
+    g.strokeStyle = '#ece4d4'; g.lineWidth = 1.2; g.beginPath(); S.energy.forEach((e, k) => { const x = k / 2 * px, y = 54 - e * 26; k ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
+    g.fillStyle = '#ece4d455'; (DK.beats[S.n] || []).forEach(b => g.fillRect(b * px, 46, 1, 10));
+    const rc = $('#ruler'); rc.width = W * d; rc.height = 18 * d; rc.style.width = W + 'px'; rc.style.height = '18px'; const r = rc.getContext('2d'); r.setTransform(d, 0, 0, d, 0, 0); r.fillStyle = '#8a919b'; r.font = '9px IBM Plex Mono';
+    const step = px > 30 ? 1 : px > 12 ? 5 : 10; for (let t = 0; t < S.dur; t += step) { r.fillRect(t * px, 12, 1, 6); r.fillText(fmt(t).replace(/\.\d$/, ''), t * px + 2, 10); }
+    $('#rplate').innerHTML = V.map((s, i) => { const c = CARD[s.p] || {}; return `<div class="slot${i === sel ? ' sel' : ''}${s.k ? ' lock' : ''}${c.type === 'drawn' ? ' drawn' : ''}${s.g ? ' gen' : ''}" data-i="${i}" style="left:${s.t0 * px}px;width:${Math.max(2, s.dur * px)}px;background-image:url('${esc(url(c.thumb))}')" title="${esc(c.title || '')} · ${esc(s.w)}${s.g ? ' · TO GENERATE: ' + esc(s.g.moment) : ''}" draggable="false"></div>`; }).join('');
+    $('#rfig').innerHTML = V.map((s, i) => s.f && CARD[s.f] ? `<div class="fig" data-i="${i}" style="left:${s.t0 * px}px;width:${Math.max(2, s.dur * px - 2)}px;background-image:url('${esc(url(CARD[s.f].thumb))}')" title="${esc(CARD[s.f].title)}"></div>` : '').join('');
+    $('#rsnd').innerHTML = V.map((s, i) => { const c = CARD[s.p]; if (!c || c.type !== 'ai' || !(c.sound?.length || c.words?.length)) return ''; return `<div class="snd${s.s ? '' : ' off'}" data-i="${i}" style="left:${s.t0 * px}px;width:${Math.max(2, s.dur * px - 2)}px" title="${esc((c.words || []).join(' / ') + ' · ' + (c.sound || []).join(', '))}">${esc((c.words || [])[0] || (c.sound || [])[0] || '')}</div>`; }).join('');
+    $('#rtrap').innerHTML = V.slice(1).map((s, i) => `<div class="trap ${s.x}" data-i="${i + 1}" style="left:${s.t0 * px}px" title="the cut into slot ${i + 2}: ${s.x} (click to change)">${s.x === 'cut' ? '|' : s.x === 'flash' ? '✶' : '~'}</div>`).join('');
+    $$('#rplate .slot').forEach(d => { d.onclick = () => { select(+d.dataset.i); seek(V[+d.dataset.i].t0 + .02); }; d.ondragover = e => { e.preventDefault(); d.classList.add('drop'); }; d.ondragleave = () => d.classList.remove('drop');
+      d.ondrop = e => { e.preventDefault(); d.classList.remove('drop'); const id = e.dataTransfer.getData('text/card'); if (id) put(+d.dataset.i, id); }; });
+    $$('#rfig .fig').forEach(d => d.onclick = () => select(+d.dataset.i)); $$('#rsnd .snd').forEach(d => d.onclick = () => { snap(); V[+d.dataset.i].s = !V[+d.dataset.i].s; save(); drawAll(); });
+    $$('#rtrap .trap').forEach(d => d.onclick = () => { snap(); const s = V[+d.dataset.i]; s.x = { cut: 'flash', flash: 'dissolve', dissolve: 'cut' }[s.x]; save(); drawAll(); });
+    $('#rfig').ondragover = e => e.preventDefault(); $('#rfig').ondrop = e => { e.preventDefault(); const id = e.dataTransfer.getData('text/card'), x = e.clientX - $('#rfig').getBoundingClientRect().left, t = x / px, i = V.findIndex(s => t >= s.t0 && t < s.t0 + s.dur); if (id && i >= 0) put(i, id); }; }
+  $('#zoom').oninput = e => { px = +e.target.value; drawTrack(); }; $('#scroll').onclick = e => { if (e.target.id === 'song' || e.target.id === 'ruler' || e.target.id === 'track') { const t = (e.clientX - $('#track').getBoundingClientRect().left) / px; seek(t); } };
+  // ---- putting a card on the griddle
+  function put(i, id) { const c = CARD[id]; if (!c) return; snap(); const s = V[i];
+    if (c.type === 'figure') { s.f = id; toast('FIGURE ON SLOT ' + (i + 1)); } else { if (s.p) taste(s.p, -.15); s.p = id; s.k = true; taste(id, .5); toast('PLATE ON SLOT ' + (i + 1) + ' · LOCKED'); }
+    save(); select(i); drawAll(); seek(s.t0 + .02); }
+  function select(i) { sel = Math.max(0, Math.min(V.length - 1, i)); $$('#rplate .slot').forEach((d, k) => d.classList.toggle('sel', k === sel)); drawBurger(); const d = $(`#rplate .slot[data-i="${sel}"]`); if (d) d.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+  function flip(i, toGrave) { snap(); const s = V[i]; if (toGrave) { grave.add(s.p); taste(s.p, -.4); } const used = new Set(V.map(x => x.p)); const c = pickFor(s.w, used, V[i - 1]?.p, .3); if (c) { s.p = c.id; s.k = false; } save(); drawAll(); seek(s.t0 + .02); toast(toGrave ? 'TO THE GRAVEYARD · A NEW CARD DRAWN' : 'FLIPPED'); }
+  // ---- the burger: the selected slot's layers, top to bottom
+  function drawBurger() { const s = V[sel]; if (!s) return; const c = CARD[s.p] || {}, f = CARD[s.f];
+    $('#burger').innerHTML = `<h2>SLOT ${sel + 1} OF ${V.length}</h2><div class="sub">${fmt(s.t0)} · ${s.dur.toFixed(2)} s · <span style="color:${COL(s.w)}">${esc(s.w)}</span>${s.k ? ' · LOCKED' : ''}</div>
+      <div class="layer bun"><small>BUN · THE PLATE</small><div class="x"><img src="${esc(url(c.thumb))}"><div>${esc(c.title || '—')}<br><span class="sub">${esc(c.type || '')}${c.year ? ' · ' + c.year : ''}${c.pov ? ' · ' + c.pov : ''}</span></div></div>
+        <button class="lb" id="bflip">FLIP</button><button class="lb" id="bgrave">GRAVEYARD</button><button class="lb" id="block">${s.k ? 'UNLOCK' : 'LOCK'}</button><button class="lb" id="blike">LIKE THIS</button></div>
+      <div class="layer patty"><small>PATTY · THE FIGURE</small><div class="x">${f ? `<img src="${esc(url(f.thumb))}" style="object-fit:contain;background:#2a2f37"><div>${esc(f.title)}</div>` : '<span class="sub">none · drag a figure from the deck</span>'}</div>${f ? '<button class="lb" id="bnofig">TAKE OFF</button>' : ''}</div>
+      <div class="layer cheese"><small>CHEESE · THE SOUND</small><div>${c.type === 'ai' ? `${esc((c.sound || []).join(', ') || 'quiet')}${c.words?.length ? '<br><i>“' + esc(c.words.join(' / ')) + '”</i>' : ''}<br><button class="lb" id="bsnd">${s.s ? 'MUTE IT' : 'LET IT UNDER THE SONG'}</button>` : '<span class="sub">the song alone</span>'}</div></div>
+      <div class="layer onion"><small>ONION · THE CUT IN</small><div>${esc(s.x)} <button class="lb" id="btrap">CHANGE</button></div></div>
+      <div class="layer bottom"><small>BUN · THE SECTION</small><div class="sub">${esc((S.sections[s.si]?.sound || []).join(', '))} · energy ${S.sections[s.si]?.energy ?? ''}</div></div>
+      ${s.g ? `<div class="sub" style="margin-top:10px;color:#b7a6ff">TO GENERATE · ${esc(s.g.id)} · ${esc(s.g.moment)}</div><textarea readonly>${esc(s.g.prompt)}</textarea><button class="lb" id="bcopy">COPY THE PROMPT</button>` : ''}`;
+    const on = (id, fn) => { const b = $('#' + id); if (b) b.onclick = fn; };
+    on('bflip', () => flip(sel, false)); on('bgrave', () => flip(sel, true)); on('block', () => { snap(); s.k = !s.k; if (s.k) taste(s.p, .3); save(); drawAll(); }); on('blike', () => like(s.p));
+    on('bnofig', () => { snap(); s.f = null; save(); drawAll(); }); on('bsnd', () => { snap(); s.s = !s.s; save(); drawAll(); }); on('btrap', () => { snap(); s.x = { cut: 'flash', flash: 'dissolve', dissolve: 'cut' }[s.x]; save(); drawAll(); });
+    on('bcopy', () => { navigator.clipboard && navigator.clipboard.writeText(s.g.prompt); toast('PROMPT COPIED'); }); }
+  // ---- the deck: filter, search by words (CLIP in the browser), by image (a dropped picture, or a slot: LIKE THIS)
+  function deckList() { let L = DK.cards.filter(c => !grave.has(c.id) && (filt.type === 'all' || c.type === filt.type || (filt.type === 'voices' && c.words?.length)) && (filt.world === 'all' || c.world === filt.world));
+    if (order) L = order.filter(o => L.includes(CARD[o.id])).map(o => CARD[o.id]);
+    const q = $('#q').value.trim().toLowerCase(); if (q && !order) L = L.filter(c => [c.title, c.why, ...(c.motifs || []), ...(c.words || []), ...(c.sound || [])].join(' ').toLowerCase().includes(q)); return L; }
+  function drawDeck() { const L = deckList(); $('#dcount').textContent = `${L.length} cards`;
+    $('#cards').innerHTML = L.slice(0, shown).map(c => `<div class="card ${c.type}" draggable="true" data-id="${esc(c.id)}"><div class="th" style="background-image:url('${esc(url(c.thumb))}')"></div><span class="ty" style="color:${c.type === 'ai' ? '#b7a6ff' : c.type === 'drawn' ? '#e6c808' : c.type === 'figure' ? '#f2a07a' : '#cfc8ba'}">${c.type.toUpperCase()}</span>${order ? `<span class="sim">${(order.find(o => o.id === c.id)?.s ?? 0).toFixed(2)}</span>` : ''}<div class="tt" title="${esc(c.title)}">${esc(c.title || '')}</div></div>`).join('');
+    $$('#cards .card').forEach(d => { d.ondragstart = e => e.dataTransfer.setData('text/card', d.dataset.id); d.onclick = () => { $$('.card').forEach(x => x.classList.toggle('sel', x === d)); audition(d.dataset.id); }; d.ondblclick = () => put(sel, d.dataset.id); }); }
+  function rank(q, label) { order = DK.cards.map(c => ({ id: c.id, s: dot(emb(c.id) || new Float32Array(512), q) })).sort((a, b) => b.s - a.s); shown = 60; $('#qstat').textContent = label; drawDeck(); $('#cards').scrollTop = 0; }
+  function like(id) { const e = emb(id); if (e) rank(e, 'ranked by likeness to: ' + (CARD[id]?.title || id)); }
+  $('#like').onclick = () => like(V[sel].p); $('#more').onclick = () => { shown += 60; drawDeck(); };
+  $('#q').onkeydown = async e => { if (e.key !== 'Enter') return; const q = $('#q').value.trim(); if (!q) { order = null; $('#qstat').textContent = ''; drawDeck(); return; }
+    order = null; drawDeck(); try { $('#qstat').textContent = 'reading the words…'; const [v] = await window.ClipText.encode([q], s => { $('#qstat').textContent = s.stage === 'loading' ? `fetching the reader ${Math.round((s.frac || 0) * 100)}%` : s.text; }); rank(Float32Array.from(v), 'ranked by CLIP: “' + q + '”'); } catch (err) { $('#qstat').textContent = 'word search only (the reader could not load)'; } };
+  $('#q').oninput = () => { order = null; $('#qstat').textContent = $('#q').value.trim() ? 'words · press Enter to search by meaning (CLIP)' : ''; shown = 60; drawDeck(); };
+  // an image dropped anywhere: CLIP's image half in the browser, then the deck by likeness
+  let vis = null;
+  async function visionLoad() { if (vis) return vis; vis = (async () => { const T = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.1'); T.env.allowLocalModels = false; const id = 'Xenova/clip-vit-base-patch32';
+      const [proc, model] = await Promise.all([T.AutoProcessor.from_pretrained(id), T.CLIPVisionModelWithProjection.from_pretrained(id, { dtype: 'q8', progress_callback: p => { if (p.status === 'progress' && p.total) $('#qstat').textContent = `fetching the eye ${Math.round(p.loaded / p.total * 100)}%`; } })]);
+      return async blob => { const im = await T.RawImage.fromBlob(blob); const { image_embeds } = await model(await proc(im)); return Float32Array.from(norm(Array.from(image_embeds.data))); }; })(); return vis; }
+  addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); $('#drop').classList.add('on'); } });
+  addEventListener('dragleave', e => { if (e.target === document.documentElement || e.clientX <= 0) $('#drop').classList.remove('on'); });
+  addEventListener('drop', async e => { if (![...e.dataTransfer.types].includes('Files')) return; e.preventDefault(); $('#drop').classList.remove('on'); const f = e.dataTransfer.files[0]; if (!f || !f.type.startsWith('image')) return;
+    try { $('#qstat').textContent = 'opening the eye…'; const run = await visionLoad(); const v = await run(f); rank(v, 'ranked by likeness to your image: ' + f.name); } catch (err) { $('#qstat').textContent = 'the image reader could not load'; } });
+  // ---- the monitor (two views: yours, and the challenger in a duel)
+  function View(el) { const vids = [...el.querySelectorAll('video')], cv = el.querySelector('canvas'); let front = 0, cur = -1, figV = document.createElement('video'), figOn = null; figV.muted = true; figV.loop = true; figV.playsInline = true;
+    const off = document.createElement('canvas'), oc = off.getContext('2d', { willReadFrequently: true });
+    function load(ver, i, t) { const s = ver[i]; if (!s) return; const c = CARD[s.p]; if (!c) return; const v = vids[1 - front], within = Math.max(0, t - s.t0);
+      v.src = url(c.media); v.onloadedmetadata = () => { const a = c.in != null ? c.in : Math.max(0, v.duration / 2 - s.dur / 2); try { v.currentTime = Math.min(v.duration - .05, a + within); } catch (e) { } v.play().catch(() => { }); };
+      v.onplaying = () => { v.style.opacity = 1; vids[front].style.opacity = 0; vids[front].pause(); front = 1 - front; v.onplaying = null; };
+      v.muted = !(slopSound || s.s) || c.type !== 'ai' || el.id === 'vB'; v.volume = .5;
+      el.querySelector('.cap').innerHTML = `<span style="color:${COL(s.w)}">${esc(s.w.replace('THE ', ''))}</span> · ${i + 1}/${ver.length} · ${esc((c.title || '').slice(0, 44))}`;
+      el.querySelector('.say').textContent = (s.s || slopSound) && c.words?.length ? '“' + c.words[0] + '”' : '';
+      const f = s.f && CARD[s.f]; figOn = f || null; if (f) { figV.src = url(f.packed); figV.play().catch(() => { }); } else { figV.pause(); const g = cv.getContext('2d'); g.clearRect(0, 0, cv.width, cv.height); } }
+    function frame() { if (!figOn || figV.readyState < 2) return; const w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== w) { cv.width = w; cv.height = h; }
+      const vw = figV.videoWidth / 2, vh = figV.videoHeight; off.width = vw; off.height = vh; oc.drawImage(figV, 0, 0, vw, vh, 0, 0, vw, vh); const col = oc.getImageData(0, 0, vw, vh); oc.drawImage(figV, vw, 0, vw, vh, 0, 0, vw, vh);
+      const m = oc.getImageData(0, 0, vw, vh).data; for (let k = 0; k < m.length; k += 4) col.data[k + 3] = m[k]; oc.putImageData(col, 0, 0); const g = cv.getContext('2d'); g.clearRect(0, 0, w, h); const sh = h * .7, sw = sh * vw / vh; g.drawImage(off, w * .62 - sw / 2, h - sh, sw, sh); }
+    return { show(ver, t, force) { const i = ver.findIndex(s => t >= s.t0 && t < s.t0 + s.dur); if (i < 0) return; if (i !== cur || force) { cur = i; load(ver, i, t); } frame(); }, stop() { vids.forEach(v => v.pause()); figV.pause(); }, get cur() { return cur; }, reset() { cur = -1; } }; }
+  const VA = View($('#vA')), VB = View($('#vB'));
+  let raf = null; const music = $('#music');
+  function tick() { let t = music.currentTime; const sec = sections()[V[sel]?.si];
+    if ((loopSec || duel) && sec && t >= sec.t1 - .05) { music.currentTime = sec.t0; t = sec.t0; VA.reset(); VB.reset(); }
+    VA.show(V, t); if (duel) VB.show(duel.B, t); $('#clock').textContent = fmt(t) + ' / ' + fmt(S.dur); $('#head').style.left = t * px + 'px';
+    const i = V.findIndex(s => t >= s.t0 && t < s.t0 + s.dur); if (i >= 0 && i !== sel && !music.paused) { sel = i; $$('#rplate .slot').forEach((d, k) => d.classList.toggle('sel', k === sel)); }
+    if (!music.paused) raf = requestAnimationFrame(tick); }
+  function play() { music.play().then(() => { $('#play').textContent = '❚❚ PAUSE'; tick(); }).catch(() => toast('THE SONG COULD NOT LOAD')); }
+  function stop() { music.pause(); cancelAnimationFrame(raf); VA.stop(); VB.stop(); $('#play').textContent = '▶ PLAY'; }
+  function seek(t) { music.currentTime = Math.max(0, Math.min(S.dur - .05, t)); VA.reset(); VB.reset(); VA.show(V, music.currentTime, true); if (duel) VB.show(duel.B, music.currentTime, true); $('#head').style.left = music.currentTime * px + 'px'; $('#clock').textContent = fmt(music.currentTime) + ' / ' + fmt(S.dur); drawBurger(); }
+  function audition(id) { const c = CARD[id]; stop(); const el = $('#vA'), v = el.querySelectorAll('video')[0]; el.querySelectorAll('video').forEach(x => x.style.opacity = 0); v.style.opacity = 1;
+    if (c.type === 'figure') { v.src = url(c.packed); } else { v.src = url(c.media); v.onloadedmetadata = () => { try { v.currentTime = c.in != null ? c.in : v.duration / 2 - 1; } catch (e) { } }; }
+    v.muted = false; v.volume = .5; v.play().catch(() => { }); VA.reset(); el.querySelector('.cap').textContent = 'AUDITION · ' + (c.title || ''); el.querySelector('.say').textContent = c.words?.length ? '“' + c.words.join(' / ') + '”' : ''; }
+  $('#play').onclick = () => music.paused ? play() : stop();
+  $('#loop').onclick = () => { loopSec = !loopSec; $('#loop').classList.toggle('on', loopSec); };
+  $('#sndb').onclick = () => { slopSound = !slopSound; $('#sndb').classList.toggle('on', slopSound); VA.reset(); toast(slopSound ? "THE PICKUPS' OWN SOUND UNDER THE SONG" : 'THE SONG ALONE'); };
+  // ---- the duel: a challenger version plays beside yours, section by section; the winner stays, its cards teach the shuffle what you like
+  function duelSection(si) { const sec = sections()[si]; if (!sec) { endDuel(); return; } duel.si = si; duel.B = shuffle(V, si); sel = V.findIndex(s => s.si === si);
+    $('#screens').classList.add('duel'); $('#vB').style.display = ''; drawAll(); seek(sec.t0 + .02); play(); toast(`DUEL · SECTION ${si + 1} OF ${S.sections.length} · ${sec.w.replace('THE ', '')}`); }
+  function startDuel() { if (duel) { endDuel(); return; } snap(); duel = { si: 0, B: null }; $('#duelb').textContent = 'END DUEL'; duelSection(V[sel]?.si || 0); }
+  function endDuel() { duel = null; stop(); $('#screens').classList.remove('duel'); $('#vB').style.display = 'none'; $('#duelb').textContent = 'DUEL'; drawAll(); save(); }
+  $$('.win button').forEach(b => b.onclick = () => { if (!duel) return; snap(); const si = duel.si, mine = V.filter(s => s.si === si), theirs = duel.B.filter(s => s.si === si);
+    if (b.dataset.w === 'B') { V = V.map(s => s.si === si ? { ...duel.B[V.indexOf(s)], k: true } : s); theirs.forEach(s => taste(s.p, .35)); mine.forEach(s => taste(s.p, -.12)); toast('THE CHALLENGER WINS · LOCKED'); }
+    else { V = V.map(s => s.si === si ? { ...s, k: true } : s); mine.forEach(s => taste(s.p, .25)); theirs.forEach(s => taste(s.p, -.12)); toast('YOURS STAYS · LOCKED'); }
+    save(); duelSection(si + 1); });
+  $('#duelb').onclick = startDuel;
+  $('#shuffle').onclick = () => { snap(); V = shuffle(V); save(); drawAll(); seek(music.currentTime); toast('SHUFFLED · LOCKED SLOTS KEPT'); };
+  $('#undo').onclick = undo;
+  // ---- serve: the cut list for the renderer (slopfeeder/cut.py --cutlist)
+  $('#serve').onclick = () => { const out = { song: S.n, title: S.title, file: S.file, lp: lp(V), slots: V.map(s => { const c = CARD[s.p] || {}, f = CARD[s.f];
+      return { t0: s.t0, dur: s.dur, world: s.w, cut_in: s.x, plate: { id: s.p, type: c.type, media: c.media, in: c.in ?? null }, figure: f ? { id: s.f, packed: f.packed } : null, sound: !!s.s, generate: s.g ? s.g.id : null }; }) };
+    const b = new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `griddle-${S.n}.json`; a.click();
+    toast('SERVED · griddle-' + S.n + '.json · render: python3 slopfeeder/cut.py --cutlist griddle-' + S.n + '.json'); };
+  // ---- keys
+  addEventListener('keydown', e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return; const k = e.key.toLowerCase();
+    if (k === ' ') { e.preventDefault(); music.paused ? play() : stop(); } if (k === 'arrowright') { select(sel + 1); seek(V[sel].t0 + .02); } if (k === 'arrowleft') { select(sel - 1); seek(V[sel].t0 + .02); }
+    if (k === 'f') flip(sel, false); if (k === 'x') flip(sel, true); if (k === 'l') { snap(); V[sel].k = !V[sel].k; save(); drawAll(); } if (k === 's') $('#shuffle').click(); if (k === 'd') startDuel(); if (k === 'z') undo(); if (k === 'o') $('#loop').click(); });
+  // ---- load
+  Promise.all([fetch('slopfeeder/deck.json').then(r => r.json()), fetch('slopfeeder/deck-emb.bin').then(r => r.arrayBuffer()), fetch('slopfeeder/studio.json').then(r => r.json())]).then(([dk, eb, plan]) => {
+    DK = dk; const I = new Int8Array(eb); EMB = new Float32Array(I.length); for (let k = 0; k < I.length; k++) EMB[k] = I[k] * dk.scale; dk.cards.forEach((c, k) => { c._k = k; CARD[c.id] = c; });
+    PLAN = plan; $('#songs').innerHTML = PLAN.songs.map(s => `<button data-n="${s.n}" title="${esc(s.title)}">${s.n} · ${esc(s.title)}</button>`).join(''); $$('#songs button').forEach(b => b.onclick = () => pickSong(b.dataset.n));
+    $('#ftype').innerHTML = ['all', 'ai', 'voices', 'archive', 'drawn', 'figure'].map(t => `<button data-t="${t}" class="${t === 'all' ? 'on' : ''}">${t.toUpperCase()}</button>`).join('');
+    $('#fworld').innerHTML = ['all', ...WORLDS].map(w => `<button data-w="${w}" class="${w === 'all' ? 'on' : ''}" style="${w !== 'all' ? 'border-color:' + COL(w) : ''}">${w === 'all' ? 'EVERY WORLD' : w.replace('THE ', '')}</button>`).join('');
+    $$('#ftype button').forEach(b => b.onclick = () => { filt.type = b.dataset.t; $$('#ftype button').forEach(x => x.classList.toggle('on', x === b)); shown = 60; drawDeck(); });
+    $$('#fworld button').forEach(b => b.onclick = () => { filt.world = b.dataset.w; $$('#fworld button').forEach(x => x.classList.toggle('on', x === b)); shown = 60; drawDeck(); });
+    pickSong('26'); drawDeck(); addEventListener('resize', () => S && drawTrack()); });
+})();
+</script></body></html>
