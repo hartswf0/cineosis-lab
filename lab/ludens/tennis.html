@@ -11,7 +11,7 @@
 *{ box-sizing:border-box; } html,body{ margin:0; height:100%; overflow:hidden; } body{ background:var(--bg); color:var(--ink); font:400 13px/1.45 var(--mono); display:flex; flex-direction:column; touch-action:none; user-select:none; }
 [hidden]{ display:none!important; }
 button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:var(--ink); border:1px solid var(--faint); border-radius:3px; padding:6px 12px; cursor:pointer; } button:hover{ border-color:var(--hot); } button.on{ background:var(--hot); color:#170b04; border-color:var(--hot); }
-.bar{ display:flex; gap:10px; align-items:center; padding:8px 14px; flex-wrap:wrap; } .bar h1{ margin:0; font:700 22px var(--sans); letter-spacing:.14em; } .bar h1 b{ color:var(--hot); } .sp{ flex:1; }
+.sp{ flex:1; }
 .sc{ font:700 30px var(--sans); letter-spacing:.06em; } .sc .a{ color:var(--a); } .sc .b{ color:var(--b); } .st{ color:var(--dim); }
 #wrap{ position:relative; flex:1; min-height:0; } canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
 .coll{ display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:4px 14px 10px; } .coll div{ display:flex; gap:3px; align-items:center; overflow:hidden; min-height:40px; } .coll img{ height:36px; aspect-ratio:16/9; object-fit:cover; border-radius:2px; flex:none; } .coll .q{ width:6px; height:3px; flex:none; border-radius:2px; } .coll b{ font:600 12px var(--mono); margin-right:6px; white-space:nowrap; }
@@ -20,7 +20,7 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
 .row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; } input{ font:500 14px var(--mono); background:var(--top); color:var(--ink); border:1px solid var(--faint); border-radius:3px; padding:6px 8px; width:110px; text-transform:uppercase; }
 #qr{ background:#fff; padding:6px; border-radius:4px; width:max-content; } #qr img,#qr canvas{ display:block; width:132px; height:132px; }
 </style></head><body>
-<div class="bar"><h1>CINEOSIS · <b>TENNIS</b></h1><span class="sc" id="sc"><span class="a">0</span> · <span class="b">0</span></span><span class="st" id="st"></span><span class="sp"></span><button id="menu">MODES</button><a href="putt.html" style="color:var(--dim);font:700 12px var(--sans);letter-spacing:.14em;text-decoration:none">PUTT-OFF ↗</a></div>
+<div id="hd"></div>
 <div id="wrap"><canvas id="cv"></canvas>
   <div class="card" id="setup"><div class="in"><h2>TENNIS FOR TWO, THROUGH THE ARCHIVE</h2>
     <p>A ring of shots from the Slopfeeder field, in the order of meaning. Two paddles ride the ring. <b>Every shot you return is the next cut of the rally</b>, and where you send the ball decides which shot your opponent has to cut to next.</p>
@@ -38,11 +38,12 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
   const $ = id => document.getElementById(id), cv = $('cv'), ctx = cv.getContext('2d'), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const L = Ludens, TAU = Math.PI * 2, HW = .36, V0 = .9, VMAX = 2.8, WIN = 7, N = 32, COL = ['#5acde6', '#f06e64'];   /* Tennis for Two's numbers */
   const ad = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; };
-  let mode = null, role = 'local', ring = [], W = null, DPR = 1, cx = 0, cy = 0, R = 0, keys = {}, peer = null, conn = null, last = 0, remote = { a: 0 };
+  let H = null, mode = null, role = 'local', ring = [], W = null, DPR = 1, cx = 0, cy = 0, R = 0, keys = {}, peer = null, conn = null, last = 0, remote = { a: 0 };
   /* ---- the ring: a tour of the field by angle around its centre, the strongest shot of each sector (seeded: both players see the same ring) */
   function makeRing(seed) {
     const rnd = L.rng(seed), bins = Array.from({ length: N }, () => []);
-    const POOL = L.pool(); for (const c of POOL) { const a = Math.atan2(c.y - .5, c.x - .5), r = Math.hypot(c.y - .5, c.x - .5); if (r < .12) continue; bins[Math.min(N - 1, Math.floor((a + Math.PI) / TAU * N))].push(c); }
+    const POOL = L.pool(), round = L.V.layout === 'meaning' || L.V.layout === 'framing';   /* the ring follows the layout: around the map, or along hue, year or chapter */
+    for (const c of POOL) { const [x, y] = L.pos(c); let u; if (round) { const a = Math.atan2(y - .5, x - .5); if (Math.hypot(y - .5, x - .5) < .1) continue; u = (a + Math.PI) / TAU; } else u = Math.min(.999, Math.max(0, x)); bins[Math.min(N - 1, Math.floor(u * N))].push(c); }
     const src = POOL.length ? POOL : L.cards, used = new Set(); return bins.map(b => { let c = b.length ? b.sort((x, y) => y.mc - x.mc)[Math.floor(rnd() * Math.min(4, b.length))] : null; if (!c || used.has(c)) c = src.filter(x => !used.has(x))[Math.floor(rnd() * Math.max(1, src.length - used.size))] || src[0]; used.add(c); return c; });
   }
   const clipAt = a => Math.floor((((a + Math.PI) % TAU + TAU) % TAU) / TAU * N) % N;
@@ -51,14 +52,13 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
   /* ---- modes */
   const begin = m => { mode = m; $('setup').hidden = true; $('end').hidden = true; W = null; W = fresh(0); W.s = [0, 0]; W.hits = [[], []]; W.film = []; W.lastClip = null; status(); paint(); };
   L.load().then(() => {
-    const q = new URLSearchParams(location.search); layout(); L.filterUI($('filt'));
+    const q = new URLSearchParams(location.search); layout(); L.filterUI($('filt')); H = L.header($('hd'), 'TENNIS', () => { if (W && mode !== 'online') { ring = makeRing(Date.now() % 1e6); colls(); } }); H.slot.innerHTML = '<span class="sc" id="sc"><span class="a">0</span> · <span class="b">0</span></span><span class="st" id="st"></span><button id="menu" style="padding:3px 8px;font-size:12px">MODES</button>'; $('menu').onclick = () => { $('setup').hidden = !$('setup').hidden; };
     $('vsm').onclick = () => { ring = makeRing(Date.now() % 1e6); begin('machine'); };
     $('two').onclick = () => { ring = makeRing(Date.now() % 1e6); begin('two'); };
     $('host').onclick = hostOnline; $('join').onclick = () => joinOnline($('code').value.trim().toUpperCase());
     if (q.get('join')) { $('code').value = q.get('join'); joinOnline(q.get('join').toUpperCase()); }
     requestAnimationFrame(loop);
   });
-  $('menu').onclick = () => { $('setup').hidden = !$('setup').hidden; };
   /* ---- online: Tennis for Two's pairing (PeerJS + a code + a QR); the host plays blue and runs the ball, the guest plays red */
   const PFX = 'cineosis-tennis-';
   function hostOnline() {
@@ -127,7 +127,7 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
   function colls() { [0, 1].forEach(p => { $(p ? 'cb' : 'ca').innerHTML = `<b style="color:${COL[p]}">${mode === 'machine' && p ? 'the machine' : p ? 'red' : 'blue'} · ${W.hits[p].length}</b>` + W.hits[p].slice(-14).map(h => `<i class="q" style="background:rgb(${L.tint(h.q)})"></i><img src="${L.root + h.c.th}" title="${esc(h.c.ti)} · ${L.word(h.q)}" alt="">`).join(''); }); }
   function finish() {
     const w = W.s[0] > W.s[1] ? 0 : 1, avg = p => W.hits[p].length ? W.hits[p].reduce((a, h) => a + h.q, 0) / W.hits[p].length : 0;
-    $('endin').innerHTML = `<h2 style="color:${COL[w]}">${mode === 'machine' ? (w ? 'THE MACHINE WINS' : 'YOU WIN') : (w ? 'RED WINS' : 'BLUE WINS')} ${W.s[0]}–${W.s[1]}</h2><p>The rally film: ${W.film.length} shots, cut by both of you in turn. Blue kept ${W.hits[0].length} shots (cut quality ${Math.round(avg(0) * 100)}), red kept ${W.hits[1].length} (${Math.round(avg(1) * 100)}).</p><div class="row"><button id="wr" class="on">WATCH THE RALLY ▸</button><button id="wb">WATCH BLUE’S FILM</button><button id="wd">WATCH RED’S FILM</button><button id="ag">PLAY AGAIN</button></div>`;
+    $('endin').innerHTML = `<h2 style="color:${COL[w]}">${mode === 'machine' ? (w ? 'THE MACHINE WINS' : 'YOU WIN') : (w ? 'RED WINS' : 'BLUE WINS')} ${W.s[0]}–${W.s[1]}</h2><p>The rally film: ${W.film.length} shots, cut by both of you in turn. Blue kept ${W.hits[0].length} shots (cut quality ${Math.round(avg(0) * 100)}), red kept ${W.hits[1].length} (${Math.round(avg(1) * 100)}).</p><div class="row"><button id="wr" class="on">WATCH THE RALLY</button><button id="wb">WATCH BLUE’S FILM</button><button id="wd">WATCH RED’S FILM</button><button id="ag">PLAY AGAIN</button></div>`;
     $('end').hidden = false;
     $('wr').onclick = () => L.watch([{ name: 'the rally', col: '#ebe5d8', shots: W.film.map(h => h.c), cols: W.film.map(h => COL[h.who]), names: W.film.map(h => h.who ? 'red' : 'blue') }], { each: 1.8 });
     $('wb').onclick = () => L.watch([{ name: 'blue', col: COL[0], shots: W.hits[0].map(h => h.c) }]); $('wd').onclick = () => L.watch([{ name: 'red', col: COL[1], shots: W.hits[1].map(h => h.c) }]);

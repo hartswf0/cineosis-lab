@@ -13,17 +13,22 @@ cards = [c for c in FD["cards"] if c["id"] in IX and c["t"] in ("ai", "archive")
 V = np.stack([E[IX[c["id"]]] for c in cards]); mu = V.mean(0); _, _, Wt = np.linalg.svd(V - mu, full_matrices=False); P = (V - mu) @ Wt[:32].T; P /= np.linalg.norm(P, axis=1, keepdims=True) + 1e-9
 pr = np.random.default_rng(0).integers(0, len(cards), (6000, 2)); a, b = np.polyfit((P[pr[:, 0]] * P[pr[:, 1]]).sum(1), (V[pr[:, 0]] * V[pr[:, 1]]).sum(1), 1)
 AF = [c["aff"] for c in cards if c.get("aff")]; AM = {k: sum(x[k] for x in AF) / len(AF) for k in AF[0]}   # chapter: the song a shot fits best relative to how all shots fit it
+# FRAMING: the lab's composition vectors (comp-emb.bin: where the weight of a frame sits), as a 16-d calibrated PCA (a lens) and a 2-d map (a layout)
+K = np.fromfile(os.path.join(SF, "comp-emb.bin"), np.int8).reshape(len(A), -1).astype(np.float32); K /= np.linalg.norm(K, axis=1, keepdims=True) + 1e-9
+KV = np.stack([K[IX[c["id"]]] for c in cards]); km = KV.mean(0); _, _, Kt = np.linalg.svd(KV - km, full_matrices=False); KP = (KV - km) @ Kt[:16].T; K2 = KP[:, :2].copy(); KP /= np.linalg.norm(KP, axis=1, keepdims=True) + 1e-9
+kpr = np.random.default_rng(1).integers(0, len(cards), (6000, 2)); ka, kb = np.polyfit((KP[kpr[:, 0]] * KP[kpr[:, 1]]).sum(1), (KV[kpr[:, 0]] * KV[kpr[:, 1]]).sum(1), 1)
+K2 = (K2 - np.percentile(K2, 2, 0)) / (np.percentile(K2, 98, 0) - np.percentile(K2, 2, 0)); K2 = np.clip(K2, 0, 1)
 out = []
-for c, p in zip(cards, P):
+for n, (c, p) in enumerate(zip(cards, P)):
     a_ = A[IX[c["id"]]]; ai = c["t"] == "ai"
     out.append({"id": c["id"], "k": "ai" if ai else "ar", "x": round(c["xy"][0], 4), "y": round(c["xy"][1], 4), "th": "slopfeeder/" + c["th"],
                 "m": ("slopfeeder/" + c["m"]) if ai else c["m"], "ss": round(a_.get("in") or 0, 2) if ai else None, "du": round((a_.get("out", 0) - a_.get("in", 0)) if ai else (c.get("du") or 4), 2),
-                "ti": c.get("ti", "")[:60], "w": c.get("w"), "ch": max(c["aff"], key=lambda k: c["aff"][k] - AM[k]) if c.get("aff") else None, "src": (c.get("ti") or "")[:24] if not ai else "AI pickups", "y0": c.get("y"), "po": round(a_.get("poison") or 0, 2), "mc": round(c.get("mc", 0), 3), "sp": SP.get(c["id"]), "e": [int(round(v * 127)) for v in p]})
+                "ti": c.get("ti", "")[:60], "w": c.get("w"), "ch": max(c["aff"], key=lambda k: c["aff"][k] - AM[k]) if c.get("aff") else None, "src": (c.get("ti") or "")[:24] if not ai else "AI pickups", "y0": c.get("y"), "po": round(a_.get("poison") or 0, 2), "mc": round(c.get("mc", 0), 3), "sp": SP.get(c["id"]), "e": [int(round(v * 127)) for v in p], "f": [int(round(v * 127)) for v in KP[n]], "fx": round(float(K2[n, 0]), 4), "fy": round(float(K2[n, 1]), 4), "col": c.get("col"), "cc": round(max((c.get("ch") or {"x": 0}).values()), 3)})
 # holes: riverbed shots of the story cut (a line, or a poison turn), in story order, that are in the field
 st = json.load(open(os.path.join(SF, "lattice", "story.json"))); have = {c["id"] for c in out}; holes = []
 for col in st["cols"]:
     x = col["cands"][0]
     if col.get("hold") and x.get("id") in have and x["id"] not in [h["id"] for h in holes]: holes.append({"id": x["id"], "act": col["act"], "cap": col.get("cap", "")})
 CH = [["26", "I", "THE BUCKET BET"], ["14", "II", "THE RENDER FLEET"], ["13", "III", "THE COMMUNION"], ["23", "IV", "THE CHORUS"], ["20", "V", "THE MAINFRAME CONFESSION"], ["09", "VI", "THE RECURSION"], ["06", "VII", "GO HOME AND BE FREE"], ["07", "VIII", "CLEANSE THE MEMORY"]]
-json.dump({"chapters": CH, "cal": [round(float(a), 4), round(float(b), 4)], "sprites": {"fw": 128, "fh": 72, "nf": 12, "path": "slopfeeder/sprites/s%03d.jpg"}, "cards": out, "holes": holes}, open(os.path.join(L, "ludens", "corpus.json"), "w"), separators=(",", ":"))
+json.dump({"chapters": CH, "calf": [round(float(ka), 4), round(float(kb), 4)], "cal": [round(float(a), 4), round(float(b), 4)], "sprites": {"fw": 128, "fh": 72, "nf": 12, "path": "slopfeeder/sprites/s%03d.jpg"}, "cards": out, "holes": holes}, open(os.path.join(L, "ludens", "corpus.json"), "w"), separators=(",", ":"))
 print(len(out), "shots ·", len(holes), "holes ·", f"cal {a:.3f}x+{b:.3f}", "·", os.path.getsize(os.path.join(L, "ludens", "corpus.json")) // 1024, "KB")

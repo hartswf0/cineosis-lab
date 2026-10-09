@@ -11,7 +11,7 @@
 *{ box-sizing:border-box; } html,body{ margin:0; height:100%; overflow:hidden; } body{ background:var(--bg); color:var(--ink); font:400 13px/1.45 var(--mono); display:flex; flex-direction:column; touch-action:none; user-select:none; }
 [hidden]{ display:none!important; }
 button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:var(--ink); border:1px solid var(--faint); border-radius:3px; padding:6px 12px; cursor:pointer; } button:hover{ border-color:var(--hot); } button.on{ background:var(--hot); color:#170b04; border-color:var(--hot); }
-.bar{ display:flex; gap:10px; align-items:center; padding:8px 14px; flex-wrap:wrap; } .bar h1{ margin:0; font:700 22px var(--sans); letter-spacing:.14em; } .bar h1 b{ color:var(--hot); } .sp{ flex:1; }
+.sp{ flex:1; }
 .pl{ display:flex; gap:6px; flex-wrap:wrap; } .chip{ border:1px solid var(--faint); border-radius:14px; padding:2px 10px; font:500 12px var(--mono); } .chip.cur{ box-shadow:0 0 0 1px currentColor inset; border-color:currentColor; } .chip b{ font-weight:600; }
 #wrap{ position:relative; flex:1; min-height:0; } canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; cursor:crosshair; }
 .say{ position:absolute; left:50%; top:10px; translate:-50% 0; background:#000c; padding:6px 14px; border-radius:16px; font:500 13px var(--mono); pointer-events:none; transition:opacity .4s; white-space:nowrap; z-index:3; }
@@ -21,14 +21,14 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
 .row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; } .seat{ display:flex; gap:4px; align-items:center; border:1px solid var(--faint); border-radius:4px; padding:4px 6px; } .seat input{ font:500 13px var(--mono); background:var(--top); color:var(--ink); border:1px solid var(--faint); border-radius:3px; padding:4px 6px; width:84px; }
 .score{ width:100%; border-collapse:collapse; font-size:12.5px; } .score td,.score th{ padding:4px 6px; border-bottom:1px solid var(--faint); text-align:left; } .score th{ color:var(--dim); font-weight:500; }
 </style></head><body>
-<div class="bar"><h1>OPEN <b>CUT</b></h1><span id="cnt" style="font:600 15px var(--sans);letter-spacing:.06em"></span><span class="sp"></span><div class="pl" id="pl"></div><button id="menu">SETUP</button><a href="putt.html" style="color:var(--dim);font:700 12px var(--sans);letter-spacing:.14em;text-decoration:none">PUTT ↗</a><a href="tennis.html" style="color:var(--dim);font:700 12px var(--sans);letter-spacing:.14em;text-decoration:none">TENNIS ↗</a></div>
+<div id="hd"></div>
 <div id="wrap"><canvas id="cv"></canvas><div class="say" id="say" style="opacity:0"></div>
   <div class="card" id="setup"><div class="in"><h2>OPEN CUT</h2>
     <p>Golf and tennis at once. Everyone sits around one round field of shots and putts in turn, as in golf; <b>but the shot your ball comes to rest on must answer the last shot of the one film you are all making</b>, as a tennis return answers the last hit. The film plays in the middle.</p>
     <p class="rules"><b>The land follows the film.</b> Seen from the film’s last shot, good cuts are hollows (green) and jarring cuts are hills (red); after every cut the whole land changes. <b>Claim:</b> come to rest on a free shot that cuts well and it joins the film as yours (1 point, 3 for a good cut). <b>Refused:</b> a jarring cut is not taken. <b>Territory:</b> claimed shots are bumpers for everyone. Empty ground and the screen send you back. <b>Putt</b> by pulling back from your ball; <b>hold still</b> to narrow the forecast; <b>tap once</b> mid-roll to burn.</p>
     <div id="filt"></div>
     <div class="row" id="seats"></div>
-    <div class="row"><span>cuts in the film</span><button data-n="12" class="on">12</button><button data-n="20">20</button><button data-n="30">30</button><span class="sp"></span><button id="go" class="on">OPEN THE CUT ▸</button></div></div></div>
+    <div class="row"><span>cuts in the film</span><button data-n="12" class="on">12</button><button data-n="20">20</button><button data-n="30">30</button><span class="sp"></span><button id="go" class="on">OPEN THE CUT</button></div></div></div>
   <div class="card" id="end" hidden><div class="in" id="endin"></div></div>
 </div>
 <div class="film" id="film"></div>
@@ -37,23 +37,23 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
 (() => {
   const $ = id => document.getElementById(id), cv = $('cv'), ctx = cv.getContext('2d'), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const L = Ludens, TAU = Math.PI * 2;
-  let seats = [{ n: 'you', m: false }, { n: 'the machine', m: true }, null, null], TARGET = 12, players = [], cells = [], grid = {}, own = {}, film = [], turn = 0, state = 'setup';
+  let H = null, seats = [{ n: 'you', m: false }, { n: 'the machine', m: true }, null, null], TARGET = 12, players = [], cells = [], grid = {}, own = {}, film = [], turn = 0, state = 'setup';
   let cs = 40, CX = 0, CY = 0, RD = 0, RS = 0, DPR = 1, ball = null, aim = null, flight = false, burnt = false, rest = 0, ticks = 0, msgT = 0, trace = null, since = 0, was = null;
   /* ---- setup: seats (each a person or the machine), filters, length */
-  function drawSeats() { $('seats').innerHTML = seats.map((s, i) => s ? `<span class="seat" style="border-color:${L.P[i]}"><input data-i="${i}" value="${esc(s.n)}" style="color:${L.P[i]}"><button data-m="${i}" class="${s.m ? 'on' : ''}" title="the machine plays this seat">MACHINE</button>${i > 1 ? `<button data-x="${i}">✕</button>` : ''}</span>` : (i === seats.filter(Boolean).length ? `<button data-a="${i}">+ SEAT</button>` : '')).join('');
+  function drawSeats() { $('seats').innerHTML = seats.map((s, i) => s ? `<span class="seat" style="border-color:${L.P[i]}"><input data-i="${i}" value="${esc(s.n)}" style="color:${L.P[i]}"><button data-m="${i}" class="${s.m ? 'on' : ''}" title="the machine plays this seat">MACHINE</button>${i > 1 ? `<button data-x="${i}">REMOVE</button>` : ''}</span>` : (i === seats.filter(Boolean).length ? `<button data-a="${i}">+ SEAT</button>` : '')).join('');
     $('seats').querySelectorAll('[data-m]').forEach(b => b.onclick = () => { const s = seats[+b.dataset.m]; s.m = !s.m; if (s.m && !/machine/.test(s.n)) s.n = 'the machine'; drawSeats(); });
     $('seats').querySelectorAll('[data-x]').forEach(b => b.onclick = () => { seats[+b.dataset.x] = null; seats = seats.filter(Boolean).concat([null, null, null, null]).slice(0, 4); drawSeats(); });
     $('seats').querySelectorAll('[data-a]').forEach(b => b.onclick = () => { seats[+b.dataset.a] = { n: ['you', 'ren', 'scout', 'kl'][+b.dataset.a], m: false }; drawSeats(); });
     $('seats').querySelectorAll('input').forEach(i => i.oninput = () => seats[+i.dataset.i].n = i.value); }
   document.querySelectorAll('[data-n]').forEach(b => b.onclick = () => { TARGET = +b.dataset.n; document.querySelectorAll('[data-n]').forEach(x => x.classList.toggle('on', x === b)); });
-  $('menu').onclick = () => { $('setup').hidden = !$('setup').hidden; };
-  drawSeats(); L.load().then(() => { L.filterUI($('filt'), layout); layout(); $('go').onclick = start; requestAnimationFrame(tick); });
+  drawSeats(); L.load().then(() => { L.filterUI($('filt'), layout); H = L.header($('hd'), 'OPEN CUT', () => { if (state !== 'play') layout(); else { const keep = film.map(f => f.c.id); layout(new Set(keep)); } }); H.slot.innerHTML = '<span id="cnt" style="font:600 15px var(--sans);letter-spacing:.06em"></span><div class="pl" id="pl"></div><button id="menu" style="padding:3px 8px;font-size:12px">SETUP</button>'; $('menu').onclick = () => { $('setup').hidden = !$('setup').hidden; }; layout(); $('go').onclick = start; requestAnimationFrame(tick); });
   /* ---- the round field: the shots in play by meaning, folded into a disc around a screen */
-  function layout() {
+  function layout(must = new Set()) {
     const r = $('wrap').getBoundingClientRect(); DPR = Math.min(2, devicePixelRatio || 1); cv.width = r.width * DPR; cv.height = r.height * DPR;
     RD = Math.min(r.width, r.height) / 2 - 16; CX = r.width / 2; CY = r.height / 2; const pool = L.pool(); const n = Math.max(60, Math.min(260, pool.length)); cs = Math.max(30, Math.sqrt(Math.PI * RD * RD / n * .9)); RS = RD * .26;
     const G = {}, gr = Math.ceil(RD / cs);
-    for (const c of pool) { let u = (c.x - .5) * 2, v = (c.y - .5) * 2; const d = Math.hypot(u, v); if (d > .98) { u = u / d * .98; v = v / d * .98; } const px = u * RD, py = v * RD; if (Math.hypot(px, py) < RS + cs * .6) continue; const k = Math.round(px / cs) + ',' + Math.round(py / cs * 1.0); if (!G[k] || c.mc > G[k].mc) G[k] = c; }
+    const PS = pool.map(c => L.pos(c)), qq = (a, f) => { const v = a.slice().sort((m, n) => m - n); return v[Math.floor(f * (v.length - 1))]; }, X0 = qq(PS.map(p => p[0]), .02), X1 = qq(PS.map(p => p[0]), .98), Y0 = qq(PS.map(p => p[1]), .02), Y1 = qq(PS.map(p => p[1]), .98);   /* the chosen layout, stretched to the pool and folded into the disc */
+    for (const [n_, c] of pool.entries()) { let u = ((PS[n_][0] - X0) / ((X1 - X0) || 1) - .5) * 2, v = ((PS[n_][1] - Y0) / ((Y1 - Y0) || 1) - .5) * 2; const d = Math.hypot(u, v); if (d > .98) { u = u / d * .98; v = v / d * .98; } const px = u * RD, py = v * RD; if (Math.hypot(px, py) < RS + cs * .6) continue; const k = Math.round(px / cs) + ',' + Math.round(py / cs * 1.0); if (!G[k] || (must.has(c.id) && !must.has(G[k].id)) || (!must.has(G[k].id) && c.mc > G[k].mc)) G[k] = c; }
     grid = {}; cells = []; for (const [k, c] of Object.entries(G)) { const [i, j] = k.split(',').map(Number); const x = i * cs, y = j * cs; if (Math.hypot(x, y) > RD - cs * .5 || Math.hypot(x, y) < RS + cs * .55) continue; grid[k] = c; cells.push({ i, j, x, y, c }); }
   }
   const cellAt = (x, y) => { const k = Math.round(x / cs) + ',' + Math.round(y / cs); const c = grid[k]; return c ? { k, c } : null; };   /* world = px from the centre */
@@ -114,7 +114,7 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
   function pass() { hud(); turn = (turn + 1) % players.length; setTimeout(() => { if (state === 'play') begin(); }, 700); }
   function over() {
     state = 'over'; hud(); const r = players.slice().sort((a, b) => b.pts - a.pts), avg = film.slice(1).reduce((a, f) => a + f.q, 0) / Math.max(1, film.length - 1);
-    $('endin').innerHTML = `<h2>THE CUT IS CLOSED</h2><p>${film.length} shots, cut in turn by ${players.length} players${players.some(p => p.m) ? ' and the machine' : ''} · mean cut ${Math.round(avg * 100)}.</p><table class="score"><tr><th></th><th>points</th><th>shots claimed</th><th>refused</th></tr>${r.map((p, k) => `<tr><td style="color:${p.col}">#${k + 1} ● ${esc(p.name)}</td><td>${p.pts}</td><td>${p.claims}</td><td>${p.ref}</td></tr>`).join('')}</table><div class="row"><button id="wf" class="on">WATCH OUR FILM ▸</button><button id="ag">PLAY AGAIN</button></div>`;
+    $('endin').innerHTML = `<h2>THE CUT IS CLOSED</h2><p>${film.length} shots, cut in turn by ${players.length} players${players.some(p => p.m) ? ' and the machine' : ''} · mean cut ${Math.round(avg * 100)}.</p><table class="score"><tr><th></th><th>points</th><th>shots claimed</th><th>refused</th></tr>${r.map((p, k) => `<tr><td style="color:${p.col}">#${k + 1} ● ${esc(p.name)}</td><td>${p.pts}</td><td>${p.claims}</td><td>${p.ref}</td></tr>`).join('')}</table><div class="row"><button id="wf" class="on">WATCH OUR FILM</button><button id="ag">PLAY AGAIN</button></div>`;
     $('end').hidden = false; $('wf').onclick = () => L.watch([{ name: 'our film', col: '#ebe5d8', shots: film.map(f => f.c), cols: film.map(f => f.who < 0 ? '#ebe5d8' : players[f.who].col), names: film.map(f => f.who < 0 ? 'the opening' : players[f.who].name) }], { each: 2.2 });
     $('ag').onclick = () => { $('end').hidden = true; $('setup').hidden = false; state = 'setup'; };
   }
