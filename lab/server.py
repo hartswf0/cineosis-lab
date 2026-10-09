@@ -25,7 +25,13 @@ def corpus_url(sid):
         except OSError:
             pass
     c = _corpus.get(sid)
-    return c and c.get("videoUrl")
+    if not c and "_slop" not in _corpus:   # the Slopfeeder's archive shots (foraged, not in the corpus): their CDN urls from its atlas
+        _corpus["_slop"] = {}
+        try:
+            _corpus["_slop"] = {x["id"]: x["media"] for x in json.load(open(os.path.join(LAB, "slopfeeder", "atlas.json")))["cards"] if x["type"] == "archive"}
+        except (OSError, ValueError, KeyError):
+            pass
+    return (c and c.get("videoUrl")) or _corpus.get("_slop", {}).get(sid)
 GAP = 2.5
 _lock, _last = threading.Lock(), [0.0]
 _clip, _clip_lock = {}, threading.Lock()
@@ -163,6 +169,8 @@ class Handler(SimpleHTTPRequestHandler):
         if not sid or any(ch not in "0123456789abcdef-" for ch in sid):   # shot ids only; no paths
             return self._json(400, {"error": "bad shot id"})
         local = os.path.join(LAB, "clips", sid + ".mp4")
+        if not os.path.isfile(local) and os.path.isfile(os.path.join(LAB, "slopfeeder", "fclips", sid + ".mp4")):
+            local = os.path.join(LAB, "slopfeeder", "fclips", sid + ".mp4")
         if not os.path.isfile(local):
             local = os.path.join(REMOTE, sid + ".mp4")
             if not os.path.isfile(local):
@@ -285,13 +293,13 @@ class Handler(SimpleHTTPRequestHandler):
             json.dump(rows, open(ASSIGN, "w"), indent=1, ensure_ascii=False)
             return self._json(200, row)
         if self.path == "/api/edits":
-            if not isinstance(body.get("clips"), list) or not body["clips"]:
+            if (not isinstance(body.get("clips"), list) or not body["clips"]) and not str(body.get("tool", "")).startswith("blacktop"):   # a blacktop recipe has no clips
                 return self._json(400, {"error": "clips required"})
             os.makedirs(EDITS, exist_ok=True)
             body["ts"] = time.strftime("%Y-%m-%dT%H:%M:%S")
-            name = time.strftime("%Y%m%d-%H%M%S") + "-" + str(body.get("tool", "edit"))[:12] + ".json"
+            name = time.strftime("%Y%m%d-%H%M%S") + "-" + str(body.get("tool", "edit"))[:12] + ".json"; body["saved_as"] = name
             json.dump(body, open(os.path.join(EDITS, name), "w"), indent=1, ensure_ascii=False)
-            return self._json(200, {"saved": name, "clips": len(body["clips"])})
+            return self._json(200, {"saved": name, "clips": len(body.get("clips") or [])})
         return self._json(404, {"error": "unknown endpoint"})
 
     def log_message(self, fmt, *args):

@@ -12,7 +12,7 @@ P = json.load(open(os.path.join(D, "studio.json"))); cuts = {c["id"]: c for c in
 if N == "--cutlist":   # a cut served from the griddle, read into the same shape as a plan
     CL = json.load(open(sys.argv[2])); N, MODE = CL["song"], "griddle"; secs = []
     for sl in CL["slots"]:
-        pl = sl["plate"]; sh = {"t0": sl["t0"], "dur": sl["dur"], "alts": [], "trap": sl.get("cut_in", "cut"), "in": pl.get("in"), "rate": pl.get("rate") or 1}
+        pl = sl["plate"]; sh = {"t0": sl["t0"], "dur": sl["dur"], "alts": [], "trap": sl.get("cut_in", "cut"), "in": pl.get("in"), "rate": pl.get("rate") or 1, "look": sl.get("look"), "locked": sl.get("locked", 0)}
         if pl["type"] == "drawn": sh["cartoon"] = pl["id"].replace("drawn-", "", 1); sh["clip"] = {"id": pl["id"]}
         elif pl["type"] == "ai":
             nm = os.path.basename(pl["media"])[:-4]; sh["clip"] = {"id": pl["id"], "ai": {"file": f"ai/src/{nm}.mp4" if os.path.exists(os.path.join(D, "ai", "src", nm + ".mp4")) else pl["media"], "t0": pl["in"] or 0, "t1": (pl["in"] or 0) + 12}}
@@ -22,11 +22,12 @@ if N == "--cutlist":   # a cut served from the griddle, read into the same shape
         if not secs or secs[-1]["world"] != sl["world"]: secs.append({"world": sl["world"], "shots": []})
         secs[-1]["shots"].append(sh)
     flat = [x for sec in secs for x in sec["shots"]]; sd = float(subprocess.run(["ffprobe", "-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", os.path.join(os.path.expanduser("~/moto/THE LITURGY OF THE TWO BUTTONS"), CL["file"])], capture_output=True, text=True).stdout or 0)
-    for a_, b_ in zip(flat, flat[1:] + [None]): a_["dur"] = round((b_["t0"] if b_ else sd) - a_["t0"], 3)   # each slot runs until the next begins: the cut covers the whole song
+    for a_, b_ in zip(flat, flat[1:] + [None]):
+        d_ = round((b_["t0"] if b_ else sd) - a_["t0"], 3); a_["dur"] = d_ if d_ > .2 else a_["dur"]   # a song whose length can't be probed keeps the slot's own   # each slot runs until the next begins: the cut covers the whole song
     song = {"file": CL["file"], "sections": secs}
 else: song = next(s for s in P["songs"] if s["n"] == N); CL = {}
 REG = {"raw": "", "newsreel": ",hue=s=0,eq=contrast=1.28:brightness=-0.03,noise=alls=9:allf=t",   # one look for the whole film, so archive, pickup and drawing belong to one world
-       "flat": ",split[ra][rb];[ra]format=rgb24,lutrgb=r='floor(val/52)*52+20':g='floor(val/52)*52+20':b='floor(val/52)*52+20',format=gbrp[rp];[rb]format=gray,gblur=sigma=1.4,edgedetect=low=0.1:high=0.25,negate,format=gbrp[re];[rp][re]blend=all_mode=multiply,format=yuv420p"}[CL.get("register", "raw")]
+       "flat": ",split[ra][rb];[ra]format=rgb24,lutrgb=r='floor(val/52)*52+20':g='floor(val/52)*52+20':b='floor(val/52)*52+20',format=gbrp[rp];[rb]format=gray,gblur=sigma=1.4,edgedetect=low=0.1:high=0.25,negate,format=gbrp[re];[rp][re]blend=all_mode=multiply,format=yuv420p"}.get(CL.get("register", "raw"), "")
 ALB = os.path.expanduser("~/moto/THE LITURGY OF THE TWO BUTTONS"); CACHE = os.path.join(D, "fclips"); os.makedirs(CACHE, exist_ok=True)
 OUTD = os.path.join(D, "roughcut") if MODE in ("archive", "griddle") else os.path.join(D, "src", "roughcut"); T = os.path.join(OUTD, f"parts-{N}-{MODE}"); os.makedirs(T, exist_ok=True)
 W, H, FPS = 1280, 720, 24
@@ -37,7 +38,8 @@ def fetch(c):
     if not os.path.exists(p) or os.path.getsize(p) < 5000: subprocess.run(["curl", "-sfL", "-A", "cineosis-44-research", "-o", p, c["v"]])
     return p if os.path.exists(p) and os.path.getsize(p) > 5000 else None
 dur = lambda p: float(subprocess.run(["ffprobe", "-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", p], capture_output=True, text=True).stdout or 0)
-parts, n, SOUNDS, t_at = [], 0, [], 0.0
+parts, n, SOUNDS, t_at, PARTS = [], 0, [], 0.0, []
+LUTN = os.path.join(D, "looks", "newsreel.cube"); PY = os.path.join(os.path.dirname(D), ".venv", "bin", "python")
 for si, sec in enumerate(song["sections"]):
     for sh in sec["shots"]:
         ai = sh["clip"].get("ai") if not sh.get("cartoon") else None
@@ -63,8 +65,13 @@ for si, sec in enumerate(song["sections"]):
         t_at += L
         if MODE != "griddle" and sec["world"] == "THE LANDING" and not sh.get("cartoon"):   # code: the shell hits on the downbeat (shake, then a white flash that fades)
             fc += f";{last}crop=iw-24:ih-24:12+10*sin(t*53):12+10*cos(t*41),scale={W}:{H},fade=t=in:st=0:d=0.12:color=white[sh]"; last = "[sh]"
-        if REG: fc += f";{last}null{REG}[rg]"; last = "[rg]"
+        lk = sh.get("look") or CL.get("register", "raw")   # one look per shot from the blacktop (its film's look, or 'mixed'); the older one-look-per-film otherwise
+        if lk == "newsreel" and os.path.exists(LUTN): fc += f";{last}lut3d=file='{LUTN}',noise=alls=9:allf=t[rg]"; last = "[rg]"   # the characters' and the pails' colours kept
+        elif REG and lk not in ("cartoon", "raw"): fc += f";{last}null{REG}[rg]"; last = "[rg]"
+        PARTS.append({"t": round(t_at - L, 3), "L": L, "src": src, "a": a, "rate": R, "id": sh["clip"].get("id"), "world": sec["world"], "locked": sh.get("locked", 0)})
         subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", fc, "-map", last, "-t", f"{L:.2f}", *ENC, out], check=True)
+        if lk == "cartoon":   # the evolved cartoon look, frame by frame (lookfx.py, the same code look.py scored)
+            subprocess.run([PY, os.path.join(D, "lookfx.py"), out, out + ".c.mp4"], check=True); os.replace(out + ".c.mp4", out)
         parts.append(out)
     print(f"section {si + 1}/{len(song['sections'])} {sec['world']} · {len(sec['shots'])} shots", flush=True)
 lst = os.path.join(T, "list.txt"); open(lst, "w").write("".join(f"file '{p}'\n" for p in parts))
@@ -72,6 +79,11 @@ pic = os.path.join(T, "picture.mp4"); subprocess.run(["ffmpeg", "-v", "error", "
 out = os.path.join(OUTD, (f"blacktop-{N}-{CL.get('bet', '').lower()}-{CL.get('register', 'raw')}" if CL.get("tool") == "blacktop" else os.path.basename(sys.argv[2])[:-5]) + ".mp4" if MODE == "griddle" else f"song-{N}-{MODE}.mp4")
 # the song, and under it the pickups' own sound wherever the cut let it in (ducked, faded at the edges)
 sins, sfc = [], "[1:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=1.0[s0]"; mix = "[s0]"
+# the foley pass: thuds on the locked pounds, the archive's own sound where it is the world (foley.py), as one more stem
+FOL = os.path.join(T, "foley.wav")
+if MODE == "griddle" and CL.get("tool") == "blacktop":
+    json.dump(PARTS, open(os.path.join(T, "parts.json"), "w")); subprocess.run([PY, os.path.join(D, "foley.py"), os.path.join(T, "parts.json"), FOL])
+    if os.path.exists(FOL): SOUNDS.append((0.0, FOL, 0.0, 9999))
 for j, (t0_, src_, in_, L_) in enumerate(SOUNDS):
     if not os.path.exists(src_): continue
     sins += ["-ss", f"{max(0, in_):.2f}", "-t", f"{L_:.2f}", "-i", src_]; k_ = 2 + len(sins) // 6 - 1
