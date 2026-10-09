@@ -39,7 +39,7 @@ for f in sorted(os.listdir(KIT)):
     if f.endswith(".wav"): kit.setdefault(f.rsplit("-", 1)[0], []).append(sf.read(os.path.join(KIT, f))[0])
 BY = {"THE LANDING": ["an-explosion", "artillery-gunfire", "drums"], "THE DRILL LINE": ["drums", "footsteps-in-mud"], "THE TIDE": ["footsteps-in-mud"], "THE KITCHEN": ["drums"]}
 # ---- the stem
-P = json.load(open(sys.argv[1])); BEATS = next((x["beats"] for x in json.load(open(os.path.join(D, "songs.json")))["songs"] if len(sys.argv) > 3 and x["n"] == sys.argv[3]), []); A = {c["id"]: c for c in json.load(open(os.path.join(D, "atlas.json")))["cards"]}
+P = json.load(open(sys.argv[1])); BEATS = json.load(open(sys.argv[3])) if len(sys.argv) > 3 and sys.argv[3].endswith(".json") else next((x["beats"] for x in json.load(open(os.path.join(D, "songs.json")))["songs"] if len(sys.argv) > 3 and x["n"] == sys.argv[3]), []); A = {c["id"]: c for c in json.load(open(os.path.join(D, "atlas.json")))["cards"]}
 end = max(p["t"] + p["L"] for p in P); stem = np.zeros(int((end + 1) * SR), np.float32); rng = np.random.default_rng(5); n_thud = n_arch = 0
 def put(t, s, gain):
     i = int(t * SR); j = min(len(stem), i + len(s)); stem[i:j] += s[:j - i] * gain

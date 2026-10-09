@@ -99,7 +99,7 @@ sins, sfc = [], "[1:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=1
 # the foley pass: thuds on the locked pounds, the archive's own sound where it is the world (foley.py), as one more stem
 FOL = os.path.join(T, "foley.wav")
 if MODE == "griddle" and CL.get("tool") == "blacktop":
-    json.dump(PARTS, open(os.path.join(T, "parts.json"), "w")); subprocess.run([PY, os.path.join(D, "foley.py"), os.path.join(T, "parts.json"), FOL, N])
+    json.dump(PARTS, open(os.path.join(T, "parts.json"), "w")); subprocess.run([PY, os.path.join(D, "foley.py"), os.path.join(T, "parts.json"), FOL, CL.get("beats_file") or N])
     if os.path.exists(FOL): SOUNDS.append((0.0, FOL, 0.0, 9999))
 for j, (t0_, src_, in_, L_) in enumerate(SOUNDS):
     if not os.path.exists(src_): continue

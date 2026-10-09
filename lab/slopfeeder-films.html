@@ -30,9 +30,9 @@ details{ border-top:1px solid var(--faint); padding-top:8px; color:var(--dim); f
 <script>
 (() => {
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  fetch('slopfeeder/films.json').then(r => r.json()).then(({ films, mega }) => {
-    if (mega) { const el = document.getElementById('mega'); el.hidden = false; el.innerHTML = `<div><video src="${esc(mega.video)}" poster="${esc(mega.thumb)}" controls playsinline preload="none"></video></div>
-      <div><h2>THE MEGAFILM · ${Math.round(mega.dur / 60)} MIN</h2><div class="log">${esc(mega.logline)}</div><div class="desc" style="margin-top:6px">${esc(mega.arc)}</div><ol>${mega.chapters.map(c => `<li><b>${esc(c.roman)} · ${esc(c.title)}</b> — ${esc(c.beat)}</li>`).join('')}</ol></div>`; }
+  fetch('slopfeeder/films.json').then(r => r.json()).then(({ films, mega, final }) => {
+    const hero = final || mega; if (hero) { const el = document.getElementById('mega'); el.hidden = false; el.innerHTML = `<div><video src="${esc(hero.video)}" poster="${esc(hero.thumb)}" controls playsinline preload="none"></video></div>
+      <div><h2>${final ? 'THE SLOPFEEDER · THE FINAL CUT' : 'THE MEGAFILM'} · ${Math.round(hero.dur / 60)} MIN</h2><div class="log">${esc(hero.logline)}</div><div class="desc" style="margin-top:6px">${esc(hero.arc)}</div><ol>${hero.chapters.map(c => `<li><b>${esc(c.roman)} · ${esc(c.title)}</b> — ${esc(c.beat)}</li>`).join('')}</ol>${final && mega ? `<div class="vers" style="margin-top:8px"><a href="${esc(mega.video)}" target="_blank">THE LONG VERSION: ALL EIGHT SONGS IN FULL · ${Math.round(mega.dur / 60)} MIN ↗</a></div>` : ''}</div>`; }
     document.getElementById('films').innerHTML = films.map(f => `<article class="film"><div class="pic" data-v="${esc(f.video)}"><img src="${esc(f.thumb)}" alt="${esc(f.title)}" loading="lazy"><span class="no">${esc(f.n)}</span><span class="play">▶ WATCH · ${Math.floor(f.numbers.dur / 60)}:${String(Math.round(f.numbers.dur % 60)).padStart(2, '0')}</span></div>
       <div class="body"><h2>${esc(f.title)}</h2><div class="song">${esc(f.n)} · ${esc(f.song)}</div>${f.versions ? `<div class="vers">${f.versions.map(v => `<a href="${esc(v.video)}" target="_blank">${esc(v.label)} ↗</a>`).join('')}</div>` : ''}<div class="log">${esc(f.logline)}</div><div class="desc">${esc(f.description)}</div>
         <div class="story"><b>wants</b> ${esc(f.story.want)} · <b>turns</b> ${esc(f.story.turn)} · <b>ends</b> ${esc(f.story.end)}</div>

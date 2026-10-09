@@ -128,7 +128,7 @@ for n, sp in SONGS.items():
             t0, t1 = cuts[j], cuts[j + 1]
             if t1 - t0 < .5: continue
             pid = f"{n}-P{len(patches) + 1:02d}"; trig = (f"phase: {name.split(' · ')[0].lower()}" if j == 0 else "patch law: 12 s limit, cut on the beat")
-            cands, best_ai = [], 0.0
+            cands, best_ai, aic = [], 0.0, []
             if qv is not None:
                 raw = E @ qv - HUB; sc = raw.copy()
                 for t in ("ai", "archive"): mk = typ == t; sc[mk] = (raw[mk] - raw[mk].mean()) / (raw[mk].std() + 1e-9) * .05   # rank within each source: the AI/archive gap otherwise hands everything to one side
@@ -143,8 +143,13 @@ for n, sp in SONGS.items():
                     seen.add(fam[i]); cands.append(C[i]["id"])
                     if len(cands) >= 16: break
                 best_ai = float(np.max(np.where(ai, sc, -9)))
+                aic, seen3 = [], set()
+                for i in np.argsort(-np.where(ai & (pois <= .5), sc, -9)):
+                    if fam[i] in seen3 or not ai[i]: continue
+                    seen3.add(fam[i]); aic.append(C[i]["id"])
+                    if len(aic) >= 24: break
             patches.append({"id": pid, "t0": round(t0, 3), "t1": round(t1, 3), "phase": pi, "name": name, "line": line, "meaning": mean, "pressure": press, "trigger": trig,
-                            "syntagma": syn, "world": world, "beats": nb * sp.get("bscale", 1), "flags": flags, "queries": qs, "cands": cands, "fit": round(best_ai, 3)})
+                            "syntagma": syn, "world": world, "beats": nb * sp.get("bscale", 1), "flags": flags, "queries": qs, "cands": cands, "ai_cands": aic if qv is not None else [], "fit": round(best_ai, 3)})
     fits = [p["fit"] for p in patches if p["queries"]]; lo = np.quantile(fits, .3) if fits else 0
     for p in patches:
         if p["queries"] and p["fit"] <= lo and "null" not in p["flags"]:
