@@ -52,6 +52,7 @@ body.m-one .fm:not(.focus){ display:none; }
 body.m-two #mon{ left:12px; right:auto; width:calc(50vw - 18px); } body.m-two #mon2{ display:block; right:12px; width:calc(50vw - 18px); }
 body.m-two .fm.other{ border-color:#3ab8e8; }
 @media (max-width:820px){ body.m-one #mon{ left:0; transform:none; width:100%; } body.m-two #mon{ left:0; width:100%; } body.m-two #mon2{ left:0; right:0; width:100%; top:auto; bottom:calc(var(--dock) + 4px); border-radius:0; } }
+#pt{ position:fixed; z-index:8; font-size:10.5px; color:var(--dim); background:#0c0d0fe8; padding:4px 8px; border:1px solid var(--faint); border-top:0; line-height:1.5; } #pt b{ color:var(--ink); font-weight:500; }
 #deck{ position:fixed; z-index:8; display:none; grid-template-columns:1fr 1fr; gap:6px; }
 body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); } body.m-deck #mon{ left:12px; right:auto; width:calc(58vw - 18px); } body.m-deck #cv{ opacity:.3; } body.m-deck #mon{ border-color:#e0402c; }
 .dk{ position:relative; background:#000; border:2px solid var(--faint); border-radius:4px; overflow:hidden; cursor:pointer; } .dk:hover{ border-color:var(--ink); } .dk.armed{ border-color:var(--bad); } .dk video{ width:100%; aspect-ratio:16/9; display:block; object-fit:cover; background:#000; }
@@ -67,7 +68,7 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
 <header><h1>BLACK<b>TOP</b></h1><div class="seg" id="lay"><button data-l="field" class="on" title="every shot placed by meaning; chains light up from any shot">FIELD</button><button data-l="grid" title="every shot grouped">GRID</button><button data-l="reel" title="every film as a lane on the song's clock, the best alternatives under the playhead">SCORE</button></div>
   <select id="song"></select><select id="gby" hidden title="group the grid by"></select><input id="q" placeholder="find: words (Enter = by meaning)"><div id="note"></div></header>
 <div id="mon"><canvas id="mcv" width="960" height="540"></canvas><span id="onair">ON AIR</span><div id="mbar"><button class="ic" id="play" title="play / pause (space)">▶</button><span id="clock">0:00</span><div class="seg" id="modes" title="how much to watch at once"><button data-w="one" title="one film, full, nothing else moving">ONE</button><button data-w="deck" title="the program and four on deck (other films now, the strongest next shots): tap one to cut to it on the beat">DECK</button><button data-w="all" class="on" title="the survey: every film, only what matters moving">ALL</button></div><button class="ic" id="kp" title="keep this film (kept films breed when you add one)">★</button><div class="t" id="mt">—</div><button class="ic" id="lk" title="this film's look: raw, newsreel (characters' colours kept), mixed, cartoon">RAW</button><button class="ic" id="rc" title="this film's recipe">⋯</button><button class="ic" id="dc" title="decide: the final cut from the best section of every film, locked and played from the top">DECIDE</button><button class="ic" id="sv" title="serve: save as a cut list cut.py can render">SERVE</button><button class="ic" id="mz" title="smaller / larger">▭</button></div></div>
-<div id="deck"></div><div id="mon2"><canvas id="mcv2" width="960" height="540"></canvas><div id="mbar2">tap a film in the dock to set the second screen</div></div><div id="pop" hidden></div><div id="bub" hidden></div><div id="cmp" hidden></div><div id="menu" hidden></div>
+<div id="deck"></div><div id="pt" hidden></div><div id="mon2"><canvas id="mcv2" width="960" height="540"></canvas><div id="mbar2">tap a film in the dock to set the second screen</div></div><div id="pop" hidden></div><div id="bub" hidden></div><div id="cmp" hidden></div><div id="menu" hidden></div>
 <div id="legend"></div>
 <div id="dock"><div id="dtop"><div id="strip" title="the song: its parts, its energy, where it has no words (lit), its beats"><canvas id="sc"></canvas><div id="shead"></div></div></div><div id="films"></div></div>
 <audio id="music" preload="auto"></audio>
@@ -83,7 +84,7 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } };
   const dotv = (a, b) => { let s = 0; for (let k = 0; k < a.length; k++) s += a[k] * b[k]; return s; };
   let SEEN = load('bt-seen', {}); setInterval(() => save('bt-seen', SEEN), 5000);
-  let F, CARDS, byId = {}, SPR, PLAN, VOICE = {}, BIBLE = {}, EMB = null, EC = null, COMP = null, N = '26', used = load('bt-used', {}), bench = new Set(load('bt-bench', []));
+  let CB = {}, F, CARDS, byId = {}, SPR, PLAN, VOICE = {}, BIBLE = {}, EMB = null, EC = null, COMP = null, N = '26', used = load('bt-used', {}), bench = new Set(load('bt-bench', []));
   const E = c => EMB.subarray(c._k * 512, c._k * 512 + 512), ECv = c => EC.subarray(c._k * 512, c._k * 512 + 512), CPv = c => COMP.subarray(c._k * F.comp_dim, c._k * F.comp_dim + F.comp_dim);
 
   // ======================== MOTION THUMBNAILS: every card a 12-frame flipbook from a shared sheet ========================
@@ -130,7 +131,7 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
 
   // ======================== THE FILMS (the recipe engine: unchanged in spirit, fewer knobs in sight) ========================
   const BETS = { COLOUR: { col: 1.2, frame: .2, rhyme: .3, aff: .5 }, FRAME: { frame: 1.2, col: .3, rhyme: .3, aff: .5 }, RHYME: { rhyme: 1.2, col: .2, frame: .2, aff: .5 }, SOUND: { sound: 1.2, aff: .6, rhyme: .3 },
-    POUND: { pound: 1.6, pails: .9, aff: .4 }, PAILS: { pails: 1.5, pound: .6, aff: .4 }, CHAPTER: { aff: 1.5, rhyme: .3, col: .2 }, SIGN: { sign: 1.5, aff: .5, rhyme: .2 }, CHAIN: { chain: 1.6, seam: .8 } };
+    POUND: { pound: 1.6, pails: .9, aff: .4 }, PAILS: { pails: 1.5, pound: .6, aff: .4 }, CHAPTER: { aff: 1.5, rhyme: .3, col: .2 }, SIGN: { sign: 1.5, aff: .5, rhyme: .2 }, CHAIN: { chain: 1.6, seam: .8 }, CUTBASTARD: { cb: 1, seam: .5, aff: .2 } };
   const LOOKS = ['raw', 'newsreel', 'mixed', 'cartoon'];
   const SND = { 'THE LANDING': ['an explosion', 'artillery gunfire', 'drums'], 'THE KITCHEN': ['a sizzling griddle frying meat', 'a man speaking', 'fire crackling'], 'THE DRILL LINE': ['drums', 'a crowd chanting', 'machinery clanking', 'footsteps in mud'],
     'THE TIDE': ['ocean surf and waves', 'rain', 'wind howling'], 'THE SCREEN': ['a computer beep', 'electronic synth music'], 'THE RENDER': ['electronic synth music', 'a laser zap'], 'THE FLEET': ['orchestral music', 'a choir singing', 'ocean surf and waves'], 'THE AFTERMATH': ['wind howling', 'fire crackling', 'rain'] };
@@ -141,8 +142,13 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
   const edgeS = (a, b) => { let s = 0; for (const k of F.lenses) { const e = F.edges[k], j = e.to[a._k].indexOf(b._k); if (j >= 0) s = Math.max(s, e.s[a._k][j]); } return s; };
   const seam = (a, b) => (EC ? .45 * dotv(ECv(a), ECv(b)) + .35 * dotv(CPv(a), CPv(b)) : 0) + .2 * (1 - Math.min(1, hueDist(a.colour, b.colour))) + .4 * edgeS(a, b);
   function recipeFor(k) { const bets = Object.keys(BETS); return { bet: bets[(k + gen) % bets.length], look: LOOKS[k % LOOKS.length], pace: [1, 1.5, 1, 2, 1][k % 5], aiRun: [2, 1, 3, 2][k % 4], aiShare: [.4, .3, .55, .25][(k + 1) % 4], poison: [.5, .4, .6][k % 3], beat: true, voice: true, seam: [.6, 1.2, .3][k % 3], drawn: false }; }
-  const rname = R => `${R.bet.toLowerCase()} · ${R.look}${R.pace === 1 ? '' : R.pace < 1 ? ' · fast' : ' · slow'}`;
-  function slotsFor(R) { const s = PLAN.songs.find(x => x.n === N), bt = song().beats, en = song().energy, out = [];
+  const rname = R => `${R.bet === 'CUTBASTARD' ? 'cutbastard' : R.bet.toLowerCase()} · ${R.look}${R.pace === 1 ? '' : R.pace < 1 ? ' · fast' : ' · slow'}`;
+  function slotsFor(R) { if (R.bet === 'CUTBASTARD' && CB[N]) { const bt = song().beats, out = [];
+      CB[N].patches.forEach((p, pk) => { if (p.flags.includes('null')) { out.push({ t0: p.t0, dur: +(p.t1 - p.t0).toFixed(3), w: p.world, si: p.phase, pk, nul: true }); return; }
+        let t = p.t0; const nb = Math.max(1, Math.round(p.beats * R.pace)); while (t < p.t1 - .3) { const bi = bt.findIndex(b => b > t + .05); let end = bi >= 0 && bt[bi + nb - 1] != null ? bt[bi + nb - 1] : t + nb * beatLen(); if (end > p.t1 - .3 || end <= t + .3) end = p.t1;
+          out.push({ t0: +t.toFixed(3), dur: +(end - t).toFixed(3), w: p.world, si: p.phase, pk }); t = end; } }); return out; }
+    return slotsFor0(R); }
+  function slotsFor0(R) { const s = PLAN.songs.find(x => x.n === N), bt = song().beats, en = song().energy, out = [];
     s.sections.forEach((sec, si) => { let t = sec.t0; while (t < sec.t1 - .35) { const e = en[Math.floor(t * 2)] ?? .5, nb = Math.max(1, Math.round(R.pace * (e > .62 ? 2 : e > .38 ? 4 : 8))), bi = bt.findIndex(b => b > t + .05);
         let end = bi >= 0 && bt[bi + nb - 1] != null ? bt[bi + nb - 1] : t + nb * beatLen(); if (end > sec.t1 - .35 || end <= t + .3) end = sec.t1; out.push({ t0: +t.toFixed(3), dur: +(end - t).toFixed(3), w: sec.world, si }); t = end; } });
     return out; }
@@ -153,7 +159,7 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
   const fitN = c => { const a = c.aff || {}, v = Object.values(a); if (!v.length) return 0; return (a[N] ?? 0) - v.reduce((x, y) => x + y, 0) / v.length; };
   const signFit = c => { const cs = BIBLE[N] || []; return c.signs.reduce((a, [s, p]) => a + (cs.includes(s) ? p : 0), 0) * 4; };
   function scoreFor(R, c, s, prev, ctx) { const W = BETS[R.bet], e = song().energy[Math.floor(s.t0 * 2)] ?? .5, why = []; let sc = (W.aff || 0) * ((c.aff?.[N] || .2) - .22) * 8 + 40 * fitN(c) - (used[c.id] ? .6 : 0) - .45 * Math.min(4, SEEN[c.id] || 0) + (taste && EMB ? 1.2 * dotv(E(c), taste) : 0) + (W.chain || 0) * (c.mc - .5) * 2;
-    if (c.type === 'ai') { sc += .2 - 1.6 * Math.max(0, (c.poison || 0) - .3); if (ctx.aiN / Math.max(1, ctx.i) > R.aiShare) sc -= 1.2; }
+    if (c.type === 'ai') { sc += .2 - 1.6 * Math.max(0, (c.poison || 0) - .3); if (ctx.aiN / Math.max(1, ctx.i) > R.aiShare && !W.cb) sc -= 1.2; }   // a cutbastard film lets each patch decide its share
     if (prev) { const sm = seam(prev, c); sc += (W.rhyme || 0) * (EMB ? 1 - Math.abs(dotv(E(c), E(prev)) - .7) * 3 : 0) + (W.col || 0) * (1 - hueDist(c.colour, prev.colour)) + (W.frame || 0) * (COMP ? dotv(CPv(c), CPv(prev)) * 1.5 : 0) + ((W.seam || 0) + R.seam) * (sm - .3) + (W.chain || 0) * edgeS(prev, c) * 2;
       if (prev.type !== c.type && edgeS(prev, c) > .3) { sc += 1.2 * R.seam; why.push('bridge'); } if (edgeS(prev, c) > .5) why.push('chains'); }
     if (W.sound && c.sound?.some(x => (SND[s.w] || []).includes(x))) { sc += W.sound; why.push('sound fits'); }
@@ -162,13 +168,16 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
     if (W.pails) { sc += W.pails * (c.pails || 0) * (.5 + e) * 1.6; if (c.pails > .5) why.push('pails'); }
     if (W.sign) { const f = signFit(c); sc += W.sign * f; if (f > .6) why.push("chapter's signs"); }
     if (R.look === 'cartoon' || R.look === 'mixed') sc += .8 * ((c.cartoon || 0) - .6);
+    if (W.cb && s.pk != null && CB[N]) { const p = CB[N].patches[s.pk], r = p.cands.indexOf(c.id); if (r >= 0) { sc += 3.2 - r * .16; why.push(p.name.split(' · ')[0].toLowerCase()); } else sc -= .6;   // the patch asks for these
+      if (p.flags.includes('clean') && c.type === 'ai' && (c.poison || 0) > .3) sc -= 3; if (p.flags.includes('archive') && c.type === 'archive') sc += .4; }
     return { sc, why }; }
-  const POOL = {}; const pool = (s, R) => (POOL[s.w] || []).concat(R.drawn ? CARDS.filter(c => c.type === 'drawn' && c.world === s.w) : []);
-  const okFor = (R, c, ctx) => !ctx.usedHere.has(c.id) && !bench.has(c.id) && !(c.fam && ctx.fams.has(c.fam)) && !(c.type === 'ai' && ((c.poison || 0) > R.poison || ctx.aiRun >= R.aiRun));
+  const POOL = {}; const pool = (s, R) => (s.pk != null && CB[N] ? CB[N].patches[s.pk].cands.map(id => byId[id]).filter(Boolean) : []).concat(POOL[s.w] || []).concat(R.drawn ? CARDS.filter(c => c.type === 'drawn' && c.world === s.w) : []);
+  const runFor = (R, s) => s && s.pk != null && CB[N]?.patches[s.pk]?.flags.includes('pound') ? Math.max(4, R.aiRun) : R.aiRun;   // a pounding patch may stay with the pickups
+  const okFor = (R, c, ctx, s) => !ctx.usedHere.has(c.id) && !bench.has(c.id) && !(c.fam && ctx.fams.has(c.fam)) && !(c.type === 'ai' && ((c.poison || 0) > R.poison || ctx.aiRun >= runFor(R, s)));
   function build(R, slots, seed, base, taken) { let r = seed; const rnd = () => (r = (r * 16807) % 2147483647) / 2147483647, ctx = { usedHere: new Set(), fams: new Set(), aiRun: 0, aiN: 0, i: 0 }, out = [], famOf = c => c.fam || c.id; let prev = null; taken = taken || {};
     const take = c => { ctx.usedHere.add(c.id); if (c.fam) ctx.fams.add(c.fam); if (c.type === 'ai') { ctx.aiRun++; ctx.aiN++; } else ctx.aiRun = 0; out.push(c.id); prev = c; ctx.i++; };
     slots.forEach((s, i) => { const b = base && base(s, i); if (b) { const c = byId[b.id]; if (c && !ctx.usedHere.has(c.id) && (b.lock || (rnd() < (b.keep ?? .6) && !taken[famOf(c)]))) return take(c); }
-      let best = null, bs = -1e9; for (const c of pool(s, R)) { if (!okFor(R, c, ctx)) continue; const v = scoreFor(R, c, s, prev, ctx).sc - 1.4 * (taken[famOf(c)] || 0) + (rnd() - .5) * .5; if (v > bs) { bs = v; best = c; } }
+      let best = null, bs = -1e9; for (const c of pool(s, R)) { if (!okFor(R, c, ctx, s)) continue; const v = scoreFor(R, c, s, prev, ctx).sc - 1.4 * (taken[famOf(c)] || 0) + (rnd() - .5) * .5; if (v > bs) { bs = v; best = c; } }
       take(best || pool(s, R).find(c => !ctx.usedHere.has(c.id)) || pool(s, R)[0]); });
     out.forEach(id => { const c = byId[id], f = famOf(c); taken[f] = (taken[f] || 0) + 1; }); return out; }
   function grade(f) { let sm = 0, n = 0, lock = 0, pois = 0; f.ids.forEach((id, i) => { const c = byId[id]; if (!c) return; if (i) { sm += seam(byId[f.ids[i - 1]], c); n++; } if (c.type === 'ai') pois += c.poison || 0; if (inPoint(f.R, c, f.slots[i]).locked) lock++; });
@@ -260,6 +269,8 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
       const px = t * PPS, s0 = song(), top = LANES.length ? LANES[0][1] - 18 : 130; g.fillStyle = '#ffffff22'; s0.beats.forEach(b => { const bx = b * PPS; if (bx > vx0 && bx < vx1) g.fillRect(bx, top, 1, 10); });
       (VOICE[N]?.free || []).forEach(([a, b]) => { g.fillStyle = '#ebe5d840'; g.fillRect(a * PPS, top + 11, (b - a) * PPS, 4); });
       PLAN.songs.find(z2 => z2.n === N).sections.forEach(z2 => { g.fillStyle = WC[z2.world] || '#444'; g.globalAlpha = .6; g.fillRect(z2.t0 * PPS, top - 5, (z2.t1 - z2.t0) * PPS, 4); g.globalAlpha = 1; });
+      if (f && f.R.bet === 'CUTBASTARD' && CB[N]) CB[N].patches.forEach((p, k) => { const x0 = p.t0 * PPS, w2 = (p.t1 - p.t0) * PPS - 2, y0 = top - 30; if (x0 + w2 < vx0 || x0 > vx1) return; g.fillStyle = p.flags.includes('null') ? '#000' : k % 2 ? '#24282d' : '#1b1e22'; g.fillRect(x0, y0, w2, 20);
+          if (p.generate) { g.fillStyle = '#f25a17'; g.fillRect(x0, y0 + 18, w2, 2); } g.fillStyle = '#ebe5d8'; g.font = '600 10px Barlow Condensed'; g.save(); g.beginPath(); g.rect(x0, y0, w2, 20); g.clip(); g.fillText(p.id.split('-')[1] + ' ' + p.name, x0 + 3, y0 + 13); g.restore(); });
       const fl = LANES.find(l => l[0] === focus); if (fl) { g.strokeStyle = films[focus].c; g.lineWidth = 2; g.strokeRect(vx0 - 10, fl[1] - 2, vx1 - vx0 + 20, fl[2] + 4); }
       g.fillStyle = '#f25a17'; g.fillRect(px - 1, ALTY - 6, 2, (LANES.length ? LANES[LANES.length - 1][1] + 60 : 400));
       if (f && ci >= 0) { const k = focus + ':' + ci + ':' + f.ids[ci - 1] + ':' + f.ids[ci]; if (k !== altKey) { altKey = k; ALTS = alts(f, ci, 6); }
@@ -352,15 +363,17 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
   function drive(t) { const f = films[focus]; if (!f || prev) return; const i = slotAt(f, t); if (i < 0) return; const a = want(f, i), b = f.ids[i + 1] ? want(f, i + 1) : null; if (!a) return;
     let A = mv.findIndex(v => v._k === a.key); if (A < 0) A = mv.findIndex(v => !b || v._k !== b.key); if (A < 0) A = 0; front = A; const vA = mv[A], vB = mv[1 - A];
     follow(vA, a, t, !music.paused); if (b) follow(vB, b, b.s.t0, false);
-    const snd = soundOn(f, a.c, a.s); vA.muted = !snd; vA.volume = .55; vB.muted = true;
-    if (i !== cur) { if (cur >= 0 && !music.paused) { SEEN[a.c.id] = (SEEN[a.c.id] || 0) + 1; transition(f, i); } cur = i;
+    const snd = soundOn(f, a.c, a.s) && !a.s.nul; vA.muted = !snd; vA.volume = .55; vB.muted = true;
+    if (i !== cur) { const pt = $('#pt'), p = a.s.pk != null && CB[N] ? CB[N].patches[a.s.pk] : null; pt.hidden = !p; if (p) { const r = $('#mon').getBoundingClientRect(); pt.style.left = r.left + 'px'; pt.style.top = r.bottom + 'px'; pt.style.width = r.width + 'px';
+        pt.innerHTML = `<b>${esc(p.id)} · ${esc(p.name)}</b><br>${esc(p.line.slice(0, 160))}<br>${esc(p.meaning)} · <i>${esc(p.pressure)}</i>`; }
+      if (cur >= 0 && !music.paused) { SEEN[a.c.id] = (SEEN[a.c.id] || 0) + 1; transition(f, i); } cur = i;
       for (let k = 2; k <= 3; k++) { const n = f.ids[i + k] && want(f, i + k); if (n) { warm(n.c); const pv = PRE[k - 2]; if (!pv.src.endsWith(n.url)) { pv.src = n.url; pv.load(); } } }
       $('#mt').innerHTML = `<span style="color:${f.c}">●</span> ${esc(f.take ? 'live take' : f.final ? 'final' : rname(f.R))} · <b>${esc(a.c.title)}</b>${a.locked ? ` · ${a.locked} on the beat` : ''}${snd ? ' · its sound in' : ''}`; $('#lk').textContent = f.R.look.toUpperCase(); $('#kp').classList.toggle('on', !!f.kept); } }
   function transition() { }   // plain cuts: the motion-graphic transitions lowered the production value and were removed
   function paintMon() { const f = films[focus];
     if (prev) { const c = prev.list[prev.i]; if (prev.list.length > 1 && performance.now() - prev.t > 1500) { prev.i = (prev.i + 1) % prev.list.length; prev.t = performance.now(); const n = prev.list[prev.i], v = mv[front]; v._k = null; v.src = vidUrl(n, 'raw'); v.onloadedmetadata = () => { try { v.currentTime = n.in ?? Math.max(0, v.duration / 2 - 1); } catch (x) { } v.play().catch(() => { }); }; }
       const v = mv[front]; if (v.readyState >= 2) paint(mctx, v, 'raw'); else sprite(mctx, c, 0, 0, mcv.width, mcv.height, true); return; }
-    if (!f || cur < 0) return; const c = byId[f.ids[cur]]; let v = mv[front];
+    if (!f || cur < 0) return; if (f.slots[cur]?.nul) { mctx.fillStyle = '#000'; mctx.fillRect(0, 0, mcv.width, mcv.height); mv.forEach(x => x.muted = true); return; } const c = byId[f.ids[cur]]; let v = mv[front];
     if (v._id !== c.id || v.readyState < 2) { const d = DKV.find(x => x._id === c.id && x.readyState >= 2); if (d) v = d; }   // a cut from the deck plays at once: the deck's player already has it
     if (v._id === c.id && v.readyState >= 2 && !v.seeking) paint(mctx, v, lookFor(f.R, c)); else sprite(mctx, c, 0, 0, mcv.width, mcv.height, true);   // never the old shot: its moving thumbnail until the video is there
   }
@@ -424,7 +437,7 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
     note(`DECIDED: each part of the song from its strongest film (${from.join(' · ')}), repeats replaced, every shot locked · ${fin.lp}`); };
   $('#sv').onclick = async () => { const f = films[focus]; if (!f) return; f.ids.forEach(id => used[id] = (used[id] || 0) + 1); save('bt-used', used);
     const o = { tool: 'blacktop', ts: new Date().toISOString(), song: N, title: song().title, file: song().file, recipe: f.R, bet: f.R.bet, register: f.R.look, lp: f.lp, clips: f.ids,
-      slots: f.slots.map((s, i) => { const c = byId[f.ids[i]], ip = inPoint(f.R, c, s); return { t0: s.t0, dur: s.dur, world: s.w, cut_in: 'cut', look: lookFor(f.R, c), plate: { id: c.id, type: c.type, media: c.type === 'ai' ? c.src : c.media, in: ip.at, rate: ip.rate }, figure: null, sound: soundOn(f, c, s), locked: ip.locked }; }) };
+      slots: f.slots.map((s, i) => { const c = byId[f.ids[i]], ip = inPoint(f.R, c, s); return { t0: s.t0, dur: s.dur, world: s.w, cut_in: 'cut', look: lookFor(f.R, c), patch: s.pk != null && CB[N] ? CB[N].patches[s.pk].id : undefined, plate: { id: c.id, type: s.nul ? 'black' : c.type, media: c.type === 'ai' ? c.src : c.media, in: ip.at, rate: ip.rate }, figure: null, sound: soundOn(f, c, s), locked: ip.locked }; }) };
     let name = null; try { const r = await fetch('/api/edits', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(o) }); if (r.ok) name = (await r.json()).saved; } catch (e) { }
     if (!name) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(o)], { type: 'application/json' })); a.download = `blacktop-${N}.json`; a.click(); }
     f.served = true; persist(); renderDock(); note(name ? `served · render: python3 slopfeeder/cut.py --cutlist edits/${name}` : 'served as a download'); };
@@ -464,7 +477,9 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
   function setSong(n) { N = n; music.src = MUSIC + encodeURIComponent(song().file); music.load(); $('#play').textContent = '▶ PLAY'; const tb = load('bt3-' + n, null); gen = tb?.gen || 1;
     films = (tb?.films || []).filter(f => f.ids?.every(id => byId[id])).map(f => ({ ...f, locks: new Set(f.locks) })); films.forEach(f => f.lp = grade(f)); focus = 0; cur = -1; cued = -1;
     const ch = F.chapters[n]; note(ch ? `${ch.roman} · ${ch.title} · word-free ${(VOICE[n]?.free || []).reduce((a, [x, y]) => a + y - x, 0)} s` : ''); renderDock(); drawStrip(); relayout(true);
-    if (!films.length) whenVectors(() => { for (let k = 0; k < 6; k++) addFilm(); films.forEach(f => f.kept = false); focusFilm(0); renderDock(); persist(); }); }
+    whenVectors(() => { if (!films.length) { for (let k = 0; k < 5; k++) addFilm(); films.forEach(f => f.kept = false); }
+      if (CB[N] && !films.some(f => f.R.bet === 'CUTBASTARD')) { const R = { ...recipeFor(0), bet: 'CUTBASTARD', look: CB[N].look, pace: 1, seam: .6, aiShare: .45, aiRun: 2, poison: .5 }, f = makeFilm(R, null, {}, films.length); f.c = '#ebe5d8'; films.unshift(f); }
+      focusFilm(0); renderDock(); persist(); relayout(); }); }
   let vecWait = []; const whenVectors = fn => EMB ? fn() : vecWait.push(fn);
   $('#song').onchange = e => setSong(e.target.value);
   function resize() { W = innerWidth; H = innerHeight - parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dock')); relayout(true); drawStrip(); }
@@ -473,8 +488,8 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
   addEventListener('keydown', e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return; if (e.key === ' ') { e.preventDefault(); $('#play').click(); } if (e.key === 'Escape') { sel = null; rollPath = null; $('#bub').hidden = true; $('#pop').hidden = true; } if (e.key === 'k') $('#kp').click(); if (WMODE === 'deck' && '1234'.includes(e.key)) cutTo(+e.key - 1); });
   const J = p => fetch(p).then(r => r.ok ? r.json() : null).catch(() => null), B = p => fetch(p).then(r => r.arrayBuffer());
   // first paint needs only the field, the sprite index and the song plan; the vectors (for cooking) follow
-  Promise.all([J('slopfeeder/field.json'), J('slopfeeder/sprites.json'), J('slopfeeder/studio.json'), J('slopfeeder/voice.json'), J('slopfeeder/bible.json')]).then(([f, spr, plan, voice, bible]) => {
-    F = f; SPR = spr; PLAN = plan; VOICE = voice || {}; (bible?.chapters || []).forEach(ch => BIBLE[ch.n] = ch.signs || []);
+  Promise.all([J('slopfeeder/field.json'), J('slopfeeder/sprites.json'), J('slopfeeder/studio.json'), J('slopfeeder/voice.json'), J('slopfeeder/bible.json'), J('slopfeeder/cutbastard.json')]).then(([f, spr, plan, voice, bible, cb]) => {
+    F = f; SPR = spr; PLAN = plan; CB = cb?.songs || {}; VOICE = voice || {}; (bible?.chapters || []).forEach(ch => BIBLE[ch.n] = ch.signs || []);
     CARDS = f.cards.map((c, k) => ({ _k: k, _h: hash(c.id), id: c.id, type: c.t, world: c.w, title: c.ti, xy: c.xy, thumb: c.th, media: c.m, src: c.src, in: c.in, out: c.out, signs: (c.sg || []).map((s, i) => [s, c.sp[i]]), pails: c.pl, cartoon: c.ca, aff: c.aff, mc: c.mc, dc: c.dc,
       colour: { hue: c.col[0] || 0, sat: c.col[1] || 0, lum: c.col[2] || 0, bw: !!c.col[3], chars: c.ch }, poison: c.po || 0, why: c.why, pound: c.pd, sound: c.so, words: c.wd, tempo: c.tp, fam: c.fa, fn: c.fn || 1, year: c.y, cl: c.cl }));
     CARDS.forEach(c => { byId[c.id] = c; c._txt = [c.title, c.world, ...(c.words || []), ...(c.sound || []), ...c.signs.map(s => signName(s[0]))].join(' ').toLowerCase(); if (c.type !== 'drawn' && c.world) (POOL[c.world] = POOL[c.world] || []).push(c); });

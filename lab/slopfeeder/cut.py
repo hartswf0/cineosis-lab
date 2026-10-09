@@ -13,7 +13,8 @@ if N == "--cutlist":   # a cut served from the griddle, read into the same shape
     CL = json.load(open(sys.argv[2])); N, MODE = CL["song"], "griddle"; secs = []
     for sl in CL["slots"]:
         pl = sl["plate"]; sh = {"t0": sl["t0"], "dur": sl["dur"], "alts": [], "trap": sl.get("cut_in", "cut"), "in": pl.get("in"), "rate": pl.get("rate") or 1, "look": sl.get("look"), "locked": sl.get("locked", 0)}
-        if pl["type"] == "drawn": sh["cartoon"] = pl["id"].replace("drawn-", "", 1); sh["clip"] = {"id": pl["id"]}
+        if pl["type"] == "black": sh["black"] = True; sh["clip"] = {"id": "black"}   # the purge: true black, nothing playing
+        elif pl["type"] == "drawn": sh["cartoon"] = pl["id"].replace("drawn-", "", 1); sh["clip"] = {"id": pl["id"]}
         elif pl["type"] == "ai":
             nm = os.path.basename(pl["media"])[:-4]; sh["clip"] = {"id": pl["id"], "ai": {"file": f"ai/src/{nm}.mp4" if os.path.exists(os.path.join(D, "ai", "src", nm + ".mp4")) else pl["media"], "t0": pl["in"] or 0, "t1": (pl["in"] or 0) + 12}}
             if sl.get("sound"): sh["sound"] = {"src": os.path.join(D, sh["clip"]["ai"]["file"]), "in": pl["in"] or 0}
@@ -42,6 +43,9 @@ parts, n, SOUNDS, t_at, PARTS = [], 0, [], 0.0, []
 LUTN = os.path.join(D, "looks", "newsreel.cube"); PY = os.path.join(os.path.dirname(D), ".venv", "bin", "python")
 for si, sec in enumerate(song["sections"]):
     for sh in sec["shots"]:
+        if sh.get("black"):
+            out = os.path.join(T, f"{n:03d}.mp4"); n += 1; L = sh["dur"]
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"color=black:s={W}x{H}:r={FPS}", "-t", f"{L:.3f}", *ENC, out], check=True); parts.append(out); t_at += L; continue
         ai = sh["clip"].get("ai") if not sh.get("cartoon") else None
         src = os.path.join(D, "cartoon", sh["cartoon"] + ".mp4") if sh.get("cartoon") else os.path.join(D, ai["file"]) if ai and os.path.exists(os.path.join(D, ai["file"])) else fetch(sh["clip"]) or next((fetch(a) for a in sh["alts"] if fetch(a)), None)
         if not src: continue
