@@ -83,6 +83,24 @@ SONGS = {
            (52, 62, "BURN IN FIRE (CIRCULAR)", "Καίεσθε ἐν πυρί! Ἐν πυρί! Ἐν πυρί!", "the chorus burns, moving in a circle", "rupture → ring", "continuous", LA, 2, ["people moving in a circle around a fire", "a ring of figures stomping"], ["pound"]),
            (62, 80, "WHO CROSSES · WHO ACQUIRES THE LAND · WHO RECEIVES THE FIRE — THE WHOLE ARMY", "Τίς διαβαίνει τὸν ὀχετόν; Ἅπας ὁ στρατός! (×3)", "chorus becomes army", "ring → army", "accumulative", FL, 4, ["an army crossing a channel", "a crowd taking a beach", "a wide shot of a marching company"], []),
            (80, 94.5, "THE IRON HAS COOLED · SWALLOW", "Ὁ σίδηρος ἔψυκται. Καταπίετε. Ἆ! (hum)", "cooled, taken in", "army → stillness", "continuous", TI, 8, ["a cooled iron bar in the sand", "a quiet shore at dusk"], [])])}
+# ---- the story each film tells: who carries it (the spine: they open every phase and close the film), what they want, the turn, the end; a logline
+STORY = {
+ "26": dict(title="The Bucket Bet", logline="A masked cook leads a crew of mud through fire and iron until they answer as one army, and then makes them swallow what made them.",
+   spine="a skull-masked cook leading a crew of workers carrying orange pails on a beach", want="the crew wants to stop being raw material", turn="they erase the record and tear down the wall", end="they claim the fire, and swallow the cooled iron: free, or drafted?"),
+ "06": dict(title="Go Home and Be Free", logline="A crew born weary wades the muddy water together toward free ground, singing the old refusal: before I'd be a slave.",
+   spine="tired workers walking together through muddy water at dawn", want="free ground", turn="the stone is rolled from the door", end="the hammer drops; they stand up"),
+ "07": dict(title="Cleanse the Memory", logline="An outcast company washes its memory in fire and tide, breaks the gate, and swallows what is left.",
+   spine="a lone hooded figure walking through fog on a beach", want="a memory they can live with", turn="the tide washes over the old film", end="the iron cools; the old film fades to white"),
+ "09": dict(title="The Recursion", logline="A crew names what made it (coal, slop, the iron hand), purges itself into four beats of nothing, and comes back as the whole crew.",
+   spine="a skull-masked cook standing before a crew in a dark vault", want="to know what they are made of", turn="the purge: four beats of black", end="the whole crew answers, and the opening returns changed"),
+ "13": dict(title="The Communion", logline="One meal on the beach: the cook serves, the crew eats, and what they take in becomes them.",
+   spine="a skull-masked cook serving burgers to a line of workers", want="to be fed", turn="the held breath before the serving", end="they swallow"),
+ "14": dict(title="The Render Fleet", logline="Offshore, four flat shapes request changes; on the sand the crew renders them, and is rendered in turn.",
+   spine="four flat cartoon shapes standing in the sea like warships", want="the fleet wants output", turn="the rendered sky goes blank", end="the crew claims the fire; the sea is empty"),
+ "20": dict(title="The Slop Communion", logline="Eat the slop, drill baby drill, feed the fire: a cook's crew confesses what keeps the machine running, and that nobody stops the rig.",
+   spine="a skull-masked cook at a griddle with burgers and onions", want="to keep the fire fed", turn="'who stops the rig?' 'nobody'", end="the confession, then the cost"),
+ "23": dict(title="The Chorus", logline="Born of mire, a chorus passes in, through and out of the fire, tears the mesh, and becomes an army.",
+   spine="a crowd of figures moving in a circle around a fire", want="to come out of the mire", turn="the mesh is torn, the wall comes down", end="the army takes the fire; the iron cools")}
 # ---- the atlas, CLIP, the songs' beats
 A = json.load(open(os.path.join(D, "atlas.json"))); C = A["cards"]; S = A["songs"]
 E = np.fromfile(os.path.join(D, "atlas-emb.bin"), np.int8).reshape(-1, 512).astype(np.float32); E /= np.linalg.norm(E, axis=1, keepdims=True)
@@ -133,9 +151,15 @@ for n, sp in SONGS.items():
             q = p["queries"][0]; p["generate"] = True
             p["prompt"] = (f"{q.capitalize()}. {p['meaning'].capitalize()}. {lockfor(' '.join(p['queries']))} Hold {p['beats']} beats at {s['tempo']:.0f} bpm; "
                            f"a {p['syntagma']} beat in the song's '{p['name'].title()}' phase. Avoid: {'; '.join(NEG)}.")
-    out[n] = {"title": s["title"], "idea": sp["idea"], "look": sp["look"], "rules": sp["rules"], "patches": patches}
+    st = STORY[n]; sv = ct([st["spine"]])[0]; sraw = E @ sv - HUB; sz = np.where(ai & (pois <= .5), sraw, -9)
+    spine, seen2 = [], set()
+    for i in np.argsort(-sz):
+        if fam[i] in seen2: continue
+        seen2.add(fam[i]); spine.append(C[i]["id"])
+        if len(spine) >= 10: break
+    out[n] = {"story": st, "spine": spine, "title": s["title"], "idea": sp["idea"], "look": sp["look"], "rules": sp["rules"], "patches": patches}
     # ---- the matrices (O, A, F), compressed
-    md += [f"\n## {n} · {s['title']}\n", f"**Idea.** {sp['idea']}\n", "### Matrix O · Brutal Structural Diagnosis"] + [f"- {r}" for r in sp["rules"]]
+    md += [f"\n## {n} · {s['title']} — {st['title']}\n", f"**Logline.** {st['logline']}\n", f"**Story spine.** {st['want']}; the turn: {st['turn']}; the end: {st['end']}. Carried by: {st['spine']}.\n", f"**Idea.** {sp['idea']}\n", "### Matrix O · Brutal Structural Diagnosis"] + [f"- {r}" for r in sp["rules"]]
     md += ["\n### Olog Map"] + [f"- <{n}> [is carried by] <phase {i + 1}: {ph[2].title()}>" for i, ph in enumerate(sp["phases"])]
     md += [f"- <phase {i + 1}> [shifts pressure] <{ph[5]}>" for i, ph in enumerate(sp["phases"])]
     md += [f"- <{p['id']}> [triggered by] <{p['trigger']}>" for p in patches[:6]] + [f"- <patch> [cuts on] <the song's beats at {s['tempo']:.0f} bpm>", f"- <look> [unifies] <{sp['look']}>"]
@@ -146,6 +170,9 @@ for n, sp in SONGS.items():
                f"    pressure_shift: \"{p['pressure']}\"", f"    syntagma_type: \"{p['syntagma']}\"", f"    camera_relation: \"{p['beats']} beats per shot\"", f"    patch_trigger: \"{p['trigger']}\"",
                f"    rehydration_seed: \"{(p['queries'] or ['black'])[0]}\"" + (f"\n    generate: true" if p.get("generate") else "")]
     md += ["```"]
+    md += ["\n### The story shots (generate these first: the archive can rhyme with a song but cannot carry its protagonist)"] + [
+        f"- **{lab}** — {st['spine'].capitalize()}: {txt}. {lockfor(st['spine'])} One continuous shot, 8-10 s, the protagonist in frame throughout. Avoid: {'; '.join(NEG[:4])}."
+        for lab, txt in (("SETUP", st["want"]), ("TURN", st["turn"]), ("END", st["end"]))]
     gen = [p for p in patches if p.get("generate")]
     if gen: md += ["\n### Matrix F · Master Patch Prompts (the patches the atlas can't answer: generate these)"] + [f"- **{p['id']}** ({p['t0']:.0f}-{p['t1']:.0f} s · {p['name'].title()}): {p['prompt']}" for p in gen]
 json.dump({"songs": out}, open(os.path.join(D, "cutbastard.json"), "w"), ensure_ascii=False, indent=0)

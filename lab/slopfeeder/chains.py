@@ -71,6 +71,7 @@ def keep(c, i):
                   "tp": c.get("tempo"), "fa": C[fam[i]]["id"], "fn": size.get(int(fam[i]), 1)})
     if c.get("year"): o["y"] = c["year"]
     o["cl"] = c.get("cluster")
+    if c.get("dur"): o["du"] = round(float(c["dur"]), 2)
     return o
 out = {"cards": [keep(c, i) for i, c in enumerate(C)], "lenses": names,
        "edges": {k: {"to": EDG[k][0].tolist(), "s": np.round(EDG[k][1], 2).tolist()} for k in names},

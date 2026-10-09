@@ -133,8 +133,9 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
   const BETS = { COLOUR: { col: 1.2, frame: .2, rhyme: .3, aff: .5 }, FRAME: { frame: 1.2, col: .3, rhyme: .3, aff: .5 }, RHYME: { rhyme: 1.2, col: .2, frame: .2, aff: .5 }, SOUND: { sound: 1.2, aff: .6, rhyme: .3 },
     POUND: { pound: 1.6, pails: .9, aff: .4 }, PAILS: { pails: 1.5, pound: .6, aff: .4 }, CHAPTER: { aff: 1.5, rhyme: .3, col: .2 }, SIGN: { sign: 1.5, aff: .5, rhyme: .2 }, CHAIN: { chain: 1.6, seam: .8 }, CUTBASTARD: { cb: 1, seam: .5, aff: .2 } };
   const LOOKS = ['raw', 'newsreel', 'mixed', 'cartoon'];
-  const SND = { 'THE LANDING': ['an explosion', 'artillery gunfire', 'drums'], 'THE KITCHEN': ['a sizzling griddle frying meat', 'a man speaking', 'fire crackling'], 'THE DRILL LINE': ['drums', 'a crowd chanting', 'machinery clanking', 'footsteps in mud'],
-    'THE TIDE': ['ocean surf and waves', 'rain', 'wind howling'], 'THE SCREEN': ['a computer beep', 'electronic synth music'], 'THE RENDER': ['electronic synth music', 'a laser zap'], 'THE FLEET': ['orchestral music', 'a choir singing', 'ocean surf and waves'], 'THE AFTERMATH': ['wind howling', 'fire crackling', 'rain'] };
+  const SND = { 'THE LANDING': ['an explosion', 'artillery gunfire'], 'THE KITCHEN': ['a sizzling griddle frying meat', 'fire crackling'], 'THE DRILL LINE': ['machinery clanking', 'footsteps in mud'],
+    'THE TIDE': ['ocean surf and waves', 'rain', 'wind howling'], 'THE SCREEN': ['a computer beep'], 'THE RENDER': ['a laser zap'], 'THE FLEET': ['ocean surf and waves'], 'THE AFTERMATH': ['wind howling', 'fire crackling', 'rain'] };
+  const MUSICAL = ['electronic synth music', 'orchestral music', 'drums', 'a choir singing', 'a crowd chanting'];   // a pickup's own music fights the song's beat: never let it in
   const FILMC = ['#f25a17', '#8a6cff', '#e6c808', '#5fbf8a', '#3a9bd8', '#e0402c', '#d6a0ff', '#b98a5a', '#4fd1c5', '#ff8fb3', '#c0c0c0', '#a3e635'];
   let films = [], focus = 0, gen = 1, taste = null, cur = -1;
   const song = () => F.songs[N], beatLen = () => 60 / song().tempo, freeAt = (t0, t1) => (VOICE[N]?.free || []).some(([a, b]) => t0 >= a - .2 && t1 <= b + .2);
@@ -146,8 +147,9 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
   function slotsFor(R) { if (R.bet === 'CUTBASTARD' && CB[N]) { const bt = song().beats, out = [];
       CB[N].patches.forEach((p, pk) => { if (p.flags.includes('null')) { out.push({ t0: p.t0, dur: +(p.t1 - p.t0).toFixed(3), w: p.world, si: p.phase, pk, nul: true }); return; }
         let t = p.t0; const nb = Math.max(1, Math.round(p.beats * R.pace)); while (t < p.t1 - .3) { const bi = bt.findIndex(b => b > t + .05); let end = bi >= 0 && bt[bi + nb - 1] != null ? bt[bi + nb - 1] : t + nb * beatLen(); if (end > p.t1 - .3 || end <= t + .3) end = p.t1;
-          out.push({ t0: +t.toFixed(3), dur: +(end - t).toFixed(3), w: p.world, si: p.phase, pk }); t = end; } }); return out; }
+          out.push({ t0: +t.toFixed(3), dur: +(end - t).toFixed(3), w: p.world, si: p.phase, pk }); t = end; } }); return markSpine(out); }
     return slotsFor0(R); }
+  const markSpine = out => { let last = -1; out.forEach(x => { if (x.si !== last && !x.nul) { x.spine = true; last = x.si; } else if (x.si !== last) last = x.si; }); const e = [...out].reverse().find(x => !x.nul); if (e) e.spine = true; return out; };
   function slotsFor0(R) { const s = PLAN.songs.find(x => x.n === N), bt = song().beats, en = song().energy, out = [];
     s.sections.forEach((sec, si) => { let t = sec.t0; while (t < sec.t1 - .35) { const e = en[Math.floor(t * 2)] ?? .5, nb = Math.max(1, Math.round(R.pace * (e > .62 ? 2 : e > .38 ? 4 : 8))), bi = bt.findIndex(b => b > t + .05);
         let end = bi >= 0 && bt[bi + nb - 1] != null ? bt[bi + nb - 1] : t + nb * beatLen(); if (end > sec.t1 - .35 || end <= t + .3) end = sec.t1; out.push({ t0: +t.toFixed(3), dur: +(end - t).toFixed(3), w: sec.world, si }); t = end; } });
@@ -168,14 +170,17 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
     if (W.pails) { sc += W.pails * (c.pails || 0) * (.5 + e) * 1.6; if (c.pails > .5) why.push('pails'); }
     if (W.sign) { const f = signFit(c); sc += W.sign * f; if (f > .6) why.push("chapter's signs"); }
     if (R.look === 'cartoon' || R.look === 'mixed') sc += .8 * ((c.cartoon || 0) - .6);
+    if (W.cb && s.spine && CB[N]) { const r = CB[N].spine.indexOf(c.id); if (r >= 0) { sc += 4.5 - r * .2; why.push('the story\'s spine'); } }   // the one who carries the story opens every phase and closes the film
+    if (c.du && c.du < s.dur * .85) sc -= 2.5 * (1 - c.du / s.dur);   // a clip shorter than its place freezes on its last frame
     if (W.cb && s.pk != null && CB[N]) { const p = CB[N].patches[s.pk], r = p.cands.indexOf(c.id); if (r >= 0) { sc += 3.2 - r * .16; why.push(p.name.split(' · ')[0].toLowerCase()); } else sc -= .6;   // the patch asks for these
       if (p.flags.includes('clean') && c.type === 'ai' && (c.poison || 0) > .3) sc -= 3; if (p.flags.includes('archive') && c.type === 'archive') sc += .4; }
     return { sc, why }; }
-  const POOL = {}; const pool = (s, R) => (s.pk != null && CB[N] ? CB[N].patches[s.pk].cands.map(id => byId[id]).filter(Boolean) : []).concat(POOL[s.w] || []).concat(R.drawn ? CARDS.filter(c => c.type === 'drawn' && c.world === s.w) : []);
+  const POOL = {}; const pool = (s, R) => (s.spine && CB[N] ? CB[N].spine.map(id => byId[id]).filter(Boolean) : []).concat(s.pk != null && CB[N] ? CB[N].patches[s.pk].cands.map(id => byId[id]).filter(Boolean) : []).concat(POOL[s.w] || []).concat(R.drawn ? CARDS.filter(c => c.type === 'drawn' && c.world === s.w) : []);
+  const punctOK = (c, s, ctx) => ctx.punct === 0 && s && s.pk != null && CB[N] && CB[N].patches[s.pk].cands.indexOf(c.id) >= 0 && CB[N].patches[s.pk].cands.indexOf(c.id) < 4 && (c.poison || 0) < .8;   // one uncanny clip per film, where its patch asks for it
   const runFor = (R, s) => s && s.pk != null && CB[N]?.patches[s.pk]?.flags.includes('pound') ? Math.max(4, R.aiRun) : R.aiRun;   // a pounding patch may stay with the pickups
-  const okFor = (R, c, ctx, s) => !ctx.usedHere.has(c.id) && !bench.has(c.id) && !(c.fam && ctx.fams.has(c.fam)) && !(c.type === 'ai' && ((c.poison || 0) > R.poison || ctx.aiRun >= runFor(R, s)));
-  function build(R, slots, seed, base, taken) { let r = seed; const rnd = () => (r = (r * 16807) % 2147483647) / 2147483647, ctx = { usedHere: new Set(), fams: new Set(), aiRun: 0, aiN: 0, i: 0 }, out = [], famOf = c => c.fam || c.id; let prev = null; taken = taken || {};
-    const take = c => { ctx.usedHere.add(c.id); if (c.fam) ctx.fams.add(c.fam); if (c.type === 'ai') { ctx.aiRun++; ctx.aiN++; } else ctx.aiRun = 0; out.push(c.id); prev = c; ctx.i++; };
+  const okFor = (R, c, ctx, s) => !ctx.usedHere.has(c.id) && !bench.has(c.id) && !(c.fam && ctx.fams.has(c.fam)) && !(c.type === 'ai' && (((c.poison || 0) > R.poison && !punctOK(c, s, ctx)) || ctx.aiRun >= runFor(R, s)));
+  function build(R, slots, seed, base, taken) { let r = seed; const rnd = () => (r = (r * 16807) % 2147483647) / 2147483647, ctx = { usedHere: new Set(), fams: new Set(), aiRun: 0, aiN: 0, i: 0, punct: 0 }, out = [], famOf = c => c.fam || c.id; let prev = null; taken = taken || {};
+    const take = c => { if (c.type === 'ai' && (c.poison || 0) > R.poison) ctx.punct++; ctx.usedHere.add(c.id); if (c.fam) ctx.fams.add(c.fam); if (c.type === 'ai') { ctx.aiRun++; ctx.aiN++; } else ctx.aiRun = 0; out.push(c.id); prev = c; ctx.i++; };
     slots.forEach((s, i) => { const b = base && base(s, i); if (b) { const c = byId[b.id]; if (c && !ctx.usedHere.has(c.id) && (b.lock || (rnd() < (b.keep ?? .6) && !taken[famOf(c)]))) return take(c); }
       let best = null, bs = -1e9; for (const c of pool(s, R)) { if (!okFor(R, c, ctx, s)) continue; const v = scoreFor(R, c, s, prev, ctx).sc - 1.4 * (taken[famOf(c)] || 0) + (rnd() - .5) * .5; if (v > bs) { bs = v; best = c; } }
       take(best || pool(s, R).find(c => !ctx.usedHere.has(c.id)) || pool(s, R)[0]); });
@@ -359,7 +364,7 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
     if (Math.abs(v.currentTime - target) > (playing ? .35 : .04)) try { v.currentTime = target; } catch (e) { }
     if (playing && v.paused) v.play().catch(() => { }); if (!playing && !v.paused) v.pause(); }
   const PRE = [0, 1].map(() => Object.assign(document.createElement('video'), { muted: true, preload: 'auto', playsInline: true }));
-  const soundOn = (f, c, s) => c.type === 'ai' && ((c.words?.length && (!f.R.voice || freeAt(s.t0, s.t0 + s.dur))) || (!c.words?.length && c.sound?.some(x => (SND[s.w] || []).includes(x))));
+  const soundOn = (f, c, s) => c.type === 'ai' && !(c.sound || []).slice(0, 2).some(x => MUSICAL.includes(x)) && ((c.words?.length && (!f.R.voice || freeAt(s.t0, s.t0 + s.dur))) || (!c.words?.length && c.sound?.some(x => (SND[s.w] || []).includes(x))));
   function drive(t) { const f = films[focus]; if (!f || prev) return; const i = slotAt(f, t); if (i < 0) return; const a = want(f, i), b = f.ids[i + 1] ? want(f, i + 1) : null; if (!a) return;
     let A = mv.findIndex(v => v._k === a.key); if (A < 0) A = mv.findIndex(v => !b || v._k !== b.key); if (A < 0) A = 0; front = A; const vA = mv[A], vB = mv[1 - A];
     follow(vA, a, t, !music.paused); if (b) follow(vB, b, b.s.t0, false);
@@ -375,7 +380,7 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
       const v = mv[front]; if (v.readyState >= 2) paint(mctx, v, 'raw'); else sprite(mctx, c, 0, 0, mcv.width, mcv.height, true); return; }
     if (!f || cur < 0) return; if (f.slots[cur]?.nul) { mctx.fillStyle = '#000'; mctx.fillRect(0, 0, mcv.width, mcv.height); mv.forEach(x => x.muted = true); return; } const c = byId[f.ids[cur]]; let v = mv[front];
     if (v._id !== c.id || v.readyState < 2) { const d = DKV.find(x => x._id === c.id && x.readyState >= 2); if (d) v = d; }   // a cut from the deck plays at once: the deck's player already has it
-    if (v._id === c.id && v.readyState >= 2 && !v.seeking) paint(mctx, v, lookFor(f.R, c)); else sprite(mctx, c, 0, 0, mcv.width, mcv.height, true);   // never the old shot: its moving thumbnail until the video is there
+    if (v._id === c.id && v.readyState >= 2 && !v.seeking) { paint(mctx, v, lookFor(f.R, c)); paintMon._w = 0; } else { paintMon._w = paintMon._w || performance.now(); if (performance.now() - paintMon._w > 450) sprite(mctx, c, 0, 0, mcv.width, mcv.height, true); }   // hold the last real frame through a seek; the flipbook only if the clip is really late
   }
   const P2 = { f: 1, mv: [0, 1].map(() => Object.assign(document.createElement('video'), { muted: true, preload: 'auto', playsInline: true })), front: 0, cur: -1, cued: -1 }, m2 = $('#mcv2').getContext('2d');
   function cue2(i, late) { const f = films[P2.f]; const c = f && byId[f.ids[i]]; if (!c) return; const v = P2.mv[1 - P2.front], ip = inPoint(f.R, c, f.slots[i]); P2.cued = i; v.onplaying = null; v.pause(); v.src = vidUrl(c, lookFor(f.R, c));
@@ -436,8 +441,8 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
     fin.ids.forEach((_, i) => fin.locks.add(i)); fin.lp = grade(fin); films.push(fin); focusFilm(films.length - 1); renderDock(); persist(); relayout(); music.currentTime = 0; cur = -1;
     note(`DECIDED: each part of the song from its strongest film (${from.join(' · ')}), repeats replaced, every shot locked · ${fin.lp}`); };
   $('#sv').onclick = async () => { const f = films[focus]; if (!f) return; f.ids.forEach(id => used[id] = (used[id] || 0) + 1); save('bt-used', used);
-    const o = { tool: 'blacktop', ts: new Date().toISOString(), song: N, title: song().title, file: song().file, recipe: f.R, bet: f.R.bet, register: f.R.look, lp: f.lp, clips: f.ids,
-      slots: f.slots.map((s, i) => { const c = byId[f.ids[i]], ip = inPoint(f.R, c, s); return { t0: s.t0, dur: s.dur, world: s.w, cut_in: 'cut', look: lookFor(f.R, c), patch: s.pk != null && CB[N] ? CB[N].patches[s.pk].id : undefined, plate: { id: c.id, type: s.nul ? 'black' : c.type, media: c.type === 'ai' ? c.src : c.media, in: ip.at, rate: ip.rate }, figure: null, sound: soundOn(f, c, s), locked: ip.locked }; }) };
+    const o = { tool: 'blacktop', meme: true, story: CB[N]?.story, ts: new Date().toISOString(), song: N, title: song().title, file: song().file, recipe: f.R, bet: f.R.bet, register: f.R.look, lp: f.lp, clips: f.ids,
+      slots: f.slots.map((s, i) => { const c = byId[f.ids[i]], ip = inPoint(f.R, c, s); return { t0: s.t0, dur: s.dur, world: s.w, cut_in: 'cut', look: lookFor(f.R, c), patch: s.pk != null && CB[N] ? CB[N].patches[s.pk].id : undefined, plate: { id: c.id, type: s.nul ? 'black' : c.type, media: c.type === 'ai' ? c.src : c.media, in: ip.at, out: c.type === 'ai' ? c.out : c.du ?? null, rate: ip.rate }, figure: null, sound: soundOn(f, c, s), locked: ip.locked }; }) };
     let name = null; try { const r = await fetch('/api/edits', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(o) }); if (r.ok) name = (await r.json()).saved; } catch (e) { }
     if (!name) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(o)], { type: 'application/json' })); a.download = `blacktop-${N}.json`; a.click(); }
     f.served = true; persist(); renderDock(); note(name ? `served · render: python3 slopfeeder/cut.py --cutlist edits/${name}` : 'served as a download'); };
@@ -491,7 +496,7 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
   Promise.all([J('slopfeeder/field.json'), J('slopfeeder/sprites.json'), J('slopfeeder/studio.json'), J('slopfeeder/voice.json'), J('slopfeeder/bible.json'), J('slopfeeder/cutbastard.json')]).then(([f, spr, plan, voice, bible, cb]) => {
     F = f; SPR = spr; PLAN = plan; CB = cb?.songs || {}; VOICE = voice || {}; (bible?.chapters || []).forEach(ch => BIBLE[ch.n] = ch.signs || []);
     CARDS = f.cards.map((c, k) => ({ _k: k, _h: hash(c.id), id: c.id, type: c.t, world: c.w, title: c.ti, xy: c.xy, thumb: c.th, media: c.m, src: c.src, in: c.in, out: c.out, signs: (c.sg || []).map((s, i) => [s, c.sp[i]]), pails: c.pl, cartoon: c.ca, aff: c.aff, mc: c.mc, dc: c.dc,
-      colour: { hue: c.col[0] || 0, sat: c.col[1] || 0, lum: c.col[2] || 0, bw: !!c.col[3], chars: c.ch }, poison: c.po || 0, why: c.why, pound: c.pd, sound: c.so, words: c.wd, tempo: c.tp, fam: c.fa, fn: c.fn || 1, year: c.y, cl: c.cl }));
+      colour: { hue: c.col[0] || 0, sat: c.col[1] || 0, lum: c.col[2] || 0, bw: !!c.col[3], chars: c.ch }, poison: c.po || 0, why: c.why, pound: c.pd, sound: c.so, words: c.wd, tempo: c.tp, fam: c.fa, fn: c.fn || 1, year: c.y, cl: c.cl, du: c.du }));
     CARDS.forEach(c => { byId[c.id] = c; c._txt = [c.title, c.world, ...(c.words || []), ...(c.sound || []), ...c.signs.map(s => signName(s[0]))].join(' ').toLowerCase(); if (c.type !== 'drawn' && c.world) (POOL[c.world] = POOL[c.world] || []).push(c); });
     $('#song').innerHTML = PLAN.songs.map(s => `<option value="${s.n}">${s.n} · ${esc(s.title)}${f.chapters[s.n] ? ' — ' + esc(f.chapters[s.n].title) : ''}</option>`).join(''); $('#song').value = '26';
     gbyInit(); legend(); resize(); setSong('26'); setMode(WMODE); requestAnimationFrame(loop);

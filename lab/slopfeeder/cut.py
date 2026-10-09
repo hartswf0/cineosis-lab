@@ -12,7 +12,7 @@ P = json.load(open(os.path.join(D, "studio.json"))); cuts = {c["id"]: c for c in
 if N == "--cutlist":   # a cut served from the griddle, read into the same shape as a plan
     CL = json.load(open(sys.argv[2])); N, MODE = CL["song"], "griddle"; secs = []
     for sl in CL["slots"]:
-        pl = sl["plate"]; sh = {"t0": sl["t0"], "dur": sl["dur"], "alts": [], "trap": sl.get("cut_in", "cut"), "in": pl.get("in"), "rate": pl.get("rate") or 1, "look": sl.get("look"), "locked": sl.get("locked", 0)}
+        pl = sl["plate"]; sh = {"t0": sl["t0"], "dur": sl["dur"], "alts": [], "trap": sl.get("cut_in", "cut"), "in": pl.get("in"), "out": pl.get("out"), "rate": pl.get("rate") or 1, "look": sl.get("look"), "locked": sl.get("locked", 0)}
         if pl["type"] == "black": sh["black"] = True; sh["clip"] = {"id": "black"}   # the purge: true black, nothing playing
         elif pl["type"] == "drawn": sh["cartoon"] = pl["id"].replace("drawn-", "", 1); sh["clip"] = {"id": pl["id"]}
         elif pl["type"] == "ai":
@@ -50,7 +50,11 @@ for si, sec in enumerate(song["sections"]):
         src = os.path.join(D, "cartoon", sh["cartoon"] + ".mp4") if sh.get("cartoon") else os.path.join(D, ai["file"]) if ai and os.path.exists(os.path.join(D, ai["file"])) else fetch(sh["clip"]) or next((fetch(a) for a in sh["alts"] if fetch(a)), None)
         if not src: continue
         L = sh["dur"]; R = sh.get("rate", 1); d = dur(src); a = 0.0 if sh.get("cartoon") else (max(ai["t0"], min((ai["t0"] + ai["t1"]) / 2 - L / 2, ai["t1"] - L)) if ai else max(0.0, min(d / 2 - L / 2, d - L - .05))); a = sh["in"] if sh.get("in") is not None and not sh.get("cartoon") else a; a = min(a, max(0.0, d - .4)); out = os.path.join(T, f"{n:03d}.mp4"); n += 1   # a cartoon plays from its first drawing; no in-point past the clip's end
-        ins = ["-ss", f"{a:.2f}", "-t", f"{L * R:.2f}", "-i", src]; fc = f"[0:v]" + (f"setpts=PTS/{R:.3f}," if R != 1 else "") + FILL + (f",tpad=stop_mode=clone:stop_duration={L:.2f}" if d - a < L * R + .1 else "") + "[p]"; last = "[p]"; k = 1   # rate: a pounding retimed onto the song's beat
+        e_ = min(d, sh["out"]) if sh.get("out") and ai else d   # a pickup's shot ends at its out-point: past it the source cuts to its next shot (the glitch)
+        if e_ - a < L * R:   # too short for its place: start earlier if we can, then slow it (to half speed at most) rather than run past the shot or freeze
+            a = max(0.0 if not ai else max(0.0, a - 1.5), e_ - L * R); a = min(a, max(0.0, e_ - .4))
+            if e_ - a < L * R: R = max(.5, round((e_ - a) / L, 3))
+        ins = ["-ss", f"{a:.2f}", "-t", f"{L * R:.2f}", "-i", src]; fc = f"[0:v]" + (f"setpts=PTS/{R:.3f}," if R != 1 else "") + FILL + (f",tpad=stop_mode=clone:stop_duration={L:.2f}" if e_ - a < L * R + .1 else "") + "[p]"; last = "[p]"; k = 1   # rate: a pounding retimed onto the song's beat
         lay = []
         if sh.get("cutout") and sh["cutout"] in cuts: lay.append(("cut", os.path.join(D, cuts[sh["cutout"]]["packed"]), .62, "bottom"))
         if sh.get("figure"): lay.append(("fig", sh["figure"], .7, "right"))
@@ -80,13 +84,22 @@ for si, sec in enumerate(song["sections"]):
     print(f"section {si + 1}/{len(song['sections'])} {sec['world']} · {len(sec['shots'])} shots", flush=True)
 lst = os.path.join(T, "list.txt"); open(lst, "w").write("".join(f"file '{p}'\n" for p in parts))
 pic = os.path.join(T, "picture.mp4"); subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", pic], check=True)
+if CL.get("meme"):   # the reference title: the meme's own layout quoted in our footage (login page above, the stare below, its cut times), no type
+    srcs = {k: os.path.join(D, "ai", "src", v + ".mp4") for k, v in (("top", "Cursor_clicking_massive_login_in"), ("dev", "Soldier_in_mask_staring_deadpan"), ("des", "Recruit_staring_at_autonomous_drill"))}
+    if all(os.path.exists(v) for v in srcs.values()):
+        mm, cell = os.path.join(T, "meme.mp4"), "scale=405:360:force_original_aspect_ratio=increase,crop=405:360,setsar=1,fps=24"
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "1", "-t", "5.7", "-i", srcs["top"], "-ss", "5", "-t", "4", "-i", srcs["dev"], "-ss", "0.5", "-t", "2.5", "-i", srcs["des"], "-filter_complex",
+            f"[0:v]{cell},trim=0:5.7,setpts=PTS-STARTPTS[t];[1:v]{cell},split[d1][d2];[d1]trim=0:1.78,setpts=PTS-STARTPTS[a];[d2]trim=1.78:3.31,setpts=PTS-STARTPTS[c];[2:v]{cell},trim=0:2.39,setpts=PTS-STARTPTS[b];"
+            f"[a][b][c]concat=n=3:v=1[bot];[t][bot]vstack,pad={W}:{H}:(ow-iw)/2:0:black,format=yuv420p[m]", "-map", "[m]", "-t", "5.7", *ENC, mm], check=True)
+        p2 = os.path.join(T, "picture-meme.mp4")
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", pic, "-i", mm, "-filter_complex", "[1:v]setpts=PTS-STARTPTS[m];[0:v][m]overlay=0:0:enable='lt(t,5.7)':eof_action=pass[v]", "-map", "[v]", *ENC, p2], check=True); pic = p2
 out = os.path.join(OUTD, (f"blacktop-{N}-{CL.get('bet', '').lower()}-{CL.get('register', 'raw')}" if CL.get("tool") == "blacktop" else os.path.basename(sys.argv[2])[:-5]) + ".mp4" if MODE == "griddle" else f"song-{N}-{MODE}.mp4")
 # the song, and under it the pickups' own sound wherever the cut let it in (ducked, faded at the edges)
 sins, sfc = [], "[1:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=1.0[s0]"; mix = "[s0]"
 # the foley pass: thuds on the locked pounds, the archive's own sound where it is the world (foley.py), as one more stem
 FOL = os.path.join(T, "foley.wav")
 if MODE == "griddle" and CL.get("tool") == "blacktop":
-    json.dump(PARTS, open(os.path.join(T, "parts.json"), "w")); subprocess.run([PY, os.path.join(D, "foley.py"), os.path.join(T, "parts.json"), FOL])
+    json.dump(PARTS, open(os.path.join(T, "parts.json"), "w")); subprocess.run([PY, os.path.join(D, "foley.py"), os.path.join(T, "parts.json"), FOL, N])
     if os.path.exists(FOL): SOUNDS.append((0.0, FOL, 0.0, 9999))
 for j, (t0_, src_, in_, L_) in enumerate(SOUNDS):
     if not os.path.exists(src_): continue
