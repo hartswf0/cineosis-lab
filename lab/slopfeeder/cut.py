@@ -12,7 +12,7 @@ P = json.load(open(os.path.join(D, "studio.json"))); cuts = {c["id"]: c for c in
 if N == "--cutlist":   # a cut served from the griddle, read into the same shape as a plan
     CL = json.load(open(sys.argv[2])); N, MODE = CL["song"], "griddle"; secs = []
     for sl in CL["slots"]:
-        pl = sl["plate"]; sh = {"t0": sl["t0"], "dur": sl["dur"], "alts": [], "trap": sl.get("cut_in", "cut")}
+        pl = sl["plate"]; sh = {"t0": sl["t0"], "dur": sl["dur"], "alts": [], "trap": sl.get("cut_in", "cut"), "in": pl.get("in"), "rate": pl.get("rate") or 1}
         if pl["type"] == "drawn": sh["cartoon"] = pl["id"].replace("drawn-", "", 1); sh["clip"] = {"id": pl["id"]}
         elif pl["type"] == "ai":
             nm = os.path.basename(pl["media"])[:-4]; sh["clip"] = {"id": pl["id"], "ai": {"file": f"ai/src/{nm}.mp4" if os.path.exists(os.path.join(D, "ai", "src", nm + ".mp4")) else pl["media"], "t0": pl["in"] or 0, "t1": (pl["in"] or 0) + 12}}
@@ -24,7 +24,9 @@ if N == "--cutlist":   # a cut served from the griddle, read into the same shape
     flat = [x for sec in secs for x in sec["shots"]]; sd = float(subprocess.run(["ffprobe", "-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", os.path.join(os.path.expanduser("~/moto/THE LITURGY OF THE TWO BUTTONS"), CL["file"])], capture_output=True, text=True).stdout or 0)
     for a_, b_ in zip(flat, flat[1:] + [None]): a_["dur"] = round((b_["t0"] if b_ else sd) - a_["t0"], 3)   # each slot runs until the next begins: the cut covers the whole song
     song = {"file": CL["file"], "sections": secs}
-else: song = next(s for s in P["songs"] if s["n"] == N)
+else: song = next(s for s in P["songs"] if s["n"] == N); CL = {}
+REG = {"raw": "", "newsreel": ",hue=s=0,eq=contrast=1.28:brightness=-0.03,noise=alls=9:allf=t",   # one look for the whole film, so archive, pickup and drawing belong to one world
+       "flat": ",split[ra][rb];[ra]format=rgb24,lutrgb=r='floor(val/52)*52+20':g='floor(val/52)*52+20':b='floor(val/52)*52+20',format=gbrp[rp];[rb]format=gray,gblur=sigma=1.4,edgedetect=low=0.1:high=0.25,negate,format=gbrp[re];[rp][re]blend=all_mode=multiply,format=yuv420p"}[CL.get("register", "raw")]
 ALB = os.path.expanduser("~/moto/THE LITURGY OF THE TWO BUTTONS"); CACHE = os.path.join(D, "fclips"); os.makedirs(CACHE, exist_ok=True)
 OUTD = os.path.join(D, "roughcut") if MODE in ("archive", "griddle") else os.path.join(D, "src", "roughcut"); T = os.path.join(OUTD, f"parts-{N}-{MODE}"); os.makedirs(T, exist_ok=True)
 W, H, FPS = 1280, 720, 24
@@ -41,8 +43,8 @@ for si, sec in enumerate(song["sections"]):
         ai = sh["clip"].get("ai") if not sh.get("cartoon") else None
         src = os.path.join(D, "cartoon", sh["cartoon"] + ".mp4") if sh.get("cartoon") else os.path.join(D, ai["file"]) if ai and os.path.exists(os.path.join(D, ai["file"])) else fetch(sh["clip"]) or next((fetch(a) for a in sh["alts"] if fetch(a)), None)
         if not src: continue
-        L = sh["dur"]; d = dur(src); a = 0.0 if sh.get("cartoon") else (max(ai["t0"], min((ai["t0"] + ai["t1"]) / 2 - L / 2, ai["t1"] - L)) if ai else max(0.0, min(d / 2 - L / 2, d - L - .05))); a = min(a, max(0.0, d - .4)); out = os.path.join(T, f"{n:03d}.mp4"); n += 1   # a cartoon plays from its first drawing; no in-point past the clip's end
-        ins = ["-ss", f"{a:.2f}", "-t", f"{L:.2f}", "-i", src]; fc = f"[0:v]{FILL}" + (f",tpad=stop_mode=clone:stop_duration={L:.2f}" if d - a < L + .1 else "") + "[p]"; last = "[p]"; k = 1
+        L = sh["dur"]; R = sh.get("rate", 1); d = dur(src); a = 0.0 if sh.get("cartoon") else (max(ai["t0"], min((ai["t0"] + ai["t1"]) / 2 - L / 2, ai["t1"] - L)) if ai else max(0.0, min(d / 2 - L / 2, d - L - .05))); a = sh["in"] if sh.get("in") is not None and not sh.get("cartoon") else a; a = min(a, max(0.0, d - .4)); out = os.path.join(T, f"{n:03d}.mp4"); n += 1   # a cartoon plays from its first drawing; no in-point past the clip's end
+        ins = ["-ss", f"{a:.2f}", "-t", f"{L * R:.2f}", "-i", src]; fc = f"[0:v]" + (f"setpts=PTS/{R:.3f}," if R != 1 else "") + FILL + (f",tpad=stop_mode=clone:stop_duration={L:.2f}" if d - a < L * R + .1 else "") + "[p]"; last = "[p]"; k = 1   # rate: a pounding retimed onto the song's beat
         lay = []
         if sh.get("cutout") and sh["cutout"] in cuts: lay.append(("cut", os.path.join(D, cuts[sh["cutout"]]["packed"]), .62, "bottom"))
         if sh.get("figure"): lay.append(("fig", sh["figure"], .7, "right"))
@@ -61,12 +63,13 @@ for si, sec in enumerate(song["sections"]):
         t_at += L
         if MODE != "griddle" and sec["world"] == "THE LANDING" and not sh.get("cartoon"):   # code: the shell hits on the downbeat (shake, then a white flash that fades)
             fc += f";{last}crop=iw-24:ih-24:12+10*sin(t*53):12+10*cos(t*41),scale={W}:{H},fade=t=in:st=0:d=0.12:color=white[sh]"; last = "[sh]"
+        if REG: fc += f";{last}null{REG}[rg]"; last = "[rg]"
         subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", fc, "-map", last, "-t", f"{L:.2f}", *ENC, out], check=True)
         parts.append(out)
     print(f"section {si + 1}/{len(song['sections'])} {sec['world']} · {len(sec['shots'])} shots", flush=True)
 lst = os.path.join(T, "list.txt"); open(lst, "w").write("".join(f"file '{p}'\n" for p in parts))
 pic = os.path.join(T, "picture.mp4"); subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", pic], check=True)
-out = os.path.join(OUTD, f"griddle-{N}.mp4" if MODE == "griddle" else f"song-{N}-{MODE}.mp4")
+out = os.path.join(OUTD, (f"blacktop-{N}-{CL.get('bet', '').lower()}-{CL.get('register', 'raw')}" if CL.get("tool") == "blacktop" else os.path.basename(sys.argv[2])[:-5]) + ".mp4" if MODE == "griddle" else f"song-{N}-{MODE}.mp4")
 # the song, and under it the pickups' own sound wherever the cut let it in (ducked, faded at the edges)
 sins, sfc = [], "[1:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=1.0[s0]"; mix = "[s0]"
 for j, (t0_, src_, in_, L_) in enumerate(SOUNDS):
