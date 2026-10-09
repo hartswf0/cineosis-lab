@@ -1,166 +1,208 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Sea of Takes</title>
-<meta name="description" content="THE SLOPFEEDER story cut as a lattice of every alternative: each shot's other takes, the seams the cut makes, a best path around your pins, and Monte Carlo heat. Watch your path play.">
+<meta name="description" content="Every alternative of every shot in the Slopfeeder films as one lattice: watch your path play, scrub it, play the machine (a Monte Carlo tree search) for the next shot, reflow the best path around your pins. The story cut, each song, or the AI footage alone.">
 <meta name="theme-color" content="#0c0d0f">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c0d0f'/%3E%3Ccircle cx='8' cy='10' r='2.5' fill='%23858b93'/%3E%3Ccircle cx='16' cy='18' r='2.5' fill='%23f25a17'/%3E%3Ccircle cx='24' cy='12' r='2.5' fill='%23858b93'/%3E%3Cpath d='M8 10 L16 18 L24 12' stroke='%23f25a17' stroke-width='2' fill='none'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{ --bg:#0c0d0f; --top:#16181b; --ink:#ebe5d8; --dim:#858b93; --faint:#24282d; --hot:#f25a17; --good:#7fc28b; --mid:#e3b341; --bad:#e0533a; --sans:'Barlow Condensed',Impact,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace; --z:54px; }
+:root{ --bg:#0c0d0f; --top:#16181b; --ink:#ebe5d8; --dim:#858b93; --faint:#24282d; --hot:#f25a17; --good:#7fc28b; --mid:#e3b341; --bad:#e0533a; --cool:#5aa9e6; --sans:'Barlow Condensed',Impact,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace; --z:54px; }
 *{ box-sizing:border-box; } html,body{ margin:0; } body{ background:var(--bg); color:var(--ink); font:400 12.5px/1.5 var(--mono); }
 [hidden]{ display:none!important; }
 ::-webkit-scrollbar{ height:10px; width:10px; } ::-webkit-scrollbar-thumb{ background:#2c3138; border-radius:5px; } ::-webkit-scrollbar-track{ background:transparent; }
-header{ max-width:1400px; margin:0 auto; padding:18px 16px 4px; display:flex; gap:14px; align-items:baseline; flex-wrap:wrap; }
-h1{ margin:0; font:700 28px var(--sans); letter-spacing:.14em; } h1 b{ color:var(--hot); } header p{ margin:0; color:var(--dim); max-width:720px; } header a{ margin-left:auto; color:var(--hot); text-decoration:none; font:700 13px var(--sans); letter-spacing:.14em; }
+button{ font:700 12.5px var(--sans); letter-spacing:.13em; background:none; color:var(--ink); border:1px solid var(--faint); border-radius:3px; padding:5px 10px; cursor:pointer; white-space:nowrap; } button:hover{ border-color:var(--hot); } button.on{ background:var(--hot); color:#170b04; border-color:var(--hot); } button:focus-visible{ outline:2px solid var(--cool); }
+header{ max-width:1400px; margin:0 auto; padding:14px 16px 4px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+h1{ margin:0 6px 0 0; font:700 26px var(--sans); letter-spacing:.14em; } h1 b{ color:var(--hot); }
+.views{ display:flex; gap:4px; flex-wrap:wrap; } .views button{ padding:3px 8px; font-size:12px; }
+header a{ margin-left:auto; color:var(--dim); text-decoration:none; font:700 12.5px var(--sans); letter-spacing:.14em; } header a:hover{ color:var(--hot); }
 .top{ max-width:1400px; margin:0 auto; padding:8px 16px 0; display:grid; grid-template-columns:minmax(0,1.55fr) minmax(0,1fr); gap:14px; }
 @media (max-width:860px){ .top{ grid-template-columns:1fr; } }
-.stage{ position:relative; aspect-ratio:16/9; background:#000; border-radius:4px; overflow:hidden; cursor:pointer; }
+.stage{ position:relative; aspect-ratio:16/9; background:#000; border-radius:4px; overflow:hidden; }
 .stage video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#000; } .stage .ov{ opacity:0; pointer-events:none; } .stage .ov.on{ opacity:1; }
 .cap{ position:absolute; left:6%; right:6%; bottom:8%; text-align:center; font:700 clamp(12px,2.1vw,22px)/1.25 Arial,sans-serif; color:#faf6ec; text-shadow:0 0 3px #000,0 0 3px #000,0 2px 4px #000; pointer-events:none; }
 .tag{ position:absolute; right:10px; top:10px; font:700 12px var(--sans); letter-spacing:.14em; background:#000b; padding:3px 8px; border-radius:2px; pointer-events:none; } .tag b{ color:var(--hot); }
-.insp{ background:var(--top); border:1px solid var(--faint); border-radius:4px; padding:10px; display:flex; flex-direction:column; gap:8px; min-width:0; }
+.offer{ position:absolute; left:0; right:0; bottom:0; padding:10px 12px 12px; background:linear-gradient(transparent,#000d 30%); display:flex; flex-direction:column; gap:6px; }
+.offer .q{ font:700 15px var(--sans); letter-spacing:.1em; display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; } .offer .q small{ color:var(--dim); font:500 11.5px var(--mono); letter-spacing:0; }
+.offer .opts{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; } .opt{ position:relative; padding:0; border:2px solid #fff3; border-radius:4px; overflow:hidden; background:#000; }
+.opt img{ display:block; width:100%; aspect-ratio:16/9; object-fit:cover; } .opt b{ position:absolute; left:6px; top:4px; font:700 16px var(--sans); text-shadow:0 0 3px #000; } .opt i{ position:absolute; right:6px; top:5px; font:600 11px var(--mono); font-style:normal; background:#000b; padding:0 5px; border-radius:2px; }
+.opt.fav i{ color:var(--cool); } .opt.won{ border-color:var(--hot); } .opt.mach{ box-shadow:inset 0 0 0 2px var(--cool); }
+.offer .clock{ height:3px; background:#fff2; border-radius:2px; overflow:hidden; } .offer .clock b{ display:block; height:100%; background:var(--hot); }
+.insp{ background:var(--top); border:1px solid var(--faint); border-radius:4px; padding:10px; display:flex; flex-direction:column; gap:7px; min-width:0; }
 .insp .pv{ position:relative; aspect-ratio:16/9; background:#000; border-radius:3px; overflow:hidden; } .insp .pv video,.insp .pv img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 .insp h3{ margin:0; font:700 17px var(--sans); letter-spacing:.06em; } .insp .sub{ color:var(--dim); font-size:11.5px; }
-.meter{ display:grid; grid-template-columns:96px 1fr 44px; gap:6px; align-items:center; font-size:11.5px; } .meter span:first-child{ color:var(--dim); } .meter i{ display:block; height:7px; background:#2a2f36; border-radius:4px; overflow:hidden; } .meter i b{ display:block; height:100%; background:var(--ink); }
+.meter{ display:grid; grid-template-columns:92px 1fr 40px; gap:6px; align-items:center; font-size:11.5px; } .meter span:first-child{ color:var(--dim); } .meter i{ display:block; height:7px; background:#2a2f36; border-radius:4px; overflow:hidden; } .meter i b{ display:block; height:100%; }
 .why{ color:#cfc9bc; font-size:11.5px; border-top:1px solid var(--faint); padding-top:6px; }
-.bar{ max-width:1400px; margin:0 auto; padding:10px 16px 4px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-button{ font:700 12.5px var(--sans); letter-spacing:.13em; background:none; color:var(--ink); border:1px solid var(--faint); border-radius:3px; padding:5px 10px; cursor:pointer; white-space:nowrap; } button:hover{ border-color:var(--hot); } button.on{ background:var(--hot); color:#170b04; border-color:var(--hot); } button:disabled{ opacity:.35; cursor:default; }
-.clock{ color:var(--dim); min-width:90px; } .where{ font:600 14px var(--sans); letter-spacing:.06em; min-width:160px; } .sp{ flex:1; }
-.score{ font:600 14px var(--sans); letter-spacing:.08em; color:var(--dim); } .score b{ color:var(--ink); } .score .bad{ color:var(--bad); }
-input[type=range]{ accent-color:var(--hot); width:110px; }
-.branches{ max-width:1400px; margin:0 auto; padding:0 16px; display:flex; gap:6px; flex-wrap:wrap; align-items:center; color:var(--dim); font-size:11.5px; }
-.chip{ border:1px solid var(--faint); border-radius:12px; padding:2px 10px; cursor:pointer; color:var(--ink); background:none; font:500 11.5px var(--mono); letter-spacing:0; } .chip.a{ border-color:var(--hot); } .chip.b{ border-color:#5aa9e6; } .chip em{ color:var(--dim); font-style:normal; }
-.sea{ position:relative; margin:8px 0 0; padding:22px 16px 18px; overflow-x:auto; overflow-y:hidden; border-top:1px solid var(--faint); border-bottom:1px solid var(--faint); background:#0e1013; }
+.row{ max-width:1400px; margin:0 auto; padding:8px 16px 0; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.t-clock{ color:var(--dim); min-width:92px; } .where{ font:600 14px var(--sans); letter-spacing:.06em; } .sp{ flex:1; }
+.read{ font:600 14px var(--sans); letter-spacing:.08em; color:var(--dim); } .read b{ color:var(--ink); } .read .bad{ color:var(--bad); }
+.chg{ display:flex; gap:8px; align-items:center; color:#cfc9bc; font-size:12px; border-left:2px solid var(--hot); padding-left:8px; flex-wrap:wrap; }
+.chip{ border:1px solid var(--faint); border-radius:12px; padding:2px 10px; color:var(--ink); font:500 11.5px var(--mono); letter-spacing:0; } .chip.a{ border-color:var(--hot); } .chip.b{ border-color:var(--cool); } .chip em{ color:var(--dim); font-style:normal; }
+input[type=range]{ accent-color:var(--hot); width:110px; vertical-align:middle; }
+.sea{ position:relative; margin:8px 0 0; padding:0 16px 16px; overflow-x:auto; overflow-y:hidden; border-top:1px solid var(--faint); border-bottom:1px solid var(--faint); background:#0e1013; }
+.ruler{ position:relative; height:26px; margin:0 0 14px; cursor:ew-resize; touch-action:none; }
+.ruler .tick{ position:absolute; top:6px; font:700 10.5px var(--sans); letter-spacing:.12em; color:var(--dim); white-space:nowrap; padding-left:3px; border-left:1px solid #2c3138; height:20px; pointer-events:none; } .ruler .tick.br{ color:#c9a35a; }
+.ruler .ph{ position:absolute; top:0; bottom:-6px; width:2px; background:#fff; pointer-events:none; } .ruler .ph::after{ content:''; position:absolute; left:-4px; top:0; border:5px solid transparent; border-top-color:#fff; }
 .lat{ position:relative; display:flex; gap:2px; align-items:flex-start; width:max-content; }
-.col{ position:relative; display:flex; flex-direction:column; gap:2px; width:var(--z); }
-.col.now::before{ content:''; position:absolute; left:-1px; right:-1px; top:-6px; bottom:-6px; border:1px solid #fff4; border-radius:3px; pointer-events:none; }
-.col .hd{ position:absolute; top:-19px; left:0; font:700 11px var(--sans); letter-spacing:.12em; color:var(--dim); white-space:nowrap; } .col.bridge .hd{ color:#c9a35a; }
+.col{ position:relative; display:flex; flex-direction:column; gap:2px; width:var(--z); flex:none; }
+.col.now::before{ content:''; position:absolute; left:-1px; right:-1px; top:-5px; bottom:-5px; border:1px solid #fff5; border-radius:3px; pointer-events:none; }
+.col.next::before{ content:''; position:absolute; left:-1px; right:-1px; top:-5px; bottom:-5px; border:1px dashed var(--cool); border-radius:3px; pointer-events:none; }
 .cell{ position:relative; width:var(--z); height:calc(var(--z) * .5625); border-radius:2px; overflow:hidden; cursor:pointer; background:#1b1e22; outline:1px solid transparent; }
-.cell img{ display:block; width:100%; height:100%; object-fit:cover; opacity:.5; transition:opacity .15s; } .cell:hover img{ opacity:1; } .cell.ch img{ opacity:1; }
-.cell.ch{ outline:2px solid #fff; z-index:2; } .cell.lk{ outline:2px solid var(--hot); } .cell.lk::after{ content:'●'; position:absolute; right:2px; top:-2px; color:var(--hot); font-size:10px; text-shadow:0 0 2px #000; }
+.cell img{ display:block; width:100%; height:100%; object-fit:cover; opacity:.5; } .cell:hover img,.cell.ch img{ opacity:1; }
+.cell .fb{ position:absolute; inset:0; background-repeat:no-repeat; display:none; } .lat.deep .cell.has .fb{ display:block; } .lat.deep .cell.has img{ display:none; }
+.lat.deep .cell .fb{ opacity:.55; } .lat.deep .cell:hover .fb,.lat.deep .cell.ch .fb{ opacity:1; }
+.cell.ch{ outline:2px solid #fff; z-index:2; } .cell.lk{ outline:2px solid var(--hot); } .cell.mk{ outline:2px solid var(--cool); }
 .cell.cut::before{ content:''; position:absolute; left:0; top:0; width:4px; height:4px; background:#ffd36a; z-index:1; }
-.cell .ht{ position:absolute; left:0; bottom:0; height:3px; background:#5aa9e6; }
-.sea.heat .cell img{ opacity:calc(.12 + var(--h, 0) * .88); }
+.cell .ht{ position:absolute; left:0; bottom:0; height:3px; background:var(--cool); z-index:1; }
+.sea.heat .cell img,.sea.heat .cell .fb{ opacity:calc(.12 + var(--h, 0) * .88); }
 svg.path{ position:absolute; left:0; top:0; pointer-events:none; overflow:visible; z-index:3; }
-.legend{ max-width:1400px; margin:0 auto; padding:8px 16px 40px; color:var(--dim); font-size:11.5px; display:flex; gap:18px; flex-wrap:wrap; } .legend b{ color:var(--ink); font-weight:500; }
-.sw{ display:inline-block; width:18px; height:3px; vertical-align:middle; margin-right:4px; }
-@media (max-width:600px){ h1{ font-size:22px; } header a{ margin-left:0; } :root{ --z:44px; } }
+.hint{ max-width:1400px; margin:0 auto; padding:8px 16px 36px; color:var(--dim); font-size:11.5px; }
+.hint b{ color:var(--ink); font-weight:500; } .sw{ display:inline-block; width:14px; height:3px; vertical-align:middle; margin:0 4px 0 10px; }
+@media (max-width:600px){ h1{ font-size:21px; } header a{ margin-left:0; } :root{ --z:44px; } .offer .opts{ gap:4px; } }
 </style></head><body>
-<header><h1>SEA OF <b>TAKES</b></h1><p>Every alternative of every shot in the story cut, at once. Each column is a shot and its stack holds the other takes of it; the line is the film you are watching, and its seams show how well each cut joins (a cut sits best near CLIP 0.72). Click a take to put it in the film and pin it; BEST PATH reflows the rest around your pins; ROLL runs Monte Carlo films and lights the takes that keep winning.</p><a href="slopfeeder-films.html">THE FILMS ↗</a></header>
+<header><h1>SEA OF <b>TAKES</b></h1><div class="views" id="views"></div><button id="aionly" title="show only the AI footage">AI ONLY</button><a href="slopfeeder-films.html">THE FILMS ↗</a></header>
 <div class="top">
-  <div class="stage" id="stage"><video id="base" playsinline preload="auto"></video><video class="ov" id="ovA" muted playsinline preload="auto"></video><video class="ov" id="ovB" muted playsinline preload="auto"></video><div class="cap" id="cap" hidden></div><div class="tag" id="tag" hidden></div></div>
-  <aside class="insp" id="insp"><div class="pv" id="pv"></div><h3 id="ih">Hover a take</h3><div class="sub" id="is"></div><div id="im"></div><div class="why" id="iw"></div></aside>
+  <div class="stage" id="stage"><video id="base" playsinline preload="auto"></video><video class="ov" id="ovA" muted playsinline preload="auto"></video><video class="ov" id="ovB" muted playsinline preload="auto"></video><div class="cap" id="cap" hidden></div><div class="tag" id="tag" hidden></div><div class="offer" id="offer" hidden></div></div>
+  <aside class="insp" id="insp"><div class="pv" id="pv"></div><h3 id="ih"></h3><div class="sub" id="is"></div><div id="im"></div><div class="why" id="iw"></div></aside>
 </div>
-<div class="bar"><button id="play">▶ PLAY</button><span class="clock" id="clock">0:00</span><span class="where" id="where"></span><span class="sp"></span><span class="score" id="score"></span></div>
-<div class="bar">
-  <button id="cut" title="the film as made">THE CUT</button><button id="best" title="best joins around your pins (Viterbi, as the Found Odyssey chooses its scenes)">BEST PATH</button><button id="roll" title="400 Monte Carlo films; light the takes that keep winning">ROLL</button><button id="heat" title="show how often each take wins">HEAT</button>
-  <span class="sp"></span>
-  <label class="score">ZOOM <input type="range" id="zoom" min="14" max="150" value="54"></label>
-  <button id="undo" disabled>UNDO</button><button id="save">SAVE BRANCH</button><button id="ab" disabled title="flip between the last two branches you loaded">A/B</button>
-</div>
-<div class="branches" id="branches"></div>
-<div class="sea" id="sea"><div class="lat" id="lat"></div></div>
-<div class="legend"><span><span class="sw" style="background:var(--good)"></span><b>seam</b> joins well</span><span><span class="sw" style="background:var(--mid)"></span>joins loosely</span><span><span class="sw" style="background:var(--bad)"></span>jars</span><span><b>white</b> = in your film</span><span><b style="color:var(--hot)">orange</b> = pinned by you</span><span><b style="color:#ffd36a">gold corner</b> = the cut as made</span><span><b style="color:#5aa9e6">blue bar</b> = wins in Monte Carlo films</span><span>keys: ← → shot · ↑ ↓ take · enter choose · space play · Z undo · ctrl-wheel zoom</span></div>
+<div class="row"><button id="play">▶ PLAY</button><span class="t-clock" id="clock">0:00</span><span class="where" id="where"></span><span class="sp"></span><button id="mach" title="play against the machine: before each shot it imagines futures and offers its three best takes">PLAY THE MACHINE</button><span class="read" id="mstat" hidden></span></div>
+<div class="row"><button id="best" title="reflow every unpinned shot for the best joins (Viterbi, as the Found Odyssey chooses its scenes)">BEST PATH</button><button id="roll" title="400 Monte Carlo films: light the takes that keep winning">ROLL</button><span class="chg" id="chg" hidden></span><span id="brs"></span><span class="sp"></span><span class="read" id="score"></span><label class="read" title="ctrl/⌘-wheel over the sea also zooms">ZOOM <input type="range" id="zoom" min="14" max="160" value="54"></label></div>
+<div class="sea" id="sea"><div class="ruler" id="ruler"></div><div class="lat" id="lat"></div></div>
+<div class="hint" id="hint"></div>
+<script src="slopfeeder/sea-core.js"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const base = $('base'), ovs = [$('ovA'), $('ovB')], KEY = 'sf-sea';
-  let M = null, cols = [], ch = [], lock = [], heat = null, undo = [], focus = { c: -1, k: 0 }, cur = -1, state = {};
-  const fmt = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
-  const src = x => x.kind === 'ai' ? `slopfeeder/ai/web/${x.clip}.mp4` : x.v, thumb = x => x.kind === 'ai' ? `slopfeeder/${x.thumb}` : x.thumb;
-  const nameOf = x => x.kind === 'ai' ? x.clip.replace(/_/g, ' ') : `${x.title}${x.year ? ` (${x.year})` : ''}`;
-  try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { state = {}; }
-  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { } };
-  /* ---- the critic: monte/sim.js's cut score (a Gaussian of CLIP cosine around .72) + the Found Odyssey's joint choice */
-  const cosE = (a, b) => { let s = 0; for (let i = 0; i < 32; i++) s += a.e[i] * b.e[i]; return M.cal[0] * s / 16129 + M.cal[1]; };
-  const join = (a, b) => (a.kind === 'ai' && b.kind === 'ai' && a.clip === b.clip) ? -1 : Math.exp(-(((cosE(a, b) - .72) / .12) ** 2) / 2);
-  let USED = {};   /* the story holds: a take that is already in the film elsewhere (as made) would repeat it */
-  const sid = x => x.kind === 'ai' ? x.clip : x.v;
-  const node = (c, k) => { const x = cols[c].cands[k]; return 2.2 * x.same + .25 * x.sym - (cols[c].poison ? 0 : .5 * x.poison) + (k === 0 ? .15 + (cols[c].cap || cols[c].poison ? 3 : 0) : 0) - (k && (USED[sid(x)] || []).some(o => o !== c) ? 1.2 : 0); };
-  const total = path => { let n = 0, j = 0, weak = 0, lk = 0; for (let c = 0; c < cols.length; c++) { n += node(c, path[c]); lk += cols[c].cands[path[c]].same; if (c) { const v = join(cols[c - 1].cands[path[c - 1]], cols[c].cands[path[c]]); j += v; if (v < .35) weak++; } } return { n: lk / cols.length, j: j / (cols.length - 1), weak, all: n + 1.2 * j }; };
-  function viterbi(fixed) {   /* the best path through the lattice, pinned takes held */
-    const N = cols.length, sc = [], bp = [];
-    for (let c = 0; c < N; c++) {
-      const K = cols[c].cands.length; sc[c] = new Array(K).fill(-1e9); bp[c] = new Array(K).fill(0);
-      for (let k = 0; k < K; k++) {
-        if (fixed[c] != null && fixed[c] !== k) continue;
-        const nd = node(c, k);
-        if (!c) { sc[c][k] = nd; continue; }
-        for (let p = 0; p < cols[c - 1].cands.length; p++) { if (sc[c - 1][p] < -1e8) continue; const v = sc[c - 1][p] + nd + 1.2 * join(cols[c - 1].cands[p], cols[c].cands[k]); if (v > sc[c][k]) { sc[c][k] = v; bp[c][k] = p; } }
-      }
-    }
-    const path = new Array(N); let k = sc[N - 1].indexOf(Math.max(...sc[N - 1])); for (let c = N - 1; c >= 0; c--) { path[c] = k; k = bp[c][k]; } return path;
-  }
-  function rollout(n) {   /* Monte Carlo films: each take sampled by how well it joins the last; keep the best 15%; count the wins */
-    const runs = [];
-    for (let r = 0; r < n; r++) {
-      const p = []; for (let c = 0; c < cols.length; c++) {
-        if (lock[c]) { p.push(ch[c]); continue; }
-        const w = cols[c].cands.map((x, k) => Math.exp((node(c, k) + (c ? 1.2 * join(cols[c - 1].cands[p[c - 1]], x) : 0)) / .35)); let u = Math.random() * w.reduce((a, b) => a + b, 0), k = 0; while (k < w.length - 1 && (u -= w[k]) > 0) k++; p.push(k);
-      }
-      runs.push([total(p).all, p]);
-    }
-    runs.sort((a, b) => b[0] - a[0]); const keep = runs.slice(0, Math.max(1, Math.round(n * .15)));
-    heat = cols.map(c => new Array(c.cands.length).fill(0)); keep.forEach(([, p]) => p.forEach((k, c) => heat[c][k]++)); heat = heat.map(h => h.map(v => v / keep.length)); return keep[0][1];
-  }
-  /* ---- every change is undoable */
-  function commit(nch, nlock, why) { undo.push({ ch: ch.slice(), lock: lock.slice() }); if (undo.length > 80) undo.shift(); ch = nch; lock = nlock; state.ch = ch; state.lock = lock; persist(); draw(); sync(true); if (why) say(why); }
-  const say = t => { $('iw').textContent = t; };
-  fetch('slopfeeder/story-lattice.json').then(r => r.json()).then(j => {
-    M = j; cols = j.cols; base.src = j.video; cols.forEach((c, i) => { const x = c.cands[0]; (USED[sid(x)] = USED[sid(x)] || []).push(i); });
-    ch = Array.isArray(state.ch) && state.ch.length === cols.length ? state.ch : cols.map(() => 0); lock = Array.isArray(state.lock) && state.lock.length === cols.length ? state.lock : cols.map(() => false);
-    state.branches = state.branches || []; build(); draw(); branches(); inspect(0, ch[0]);
-    $('lat').querySelectorAll('img').forEach(im => im.addEventListener('load', () => requestAnimationFrame(draw), { once: true }));
+  const base = $('base'), ovs = [$('ovA'), $('ovB')], fmt = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  const src = x => x.kind === 'ai' ? `slopfeeder/ai/web/${x.clip}.mp4` : x.v, thumb = x => /^http/.test(x.thumb) ? x.thumb : `slopfeeder/${x.thumb}`;
+  const nameOf = x => x.kind === 'ai' ? x.clip.replace(/_/g, ' ') : `${x.title || 'archive'}${x.year ? ` (${x.year})` : ''}`;
+  const qs = new URLSearchParams(location.search);
+  let VIEW = qs.get('v') || 'story', M = null, S = null, cols = [], vis = [], ch = [], lock = [], mk = [], heat = null, undo = [], st = {}, focus = { c: -1, k: 0 }, cur = -1, aiOnly = qs.get('ai') === '1', scrubbing = false;
+  const key = () => `sf-sea:${VIEW}`, save = () => { try { localStorage.setItem(key(), JSON.stringify({ ch, lock, mk, br: st.br || [], a: st.a, b: st.b })); } catch (e) { } };
+  const load = () => { try { return JSON.parse(localStorage.getItem(key()) || '{}'); } catch (e) { return {}; } };
+  const url = () => history.replaceState(null, '', `?v=${VIEW}${aiOnly ? '&ai=1' : ''}`);
+  /* ---- REST: the views */
+  fetch('slopfeeder/lattice/index.json').then(r => r.json()).then(ix => {
+    $('views').innerHTML = ix.map(v => `<button data-v="${v.id}" title="${esc(v.title)} · ${v.n} shots · ${v.takes} takes">${v.id === 'story' ? 'STORY CUT' : esc(v.title.split(' (')[0])}</button>`).join('');
+    $('views').querySelectorAll('button').forEach(b => b.onclick = () => open(b.dataset.v)); open(ix.some(v => v.id === VIEW) ? VIEW : 'story');
   });
-  function build() {
-    $('lat').innerHTML = cols.map((c, i) => `<div class="col ${c.kind}" data-c="${i}">${i === 0 || cols[i - 1].act !== c.act ? `<span class="hd">${esc(c.kind === 'bridge' ? 'ARCHIVE' : c.act)}</span>` : ''}${c.cands.map((x, k) => `<div class="cell${k === 0 ? ' cut' : ''}" data-c="${i}" data-k="${k}"><img src="${esc(thumb(x))}" alt="" loading="lazy"><i class="ht"></i></div>`).join('')}</div>`).join('') + '<svg class="path" id="path"></svg>';
-    $('lat').querySelectorAll('.cell').forEach(el => {
-      const c = +el.dataset.c, k = +el.dataset.k;
-      el.onmouseenter = () => inspect(c, k);
-      el.onclick = e => { if (e.altKey || (lock[c] && ch[c] === k)) { const l = lock.slice(); l[c] = false; commit(ch.slice(), l, 'unpinned'); return; } const n = ch.slice(), l = lock.slice(); n[c] = k; l[c] = true; commit(n, l, `pinned take ${k + 1} of shot ${c + 1}`); inspect(c, k); };
-      el.ondblclick = () => { base.currentTime = cols[c].t + .05; base.play().catch(() => { }); };
+  function open(v) {
+    VIEW = v; url(); $('views').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+    stopMachine(); heat = null; $('sea').classList.remove('heat'); $('roll').classList.remove('on');
+    fetch(`slopfeeder/lattice/${v}.json`).then(r => r.json()).then(j => {
+      M = j; S = SeaCore.Sea(j); cols = j.cols; base.src = j.video; const L = load(); undo = [];
+      const ok = a => Array.isArray(a) && a.length === cols.length;
+      ch = ok(L.ch) ? L.ch : cols.map(() => 0); lock = ok(L.lock) ? L.lock : cols.map(() => false); mk = ok(L.mk) ? L.mk : cols.map(() => 0);
+      st = { br: L.br || [], a: L.a, b: L.b }; setVis(); inspect(vis[0], ch[vis[0]]); changed(null);
     });
   }
+  function setVis() { vis = cols.map((c, i) => i).filter(i => !aiOnly || cols[i].kind === 'ai'); $('aionly').classList.toggle('on', aiOnly); build(); draw(); }
+  $('aionly').onclick = () => { aiOnly = !aiOnly; url(); heat = null; $('sea').classList.remove('heat'); $('roll').classList.remove('on'); setVis(); };
+  /* ---- the lattice, with its ruler (scrub) and flipbooks (deep zoom: scrub a take frame by frame) */
+  function build() {
+    const z = +$('zoom').value; $('lat').classList.toggle('deep', z >= 96);
+    $('lat').innerHTML = vis.map(c => { const C = cols[c]; return `<div class="col ${C.kind}" data-c="${c}">${C.cands.map((x, k) => `<div class="cell${k === 0 ? ' cut' : ''}${x.sp ? ' has' : ''}" data-c="${c}" data-k="${k}"><img src="${esc(thumb(x))}" alt="" loading="lazy">${x.sp ? `<i class="fb" style="background-image:url('${M.sprites.path.replace('%03d', String(x.sp[0]).padStart(3, '0'))}')"></i>` : ''}<i class="ht"></i></div>`).join('')}</div>`; }).join('') + '<svg class="path" id="path"></svg>';
+    $('lat').querySelectorAll('.cell').forEach(el => {
+      const c = +el.dataset.c, k = +el.dataset.k, x = cols[c].cands[k];
+      el.onmouseenter = () => inspect(c, k);
+      el.onmousemove = e => { if (!x.sp || !$('lat').classList.contains('deep')) return; const r = el.getBoundingClientRect(); frame(el, x, Math.floor((e.clientX - r.left) / r.width * 12)); };
+      el.onmouseleave = () => { if (x.sp) frame(el, x, 5); };
+      el.onclick = e => { if (e.altKey || (lock[c] && ch[c] === k)) { const l = lock.slice(); l[c] = false; commit(ch.slice(), l, 'you unpinned a shot'); return; } const n = ch.slice(), l = lock.slice(); n[c] = k; l[c] = true; const m = mk.slice(); m[c] = 0; commit(n, l, k === 0 ? 'you pinned the cut’s take' : `you put take ${k + 1} in shot ${vis.indexOf(c) + 1}`, m); inspect(c, k); };
+      el.ondblclick = () => { base.currentTime = cols[c].t + .05; base.play().catch(() => { }); };
+      if (x.sp) frame(el, x, 5);
+    });
+    ruler();
+  }
+  function frame(el, x, f) { const fb = el.querySelector('.fb'); if (!fb) return; const w = el.clientWidth, h = el.clientHeight; f = Math.max(0, Math.min(11, f)); fb.style.backgroundSize = `${w * 12}px ${h * 16}px`; fb.style.backgroundPosition = `${-f * w}px ${-x.sp[1] * h}px`; }
+  const step = () => +$('zoom').value + 2;
+  function ruler() {
+    const z = step(); let h = '', last = null;
+    vis.forEach((c, i) => { const C = cols[c], lab = C.kind === 'bridge' ? 'ARCHIVE' : C.act; if (lab !== last) { h += `<span class="tick${C.kind === 'bridge' ? ' br' : ''}" style="left:${i * z}px">${esc(lab)} · ${fmt(C.t)}</span>`; last = lab; } });
+    $('ruler').style.width = `${vis.length * z}px`; $('ruler').innerHTML = h + '<b class="ph" id="ph"></b>';
+  }
+  const xToTime = x => { const z = step(), i = Math.max(0, Math.min(vis.length - 1, Math.floor(x / z))), f = Math.max(0, Math.min(.999, x / z - i)), C = cols[vis[i]]; return C.t + f * C.d; };
+  const timeToX = t => { const z = step(); for (let i = 0; i < vis.length; i++) { const C = cols[vis[i]]; if (t < C.t + C.d) return (i + Math.max(0, Math.min(1, (t - C.t) / C.d))) * z; } return vis.length * z; };
+  $('ruler').addEventListener('pointerdown', e => {   /* scrub: drag along the ruler; the film follows, and resumes if it was playing */
+    const wasPlaying = !base.paused; base.pause(); scrubbing = true; const r = $('ruler'); r.setPointerCapture(e.pointerId);
+    const go = ev => { const b = r.getBoundingClientRect(); base.currentTime = xToTime(ev.clientX - b.left); sync(true); };
+    go(e); r.onpointermove = go; r.onpointerup = r.onpointercancel = () => { r.onpointermove = null; scrubbing = false; if (wasPlaying) base.play().catch(() => { }); };
+  });
+  /* ---- the readouts: the truth now */
   function draw() {
     if (!M) return; const L = $('lat'), cells = [...L.querySelectorAll('.cell')], at = {};
-    cells.forEach(el => { const c = +el.dataset.c, k = +el.dataset.k; el.classList.toggle('ch', ch[c] === k); el.classList.toggle('lk', !!lock[c] && ch[c] === k); const h = heat ? heat[c][k] : 0; el.style.setProperty('--h', h); el.querySelector('.ht').style.width = `${h * 100}%`; if (ch[c] === k) at[c] = el; });
-    /* the path: the film you are watching, each seam coloured by how it joins */
-    const lr = L.getBoundingClientRect(), pts = cols.map((_, i) => { const r = at[i].getBoundingClientRect(); return [r.left - lr.left + r.width / 2, r.top - lr.top + r.height / 2]; });
-    let s = ''; for (let i = 1; i < pts.length; i++) { const v = join(cols[i - 1].cands[ch[i - 1]], cols[i].cands[ch[i]]), col = v >= .6 ? 'var(--good)' : v >= .35 ? 'var(--mid)' : 'var(--bad)'; s += `<line x1="${pts[i - 1][0]}" y1="${pts[i - 1][1]}" x2="${pts[i][0]}" y2="${pts[i][1]}" stroke="${col}" stroke-width="${v < .35 ? 3 : 2}" stroke-linecap="round" opacity=".95"/>`; }
+    cells.forEach(el => { const c = +el.dataset.c, k = +el.dataset.k, on = ch[c] === k; el.classList.toggle('ch', on); el.classList.toggle('lk', on && !!lock[c] && !mk[c]); el.classList.toggle('mk', on && !!mk[c]); const h = heat ? heat[c][k] : 0; el.style.setProperty('--h', h); el.querySelector('.ht').style.width = `${h * 100}%`; if (on) at[c] = el; });
+    const lr = L.getBoundingClientRect(), pts = vis.map(c => { const r = at[c].getBoundingClientRect(); return [r.left - lr.left + r.width / 2, r.top - lr.top + r.height / 2]; });
+    let s = ''; for (let i = 1; i < pts.length; i++) { const v = S.seam(ch, vis[i - 1], vis[i]), col = v >= .6 ? 'var(--good)' : v >= .35 ? 'var(--mid)' : 'var(--bad)'; s += `<line x1="${pts[i - 1][0]}" y1="${pts[i - 1][1]}" x2="${pts[i][0]}" y2="${pts[i][1]}" stroke="${col}" stroke-width="${v < .35 ? 3 : 2}" stroke-linecap="round"/>`; }
     const svg = $('path'); svg.setAttribute('width', L.scrollWidth); svg.setAttribute('height', L.scrollHeight); svg.innerHTML = s;
-    const T = total(ch), C0 = total(cols.map(() => 0)), d = T.all - C0.all, nPin = lock.filter(Boolean).length, nAlt = ch.filter(k => k).length;
-    $('score').innerHTML = `seams <b>${(T.j * 100).toFixed(0)}</b> · likeness <b>${(T.n * 100).toFixed(0)}</b> · <span class="${T.weak ? 'bad' : ''}">${T.weak} jarring</span> · ${nAlt} changed · ${nPin} pinned · vs the cut <b>${d >= 0 ? '+' : ''}${d.toFixed(1)}</b>`;
-    $('undo').disabled = !undo.length;
+    const T = S.total(ch, vis), C0 = S.total(cols.map(() => 0), vis), d = T.all - C0.all;
+    $('score').innerHTML = `seams <b>${(T.seams * 100).toFixed(0)}</b> · likeness <b>${(T.like * 100).toFixed(0)}</b> · <span class="${T.weak ? 'bad' : ''}">${T.weak} jarring</span>${Math.abs(d) > .005 ? ` · vs the cut <b>${d > 0 ? '+' : ''}${d.toFixed(1)}</b>` : ''}`;
+    const nCh = vis.filter(c => ch[c]).length;
+    $('hint').innerHTML = `${esc(M.title)} · ${vis.length} shots · ${vis.reduce((a, c) => a + cols[c].cands.length, 0)} takes${aiOnly ? ' (AI footage only)' : ''} · ${nCh ? `${nCh} differ from the cut` : 'this is the cut as made'}<span class="sw" style="background:var(--good)"></span>joins well<span class="sw" style="background:var(--mid)"></span>loosely<span class="sw" style="background:var(--bad)"></span>jars · <b>white</b> in the film · <b style="color:var(--hot)">orange</b> yours · <b style="color:var(--cool)">blue</b> the machine’s · <b style="color:#ffd36a">gold corner</b> the cut as made · drag the ruler to scrub · zoom past 96 to scrub a take frame by frame · keys ← → ↑ ↓ enter · space · Z undo · A B C answer the machine`;
   }
-  function inspect(c, k) {
-    focus = { c, k }; const col = cols[c], x = col.cands[k], pv = $('pv');
-    const prev = c ? cols[c - 1].cands[ch[c - 1]] : null, next = c < cols.length - 1 ? cols[c + 1].cands[ch[c + 1]] : null, jin = prev ? join(prev, x) : null, jout = next ? join(x, next) : null;
-    pv.innerHTML = `<img src="${esc(thumb(x))}" alt=""><video muted playsinline loop preload="metadata"></video>`; const v = pv.querySelector('video'); v.src = src(x);
-    v.addEventListener('loadedmetadata', () => { v.currentTime = x.ss != null ? x.ss : Math.max(0, v.duration / 2 - col.d / 2); v.play().then(() => { const im = pv.querySelector('img'); if (im) im.remove(); }).catch(() => { }); }, { once: true });
-    $('ih').textContent = nameOf(x);
-    $('is').textContent = `${col.kind === 'ai' ? 'pickup' : col.kind === 'bridge' ? 'archive bridge' : 'archive memory'} · act ${col.act} · shot ${c + 1}/${cols.length} at ${fmt(col.t)} · take ${k + 1}/${col.cands.length}${k === 0 ? ' · the cut as made' : ''}${ch[c] === k ? ' · IN YOUR FILM' : ''}`;
-    const m = (lab, v, shown) => v == null ? '' : `<div class="meter"><span>${lab}</span><i><b style="width:${Math.max(0, Math.min(1, v)) * 100}%;background:${v >= .6 ? 'var(--good)' : v >= .35 ? 'var(--mid)' : 'var(--bad)'}"></b></i><span>${shown != null ? shown : (v * 100).toFixed(0)}</span></div>`;
-    $('im').innerHTML = m('like the shot', x.same) + m('joins from', jin) + m('joins into', jout) + m('symmetry', x.sym) + (x.poison ? `<div class="meter"><span>poison</span><i><b style="width:${x.poison * 100}%;background:#b05cd6"></b></i><span>${(x.poison * 100).toFixed(0)}</span></div>` : '') + (col.cap ? `<div class="sub" style="margin-top:4px">line: “${esc(col.cap)}”</div>` : '');
-    if (k !== ch[c]) { const n = ch.slice(); n[c] = k; const d = total(n).all - total(ch).all; say(`Putting this take in ${d >= 0 ? 'improves' : 'costs'} the film ${d >= 0 ? '+' : ''}${d.toFixed(2)} (likeness + seams). Click to put it in and pin it; double-click to watch it there.`); }
-    else say(lock[c] ? 'Pinned by you. Click again (or alt-click) to unpin; BEST PATH keeps pins.' : (col.cap || col.poison) && k === 0 ? `This shot is riverbed: it ${col.cap ? 'carries a line of the story' : 'is a poison shot placed at a turn'}, so the critic holds it unless you pin another take.` : 'In your film. Hover the stack to compare: the meters show how each alternative would join the shots either side.');
+  /* ---- CHANGED: what changed, its cause, and the way back */
+  function commit(nch, nlock, why, nmk) { undo.push({ ch: ch.slice(), lock: lock.slice(), mk: mk.slice() }); if (undo.length > 120) undo.shift(); const n = vis.filter(c => nch[c] !== ch[c]).length; ch = nch; lock = nlock; mk = (nmk || mk).map((v, c) => nlock[c] ? v : 0); save(); draw(); sync(true); changed(why, n); }
+  function changed(why, n) {
+    const E = $('chg'); if (!why) { E.hidden = true; branches(); return; }
+    E.hidden = false; E.innerHTML = `<span>${esc(why)}${n != null ? ` · ${n} take${n === 1 ? '' : 's'} changed` : ''}</span>${undo.length ? '<button id="u">UNDO</button>' : ''}<button id="sv">SAVE AS BRANCH</button>${vis.some(c => ch[c]) ? '<button id="rc">BACK TO THE CUT</button>' : ''}`;
+    const u = $('u'); if (u) u.onclick = () => { const x = undo.pop(); if (!x) return; ch = x.ch; lock = x.lock; mk = x.mk; save(); draw(); sync(true); changed(undo.length ? 'undone' : null); };
+    $('sv').onclick = () => { st.br.push({ name: `branch ${st.br.length + 1}`, ch: ch.slice(), lock: lock.slice(), mk: mk.slice(), score: S.total(ch, vis).all.toFixed(1) }); st.b = st.a; st.a = st.br.length - 1; save(); changed(null); };
+    const rc = $('rc'); if (rc) rc.onclick = () => commit(cols.map(() => 0), cols.map(() => false), 'back to the cut as made', cols.map(() => 0));
+    branches();
   }
   function branches() {
-    const B = state.branches; $('branches').innerHTML = B.length ? 'branches: ' + B.map((b, i) => `<button class="chip${i === state.a ? ' a' : ''}${i === state.b ? ' b' : ''}" data-i="${i}">${esc(b.name)} <em>${b.score}</em></button>`).join('') : '<span>No saved branches yet. SAVE BRANCH keeps this path; load two and A/B flips between them while the film plays.</span>';
-    $('branches').querySelectorAll('.chip').forEach(b => b.onclick = () => { const i = +b.dataset.i, br = state.branches[i]; if (state.a !== i) { state.b = state.a; state.a = i; } commit(br.ch.slice(), br.lock.slice(), `loaded ${br.name}`); branches(); $('ab').disabled = state.b == null; });
-    $('ab').disabled = state.b == null;
+    const B = st.br || []; $('brs').innerHTML = B.length ? B.map((b, i) => `<button class="chip${i === st.a ? ' a' : ''}${i === st.b ? ' b' : ''}" data-i="${i}">${esc(b.name)} <em>${b.score}</em></button>`).join(' ') + (st.b != null ? ' <button id="ab" title="flip between your last two branches">A/B</button>' : '') : '';
+    $('brs').querySelectorAll('.chip').forEach(b => b.onclick = () => { const i = +b.dataset.i, br = st.br[i]; if (st.a !== i) { st.b = st.a; st.a = i; } commit(br.ch.slice(), br.lock.slice(), `loaded ${br.name}`, (br.mk || cols.map(() => 0)).slice()); });
+    const ab = $('ab'); if (ab) ab.onclick = () => { [st.a, st.b] = [st.b, st.a]; const br = st.br[st.a]; commit(br.ch.slice(), br.lock.slice(), `A/B → ${br.name}`, (br.mk || cols.map(() => 0)).slice()); };
   }
-  $('save').onclick = () => { const n = state.branches.length + 1; state.branches.push({ name: `branch ${n}`, ch: ch.slice(), lock: lock.slice(), score: total(ch).all.toFixed(1) }); state.b = state.a; state.a = state.branches.length - 1; persist(); branches(); };
-  $('ab').onclick = () => { if (state.b == null) return; [state.a, state.b] = [state.b, state.a]; const br = state.branches[state.a]; commit(br.ch.slice(), br.lock.slice(), `A/B → ${br.name}`); branches(); };
-  $('undo').onclick = () => { const u = undo.pop(); if (!u) return; ch = u.ch; lock = u.lock; state.ch = ch; state.lock = lock; persist(); draw(); sync(true); say('undone'); };
-  $('cut').onclick = () => commit(cols.map(() => 0), cols.map(() => false), 'back to the cut as made');
-  $('best').onclick = () => { const p = viterbi(lock.map((l, c) => l ? ch[c] : null)); const n = p.filter((k, c) => k !== ch[c]).length; commit(p, lock.slice(), `best path around ${lock.filter(Boolean).length} pins: ${n} takes changed`); };
-  $('roll').onclick = () => { rollout(400); $('heat').classList.add('on'); $('sea').classList.add('heat'); draw(); say('400 Monte Carlo films rolled. Brightness and the blue bars show how often each take is in the best 60. Your film is unchanged: click what the heat suggests, or BEST PATH.'); };
-  $('heat').onclick = () => { if (!heat) rollout(400); const on = $('sea').classList.toggle('heat'); $('heat').classList.toggle('on', on); draw(); };
-  $('zoom').oninput = e => { document.documentElement.style.setProperty('--z', e.target.value + 'px'); requestAnimationFrame(draw); };
-  $('sea').addEventListener('wheel', e => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); const z = $('zoom'); z.value = Math.max(14, Math.min(150, +z.value - e.deltaY * .15)); z.oninput({ target: z }); }, { passive: false });
+  $('best').onclick = () => { const p = S.viterbi(ch, lock, vis); commit(p, lock.slice(), `BEST PATH around ${vis.filter(c => lock[c]).length} pins`); };
+  $('roll').onclick = () => { if ($('roll').classList.contains('on')) { heat = null; $('sea').classList.remove('heat'); $('roll').classList.remove('on'); draw(); return; } heat = S.rollout(ch, lock, vis, 400); $('sea').classList.add('heat'); $('roll').classList.add('on'); draw(); say('400 Monte Carlo films rolled: brightness and the blue bars are how often each take is in the best 60. Your film is unchanged. ROLL again clears it.'); };
+  $('zoom').oninput = () => { document.documentElement.style.setProperty('--z', $('zoom').value + 'px'); build(); draw(); };
+  $('sea').addEventListener('wheel', e => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); const z = $('zoom'); z.value = Math.max(14, Math.min(160, +z.value - e.deltaY * .15)); z.oninput(); }, { passive: false });
   window.addEventListener('resize', () => draw());
-  /* ---- playback: the film plays; wherever your path leaves the cut, your take plays over it, muted, for exactly that shot's place */
+  /* ---- the inspector: the take under your hand, and what it would do */
+  const say = t => { $('iw').textContent = t; };
+  function inspect(c, k) {
+    if (c == null || c < 0 || !cols[c]) return; focus = { c, k }; const C = cols[c], x = C.cands[k], pv = $('pv'), i = vis.indexOf(c);
+    const prev = i > 0 ? cols[vis[i - 1]].cands[ch[vis[i - 1]]] : null, next = i >= 0 && i < vis.length - 1 ? cols[vis[i + 1]].cands[ch[vis[i + 1]]] : null, jin = prev ? S.join(prev, x) : null, jout = next ? S.join(x, next) : null;
+    pv.innerHTML = `<img src="${esc(thumb(x))}" alt=""><video muted playsinline loop preload="metadata"></video>`; const v = pv.querySelector('video'); v.src = src(x);
+    v.addEventListener('loadedmetadata', () => { v.currentTime = x.ss != null ? x.ss : Math.max(0, v.duration / 2 - C.d / 2); v.play().then(() => { const im = pv.querySelector('img'); if (im) im.remove(); }).catch(() => { }); }, { once: true });
+    $('ih').textContent = nameOf(x);
+    $('is').textContent = `${C.kind === 'ai' ? 'pickup' : C.kind === 'bridge' ? 'archive bridge' : 'archive'} · ${C.act} · shot ${i + 1}/${vis.length} at ${fmt(C.t)} · take ${k + 1}/${C.cands.length}${k === 0 ? ' · the cut as made' : ''}${ch[c] === k ? ' · IN THE FILM' : ''}`;
+    const m = (lab, v, col) => v == null ? '' : `<div class="meter"><span>${lab}</span><i><b style="width:${Math.max(0, Math.min(1, v)) * 100}%;background:${col || (v >= .6 ? 'var(--good)' : v >= .35 ? 'var(--mid)' : 'var(--bad)')}"></b></i><span>${(v * 100).toFixed(0)}</span></div>`;
+    $('im').innerHTML = m('like the shot', x.same) + m('joins from', jin) + m('joins into', jout) + m('symmetry', x.sym, 'var(--ink)') + (x.poison ? m('poison', x.poison, '#b05cd6') : '') + (C.cap ? `<div class="sub">line: “${esc(C.cap)}”</div>` : '');
+    if (k !== ch[c]) { const n = ch.slice(); n[c] = k; const d = S.total(n, vis).all - S.total(ch, vis).all; say(`Putting this take in ${d >= 0 ? 'improves' : 'costs'} the film ${d >= 0 ? '+' : ''}${d.toFixed(2)}. Click: put it in and pin it. Double-click: watch it there.`); }
+    else say(lock[c] ? (mk[c] ? 'The machine took this shot. Click to make it yours; alt-click to free it.' : 'Pinned by you; BEST PATH keeps it. Click again to unpin.') : C.hold && k === 0 ? `Riverbed: this shot ${C.cap ? 'carries a line of the story' : 'is a poison shot placed at a turn'}, so the critic holds it unless you pin another take.` : 'In the film. Hover the stack: the meters show how each take would join the shots either side.');
+  }
+  /* ---- THE MACHINE: before each shot it imagines futures (monte/mcts.js's loop) and offers its three most-visited takes; you answer, or it cuts */
+  const LEAD = 4.5, THINK = 320; let MA = null;
+  $('mach').onclick = () => { if (MA) { stopMachine(); return; } MA = { offer: null, agree: 0, yours: 0, mine: 0, done: new Set() }; $('mach').classList.add('on'); $('mach').textContent = 'STOP THE MACHINE'; $('mstat').hidden = false; mstat(); if (base.paused) base.play().catch(() => { }); };
+  function stopMachine() { MA = null; $('offer').hidden = true; $('mach').classList.remove('on'); $('mach').textContent = 'PLAY THE MACHINE'; $('mstat').hidden = true; $('lat').querySelectorAll('.col.next').forEach(e => e.classList.remove('next')); }
+  const mstat = () => { if (MA) $('mstat').innerHTML = `you <b>${MA.yours}</b> · machine <b>${MA.mine}</b> · agreed <b>${MA.agree}</b>`; };
+  function machineTick(t) {
+    if (!MA) return; const O = MA.offer;
+    if (O) {
+      if (t >= cols[O.c].t - .05 || t < cols[O.c].t - LEAD - 2) { if (O.phase === 'offer') answer(-1); $('offer').hidden = true; MA.offer = null; $('lat').querySelectorAll('.col.next').forEach(e => e.classList.remove('next')); return; }
+      if (O.phase === 'offer') { const b = $('mclock'); if (b) b.style.width = `${Math.max(0, (cols[O.c].t - t) / LEAD) * 100}%`; } return;
+    }
+    const i = vis.findIndex(c => cols[c].t > t + .3 && cols[c].t - t < LEAD && cols[c].cands.length > 1 && !lock[c] && !MA.done.has(c)); if (i < 0) return;
+    const c = vis[i]; MA.done.add(c); const mc = S.machine(ch, lock, vis, i); MA.offer = { i, c, mc, phase: 'think' }; const colEl = $('lat').children[i]; if (colEl) colEl.classList.add('next');
+    $('offer').hidden = false; $('offer').innerHTML = `<div class="q">THE MACHINE IS IMAGINING<small id="mfut">0 futures</small><button id="mstop" style="margin-left:auto">STOP</button></div>`; $('mstop').onclick = e => { e.stopPropagation(); stopMachine(); };
+    let n = 0; const think = () => { if (!MA || !MA.offer || MA.offer.c !== c) return; const t0 = performance.now(); while (performance.now() - t0 < 12 && n < THINK) { mc.iterate(); n++; } const f = $('mfut'); if (f) f.textContent = `${mc.total} futures of the next ${Math.min(10, vis.length - i)} shots`; if (n < THINK) requestAnimationFrame(think); else offer(); }; requestAnimationFrame(think);
+  }
+  function offer() {
+    const O = MA.offer, kids = O.mc.kids().slice(0, 3); if (!kids.length) { O.phase = 'done'; return; } O.kids = kids; O.phase = 'offer'; const C = cols[O.c];
+    $('offer').innerHTML = `<div class="q">NEXT SHOT · WHICH TAKE?<small>${esc(C.act)} · ${O.mc.total} futures imagined · answer before the cut, or the machine chooses</small></div><div class="opts">${kids.map((o, j) => `<button class="opt${j === 0 ? ' fav' : ''}" data-j="${j}"><img src="${esc(thumb(C.cands[o.k]))}" alt=""><b>${'ABC'[j]}</b><i>${Math.round(o.share * 100)}%</i></button>`).join('')}</div><div class="clock"><b id="mclock" style="width:100%"></b></div>`;
+    $('offer').querySelectorAll('.opt').forEach(b => { b.onclick = e => { e.stopPropagation(); answer(+b.dataset.j); }; b.onmouseenter = () => inspect(O.c, kids[+b.dataset.j].k); });
+  }
+  function answer(j) {
+    const O = MA && MA.offer; if (!O || O.phase !== 'offer') return; O.phase = 'answered'; const fav = O.kids[0], pick = j >= 0 ? O.kids[j] : fav;
+    const n = ch.slice(), l = lock.slice(), m = mk.slice(); n[O.c] = pick.k; l[O.c] = true; m[O.c] = j >= 0 ? 0 : 1;
+    if (j >= 0) { MA.yours++; if (j === 0) MA.agree++; } else MA.mine++; mstat();
+    $('offer').querySelectorAll('.opt').forEach((b, x) => { b.classList.toggle('won', x === (j >= 0 ? j : 0)); b.classList.toggle('mach', x === 0); });
+    const q = $('offer').querySelector('.q'); if (q) q.innerHTML = j < 0 ? 'THE MACHINE CUT IT<small>no answer: its favourite goes in</small>' : j === 0 ? 'YOU AND THE MACHINE AGREE<small>its favourite goes in</small>' : `YOU OVERRULE THE MACHINE<small>its favourite had ${Math.round(fav.share * 100)}% of its futures</small>`;
+    commit(n, l, j < 0 ? 'the machine chose a take' : `you chose take ${'ABC'[j]}${j ? ' against the machine' : ' with the machine'}`, m);
+  }
+  /* ---- playback: the film plays; where your path leaves the cut, your take plays over it, muted, for exactly that shot */
   const colAt = t => { for (let i = 0; i < cols.length; i++) if (t >= cols[i].t && t < cols[i].t + cols[i].d) return i; return -1; };
   const same = (v, s) => v.src === s || v.src.endsWith(s);
   function want(c, t) { if (c < 0 || !ch[c]) return null; const x = cols[c].cands[ch[c]]; return { x, src: src(x), d: cols[c].d, el: t - cols[c].t }; }
@@ -182,26 +224,31 @@ svg.path{ position:absolute; left:0; top:0; pointer-events:none; overflow:visibl
     if (live) { drive(live, w, !base.paused); live.classList.toggle('on', !!w.ok); }
     if (prep) drive(prep, nw, false);
     const capOn = w && w.ok && cols[c].cap; $('cap').hidden = !capOn; if (capOn) $('cap').textContent = cols[c].cap;
-    $('tag').hidden = !(w && w.ok); if (w && w.ok) $('tag').innerHTML = `YOUR TAKE <b>${ch[c] + 1}</b>`;
-    $('clock').textContent = `${fmt(t)} / ${fmt(M.dur)}`; const p = M.program.find(p => t >= p.t && t < p.t + p.d);
-    $('where').textContent = !p ? (t < 15 ? 'THE MEME' : 'THE DEVELOPER') : p.kind === 'act' ? `${p.roman} · ${p.title}` : p.kind === 'bridge' ? `ARCHIVE · ${p.title}` : 'CLAUDE AT WORK';
+    $('tag').hidden = !(w && w.ok); if (w && w.ok) $('tag').innerHTML = `${mk[c] ? 'THE MACHINE’S' : 'YOUR'} TAKE <b>${ch[c] + 1}</b>`;
+    $('clock').textContent = `${fmt(t)} / ${fmt(M.dur)}`; const p = (M.program || []).find(p => t >= p.t && t < p.t + p.d);
+    $('where').textContent = !p ? (t < (M.offset || 15) ? 'THE MEME' : '') : p.kind === 'act' ? (VIEW === 'story' ? `${p.roman} · ${p.title}` : `PATCH ${p.title}`) : p.kind === 'bridge' ? `ARCHIVE · ${p.title}` : 'CLAUDE AT WORK';
+    const ph = $('ph'); if (ph) ph.style.left = `${timeToX(t)}px`;
     if (c !== cur || force) {
       $('lat').querySelectorAll('.col.now').forEach(e => e.classList.remove('now'));
-      if (c >= 0) { const col = $('lat').children[c]; col.classList.add('now'); if (!base.paused) { const sea = $('sea'), r = col.getBoundingClientRect(), sr = sea.getBoundingClientRect(); if (r.left < sr.left + 40 || r.right > sr.right - 40) sea.scrollBy({ left: r.left - sr.left - sr.width / 3, behavior: 'smooth' }); } }
+      const i = vis.indexOf(c);
+      if (i >= 0) { const col = $('lat').children[i]; col.classList.add('now'); if (!base.paused || scrubbing) { const sea = $('sea'), r = col.getBoundingClientRect(), sr = sea.getBoundingClientRect(); if (r.left < sr.left + 40 || r.right > sr.right - 40) sea.scrollBy({ left: r.left - sr.left - sr.width / 3, behavior: scrubbing ? 'auto' : 'smooth' }); } if (scrubbing && c !== cur) inspect(c, ch[c]); }
       cur = c;
     }
+    if ($('lat').classList.contains('deep') && c >= 0 && vis.includes(c)) { const el = $('lat').querySelector(`.cell[data-c="${c}"][data-k="${ch[c]}"]`), x = cols[c].cands[ch[c]]; if (el && x.sp && !el.matches(':hover')) frame(el, x, Math.floor((t - cols[c].t) / cols[c].d * 12)); }
+    if (!base.paused) machineTick(t);
   }
   (function loop() { sync(false); requestAnimationFrame(loop); })();
   setInterval(() => { if (document.hidden) sync(false); }, 200);   /* rAF sleeps in a hidden tab; the score must not */
   base.addEventListener('play', () => $('play').textContent = '❚❚ PAUSE'); base.addEventListener('pause', () => $('play').textContent = '▶ PLAY');
-  $('play').onclick = () => base.paused ? base.play() : base.pause(); $('stage').onclick = () => base.paused ? base.play() : base.pause();
+  $('play').onclick = () => base.paused ? base.play() : base.pause(); $('stage').onclick = e => { if (e.target.closest('.offer')) return; base.paused ? base.play() : base.pause(); };
   window.addEventListener('keydown', e => {
-    if (!M || e.target.tagName === 'INPUT') return; let { c, k } = focus;
+    if (!M || e.target.tagName === 'INPUT') return; const { c, k } = focus, i = vis.indexOf(c);
+    if (MA && MA.offer && MA.offer.phase === 'offer' && /^[abc]$/i.test(e.key)) { const j = 'abc'.indexOf(e.key.toLowerCase()); if (j < MA.offer.kids.length) answer(j); return; }
     if (e.key === ' ') { e.preventDefault(); base.paused ? base.play() : base.pause(); return; }
-    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); c = Math.max(0, Math.min(cols.length - 1, c + (e.key === 'ArrowRight' ? 1 : -1))); inspect(c, ch[c]); base.currentTime = cols[c].t + .05; }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); const c2 = vis[Math.max(0, Math.min(vis.length - 1, i + (e.key === 'ArrowRight' ? 1 : -1)))]; inspect(c2, ch[c2]); base.currentTime = cols[c2].t + .05; }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (c < 0) return; inspect(c, Math.max(0, Math.min(cols[c].cands.length - 1, k + (e.key === 'ArrowDown' ? 1 : -1)))); }
-    if (e.key === 'Enter' && c >= 0) { const n = ch.slice(), l = lock.slice(); n[c] = k; l[c] = true; commit(n, l, `pinned take ${k + 1} of shot ${c + 1}`); }
-    if (e.key === 'z' || e.key === 'Z') $('undo').onclick();
+    if (e.key === 'Enter' && c >= 0) { const n = ch.slice(), l = lock.slice(), m = mk.slice(); n[c] = k; l[c] = true; m[c] = 0; commit(n, l, `you put take ${k + 1} in shot ${i + 1}`, m); }
+    if ((e.key === 'z' || e.key === 'Z') && $('u')) $('u').onclick();
   });
 })();
 </script></body></html>
