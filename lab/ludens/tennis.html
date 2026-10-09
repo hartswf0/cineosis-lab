@@ -51,11 +51,11 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
   function fill(k, avoid) {
     const pool = L.pool().length >= 40 ? L.pool() : L.cards, on = new Set(ring.filter(Boolean).map(c => c.id)), used = new Set((W ? W.film : []).map(f => f.c.id)), prev = W && lastC(), T = W && target();
     if (T && T.c && !on.has(T.c.id) && !used.has(T.c.id) && !ring.some(c => c === T.c) && Math.random() < .35) return T.c;   /* the story keeps coming round */
-    let best = null, bs = -9; for (let i = 0; i < 160; i++) { const c = pool[Math.floor(Math.random() * pool.length)]; if (on.has(c.id) || used.has(c.id) || c === avoid) continue; const s = (prev ? L.join(prev, c) : .5) + (T && T.c ? (L.join(c, T.c) - .4) * .7 : 0) + c.mc * .2 + Math.random() * .25; if (s > bs) { bs = s; best = c; } }
+    let best = null, bs = -9; for (let i = 0; i < 160; i++) { const c = pool[Math.floor(Math.random() * pool.length)]; if (on.has(c.id) || used.has(c.id) || c === avoid) continue; const s = (prev ? L.join(prev, c) + L.chem(prev, c).v * 1.2 : .5) + (T && T.c ? (L.join(c, T.c) - .4) * .7 : 0) + c.mc * .2 + Math.random() * .25; if (s > bs) { bs = s; best = c; } }
     return best || pool[Math.floor(Math.random() * pool.length)];
   }
   function newRing() { ring = new Array(N).fill(null); for (let k = 0; k < N; k++) ring[k] = fill(k); W && (W.born = ring.map(() => performance.now())); }
-  function fresh(server) { return { b: { x: 0, y: 0, vx: 0, vy: 0, sp: 0, last: -1 }, p: W ? W.p : [Math.PI * .75, -Math.PI * .25], pv: [0, 0], pt: [0, 0], s: W ? W.s : [0, 0], story: W ? W.story : [0, 0], beat: W ? W.beat : 0, server, serveT: 1.6, trail: [], film: W ? W.film : [], cutAt: W ? W.cutAt : 0, over: false, flash: null, show: W ? W.show : { c: null, since: 0, was: null }, born: W ? W.born : ring.map(() => 0), aim: [{}, {}] }; }
+  function fresh(server) { return { b: { x: 0, y: 0, vx: 0, vy: 0, sp: 0, last: -1 }, p: W ? W.p : [Math.PI * .75, -Math.PI * .25], pv: [0, 0], pt: [0, 0], s: W ? W.s : [0, 0], story: W ? W.story : [0, 0], ch: W ? W.ch : [0, 0], beat: W ? W.beat : 0, server, serveT: 1.6, trail: [], film: W ? W.film : [], cutAt: W ? W.cutAt : 0, over: false, flash: null, show: W ? W.show : { c: null, since: 0, was: null }, born: W ? W.born : ring.map(() => 0), aim: [{}, {}] }; }
   const begin = m => { mode = m; $('setup').hidden = true; $('end').hidden = true; W = null; W = fresh(0); beats = L.beats(L.pool().length >= 40 ? L.pool() : L.cards); if (role !== 'guest') newRing(); W.born = ring.map(() => performance.now()); status(); colls(); };
   L.load().then(() => {
     const q = new URLSearchParams(location.search); L.filterUI($('filt')); H = L.header($('hd'), 'TENNIS', () => { if (W && mode !== 'online') newRing(); });
@@ -123,7 +123,9 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
   /* ---- a cut: the ball reached the ring at slot k; that shot joins the film as the sender's, the previous shot's length is set by the flight, a new shot fills the slot */
   function cutIn(who, k, c, nc) {
     const now = performance.now(); if (W.film.length) W.film[W.film.length - 1].d = Math.max(.6, Math.min(4.5, (now - W.cutAt) / 1000 * FILMRATE)); W.cutAt = now;
-    const q = W.film.length ? L.join(lastC(), c) : .6; W.film.push({ c, d: 2.4, who, q, k }); W.show = { c, since: now, was: W.show.c };
+    const q = W.film.length ? L.join(lastC(), c) : .6, r = W.film.length ? L.chem(lastC(), c) : null; W.film.push({ c, d: 2.4, who, q, k });
+    /* chemistry scores: a bond or a crystal earns the cutter a point, an echo or a backflow costs one */
+    if (r) { const v = r.kind === 'bond' || r.kind === 'crystal' ? 1 : r.kind === 'echo' || r.kind === 'backflow' ? -1 : 0; W.ch[who] += v; if (v) W.flash = { who, t: now, why: r.kind }; } W.show = { c, since: now, was: W.show.c };
     const T = target(); if (T && c === T.c) { W.story[who]++; W.beat++; W.flash = { who, t: now, why: 'beat' }; L.tone(880, .2, .05); } else L.tone(q >= .6 ? 560 : q >= .35 ? 440 : 300, .08, .05, q < .35 ? 'square' : 'sine');
     ring[k] = nc; W.born[k] = now; colls(); status();
   }
@@ -136,10 +138,10 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
     if (sender >= 0 && ring[k]) { const nc = fill(k, ring[k]); const c = ring[k]; cutIn(sender, k, c, nc); if (role === 'host') send({ t: 'cut', who: sender, k, id: c.id, nid: nc.id }); }
     let who = -1; for (const i of [1 - sender, sender]) if (i >= 0 && Math.abs(ad(th, W.p[i])) <= HW) { who = i; break; }
     if (who >= 0) { const v = hitVel(b, th, who); b.vx = v.vx; b.vy = v.vy; b.sp = v.sp; b.x = Math.cos(th) * .99; b.y = Math.sin(th) * .99; b.last = who; W.trail = [[b.x, b.y]]; L.tone(330, .05, .04); }
-    else { const win = sender >= 0 ? sender : 0; W.s[win]++; const end = W.s[win] + W.story[win] >= WIN; W.flash = { who: win, t: performance.now(), why: 'point' }; L.tone(win ? 200 : 260, .3, .06, 'sawtooth'); if (role === 'host') send({ t: 'pt', who: win, why: 'point', end }); W = Object.assign(fresh(1 - win), { flash: W.flash }); status(); if (end) { W.over = true; finish(); } }
+    else { const win = sender >= 0 ? sender : 0; W.s[win]++; const end = score(win) >= WIN; W.flash = { who: win, t: performance.now(), why: 'point' }; L.tone(win ? 200 : 260, .3, .06, 'sawtooth'); if (role === 'host') send({ t: 'pt', who: win, why: 'point', end }); W = Object.assign(fresh(1 - win), { flash: W.flash }); status(); if (end) { W.over = true; finish(); } }
   }
   /* ---- readouts */
-  const score = p => W.s[p] + W.story[p];
+  const score = p => W.s[p] + W.story[p] + (W.ch ? W.ch[p] : 0);
   function status() { if (!$('sc')) return; $('sc').innerHTML = `<span class="a">${score(0)}</span> · <span class="b">${score(1)}</span>`; const T = target(); $('st').textContent = (mode === 'machine' ? 'you (blue) vs the machine (red)' : mode === 'two' ? 'blue: left half, A/D · red: right half, arrows' : mode === 'auto' ? 'the machine plays both sides' : role === 'host' ? 'online · you are blue' : 'online · you are red') + (T ? ` · next beat: ${T.act}` : ''); }
   function colls() { if (SC) SC.render(); }
   function finish() {
@@ -163,6 +165,8 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
       const c = ring[k]; if (!c) continue; const a = slotAng(k), x = cx + Math.cos(a) * (R + band / 2), y = cy + Math.sin(a) * (R + band / 2), v = prev ? L.join(prev, c) : .6, fade = Math.min(1, (now - (W.born[k] || 0)) / 600);
       ctx.save(); ctx.translate(x, y); ctx.rotate(a + Math.PI / 2); ctx.globalAlpha = fade * (.4 + .6 * v); L.draw(ctx, c, -tw / 2, -th / 2, tw, th, null); ctx.globalAlpha = 1;
       ctx.fillStyle = `rgb(${L.tint(v)})`; ctx.fillRect(-tw / 2, th / 2 - 3, tw * Math.max(.08, v), 3);
+      const sz = Math.max(13, tw * .2); L.tile(ctx, c, tw / 2 - sz - 2, -th / 2 + 2, sz);
+      if (prev) { const r = L.chem(prev, c); ctx.fillStyle = L.CHEMCOL[r.kind] || '#888'; ctx.beginPath(); ctx.arc(-tw / 2 + 7, -th / 2 + 7, 4.5, 0, TAU); ctx.fill(); }
       if (T && c === T.c) { ctx.strokeStyle = '#f25a17'; ctx.lineWidth = 3; ctx.strokeRect(-tw / 2 - 2, -th / 2 - 2, tw + 4, th + 4); }
       ctx.restore();
     }
@@ -176,7 +180,7 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
     [0, 1].forEach(p => { ctx.strokeStyle = COL[p]; ctx.lineWidth = 12; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(cx, cy, R - 4, W.p[p] - HW, W.p[p] + HW); ctx.stroke(); ctx.lineCap = 'butt'; });
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cx + b.x * R, cy + b.y * R, 7, 0, TAU); ctx.fill(); if (b.sp) { ctx.strokeStyle = '#fff8'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(cx + b.x * R, cy + b.y * R, 11, 0, Math.min(TAU, Math.abs(b.sp) * 2.5)); ctx.stroke(); }
     if (W.serveT > 0 && !W.over) { ctx.fillStyle = '#ebe5d8'; ctx.font = '700 16px Barlow Condensed'; ctx.textAlign = 'center'; ctx.fillText(`${W.server ? 'RED' : 'BLUE'} SERVES · ${Math.ceil(W.serveT)}`, cx, cy + mh / 2 + 26); ctx.textAlign = 'left'; }
-    if (W.flash && now - W.flash.t < 1500) { ctx.fillStyle = COL[W.flash.who]; ctx.font = '700 28px Barlow Condensed'; ctx.textAlign = 'center'; ctx.fillText(W.flash.why === 'beat' ? `THE STORY'S BEAT · ${W.flash.who ? 'RED' : 'BLUE'} +1` : `POINT ${W.flash.who ? 'RED' : 'BLUE'}`, cx, cy + mh / 2 + 34); ctx.textAlign = 'left'; }
+    if (W.flash && now - W.flash.t < 1500) { ctx.fillStyle = COL[W.flash.who]; ctx.font = '700 28px Barlow Condensed'; ctx.textAlign = 'center'; ctx.fillText(W.flash.why === 'beat' ? `THE STORY'S BEAT · ${W.flash.who ? 'RED' : 'BLUE'} +1` : W.flash.why === 'point' ? `POINT ${W.flash.who ? 'RED' : 'BLUE'}` : `${W.flash.why.toUpperCase()} · ${W.flash.who ? 'RED' : 'BLUE'} ${W.flash.why === 'bond' || W.flash.why === 'crystal' ? '+1' : '-1'}`, cx, cy + mh / 2 + 34); ctx.textAlign = 'left'; }
     if (SC && SC.t != null && SC.film && SC.film.shots.length) {   /* the rally as territory: its chords across the court, slot to slot, a light along them, the playing shot lifted out at its slot */
       const F = SC.film, at = L.at(F.shots, SC.t), pt = f => { const a = slotAng(f.k); return [cx + Math.cos(a) * R * .97, cy + Math.sin(a) * R * .97]; };
       ctx.fillStyle = '#050506e0'; ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fill();

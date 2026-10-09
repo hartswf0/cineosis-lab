@@ -30,5 +30,14 @@ for col in st["cols"]:
     x = col["cands"][0]
     if col.get("hold") and x.get("id") in have and x["id"] not in [h["id"] for h in holes]: holes.append({"id": x["id"], "act": col["act"], "cap": col.get("cap", "")})
 CH = [["26", "I", "THE BUCKET BET"], ["14", "II", "THE RENDER FLEET"], ["13", "III", "THE COMMUNION"], ["23", "IV", "THE CHORUS"], ["20", "V", "THE MAINFRAME CONFESSION"], ["09", "VI", "THE RECURSION"], ["06", "VII", "GO HOME AND BE FREE"], ["07", "VIII", "CLEANSE THE MEMORY"]]
-json.dump({"chapters": CH, "calf": [round(float(ka), 4), round(float(kb), 4)], "cal": [round(float(a), 4), round(float(b), 4)], "sprites": {"fw": 128, "fh": 72, "nf": 12, "path": "slopfeeder/sprites/s%03d.jpg"}, "cards": out, "holes": holes}, open(os.path.join(L, "ludens", "corpus.json"), "w"), separators=(",", ":"))
+# SIGNS: each shot's Cineosis sign (the 45 of Deamer's table, ranked by the lab's affinity method), its family, the chain they make
+SG = FD["signs"]; FAMILY = {"Perception": "perception", "Affection": "affection", "Impulse": "impulse", "Action": "action", "Attraction": "reflection", "Inversion": "reflection", "Discourse": "reflection", "discourse": "reflection", "relation": "relation", "recollection": "memory", "dream": "memory", "Chronosign": "time", "Noosign": "time", "Hyalosign": "time", "Opsign": "time", "Sonsign": "time", "Lectosigns": "time"}
+fam_of = lambda t: next((v for k, v in FAMILY.items() if t.startswith(k)), "time")
+signs = [{"s": x["symbol"], "name": x["name"], "type": x["type"], "fam": fam_of(x["type"]), "n": int("".join(ch for ch in x["n"] if ch.isdigit()) or 0)} for x in SG]
+fc = {c["id"]: c for c in FD["cards"]}
+for o in out: f = fc.get(o["id"], {}); o["sg"] = (f.get("sg") or ["Op"])[0]
+# STORY AXIS: where each shot sits between the story's beats in order (a soft argmax of its CLIP likeness to every beat)
+bidx = [IX[h["id"]] for h in holes]; BE = E[bidx]
+for o in out: sim = BE @ E[IX[o["id"]]]; w = np.exp((sim - sim.max()) * 25); o["sx"] = round(float((w * np.arange(len(bidx))).sum() / w.sum() / max(1, len(bidx) - 1)), 4)
+json.dump({"signs": signs, "chapters": CH, "calf": [round(float(ka), 4), round(float(kb), 4)], "cal": [round(float(a), 4), round(float(b), 4)], "sprites": {"fw": 128, "fh": 72, "nf": 12, "path": "slopfeeder/sprites/s%03d.jpg"}, "cards": out, "holes": holes}, open(os.path.join(L, "ludens", "corpus.json"), "w"), separators=(",", ":"))
 print(len(out), "shots ·", len(holes), "holes ·", f"cal {a:.3f}x+{b:.3f}", "·", os.path.getsize(os.path.join(L, "ludens", "corpus.json")) // 1024, "KB")
