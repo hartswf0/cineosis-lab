@@ -1,119 +1,207 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Slopfeeder Takes</title>
-<meta name="description" content="Watch THE SLOPFEEDER story cut and choose which generated take of each shot you see: many pickups are the same shot generated twice.">
+<title>Sea of Takes</title>
+<meta name="description" content="THE SLOPFEEDER story cut as a lattice of every alternative: each shot's other takes, the seams the cut makes, a best path around your pins, and Monte Carlo heat. Watch your path play.">
 <meta name="theme-color" content="#0c0d0f">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c0d0f'/%3E%3Crect x='4' y='16' width='24' height='5' rx='1.5' fill='%23383d44'/%3E%3Cpath d='M9 16 L11 9 H16 L18 16 Z' fill='%23f25a17'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c0d0f'/%3E%3Ccircle cx='8' cy='10' r='2.5' fill='%23858b93'/%3E%3Ccircle cx='16' cy='18' r='2.5' fill='%23f25a17'/%3E%3Ccircle cx='24' cy='12' r='2.5' fill='%23858b93'/%3E%3Cpath d='M8 10 L16 18 L24 12' stroke='%23f25a17' stroke-width='2' fill='none'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{ --bg:#0c0d0f; --top:#16181b; --ink:#ebe5d8; --dim:#858b93; --faint:#24282d; --hot:#f25a17; --sans:'Barlow Condensed',Impact,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace; }
-*{ box-sizing:border-box; } html,body{ margin:0; } body{ background:var(--bg); color:var(--ink); font:400 13px/1.55 var(--mono); }
+:root{ --bg:#0c0d0f; --top:#16181b; --ink:#ebe5d8; --dim:#858b93; --faint:#24282d; --hot:#f25a17; --good:#7fc28b; --mid:#e3b341; --bad:#e0533a; --sans:'Barlow Condensed',Impact,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace; --z:54px; }
+*{ box-sizing:border-box; } html,body{ margin:0; } body{ background:var(--bg); color:var(--ink); font:400 12.5px/1.5 var(--mono); }
 [hidden]{ display:none!important; }
-header{ max-width:1180px; margin:0 auto; padding:22px 16px 6px; display:flex; gap:14px; align-items:baseline; flex-wrap:wrap; }
-h1{ margin:0; font:700 30px var(--sans); letter-spacing:.14em; } h1 b{ color:var(--hot); } header p{ margin:0; color:var(--dim); max-width:620px; } header a{ margin-left:auto; color:var(--hot); text-decoration:none; font:700 13px var(--sans); letter-spacing:.14em; }
-main{ max-width:1180px; margin:0 auto; padding:8px 16px 40px; }
-.stage{ position:relative; aspect-ratio:16/9; background:#000; border-radius:4px; overflow:hidden; }
-.stage video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#000; }
-.stage .ov{ opacity:0; pointer-events:none; } .stage .ov.on{ opacity:1; }
-.cap{ position:absolute; left:6%; right:6%; bottom:8%; text-align:center; font:700 clamp(13px,2.3vw,24px)/1.25 Arial,sans-serif; color:#faf6ec; text-shadow:0 0 3px #000,0 0 3px #000,0 2px 4px #000; pointer-events:none; }
+::-webkit-scrollbar{ height:10px; width:10px; } ::-webkit-scrollbar-thumb{ background:#2c3138; border-radius:5px; } ::-webkit-scrollbar-track{ background:transparent; }
+header{ max-width:1400px; margin:0 auto; padding:18px 16px 4px; display:flex; gap:14px; align-items:baseline; flex-wrap:wrap; }
+h1{ margin:0; font:700 28px var(--sans); letter-spacing:.14em; } h1 b{ color:var(--hot); } header p{ margin:0; color:var(--dim); max-width:720px; } header a{ margin-left:auto; color:var(--hot); text-decoration:none; font:700 13px var(--sans); letter-spacing:.14em; }
+.top{ max-width:1400px; margin:0 auto; padding:8px 16px 0; display:grid; grid-template-columns:minmax(0,1.55fr) minmax(0,1fr); gap:14px; }
+@media (max-width:860px){ .top{ grid-template-columns:1fr; } }
+.stage{ position:relative; aspect-ratio:16/9; background:#000; border-radius:4px; overflow:hidden; cursor:pointer; }
+.stage video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#000; } .stage .ov{ opacity:0; pointer-events:none; } .stage .ov.on{ opacity:1; }
+.cap{ position:absolute; left:6%; right:6%; bottom:8%; text-align:center; font:700 clamp(12px,2.1vw,22px)/1.25 Arial,sans-serif; color:#faf6ec; text-shadow:0 0 3px #000,0 0 3px #000,0 2px 4px #000; pointer-events:none; }
 .tag{ position:absolute; right:10px; top:10px; font:700 12px var(--sans); letter-spacing:.14em; background:#000b; padding:3px 8px; border-radius:2px; pointer-events:none; } .tag b{ color:var(--hot); }
-.bar{ display:flex; gap:10px; align-items:center; margin:10px 0 6px; flex-wrap:wrap; }
-button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:var(--ink); border:1px solid var(--faint); border-radius:3px; padding:6px 12px; cursor:pointer; } button:hover{ border-color:var(--hot); } button.on{ background:var(--hot); color:#170b04; border-color:var(--hot); }
-.clock{ color:var(--dim); font-size:12px; min-width:96px; } .where{ font:600 15px var(--sans); letter-spacing:.06em; }
-.lane{ position:relative; height:34px; background:var(--top); border-radius:3px; cursor:pointer; margin:4px 0 14px; touch-action:none; }
-.lane i{ position:absolute; top:0; bottom:0; } .lane .scr{ background:#2a2f36; } .lane .act{ background:#1d2024; } .lane .brd{ background:#3a3226; }
-.lane .tk{ position:absolute; top:5px; width:3px; height:24px; background:var(--dim); border-radius:1px; } .lane .tk.alt{ background:var(--hot); } .lane .tk.chosen{ background:#ffd36a; }
-.lane .ph{ position:absolute; top:-3px; bottom:-3px; width:2px; background:#fff; }
-.lane .lb{ position:absolute; top:-17px; font:700 10px var(--sans); letter-spacing:.12em; color:var(--dim); }
-h2{ margin:0 0 6px; font:700 18px var(--sans); letter-spacing:.1em; } h2 span{ color:var(--dim); font-weight:500; }
-.takes{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
-.take{ position:relative; border:2px solid var(--faint); border-radius:4px; overflow:hidden; cursor:pointer; background:#000; padding:0; }
-.take img{ display:block; width:100%; aspect-ratio:16/9; object-fit:cover; } .take span{ position:absolute; left:6px; bottom:4px; font:700 11px var(--sans); letter-spacing:.1em; background:#000c; padding:1px 6px; border-radius:2px; color:var(--ink); }
-.take.sel{ border-color:var(--hot); } .take:hover{ border-color:#ffd36a; } .take em{ position:absolute; right:6px; top:4px; font:700 11px var(--sans); color:var(--hot); font-style:normal; background:#000c; padding:0 5px; border-radius:2px; }
-.note{ color:var(--dim); margin:6px 0 0; } .none{ color:var(--dim); }
-.mine{ margin-top:18px; color:var(--dim); font-size:12px; } .mine b{ color:var(--ink); font-weight:500; }
-@media (max-width:600px){ h1{ font-size:24px; } header a{ margin-left:0; } .takes{ grid-template-columns:repeat(3,1fr); } }
+.insp{ background:var(--top); border:1px solid var(--faint); border-radius:4px; padding:10px; display:flex; flex-direction:column; gap:8px; min-width:0; }
+.insp .pv{ position:relative; aspect-ratio:16/9; background:#000; border-radius:3px; overflow:hidden; } .insp .pv video,.insp .pv img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.insp h3{ margin:0; font:700 17px var(--sans); letter-spacing:.06em; } .insp .sub{ color:var(--dim); font-size:11.5px; }
+.meter{ display:grid; grid-template-columns:96px 1fr 44px; gap:6px; align-items:center; font-size:11.5px; } .meter span:first-child{ color:var(--dim); } .meter i{ display:block; height:7px; background:#2a2f36; border-radius:4px; overflow:hidden; } .meter i b{ display:block; height:100%; background:var(--ink); }
+.why{ color:#cfc9bc; font-size:11.5px; border-top:1px solid var(--faint); padding-top:6px; }
+.bar{ max-width:1400px; margin:0 auto; padding:10px 16px 4px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+button{ font:700 12.5px var(--sans); letter-spacing:.13em; background:none; color:var(--ink); border:1px solid var(--faint); border-radius:3px; padding:5px 10px; cursor:pointer; white-space:nowrap; } button:hover{ border-color:var(--hot); } button.on{ background:var(--hot); color:#170b04; border-color:var(--hot); } button:disabled{ opacity:.35; cursor:default; }
+.clock{ color:var(--dim); min-width:90px; } .where{ font:600 14px var(--sans); letter-spacing:.06em; min-width:160px; } .sp{ flex:1; }
+.score{ font:600 14px var(--sans); letter-spacing:.08em; color:var(--dim); } .score b{ color:var(--ink); } .score .bad{ color:var(--bad); }
+input[type=range]{ accent-color:var(--hot); width:110px; }
+.branches{ max-width:1400px; margin:0 auto; padding:0 16px; display:flex; gap:6px; flex-wrap:wrap; align-items:center; color:var(--dim); font-size:11.5px; }
+.chip{ border:1px solid var(--faint); border-radius:12px; padding:2px 10px; cursor:pointer; color:var(--ink); background:none; font:500 11.5px var(--mono); letter-spacing:0; } .chip.a{ border-color:var(--hot); } .chip.b{ border-color:#5aa9e6; } .chip em{ color:var(--dim); font-style:normal; }
+.sea{ position:relative; margin:8px 0 0; padding:22px 16px 18px; overflow-x:auto; overflow-y:hidden; border-top:1px solid var(--faint); border-bottom:1px solid var(--faint); background:#0e1013; }
+.lat{ position:relative; display:flex; gap:2px; align-items:flex-start; width:max-content; }
+.col{ position:relative; display:flex; flex-direction:column; gap:2px; width:var(--z); }
+.col.now::before{ content:''; position:absolute; left:-1px; right:-1px; top:-6px; bottom:-6px; border:1px solid #fff4; border-radius:3px; pointer-events:none; }
+.col .hd{ position:absolute; top:-19px; left:0; font:700 11px var(--sans); letter-spacing:.12em; color:var(--dim); white-space:nowrap; } .col.bridge .hd{ color:#c9a35a; }
+.cell{ position:relative; width:var(--z); height:calc(var(--z) * .5625); border-radius:2px; overflow:hidden; cursor:pointer; background:#1b1e22; outline:1px solid transparent; }
+.cell img{ display:block; width:100%; height:100%; object-fit:cover; opacity:.5; transition:opacity .15s; } .cell:hover img{ opacity:1; } .cell.ch img{ opacity:1; }
+.cell.ch{ outline:2px solid #fff; z-index:2; } .cell.lk{ outline:2px solid var(--hot); } .cell.lk::after{ content:'●'; position:absolute; right:2px; top:-2px; color:var(--hot); font-size:10px; text-shadow:0 0 2px #000; }
+.cell.cut::before{ content:''; position:absolute; left:0; top:0; width:4px; height:4px; background:#ffd36a; z-index:1; }
+.cell .ht{ position:absolute; left:0; bottom:0; height:3px; background:#5aa9e6; }
+.sea.heat .cell img{ opacity:calc(.12 + var(--h, 0) * .88); }
+svg.path{ position:absolute; left:0; top:0; pointer-events:none; overflow:visible; z-index:3; }
+.legend{ max-width:1400px; margin:0 auto; padding:8px 16px 40px; color:var(--dim); font-size:11.5px; display:flex; gap:18px; flex-wrap:wrap; } .legend b{ color:var(--ink); font-weight:500; }
+.sw{ display:inline-block; width:18px; height:3px; vertical-align:middle; margin-right:4px; }
+@media (max-width:600px){ h1{ font-size:22px; } header a{ margin-left:0; } :root{ --z:44px; } }
 </style></head><body>
-<header><h1>SLOP<b>FEEDER</b> · TAKES</h1><p>Many of the generated shots are the same shot, generated more than once. Watch the story cut and choose which take you see: pick one under the picture (or press 1–7), and the film plays your take from then on. Your choices stay in this browser.</p><a href="slopfeeder-films.html">THE FILMS ↗</a></header>
-<main>
+<header><h1>SEA OF <b>TAKES</b></h1><p>Every alternative of every shot in the story cut, at once. Each column is a shot and its stack holds the other takes of it; the line is the film you are watching, and its seams show how well each cut joins (a cut sits best near CLIP 0.72). Click a take to put it in the film and pin it; BEST PATH reflows the rest around your pins; ROLL runs Monte Carlo films and lights the takes that keep winning.</p><a href="slopfeeder-films.html">THE FILMS ↗</a></header>
+<div class="top">
   <div class="stage" id="stage"><video id="base" playsinline preload="auto"></video><video class="ov" id="ovA" muted playsinline preload="auto"></video><video class="ov" id="ovB" muted playsinline preload="auto"></video><div class="cap" id="cap" hidden></div><div class="tag" id="tag" hidden></div></div>
-  <div class="bar"><button id="play">▶ PLAY</button><span class="clock" id="clock">0:00</span><span class="where" id="where"></span><span style="margin-left:auto"></span><button id="prev">◀ SHOT WITH TAKES</button><button id="next">SHOT WITH TAKES ▶</button></div>
-  <div class="lane" id="lane"></div>
-  <h2 id="th">THIS SHOT</h2><div class="takes" id="takes"></div><p class="note" id="note"></p>
-  <div class="mine" id="mine"></div>
-</main>
+  <aside class="insp" id="insp"><div class="pv" id="pv"></div><h3 id="ih">Hover a take</h3><div class="sub" id="is"></div><div id="im"></div><div class="why" id="iw"></div></aside>
+</div>
+<div class="bar"><button id="play">▶ PLAY</button><span class="clock" id="clock">0:00</span><span class="where" id="where"></span><span class="sp"></span><span class="score" id="score"></span></div>
+<div class="bar">
+  <button id="cut" title="the film as made">THE CUT</button><button id="best" title="best joins around your pins (Viterbi, as the Found Odyssey chooses its scenes)">BEST PATH</button><button id="roll" title="400 Monte Carlo films; light the takes that keep winning">ROLL</button><button id="heat" title="show how often each take wins">HEAT</button>
+  <span class="sp"></span>
+  <label class="score">ZOOM <input type="range" id="zoom" min="14" max="150" value="54"></label>
+  <button id="undo" disabled>UNDO</button><button id="save">SAVE BRANCH</button><button id="ab" disabled title="flip between the last two branches you loaded">A/B</button>
+</div>
+<div class="branches" id="branches"></div>
+<div class="sea" id="sea"><div class="lat" id="lat"></div></div>
+<div class="legend"><span><span class="sw" style="background:var(--good)"></span><b>seam</b> joins well</span><span><span class="sw" style="background:var(--mid)"></span>joins loosely</span><span><span class="sw" style="background:var(--bad)"></span>jars</span><span><b>white</b> = in your film</span><span><b style="color:var(--hot)">orange</b> = pinned by you</span><span><b style="color:#ffd36a">gold corner</b> = the cut as made</span><span><b style="color:#5aa9e6">blue bar</b> = wins in Monte Carlo films</span><span>keys: ← → shot · ↑ ↓ take · enter choose · space play · Z undo · ctrl-wheel zoom</span></div>
 <script>
 (() => {
   const $ = id => document.getElementById(id), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const base = $('base'), ovs = [$('ovA'), $('ovB')], KEY = 'sf-takes';
-  let ST = null, shots = [], pick = {}, cur = -1, shown = -1;
-  try { pick = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { pick = {}; }
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(pick)); } catch (e) { } };
+  const base = $('base'), ovs = [$('ovA'), $('ovB')], KEY = 'sf-sea';
+  let M = null, cols = [], ch = [], lock = [], heat = null, undo = [], focus = { c: -1, k: 0 }, cur = -1, state = {};
   const fmt = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
-  const media = c => `slopfeeder/ai/web/${c}.mp4`;
-  const takesOf = s => [{ clip: s.clip, ss: s.ss, out: s.ss + s.d * (s.rate || 1) + 5, thumb: s.thumb, own: true }, ...(s.alts || [])];
-  const keyOf = s => `${s.act}:${s.clip}:${s.ss}`;
-  const chosen = s => { const k = pick[keyOf(s)] || 0; return k ? takesOf(s)[k] : null; };
-  const shotAt = t => { for (let i = 0; i < shots.length; i++) if (t >= shots[i].t && t < shots[i].t + shots[i].d) return i; return -1; };
-  fetch('slopfeeder/story.json').then(r => r.json()).then(j => {
-    ST = j; shots = j.shots.filter(s => s.kind === 'ai'); base.src = j.video; lane(); panel(-1); mine();
+  const src = x => x.kind === 'ai' ? `slopfeeder/ai/web/${x.clip}.mp4` : x.v, thumb = x => x.kind === 'ai' ? `slopfeeder/${x.thumb}` : x.thumb;
+  const nameOf = x => x.kind === 'ai' ? x.clip.replace(/_/g, ' ') : `${x.title}${x.year ? ` (${x.year})` : ''}`;
+  try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { state = {}; }
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { } };
+  /* ---- the critic: monte/sim.js's cut score (a Gaussian of CLIP cosine around .72) + the Found Odyssey's joint choice */
+  const cosE = (a, b) => { let s = 0; for (let i = 0; i < 32; i++) s += a.e[i] * b.e[i]; return M.cal[0] * s / 16129 + M.cal[1]; };
+  const join = (a, b) => (a.kind === 'ai' && b.kind === 'ai' && a.clip === b.clip) ? -1 : Math.exp(-(((cosE(a, b) - .72) / .12) ** 2) / 2);
+  let USED = {};   /* the story holds: a take that is already in the film elsewhere (as made) would repeat it */
+  const sid = x => x.kind === 'ai' ? x.clip : x.v;
+  const node = (c, k) => { const x = cols[c].cands[k]; return 2.2 * x.same + .25 * x.sym - (cols[c].poison ? 0 : .5 * x.poison) + (k === 0 ? .15 + (cols[c].cap || cols[c].poison ? 3 : 0) : 0) - (k && (USED[sid(x)] || []).some(o => o !== c) ? 1.2 : 0); };
+  const total = path => { let n = 0, j = 0, weak = 0, lk = 0; for (let c = 0; c < cols.length; c++) { n += node(c, path[c]); lk += cols[c].cands[path[c]].same; if (c) { const v = join(cols[c - 1].cands[path[c - 1]], cols[c].cands[path[c]]); j += v; if (v < .35) weak++; } } return { n: lk / cols.length, j: j / (cols.length - 1), weak, all: n + 1.2 * j }; };
+  function viterbi(fixed) {   /* the best path through the lattice, pinned takes held */
+    const N = cols.length, sc = [], bp = [];
+    for (let c = 0; c < N; c++) {
+      const K = cols[c].cands.length; sc[c] = new Array(K).fill(-1e9); bp[c] = new Array(K).fill(0);
+      for (let k = 0; k < K; k++) {
+        if (fixed[c] != null && fixed[c] !== k) continue;
+        const nd = node(c, k);
+        if (!c) { sc[c][k] = nd; continue; }
+        for (let p = 0; p < cols[c - 1].cands.length; p++) { if (sc[c - 1][p] < -1e8) continue; const v = sc[c - 1][p] + nd + 1.2 * join(cols[c - 1].cands[p], cols[c].cands[k]); if (v > sc[c][k]) { sc[c][k] = v; bp[c][k] = p; } }
+      }
+    }
+    const path = new Array(N); let k = sc[N - 1].indexOf(Math.max(...sc[N - 1])); for (let c = N - 1; c >= 0; c--) { path[c] = k; k = bp[c][k]; } return path;
+  }
+  function rollout(n) {   /* Monte Carlo films: each take sampled by how well it joins the last; keep the best 15%; count the wins */
+    const runs = [];
+    for (let r = 0; r < n; r++) {
+      const p = []; for (let c = 0; c < cols.length; c++) {
+        if (lock[c]) { p.push(ch[c]); continue; }
+        const w = cols[c].cands.map((x, k) => Math.exp((node(c, k) + (c ? 1.2 * join(cols[c - 1].cands[p[c - 1]], x) : 0)) / .35)); let u = Math.random() * w.reduce((a, b) => a + b, 0), k = 0; while (k < w.length - 1 && (u -= w[k]) > 0) k++; p.push(k);
+      }
+      runs.push([total(p).all, p]);
+    }
+    runs.sort((a, b) => b[0] - a[0]); const keep = runs.slice(0, Math.max(1, Math.round(n * .15)));
+    heat = cols.map(c => new Array(c.cands.length).fill(0)); keep.forEach(([, p]) => p.forEach((k, c) => heat[c][k]++)); heat = heat.map(h => h.map(v => v / keep.length)); return keep[0][1];
+  }
+  /* ---- every change is undoable */
+  function commit(nch, nlock, why) { undo.push({ ch: ch.slice(), lock: lock.slice() }); if (undo.length > 80) undo.shift(); ch = nch; lock = nlock; state.ch = ch; state.lock = lock; persist(); draw(); sync(true); if (why) say(why); }
+  const say = t => { $('iw').textContent = t; };
+  fetch('slopfeeder/story-lattice.json').then(r => r.json()).then(j => {
+    M = j; cols = j.cols; base.src = j.video; cols.forEach((c, i) => { const x = c.cands[0]; (USED[sid(x)] = USED[sid(x)] || []).push(i); });
+    ch = Array.isArray(state.ch) && state.ch.length === cols.length ? state.ch : cols.map(() => 0); lock = Array.isArray(state.lock) && state.lock.length === cols.length ? state.lock : cols.map(() => false);
+    state.branches = state.branches || []; build(); draw(); branches(); inspect(0, ch[0]);
+    $('lat').querySelectorAll('img').forEach(im => im.addEventListener('load', () => requestAnimationFrame(draw), { once: true }));
   });
-  function lane() {
-    const L = $('lane'), D = ST.dur; let h = '';
-    for (const p of ST.program) { const cls = p.kind === 'screen' ? 'scr' : p.kind === 'bridge' ? 'brd' : 'act'; h += `<i class="${cls}" style="left:${p.t / D * 100}%;width:${p.d / D * 100}%"></i>`; if (p.kind === 'act') h += `<span class="lb" style="left:${p.t / D * 100}%">${esc(p.roman)}</span>`; }
-    shots.forEach((s, i) => { h += `<b class="tk${s.alts && s.alts.length ? ' alt' : ''}${pick[keyOf(s)] ? ' chosen' : ''}" data-i="${i}" style="left:${(s.t + s.d / 2) / D * 100}%"></b>`; });
-    L.innerHTML = h + '<b class="ph" id="ph"></b>';
+  function build() {
+    $('lat').innerHTML = cols.map((c, i) => `<div class="col ${c.kind}" data-c="${i}">${i === 0 || cols[i - 1].act !== c.act ? `<span class="hd">${esc(c.kind === 'bridge' ? 'ARCHIVE' : c.act)}</span>` : ''}${c.cands.map((x, k) => `<div class="cell${k === 0 ? ' cut' : ''}" data-c="${i}" data-k="${k}"><img src="${esc(thumb(x))}" alt="" loading="lazy"><i class="ht"></i></div>`).join('')}</div>`).join('') + '<svg class="path" id="path"></svg>';
+    $('lat').querySelectorAll('.cell').forEach(el => {
+      const c = +el.dataset.c, k = +el.dataset.k;
+      el.onmouseenter = () => inspect(c, k);
+      el.onclick = e => { if (e.altKey || (lock[c] && ch[c] === k)) { const l = lock.slice(); l[c] = false; commit(ch.slice(), l, 'unpinned'); return; } const n = ch.slice(), l = lock.slice(); n[c] = k; l[c] = true; commit(n, l, `pinned take ${k + 1} of shot ${c + 1}`); inspect(c, k); };
+      el.ondblclick = () => { base.currentTime = cols[c].t + .05; base.play().catch(() => { }); };
+    });
   }
-  const seekLane = e => { const r = $('lane').getBoundingClientRect(); base.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * ST.dur; };
-  $('lane').addEventListener('pointerdown', e => { seekLane(e); const mv = ev => seekLane(ev); window.addEventListener('pointermove', mv); window.addEventListener('pointerup', () => window.removeEventListener('pointermove', mv), { once: true }); });
-  function panel(i) {
-    shown = i; const T = $('takes');
-    if (i < 0) { const nx = shots.findIndex(s => s.t > base.currentTime && s.alts && s.alts.length); $('th').innerHTML = 'THIS SHOT <span>— no other takes here</span>'; T.innerHTML = ''; $('note').textContent = nx >= 0 ? `next shot with other takes at ${fmt(shots[nx].t)} (act ${shots[nx].act})` : ''; return; }
-    const s = shots[i], tk = takesOf(s), k = pick[keyOf(s)] || 0;
-    $('th').innerHTML = `THIS SHOT <span>— act ${esc(s.act)} · ${esc(s.clip.replace(/_/g, ' '))}${s.poison ? ' · a poison shot' : ''}</span>`;
-    T.innerHTML = tk.map((t, j) => `<button class="take${j === k ? ' sel' : ''}" data-j="${j}"><img src="slopfeeder/${esc(t.thumb)}" alt="" loading="lazy"><span>${j + 1} · ${j === 0 ? 'THE CUT' : esc(t.clip.replace(/_/g, ' ').slice(0, 22))}</span>${t.sim ? `<em>${Math.round(t.sim * 100)}</em>` : ''}</button>`).join('');
-    $('note').textContent = tk.length > 1 ? `${tk.length - 1} other take${tk.length > 2 ? 's' : ''} of more or less the same shot. The number is how alike they are (CLIP).` : 'Only one take of this shot exists.';
-    T.querySelectorAll('.take').forEach(b => b.onclick = () => choose(i, +b.dataset.j));
+  function draw() {
+    if (!M) return; const L = $('lat'), cells = [...L.querySelectorAll('.cell')], at = {};
+    cells.forEach(el => { const c = +el.dataset.c, k = +el.dataset.k; el.classList.toggle('ch', ch[c] === k); el.classList.toggle('lk', !!lock[c] && ch[c] === k); const h = heat ? heat[c][k] : 0; el.style.setProperty('--h', h); el.querySelector('.ht').style.width = `${h * 100}%`; if (ch[c] === k) at[c] = el; });
+    /* the path: the film you are watching, each seam coloured by how it joins */
+    const lr = L.getBoundingClientRect(), pts = cols.map((_, i) => { const r = at[i].getBoundingClientRect(); return [r.left - lr.left + r.width / 2, r.top - lr.top + r.height / 2]; });
+    let s = ''; for (let i = 1; i < pts.length; i++) { const v = join(cols[i - 1].cands[ch[i - 1]], cols[i].cands[ch[i]]), col = v >= .6 ? 'var(--good)' : v >= .35 ? 'var(--mid)' : 'var(--bad)'; s += `<line x1="${pts[i - 1][0]}" y1="${pts[i - 1][1]}" x2="${pts[i][0]}" y2="${pts[i][1]}" stroke="${col}" stroke-width="${v < .35 ? 3 : 2}" stroke-linecap="round" opacity=".95"/>`; }
+    const svg = $('path'); svg.setAttribute('width', L.scrollWidth); svg.setAttribute('height', L.scrollHeight); svg.innerHTML = s;
+    const T = total(ch), C0 = total(cols.map(() => 0)), d = T.all - C0.all, nPin = lock.filter(Boolean).length, nAlt = ch.filter(k => k).length;
+    $('score').innerHTML = `seams <b>${(T.j * 100).toFixed(0)}</b> · likeness <b>${(T.n * 100).toFixed(0)}</b> · <span class="${T.weak ? 'bad' : ''}">${T.weak} jarring</span> · ${nAlt} changed · ${nPin} pinned · vs the cut <b>${d >= 0 ? '+' : ''}${d.toFixed(1)}</b>`;
+    $('undo').disabled = !undo.length;
   }
-  function choose(i, j) { const s = shots[i]; if (j) pick[keyOf(s)] = j; else delete pick[keyOf(s)]; save(); panel(i); lane(); mine(); sync(true); }
-  function mine() { const n = Object.keys(pick).length; $('mine').innerHTML = n ? `<b>${n}</b> shot${n > 1 ? 's' : ''} recut by you · <button id="reset">RESET TO THE CUT</button>` : 'You are watching the cut as made.'; const r = $('reset'); if (r) r.onclick = () => { pick = {}; save(); lane(); mine(); panel(cur); sync(true); }; }
-  /* the score drives the overlay: the chosen take plays muted over the cut, from its own in-point, for exactly the shot's place */
-  function want(s, t) { const c = chosen(s); if (!c) return null; const end = (c.out || c.ss + s.d) - .06, at = c.ss + (t - s.t); return { src: media(c.clip), at: Math.min(at, end), hold: at >= end }; }
+  function inspect(c, k) {
+    focus = { c, k }; const col = cols[c], x = col.cands[k], pv = $('pv');
+    const prev = c ? cols[c - 1].cands[ch[c - 1]] : null, next = c < cols.length - 1 ? cols[c + 1].cands[ch[c + 1]] : null, jin = prev ? join(prev, x) : null, jout = next ? join(x, next) : null;
+    pv.innerHTML = `<img src="${esc(thumb(x))}" alt=""><video muted playsinline loop preload="metadata"></video>`; const v = pv.querySelector('video'); v.src = src(x);
+    v.addEventListener('loadedmetadata', () => { v.currentTime = x.ss != null ? x.ss : Math.max(0, v.duration / 2 - col.d / 2); v.play().then(() => { const im = pv.querySelector('img'); if (im) im.remove(); }).catch(() => { }); }, { once: true });
+    $('ih').textContent = nameOf(x);
+    $('is').textContent = `${col.kind === 'ai' ? 'pickup' : col.kind === 'bridge' ? 'archive bridge' : 'archive memory'} · act ${col.act} · shot ${c + 1}/${cols.length} at ${fmt(col.t)} · take ${k + 1}/${col.cands.length}${k === 0 ? ' · the cut as made' : ''}${ch[c] === k ? ' · IN YOUR FILM' : ''}`;
+    const m = (lab, v, shown) => v == null ? '' : `<div class="meter"><span>${lab}</span><i><b style="width:${Math.max(0, Math.min(1, v)) * 100}%;background:${v >= .6 ? 'var(--good)' : v >= .35 ? 'var(--mid)' : 'var(--bad)'}"></b></i><span>${shown != null ? shown : (v * 100).toFixed(0)}</span></div>`;
+    $('im').innerHTML = m('like the shot', x.same) + m('joins from', jin) + m('joins into', jout) + m('symmetry', x.sym) + (x.poison ? `<div class="meter"><span>poison</span><i><b style="width:${x.poison * 100}%;background:#b05cd6"></b></i><span>${(x.poison * 100).toFixed(0)}</span></div>` : '') + (col.cap ? `<div class="sub" style="margin-top:4px">line: “${esc(col.cap)}”</div>` : '');
+    if (k !== ch[c]) { const n = ch.slice(); n[c] = k; const d = total(n).all - total(ch).all; say(`Putting this take in ${d >= 0 ? 'improves' : 'costs'} the film ${d >= 0 ? '+' : ''}${d.toFixed(2)} (likeness + seams). Click to put it in and pin it; double-click to watch it there.`); }
+    else say(lock[c] ? 'Pinned by you. Click again (or alt-click) to unpin; BEST PATH keeps pins.' : (col.cap || col.poison) && k === 0 ? `This shot is riverbed: it ${col.cap ? 'carries a line of the story' : 'is a poison shot placed at a turn'}, so the critic holds it unless you pin another take.` : 'In your film. Hover the stack to compare: the meters show how each alternative would join the shots either side.');
+  }
+  function branches() {
+    const B = state.branches; $('branches').innerHTML = B.length ? 'branches: ' + B.map((b, i) => `<button class="chip${i === state.a ? ' a' : ''}${i === state.b ? ' b' : ''}" data-i="${i}">${esc(b.name)} <em>${b.score}</em></button>`).join('') : '<span>No saved branches yet. SAVE BRANCH keeps this path; load two and A/B flips between them while the film plays.</span>';
+    $('branches').querySelectorAll('.chip').forEach(b => b.onclick = () => { const i = +b.dataset.i, br = state.branches[i]; if (state.a !== i) { state.b = state.a; state.a = i; } commit(br.ch.slice(), br.lock.slice(), `loaded ${br.name}`); branches(); $('ab').disabled = state.b == null; });
+    $('ab').disabled = state.b == null;
+  }
+  $('save').onclick = () => { const n = state.branches.length + 1; state.branches.push({ name: `branch ${n}`, ch: ch.slice(), lock: lock.slice(), score: total(ch).all.toFixed(1) }); state.b = state.a; state.a = state.branches.length - 1; persist(); branches(); };
+  $('ab').onclick = () => { if (state.b == null) return; [state.a, state.b] = [state.b, state.a]; const br = state.branches[state.a]; commit(br.ch.slice(), br.lock.slice(), `A/B → ${br.name}`); branches(); };
+  $('undo').onclick = () => { const u = undo.pop(); if (!u) return; ch = u.ch; lock = u.lock; state.ch = ch; state.lock = lock; persist(); draw(); sync(true); say('undone'); };
+  $('cut').onclick = () => commit(cols.map(() => 0), cols.map(() => false), 'back to the cut as made');
+  $('best').onclick = () => { const p = viterbi(lock.map((l, c) => l ? ch[c] : null)); const n = p.filter((k, c) => k !== ch[c]).length; commit(p, lock.slice(), `best path around ${lock.filter(Boolean).length} pins: ${n} takes changed`); };
+  $('roll').onclick = () => { rollout(400); $('heat').classList.add('on'); $('sea').classList.add('heat'); draw(); say('400 Monte Carlo films rolled. Brightness and the blue bars show how often each take is in the best 60. Your film is unchanged: click what the heat suggests, or BEST PATH.'); };
+  $('heat').onclick = () => { if (!heat) rollout(400); const on = $('sea').classList.toggle('heat'); $('heat').classList.toggle('on', on); draw(); };
+  $('zoom').oninput = e => { document.documentElement.style.setProperty('--z', e.target.value + 'px'); requestAnimationFrame(draw); };
+  $('sea').addEventListener('wheel', e => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); const z = $('zoom'); z.value = Math.max(14, Math.min(150, +z.value - e.deltaY * .15)); z.oninput({ target: z }); }, { passive: false });
+  window.addEventListener('resize', () => draw());
+  /* ---- playback: the film plays; wherever your path leaves the cut, your take plays over it, muted, for exactly that shot's place */
+  const colAt = t => { for (let i = 0; i < cols.length; i++) if (t >= cols[i].t && t < cols[i].t + cols[i].d) return i; return -1; };
+  const same = (v, s) => v.src === s || v.src.endsWith(s);
+  function want(c, t) { if (c < 0 || !ch[c]) return null; const x = cols[c].cands[ch[c]]; return { x, src: src(x), d: cols[c].d, el: t - cols[c].t }; }
   function drive(v, w, play) {
-    if (!w) { v.classList.remove('on'); if (!v.paused) v.pause(); return; }
-    if (!v.src.endsWith(w.src)) { v.src = w.src; v.dataset.ready = ''; v.onloadeddata = () => { v.dataset.ready = '1'; }; }
-    if (v.readyState >= 1 && Math.abs(v.currentTime - w.at) > .25) v.currentTime = w.at;
-    play = play && !w.hold; if (play && v.paused) v.play().catch(() => { }); if (!play && !v.paused) v.pause();
+    if (!same(v, w.src)) v.src = w.src;
+    if (v.readyState < 1) { w.ok = false; return; }
+    const start = w.x.ss != null ? w.x.ss : Math.max(0, v.duration / 2 - w.d / 2), end = Math.min(w.x.out || v.duration, v.duration) - .06, at = Math.min(start + Math.max(0, w.el), end), hold = start + w.el >= end;
+    if (Math.abs(v.currentTime - at) > .25) v.currentTime = at;
+    const go = play && !hold; if (go && v.paused) v.play().catch(() => { }); if (!go && !v.paused) v.pause();
+    w.ok = v.readyState >= 2 && (hold || Math.abs(v.currentTime - at) < .5);
   }
   function sync(force) {
-    if (!ST) return; const t = base.currentTime, i = shotAt(t); cur = i;
-    const s = i >= 0 ? shots[i] : null, w = s ? want(s, t) : null;
-    const nx = shots.findIndex((x, k) => k > i && x.t > t && chosen(x)), nw = nx >= 0 && shots[nx].t - t < 1.6 ? want(shots[nx], shots[nx].t) : null;
-    /* each wanted take claims the element that already holds its file; the other one is pre-seeked, paused, for the next chosen shot */
-    const live = w ? (ovs.find(v => v.src.endsWith(w.src)) || ovs.find(v => !(nw && v.src.endsWith(nw.src))) || ovs[0]) : null;
-    const prep = nw ? (ovs.find(v => v !== live && v.src.endsWith(nw.src)) || ovs.find(v => v !== live)) : null;
+    if (!M) return; const t = base.currentTime, c = colAt(t), w = want(c, t);
+    let nx = -1; for (let i = c + 1; i < cols.length; i++) { if (cols[i].t - t > 1.6) break; if (ch[i]) { nx = i; break; } }
+    const nw = nx >= 0 ? want(nx, cols[nx].t) : null;
+    const live = w ? (ovs.find(v => same(v, w.src)) || ovs.find(v => !(nw && same(v, nw.src))) || ovs[0]) : null;
+    const prep = nw ? (ovs.find(v => v !== live && same(v, nw.src)) || ovs.find(v => v !== live)) : null;
     ovs.forEach(v => { if (v !== live) v.classList.remove('on'); if (v !== live && v !== prep && !v.paused) v.pause(); });
-    if (live) { drive(live, w, !base.paused); live.classList.toggle('on', live.readyState >= 2 && (w.hold || Math.abs(live.currentTime - w.at) < .5)); }
+    if (live) { drive(live, w, !base.paused); live.classList.toggle('on', !!w.ok); }
     if (prep) drive(prep, nw, false);
-    $('cap').hidden = !(w && s.cap); if (w && s.cap) $('cap').textContent = s.cap;
-    $('tag').hidden = !w; if (w) $('tag').innerHTML = `YOUR TAKE <b>${pick[keyOf(s)] + 1}</b>`;
-    $('clock').textContent = `${fmt(t)} / ${fmt(ST.dur)}`; const p = ST.program.find(p => t >= p.t && t < p.t + p.d);
-    $('where').textContent = !p ? (t < 17 ? 'THE MEME' : 'THE DEVELOPER') : p.kind === 'act' ? `${p.roman} · ${p.title}` : p.kind === 'bridge' ? `ARCHIVE · ${p.title}` : 'CLAUDE AT WORK';
-    const ph = $('ph'); if (ph) ph.style.left = `${t / ST.dur * 100}%`;
-    if (i !== shown || force) panel(i);
+    const capOn = w && w.ok && cols[c].cap; $('cap').hidden = !capOn; if (capOn) $('cap').textContent = cols[c].cap;
+    $('tag').hidden = !(w && w.ok); if (w && w.ok) $('tag').innerHTML = `YOUR TAKE <b>${ch[c] + 1}</b>`;
+    $('clock').textContent = `${fmt(t)} / ${fmt(M.dur)}`; const p = M.program.find(p => t >= p.t && t < p.t + p.d);
+    $('where').textContent = !p ? (t < 15 ? 'THE MEME' : 'THE DEVELOPER') : p.kind === 'act' ? `${p.roman} · ${p.title}` : p.kind === 'bridge' ? `ARCHIVE · ${p.title}` : 'CLAUDE AT WORK';
+    if (c !== cur || force) {
+      $('lat').querySelectorAll('.col.now').forEach(e => e.classList.remove('now'));
+      if (c >= 0) { const col = $('lat').children[c]; col.classList.add('now'); if (!base.paused) { const sea = $('sea'), r = col.getBoundingClientRect(), sr = sea.getBoundingClientRect(); if (r.left < sr.left + 40 || r.right > sr.right - 40) sea.scrollBy({ left: r.left - sr.left - sr.width / 3, behavior: 'smooth' }); } }
+      cur = c;
+    }
   }
   (function loop() { sync(false); requestAnimationFrame(loop); })();
   setInterval(() => { if (document.hidden) sync(false); }, 200);   /* rAF sleeps in a hidden tab; the score must not */
   base.addEventListener('play', () => $('play').textContent = '❚❚ PAUSE'); base.addEventListener('pause', () => $('play').textContent = '▶ PLAY');
   $('play').onclick = () => base.paused ? base.play() : base.pause(); $('stage').onclick = () => base.paused ? base.play() : base.pause();
-  const jump = d => { const t = base.currentTime; const list = shots.filter(s => s.alts && s.alts.length); const s = d > 0 ? list.find(s => s.t > t + .3) : [...list].reverse().find(s => s.t < t - .3); if (s) base.currentTime = s.t + .05; };
-  $('next').onclick = () => jump(1); $('prev').onclick = () => jump(-1);
   window.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT') return;
-    if (e.key === ' ') { e.preventDefault(); base.paused ? base.play() : base.pause(); }
-    if (e.key === 'ArrowRight') jump(1); if (e.key === 'ArrowLeft') jump(-1);
-    const n = +e.key; if (n >= 1 && n <= 7 && cur >= 0 && n <= takesOf(shots[cur]).length) choose(cur, n - 1);
+    if (!M || e.target.tagName === 'INPUT') return; let { c, k } = focus;
+    if (e.key === ' ') { e.preventDefault(); base.paused ? base.play() : base.pause(); return; }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); c = Math.max(0, Math.min(cols.length - 1, c + (e.key === 'ArrowRight' ? 1 : -1))); inspect(c, ch[c]); base.currentTime = cols[c].t + .05; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (c < 0) return; inspect(c, Math.max(0, Math.min(cols[c].cands.length - 1, k + (e.key === 'ArrowDown' ? 1 : -1)))); }
+    if (e.key === 'Enter' && c >= 0) { const n = ch.slice(), l = lock.slice(); n[c] = k; l[c] = true; commit(n, l, `pinned take ${k + 1} of shot ${c + 1}`); }
+    if (e.key === 'z' || e.key === 'Z') $('undo').onclick();
   });
 })();
 </script></body></html>
