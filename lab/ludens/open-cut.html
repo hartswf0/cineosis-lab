@@ -31,13 +31,13 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
     <div class="row"><span>length of our film</span><button data-n="45">0:45</button><button data-n="60" class="on">1:00</button><button data-n="120">2:00</button><span class="sp"></span><button id="go" class="on">OPEN THE CUT</button></div></div></div>
   <div class="card" id="end" hidden><div class="in" id="endin"></div></div>
 </div>
-<div class="foot"><div class="prop" id="prop"></div><div class="film" id="film"></div></div>
+<div class="foot"><div class="prop" id="prop"></div><div id="scr"></div></div>
 <script src="ludens.js"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id), cv = $('cv'), ctx = cv.getContext('2d'), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const L = Ludens, TAU = Math.PI * 2;
-  let H = null, seats = [{ n: 'you', m: false }, { n: 'the machine', m: true }, null, null], TARGET = 60, players = [], cells = [], grid = {}, own = {}, film = [], turn = 0, state = 'setup';
+  let SC = null, H = null, seats = [{ n: 'you', m: false }, { n: 'the machine', m: true }, null, null], TARGET = 60, players = [], cells = [], grid = {}, own = {}, film = [], turn = 0, state = 'setup';
   let cs = 40, CX = 0, CY = 0, RD = 0, RS = 0, DPR = 1, ball = null, prop = null, aimDrag = false, flight = null, msgT = 0, MAG = .6, show = { c: null, since: 0, was: null }, previewing = null;
   const total = f => f.reduce((a, s) => a + s.d, 0);
   /* ---- setup: seats (each a person or the machine), filters, length */
@@ -47,7 +47,8 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
     $('seats').querySelectorAll('[data-a]').forEach(b => b.onclick = () => { seats[+b.dataset.a] = { n: ['you', 'ren', 'scout', 'kl'][+b.dataset.a], m: false }; drawSeats(); });
     $('seats').querySelectorAll('input').forEach(i => i.oninput = () => seats[+i.dataset.i].n = i.value); }
   document.querySelectorAll('[data-n]').forEach(b => b.onclick = () => { TARGET = +b.dataset.n; document.querySelectorAll('[data-n]').forEach(x => x.classList.toggle('on', x === b)); });
-  drawSeats(); L.load().then(() => { L.filterUI($('filt'), () => layout()); H = L.header($('hd'), 'OPEN CUT', () => { layout(new Set(film.map(f => f.c.id))); if (state === 'play') { players.forEach(p => { const w = cells.find(x => x.c === p.lastC); if (w) { p.x = w.x; p.y = w.y; } }); if (!flight) begin(true); } }); layout(); $('go').onclick = start; requestAnimationFrame(tick); });
+  drawSeats(); L.load().then(() => { L.filterUI($('filt'), () => layout()); H = L.header($('hd'), 'OPEN CUT', () => { layout(new Set(film.map(f => f.c.id))); if (state === 'play') { players.forEach(p => { const w = cells.find(x => x.c === p.lastC); if (w) { p.x = w.x; p.y = w.y; } }); if (!flight) begin(true); } }); layout(); $('go').onclick = start; requestAnimationFrame(tick);
+    SC = L.scrubber($('scr'), { min: TARGET, films: () => film.length ? [{ name: 'our film', col: '#ebe5d8', shots: film.map(f => Object.assign({}, f, { q: f.who < 0 ? null : f.q })), preview: prop && !flight ? prop.shots.map((x, n) => Object.assign({}, x, { q: prop.seams[n] })) : null }].concat(players.map((q, k) => ({ name: q.name, col: q.col, shots: film.filter(f => f.who === k) }))) : [] }); });
   /* ---- the round field: the shots in play, by the chosen layout, folded into a disc around the screen */
   function layout(must = new Set()) {
     const r = $('wrap').getBoundingClientRect(); DPR = Math.min(2, devicePixelRatio || 1); cv.width = r.width * DPR; cv.height = r.height * DPR;
@@ -59,10 +60,11 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
   const cellAt = (x, y) => grid[Math.round(x / cs) + ',' + Math.round(y / cs)] || null;   /* world = px from the centre */
   const where = c => cells.find(x => x.c === c);
   const last = () => film[film.length - 1].c;
+  let BEATS = []; const beat = () => L.beatFor(BEATS, total(film), TARGET);   /* the story's next beat: the film heads for the beats in order as it grows */
   function start() {
     const ps = seats.filter(Boolean); if (ps.length < 2) { say('two seats at least'); return; }
     players = ps.map((s, i) => { const a = i / ps.length * TAU - Math.PI / 2; return { name: (s.n || 'p' + (i + 1)) + (s.m && ps.filter((x, j) => j < i && x.m).length ? ' ' + (ps.filter((x, j) => j < i && x.m).length + 1) : ''), m: s.m, col: L.P[i], pts: 0, segs: 0, x: Math.cos(a) * (RD - cs * .4), y: Math.sin(a) * (RD - cs * .4), flights: [], lastC: null }; });
-    own = {}; film = []; const open = L.holes.find(h => cells.some(x => x.c.id === h.id)) || { id: cells.slice().sort((a, b) => b.c.mc - a.c.mc)[0].c.id };
+    own = {}; film = []; BEATS = L.beats(cells.map(x => x.c)); const open = L.holes.find(h => cells.some(x => x.c.id === h.id)) || { id: cells.slice().sort((a, b) => b.c.mc - a.c.mc)[0].c.id };
     film.push({ c: L.byId[open.id], d: 2.6, who: -1, q: 1 }); own[open.id] = -1; cut(L.byId[open.id]);
     $('setup').hidden = true; $('end').hidden = true; state = 'play'; turn = 0; begin();
   }
@@ -71,11 +73,11 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
   /* ---- physics: deterministic. Free shots pull or push by their well from the film's last shot (scaled by MAGNET); claimed shots are bumpers */
   const VMAX = 9, FRIC = .968, RF = 1.7;
   function step(b) {
-    const prev = last(); let fx = 0, fy = 0; const i0 = Math.round(b.x / cs), j0 = Math.round(b.y / cs);
+    const prev = last(), T = beat(); let fx = 0, fy = 0; const i0 = Math.round(b.x / cs), j0 = Math.round(b.y / cs);
     for (let i = i0 - 2; i <= i0 + 2; i++) for (let j = j0 - 2; j <= j0 + 2; j++) {
       const c = grid[i + ',' + j]; if (!c) continue; const dx = i * cs - b.x, dy = j * cs - b.y, d = Math.hypot(dx, dy) / cs; if (d > RF || d < .02) continue;
       if (own[c.id] != null) { if (d < .62) { const f = .9 * (1 - d / .62); fx -= dx / (d * cs) * f; fy -= dy / (d * cs) * f; } continue; }
-      const f = .1 * MAG * L.well(prev, c).w * (1 - (d / RF) ** 2); fx += dx / (d * cs) * f; fy += dy / (d * cs) * f;
+      const f = .1 * MAG * L.well(prev, c, T && T.c).w * (1 - (d / RF) ** 2); fx += dx / (d * cs) * f; fy += dy / (d * cs) * f;
     }
     b.vx = (b.vx + fx) * FRIC; b.vy = (b.vy + fy) * FRIC; b.x += b.vx; b.y += b.vy;
     const r = Math.hypot(b.x, b.y);
@@ -88,7 +90,8 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
     const b = { x, y, vx: Math.cos(ang) * pw * VMAX, vy: Math.sin(ang) * pw * VMAX }, r = L.recorder((xx, yy) => { const c = cellAt(xx, yy); return c && own[c.id] == null ? c : null; }), pts = [[x, y]]; let s0 = 0, n = 0;
     for (; n < 500; n++) { step(b); r.feed(b.x, b.y); if (n % 2 === 0) pts.push([b.x, b.y]); if (still(b)) { if (++s0 > 8) break; } else s0 = 0; }
     pts.push([b.x, b.y]); const shots = r.shots(!!cellAt(b.x, b.y)), seams = L.seams(last(), shots), q = L.mean(seams);
-    return { ang, pw, pts, end: b, shots, seams, q, score: shots.length ? Math.round(seams.reduce((a, v) => a + (v >= .6 ? 2 : v >= .35 ? 1 : -1), 0)) : 0 };
+    const T = beat(), hit = !!(T && shots.some(s => s.c === T.c));
+    return { ang, pw, pts, end: b, shots, seams, q, hit, score: (shots.length ? Math.round(seams.reduce((a, v) => a + (v >= .6 ? 2 : v >= .35 ? 1 : -1), 0)) : 0) + (hit ? 3 : 0) };
   }
   function propose(ang, pw) { prop = simulate(ball.x, ball.y, ang, pw); hud(); return prop; }
   /* ---- input: drag to aim (the proposal stays), arrows fine-tune, Enter commits, Esc clears */
@@ -106,7 +109,7 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
   /* ---- the machine: it searches 120 lines from its lie and proposes the one whose segment cuts on best; you see its proposal before it cuts */
   function machine() {
     if (state !== 'play' || !cur().m) return; let best = null;
-    for (let k = 0; k < 120; k++) { const s = simulate(ball.x, ball.y, Math.random() * TAU, .15 + Math.random() * .85); const v = s.shots.length ? s.score + s.q * 2 + Math.min(4, s.shots.length) * .3 : -9; if (!best || v > best.v) best = Object.assign(s, { v }); }
+    for (let k = 0; k < 120; k++) { const s = simulate(ball.x, ball.y, Math.random() * TAU, .15 + Math.random() * .85); const v = s.shots.length ? s.score + s.q * 2 + (s.hit ? 2 : 0) + Math.min(4, s.shots.length) * .3 : -9; if (!best || v > best.v) best = Object.assign(s, { v }); }
     prop = best; hud(); say(`the machine searched 120 lines · it proposes ${best.shots.length} shots, mean cut ${Math.round(best.q * 100)}`);
     setTimeout(() => { if (state === 'play' && cur().m) commit(); }, 1600);
   }
@@ -130,14 +133,13 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
   function say(t) { const s = $('say'); s.textContent = t; s.style.opacity = 1; clearTimeout(msgT); msgT = setTimeout(() => s.style.opacity = 0, 2800); }
   function hud() {
     if (!H) return; const p = state === 'play' ? cur() : null;
-    H.slot.innerHTML = `<span style="font:600 15px var(--sans);letter-spacing:.06em">${state === 'setup' ? '' : `${L.tc(total(film))} / ${L.tc(TARGET)}`}</span><div class="pl">${players.map((q, k) => `<span class="chip${k === turn && state === 'play' ? ' cur' : ''}" style="color:${q.col}">${esc(q.name)} <b>${q.pts}</b></span>`).join('')}</div><label class="mag" title="how strongly the land bends lines toward good cuts">MAGNET <input type="range" id="mg" min="0" max="100" value="${Math.round(MAG * 100)}"></label><button id="menu" style="padding:3px 8px;font-size:12px">SETUP</button>`;
+    H.slot.innerHTML = `<span style="font:600 15px var(--sans);letter-spacing:.06em">${state === 'setup' ? '' : `${L.tc(total(film))} / ${L.tc(TARGET)}`}</span>${state === 'play' && beat() ? `<span style="color:#f25a17;font:500 12px var(--mono)">heading for ${beat().act} · ${esc((beat().c.ti || '').slice(0, 26))}</span>` : ''}<div class="pl">${players.map((q, k) => `<span class="chip${k === turn && state === 'play' ? ' cur' : ''}" style="color:${q.col}">${esc(q.name)} <b>${q.pts}</b></span>`).join('')}</div><label class="mag" title="how strongly the land bends lines toward good cuts">MAGNET <input type="range" id="mg" min="0" max="100" value="${Math.round(MAG * 100)}"></label><button id="menu" style="padding:3px 8px;font-size:12px">SETUP</button>`;
     $('mg').oninput = e => { MAG = +e.target.value / 100; if (prop && !flight && !cur().m) propose(prop.ang, prop.pw); }; $('menu').onclick = () => { $('setup').hidden = !$('setup').hidden; };
     const P = prop, tot = Math.max(TARGET, total(film) + (P ? total(P.shots) : 0));
-    $('prop').innerHTML = !p ? '' : flight ? `<b style="color:${p.col}">${esc(p.name)}</b> cutting…` : P ? `<b style="color:${p.col}">${esc(p.name)}</b> ${p.m ? 'the machine proposes' : 'proposes'} <b>${P.shots.length} shot${P.shots.length === 1 ? '' : 's'}</b> · <b>${total(P.shots).toFixed(1)}s</b> · mean cut <b style="color:rgb(${L.tint(P.q)})">${Math.round(P.q * 100)}</b> · scores <b>${P.score >= 0 ? '+' : ''}${P.score}</b><span class="sp"></span>${p.m ? '' : '<button id="pv">PREVIEW</button><button id="ct" class="on">CUT IT</button><button id="cl">CLEAR</button>'}`
+    $('prop').innerHTML = !p ? '' : flight ? `<b style="color:${p.col}">${esc(p.name)}</b> cutting…` : P ? `<b style="color:${p.col}">${esc(p.name)}</b> ${p.m ? 'the machine proposes' : 'proposes'} <b>${P.shots.length} shot${P.shots.length === 1 ? '' : 's'}</b> · <b>${total(P.shots).toFixed(1)}s</b> · mean cut <b style="color:rgb(${L.tint(P.q)})">${Math.round(P.q * 100)}</b> · scores <b>${P.score >= 0 ? '+' : ''}${P.score}</b>${P.hit ? ' · <b style="color:#f25a17">through the story\'s beat</b>' : ''}<span class="sp"></span>${p.m ? '' : '<button id="pv">PREVIEW</button><button id="ct" class="on">CUT IT</button><button id="cl">CLEAR</button>'}`
       : `<b style="color:${p.col}">${esc(p.name)}</b>: drag back from your ball to propose a line of flight. Every free shot it crosses joins our film; claimed shots are walls.`;
     const b_ = id => $(id); if (b_('pv')) b_('pv').onclick = () => { if (P && P.shots.length) previewing = { shots: P.shots, t0: performance.now() }; }; if (b_('ct')) b_('ct').onclick = commit; if (b_('cl')) b_('cl').onclick = () => { prop = null; hud(); };
-    $('film').innerHTML = `<span class="lab">our film</span><div class="strip">${L.timeline(film, film.map(f => f.who < 0 ? null : f.q), { total: tot })}${P && !flight ? L.timeline(P.shots, P.seams, { total: tot, t0: total(film), cls: 'pv' }) : ''}</div><span class="tot">${L.tc(total(film))}</span>`;
-    [...$('film').querySelectorAll('.seg')].forEach((el, k) => { if (k < film.length) { const w = film[k].who; el.style.borderBottom = `3px solid ${w < 0 ? '#ebe5d8' : players[w] ? players[w].col : '#fff'}`; } });
+    if (SC) SC.render();
   }
   /* ---- draw */
   function draw() {
@@ -150,6 +152,7 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
       if (o != null) { ctx.strokeStyle = o < 0 ? '#ebe5d8' : players[o].col; ctx.lineWidth = 3; ctx.strokeRect(X, Y, s, s * .5625); }
       else if (k != null) { ctx.strokeStyle = `rgb(${L.tint(prop.seams[k])})`; ctx.lineWidth = 3; ctx.strokeRect(X, Y, s, s * .5625); ctx.fillStyle = '#000c'; ctx.fillRect(X, Y + s * .5625 - 13, s, 13); ctx.fillStyle = '#fff'; ctx.font = '600 9.5px IBM Plex Mono'; ctx.fillText(`${film.length + k} · ${prop.shots[k].d.toFixed(1)}s`, X + 3, Y + s * .5625 - 3); }
       else if (prev) { ctx.fillStyle = `rgba(${L.tint(v)},.85)`; ctx.fillRect(X, Y + s * .5625 - 3, s * Math.max(.08, v), 3); }
+      const TB = state === 'play' && beat(); if (TB && TB.c === c && o == null) { ctx.strokeStyle = '#f25a17'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y - s * .0, s * .62, 0, TAU); ctx.stroke(); }
     }
     let c = show.c, since = show.since, was = show.was;
     if (previewing) { const t = (performance.now() - previewing.t0) / 1000; let acc = 0, k = 0; for (; k < previewing.shots.length; k++) { if (t < acc + previewing.shots[k].d) break; acc += previewing.shots[k].d; } if (k >= previewing.shots.length) previewing = null; else { c = previewing.shots[k].c; since = previewing.t0 + acc * 1000; was = k ? previewing.shots[k - 1].c : null; } }
@@ -159,6 +162,13 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
     if (prop && !flight && state === 'play') { const p = cur(); ctx.strokeStyle = p.col; ctx.lineWidth = 2.5; ctx.setLineDash([7, 5]); L.spline(ctx, prop.pts); ctx.setLineDash([]); ctx.strokeStyle = '#ebe5d8'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(prop.end.x, prop.end.y, 9, 0, TAU); ctx.stroke(); }
     if (flight) { ctx.strokeStyle = cur().col; ctx.lineWidth = 3; L.spline(ctx, flight.pts); }
     if (ball && state === 'play') dot(ball.x, ball.y, cur().col, 8, 1);
+    if (SC && SC.t != null && SC.film && SC.film.shots.length) {   /* the film as territory: a light along its line through the field; the playing shot lifted out at its place */
+      const F = SC.film, at = L.at(F.shots, SC.t); ctx.fillStyle = '#081016c8'; ctx.beginPath(); ctx.arc(0, 0, RD, 0, TAU); ctx.fill();
+      const P = F.shots.map(f => { const w = where(f.c); return w ? [w.x, w.y] : null; });
+      F.shots.forEach((f, n) => { const w = where(f.c); if (!w) return; const sz = cs - 2, col = f.who == null || f.who < 0 ? '#ebe5d8' : players[f.who].col; ctx.globalAlpha = n <= at.i ? 1 : .45; L.draw(ctx, f.c, w.x - sz / 2, w.y - sz * .28, sz, sz * .5625, null); ctx.globalAlpha = 1; ctx.strokeStyle = col; ctx.lineWidth = n === at.i ? 4 : 2; ctx.strokeRect(w.x - sz / 2, w.y - sz * .28, sz, sz * .5625); });
+      ctx.strokeStyle = F.col; ctx.globalAlpha = .3; ctx.lineWidth = 2; L.spline(ctx, P.filter(Boolean)); ctx.globalAlpha = 1; ctx.lineWidth = 4; L.spline(ctx, P.slice(0, at.i + 1).filter(Boolean));
+      const a = P[at.i], b = P[Math.min(P.length - 1, at.i + 1)] || a; if (a) { const e = at.f < .7 ? 0 : (at.f - .7) / .3; dot(a[0] + (b[0] - a[0]) * e, a[1] + (b[1] - a[1]) * e, '#ffffff', 7, 1); const sh = F.shots[at.i], col = sh.who == null || sh.who < 0 ? '#ebe5d8' : players[sh.who].col; L.lift(ctx, sh.c, a[0], a[1], Math.min(300, RD * .9), col, at.f, `${at.i} · ${L.tc(at.t0)} · ${(sh.c.ti || '').slice(0, 26)}`, [-CX, -CY, CX, CY]); }
+    }
     ctx.restore();
   }
   function dot(x, y, col, r, a) { for (let k = 3; k > 0; k--) { ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.globalAlpha = a * .25 * (4 - k) / 3; ctx.beginPath(); ctx.arc(x, y, r + k * 4, 0, TAU); ctx.stroke(); } ctx.globalAlpha = a; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.globalAlpha = 1; }
@@ -166,7 +176,7 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
     if (flight && state === 'play') { let done = false; for (let s = 0; s < 2 && !done; s++) { step(ball); flight.n++; if (flight.n % 2 === 0) flight.pts.push([ball.x, ball.y]); const c = cellAt(ball.x, ball.y); if (c && own[c.id] == null && c !== show.c) cut(c); if (still(ball)) { if (++flight.s0 > 8) done = true; } else flight.s0 = 0; if (flight.n > 500) done = true; } if (done) land(); }
     draw(); requestAnimationFrame(tick);
   }
-  addEventListener('resize', () => { if (state === 'setup') layout(); });
+  new ResizeObserver(() => { if (state === 'setup') layout(); else { const keep = new Set(film.map(f => f.c.id)); layout(keep); } }).observe($('wrap'));
   window.__open = { get players() { return players; }, get film() { return film; }, get state() { return state; }, get prop() { return prop; }, propose, commit, get ball() { return ball; } };
 })();
 </script></body></html>

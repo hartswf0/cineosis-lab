@@ -39,17 +39,18 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
     <div class="row" id="names"></div><div class="row"><button id="go" class="on">TEE OFF</button><span class="rules" id="gonote"></span></div></div></div>
   <div class="card" id="end" hidden style="align-items:center"><div class="in" id="endin"></div></div>
 </div>
-<div class="foot" id="foot" hidden><canvas id="mon" width="640" height="360"></canvas><div class="ed"><div class="prop" id="prop"></div><div id="lanes"></div></div></div>
+<div class="foot" id="foot" hidden><canvas id="mon" width="640" height="360"></canvas><div class="ed"><div class="prop" id="prop"></div><div id="scr"></div></div></div>
 <script src="ludens.js"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id), cv = $('cv'), ctx = cv.getContext('2d'), mon = $('mon'), mx = mon.getContext('2d'), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const L = Ludens; let NP = 2, players = [], course = [], hole = 0, turn = 0, cells = [], grid = {}, COLS = 26, ROWS = 14, cw = 0, ch = 0, DPR = 1, pick = new Set(['26', '14', '13']);
   let ball = null, aimDrag = null, prop = null, flight = null, rec = null, rest = 0, state = 'setup', H = null, topo = null, msgT = 0, MAG = .6;
-  let show = { c: null, since: 0, was: null }, previewing = null;
+  let show = { c: null, since: 0, was: null }, previewing = null, SC = null;
   const total = f => f.reduce((a, s) => a + s.d, 0);
   /* ---- header, course map */
-  L.load().then(() => { H = L.header($('hd'), 'PUTT-OFF', () => { if (state === 'setup') isles(); else relayout(); }); isles(); names(); });
+  L.load().then(() => { H = L.header($('hd'), 'PUTT-OFF', () => { if (state === 'setup') isles(); else relayout(); }); isles(); names();
+    SC = L.scrubber($('scr'), { min: 12, films: () => players.map((q, k) => { const sm = L.seams(q.film[0].c, q.film.slice(1)); return { name: q.name, col: q.col, shots: q.film.map((x, n) => Object.assign({}, x, { q: n ? sm[n - 1] : null })), preview: k === turn && prop && !flight ? prop.shots.map((x, n) => Object.assign({}, x, { q: prop.seams[n] })) : null }; }), onTime: () => {} }); });
   const chPool = n => L.pool({ anyChapter: true }).filter(c => c.ch === n);
   function isles() {
     $('isles').innerHTML = L.chapters.map(([n, r, t]) => { const P = chPool(n), mos = P.slice().sort((a, b) => b.mc - a.mc).slice(0, 18); return `<button class="isle${pick.has(n) ? ' on' : ''}" data-c="${n}"><div class="mos">${mos.map(c => `<img src="${L.root + c.th}" alt="" loading="lazy">`).join('')}</div><div class="t">${r} · ${esc(t)}<small>song ${n} · ${P.length} shots in play</small></div></button>`; }).join('');
@@ -91,7 +92,7 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
     let fx = 0, fy = 0;
     if (MAG > 0) for (let i = Math.floor(b.x - R); i <= Math.floor(b.x + R); i++) for (let j = Math.floor(b.y - R); j <= Math.floor(b.y + R); j++) {
       const c = grid[i + ',' + j]; if (!c || c === C.flag.c) continue; const dx = i + .5 - b.x, dy = j + .5 - b.y, d = Math.hypot(dx, dy); if (d > R || d < .04) continue;
-      const f = .0042 * MAG * L.well(prev, c).w * (1 - (d / R) ** 2); fx += dx / d * f; fy += dy / d * f;
+      const f = .0042 * MAG * L.well(prev, c, C.flag.c).w * (1 - (d / R) ** 2); fx += dx / d * f; fy += dy / d * f;
     }
     const fdx = C.flag.i + .5 - b.x, fdy = C.flag.j + .5 - b.y, fd = Math.hypot(fdx, fdy); if (fd < 1.6 && fd > .02) { const g = .008 * (1 - (fd / 1.6) ** 2); fx += fdx / fd * g; fy += fdy / fd * g; }
     b.vx = (b.vx + fx) * FRIC; b.vy = (b.vy + fy) * FRIC; b.x += b.vx; b.y += b.vy;
@@ -165,18 +166,17 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
     $('prop').innerHTML = state !== 'play' ? '' : flight ? `<b style="color:${p.col}">${esc(p.name)}</b> cutting…` : P ? `<b style="color:${p.col}">${esc(p.name)}</b> proposes <b>${P.shots.length} shot${P.shots.length === 1 ? '' : 's'}</b> · <b>${P.shots.reduce((a, s) => a + s.d, 0).toFixed(1)}s</b> · mean cut <b style="color:rgb(${L.tint(L.mean(P.seams))})">${Math.round(L.mean(P.seams) * 100)}</b>${P.holed ? ' · <b style="color:#f25a17">into the hole</b>' : P.water ? ' · <b style="color:#e0533a">ends off the field</b>' : ''} · angle ${Math.round(((P.ang * 180 / Math.PI) + 360) % 360)}° · power ${Math.round(P.pw * 100)}<span class="sp"></span><button id="pv">PREVIEW</button><button id="ct" class="on">CUT IT</button><button id="cl">CLEAR</button>${p.hist.length ? '<button id="ud">UNDO</button>' : ''}`
       : `<b style="color:${p.col}">${esc(p.name)}</b>: drag back from the ball to propose a line of flight${p.hist.length ? '<span class="sp"></span><button id="ud">UNDO</button>' : ''}`;
     const b_ = id => $(id); if (b_('pv')) b_('pv').onclick = preview; if (b_('ct')) b_('ct').onclick = commit; if (b_('cl')) b_('cl').onclick = () => { prop = null; hud(); }; if (b_('ud')) b_('ud').onclick = undo;
-    const tot = Math.max(12, ...players.map(q => total(q.film) + (q === p && P ? total(P.shots) : 0)));
-    $('lanes').innerHTML = players.map((q, k) => `<div class="lane"><span class="who" style="color:${q.col}">${k === turn && state === 'play' ? '> ' : ''}${esc(q.name)}</span><div class="strip">${L.timeline(q.film, [null].concat(L.seams(q.film[0].c, q.film.slice(1))), { total: tot })}${q === p && P && !flight ? L.timeline(P.shots, P.seams, { total: tot, t0: total(q.film), cls: 'pv' }) : ''}</div><span class="tot">${L.tc(total(q.film))}</span></div>`).join('');
+    if (SC) { SC.k = SC.t == null ? turn : SC.k; SC.render(); }
   }
   function tip(e, x, y) {
-    const c = state === 'play' ? cellAt(x, y) : null, T = $('tip'); if (!c) { T.hidden = true; return; } const p = cur(), W = L.well(lastShot(p), c), q = L.join(lastShot(p), c), r = $('wrap').getBoundingClientRect();
+    const c = state === 'play' ? cellAt(x, y) : null, T = $('tip'); if (!c) { T.hidden = true; return; } const p = cur(), W = L.well(lastShot(p), c, course[hole].flag.c), q = L.join(lastShot(p), c), r = $('wrap').getBoundingClientRect();
     const bar = (lab, v, col) => `<div class="m"><span>${lab}</span><i><u style="width:${Math.min(100, Math.abs(v) * 100)}%;background:${col}"></u></i><span>${v >= 0 ? '+' : ''}${Math.round(v * 100)}</span></div>`;
-    T.innerHTML = `<b>${esc(c.ti)}</b><br><span style="color:var(--dim)">${c.k === 'ai' ? 'AI pickup' : 'archive' + (c.y0 ? ' · ' + c.y0 : '')} · ${esc((c.w || '').replace('THE ', '').toLowerCase())} · song ${esc(c.ch)}</span><br>from ${esc(p.name)}’s last shot: <b style="color:rgb(${L.tint(q)})">${L.word(q)}</b> (${Math.round(q * 100)}, ${L.V.lens})` + bar('cut', W.cut, `rgb(${L.tint(q)})`) + (W.story ? bar('story', W.story, '#f25a17') : '') + (W.poison ? bar('poison', W.poison, '#b05cd6') : '') + bar('chain', W.chain, '#5aa9e6');
+    T.innerHTML = `<b>${esc(c.ti)}</b><br><span style="color:var(--dim)">${c.k === 'ai' ? 'AI pickup' : 'archive' + (c.y0 ? ' · ' + c.y0 : '')} · ${esc((c.w || '').replace('THE ', '').toLowerCase())} · song ${esc(c.ch)}</span><br>from ${esc(p.name)}’s last shot: <b style="color:rgb(${L.tint(q)})">${L.word(q)}</b> (${Math.round(q * 100)}, ${L.V.lens})` + bar('cut', W.cut, `rgb(${L.tint(q)})`) + bar('story', W.story, '#f25a17') + (W.poison ? bar('poison', W.poison, '#b05cd6') : '') + bar('chain', W.chain, '#5aa9e6');
     T.hidden = false; T.style.left = Math.min(r.width - 310, e.clientX - r.left + 14) + 'px'; T.style.top = Math.max(4, Math.min(r.height - T.offsetHeight - 8, e.clientY - r.top + 14)) + 'px';
   }
   function landTopo() {
     const p = cur(), prev = lastShot(p), key = prev.id + L.V.lens + COLS + ROWS + cells.length + MAG; if (topo && topo.key === key) return topo;
-    const S = 3, nx = COLS * S + 1, ny = ROWS * S + 1, val = new Float32Array(nx * ny), W = {}; cells.forEach(({ i, j, c }) => W[i + ',' + j] = L.well(prev, c).w);
+    const S = 3, nx = COLS * S + 1, ny = ROWS * S + 1, val = new Float32Array(nx * ny), W = {}; cells.forEach(({ i, j, c }) => W[i + ',' + j] = L.well(prev, c, course[hole].flag.c).w);
     for (let J = 0; J < ny; J++) for (let I = 0; I < nx; I++) { const x = I / S, y = J / S; let v = 0; for (let i = Math.floor(x - 1.6); i <= Math.floor(x + 1.6); i++) for (let j = Math.floor(y - 1.6); j <= Math.floor(y + 1.6); j++) { const w = W[i + ',' + j]; if (w == null) continue; const d = Math.hypot(i + .5 - x, j + .5 - y); if (d < 1.6) v += w * (1 - (d / 1.6) ** 2); } val[J * nx + I] = v; }
     return topo = { key, val, nx, ny, S };
   }
@@ -205,6 +205,15 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
     }
     if (flight) { ctx.strokeStyle = p.col; ctx.lineWidth = 3; L.spline(ctx, flight.pts.map(([x, y]) => [x * cw, y * ch])); }
     if (ball && p && !p.done) dot(ball.x * cw, ball.y * ch, p.col, 9, 1);
+    /* the film as territory: scrubbing or playing sends a light along the film's line through the field, and lifts the playing shot out at its place */
+    if (SC && SC.t != null && SC.film) {
+      const F = SC.film, q = players.find(x => x.name === F.name) || p, at = L.at(F.shots, SC.t); ctx.fillStyle = '#081016c8'; ctx.fillRect(0, 0, W, Hh);
+      const P = F.shots.map(s => where(s.c)).map(w => w ? [(w.i + .5) * cw, (w.j + .5) * ch] : null);
+      F.shots.forEach((s, n) => { const w = where(s.c); if (!w) return; ctx.globalAlpha = n <= at.i ? 1 : .45; L.draw(ctx, s.c, w.i * cw + 1, w.j * ch + 1, cw - 2, ch - 2, null); ctx.globalAlpha = 1; ctx.strokeStyle = q.col; ctx.lineWidth = n === at.i ? 4 : 2; ctx.strokeRect(w.i * cw + 2, w.j * ch + 2, cw - 4, ch - 4); });
+      const pts = P.filter(Boolean); ctx.strokeStyle = q.col; ctx.globalAlpha = .35; ctx.lineWidth = 3; L.spline(ctx, pts); ctx.globalAlpha = 1; ctx.lineWidth = 5; L.spline(ctx, P.slice(0, at.i + 1).filter(Boolean));
+      const a = P[at.i], b = P[Math.min(P.length - 1, at.i + 1)] || a; if (a) { const e = at.f < .7 ? 0 : (at.f - .7) / .3, x = a[0] + (b[0] - a[0]) * e, y = a[1] + (b[1] - a[1]) * e; dot(x, y, '#ffffff', 8, 1);
+        const sh = F.shots[at.i]; L.lift(ctx, sh.c, a[0], a[1], Math.min(340, W * .3), q.col, at.f, `${at.i} · ${L.tc(at.t0)} · ${(sh.c.ti || '').slice(0, 30)}`, [0, 0, W, Hh]); cut(sh.c); show.since = performance.now() - at.f * 2400; }
+    }
     /* the monitor */
     let c = show.c, since = show.since, was = show.was;
     if (previewing) { const t = (performance.now() - previewing.t0) / 1000; let acc = 0, k = 0; for (; k < previewing.shots.length; k++) { if (t < acc + previewing.shots[k].d) break; acc += previewing.shots[k].d; } if (k >= previewing.shots.length) previewing = null; else { c = previewing.shots[k].c; since = previewing.t0 + acc * 1000; was = k ? previewing.shots[k - 1].c : null; } }

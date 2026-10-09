@@ -68,8 +68,8 @@
     return meaningJoin(a, b);
   };
   /* the land: a shot's pull on the ball, from what it would cut to, and from what the data says it is */
-  L.well = (prev, c) => {
-    const cut = (L.join(prev, c) - .42) * 2.2, story = L.holeIds && L.holeIds.has(c.id) ? .35 : 0, poison = c.po > .5 ? -.45 * (c.po - .3) : 0, chain = (c.mc - .5) * .3;
+  L.well = (prev, c, target) => {   /* target: the story's next beat; shots that cut well INTO it sit lower (the story's gravity) */
+    const cut = (L.join(prev, c) - .42) * 2.2, story = (L.holeIds && L.holeIds.has(c.id) ? .35 : 0) + (target && target !== c ? (L.join(c, target) - .45) * 1.2 : target === c ? 1.2 : 0), poison = c.po > .5 ? -.45 * (c.po - .3) : 0, chain = (c.mc - .5) * .3;
     return { w: cut + story + poison + chain, cut, story, poison, chain };
   };
   /* contours of a scalar field sampled on a grid (marching squares), for the topography */
@@ -125,6 +125,33 @@
   L.tc = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}.${Math.floor((s % 1) * 10)}`;
   /* a timeline: each shot as wide as it plays, the cut after it coloured by how it joins */
   L.timeline = (shots, seams, opts = {}) => { const total = opts.total || shots.reduce((a, s) => a + s.d, 0) || 1; let t = opts.t0 || 0; return shots.map((s, n) => { const w = s.d / total * 100, q = seams ? seams[n] : null, h = `<div class="seg${opts.cls ? ' ' + opts.cls : ''}" style="width:${w}%;background-image:url('${L.root + s.c.th}');${q != null ? `box-shadow:inset 3px 0 0 rgb(${L.tint(q)})` : ''}" title="${(s.c.ti || '').replace(/"/g, '')} · ${s.d.toFixed(1)}s${q != null ? ' · ' + L.word(q) : ''}"><span>${L.tc(t)}</span></div>`; t += s.d; return h; }).join(''); };
+
+  /* ---- THE STORY: its beats in order (the story cut's riverbed shots), and which beat a film of a given length is heading for */
+  L.beats = (pool) => { const ids = new Set((pool || L.cards).map(c => c.id)); return L.holes.filter(h => ids.has(h.id)).map(h => Object.assign({ c: L.byId[h.id] }, h)); };
+  L.beatFor = (beats, t, total) => beats.length ? beats[Math.min(beats.length - 1, Math.floor(t / Math.max(1, total) * beats.length))] : null;
+
+  /* ---- THE FILM AS TERRITORY: a film is a path through the field. at(shots, t) says which shot is playing at film time t and how far
+     into it; scrubber() is a tall, readable, scrubbable strip (after putt-op's time-scrub): drag through it, or PLAY, and onTime(t) fires
+     so the game can send a light along the lines of flight and lift the playing shot out of the field. */
+  L.at = (shots, t) => { let acc = 0; for (let i = 0; i < shots.length; i++) { if (t < acc + shots[i].d) return { i, f: (t - acc) / shots[i].d, t0: acc }; acc += shots[i].d; } return shots.length ? { i: shots.length - 1, f: 1, t0: acc - shots[shots.length - 1].d } : null; };
+  L.scrubber = (el, opts) => {
+    const S = { t: null, k: 0, playing: false, last: 0 }; let films = [];
+    if (!document.getElementById('scrub-css')) { const st = document.createElement('style'); st.id = 'scrub-css'; st.textContent = `.scr{display:flex;flex-direction:column;gap:6px}.scr .bar{display:flex;gap:8px;align-items:center}.scr .bar b{font:700 13px 'Barlow Condensed',sans-serif;letter-spacing:.14em}.scr .tc{font:600 13px 'IBM Plex Mono',monospace;min-width:120px}.scr .row{display:flex;gap:8px;align-items:center;cursor:pointer}.scr .who{width:78px;font:600 12px 'IBM Plex Mono',monospace;white-space:nowrap;overflow:hidden}.scr .who.on{text-decoration:underline}.scr .track{position:relative;flex:1;height:64px;display:flex;border-radius:4px;overflow:hidden;background:#101215;touch-action:none}.scr .row:not(.on) .track{height:30px;opacity:.65}.scr .sg{position:relative;height:100%;flex:none;background:center/cover no-repeat;border-right:2px solid #0c0d0f}.scr .sg i{position:absolute;left:0;bottom:0;height:4px;width:100%}.scr .sg span{position:absolute;left:4px;top:2px;font:600 10px 'IBM Plex Mono',monospace;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;white-space:nowrap}.scr .sg.pv{outline:2px dashed #ebe5d8;outline-offset:-3px;opacity:.8}.scr .ph{position:absolute;top:0;bottom:0;width:3px;background:#fff;box-shadow:0 0 6px #000;pointer-events:none}.scr .ph::before{content:'';position:absolute;left:-5px;top:-1px;border:6.5px solid transparent;border-top-color:#fff}`; document.head.appendChild(st); }
+    const total = f => f.shots.reduce((a, s) => a + s.d, 0) + (f.preview ? f.preview.reduce((a, s) => a + s.d, 0) : 0);
+    function render() {
+      films = opts.films(); if (S.k >= films.length) S.k = 0; const f = films[S.k];
+      el.className = 'scr'; el.innerHTML = `<div class="bar"><button class="pp" style="padding:4px 12px">${S.playing ? 'PAUSE' : 'PLAY THE FILM'}</button><span class="tc">${S.t == null ? 'scrub the film' : L.tc(S.t) + ' / ' + L.tc(f ? total(f) : 0)}</span><b style="color:${f ? f.col : '#fff'}">${f ? f.name.toUpperCase() : ''}</b><span style="flex:1"></span>${S.t != null ? '<button class="lv" style="padding:4px 10px">BACK TO THE GAME</button>' : ''}</div>` +
+        films.map((F, k) => { const T = Math.max(opts.min || 12, ...films.map(total)); return `<div class="row${k === S.k ? ' on' : ''}" data-k="${k}"><span class="who${k === S.k ? ' on' : ''}" style="color:${F.col}">${F.name}</span><div class="track">${F.shots.map((s, n) => `<div class="sg" style="width:${s.d / T * 100}%;background-image:url('${L.root + s.c.th}')" title="${(s.c.ti || '').replace(/"/g, '')} · ${s.d.toFixed(1)}s"><span>${n}</span>${s.q != null ? `<i style="background:rgb(${L.tint(s.q)})"></i>` : ''}</div>`).join('')}${(F.preview || []).map(s => `<div class="sg pv" style="width:${s.d / T * 100}%;background-image:url('${L.root + s.c.th}')"><i style="background:rgb(${L.tint(s.q != null ? s.q : .5)})"></i></div>`).join('')}${k === S.k && S.t != null ? `<div class="ph" style="left:${S.t / T * 100}%"></div>` : ''}</div></div>`; }).join('');
+      el.querySelector('.pp').onclick = () => { S.playing = !S.playing; if (S.playing && (S.t == null || S.t >= total(films[S.k]) - .05)) S.t = 0; S.last = performance.now(); render(); fire(); };
+      const lv = el.querySelector('.lv'); if (lv) lv.onclick = () => { S.t = null; S.playing = false; render(); fire(); };
+      el.querySelectorAll('.row').forEach(r => { const k = +r.dataset.k, tr = r.querySelector('.track'); tr.onpointerdown = e => { S.k = k; S.playing = false; const T = Math.max(opts.min || 12, ...films.map(total)); const go = ev => { const b = tr.getBoundingClientRect(); S.t = Math.max(0, Math.min(total(films[k]) - .01, (ev.clientX - b.left) / b.width * T)); render(); fire(); }; go(e); const mv = ev => go(ev), up = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); }; addEventListener('pointermove', mv); addEventListener('pointerup', up); }; });
+    }
+    function fire() { opts.onTime && opts.onTime(S.t, films[S.k]); }
+    (function loop() { if (S.playing) { const now = performance.now(), f = films[S.k]; S.t += (now - S.last) / 1000; S.last = now; if (!f || S.t >= f.shots.reduce((a, s) => a + s.d, 0)) { S.playing = false; S.t = f ? f.shots.reduce((a, s) => a + s.d, 0) - .01 : null; } const ph = el.querySelector('.row.on .ph'), tc = el.querySelector('.tc'); if (ph && f) { const T = Math.max(opts.min || 12, ...films.map(total)); ph.style.left = (S.t / T * 100) + '%'; tc.textContent = L.tc(S.t) + ' / ' + L.tc(total(f)); } else render(); if (!S.playing) render(); fire(); } requestAnimationFrame(loop); })();
+    render(); S.render = render; Object.defineProperty(S, 'film', { get: () => films[S.k] }); return S;
+  };
+  /* draw the playing shot lifted out of the field at its place: large, outlined, playing its flipbook at the film's own pace */
+  L.lift = (ctx, c, x, y, w, col, f, label, bounds) => { const h = w * .5625; let X = x - w / 2, Y = y - h - 14; if (bounds) { X = Math.max(bounds[0] + 4, Math.min(bounds[2] - w - 4, X)); Y = Math.max(bounds[1] + 4, Math.min(bounds[3] - h - 30, Y)); } ctx.save(); ctx.shadowColor = '#000'; ctx.shadowBlur = 24; ctx.fillStyle = '#000'; ctx.fillRect(X, Y, w, h); ctx.restore(); L.draw(ctx, c, X, Y, w, h, Math.min(11, Math.floor(f * 12))); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.strokeRect(X, Y, w, h); ctx.fillStyle = '#000c'; ctx.fillRect(X, Y + h, w, 22); ctx.fillStyle = '#fff'; ctx.font = '600 12px IBM Plex Mono'; ctx.fillText(label, X + 6, Y + h + 15); ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(Math.max(X, Math.min(X + w, x)), Y + h + 22); ctx.stroke(); };
   /* ---- a shot plays its flipbook ONCE, slowly, then holds its last frame: no flashing */
   L.playFrame = (since, dur = 2.4) => Math.min(11, Math.floor((performance.now() - since) / (dur * 1000 / 12)));
   /* ---- a smooth path (Catmull-Rom) through points, for the ball's interpolated trail */
