@@ -105,6 +105,26 @@
     if (!document.getElementById('lhd-css')) { const st = document.createElement('style'); st.id = 'lhd-css'; st.textContent = `.lhd{position:relative;display:flex;gap:12px;align-items:center;padding:8px 14px;flex-wrap:wrap;border-bottom:1px solid #24282d;z-index:20}.lhd .brand{font:700 18px 'Barlow Condensed',sans-serif;letter-spacing:.16em;color:#ebe5d8;text-decoration:none}.lhd .brand b{color:#f25a17}.lhd nav{display:flex;gap:2px}.lhd nav a{font:700 12.5px 'Barlow Condensed',sans-serif;letter-spacing:.14em;color:#858b93;text-decoration:none;padding:4px 9px;border-radius:3px}.lhd nav a:hover{color:#ebe5d8}.lhd nav a.on{color:#170b04;background:#ebe5d8}.lhd .sp{flex:1}.lhd .slot{display:flex;gap:10px;align-items:center}.lhd .menus{display:flex;gap:4px}.lhd .menus button{padding:4px 9px;font-size:12px}.lhd .menus i{font-style:normal;color:#858b93;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0;margin-left:4px}.lhd .pop{position:absolute;right:14px;top:100%;margin-top:4px;background:#16181b;border:1px solid #2c3138;border-radius:6px;padding:12px;width:min(640px,94vw);display:flex;flex-direction:column;gap:6px;box-shadow:0 12px 40px #0009}.lhd .pop .ph{font:700 13px 'Barlow Condensed',sans-serif;letter-spacing:.14em;color:#858b93}.lhd .pop .opt{text-align:left}.lhd .pop p{margin:0;color:#cfc9bc;font-size:12px}.lhd .pop p b{color:#ebe5d8;font-weight:500}@media(max-width:700px){.lhd nav a{padding:3px 6px;font-size:11.5px}}`; document.head.appendChild(st); }
     return { slot: el.querySelector('.slot'), refresh };
   };
+
+  /* ---- LINES OF FLIGHT: the ball's path through the field IS the edit. Every shot it crosses is cut in, for as long as the ball is over
+     it (a fast flight cuts quickly, a slow roll holds); the shot it comes to rest on holds longest. Feed positions tick by tick. */
+  L.TICK = .075;   /* seconds of film per tick of flight */
+  L.recorder = (cellAt, opts = {}) => {
+    const min = opts.min || .45, max = opts.max || 4.5, hold = opts.hold || 2.2, segs = []; let cur = null, n = 0;
+    return {
+      feed(x, y) { const c = cellAt(x, y); if (cur && c === cur.c) { cur.k++; return; } if (cur) segs.push(cur); cur = c ? { c, k: 1 } : null; n++; },
+      shots(rest = true) {   /* [{c, d}]: grazes shorter than one frame of attention are dropped; repeats of the last shot merge */
+        const all = segs.concat(cur ? [cur] : []), out = [];
+        all.forEach((g, i) => { if (g.k < 2 && i < all.length - 1) return; const d = Math.min(max, Math.max(min, g.k * L.TICK)); const last = out[out.length - 1]; if (last && last.c === g.c) last.d = Math.min(max, last.d + d); else out.push({ c: g.c, d }); });
+        if (rest && out.length) out[out.length - 1].d = Math.max(hold, out[out.length - 1].d); return out;
+      }
+    };
+  };
+  L.seams = (from, shots) => { let prev = from; return shots.map(s => { const q = L.join(prev, s.c); prev = s.c; return q; }); };
+  L.mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+  L.tc = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}.${Math.floor((s % 1) * 10)}`;
+  /* a timeline: each shot as wide as it plays, the cut after it coloured by how it joins */
+  L.timeline = (shots, seams, opts = {}) => { const total = opts.total || shots.reduce((a, s) => a + s.d, 0) || 1; let t = opts.t0 || 0; return shots.map((s, n) => { const w = s.d / total * 100, q = seams ? seams[n] : null, h = `<div class="seg${opts.cls ? ' ' + opts.cls : ''}" style="width:${w}%;background-image:url('${L.root + s.c.th}');${q != null ? `box-shadow:inset 3px 0 0 rgb(${L.tint(q)})` : ''}" title="${(s.c.ti || '').replace(/"/g, '')} · ${s.d.toFixed(1)}s${q != null ? ' · ' + L.word(q) : ''}"><span>${L.tc(t)}</span></div>`; t += s.d; return h; }).join(''); };
   /* ---- a shot plays its flipbook ONCE, slowly, then holds its last frame: no flashing */
   L.playFrame = (since, dur = 2.4) => Math.min(11, Math.floor((performance.now() - since) / (dur * 1000 / 12)));
   /* ---- a smooth path (Catmull-Rom) through points, for the ball's interpolated trail */
@@ -120,18 +140,18 @@
     wrap.style.cssText = 'position:fixed;inset:0;z-index:50;background:#000e;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px';
     wrap.innerHTML = `<div style="position:relative;width:min(92vw,150vh);aspect-ratio:16/9;background:#000;border-radius:6px;overflow:hidden"><video muted playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></video><video muted playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0"></video><div class="wt" style="position:absolute;left:12px;bottom:10px;font:600 15px 'IBM Plex Mono',monospace;color:#fff;text-shadow:0 0 4px #000"></div></div><div class="wb" style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center"></div><button style="font:700 14px 'Barlow Condensed',sans-serif;letter-spacing:.14em;background:none;color:#ebe5d8;border:1px solid #444;border-radius:3px;padding:6px 14px;cursor:pointer">CLOSE</button>`;
     document.body.appendChild(wrap); const [A, B] = wrap.querySelectorAll('video'), T = wrap.querySelector('.wt'), bar = wrap.querySelector('.wb');
-    const seq = []; films.forEach((f, p) => f.shots.forEach((c, i) => seq.push({ c, p, name: (f.names && f.names[i]) || f.name, col: (f.cols && f.cols[i]) || f.col })));
+    const seq = []; films.forEach((f, p) => f.shots.forEach((c0, i) => { const c = c0.c || c0, d = c0.d; seq.push({ c, d, p, name: (f.names && f.names[i]) || f.name, col: (f.cols && f.cols[i]) || f.col }); }));
     bar.innerHTML = films.map(f => `<span style="font:600 13px 'IBM Plex Mono',monospace;color:${f.col}">● ${f.name} · ${f.shots.length} shots</span>`).join(' ');
-    const start = c => c.ss != null ? c.ss : Math.max(0, (c.du || 4) / 2 - each / 2);
-    const load = (v, c) => { v.src = L.root + c.m.replace(/^\.\.\//, ''); if (/^https?:/.test(c.m)) v.src = c.m; v.onloadedmetadata = () => { v.currentTime = Math.min(start(c), Math.max(0, v.duration - .2)); }; };
+    const start = (c, d) => c.ss != null ? c.ss : Math.max(0, (c.du || 4) / 2 - (d || each) / 2);
+    const load = (v, s) => { const c = s.c; v.src = /^https?:/.test(c.m) ? c.m : L.root + c.m; v.onloadedmetadata = () => { v.currentTime = Math.min(start(c, s.d), Math.max(0, v.duration - .2)); }; };
     let i = 0, cur = A, nxt = B, timer = null, stopped = false;
     const step = () => {
       if (stopped) return; if (i >= seq.length) { T.textContent = 'THE END'; return; }
-      const s = seq[i]; cur.style.opacity = 1; nxt.style.opacity = 0; cur.play().catch(() => { }); T.innerHTML = `<span style="color:${s.col}">●</span> ${s.name} · ${i + 1}/${seq.length} · ${s.c.ti || ''}`;
-      if (seq[i + 1]) load(nxt, seq[i + 1].c); i++;
-      timer = setTimeout(() => { cur.pause(); [cur, nxt] = [nxt, cur]; step(); }, each * 1000);
+      const s = seq[i]; cur.style.opacity = 1; nxt.style.opacity = 0; cur.play().catch(() => { }); T.innerHTML = `<span style="color:${s.col}">|</span> ${s.name} · ${i + 1}/${seq.length} · ${s.c.ti || ''}${s.d ? ' · ' + s.d.toFixed(1) + 's' : ''}`;
+      if (seq[i + 1]) load(nxt, seq[i + 1]); i++;
+      timer = setTimeout(() => { cur.pause(); [cur, nxt] = [nxt, cur]; step(); }, (s.d || each) * 1000);
     };
-    if (seq.length) { load(cur, seq[0].c); cur.oncanplay = () => { cur.oncanplay = null; step(); }; }
+    if (seq.length) { load(cur, seq[0]); cur.oncanplay = () => { cur.oncanplay = null; step(); }; }
     const close = () => { stopped = true; clearTimeout(timer); A.pause(); B.pause(); wrap.remove(); if (opts.onclose) opts.onclose(); };
     wrap.querySelector('button').onclick = close; return { close };
   };

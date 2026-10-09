@@ -14,7 +14,7 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
 .sp{ flex:1; }
 .sc{ font:700 30px var(--sans); letter-spacing:.06em; } .sc .a{ color:var(--a); } .sc .b{ color:var(--b); } .st{ color:var(--dim); }
 #wrap{ position:relative; flex:1; min-height:0; } canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
-.coll{ display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:4px 14px 10px; } .coll div{ display:flex; gap:3px; align-items:center; overflow:hidden; min-height:40px; } .coll img{ height:36px; aspect-ratio:16/9; object-fit:cover; border-radius:2px; flex:none; } .coll .q{ width:6px; height:3px; flex:none; border-radius:2px; } .coll b{ font:600 12px var(--mono); margin-right:6px; white-space:nowrap; }
+.coll{ display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:6px 14px 10px; border-top:1px solid var(--faint); } .coll > div{ display:flex; flex-direction:column; gap:4px; min-width:0; } .coll b{ font:600 12px var(--mono); white-space:nowrap; } .coll .strip{ height:30px; display:flex; overflow:hidden; border-radius:3px; background:#101215; } .seg{ position:relative; height:100%; background:center/cover no-repeat; flex:none; border-right:1px solid #000; } .seg span{ position:absolute; left:3px; top:1px; font:600 9px var(--mono); color:#fff; text-shadow:0 0 3px #000; }
 .card{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:#0c0d0fe6; z-index:5; padding:16px; }
 .card .in{ max-width:720px; width:100%; display:flex; flex-direction:column; gap:12px; } .card h2{ margin:0; font:700 30px var(--sans); letter-spacing:.12em; } .card p{ margin:0; color:#cfc9bc; } .rules{ color:var(--dim); font-size:12px; } .rules b{ color:var(--ink); font-weight:500; }
 .row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; } input{ font:500 14px var(--mono); background:var(--top); color:var(--ink); border:1px solid var(--faint); border-radius:3px; padding:6px 8px; width:110px; text-transform:uppercase; }
@@ -23,8 +23,8 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
 <div id="hd"></div>
 <div id="wrap"><canvas id="cv"></canvas>
   <div class="card" id="setup"><div class="in"><h2>TENNIS FOR TWO, THROUGH THE ARCHIVE</h2>
-    <p>A ring of shots from the Slopfeeder field, in the order of meaning. Two paddles ride the ring. <b>Every shot you return is the next cut of the rally</b>, and where you send the ball decides which shot your opponent has to cut to next.</p>
-    <p class="rules"><b>The cut is the physics.</b> A return that makes a good cut from the last shot comes off soft. A jarring cut comes back hot, faster than you’d like. Miss and your opponent takes the point; first to 7. Each player keeps the shots they hit; the rally is a film.<br><b>Move:</b> drag around the ring (on two-here, the left half of the screen is blue and the right half is red), or keys A/D and ←/→. Hit off-centre to angle the return; move as you hit to add spin.</p>
+    <p>Tennis for Two, through the archive, as an editor. The court inside the ring is a field of shots. <b>Every return's line of flight is a cut</b>: each shot the ball crosses joins the rally film, for as long as the ball is over it, and belongs to whoever hit it.</p>
+    <p class="rules"><b>Aim by placing your paddle.</b> As the ball comes to you, a dashed line shows the return your paddle would send and lights the shots it would cut, with how well they join the film so far. Hit off-centre to angle the line; move as you hit to add spin. <b>Points:</b> win a rally (your opponent misses), or cut a return that joins well (a mean cut of 60 or more). First to 7. <b>Move:</b> drag around the ring (two here: left half blue, right half red), or keys A/D and the arrows.</p>
     <div id="filt"></div><div class="row"><button id="vsm" class="on">VS THE MACHINE</button><button id="two">TWO HERE</button><button id="host">HOST ONLINE</button><span>or join</span><input id="code" placeholder="CODE" maxlength="6"><button id="join">JOIN</button></div>
     <div class="row" id="pair" hidden><div id="qr"></div><div><p id="pmsg"></p><p class="rules" id="plink"></p></div></div></div></div>
   <div class="card" id="end" hidden><div class="in" id="endin"></div></div>
@@ -36,47 +36,50 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
 <script>
 (() => {
   const $ = id => document.getElementById(id), cv = $('cv'), ctx = cv.getContext('2d'), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const L = Ludens, TAU = Math.PI * 2, HW = .36, V0 = .9, VMAX = 2.8, WIN = 7, N = 32, COL = ['#5acde6', '#f06e64'];   /* Tennis for Two's numbers */
+  const L = Ludens, TAU = Math.PI * 2, HW = .36, V0 = .9, VMAX = 2.8, WIN = 7, COL = ['#5acde6', '#f06e64'], FILMRATE = 2.2, RS = .2;   /* Tennis for Two's numbers; a second of flight is FILMRATE seconds of film */
   const ad = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; };
-  let H = null, mode = null, role = 'local', ring = [], W = null, DPR = 1, cx = 0, cy = 0, R = 0, keys = {}, peer = null, conn = null, last = 0, remote = { a: 0 };
-  /* ---- the ring: a tour of the field by angle around its centre, the strongest shot of each sector (seeded: both players see the same ring) */
-  function makeRing(seed) {
-    const rnd = L.rng(seed), bins = Array.from({ length: N }, () => []);
-    const POOL = L.pool(), round = L.V.layout === 'meaning' || L.V.layout === 'framing';   /* the ring follows the layout: around the map, or along hue, year or chapter */
-    for (const c of POOL) { const [x, y] = L.pos(c); let u; if (round) { const a = Math.atan2(y - .5, x - .5); if (Math.hypot(y - .5, x - .5) < .1) continue; u = (a + Math.PI) / TAU; } else u = Math.min(.999, Math.max(0, x)); bins[Math.min(N - 1, Math.floor(u * N))].push(c); }
-    const src = POOL.length ? POOL : L.cards, used = new Set(); return bins.map(b => { let c = b.length ? b.sort((x, y) => y.mc - x.mc)[Math.floor(rnd() * Math.min(4, b.length))] : null; if (!c || used.has(c)) c = src.filter(x => !used.has(x))[Math.floor(rnd() * Math.max(1, src.length - used.size))] || src[0]; used.add(c); return c; });
+  let H = null, mode = null, role = 'local', field = [], grid = {}, cs = .1, W = null, DPR = 1, cx = 0, cy = 0, R = 0, keys = {}, peer = null, conn = null, last = 0, remote = { a: 0 };
+  /* ---- the court: the shots in play inside the ring, by the chosen layout, folded into the disc around a small screen */
+  function makeField() {
+    const pool = L.pool(), n = Math.max(40, Math.min(150, pool.length)); cs = Math.sqrt(Math.PI * .9 * .9 / n * .85);
+    const PS = pool.map(c => L.pos(c)), q = (a, f) => { const v = a.slice().sort((m, n2) => m - n2); return v[Math.floor(f * (v.length - 1))]; }, X0 = q(PS.map(p => p[0]), .02), X1 = q(PS.map(p => p[0]), .98), Y0 = q(PS.map(p => p[1]), .02), Y1 = q(PS.map(p => p[1]), .98), G = {};
+    pool.forEach((c, k) => { let u = ((PS[k][0] - X0) / ((X1 - X0) || 1) - .5) * 2 * .9, v = ((PS[k][1] - Y0) / ((Y1 - Y0) || 1) - .5) * 2 * .9; const d = Math.hypot(u, v); if (d > .88) { u = u / d * .88; v = v / d * .88; } const key = Math.round(u / cs) + ',' + Math.round(v / cs); if (!G[key] || c.mc > G[key].mc) G[key] = c; });
+    return Object.entries(G).map(([k, c]) => { const [i, j] = k.split(',').map(Number); return { x: i * cs, y: j * cs, c }; }).filter(f => Math.hypot(f.x, f.y) <= .9 - cs * .3 && Math.hypot(f.x, f.y) >= RS + cs * .45);
   }
-  const clipAt = a => Math.floor((((a + Math.PI) % TAU + TAU) % TAU) / TAU * N) % N;
-  const angOf = k => (k + .5) / N * TAU - Math.PI;
-  function fresh(server) { return { b: { x: 0, y: 0, vx: 0, vy: 0, sp: V0 }, p: [Math.PI * .75, -Math.PI * .25], pv: [0, 0], s: W ? W.s : [0, 0], server, rcv: 1 - server, serveT: 1.4, rally: [], trail: [], own: W ? W.own : {}, show: W ? W.show : null, was: W ? W.was : null, since: W ? W.since : 0, hits: W ? W.hits : [[], []], film: W ? W.film : [], lastClip: W ? W.lastClip : null, over: false, flash: null }; }
-  /* ---- modes */
-  const begin = m => { mode = m; $('setup').hidden = true; $('end').hidden = true; W = null; W = fresh(0); W.s = [0, 0]; W.hits = [[], []]; W.film = []; W.lastClip = null; status(); paint(); };
+  function setField(f) { field = f; grid = {}; field.forEach(x => grid[Math.round(x.x / cs) + ',' + Math.round(x.y / cs)] = x.c); }
+  const cellAt = (x, y) => grid[Math.round(x / cs) + ',' + Math.round(y / cs)] || null;
+  const lastC = () => W.film.length ? W.film[W.film.length - 1].c : null;
+  function fresh(server) { return { b: { x: 0, y: 0, vx: 0, vy: 0, sp: V0 }, p: W ? W.p : [Math.PI * .75, -Math.PI * .25], pv: [0, 0], s: W ? W.s : [0, 0], cut: W ? W.cut : [0, 0], server, rcv: 1 - server, serveT: 1.4, rally: 0, trail: [], seg: null, segs: W ? W.segs : [[], []], film: W ? W.film : [], over: false, flash: null, show: W ? W.show : { c: null, since: 0, was: null } }; }
+  const begin = m => { mode = m; $('setup').hidden = true; $('end').hidden = true; W = null; W = fresh(0); W.s = [0, 0]; W.cut = [0, 0]; W.segs = [[], []]; W.film = []; status(); colls(); };
   L.load().then(() => {
-    const q = new URLSearchParams(location.search); layout(); L.filterUI($('filt')); H = L.header($('hd'), 'TENNIS', () => { if (W && mode !== 'online') { ring = makeRing(Date.now() % 1e6); colls(); } }); H.slot.innerHTML = '<span class="sc" id="sc"><span class="a">0</span> · <span class="b">0</span></span><span class="st" id="st"></span><button id="menu" style="padding:3px 8px;font-size:12px">MODES</button>'; $('menu').onclick = () => { $('setup').hidden = !$('setup').hidden; };
-    $('vsm').onclick = () => { ring = makeRing(Date.now() % 1e6); begin('machine'); };
-    $('two').onclick = () => { ring = makeRing(Date.now() % 1e6); begin('two'); };
+    const q = new URLSearchParams(location.search); layout(); L.filterUI($('filt'));
+    H = L.header($('hd'), 'TENNIS', () => { if (mode !== 'online') setField(makeField()); });
+    H.slot.innerHTML = '<span class="sc" id="sc"><span class="a">0</span> · <span class="b">0</span></span><span class="st" id="st"></span><button id="menu" style="padding:3px 8px;font-size:12px">MODES</button>'; $('menu').onclick = () => { $('setup').hidden = !$('setup').hidden; };
+    setField(makeField()); layout();
+    $('vsm').onclick = () => { setField(makeField()); begin('machine'); };
+    $('two').onclick = () => { setField(makeField()); begin('two'); };
     $('host').onclick = hostOnline; $('join').onclick = () => joinOnline($('code').value.trim().toUpperCase());
     if (q.get('join')) { $('code').value = q.get('join'); joinOnline(q.get('join').toUpperCase()); }
     requestAnimationFrame(loop);
   });
-  /* ---- online: Tennis for Two's pairing (PeerJS + a code + a QR); the host plays blue and runs the ball, the guest plays red */
+  /* ---- online: Tennis for Two's pairing; the host plays blue and runs the ball and sends the court, the guest plays red */
   const PFX = 'cineosis-tennis-';
   function hostOnline() {
-    const code = Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join(''), seed = Math.floor(Math.random() * 1e6);
+    const code = Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
     $('pair').hidden = false; $('pmsg').textContent = `room ${code} · waiting for a player…`; const link = location.href.split('?')[0] + '?join=' + code; $('plink').textContent = link; $('qr').innerHTML = ''; try { new QRCode($('qr'), { text: link, width: 132, height: 132 }); } catch (e) { }
     peer = new Peer(PFX + code); peer.on('error', e => $('pmsg').textContent = 'pairing: ' + e.type);
-    peer.on('connection', c => { conn = c; c.on('open', () => { ring = makeRing(seed); role = 'host'; c.send({ t: 'init', ids: ring.map(x => x.id) }); begin('online'); }); c.on('data', m => { if (m.t === 'a') remote.a = m.a; }); c.on('close', () => { $('st').textContent = 'the other player left'; }); });
+    peer.on('connection', c => { conn = c; c.on('open', () => { setField(makeField()); role = 'host'; c.send({ t: 'init', cs, f: field.map(x => [x.c.id, +x.x.toFixed(4), +x.y.toFixed(4)]) }); begin('online'); }); c.on('data', m => { if (m.t === 'a') remote.a = m.a; }); c.on('close', () => { $('st').textContent = 'the other player left'; }); });
   }
   function joinOnline(code) {
     if (!code) return; $('pair').hidden = false; $('pmsg').textContent = `joining ${code}…`; peer = new Peer(); peer.on('error', e => $('pmsg').textContent = 'pairing: ' + e.type);
     peer.on('open', () => { conn = peer.connect(PFX + code, { reliable: true }); conn.on('data', m => {
-      if (m.t === 'init') { ring = m.ids.map(id => L.byId[id]).filter(Boolean); role = 'guest'; begin('online'); }
-      if (m.t === 's' && W) { W.trail.push([m.b[0], m.b[1]]); if (W.trail.length > 40) W.trail.shift(); W.b.x = m.b[0]; W.b.y = m.b[1]; W.p[0] = m.p[0]; W.s = m.s; W.rcv = m.r; W.serveT = m.sv; W.over = m.o; }
-      if (m.t === 'hit' && W) recordHit(m.who, m.k, m.q, true);
+      if (m.t === 'init') { cs = m.cs; setField(m.f.map(([id, x, y]) => ({ c: L.byId[id], x, y })).filter(f => f.c)); role = 'guest'; begin('online'); }
+      if (m.t === 's' && W) { W.trail.push([m.b[0], m.b[1]]); if (W.trail.length > 60) W.trail.shift(); W.b.x = m.b[0]; W.b.y = m.b[1]; W.b.vx = m.b[2]; W.b.vy = m.b[3]; W.p[0] = m.p[0]; W.s = m.s; W.cut = m.c; W.rcv = m.r; W.serveT = m.sv; W.over = m.o; const c = cellAt(W.b.x, W.b.y); if (c) show(c); }
+      if (m.t === 'seg' && W) addSeg(m.who, m.shots.map(([id, d]) => ({ c: L.byId[id], d })).filter(s => s.c));
       if (m.t === 'pt' && W) { W.flash = { who: m.who, t: performance.now(), why: m.why }; status(); if (m.end) finish(); }
     }); });
   }
-  /* ---- input: drag around the ring (Tennis for Two sets the paddle to the finger's angle), keys A/D and ←/→ */
+  /* ---- input: drag around the ring, keys A/D and the arrows */
   const pointers = {};
   const angleOf = e => { const r = cv.getBoundingClientRect(); return Math.atan2(e.clientY - r.top - cy, e.clientX - r.left - cx); };
   const sideOf = e => { const r = cv.getBoundingClientRect(); return e.clientX - r.left < r.width / 2 ? 0 : 1; };
@@ -87,91 +90,104 @@ button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:
   addEventListener('keydown', e => keys[e.key.toLowerCase()] = true); addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
   function setPaddle(who, a) { if (mode === 'machine' && who === 1) return; const now = performance.now(), d = ad(a, W.p[who]); W.pv[who] = W.pv[who] * .5 + d / Math.max(.008, (now - (W._pt || now)) / 1000) * .5 * .1; W._pt = now; W.p[who] = a; if (role === 'guest') send({ t: 'a', a }); }
   const send = m => { try { conn && conn.open && conn.send(m); } catch (e) { } };
-  /* ---- the machine: it runs to where the ball will meet the ring and aims the return at the shot that is far from you and cuts worst from its own */
-  function machine(dt) {
-    const b = W.b; if (W.rcv !== 1 || W.serveT > 0) { W.p[1] += ad(Math.PI * .25 - W.p[1], 0) * 0 + Math.max(-1, Math.min(1, ad(-Math.PI * .25, W.p[1]))) * dt; return; }
-    const A = b.vx * b.vx + b.vy * b.vy, B = 2 * (b.x * b.vx + b.y * b.vy), C = b.x * b.x + b.y * b.y - 1, t = (-B + Math.sqrt(Math.max(0, B * B - 4 * A * C))) / (2 * A || 1), hit = Math.atan2(b.y + b.vy * t, b.x + b.vx * t);
-    if (W._mAim == null || W._mFor !== W.rally.length) {   /* choose its angle of return once per incoming ball */
-      let best = 0, bs = -9; const k = clipAt(hit);
-      for (let off = -.9; off <= .9; off += .15) { const tgt = hit + Math.PI + off; const kk = clipAt(tgt); const far = Math.abs(ad(tgt, W.p[0])) / Math.PI; const s = far * 1.2 + (1 - L.join(ring[k], ring[kk])) * .6 + (Math.random() - .5) * .3; if (s > bs) { bs = s; best = off; } }
-      W._mAim = best; W._mFor = W.rally.length;
-    }
-    const want = hit - W._mAim * HW * .9, d = ad(want, W.p[1]), spd = 3.4; W.p[1] += Math.max(-spd * dt, Math.min(spd * dt, d)); W.pv[1] = 0;
+  /* ---- where the ball will meet the ring, and the return a paddle there would send: its chord, and the shots it would cut */
+  function impact(b) { const A = b.vx * b.vx + b.vy * b.vy, B = 2 * (b.x * b.vx + b.y * b.vy), C = b.x * b.x + b.y * b.y - 1; if (!A) return null; const t = (-B + Math.sqrt(Math.max(0, B * B - 4 * A * C))) / (2 * A); return Math.atan2(b.y + b.vy * t, b.x + b.vx * t); }
+  function chord(th, pa) {   /* the return from impact angle th with the paddle at pa: the line, and the cut it makes, sampled as the ball would fly it */
+    const off = ad(th, pa) / HW; if (Math.abs(off) > 1) return null; const tgt = th + Math.PI + off * 1.0, x0 = Math.cos(th) * .985, y0 = Math.sin(th) * .985, x1 = Math.cos(tgt), y1 = Math.sin(tgt), len = Math.hypot(x1 - x0, y1 - y0), sp = Math.min(VMAX, (W.b.sp || V0) * 1.05);
+    const shots = []; let prevC = null, steps = 60; for (let k = 0; k <= steps; k++) { const x = x0 + (x1 - x0) * k / steps, y = y0 + (y1 - y0) * k / steps, c = cellAt(x, y); if (!c) { prevC = null; continue; } if (c === prevC) shots[shots.length - 1].d += len / steps / sp * FILMRATE; else shots.push({ c, d: len / steps / sp * FILMRATE }); prevC = c; }
+    const sh = shots.filter(s => s.d >= .12).map(s => ({ c: s.c, d: Math.max(.45, Math.min(4, s.d)) })), seams = L.seams(lastC(), sh);
+    return { th, tgt, x0, y0, x1, y1, shots: sh, seams, q: L.mean(seams) };
   }
-  /* ---- the ball: a rally across the ring; a return is a cut, and the cut decides the speed */
-  function recordHit(who, k, q, remoteEvt) {
-    const c = ring[k]; W.hits[who].push({ c, q }); W.film.push({ c, who, q }); W.rally.push(k); W.was = W.lastClip; W.lastClip = c; W.since = performance.now(); W.own[k] = who; W.flash = { who, k, q, t: performance.now() };
-    L.tone(q >= .6 ? 520 : q >= .35 ? 440 : 300, .09, .06, q < .35 ? 'square' : 'sine'); colls();
+  /* ---- the machine: it runs to where the ball will meet the ring and chooses the return whose line cuts best, far from you */
+  function machine(dt) {
+    const b = W.b; if (W.rcv !== 1 || W.serveT > 0) { W.p[1] += Math.max(-1, Math.min(1, ad(-Math.PI * .25, W.p[1]))) * dt; return; }
+    const hit = impact(b); if (hit == null) return;
+    if (W._mFor !== W.rally) { let best = 0, bs = -9; for (let off = -.85; off <= .85; off += .1) { const ch = chord(hit, hit - off * HW); if (!ch) continue; const far = Math.abs(ad(ch.tgt, W.p[0])) / Math.PI, s = ch.q * 1.6 + Math.min(4, ch.shots.length) * .1 + far * .8 + (Math.random() - .5) * .2; if (s > bs) { bs = s; best = off; } } W._mAim = best; W._mFor = W.rally; }
+    const want = hit - W._mAim * HW, d = ad(want, W.p[1]), spd = 3.4; W.p[1] += Math.max(-spd * dt, Math.min(spd * dt, d)); W.pv[1] = 0;
+  }
+  /* ---- the line of flight: every shot the ball crosses on a return is cut in, for as long as it is over it; the return's author owns that segment */
+  function show(c) { if (W.show.c === c) return; W.show = { c, since: performance.now(), was: W.show.c }; }
+  function addSeg(who, shots) {
+    if (!shots.length) return; const seams = L.seams(lastC(), shots), q = L.mean(seams); shots.forEach((s, k) => W.film.push({ c: s.c, d: s.d, who, q: seams[k] })); W.segs[who].push({ shots, q });
+    if (q >= .6) { W.cut[who]++; W.flash = { who, t: performance.now(), why: 'cut' }; } colls(); status();
+  }
+  function closeSeg() {
+    const g = W.seg; W.seg = null; if (!g) return; const shots = g.cells.filter(x => x.t >= .06).map(x => ({ c: x.c, d: Math.max(.45, Math.min(4, x.t * FILMRATE)) }));
+    const merged = []; shots.forEach(s => { const l = merged[merged.length - 1]; if (l && l.c === s.c) l.d += s.d; else merged.push(s); });
+    addSeg(g.who, merged); if (role === 'host') send({ t: 'seg', who: g.who, shots: merged.map(s => [s.c.id, +s.d.toFixed(2)]) });
   }
   function physics(dt) {
     if (W.over) return; const b = W.b;
-    if (W.serveT > 0) { W.serveT -= dt; b.x = 0; b.y = 0; if (W.serveT <= 0) { const a = W.p[W.rcv] + (Math.random() - .5) * 1.0; b.sp = V0; b.vx = Math.cos(a) * b.sp; b.vy = Math.sin(a) * b.sp; } return; }
-    b.x += b.vx * dt; b.y += b.vy * dt; W.trail.push([b.x, b.y]); if (W.trail.length > 40) W.trail.shift(); const r = Math.hypot(b.x, b.y);
+    if (W.serveT > 0) { W.serveT -= dt; b.x = 0; b.y = 0; if (W.serveT <= 0) { const a = W.p[W.rcv] + (Math.random() - .5) * .6; b.sp = V0; b.vx = Math.cos(a) * b.sp; b.vy = Math.sin(a) * b.sp; W.seg = { who: 1 - W.rcv, cells: [] }; } return; }
+    b.x += b.vx * dt; b.y += b.vy * dt; W.trail.push([b.x, b.y]); if (W.trail.length > 60) W.trail.shift();
+    const c = cellAt(b.x, b.y); if (c && W.seg) { const g = W.seg.cells, l = g[g.length - 1]; if (l && l.c === c) l.t += dt; else g.push({ c, t: dt }); show(c); }
+    const r = Math.hypot(b.x, b.y);
     if (r >= 1) {
       const th = Math.atan2(b.y, b.x), d = ad(th, W.p[W.rcv]);
+      closeSeg();
       if (Math.abs(d) <= HW) {
-        const who = W.rcv, k = clipAt(th), c = ring[k], q = W.lastClip ? L.join(W.lastClip, c) : .6, off = d / HW, spin = Math.max(-1, Math.min(1, W.pv[who] || 0));
-        const tgt = th + Math.PI + off * 1.0 + spin * .35, tx = Math.cos(tgt), ty = Math.sin(tgt); let vx = tx - b.x, vy = ty - b.y; const n = Math.hypot(vx, vy) || 1;
-        b.sp = Math.min(VMAX, b.sp * 1.05 * (q < .35 ? 1.14 : q >= .6 ? .96 : 1)); b.vx = vx / n * b.sp; b.vy = vy / n * b.sp; b.x = Math.cos(th) * .985; b.y = Math.sin(th) * .985;
-        recordHit(who, k, q); if (role === 'host') send({ t: 'hit', who, k, q }); W.rcv = 1 - who;
-      } else {   /* a miss: the point goes to the one who sent it */
-        const win = 1 - W.rcv; W.s[win]++; const end = W.s[win] >= WIN; W.flash = { who: win, t: performance.now(), why: W.rally.length ? 'miss' : 'ace' }; L.tone(win ? 200 : 260, .3, .06, 'sawtooth');
+        const who = W.rcv, off = d / HW, spin = Math.max(-1, Math.min(1, W.pv[who] || 0)), tgt = th + Math.PI + off * 1.0 + spin * .35, tx = Math.cos(tgt), ty = Math.sin(tgt); let vx = tx - b.x, vy = ty - b.y; const n = Math.hypot(vx, vy) || 1;
+        b.sp = Math.min(VMAX, b.sp * 1.05); b.vx = vx / n * b.sp; b.vy = vy / n * b.sp; b.x = Math.cos(th) * .985; b.y = Math.sin(th) * .985; W.rally++; W.rcv = 1 - who; W.seg = { who, cells: [] }; L.tone(440, .07, .05);
+      } else {
+        const win = 1 - W.rcv; W.s[win]++; const end = W.s[win] + W.cut[win] >= WIN; W.flash = { who: win, t: performance.now(), why: W.rally ? 'miss' : 'ace' }; L.tone(win ? 200 : 260, .3, .06, 'sawtooth');
         if (role === 'host') send({ t: 'pt', who: win, why: W.flash.why, end });
-        const lost = W.rcv, keep = { s: W.s, hits: W.hits, film: W.film, lastClip: W.lastClip, own: W.own, was: W.was, since: W.since }; W = Object.assign(fresh(lost), keep, { p: W.p, flash: W.flash }); W.rally = []; status();
+        const lost = W.rcv; W = Object.assign(fresh(lost), { flash: W.flash }); status();
         if (end) { W.over = true; finish(); }
       }
     }
   }
   /* ---- readouts */
-  function status() { $('sc').innerHTML = `<span class="a">${W.s[0]}</span> · <span class="b">${W.s[1]}</span>`; $('st').textContent = mode === 'machine' ? 'you (blue) vs the machine (red)' : mode === 'two' ? 'blue: left half · A/D   red: right half · ←/→' : role === 'host' ? 'online · you are blue' : 'online · you are red'; }
-  function colls() { [0, 1].forEach(p => { $(p ? 'cb' : 'ca').innerHTML = `<b style="color:${COL[p]}">${mode === 'machine' && p ? 'the machine' : p ? 'red' : 'blue'} · ${W.hits[p].length}</b>` + W.hits[p].slice(-14).map(h => `<i class="q" style="background:rgb(${L.tint(h.q)})"></i><img src="${L.root + h.c.th}" title="${esc(h.c.ti)} · ${L.word(h.q)}" alt="">`).join(''); }); }
+  const score = p => W.s[p] + W.cut[p];
+  function status() { if (!$('sc')) return; $('sc').innerHTML = `<span class="a">${score(0)}</span> · <span class="b">${score(1)}</span>`; $('st').textContent = (mode === 'machine' ? 'you (blue) vs the machine (red)' : mode === 'two' ? 'blue: left half, A/D · red: right half, arrows' : role === 'host' ? 'online · you are blue' : 'online · you are red') + ` · points: rallies won + good cuts`; }
+  function colls() { [0, 1].forEach(p => { const shots = W.film.filter(f => f.who === p); $(p ? 'cb' : 'ca').innerHTML = `<b style="color:${COL[p]}">${mode === 'machine' && p ? 'the machine' : p ? 'red' : 'blue'} · ${shots.length} shots · ${W.cut[p]} good cuts</b><div class="strip">${L.timeline(shots, shots.map(f => f.q), { total: Math.max(20, ...[0, 1].map(k => W.film.filter(f => f.who === k).reduce((a, s) => a + s.d, 0))) })}</div>`; }); }
   function finish() {
-    const w = W.s[0] > W.s[1] ? 0 : 1, avg = p => W.hits[p].length ? W.hits[p].reduce((a, h) => a + h.q, 0) / W.hits[p].length : 0;
-    $('endin').innerHTML = `<h2 style="color:${COL[w]}">${mode === 'machine' ? (w ? 'THE MACHINE WINS' : 'YOU WIN') : (w ? 'RED WINS' : 'BLUE WINS')} ${W.s[0]}–${W.s[1]}</h2><p>The rally film: ${W.film.length} shots, cut by both of you in turn. Blue kept ${W.hits[0].length} shots (cut quality ${Math.round(avg(0) * 100)}), red kept ${W.hits[1].length} (${Math.round(avg(1) * 100)}).</p><div class="row"><button id="wr" class="on">WATCH THE RALLY</button><button id="wb">WATCH BLUE’S FILM</button><button id="wd">WATCH RED’S FILM</button><button id="ag">PLAY AGAIN</button></div>`;
+    const w = score(0) > score(1) ? 0 : 1, q = p => L.mean(W.film.filter(f => f.who === p).map(f => f.q));
+    $('endin').innerHTML = `<h2 style="color:${COL[w]}">${mode === 'machine' ? (w ? 'THE MACHINE WINS' : 'YOU WIN') : (w ? 'RED WINS' : 'BLUE WINS')} ${score(0)}–${score(1)}</h2><p>The rally film: ${W.film.length} shots, ${L.tc(W.film.reduce((a, s) => a + s.d, 0))}, cut by both of you in turn: every return's line of flight through the court. Blue: ${W.s[0]} rallies, ${W.cut[0]} good cuts, mean ${Math.round(q(0) * 100)}. Red: ${W.s[1]} rallies, ${W.cut[1]} good cuts, mean ${Math.round(q(1) * 100)}.</p><div class="row"><button id="wr" class="on">WATCH THE RALLY</button><button id="wb">BLUE’S CUTS</button><button id="wd">RED’S CUTS</button><button id="ag">PLAY AGAIN</button></div>`;
     $('end').hidden = false;
-    $('wr').onclick = () => L.watch([{ name: 'the rally', col: '#ebe5d8', shots: W.film.map(h => h.c), cols: W.film.map(h => COL[h.who]), names: W.film.map(h => h.who ? 'red' : 'blue') }], { each: 1.8 });
-    $('wb').onclick = () => L.watch([{ name: 'blue', col: COL[0], shots: W.hits[0].map(h => h.c) }]); $('wd').onclick = () => L.watch([{ name: 'red', col: COL[1], shots: W.hits[1].map(h => h.c) }]);
-    $('ag').onclick = () => { if (mode === 'online') { $('end').hidden = true; return; } ring = makeRing(Date.now() % 1e6); begin(mode); };
+    $('wr').onclick = () => L.watch([{ name: 'the rally', col: '#ebe5d8', shots: W.film, cols: W.film.map(h => COL[h.who]), names: W.film.map(h => h.who ? 'red' : 'blue') }]);
+    $('wb').onclick = () => L.watch([{ name: 'blue', col: COL[0], shots: W.film.filter(f => f.who === 0) }]); $('wd').onclick = () => L.watch([{ name: 'red', col: COL[1], shots: W.film.filter(f => f.who === 1) }]);
+    $('ag').onclick = () => { if (mode === 'online') { $('end').hidden = true; return; } setField(makeField()); begin(mode); };
   }
   /* ---- draw */
-  function layout() { const r = $('wrap').getBoundingClientRect(); DPR = Math.min(2, devicePixelRatio || 1); cv.width = r.width * DPR; cv.height = r.height * DPR; cx = r.width / 2; cy = r.height / 2; R = Math.min(r.width, r.height) / 2 - 58; }
+  function layout() { const r = $('wrap').getBoundingClientRect(); DPR = Math.min(2, devicePixelRatio || 1); cv.width = r.width * DPR; cv.height = r.height * DPR; cx = r.width / 2; cy = r.height / 2; R = Math.min(r.width, r.height) / 2 - 30; }
   addEventListener('resize', layout);
   function paint() {
-    const w = cv.width / DPR, h = cv.height / DPR; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = '#0c0d0f'; ctx.fillRect(0, 0, w, h); if (!W || !ring.length) return;
-    ctx.fillStyle = '#060708'; ctx.beginPath(); ctx.arc(cx, cy, R + 50, 0, TAU); ctx.fill();
-    const tw = Math.min(96, TAU * (R + 26) / N - 4), th = tw * .5625;
-    ring.forEach((c, k) => {   /* the ring of shots; the one each paddle covers is lit; tinted by how it would cut from the last shot */
-      const a = angOf(k), x = cx + (R + 26) * Math.cos(a), y = cy + (R + 26) * Math.sin(a), q = W.lastClip ? L.join(W.lastClip, c) : .5;
-      ctx.save(); ctx.translate(x, y); ctx.rotate(a + Math.PI / 2); ctx.globalAlpha = .35 + .65 * q; L.draw(ctx, c, -tw / 2, -th / 2, tw, th, null); ctx.globalAlpha = 1;
-      ctx.fillStyle = `rgba(${L.tint(q)},.9)`; ctx.fillRect(-tw / 2, th / 2 - 3, tw * Math.max(.1, q), 3); if (W.own[k] != null) { ctx.strokeStyle = COL[W.own[k]]; ctx.lineWidth = 3; ctx.strokeRect(-tw / 2 - 1, -th / 2 - 1, tw + 2, th + 2); } ctx.restore();
-    });
-    ctx.strokeStyle = '#24282d'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke();
-    [0, 1].forEach(p => { ctx.strokeStyle = COL[p]; ctx.lineWidth = p === W.rcv ? 10 : 6; ctx.globalAlpha = p === W.rcv ? 1 : .55; ctx.beginPath(); ctx.arc(cx, cy, R + 4, W.p[p] - HW, W.p[p] + HW); ctx.stroke(); ctx.globalAlpha = 1; });
-    const sw = R * 1.05, sh = sw * .5625;   /* the centre: the shot just cut in, playing as its flipbook */
-    if (W.lastClip) {   /* the shot just cut in: crossfades in over the last one, plays its flipbook once, slowly, then holds */
-      const f_ = Math.min(1, (performance.now() - W.since) / 380);
-      if (W.was && f_ < 1) { ctx.globalAlpha = 1 - f_; L.draw(ctx, W.was, cx - sw / 2, cy - sh / 2, sw, sh, 11); }
-      ctx.globalAlpha = f_; L.draw(ctx, W.lastClip, cx - sw / 2, cy - sh / 2, sw, sh, L.playFrame(W.since, 2.4)); ctx.globalAlpha = 1;
-      const f = W.flash; if (f && f.k != null) { ctx.strokeStyle = COL[f.who]; ctx.lineWidth = 3; ctx.strokeRect(cx - sw / 2, cy - sh / 2, sw, sh); ctx.fillStyle = '#000b'; ctx.fillRect(cx - sw / 2, cy + sh / 2 - 24, sw, 24); ctx.fillStyle = '#fff'; ctx.font = '500 12px IBM Plex Mono'; ctx.fillText(`${W.film.length} · ${(W.lastClip.ti || '').slice(0, 44)} · ${L.word(f.q)}`, cx - sw / 2 + 8, cy + sh / 2 - 8); } }
-    if (W.trail.length > 2) { ctx.strokeStyle = COL[1 - W.rcv]; ctx.lineWidth = 3; ctx.globalAlpha = .5; L.spline(ctx, W.trail.map(([x, y]) => [cx + x * R, cy + y * R])); ctx.globalAlpha = 1; }
-    if (W.rally.length > 1) { ctx.strokeStyle = '#ebe5d822'; ctx.lineWidth = 1; ctx.beginPath(); W.rally.slice(-8).forEach((k, n) => { const a = angOf(k), x = cx + R * Math.cos(a), y = cy + R * Math.sin(a); n ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); }
-    const bx = cx + W.b.x * R, by = cy + W.b.y * R; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bx, by, 7, 0, TAU); ctx.fill(); ctx.strokeStyle = COL[1 - W.rcv] + '88'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(bx, by, 12, 0, TAU); ctx.stroke();
-    if (W.serveT > 0 && !W.over) { ctx.fillStyle = '#ebe5d8'; ctx.font = '700 15px Barlow Condensed'; ctx.textAlign = 'center'; ctx.fillText(`${W.rcv ? 'RED' : 'BLUE'} RECEIVES · ${Math.ceil(W.serveT)}`, cx, cy + sh / 2 + 26); ctx.textAlign = 'left'; }
-    if (W.flash && W.flash.why && performance.now() - W.flash.t < 1400) { ctx.fillStyle = COL[W.flash.who]; ctx.font = '700 28px Barlow Condensed'; ctx.textAlign = 'center'; ctx.fillText(`POINT ${W.flash.who ? 'RED' : 'BLUE'}`, cx, cy - sh / 2 - 16); ctx.textAlign = 'left'; }
+    const w = cv.width / DPR, h = cv.height / DPR; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = '#0c0d0f'; ctx.fillRect(0, 0, w, h); if (!field.length) return;
+    ctx.fillStyle = '#081016'; ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fill();
+    const prev = W ? lastC() : null, me = mode === 'machine' ? 0 : mode === 'two' ? W && W.rcv : role === 'guest' ? 1 : 0;
+    let guide = null; if (W && !W.over && W.serveT <= 0 && (mode === 'two' || W.rcv === me)) { const th = impact(W.b); if (th != null) guide = chord(th, W.p[W.rcv]); }
+    const gset = new Map(); if (guide) guide.shots.forEach((s, k) => gset.set(s.c, k));
+    const tw = cs * R * .96, th_ = tw * .5625, owned = new Map(); if (W) W.film.forEach(f => owned.set(f.c, f.who));
+    for (const f of field) {   /* the court of shots: owned ones outlined in their author's colour; the ones your return would cut, lit */
+      const x = cx + f.x * R - tw / 2, y = cy + f.y * R - th_ / 2, v = prev ? L.join(prev, f.c) : .5, o = owned.get(f.c), k = gset.get(f.c);
+      ctx.globalAlpha = k != null || o != null ? 1 : .22 + .55 * v; L.draw(ctx, f.c, x, y, tw, th_, null); ctx.globalAlpha = 1;
+      if (o != null) { ctx.strokeStyle = COL[o]; ctx.lineWidth = 2; ctx.strokeRect(x, y, tw, th_); }
+      if (k != null) { ctx.strokeStyle = `rgb(${L.tint(guide.seams[k])})`; ctx.lineWidth = 3; ctx.strokeRect(x - 1, y - 1, tw + 2, th_ + 2); }
+    }
+    ctx.strokeStyle = '#2c3138'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke();
+    if (!W) return;
+    if (guide) { ctx.strokeStyle = COL[W.rcv]; ctx.globalAlpha = .9; ctx.lineWidth = 2; ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.moveTo(cx + guide.x0 * R, cy + guide.y0 * R); ctx.lineTo(cx + guide.x1 * R, cy + guide.y1 * R); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; const lx = cx + Math.cos(guide.th) * (R + 14), ly = cy + Math.sin(guide.th) * (R + 14); ctx.fillStyle = COL[W.rcv]; ctx.font = '600 12px IBM Plex Mono'; ctx.textAlign = Math.cos(guide.th) > 0 ? 'right' : 'left'; ctx.fillText(`your return cuts ${guide.shots.length} · ${Math.round(guide.q * 100)}`, lx + (Math.cos(guide.th) > 0 ? -18 : 18), ly); ctx.textAlign = 'left'; }
+    [0, 1].forEach(p => { ctx.strokeStyle = COL[p]; ctx.lineWidth = p === W.rcv ? 10 : 6; ctx.globalAlpha = p === W.rcv ? 1 : .55; ctx.beginPath(); ctx.arc(cx, cy, R + 6, W.p[p] - HW, W.p[p] + HW); ctx.stroke(); ctx.globalAlpha = 1; });
+    /* the screen: it cuts to every shot the ball crosses */
+    const sr = RS * R, sw = sr * 1.75, sh = sw * .5625; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(cx, cy, sr, 0, TAU); ctx.fill();
+    if (W.show.c) { const f_ = Math.min(1, (performance.now() - W.show.since) / 120); if (W.show.was && f_ < 1) { ctx.globalAlpha = 1 - f_; L.draw(ctx, W.show.was, cx - sw / 2, cy - sh / 2, sw, sh, 11); } ctx.globalAlpha = f_; L.draw(ctx, W.show.c, cx - sw / 2, cy - sh / 2, sw, sh, L.playFrame(W.show.since, 2.4)); ctx.globalAlpha = 1; }
+    if (W.trail.length > 2) { ctx.strokeStyle = W.seg ? COL[W.seg.who] : '#fff'; ctx.lineWidth = 3; ctx.globalAlpha = .75; L.spline(ctx, W.trail.map(([x, y]) => [cx + x * R, cy + y * R])); ctx.globalAlpha = 1; }
+    const bx = cx + W.b.x * R, by = cy + W.b.y * R; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bx, by, 7, 0, TAU); ctx.fill();
+    if (W.serveT > 0 && !W.over) { ctx.fillStyle = '#ebe5d8'; ctx.font = '700 15px Barlow Condensed'; ctx.textAlign = 'center'; ctx.fillText(`${W.rcv ? 'RED' : 'BLUE'} RECEIVES · ${Math.ceil(W.serveT)}`, cx, cy + sr + 22); ctx.textAlign = 'left'; }
+    if (W.flash && performance.now() - W.flash.t < 1400) { ctx.fillStyle = COL[W.flash.who]; ctx.font = '700 26px Barlow Condensed'; ctx.textAlign = 'center'; ctx.fillText(W.flash.why === 'cut' ? `A GOOD CUT · ${W.flash.who ? 'RED' : 'BLUE'} +1` : `POINT ${W.flash.who ? 'RED' : 'BLUE'}`, cx, cy - sr - 14); ctx.textAlign = 'left'; }
   }
   function loop(t) {
     const dt = Math.min(.04, (t - (last || t)) / 1000); last = t;
     if (W && !W.over) {
-      const ks = mode === 'two' ? [['a', 'd'], ['arrowleft', 'arrowright']] : [[['a', 'arrowleft'], ['d', 'arrowright']]];
-      if (mode === 'two') ks.forEach(([l, r], p) => { if (keys[l]) W.p[p] -= 4 * dt; if (keys[r]) W.p[p] += 4 * dt; });
+      if (mode === 'two') [['a', 'd'], ['arrowleft', 'arrowright']].forEach(([l, r], p) => { if (keys[l]) W.p[p] -= 4 * dt; if (keys[r]) W.p[p] += 4 * dt; });
       else { const me = role === 'guest' ? 1 : 0; if (keys.a || keys.arrowleft) setPaddle(me, W.p[me] - 4 * dt); if (keys.d || keys.arrowright) setPaddle(me, W.p[me] + 4 * dt); }
       if (mode === 'machine') machine(dt);
       if (mode === 'online' && role === 'host') W.p[1] = remote.a;
       if (role !== 'guest') physics(dt);
-      if (role === 'host' && t - (W._sent || 0) > 33) { W._sent = t; send({ t: 's', b: [W.b.x, W.b.y], p: W.p, s: W.s, r: W.rcv, sv: W.serveT, o: W.over }); }
+      if (role === 'host' && t - (W._sent || 0) > 33) { W._sent = t; send({ t: 's', b: [W.b.x, W.b.y, W.b.vx, W.b.vy], p: W.p, s: W.s, c: W.cut, r: W.rcv, sv: W.serveT, o: W.over }); }
     }
     paint(); requestAnimationFrame(loop);
   }
-  window.__tennis = { get W() { return W; }, get ring() { return ring; }, get conn() { return conn; }, get remote() { return remote; }, get role() { return role; }, begin: m => { ring = makeRing(7); begin(m); } };
+  window.__tennis = { get W() { return W; }, get field() { return field; }, get conn() { return conn; }, get remote() { return remote; }, get role() { return role; }, chord, impact };
 })();
 </script></body></html>
