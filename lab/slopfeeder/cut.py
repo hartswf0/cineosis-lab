@@ -93,7 +93,7 @@ if CL.get("meme"):   # the reference title: the meme's own layout quoted in our 
             f"[a][b][c]concat=n=3:v=1[bot];[t][bot]vstack,pad={W}:{H}:(ow-iw)/2:0:black,format=yuv420p[m]", "-map", "[m]", "-t", "5.7", *ENC, mm], check=True)
         p2 = os.path.join(T, "picture-meme.mp4")
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", pic, "-i", mm, "-filter_complex", "[1:v]setpts=PTS-STARTPTS[m];[0:v][m]overlay=0:0:enable='lt(t,5.7)':eof_action=pass[v]", "-map", "[v]", *ENC, p2], check=True); pic = p2
-out = os.path.join(OUTD, (f"blacktop-{N}-{CL.get('bet', '').lower()}-{CL.get('register', 'raw')}" if CL.get("tool") == "blacktop" else os.path.basename(sys.argv[2])[:-5]) + ".mp4" if MODE == "griddle" else f"song-{N}-{MODE}.mp4")
+out = os.path.join(OUTD, (f"blacktop-{N}-{CL.get('bet', '').lower()}-{CL.get('version') or CL.get('register', 'raw')}" if CL.get("tool") == "blacktop" else os.path.basename(sys.argv[2])[:-5]) + ".mp4" if MODE == "griddle" else f"song-{N}-{MODE}.mp4")
 # the song, and under it the pickups' own sound wherever the cut let it in (ducked, faded at the edges)
 sins, sfc = [], "[1:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=1.0[s0]"; mix = "[s0]"
 # the foley pass: thuds on the locked pounds, the archive's own sound where it is the world (foley.py), as one more stem

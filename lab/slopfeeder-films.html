@@ -12,6 +12,8 @@
 *{ box-sizing:border-box; } html,body{ margin:0; } body{ background:var(--bg); color:var(--ink); font:400 13px/1.6 var(--mono); }
 header{ padding:28px 16px 8px; max-width:1240px; margin:0 auto; display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; }
 h1{ margin:0; font:700 34px var(--sans); letter-spacing:.14em; } h1 b{ color:var(--hot); } header p{ margin:0; color:var(--dim); max-width:620px; } header a{ color:var(--hot); text-decoration:none; font:700 13px var(--sans); letter-spacing:.14em; margin-left:auto; }
+.mega{ max-width:1240px; margin:0 auto; padding:8px 16px 20px; display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); gap:18px; } .mega video{ width:100%; aspect-ratio:16/9; background:#000; border-radius:4px; display:block; } .mega h2{ margin:0 0 4px; font:700 26px var(--sans); letter-spacing:.12em; } .mega ol{ margin:6px 0 0; padding-left:22px; color:#cfc9bc; } .mega ol li b{ color:var(--ink); font-weight:500; } .vers{ display:flex; gap:10px; font:700 12px var(--sans); letter-spacing:.12em; } .vers a{ color:var(--hot); text-decoration:none; }
+@media (max-width:800px){ .mega{ grid-template-columns:1fr; } }
 main{ max-width:1240px; margin:0 auto; padding:12px 16px 60px; display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:22px; }
 .film{ background:var(--top); border:1px solid var(--faint); border-radius:4px; overflow:hidden; display:flex; flex-direction:column; }
 .pic{ position:relative; aspect-ratio:16/9; background:#000; cursor:pointer; } .pic img,.pic video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
@@ -23,14 +25,16 @@ details{ border-top:1px solid var(--faint); padding-top:8px; color:var(--dim); f
 .nums{ display:flex; flex-wrap:wrap; gap:4px 12px; font-size:11px; color:var(--dim); } .nums b{ color:var(--ink); font-weight:500; }
 @media (max-width:600px){ main{ grid-template-columns:1fr; } h1{ font-size:26px; } header a{ margin-left:0; } }
 </style></head><body>
-<header><h1>SLOP<b>FEEDER</b> · THE EIGHT FILMS</h1><p>One film for each song of <i>The Liturgy of the Two Buttons</i>, each cut from its own lyric by CUTBASTARD in Blacktop, and each opening on the meme the whole world grew from.</p><a href="blacktop.html">OPEN BLACKTOP ↗</a></header>
-<main id="films"></main>
+<header><h1>SLOP<b>FEEDER</b> · THE EIGHT FILMS</h1><p>One film for each song of <i>The Liturgy of the Two Buttons</i>, each cut from its own lyric by CUTBASTARD in Blacktop, and each opening on the meme the whole world grew from.</p><a href="slopfeeder-storyshots.html">STORY SHOTS TO GENERATE ↗</a> <a href="blacktop.html" style="margin-left:14px">OPEN BLACKTOP ↗</a></header>
+<section class="mega" id="mega" hidden></section><main id="films"></main>
 <script>
 (() => {
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  fetch('slopfeeder/films.json').then(r => r.json()).then(({ films }) => {
+  fetch('slopfeeder/films.json').then(r => r.json()).then(({ films, mega }) => {
+    if (mega) { const el = document.getElementById('mega'); el.hidden = false; el.innerHTML = `<div><video src="${esc(mega.video)}" poster="${esc(mega.thumb)}" controls playsinline preload="none"></video></div>
+      <div><h2>THE MEGAFILM · ${Math.round(mega.dur / 60)} MIN</h2><div class="log">${esc(mega.logline)}</div><div class="desc" style="margin-top:6px">${esc(mega.arc)}</div><ol>${mega.chapters.map(c => `<li><b>${esc(c.roman)} · ${esc(c.title)}</b> — ${esc(c.beat)}</li>`).join('')}</ol></div>`; }
     document.getElementById('films').innerHTML = films.map(f => `<article class="film"><div class="pic" data-v="${esc(f.video)}"><img src="${esc(f.thumb)}" alt="${esc(f.title)}" loading="lazy"><span class="no">${esc(f.n)}</span><span class="play">▶ WATCH · ${Math.floor(f.numbers.dur / 60)}:${String(Math.round(f.numbers.dur % 60)).padStart(2, '0')}</span></div>
-      <div class="body"><h2>${esc(f.title)}</h2><div class="song">${esc(f.n)} · ${esc(f.song)}</div><div class="log">${esc(f.logline)}</div><div class="desc">${esc(f.description)}</div>
+      <div class="body"><h2>${esc(f.title)}</h2><div class="song">${esc(f.n)} · ${esc(f.song)}</div>${f.versions ? `<div class="vers">${f.versions.map(v => `<a href="${esc(v.video)}" target="_blank">${esc(v.label)} ↗</a>`).join('')}</div>` : ''}<div class="log">${esc(f.logline)}</div><div class="desc">${esc(f.description)}</div>
         <div class="story"><b>wants</b> ${esc(f.story.want)} · <b>turns</b> ${esc(f.story.turn)} · <b>ends</b> ${esc(f.story.end)}</div>
         <details><summary>HOW IT'S MADE</summary><p>${esc(f.how)}</p><div class="nums"><span><b>${f.numbers.shots}</b> shots</span><span><b>${f.numbers.ai}</b> AI</span><span><b>${f.numbers.archive}</b> archive films</span><span><b>${f.numbers.patches}</b> patches</span><span><b>${f.numbers.locked}</b> on the beat</span><span>look <b>${esc(f.numbers.look)}</b></span></div></details></div></article>`).join('');
     document.querySelectorAll('.pic').forEach(p => p.onclick = () => { if (p.querySelector('video')) return; const v = document.createElement('video'); v.src = p.dataset.v; v.controls = true; v.playsInline = true; v.poster = p.querySelector('img').src; p.querySelector('img').replaceWith(v); p.querySelector('.play').remove(); v.play().catch(() => { }); });
