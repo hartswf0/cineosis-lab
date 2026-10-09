@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Cineosis Tennis</title>
+<meta name="description" content="Tennis for Two through the film corpus. Two paddles on a ring of shots; every return is a cut from the last shot, and where you send the ball decides your opponent's next shot. Jarring cuts come back faster. Play the machine, a friend on the same screen, or a friend online.">
+<meta name="theme-color" content="#0c0d0f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c0d0f'/%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%23ebe5d8' stroke-width='2'/%3E%3Cpath d='M7 10 A11 11 0 0 1 12 6' stroke='%235acde6' stroke-width='4' fill='none'/%3E%3Cpath d='M25 22 A11 11 0 0 1 20 26' stroke='%23f06e64' stroke-width='4' fill='none'/%3E%3Ccircle cx='17' cy='15' r='2.4' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{ --bg:#0c0d0f; --top:#16181b; --ink:#ebe5d8; --dim:#858b93; --faint:#24282d; --hot:#f25a17; --a:#5acde6; --b:#f06e64; --sans:'Barlow Condensed',Impact,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace; }
+*{ box-sizing:border-box; } html,body{ margin:0; height:100%; overflow:hidden; } body{ background:var(--bg); color:var(--ink); font:400 13px/1.45 var(--mono); display:flex; flex-direction:column; touch-action:none; user-select:none; }
+[hidden]{ display:none!important; }
+button{ font:700 13px var(--sans); letter-spacing:.14em; background:none; color:var(--ink); border:1px solid var(--faint); border-radius:3px; padding:6px 12px; cursor:pointer; } button:hover{ border-color:var(--hot); } button.on{ background:var(--hot); color:#170b04; border-color:var(--hot); }
+.bar{ display:flex; gap:10px; align-items:center; padding:8px 14px; flex-wrap:wrap; } .bar h1{ margin:0; font:700 22px var(--sans); letter-spacing:.14em; } .bar h1 b{ color:var(--hot); } .sp{ flex:1; }
+.sc{ font:700 30px var(--sans); letter-spacing:.06em; } .sc .a{ color:var(--a); } .sc .b{ color:var(--b); } .st{ color:var(--dim); }
+#wrap{ position:relative; flex:1; min-height:0; } canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+.coll{ display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:4px 14px 10px; } .coll div{ display:flex; gap:3px; align-items:center; overflow:hidden; min-height:40px; } .coll img{ height:36px; aspect-ratio:16/9; object-fit:cover; border-radius:2px; flex:none; } .coll .q{ width:6px; height:3px; flex:none; border-radius:2px; } .coll b{ font:600 12px var(--mono); margin-right:6px; white-space:nowrap; }
+.card{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:#0c0d0fe6; z-index:5; padding:16px; }
+.card .in{ max-width:720px; width:100%; display:flex; flex-direction:column; gap:12px; } .card h2{ margin:0; font:700 30px var(--sans); letter-spacing:.12em; } .card p{ margin:0; color:#cfc9bc; } .rules{ color:var(--dim); font-size:12px; } .rules b{ color:var(--ink); font-weight:500; }
+.row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; } input{ font:500 14px var(--mono); background:var(--top); color:var(--ink); border:1px solid var(--faint); border-radius:3px; padding:6px 8px; width:110px; text-transform:uppercase; }
+#qr{ background:#fff; padding:6px; border-radius:4px; width:max-content; } #qr img,#qr canvas{ display:block; width:132px; height:132px; }
+</style></head><body>
+<div class="bar"><h1>CINEOSIS · <b>TENNIS</b></h1><span class="sc" id="sc"><span class="a">0</span> · <span class="b">0</span></span><span class="st" id="st"></span><span class="sp"></span><button id="menu">MODES</button><a href="putt.html" style="color:var(--dim);font:700 12px var(--sans);letter-spacing:.14em;text-decoration:none">PUTT-OFF ↗</a></div>
+<div id="wrap"><canvas id="cv"></canvas>
+  <div class="card" id="setup"><div class="in"><h2>TENNIS FOR TWO, THROUGH THE ARCHIVE</h2>
+    <p>A ring of shots from the Slopfeeder field, in the order of meaning. Two paddles ride the ring. <b>Every shot you return is the next cut of the rally</b>, and where you send the ball decides which shot your opponent has to cut to next.</p>
+    <p class="rules"><b>The cut is the physics.</b> A return that makes a good cut from the last shot comes off soft. A jarring cut comes back hot, faster than you’d like. Miss and your opponent takes the point; first to 7. Each player keeps the shots they hit; the rally is a film.<br><b>Move:</b> drag around the ring (on two-here, the left half of the screen is blue and the right half is red), or keys A/D and ←/→. Hit off-centre to angle the return; move as you hit to add spin.</p>
+    <div id="filt"></div><div class="row"><button id="vsm" class="on">VS THE MACHINE</button><button id="two">TWO HERE</button><button id="host">HOST ONLINE</button><span>or join</span><input id="code" placeholder="CODE" maxlength="6"><button id="join">JOIN</button></div>
+    <div class="row" id="pair" hidden><div id="qr"></div><div><p id="pmsg"></p><p class="rules" id="plink"></p></div></div></div></div>
+  <div class="card" id="end" hidden><div class="in" id="endin"></div></div>
+</div>
+<div class="coll"><div id="ca"></div><div id="cb"></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="ludens.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id), cv = $('cv'), ctx = cv.getContext('2d'), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const L = Ludens, TAU = Math.PI * 2, HW = .36, V0 = .9, VMAX = 2.8, WIN = 7, N = 32, COL = ['#5acde6', '#f06e64'];   /* Tennis for Two's numbers */
+  const ad = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; };
+  let mode = null, role = 'local', ring = [], W = null, DPR = 1, cx = 0, cy = 0, R = 0, keys = {}, peer = null, conn = null, last = 0, remote = { a: 0 };
+  /* ---- the ring: a tour of the field by angle around its centre, the strongest shot of each sector (seeded: both players see the same ring) */
+  function makeRing(seed) {
+    const rnd = L.rng(seed), bins = Array.from({ length: N }, () => []);
+    const POOL = L.pool(); for (const c of POOL) { const a = Math.atan2(c.y - .5, c.x - .5), r = Math.hypot(c.y - .5, c.x - .5); if (r < .12) continue; bins[Math.min(N - 1, Math.floor((a + Math.PI) / TAU * N))].push(c); }
+    const src = POOL.length ? POOL : L.cards, used = new Set(); return bins.map(b => { let c = b.length ? b.sort((x, y) => y.mc - x.mc)[Math.floor(rnd() * Math.min(4, b.length))] : null; if (!c || used.has(c)) c = src.filter(x => !used.has(x))[Math.floor(rnd() * Math.max(1, src.length - used.size))] || src[0]; used.add(c); return c; });
+  }
+  const clipAt = a => Math.floor((((a + Math.PI) % TAU + TAU) % TAU) / TAU * N) % N;
+  const angOf = k => (k + .5) / N * TAU - Math.PI;
+  function fresh(server) { return { b: { x: 0, y: 0, vx: 0, vy: 0, sp: V0 }, p: [Math.PI * .75, -Math.PI * .25], pv: [0, 0], s: W ? W.s : [0, 0], server, rcv: 1 - server, serveT: 1.4, rally: [], trail: [], own: W ? W.own : {}, show: W ? W.show : null, was: W ? W.was : null, since: W ? W.since : 0, hits: W ? W.hits : [[], []], film: W ? W.film : [], lastClip: W ? W.lastClip : null, over: false, flash: null }; }
+  /* ---- modes */
+  const begin = m => { mode = m; $('setup').hidden = true; $('end').hidden = true; W = null; W = fresh(0); W.s = [0, 0]; W.hits = [[], []]; W.film = []; W.lastClip = null; status(); paint(); };
+  L.load().then(() => {
+    const q = new URLSearchParams(location.search); layout(); L.filterUI($('filt'));
+    $('vsm').onclick = () => { ring = makeRing(Date.now() % 1e6); begin('machine'); };
+    $('two').onclick = () => { ring = makeRing(Date.now() % 1e6); begin('two'); };
+    $('host').onclick = hostOnline; $('join').onclick = () => joinOnline($('code').value.trim().toUpperCase());
+    if (q.get('join')) { $('code').value = q.get('join'); joinOnline(q.get('join').toUpperCase()); }
+    requestAnimationFrame(loop);
+  });
+  $('menu').onclick = () => { $('setup').hidden = !$('setup').hidden; };
+  /* ---- online: Tennis for Two's pairing (PeerJS + a code + a QR); the host plays blue and runs the ball, the guest plays red */
+  const PFX = 'cineosis-tennis-';
+  function hostOnline() {
+    const code = Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join(''), seed = Math.floor(Math.random() * 1e6);
+    $('pair').hidden = false; $('pmsg').textContent = `room ${code} · waiting for a player…`; const link = location.href.split('?')[0] + '?join=' + code; $('plink').textContent = link; $('qr').innerHTML = ''; try { new QRCode($('qr'), { text: link, width: 132, height: 132 }); } catch (e) { }
+    peer = new Peer(PFX + code); peer.on('error', e => $('pmsg').textContent = 'pairing: ' + e.type);
+    peer.on('connection', c => { conn = c; c.on('open', () => { ring = makeRing(seed); role = 'host'; c.send({ t: 'init', ids: ring.map(x => x.id) }); begin('online'); }); c.on('data', m => { if (m.t === 'a') remote.a = m.a; }); c.on('close', () => { $('st').textContent = 'the other player left'; }); });
+  }
+  function joinOnline(code) {
+    if (!code) return; $('pair').hidden = false; $('pmsg').textContent = `joining ${code}…`; peer = new Peer(); peer.on('error', e => $('pmsg').textContent = 'pairing: ' + e.type);
+    peer.on('open', () => { conn = peer.connect(PFX + code, { reliable: true }); conn.on('data', m => {
+      if (m.t === 'init') { ring = m.ids.map(id => L.byId[id]).filter(Boolean); role = 'guest'; begin('online'); }
+      if (m.t === 's' && W) { W.trail.push([m.b[0], m.b[1]]); if (W.trail.length > 40) W.trail.shift(); W.b.x = m.b[0]; W.b.y = m.b[1]; W.p[0] = m.p[0]; W.s = m.s; W.rcv = m.r; W.serveT = m.sv; W.over = m.o; }
+      if (m.t === 'hit' && W) recordHit(m.who, m.k, m.q, true);
+      if (m.t === 'pt' && W) { W.flash = { who: m.who, t: performance.now(), why: m.why }; status(); if (m.end) finish(); }
+    }); });
+  }
+  /* ---- input: drag around the ring (Tennis for Two sets the paddle to the finger's angle), keys A/D and ←/→ */
+  const pointers = {};
+  const angleOf = e => { const r = cv.getBoundingClientRect(); return Math.atan2(e.clientY - r.top - cy, e.clientX - r.left - cx); };
+  const sideOf = e => { const r = cv.getBoundingClientRect(); return e.clientX - r.left < r.width / 2 ? 0 : 1; };
+  const mine = e => mode === 'two' ? sideOf(e) : role === 'guest' ? 1 : 0;
+  cv.addEventListener('pointerdown', e => { if (!W) return; try { cv.setPointerCapture(e.pointerId); } catch (_) { } pointers[e.pointerId] = mine(e); setPaddle(pointers[e.pointerId], angleOf(e)); });
+  cv.addEventListener('pointermove', e => { if (!W) return; const who = pointers[e.pointerId] != null ? pointers[e.pointerId] : (e.pointerType === 'mouse' ? mine(e) : null); if (who == null) return; setPaddle(who, angleOf(e)); });
+  cv.addEventListener('pointerup', e => delete pointers[e.pointerId]);
+  addEventListener('keydown', e => keys[e.key.toLowerCase()] = true); addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+  function setPaddle(who, a) { if (mode === 'machine' && who === 1) return; const now = performance.now(), d = ad(a, W.p[who]); W.pv[who] = W.pv[who] * .5 + d / Math.max(.008, (now - (W._pt || now)) / 1000) * .5 * .1; W._pt = now; W.p[who] = a; if (role === 'guest') send({ t: 'a', a }); }
+  const send = m => { try { conn && conn.open && conn.send(m); } catch (e) { } };
+  /* ---- the machine: it runs to where the ball will meet the ring and aims the return at the shot that is far from you and cuts worst from its own */
+  function machine(dt) {
+    const b = W.b; if (W.rcv !== 1 || W.serveT > 0) { W.p[1] += ad(Math.PI * .25 - W.p[1], 0) * 0 + Math.max(-1, Math.min(1, ad(-Math.PI * .25, W.p[1]))) * dt; return; }
+    const A = b.vx * b.vx + b.vy * b.vy, B = 2 * (b.x * b.vx + b.y * b.vy), C = b.x * b.x + b.y * b.y - 1, t = (-B + Math.sqrt(Math.max(0, B * B - 4 * A * C))) / (2 * A || 1), hit = Math.atan2(b.y + b.vy * t, b.x + b.vx * t);
+    if (W._mAim == null || W._mFor !== W.rally.length) {   /* choose its angle of return once per incoming ball */
+      let best = 0, bs = -9; const k = clipAt(hit);
+      for (let off = -.9; off <= .9; off += .15) { const tgt = hit + Math.PI + off; const kk = clipAt(tgt); const far = Math.abs(ad(tgt, W.p[0])) / Math.PI; const s = far * 1.2 + (1 - L.join(ring[k], ring[kk])) * .6 + (Math.random() - .5) * .3; if (s > bs) { bs = s; best = off; } }
+      W._mAim = best; W._mFor = W.rally.length;
+    }
+    const want = hit - W._mAim * HW * .9, d = ad(want, W.p[1]), spd = 3.4; W.p[1] += Math.max(-spd * dt, Math.min(spd * dt, d)); W.pv[1] = 0;
+  }
+  /* ---- the ball: a rally across the ring; a return is a cut, and the cut decides the speed */
+  function recordHit(who, k, q, remoteEvt) {
+    const c = ring[k]; W.hits[who].push({ c, q }); W.film.push({ c, who, q }); W.rally.push(k); W.was = W.lastClip; W.lastClip = c; W.since = performance.now(); W.own[k] = who; W.flash = { who, k, q, t: performance.now() };
+    L.tone(q >= .6 ? 520 : q >= .35 ? 440 : 300, .09, .06, q < .35 ? 'square' : 'sine'); colls();
+  }
+  function physics(dt) {
+    if (W.over) return; const b = W.b;
+    if (W.serveT > 0) { W.serveT -= dt; b.x = 0; b.y = 0; if (W.serveT <= 0) { const a = W.p[W.rcv] + (Math.random() - .5) * 1.0; b.sp = V0; b.vx = Math.cos(a) * b.sp; b.vy = Math.sin(a) * b.sp; } return; }
+    b.x += b.vx * dt; b.y += b.vy * dt; W.trail.push([b.x, b.y]); if (W.trail.length > 40) W.trail.shift(); const r = Math.hypot(b.x, b.y);
+    if (r >= 1) {
+      const th = Math.atan2(b.y, b.x), d = ad(th, W.p[W.rcv]);
+      if (Math.abs(d) <= HW) {
+        const who = W.rcv, k = clipAt(th), c = ring[k], q = W.lastClip ? L.join(W.lastClip, c) : .6, off = d / HW, spin = Math.max(-1, Math.min(1, W.pv[who] || 0));
+        const tgt = th + Math.PI + off * 1.0 + spin * .35, tx = Math.cos(tgt), ty = Math.sin(tgt); let vx = tx - b.x, vy = ty - b.y; const n = Math.hypot(vx, vy) || 1;
+        b.sp = Math.min(VMAX, b.sp * 1.05 * (q < .35 ? 1.14 : q >= .6 ? .96 : 1)); b.vx = vx / n * b.sp; b.vy = vy / n * b.sp; b.x = Math.cos(th) * .985; b.y = Math.sin(th) * .985;
+        recordHit(who, k, q); if (role === 'host') send({ t: 'hit', who, k, q }); W.rcv = 1 - who;
+      } else {   /* a miss: the point goes to the one who sent it */
+        const win = 1 - W.rcv; W.s[win]++; const end = W.s[win] >= WIN; W.flash = { who: win, t: performance.now(), why: W.rally.length ? 'miss' : 'ace' }; L.tone(win ? 200 : 260, .3, .06, 'sawtooth');
+        if (role === 'host') send({ t: 'pt', who: win, why: W.flash.why, end });
+        const lost = W.rcv, keep = { s: W.s, hits: W.hits, film: W.film, lastClip: W.lastClip, own: W.own, was: W.was, since: W.since }; W = Object.assign(fresh(lost), keep, { p: W.p, flash: W.flash }); W.rally = []; status();
+        if (end) { W.over = true; finish(); }
+      }
+    }
+  }
+  /* ---- readouts */
+  function status() { $('sc').innerHTML = `<span class="a">${W.s[0]}</span> · <span class="b">${W.s[1]}</span>`; $('st').textContent = mode === 'machine' ? 'you (blue) vs the machine (red)' : mode === 'two' ? 'blue: left half · A/D   red: right half · ←/→' : role === 'host' ? 'online · you are blue' : 'online · you are red'; }
+  function colls() { [0, 1].forEach(p => { $(p ? 'cb' : 'ca').innerHTML = `<b style="color:${COL[p]}">${mode === 'machine' && p ? 'the machine' : p ? 'red' : 'blue'} · ${W.hits[p].length}</b>` + W.hits[p].slice(-14).map(h => `<i class="q" style="background:rgb(${L.tint(h.q)})"></i><img src="${L.root + h.c.th}" title="${esc(h.c.ti)} · ${L.word(h.q)}" alt="">`).join(''); }); }
+  function finish() {
+    const w = W.s[0] > W.s[1] ? 0 : 1, avg = p => W.hits[p].length ? W.hits[p].reduce((a, h) => a + h.q, 0) / W.hits[p].length : 0;
+    $('endin').innerHTML = `<h2 style="color:${COL[w]}">${mode === 'machine' ? (w ? 'THE MACHINE WINS' : 'YOU WIN') : (w ? 'RED WINS' : 'BLUE WINS')} ${W.s[0]}–${W.s[1]}</h2><p>The rally film: ${W.film.length} shots, cut by both of you in turn. Blue kept ${W.hits[0].length} shots (cut quality ${Math.round(avg(0) * 100)}), red kept ${W.hits[1].length} (${Math.round(avg(1) * 100)}).</p><div class="row"><button id="wr" class="on">WATCH THE RALLY ▸</button><button id="wb">WATCH BLUE’S FILM</button><button id="wd">WATCH RED’S FILM</button><button id="ag">PLAY AGAIN</button></div>`;
+    $('end').hidden = false;
+    $('wr').onclick = () => L.watch([{ name: 'the rally', col: '#ebe5d8', shots: W.film.map(h => h.c), cols: W.film.map(h => COL[h.who]), names: W.film.map(h => h.who ? 'red' : 'blue') }], { each: 1.8 });
+    $('wb').onclick = () => L.watch([{ name: 'blue', col: COL[0], shots: W.hits[0].map(h => h.c) }]); $('wd').onclick = () => L.watch([{ name: 'red', col: COL[1], shots: W.hits[1].map(h => h.c) }]);
+    $('ag').onclick = () => { if (mode === 'online') { $('end').hidden = true; return; } ring = makeRing(Date.now() % 1e6); begin(mode); };
+  }
+  /* ---- draw */
+  function layout() { const r = $('wrap').getBoundingClientRect(); DPR = Math.min(2, devicePixelRatio || 1); cv.width = r.width * DPR; cv.height = r.height * DPR; cx = r.width / 2; cy = r.height / 2; R = Math.min(r.width, r.height) / 2 - 58; }
+  addEventListener('resize', layout);
+  function paint() {
+    const w = cv.width / DPR, h = cv.height / DPR; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = '#0c0d0f'; ctx.fillRect(0, 0, w, h); if (!W || !ring.length) return;
+    ctx.fillStyle = '#060708'; ctx.beginPath(); ctx.arc(cx, cy, R + 50, 0, TAU); ctx.fill();
+    const tw = Math.min(96, TAU * (R + 26) / N - 4), th = tw * .5625;
+    ring.forEach((c, k) => {   /* the ring of shots; the one each paddle covers is lit; tinted by how it would cut from the last shot */
+      const a = angOf(k), x = cx + (R + 26) * Math.cos(a), y = cy + (R + 26) * Math.sin(a), q = W.lastClip ? L.join(W.lastClip, c) : .5;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(a + Math.PI / 2); ctx.globalAlpha = .35 + .65 * q; L.draw(ctx, c, -tw / 2, -th / 2, tw, th, null); ctx.globalAlpha = 1;
+      ctx.fillStyle = `rgba(${L.tint(q)},.9)`; ctx.fillRect(-tw / 2, th / 2 - 3, tw * Math.max(.1, q), 3); if (W.own[k] != null) { ctx.strokeStyle = COL[W.own[k]]; ctx.lineWidth = 3; ctx.strokeRect(-tw / 2 - 1, -th / 2 - 1, tw + 2, th + 2); } ctx.restore();
+    });
+    ctx.strokeStyle = '#24282d'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke();
+    [0, 1].forEach(p => { ctx.strokeStyle = COL[p]; ctx.lineWidth = p === W.rcv ? 10 : 6; ctx.globalAlpha = p === W.rcv ? 1 : .55; ctx.beginPath(); ctx.arc(cx, cy, R + 4, W.p[p] - HW, W.p[p] + HW); ctx.stroke(); ctx.globalAlpha = 1; });
+    const sw = R * 1.05, sh = sw * .5625;   /* the centre: the shot just cut in, playing as its flipbook */
+    if (W.lastClip) {   /* the shot just cut in: crossfades in over the last one, plays its flipbook once, slowly, then holds */
+      const f_ = Math.min(1, (performance.now() - W.since) / 380);
+      if (W.was && f_ < 1) { ctx.globalAlpha = 1 - f_; L.draw(ctx, W.was, cx - sw / 2, cy - sh / 2, sw, sh, 11); }
+      ctx.globalAlpha = f_; L.draw(ctx, W.lastClip, cx - sw / 2, cy - sh / 2, sw, sh, L.playFrame(W.since, 2.4)); ctx.globalAlpha = 1;
+      const f = W.flash; if (f && f.k != null) { ctx.strokeStyle = COL[f.who]; ctx.lineWidth = 3; ctx.strokeRect(cx - sw / 2, cy - sh / 2, sw, sh); ctx.fillStyle = '#000b'; ctx.fillRect(cx - sw / 2, cy + sh / 2 - 24, sw, 24); ctx.fillStyle = '#fff'; ctx.font = '500 12px IBM Plex Mono'; ctx.fillText(`${W.film.length} · ${(W.lastClip.ti || '').slice(0, 44)} · ${L.word(f.q)}`, cx - sw / 2 + 8, cy + sh / 2 - 8); } }
+    if (W.trail.length > 2) { ctx.strokeStyle = COL[1 - W.rcv]; ctx.lineWidth = 3; ctx.globalAlpha = .5; L.spline(ctx, W.trail.map(([x, y]) => [cx + x * R, cy + y * R])); ctx.globalAlpha = 1; }
+    if (W.rally.length > 1) { ctx.strokeStyle = '#ebe5d822'; ctx.lineWidth = 1; ctx.beginPath(); W.rally.slice(-8).forEach((k, n) => { const a = angOf(k), x = cx + R * Math.cos(a), y = cy + R * Math.sin(a); n ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); }
+    const bx = cx + W.b.x * R, by = cy + W.b.y * R; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bx, by, 7, 0, TAU); ctx.fill(); ctx.strokeStyle = COL[1 - W.rcv] + '88'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(bx, by, 12, 0, TAU); ctx.stroke();
+    if (W.serveT > 0 && !W.over) { ctx.fillStyle = '#ebe5d8'; ctx.font = '700 15px Barlow Condensed'; ctx.textAlign = 'center'; ctx.fillText(`${W.rcv ? 'RED' : 'BLUE'} RECEIVES · ${Math.ceil(W.serveT)}`, cx, cy + sh / 2 + 26); ctx.textAlign = 'left'; }
+    if (W.flash && W.flash.why && performance.now() - W.flash.t < 1400) { ctx.fillStyle = COL[W.flash.who]; ctx.font = '700 28px Barlow Condensed'; ctx.textAlign = 'center'; ctx.fillText(`POINT ${W.flash.who ? 'RED' : 'BLUE'}`, cx, cy - sh / 2 - 16); ctx.textAlign = 'left'; }
+  }
+  function loop(t) {
+    const dt = Math.min(.04, (t - (last || t)) / 1000); last = t;
+    if (W && !W.over) {
+      const ks = mode === 'two' ? [['a', 'd'], ['arrowleft', 'arrowright']] : [[['a', 'arrowleft'], ['d', 'arrowright']]];
+      if (mode === 'two') ks.forEach(([l, r], p) => { if (keys[l]) W.p[p] -= 4 * dt; if (keys[r]) W.p[p] += 4 * dt; });
+      else { const me = role === 'guest' ? 1 : 0; if (keys.a || keys.arrowleft) setPaddle(me, W.p[me] - 4 * dt); if (keys.d || keys.arrowright) setPaddle(me, W.p[me] + 4 * dt); }
+      if (mode === 'machine') machine(dt);
+      if (mode === 'online' && role === 'host') W.p[1] = remote.a;
+      if (role !== 'guest') physics(dt);
+      if (role === 'host' && t - (W._sent || 0) > 33) { W._sent = t; send({ t: 's', b: [W.b.x, W.b.y], p: W.p, s: W.s, r: W.rcv, sv: W.serveT, o: W.over }); }
+    }
+    paint(); requestAnimationFrame(loop);
+  }
+  window.__tennis = { get W() { return W; }, get ring() { return ring; }, get conn() { return conn; }, get remote() { return remote; }, get role() { return role; }, begin: m => { ring = makeRing(7); begin(m); } };
+})();
+</script></body></html>
