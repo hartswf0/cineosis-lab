@@ -356,23 +356,13 @@ body.m-deck #deck{ display:grid; right:12px; top:52px; width:calc(42vw - 18px); 
     if (i !== cur) { if (cur >= 0 && !music.paused) { SEEN[a.c.id] = (SEEN[a.c.id] || 0) + 1; transition(f, i); } cur = i;
       for (let k = 2; k <= 3; k++) { const n = f.ids[i + k] && want(f, i + k); if (n) { warm(n.c); const pv = PRE[k - 2]; if (!pv.src.endsWith(n.url)) { pv.src = n.url; pv.load(); } } }
       $('#mt').innerHTML = `<span style="color:${f.c}">●</span> ${esc(f.take ? 'live take' : f.final ? 'final' : rname(f.R))} · <b>${esc(a.c.title)}</b>${a.locked ? ` · ${a.locked} on the beat` : ''}${snd ? ' · its sound in' : ''}`; $('#lk').textContent = f.R.look.toUpperCase(); $('#kp').classList.toggle('on', !!f.kept); } }
-  // motion graphics at the cut, chosen by what the cut is: a hidden seam is a plain cut; AI to archive (or back) goes through an orange iris, the half-dome's colour;
-  // a change of part of the world is wiped by the four characters' colours as flat bars; all of it lasts a half-beat
-  const snap = document.createElement('canvas'); snap.width = 960; snap.height = 540; let TR = null;
-  function transition(f, i) { const a = byId[f.ids[i - 1]], b = byId[f.ids[i]]; if (!a || !b) return; const sm = seam(a, b); let kind = null;
-    if (f.slots[i].w !== f.slots[i - 1].w) kind = 'bars'; else if (a.type !== b.type && sm < .55) kind = 'iris'; else if (sm < .25) kind = 'push';
-    if (!kind) return; snap.getContext('2d').drawImage(mcv, 0, 0); TR = { kind, t: performance.now(), d: Math.max(220, beatLen() * 500) }; }
-  function overlay() { if (!TR) return; const k = (performance.now() - TR.t) / TR.d; if (k >= 1) { TR = null; return; } const W2 = 960, H2 = 540, e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
-    if (TR.kind === 'iris') { mctx.save(); mctx.beginPath(); mctx.rect(0, 0, W2, H2); mctx.arc(W2 / 2, H2 * .62, e * 620, 0, 7, true); mctx.clip(); mctx.drawImage(snap, 0, 0); mctx.restore(); mctx.strokeStyle = '#f25a17'; mctx.lineWidth = 26 * (1 - e) + 4; mctx.beginPath(); mctx.arc(W2 / 2, H2 * .62, e * 620, 0, 7); mctx.stroke(); }
-    if (TR.kind === 'bars') { const C = ['#5600f5', '#1a1b1f', '#e6c808', '#f25a17']; mctx.drawImage(snap, 0, 0, W2, H2, 0, 0, W2, H2 * Math.max(0, 1 - e * 1.4)); C.forEach((c, j) => { const x = (e * 1.6 - j * .14) * W2; mctx.fillStyle = c; mctx.fillRect(x - W2 * .14, 0, W2 * .14, H2); }); }
-    if (TR.kind === 'push') { mctx.drawImage(snap, -e * W2, 0); } }
+  function transition() { }   // plain cuts: the motion-graphic transitions lowered the production value and were removed
   function paintMon() { const f = films[focus];
     if (prev) { const c = prev.list[prev.i]; if (prev.list.length > 1 && performance.now() - prev.t > 1500) { prev.i = (prev.i + 1) % prev.list.length; prev.t = performance.now(); const n = prev.list[prev.i], v = mv[front]; v._k = null; v.src = vidUrl(n, 'raw'); v.onloadedmetadata = () => { try { v.currentTime = n.in ?? Math.max(0, v.duration / 2 - 1); } catch (x) { } v.play().catch(() => { }); }; }
       const v = mv[front]; if (v.readyState >= 2) paint(mctx, v, 'raw'); else sprite(mctx, c, 0, 0, mcv.width, mcv.height, true); return; }
     if (!f || cur < 0) return; const c = byId[f.ids[cur]]; let v = mv[front];
     if (v._id !== c.id || v.readyState < 2) { const d = DKV.find(x => x._id === c.id && x.readyState >= 2); if (d) v = d; }   // a cut from the deck plays at once: the deck's player already has it
     if (v._id === c.id && v.readyState >= 2 && !v.seeking) paint(mctx, v, lookFor(f.R, c)); else sprite(mctx, c, 0, 0, mcv.width, mcv.height, true);   // never the old shot: its moving thumbnail until the video is there
-    overlay();
   }
   const P2 = { f: 1, mv: [0, 1].map(() => Object.assign(document.createElement('video'), { muted: true, preload: 'auto', playsInline: true })), front: 0, cur: -1, cued: -1 }, m2 = $('#mcv2').getContext('2d');
   function cue2(i, late) { const f = films[P2.f]; const c = f && byId[f.ids[i]]; if (!c) return; const v = P2.mv[1 - P2.front], ip = inPoint(f.R, c, f.slots[i]); P2.cued = i; v.onplaying = null; v.pause(); v.src = vidUrl(c, lookFor(f.R, c));
