@@ -14,7 +14,7 @@
 /* A STORYBOARD CONSOLE, and a film jockey. Show what is true now; one dominant action per state; Stop and Undo always within reach. */
 :root{ color-scheme:dark; --bg:#060605; --deck:#0f0e0c; --key:#1a1814; --line:#2b2823; --ink:#efe9dd; --dim:#8f877b; --hi:#e8c070; --red:#e07a5f;
   --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; --sa-b:env(safe-area-inset-bottom); --sa-t:env(safe-area-inset-top);
-  --perception:#7fb6e6; --affection:#e68fb0; --impulse:#e0533a; --action:#f2a03a; --reflection:#c9b04a; --relation:#7fc28b; --memory:#a98be6; --time:#9aa3ad; }
+  --pic:#6fb0f0; --call:#7fd09a; --ans:#e8c070; --join:#c393f2; --perception:#7fb6e6; --affection:#e68fb0; --impulse:#e0533a; --action:#f2a03a; --reflection:#c9b04a; --relation:#7fc28b; --memory:#a98be6; --time:#9aa3ad; }
 *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; margin:0; } html,body{ height:100%; background:var(--bg); color:var(--ink); overflow:hidden; overscroll-behavior:none; font:13px var(--mono); }
 button,input,textarea{ font:inherit; color:inherit; } [hidden]{ display:none !important; }
 svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none; }
@@ -91,6 +91,29 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
 .ik svg.i{ width:22px; height:22px; } .ik.on{ border-color:var(--hi); color:var(--hi); } .ik.rec{ background:var(--red); border-color:var(--red); color:#fff; } .ik.off{ color:#6b655d; border-style:dashed; } .ik:active{ transform:scale(.96); }
 .ik .n{ position:absolute; top:3px; right:4px; min-width:15px; height:15px; border-radius:8px; background:var(--hi); color:#140f06; font:600 8.5px/15px var(--mono); text-align:center; }
 /* timeline lanes: their names are mute keys */
+/* the four parts of a shot, one colour each, everywhere: PICTURE blue, CALL green, ANSWER gold, JOIN violet */
+.tl .lane{ border-radius:5px; } .tl .lane.sel{ background:color-mix(in srgb, var(--lc) 14%, transparent); box-shadow:inset 3px 0 0 var(--lc); }
+.tl .lane[data-l=pic]{ --lc:var(--pic); } .tl .lane[data-l=call]{ --lc:var(--call); } .tl .lane[data-l=ans]{ --lc:var(--ans); } .tl .lane[data-l=join]{ --lc:var(--join); }
+.tl .lane .lb{ color:var(--lc) !important; } .tl .lane.sel .lb{ font-weight:700; }
+.tl .blk.call{ background:color-mix(in srgb, var(--call) 14%, transparent); } .tl .blk.ansb{ background:color-mix(in srgb, var(--ans) 14%, transparent); }
+.tl .blk.jn{ background:repeating-linear-gradient(90deg, color-mix(in srgb, var(--join) 45%, transparent) 0 6px, transparent 6px 10px); border:1px solid var(--join); }
+.tl .lane.muted .blk{ opacity:.25; } .tl .lane .lb .mx{ color:var(--red); margin-left:2px; }
+.band{ flex:none; display:flex; align-items:center; gap:8px; padding:6px 12px 6px; border-top:2px solid var(--lc); font:600 10px var(--mono); letter-spacing:.18em; color:var(--lc); }
+.band span{ font:500 10px var(--mono); letter-spacing:.04em; color:var(--dim); } .band .sp{ flex:1; }
+#deck .ik.on{ border-color:var(--lc, var(--hi)); color:var(--lc, var(--hi)); }
+.seg{ flex:none; display:flex; gap:6px; padding:0 10px 8px; } .seg .lab{ align-self:center; width:62px; flex:none; font:600 8.5px var(--mono); letter-spacing:.12em; color:var(--dim); }
+.seg button{ flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; height:58px; border-radius:12px; border:1px solid var(--line); background:var(--key); font:600 8.5px var(--mono); letter-spacing:.08em; cursor:pointer; padding:2px; }
+.seg button.on{ border-color:var(--lc); color:var(--lc); background:color-mix(in srgb, var(--lc) 12%, var(--key)); } .seg button:disabled{ opacity:.3; } .seg svg.dg{ width:42px; height:20px; }
+.rng{ flex:none; display:flex; align-items:center; gap:10px; padding:0 12px 8px; font:600 9px var(--mono); letter-spacing:.1em; color:var(--dim); } .rng input{ flex:1; accent-color:var(--lc); } .rng b{ color:var(--lc); min-width:44px; text-align:right; }
+.note{ flex:none; padding:0 12px 8px; font:500 10.5px/1.45 var(--mono); color:var(--dim); } .note b{ color:var(--lc); font-weight:600; }
+/* the side menu: the film as a whole */
+#drawer{ position:fixed; inset:0; z-index:45; display:flex; } #drawer .dscrim{ flex:1; background:#000a; }
+#drawer .dpan{ width:min(88vw, 380px); height:100%; overflow:auto; background:#0c0b09; border-right:1px solid var(--line); padding:calc(12px + var(--sa-t)) 14px calc(20px + var(--sa-b)); display:flex; flex-direction:column; gap:8px; }
+#drawer .dh{ display:flex; align-items:center; gap:10px; font:600 11px var(--mono); letter-spacing:.2em; } #drawer .dh img{ width:30px; height:30px; border-radius:7px; } #drawer .dh .sp{ flex:1; }
+#drawer .dsec{ margin-top:10px; font:600 9.5px var(--mono); letter-spacing:.2em; color:var(--lc, var(--dim)); border-top:1px solid var(--line); padding-top:10px; } #drawer .dsec small{ display:block; font:500 10px var(--mono); letter-spacing:.02em; color:var(--dim); margin-top:3px; }
+#drawer .seg{ padding:0; } #drawer .grid4{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; } #drawer .grid4 .ik{ min-width:0; }
+#drawer .dbig{ display:flex; align-items:center; justify-content:center; gap:10px; height:54px; border-radius:14px; border:0; background:var(--hi); color:#140f06; font:600 12px var(--mono); letter-spacing:.2em; cursor:pointer; }
+#shotKey{ flex:none; }
 .tl .lane .lb{ position:absolute; left:-56px; top:0; height:20px; width:52px; display:flex; align-items:center; gap:4px; background:none; border:0; padding:0; color:var(--dim); font:600 8px var(--mono); letter-spacing:.1em; cursor:pointer; } .tl .lane .lb svg.i{ width:14px; height:14px; }
 .tl .lane.mute .blk{ opacity:.25; } .tl .lane.mute .lb{ color:var(--red); }
 /* the filter sheet rises over the answers */
@@ -110,9 +133,9 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
 #shots .s.on{ border-color:var(--hi); box-shadow:0 0 0 2px var(--hi); } #shots .s i{ position:absolute; left:3px; bottom:4px; font:600 9px var(--mono); font-style:normal; color:#fff; text-shadow:0 0 4px #000; }
 #shots .s .bar{ position:absolute; left:0; right:0; bottom:0; height:3px; } #shots .s.own::after{ content:''; position:absolute; right:3px; top:3px; width:6px; height:6px; border-radius:50%; background:var(--hi); }
 #shots .addS{ flex:none; width:52px; border-radius:5px; border:1px dashed #4a453e; background:none; color:var(--dim); display:grid; place-items:center; cursor:pointer; }
-#dial{ flex:none; display:grid; grid-template-columns:repeat(4,1fr); gap:4px; padding:4px 8px calc(6px + var(--sa-b)); background:var(--deck); border-top:1px solid var(--line); }
-#dial button{ height:50px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; border-radius:12px; border:0; background:none; color:var(--dim); font:600 9px var(--mono); letter-spacing:.14em; cursor:pointer; }
-#dial button.on{ background:var(--key); color:var(--hi); }
+#dialX{ display:none; grid-template-columns:repeat(4,1fr); gap:4px; padding:4px 8px calc(6px + var(--sa-b)); background:var(--deck); border-top:1px solid var(--line); }
+#dialX button{ height:50px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; border-radius:12px; border:0; background:none; color:var(--dim); font:600 9px var(--mono); letter-spacing:.14em; cursor:pointer; }
+#dialX button.on{ background:var(--key); color:var(--hi); }
 #writer{ position:fixed; left:0; right:0; bottom:0; z-index:20; max-width:760px; margin:0 auto; background:var(--deck); border-top:1px solid var(--hi); padding:10px 10px calc(10px + var(--sa-b)); display:flex; flex-direction:column; gap:8px; }
 #writer textarea{ width:100%; height:72px; resize:none; background:#000; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:300 18px/1.3 var(--serif); }
 #writer textarea:focus{ outline:2px solid var(--hi); outline-offset:0; }
@@ -173,7 +196,7 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
 #coach .bub .row{ display:flex; gap:8px; align-items:center; margin-top:10px; } #coach .bub .row span{ flex:1; font:600 10px var(--mono); color:#7a6f5c; }
 #coach .bub button{ height:36px; padding:0 14px; border-radius:18px; border:1px solid #17130d; background:#17130d; color:#fbf6ec; font:600 10.5px var(--mono); letter-spacing:.12em; cursor:pointer; } #coach .bub button.gh{ background:none; color:#17130d; border-color:#cfc5b3; }
 #toast{ position:fixed; left:50%; bottom:calc(130px + var(--sa-b)); transform:translateX(-50%) translateY(10px); background:#fbf6ec; color:#17130d; padding:9px 14px; border-radius:18px; font:600 11px var(--mono); letter-spacing:.06em; opacity:0; transition:all .25s; z-index:60; pointer-events:none; max-width:92vw; text-align:center; }
-#toast.on{ opacity:1; transform:translateX(-50%); }
+#toast.on{ opacity:1; transform:translateX(-50%); } #toast.act{ pointer-events:auto; display:flex; gap:10px; align-items:center; } #toast .tu{ border:0; background:#17130d; color:#fbf6ec; border-radius:12px; padding:5px 10px; font:600 10px var(--mono); letter-spacing:.12em; cursor:pointer; }
 #sheet{ display:none; }
 @media print{
   @page{ size:landscape; margin:12mm; } html,body{ overflow:visible; height:auto; background:#fff; color:#000; } #app, #start, #coach, #toast, #writer, .over, #live{ display:none !important; } #sheet{ display:block; }
@@ -219,6 +242,8 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
   <symbol id="i-pace" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M10 2h4"/></symbol>
   <symbol id="i-order" viewBox="0 0 24 24"><path d="M4 7h11M4 12h8M4 17h5"/><path d="M18 5v14M15 16l3 3 3-3"/></symbol>
   <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v10H9l-5 4z"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-join" viewBox="0 0 24 24"><rect x="2" y="6" width="8" height="12" rx="1"/><rect x="14" y="6" width="8" height="12" rx="1"/><path d="M10 12h4"/></symbol>
   <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
   <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 5h16l-6 8v6l-4-2v-4z"/></symbol>
   <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6L8 10z"/><path d="M17 9l5 6M22 9l-5 6"/></symbol>
@@ -228,12 +253,12 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
   <symbol id="i-strip" viewBox="0 0 24 24"><rect x="2" y="7" width="6" height="10" rx="1"/><rect x="9" y="7" width="6" height="10" rx="1"/><rect x="16" y="7" width="6" height="10" rx="1"/></symbol>
 </svg>
 <div id="app">
-  <div id="top"><button id="where"><b id="wC"></b><span id="wS"></span></button><button class="k" id="bLive"><svg class="i"><use href="#i-live"/></svg>LIVE</button></div>
+  <div id="top"><button class="k ic" id="bMenu" aria-label="Menu"><svg class="i"><use href="#i-menu"/></svg></button><button id="where"><b id="wC"></b><span id="wS"></span></button><button class="k" id="bLive"><svg class="i"><use href="#i-live"/></svg>LIVE</button></div>
   <div id="frame"><div id="stage"><video muted playsinline preload="none"></video><video muted playsinline preload="none"></video><video class="spk" playsinline preload="none"></video><div class="tc" id="tc"></div><button class="sgb" id="sgb" hidden></button><div class="msg" id="msg"></div><div class="sub" id="esub"></div></div></div>
   <div id="words"><button id="line"><span class="t" id="lineT"></span><span class="r" id="lineR"></span></button><button class="k" id="bWrite"><svg class="i"><use href="#i-write"/></svg>WRITE</button></div>
+  <div id="tlbox"></div>
   <div id="deck"></div>
   <div id="shots"></div>
-  <div id="dial"><button data-m="pic" class="on"><svg class="i"><use href="#i-pic"/></svg>PICTURE</button><button data-m="voice"><svg class="i"><use href="#i-voice"/></svg>VOICE</button><button data-m="shot"><svg class="i"><use href="#i-shots"/></svg>SHOTS</button><button data-m="board"><svg class="i"><use href="#i-board"/></svg>BOARD</button></div>
 </div>
 <div id="writer" hidden>
   <div class="row"><span class="r" id="wrR">write or say what the camera sees</span><button class="k" id="bDict" title="Say the shot; it is written down for you"><svg class="i"><use href="#i-mic"/></svg>SAY IT</button><button class="k" id="bExact" title="Downloads CLIP's text reader once (62 MB) so whole sentences are read exactly"><svg class="i"><use href="#i-exact"/></svg>EXACT</button><button class="k on" id="bDone">DONE</button></div>
@@ -243,10 +268,6 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
 <div class="over" id="board" hidden>
   <div class="top"><b>THE BOARD</b><span class="sp"></span><button class="chip on" id="vCh">CHAPTERS</button><button class="chip" id="vSg">BY SIGN</button><button class="chip" id="vTl">TIMELINE</button><button class="k ic" id="bClose" aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></div>
   <div id="pages"></div><div id="dots"></div>
-  <div class="acts">
-    <button class="k" id="bPrint"><svg class="i"><use href="#i-print"/></svg>PRINT · PDF</button><button class="k" id="bShare"><svg class="i"><use href="#i-share"/></svg>SHARE LINK</button><button class="k" id="bSave"><svg class="i"><use href="#i-save"/></svg>SAVE FILE</button><button class="k" id="bOpen"><svg class="i"><use href="#i-open"/></svg>OPEN FILE</button>
-    <button class="k" id="bCsv"><svg class="i"><use href="#i-list"/></svg>SHOT LIST</button><button class="k" id="bNew"><svg class="i"><use href="#i-new"/></svg>NEW BOARD</button><button class="k" id="bHow"><svg class="i"><use href="#i-help"/></svg>HOW IT WORKS</button><button class="k" id="bMove"><svg class="i"><use href="#i-move"/></svg><span id="moveL">MOVING</span></button>
-  </div>
   <input type="file" id="fileIn" accept=".json,application/json" hidden>
 </div>
 <div class="over" id="signCard" hidden>
@@ -264,6 +285,18 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
     <button class="ik" id="lLayout"><svg class="i"><use href="#i-layout"/></svg><span id="lLayoutL">ONE</span></button><button class="ik" id="lPace"><svg class="i"><use href="#i-pace"/></svg><span id="lPaceL">EVEN</span></button><button class="ik" id="lOrder"><svg class="i"><use href="#i-order"/></svg><span id="lOrderL">WRITTEN</span></button><button class="ik" id="lExit"><svg class="i"><use href="#i-stop"/></svg>STOP</button>
   </div>
 </div>
+<div id="drawer" hidden><div class="dpan">
+  <div class="dh"><img src="norse/sb-icon-180.png" alt="">THE FILM<span class="sp"></span><button class="k ic" id="dClose" aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></div>
+  <button class="dbig" id="mPlay"><svg class="i"><use href="#i-live"/></svg>PLAY THE FILM</button>
+  <div class="dsec">SEE THE WHOLE<small>every shot at once</small></div><div class="grid4"><button class="ik" id="mBoard"><svg class="i"><use href="#i-board"/></svg>CHAPTERS</button><button class="ik" id="mSigns"><svg class="i"><use href="#i-pic"/></svg>BY SIGN</button><button class="ik" id="mTl"><svg class="i"><use href="#i-voice"/></svg>TIMELINE</button></div>
+  <div class="dsec" style="--lc:var(--join)">FLOW · HOW SHOTS JOIN<small>for every shot that has not set its own JOIN</small></div><div id="mFlow" style="--lc:var(--join)"></div>
+  <div class="dsec" style="--lc:var(--ans)">ANSWERS<small>how the archive comes in, for every shot that has not set its own</small></div><div id="mAns" style="--lc:var(--ans)"></div>
+  <div class="dsec">TRACKS<small>mute a voice everywhere; its timing is kept</small></div><div class="grid4" id="mTracks"></div>
+  <div class="dsec">KEEP AND SHARE</div><div class="grid4">
+    <button class="ik" id="bPrint"><svg class="i"><use href="#i-print"/></svg>PRINT</button><button class="ik" id="bShare"><svg class="i"><use href="#i-share"/></svg>SHARE</button><button class="ik" id="bSave"><svg class="i"><use href="#i-save"/></svg>SAVE</button>
+    <button class="ik" id="bOpen"><svg class="i"><use href="#i-open"/></svg>OPEN</button><button class="ik" id="bCsv"><svg class="i"><use href="#i-list"/></svg>SHOT LIST</button><button class="ik" id="bMove"><svg class="i"><use href="#i-move"/></svg><span id="moveL">MOVING</span></button></div>
+  <div class="dsec">START</div><div class="grid4"><button class="ik" id="bNew"><svg class="i"><use href="#i-new"/></svg>NEW</button><button class="ik" id="bHow"><svg class="i"><use href="#i-help"/></svg>HOW</button></div>
+</div><div class="dscrim" id="dScrim"></div></div>
 <div id="start"><div>
   <div class="kk"><img src="norse/sb-icon-180.png" alt="">CINEOSIS LAB · NORSE HALF MOON</div>
   <h1>Shape the film like a sculptor, with moving pictures.</h1>
@@ -299,15 +332,19 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
   let shared = false;
   if (location.hash.startsWith('#board=')) { try { const s = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(7))))); if (s.board) { st.board = s.board; st.cur = s.cur; shared = true; } history.replaceState(null, '', location.pathname); } catch (e) { } }
   let board = st.board || null, cur = st.cur || [0, 0], sel = -1, mode = 'pic', figMode = false, fam = null, undo = [], moving = st.moving !== false, boardView = 'ch';
-  const MIX = Object.assign({ call: true, ans: true }, st.mix || {});   /* the two voices as tracks: either can be muted, the timing stays */
-  const save = () => { st.board = board; st.cur = cur; st.moving = moving; st.mix = MIX; try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { } };
+  const MIX = Object.assign({ call: true, ans: true }, st.mix || {});
+  /* the film's flow, for every shot that has not set its own: how shots join (CUT, DISSOLVE, DIP, WIPE; how long; where the sound goes across the cut), how answers enter, what is seen while they speak */
+  const FLOW = Object.assign({ tr: 'dissolve', dur: .8, audio: 'clean', ans: 'after', show: 'over' }, st.flow || {});   /* the two voices as tracks: either can be muted, the timing stays */
+  const save = () => { st.board = board; st.cur = cur; st.moving = moving; st.mix = MIX; st.flow = FLOW; try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { } };
   const chap = () => board[cur[0]], pan = () => chap().panels[cur[1]];
   const flat = () => board.flatMap((c, ci) => c.panels.map((p, pi) => [ci, pi]));
   const memoLine = p => p && p.memo ? D.books[p.memo[0]].lines[p.memo[1]] : null;
   const fresh = p => { const L = memoLine(p); return !!(L && L.text === p.text); };
   const callOf = p => p.call === 'rec' ? 'rec' : p.call === 'memo' && fresh(p) ? 'memo' : 'tts';
   const snap = () => { undo.push(JSON.stringify({ board, cur })); if (undo.length > 80) undo.shift(); };
-  function toast(t) { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('on'), 2400); }
+  /* every change says what changed, and offers its way back */
+  function toast(t, canUndo) { const e = $('#toast'); e.innerHTML = ''; e.append(t); if (canUndo && undo.length) { const b = document.createElement('button'); b.textContent = 'UNDO'; b.className = 'tu'; b.onclick = () => { shotAct('undo'); e.classList.remove('on'); }; e.append(b); }
+    e.classList.toggle('act', !!canUndo); e.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('on', 'act'), canUndo ? 4200 : 2400); }
 
   /* ---- your recorded voice, kept in this browser (IndexedDB), one take per shot */
   const REC = { db: null, url: {} };
@@ -373,7 +410,7 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
     if (loadVoices.p) return loadVoices.p;
     loadVoices.p = Promise.all([fetch('norse/voices.json?v={{VOV}}').then(r => r.json()), fetch('norse/voices.bin?v={{VOV}}').then(r => r.arrayBuffer()), loadWM()]).then(([m, b]) => {
       VO = m; const a = new Int8Array(b), nW = WM.words.length; VW = a.subarray(0, nW * VD); VU = a.subarray(nW * VD);
-      VUW = m.utts.map(u => new Set(u.s.split(/\s+/).map(norm).filter(w => w.length > 2 && !STOP.has(w)).map(stem))); if (board) { autoAnswer(pan()); if (mode === 'voice') drawDeck(); } }).catch(() => { loadVoices.p = null; });
+      VUW = m.utts.map(u => new Set(u.s.split(/\s+/).map(norm).filter(w => w.length > 2 && !STOP.has(w)).map(stem))); if (board) { autoAnswer(pan()); if (mode === 'ans') drawDeck(); } }).catch(() => { loadVoices.p = null; });
     return loadVoices.p;
   }
   /* the answer's voice, as filters: who speaks (man, woman, child, several), how (narration, conversation, interview, announcer, speech, song), what is under it */
@@ -388,7 +425,7 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
       let a = 0; const o = u * VD; for (let d = 0; d < VD; d++) a += VU[o + d] * q[d]; let ov = 0; VUW[u].forEach(w => { if (st_.has(w)) ov++; }); s[u] = a / n + .4 * ov / Math.max(1, st_.size); }
     return [...s.keys()].filter(u => s[u] > -9).sort((a, b) => s[b] - s[a]).slice(0, k).map(u => ansOf(VO.utts[u]));
   }
-  function autoAnswer(p) { if (!p || !p.ansAuto || !p.text || !VO) return; const a = answersFor(p.text, 1, {})[0]; if (a) p.ans = a; }
+  function autoAnswer(p) { if (!p || !p.ansAuto || !p.text || !VO || FLOW.ans === 'none') return; const a = answersFor(p.text, 1, {})[0]; if (a) p.ans = a; }
 
   /* ---- sound, drawn: a waveform from an envelope (one base-36 character a step); a line read aloud has no recording, so it is drawn as dashes of its estimated length */
   const D36 = '0123456789abcdefghijklmnopqrstuvwxyz';
@@ -401,28 +438,36 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
   const callEnv = p => { const c = callOf(p), L = memoLine(p); return c === 'memo' ? L.ce : c === 'rec' ? p.recEnv || null : null; };
   const ansDur = a => a ? Math.max(.5, a.t1 - a.t0) : 0, GAP = .35;
   /* a shot's timing, all of it tunable: when the answer comes in after the call (a negative gap overlaps them), how it is trimmed, how long the picture holds, where the picture starts in its clip */
-  const tm = p => { const c0 = .6, c1 = c0 + callDur(p), tr = p.trim || [0, 0], ad = p.ans ? Math.max(.4, ansDur(p.ans) - tr[0] + tr[1]) : 0, gap = p.gap ?? GAP, a0 = Math.max(c0, c1 + gap), a1 = a0 + ad, hold = p.hold ?? .4;
+  const trOf = p => ({ type: (p.tr && p.tr.type) || FLOW.tr, dur: (p.tr && p.tr.dur != null) ? p.tr.dur : FLOW.dur, audio: (p.tr && p.tr.audio) || FLOW.audio, own: !!p.tr });
+  const showOf = p => p.show || FLOW.show;
+  const tm = p => { const c0 = .6, c1 = c0 + callDur(p), tr = p.trim || [0, 0], ad = p.ans ? Math.max(.4, ansDur(p.ans) - tr[0] + tr[1]) : 0, gap = p.gap ?? (FLOW.ans === 'over' ? -1.2 : GAP), a0 = Math.max(c0, c1 + gap), a1 = a0 + ad, hold = p.hold ?? .4;
     return { c0, c1, a0, a1, ad, gap, tr, hold, end: Math.max(c1, p.ans ? a1 : 0) + hold }; };
   const shotDur = p => tm(p).end;
   const ansSpan = (a, p) => { const tr = (p && p.trim) || [0, 0]; return [Math.max(0, a.t0 - .1 + tr[0]), a.t1 + .3 + tr[1]]; };
-  const tuned = p => !!((p.gap != null && Math.abs(p.gap - GAP) > .01) || (p.trim && (p.trim[0] || p.trim[1])) || (p.hold != null && Math.abs(p.hold - .4) > .01) || p.pin);
+  const tuned = p => !!((p.gap != null) || (p.trim && (p.trim[0] || p.trim[1])) || (p.hold != null && Math.abs(p.hold - .4) > .01) || p.pin);
   const withPin = (P, p) => P && p && p.pin ? Object.assign({}, P, { in: (P.in || 0) + p.pin }) : P;
   const tags = a => [a.vc, a.wy, a.un === 'music' ? 'music under' : a.un, a.y ? Math.floor(a.y / 10) * 10 + 's' : '', a.ws ? (a.ws < 2.2 ? 'slow' : a.ws > 3.4 ? 'fast' : '') : ''].filter(Boolean).join(' · ').toUpperCase();
   /* a shot as a timeline: the picture holds the whole shot; the call enters after a breath; the answer after the call */
+  const TRN = { cut: 'CUT', dissolve: 'DISSOLVE', dip: 'DIP', wipe: 'WIPE' }, SNDN = { clean: 'clean', carry: 'answer carries', lead: 'next call leads' };
   function shotTimeline(el, p, opts = {}) {
-    const t = tm(p), T = t.end, x = v => (v / T * 100) + '%', Pc = pic(p.g), cWho = { memo: 'memo voice', rec: 'your voice', tts: 'read aloud' }[callOf(p)];
-    el.innerHTML = `<div class="tl${opts.tune ? ' tune' : ''}">${opts.state === false ? '' : '<span class="state"></span>'}<div class="lane"><b>PICTURE</b><div class="blk pic" data-k="pic" style="left:0;width:100%">${opts.tune ? '<span class="hd r" data-h="hold"></span>' : ''}<span class="lbl">${p.pin ? 'from +' + p.pin.toFixed(1) + 's · ' : ''}holds ${t.hold.toFixed(1)}s after</span></div></div>
-      <div class="lane${opts.mix && !MIX.call ? ' mute' : ''}">${opts.mix ? `<button class="lb" data-mix="call">${ico(MIX.call ? 'mic' : 'mute')}CALL</button>` : '<b>CALL</b>'}<div class="blk call" data-k="call" style="left:${x(t.c0)};width:${x(t.c1 - t.c0)}"><canvas></canvas><span class="lbl">${cWho} · ${(t.c1 - t.c0).toFixed(1)}s</span></div></div>
-      <div class="lane${opts.mix && !MIX.ans ? ' mute' : ''}">${opts.mix ? `<button class="lb" data-mix="ans">${ico(MIX.ans ? 'chat' : 'mute')}ANSWER</button>` : '<b>ANSWER</b>'}${p.ans ? `<div class="blk ansb" data-k="ans" style="left:${x(t.a0)};width:${x(t.a1 - t.a0)}">${opts.tune ? '<span class="hd l" data-h="t0"></span><span class="hd r" data-h="t1"></span>' : ''}<canvas></canvas><span class="lbl">${esc((p.ans.vc || '') + ' ' + (p.ans.wy || ''))} · ${(t.a1 - t.a0).toFixed(1)}s</span></div>` : '<span class="lbl" style="position:absolute;left:4px;top:4px;font:500 8.5px var(--mono);color:#6b655d">no answer</span>'}</div>
+    const t = tm(p), j = trOf(p), jd = j.type === 'cut' ? .25 : j.dur, T = t.end + jd, x = v => (v / T * 100) + '%', Pc = pic(p.g), cWho = { memo: 'memo voice', rec: 'your voice', tts: 'read aloud' }[callOf(p)], S = opts.sel;
+    const ln = (k, name, icon, inner, muted) => `<div class="lane${S === k ? ' sel' : ''}${muted ? ' muted' : ''}" data-l="${k}">${opts.select ? `<button class="lb" data-sel="${k}">${ico(icon)}${name}${muted ? '<span class="mx">×</span>' : ''}</button>` : `<b>${name}</b>`}${inner}</div>`;
+    el.innerHTML = `<div class="tl${opts.tune ? ' tune' : ''}">${opts.state === false ? '' : '<span class="state"></span>'}
+      ${ln('pic', 'PICTURE', 'pic', `<div class="blk pic" data-k="pic" style="left:0;width:${x(t.end)}">${opts.tune ? '<span class="hd r" data-h="hold"></span>' : ''}<span class="lbl">${p.pin ? 'from +' + p.pin.toFixed(1) + 's · ' : ''}holds ${t.hold.toFixed(1)}s</span></div>`)}
+      ${ln('call', 'CALL', 'mic', `<div class="blk call" data-k="call" style="left:${x(t.c0)};width:${x(t.c1 - t.c0)}"><canvas></canvas><span class="lbl">${cWho} · ${(t.c1 - t.c0).toFixed(1)}s</span></div>`, !MIX.call)}
+      ${ln('ans', 'ANSWER', 'chat', p.ans ? `<div class="blk ansb" data-k="ans" style="left:${x(t.a0)};width:${x(t.a1 - t.a0)}">${opts.tune ? '<span class="hd l" data-h="t0"></span><span class="hd r" data-h="t1"></span>' : ''}<canvas></canvas><span class="lbl">${esc((p.ans.vc || '') + ' ' + (p.ans.wy || ''))} · ${(t.a1 - t.a0).toFixed(1)}s</span></div>` : '<span class="lbl" style="position:absolute;left:4px;top:4px;font:500 8.5px var(--mono);color:#6b655d">no answer</span>', !MIX.ans)}
+      ${ln('join', 'JOIN', 'join', `<div class="blk jn" data-k="join" style="left:${x(t.end)};width:${x(jd)}"><span class="lbl" style="left:auto;right:4px">${TRN[j.type]}${j.type === 'cut' ? '' : ' ' + j.dur.toFixed(1) + 's'} · ${SNDN[j.audio]}</span></div>`)}
       <div class="ruler">${Array.from({ length: Math.floor(T) + 1 }, (_, i) => i % (T > 14 ? 4 : 2) === 0 ? `<i style="left:${x(i)}">${i}s</i>` : '').join('')}</div><div class="ph"></div></div>`;
+    el.querySelectorAll('.lb[data-sel]').forEach(b => b.onclick = e => { e.stopPropagation(); if (opts.onSelect) opts.onSelect(b.dataset.sel); });
+    el.querySelectorAll('.lane').forEach(l => l.addEventListener('click', e => { if (e.target.closest('.blk') || !opts.onSelect) return; opts.onSelect(l.dataset.l); }));
+    const T_ = T; t.end_ = T_;
     if (Pc) bgOf(el.querySelector('.blk.pic'), Pc.img);
     requestAnimationFrame(() => { const cc = el.querySelector('.blk.call canvas'); if (cc) drawWave(cc, callEnv(p), '#efe9dd', !callEnv(p)); const ac = el.querySelector('.blk.ansb canvas'); if (ac) drawWave(ac, p.ans.e, WAYCOL[p.ans.wy] || '#e8c070'); });
     const ph = el.querySelector('.ph'), stl = el.querySelector('.state'), lane = el.querySelector('.lane');
-    el.querySelectorAll('.lb[data-mix]').forEach(b => b.onclick = e => { e.stopPropagation(); toggleMix(b.dataset.mix); if (opts.onMix) opts.onMix(); });
     /* tuning by hand: drag the answer to move it (into the call, or later); drag its edges to trim it; drag the picture to slide where it starts in its clip; drag the picture's end to hold it longer */
     el.querySelectorAll('.blk[data-k]').forEach(b => {
       let d = null;
-      b.onpointerdown = e => { const h = e.target.dataset.h, k = b.dataset.k; if (!opts.tune || (k === 'call') || (k === 'pic' && !h && !e.altKey && false)) { d = { tap: true, x: e.clientX, k }; return; }
+      b.onpointerdown = e => { const h = e.target.dataset.h, k = b.dataset.k; if (!opts.tune || (k === 'call') || (k === 'join') || (k === 'pic' && !h && !e.altKey && false)) { d = { tap: true, x: e.clientX, k }; return; }
         try { b.setPointerCapture(e.pointerId); } catch (x) { } d = { x: e.clientX, k, h, gap: t.gap, tr: [...t.tr], hold: t.hold, pin: p.pin || 0, moved: false, W: lane.clientWidth - 58 }; e.preventDefault(); e.stopPropagation(); };
       b.onpointermove = e => { if (!d || d.tap) return; const dt = (e.clientX - d.x) / Math.max(40, d.W) * T; if (Math.abs(e.clientX - d.x) > 3) { d.moved = true; b.classList.add('drag'); }
         if (!d.moved) return; let msg = '';
@@ -433,7 +478,7 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
         if (d.k === 'pic' && !d.h) { p.pin = Math.max(0, Math.min(20, d.pin - dt)); msg = `the picture starts ${p.pin.toFixed(1)}s into its clip`; }
         if (stl) stl.textContent = msg.toUpperCase(); };
       b.onpointerup = () => { if (!d) return; const was = d; d = null; b.classList.remove('drag');
-        if (was.tap || !was.moved) { if (opts.onBlock && was.k !== 'pic') opts.onBlock(was.k); return; }
+        if (was.tap || !was.moved) { if (opts.onSelect) opts.onSelect(was.k === 'ans' ? 'ans' : was.k); if (opts.onBlock && was.k !== 'pic' && was.k !== 'join') opts.onBlock(was.k); return; }
         p.touched = true; save(); if (opts.onTune) opts.onTune(); };
     });
     return { set(phase, tt) { if (!phase) { ph.style.display = 'none'; el.querySelectorAll('.blk').forEach(b => b.classList.remove('now')); if (stl) stl.textContent = ''; return; }
@@ -487,7 +532,7 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
     bar.querySelector('#cmpX').onclick = e => { e.stopPropagation(); closeCompare(); }; const m = bar.querySelector('#cmpMore'); if (m) m.onclick = e => { e.stopPropagation(); openCompare(i0 + 4); };
   }
   function closeCompare() { const c = stage.querySelector('.cmp'); if (c) { c.querySelectorAll('video').forEach(v => { v.pause(); v.removeAttribute('src'); v.load(); }); c.remove(); } }
-  function removeFig(n) { const p = pan(); if (!p.figs[n]) return; snap(); p.figs.splice(n, 1); sel = -1; mark(p); drawFrame(); drawDeck(); buzz(); toast('Figure removed · UNDO in SHOTS brings it back'); }
+  function removeFig(n) { const p = pan(); if (!p.figs[n]) return; snap(); p.figs.splice(n, 1); sel = -1; mark(p); drawFrame(); drawDeck(); buzz(); toast('Figure removed', true); }
   const PT = new Map(); let drag = null, pinch = null, lastTap = 0, swipe = null;
   stage.addEventListener('pointerdown', e => {
     if (e.target.closest('.sgb')) return; try { stage.setPointerCapture(e.pointerId); } catch (x) { } PT.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -524,7 +569,7 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
   /* ---- sound in the editor: one thing at a time, always stoppable. The call, then (if asked) the answer: the archival speaker's own footage blends into the frame while they speak */
   const SND = { on: false, stopFns: [] };
   function sndStop() { SND.on = false; SND.phase = null; if (SND.tl) SND.tl.set(null); SND.stopFns.splice(0).forEach(f => { try { f(); } catch (e) { } }); aud.pause(); try { speechSynthesis.cancel(); } catch (e) { } spk.classList.remove('on'); spk.pause(); $('#esub').textContent = ''; drawDeckIfVoice(); }
-  const drawDeckIfVoice = () => { if (mode === 'voice') drawDeck(); };
+  const drawDeckIfVoice = () => { if (mode === 'ans' || mode === 'call') drawDeck(); };
   function playSeg(el, src, t0, t1) {   /* plays el from t0 to t1; resolves when done or stopped */
     return new Promise(ok => { let done = false; const fin = () => { if (done) return; done = true; clearInterval(iv); el.pause(); ok(); }; SND.stopFns.push(fin);
       const go = () => { try { el.currentTime = t0; } catch (e) { } el.play().catch(() => { toast('Tap again to allow sound'); fin(); }); };
@@ -539,12 +584,12 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
     await new Promise(ok => { try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(p.text); u.rate = .95; u.onend = u.onerror = ok; SND.stopFns.push(() => { speechSynthesis.cancel(); ok(); }); speechSynthesis.speak(u); } catch (e) { ok(); } });
   }
   async function playAnswer(a, p, sub = $('#esub')) {   /* PICTURE: the voice over your picture; SPEAKER: the speaker blends in; SPLIT: side by side */
-    if (!a) return; const show = (p && p.show) || 'over', [s0, s1] = ansSpan(a, p); sub.textContent = a.s; spk.classList.remove('on', 'split', 'over'); if (show === 'split') spk.classList.add('split'); if (show === 'over') spk.classList.add('over');
+    if (!a) return; const show = p ? showOf(p) : 'over', [s0, s1] = ansSpan(a, p); sub.textContent = a.s; spk.classList.remove('on', 'split', 'over'); if (show === 'split') spk.classList.add('split'); if (show === 'over') spk.classList.add('over');
     applyMix(); spk.addEventListener('playing', () => spk.classList.add('on'), { once: true });
     await playSeg(spk, a.v, s0, s1); spk.classList.remove('on'); sub.textContent = '';
   }
   function applyMix() { aud.muted = !MIX.call; spk.muted = !MIX.ans; if (typeof lspk !== 'undefined') lspk.muted = !MIX.ans; }
-  function toggleMix(k) { MIX[k] = !MIX[k]; applyMix(); save(); if (!MIX.call && k === 'call') try { speechSynthesis.cancel(); } catch (e) { } toast(`${k === 'call' ? 'The call' : 'The answer'} ${MIX[k] ? 'on' : 'muted · its timing is kept'}`); if (mode === 'voice') drawDeck(); if (!$('#live').hidden) drawLbar(); }
+  function toggleMix(k) { MIX[k] = !MIX[k]; applyMix(); save(); if (!MIX.call && k === 'call') try { speechSynthesis.cancel(); } catch (e) { } toast(`${k === 'call' ? 'The call' : 'The answer'} ${MIX[k] ? 'on' : 'muted · its timing is kept'}`); drawDeck(); drawMenu(); if (!$('#live').hidden) drawLbar(); }
   /* the playhead: which state the shot's sound is in, and how far */
   function phase(ph) { SND.phase = ph; SND.ph0 = performance.now(); if (!ph && SND.tl) SND.tl.set(null); }
   (function tick() { if (SND.on && SND.phase && SND.tl) SND.tl.set(SND.phase, (performance.now() - SND.ph0) / 1000); requestAnimationFrame(tick); })();
@@ -610,27 +655,40 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
     b.innerHTML = `${sgTile(S)}<small>${esc((Pc.title || '').slice(0, 28))}${Pc.year ? ' · ' + Pc.year : ''}</small>`;
     let hold = null; b.onpointerdown = () => { hold = setTimeout(() => { preview(b, Pc); b._held = true; }, 260); }; b.onpointerup = b.onpointerleave = b.onpointercancel = () => { clearTimeout(hold); if (!matchMedia('(hover:hover)').matches) stopPreview(); };
     b.onmouseenter = () => { if (matchMedia('(hover:hover)').matches) preview(b, Pc); }; b.onmouseleave = () => { if (matchMedia('(hover:hover)').matches) stopPreview(); };
-    b.onclick = () => { if (b._held) { b._held = false; return; } snap(); p.g = ref; mark(p); drawFrame(); drawDeck(); buzz(); coachDone('pic'); }; return b;
+    b.onclick = () => { if (b._held) { b._held = false; return; } snap(); p.g = ref; mark(p); drawFrame(); drawDeck(); buzz(); toast('Picture changed', true); coachDone('pic'); }; return b;
   }
   function tileFig(f, p) { const F = D.figs[f]; if (!F) return null; const b = document.createElement('button'); b.className = 'tile fg'; b.innerHTML = `<span class="im"></span><span class="add">${ico('plus')}</span><small>${esc((F.desc || F.title || 'figure').slice(0, 24))}</small>`; figImg(b.querySelector('.im'), f, false);
     b.onclick = () => { snap(); p.figs.push({ f: +f, x: .5, y: .92, w: +Math.min(.45, .62 * (9 / 16) * (F.w / F.h)).toFixed(3) }); sel = p.figs.length - 1; mark(p); drawFrame(); drawDeck(); buzz(); toast('Added · drag it into place'); coachDone('add'); }; return b; }
+  /* the deck shows the tools of ONE part of the shot, the part selected on the timeline, in its colour, with its name */
+  const PARTS = { pic: ['PICTURE', 'what we see', 'var(--pic)'], call: ['CALL', 'who says the line', 'var(--call)'], ans: ['ANSWER', 'the archive replies', 'var(--ans)'], join: ['JOIN', 'how this shot hands over to the next', 'var(--join)'] };
+  const DG = {   /* small diagrams of each join and each way the sound crosses it */
+    cut: '<svg class="dg" viewBox="0 0 42 20"><rect x="1" y="3" width="19" height="14" fill="currentColor" opacity=".35"/><rect x="22" y="3" width="19" height="14" fill="currentColor"/></svg>',
+    dissolve: '<svg class="dg" viewBox="0 0 42 20"><defs><linearGradient id="gd" x1="0" x2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".35"/><stop offset="1" stop-color="currentColor"/></linearGradient></defs><rect x="1" y="3" width="40" height="14" fill="url(#gd)"/></svg>',
+    dip: '<svg class="dg" viewBox="0 0 42 20"><rect x="1" y="3" width="14" height="14" fill="currentColor" opacity=".35"/><rect x="16" y="3" width="10" height="14" fill="#000" stroke="currentColor" stroke-width=".8"/><rect x="27" y="3" width="14" height="14" fill="currentColor"/></svg>',
+    wipe: '<svg class="dg" viewBox="0 0 42 20"><rect x="1" y="3" width="40" height="14" fill="currentColor" opacity=".35"/><path d="M18 3h23v14H14z" fill="currentColor"/></svg>',
+    clean: '<svg class="dg" viewBox="0 0 42 20"><path d="M2 10h17" stroke="currentColor" stroke-width="3"/><path d="M23 10h17" stroke="currentColor" stroke-width="3" opacity=".4"/><path d="M21 2v16" stroke="currentColor" stroke-dasharray="2 2"/></svg>',
+    carry: '<svg class="dg" viewBox="0 0 42 20"><path d="M2 10h30" stroke="currentColor" stroke-width="3"/><path d="M21 2v16" stroke="currentColor" stroke-dasharray="2 2"/></svg>',
+    lead: '<svg class="dg" viewBox="0 0 42 20"><path d="M10 10h30" stroke="currentColor" stroke-width="3"/><path d="M21 2v16" stroke="currentColor" stroke-dasharray="2 2"/></svg>' };
   function drawDeck() {
-    stopPreview(); const d = $('#deck'), p = pan(); d.innerHTML = ''; SND.tl = null;
-    document.querySelectorAll('#dial button').forEach(b => b.classList.toggle('on', b.dataset.m === mode));
+    stopPreview(); const d = $('#deck'), p = pan(); d.innerHTML = ''; if (!PARTS[mode]) mode = 'pic'; const P_ = PARTS[mode]; d.style.setProperty('--lc', P_[2]);
+    d.insertAdjacentHTML('beforeend', `<div class="band">${P_[0]}<span>${P_[1]} · shot ${cur[0] + 1}.${cur[1] + 1}</span><span class="sp"></span></div>`);
+    drawTl();
+    const body = document.createElement('div'); body.style.cssText = 'flex:1;min-height:0;display:flex;flex-direction:column'; d.append(body); const dd = body;
+    const H = html => { dd.insertAdjacentHTML('beforeend', html); };
     if (mode === 'pic' && figMode) {   /* figures in this shot, each removable; their controls when one is in hand; figures to add */
       const g = p.figs[sel];
-      d.innerHTML = `<div class="keys"><button class="ik" id="toPics">${ico('left')}PICTURES</button><span class="lab" style="align-self:center;font:500 10px var(--mono);color:var(--dim);padding-left:4px">figures · tap one to add it · never added for you</span></div><div class="layers" id="layers"></div>${g ? `<div class="pad">
+      dd.innerHTML = `<div class="keys"><button class="ik" id="toPics">${ico('left')}PICTURES</button><span class="lab" style="align-self:center;font:500 10px var(--mono);color:var(--dim);padding-left:4px">figures · tap one to add it · never added for you</span></div><div class="layers" id="layers"></div>${g ? `<div class="pad">
         <button data-a="big">${ico('plus')}BIGGER</button><button data-a="small">${ico('minus')}SMALLER</button><button data-a="flip">${ico('flip')}TURN</button><button data-a="del" class="warn">${ico('trash')}REMOVE</button>
         <button data-a="front">${ico('front')}TO FRONT</button><button data-a="back">${ico('back')}TO BACK</button><button data-a="none" class="hot">${ico('x')}DONE</button></div>` : `<div class="reel" id="reel"></div>`}`;
       $('#toPics').onclick = () => { figMode = false; sel = -1; drawFrame(); drawDeck(); };
       const Ls = $('#layers'); if (!p.figs.length) Ls.innerHTML = '<span class="deckhead" style="padding:0"><span class="lab">no figures in this shot · tap one below to add it</span></span>';
       p.figs.forEach((x, n) => { const Fx = D.figs[x.f] || {}, b = document.createElement('div'); b.className = 'layer' + (n === sel ? ' on' : ''); b.innerHTML = `<span class="im"></span><small>${esc((Fx.desc || 'figure').slice(0, 16))}</small><button class="del" aria-label="Remove">${ico('trash')}</button>`;
         figImg(b.querySelector('.im'), x.f, false); b.onclick = () => { sel = n; drawFrame(); drawDeck(); }; b.querySelector('.del').onclick = e => { e.stopPropagation(); removeFig(n); }; Ls.append(b); });
-      if (g) { d.querySelectorAll('.pad button').forEach(b => b.onclick = () => figAct(b.dataset.a)); return; }
+      if (g) { dd.querySelectorAll('.pad button').forEach(b => b.onclick = () => figAct(b.dataset.a)); return; }
       const reel = $('#reel'); SUG.figs.forEach(x => { const t = tileFig(x, p); if (t) reel.append(t); }); reel.style.setProperty('--rows', Math.max(1, Math.min(2, Math.floor(reel.clientHeight / 140)))); return;
     }
     if (mode === 'pic') {   /* one row of whole pictures; GRID shows a page of them, whole; COMPARE plays four in the frame */
-      d.innerHTML = `<div class="keys"><button class="ik${picGrid ? ' on' : ''}" id="toGrid">${ico(picGrid ? 'board' : 'strip')}${picGrid ? 'GRID' : 'ROW'}</button>${SUG.pics.length > 1 ? `<button class="ik" id="toCmp">${ico('split')}COMPARE</button>` : ''}<button class="ik" id="toFigs">${ico('fig')}FIGURES${p.figs.length ? `<span class="n">${p.figs.length}</span>` : ''}</button><button class="ik${fam ? ' on' : ''}" id="toFam">${fam ? `<span class="sg" style="color:${FCOL(fam)};min-width:22px;height:22px;font-size:9px">${fam.slice(0, 2).toUpperCase()}</span>` : ico('filter')}${fam ? fam.toUpperCase() : 'ANY SIGN'}</button>${picGrid && SUG.pics.length > picPer() ? `<button class="ik" id="pgPrev">${ico('left')}</button><button class="ik" id="pgNext">${ico('right')}${picPage + 1}/${Math.ceil(SUG.pics.length / picPer())}</button>` : ''}</div><div class="${picGrid ? 'pgrid' : 'reel strip'}" id="reel"></div>`;
+      dd.innerHTML = `<div class="keys"><button class="ik${picGrid ? ' on' : ''}" id="toGrid">${ico(picGrid ? 'board' : 'strip')}${picGrid ? 'GRID' : 'ROW'}</button>${SUG.pics.length > 1 ? `<button class="ik" id="toCmp">${ico('split')}COMPARE</button>` : ''}<button class="ik" id="toFigs">${ico('fig')}FIGURES${p.figs.length ? `<span class="n">${p.figs.length}</span>` : ''}</button><button class="ik${fam ? ' on' : ''}" id="toFam">${fam ? `<span class="sg" style="color:${FCOL(fam)};min-width:22px;height:22px;font-size:9px">${fam.slice(0, 2).toUpperCase()}</span>` : ico('filter')}${fam ? fam.toUpperCase() : 'ANY SIGN'}</button>${picGrid && SUG.pics.length > picPer() ? `<button class="ik" id="pgPrev">${ico('left')}</button><button class="ik" id="pgNext">${ico('right')}${picPage + 1}/${Math.ceil(SUG.pics.length / picPer())}</button>` : ''}</div><div class="${picGrid ? 'pgrid' : 'reel strip'}" id="reel"></div>`;
       $('#toFigs').onclick = () => { figMode = true; drawDeck(); coachDone('figs'); }; $('#toGrid').onclick = () => { picGrid = !picGrid; picPage = 0; drawDeck(); };
       if ($('#toCmp')) $('#toCmp').onclick = () => openCompare(0);
       $('#toFam').onclick = () => { const o = [null, ...FAMS]; fam = o[(o.indexOf(fam) + 1) % o.length]; picPage = 0; refresh(); };
@@ -641,26 +699,24 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
       else SUG.pics.forEach(x => { const t = tilePic(x, p); if (t) reel.append(t); });
       return;
     }
-    if (mode === 'voice') {   /* one row of keys; the shot's timeline (drag to tune, lane names mute); the voices that answer */
-      loadVoices(); const c = callOf(p), L = memoLine(p), sv = p.show || 'over', nf = ['vc', 'wy', 'un'].filter(k => VF[k]).length;
+    if (mode === 'ans') {   /* one row of keys; the shot's timeline (drag to tune, lane names mute); the voices that answer */
+      loadVoices(); const c = callOf(p), L = memoLine(p), sv = showOf(p), nf = ['vc', 'wy', 'un'].filter(k => VF[k]).length;
       const CALLS = [fresh(p) && 'memo', p.hasRec && 'rec', 'tts'].filter(Boolean), CN = { memo: ['memo', 'MEMO'], rec: ['mic', 'MINE'], tts: ['read', 'READ'] }, SN = { over: ['pic', 'PICTURE'], speaker: ['fig', 'SPEAKER'], split: ['split', 'BOTH'] };
-      d.innerHTML = `<div class="keys"><button class="ik${SND.on ? ' on' : ''}" id="vHear">${ico(SND.on ? 'stop' : 'play')}${SND.on ? 'STOP' : 'HEAR'}</button><button class="ik${rec ? ' rec' : ''}" id="vRec">${ico(rec ? 'stop' : 'mic')}${rec ? 'STOP' : 'REC'}</button>
-        <button class="ik" id="vCall" title="who says the line">${ico(CN[c][0])}${CN[c][1]}</button><button class="ik" id="vSee" title="what is seen while the archive answers">${ico(SN[sv][0])}${SN[sv][1]}</button>
-        <button class="ik${nf ? ' on' : ''}" id="vFilt">${ico('filter')}FILTER${nf ? `<span class="n">${nf}</span>` : ''}</button><button class="ik${p.ans ? '' : ' on'}" id="vNone">${ico('x')}NO ANSWER</button>
-        ${tuned(p) ? `<button class="ik" id="vReset">${ico('undo')}RESET</button>` : ''}</div><div id="vtl"></div><div class="answers" id="answers"></div>`;
-      $('#vHear').onclick = () => { if (SND.on) sndStop(); else hearShot(true); }; $('#vRec').onclick = toggleRecord;
-      $('#vCall').onclick = () => { snap(); p.call = CALLS[(CALLS.indexOf(c) + 1) % CALLS.length]; save(); drawDeck(); drawWords(); toast({ memo: 'The call: your memo voice', rec: 'The call: your recording', tts: 'The call: read aloud' }[p.call]); };
-      $('#vSee').onclick = () => { snap(); const o = ['over', 'speaker', 'split']; p.show = o[(o.indexOf(sv) + 1) % 3]; save(); drawDeck(); toast({ over: 'While it answers: your picture stays', speaker: 'While it answers: the speaker is seen', split: 'While it answers: both, side by side' }[p.show]); if (p.ans) hearShot(false, 'ans'); };
-      $('#vNone').onclick = () => { snap(); p.ans = null; p.ansAuto = false; save(); drawDeck(); drawWords(); };
+      dd.innerHTML = `<div class="keys"><button class="ik${SND.on ? ' on' : ''}" id="vHear">${ico(SND.on ? 'stop' : 'play')}${SND.on ? 'STOP' : 'HEAR'}</button>
+        <button class="ik${nf ? ' on' : ''}" id="vFilt">${ico('filter')}FILTER${nf ? `<span class="n">${nf}</span>` : ''}</button><button class="ik${p.ans ? '' : ' on'}" id="vNone">${ico('x')}NONE</button>
+        <button class="ik${MIX.ans ? '' : ' off'}" id="vMute">${ico(MIX.ans ? 'chat' : 'mute')}${MIX.ans ? 'MUTE' : 'MUTED'}</button>${tuned(p) ? `<button class="ik" id="vReset">${ico('undo')}RESET</button>` : ''}</div>
+        <div class="seg"><span class="lab">WHILE IT SPEAKS, SEE</span>${[['over', 'pic', 'PICTURE'], ['speaker', 'fig', 'SPEAKER'], ['split', 'split', 'BOTH']].map(([k, ic, l]) => `<button data-sv="${k}" class="${sv === k ? 'on' : ''}">${ico(ic)}${l}</button>`).join('')}</div><div class="answers" id="answers"></div>`;
+      $('#vHear').onclick = () => { if (SND.on) sndStop(); else hearShot(true); }; $('#vMute').onclick = () => toggleMix('ans');
+      dd.querySelectorAll('.seg button[data-sv]').forEach(b => b.onclick = () => { snap(); p.show = b.dataset.sv; save(); drawDeck(); toast({ over: 'While it answers, your picture stays', speaker: 'While it answers, the speaker is seen', split: 'While it answers, both side by side' }[p.show], true); if (p.ans) hearShot(false, 'ans'); });
+      $('#vNone').onclick = () => { snap(); p.ans = null; p.ansAuto = false; save(); drawDeck(); drawWords(); toast('No answer for this shot', true); };
       if ($('#vReset')) $('#vReset').onclick = () => { snap(); delete p.gap; delete p.trim; delete p.hold; delete p.pin; save(); drawFrame(); drawDeck(); toast('Timing reset'); };
       $('#vFilt').onclick = () => { const sh = document.createElement('div'); sh.className = 'sheet';
         sh.innerHTML = `<div class="grp"><b>WHO SPEAKS</b>${p.recVc ? `<button class="chip${VF.vc === p.recVc ? ' on' : ''}" data-vc="${p.recVc}">${ico('mic')}LIKE MINE</button>` : ''}${['man', 'woman', 'child'].map(v => `<button class="chip${VF.vc === v ? ' on' : ''}" data-vc="${v}">${v.toUpperCase()}</button>`).join('')}</div>
           <div class="grp"><b>HOW IT IS SAID</b>${WAYS.map(w => `<button class="chip${VF.wy === w ? ' on' : ''}" data-wy="${w}"><i style="background:${WAYCOL[w]}"></i>${w.toUpperCase()}</button>`).join('')}</div>
           <div class="grp"><b>UNDER THE VOICE</b>${['music', 'quiet', 'outdoors'].map(u => `<button class="chip${VF.un === u ? ' on' : ''}" data-un="${u}">${u === 'music' ? 'MUSIC' : u.toUpperCase()}</button>`).join('')}</div>
           <span class="sp"></span><div class="grp"><button class="ik" id="fClear">${ico('undo')}CLEAR</button><span class="sp"></span><button class="ik on" id="fDone">${ico('x')}DONE</button></div>`;
-        d.append(sh); sh.querySelectorAll('.chip').forEach(b => b.onclick = () => { const g = b.dataset.vc ? 'vc' : b.dataset.wy ? 'wy' : 'un', v = b.dataset[g]; VF[g] = VF[g] === v ? null : v; sh.querySelectorAll(`.chip[data-${g}]`).forEach(x => x.classList.toggle('on', VF[g] === x.dataset[g])); });
+        dd.append(sh); sh.querySelectorAll('.chip').forEach(b => b.onclick = () => { const g = b.dataset.vc ? 'vc' : b.dataset.wy ? 'wy' : 'un', v = b.dataset[g]; VF[g] = VF[g] === v ? null : v; sh.querySelectorAll(`.chip[data-${g}]`).forEach(x => x.classList.toggle('on', VF[g] === x.dataset[g])); });
         sh.querySelector('#fClear').onclick = () => { VF.vc = VF.wy = VF.un = null; drawDeck(); }; sh.querySelector('#fDone').onclick = () => drawDeck(); };
-      SND.tl = shotTimeline($('#vtl'), p, { tune: true, mix: true, onBlock: k => hearShot(k === 'ans', k === 'ans' ? 'ans' : null), onTune: () => { drawDeck(); drawFrame(); toast('Timing changed · RESET puts it back'); } });
       const A = $('#answers'); const list = []; const filtered = VF.vc || VF.wy || VF.un;
       if (fresh(p) && L.av && !filtered) list.push(Object.assign({ film: true }, L.av));
       answersFor(p.text, 9).forEach(a => { if (!list.some(x => x.s === a.s)) list.push(a); });
@@ -668,16 +724,53 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
       else if (VO && !list.length) A.innerHTML = '<span class="lab" style="font:500 10px var(--mono);color:var(--dim);padding:10px">no voice of that kind answers these words · open FILTER and clear one</span>';
       list.forEach(a => { const b = document.createElement('button'), on = p.ans && p.ans.s === a.s && p.ans.v === a.v; b.className = 'ans' + (on ? ' on' : ''); b.innerHTML = `<span class="pl">${ico('play')}</span><canvas></canvas><q></q><span class="tags">${esc(tags(a))}</span><small>${a.film ? 'as in the film · ' : ''}${esc(a.ti || '')}${a.y ? ' · ' + a.y : ''}</small>`; b.querySelector('q').textContent = a.s;
         requestAnimationFrame(() => drawWave(b.querySelector('canvas'), a.e, WAYCOL[a.wy] || '#e8c070'));
-        b.onclick = () => { snap(); p.ans = ansOf(a); p.ansAuto = false; save(); drawDeck(); drawWords(); hearShot(false, 'ans'); coachDone('answer'); }; A.append(b); });
+        b.onclick = () => { snap(); p.ans = ansOf(a); p.ansAuto = false; save(); drawDeck(); drawWords(); hearShot(false, 'ans'); toast('Answer chosen', true); coachDone('answer'); }; A.append(b); });
       A.style.setProperty('--rows', Math.max(1, Math.min(2, Math.floor(A.clientHeight / 104)))); return;
     }
-    if (mode === 'shot') {
-      const all = flat(), i = all.findIndex(x => x[0] === cur[0] && x[1] === cur[1]);
-      d.innerHTML = `<div class="deckhead"><span class="lab">shape the story · shot ${cur[1] + 1} of ${chap().panels.length} in ${esc(chap().title)}</span></div><div class="pad">
-        <button data-a="up" ${i === 0 ? 'disabled' : ''}>${ico('left')}EARLIER</button><button data-a="down" ${i === all.length - 1 ? 'disabled' : ''}>${ico('right')}LATER</button><button data-a="add" class="hot">${ico('plus')}ADD SHOT</button><button data-a="cut" class="warn">${ico('cut')}CUT SHOT</button>
-        <button data-a="undo" ${undo.length ? '' : 'disabled'}>${ico('undo')}UNDO</button><button data-a="dup">${ico('copy')}COPY</button><button data-a="name">${ico('name')}RENAME</button><button data-a="chap">${ico('chap')}CHAPTER</button></div>`;
-      d.querySelectorAll('.pad button').forEach(b => b.onclick = () => shotAct(b.dataset.a));
+    if (mode === 'call') {   /* who says the line: the memo's voice, your own recorded voice, or read aloud */
+      const c = callOf(p), opts = [['memo', 'memo', 'MEMO VOICE', fresh(p)], ['rec', 'mic', 'MY VOICE', !!p.hasRec], ['tts', 'read', 'READ ALOUD', true]];
+      dd.innerHTML = `<div class="keys"><button class="ik${SND.on ? ' on' : ''}" id="cHear">${ico(SND.on ? 'stop' : 'play')}${SND.on ? 'STOP' : 'HEAR'}</button><button class="ik${rec ? ' rec' : ''}" id="cRec">${ico(rec ? 'stop' : 'mic')}${rec ? 'STOP' : 'RECORD'}</button>
+        <button class="ik" id="cWrite">${ico('write')}WORDS</button><button class="ik${MIX.call ? '' : ' off'}" id="cMute">${ico(MIX.call ? 'mic' : 'mute')}${MIX.call ? 'MUTE' : 'MUTED'}</button></div>
+        <div class="seg"><span class="lab">THE LINE IS SAID BY</span>${opts.map(([k, ic, l, ok]) => `<button data-c="${k}" class="${c === k ? 'on' : ''}" ${ok ? '' : 'disabled'}>${ico(ic)}${l}</button>`).join('')}</div>
+        <div class="note">${fresh(p) ? 'This shot is a line from your memo: <b>MEMO VOICE</b> plays it as you said it.' : p.text ? 'Your own words. <b>RECORD</b> to say them yourself, or they are <b>read aloud</b>.' : 'An empty shot: tap <b>WORDS</b> to write or say it.'}${p.hasRec ? ' Your recording lasts ' + (p.recDur || 0).toFixed(1) + 's' + (p.recF0 ? ', about ' + p.recF0 + ' Hz' : '') + '.' : ''}</div>`;
+      $('#cHear').onclick = () => { if (SND.on) sndStop(); else hearShot(false); }; $('#cRec').onclick = toggleRecord; $('#cWrite').onclick = openWriter; $('#cMute').onclick = () => toggleMix('call');
+      dd.querySelectorAll('.seg button[data-c]').forEach(b => b.onclick = () => { if (b.disabled) return; snap(); p.call = b.dataset.c; save(); drawDeck(); drawWords(); toast({ memo: 'The memo voice says this line', rec: 'Your recording says this line', tts: 'This line is read aloud' }[p.call], true); });
+      return;
     }
+    if (mode === 'join') {   /* how this shot hands over to the next: the picture's join, its length, and where the sound goes across the cut */
+      const j = trOf(p), all = flat(), i = all.findIndex(x => x[0] === cur[0] && x[1] === cur[1]), last = i === all.length - 1;
+      dd.innerHTML = `<div class="keys"><button class="ik" id="jPrev" ${last ? 'disabled' : ''}>${ico('play')}PREVIEW</button><button class="ik" id="jAll">${ico('copy')}USE FOR ALL</button>${j.own ? `<button class="ik" id="jReset">${ico('undo')}FILM'S FLOW</button>` : ''}</div>
+        <div class="seg"><span class="lab">THE PICTURE</span>${['cut', 'dissolve', 'dip', 'wipe'].map(k => `<button data-t="${k}" class="${j.type === k ? 'on' : ''}">${DG[k]}${TRN[k]}</button>`).join('')}</div>
+        ${j.type !== 'cut' ? `<div class="rng">LENGTH<input type="range" id="jDur" min="0.2" max="3" step="0.1" value="${j.dur}"><b>${j.dur.toFixed(1)}s</b></div>` : ''}
+        <div class="seg"><span class="lab">THE SOUND ACROSS</span>${[['clean', 'ENDS CLEAN'], ['carry', 'ANSWER CARRIES'], ['lead', 'NEXT CALL LEADS']].map(([k, l]) => `<button data-a="${k}" class="${j.audio === k ? 'on' : ''}">${DG[k]}${l}</button>`).join('')}</div>
+        <div class="note">${last ? 'The last shot: the film ends here.' : j.own ? 'This shot has its own join.' : 'Following the film\'s flow (side menu). Change it here for this shot only.'} ${{ clean: 'The sound stops at the cut.', carry: 'The answer keeps speaking over the next picture.', lead: 'The next line begins under this picture, before the cut.' }[j.audio]}</div>`;
+      const setJ = (k, v) => { snap(); p.tr = Object.assign({ type: j.type, dur: j.dur, audio: j.audio }, p.tr || {}, { [k]: v }); save(); drawDeck(); drawShots(); };
+      dd.querySelectorAll('button[data-t]').forEach(b => b.onclick = () => { setJ('type', b.dataset.t); previewJoin(); });
+      dd.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => { setJ('audio', b.dataset.a); toast({ clean: 'The sound ends clean at the cut', carry: 'The answer carries over the next picture', lead: 'The next line leads in under this picture' }[b.dataset.a], true); });
+      if ($('#jDur')) $('#jDur').oninput = e => { const v = +e.target.value; e.target.nextElementSibling.textContent = v.toFixed(1) + 's'; p.tr = Object.assign({ type: j.type, dur: j.dur, audio: j.audio }, p.tr || {}, { dur: v }); save(); drawTl(); };
+      $('#jPrev').onclick = previewJoin; $('#jAll').onclick = () => { snap(); FLOW.tr = j.type; FLOW.dur = j.dur; FLOW.audio = j.audio; board.forEach(c => c.panels.forEach(q => delete q.tr)); save(); drawDeck(); toast('Every shot now joins this way', true); };
+      if ($('#jReset')) $('#jReset').onclick = () => { snap(); delete p.tr; save(); drawDeck(); toast('Back to the film\'s flow', true); };
+      return;
+    }
+  }
+  /* the timeline, always on screen under the frame: the map of the shot. Tap a lane to work on that part; drag to tune */
+  function drawTl() { if (!board) return; SND.tl = shotTimeline($('#tlbox'), pan(), { tune: true, select: true, sel: mode,
+    onSelect: k => { if (mode === k) return; mode = k; if (k !== 'pic') { figMode = false; sel = -1; } drawFrame(); drawDeck(); coachDone('part-' + k); },
+    onBlock: k => hearShot(k === 'ans', k === 'ans' ? 'ans' : null), onTune: () => { drawDeck(); drawFrame(); toast('Timing changed', true); } }); }
+  /* preview a join: this shot's picture gives way to the next one's, as the join says */
+  function previewJoin() {
+    const all = flat(), i = all.findIndex(x => x[0] === cur[0] && x[1] === cur[1]), nx = all[i + 1]; if (!nx) return; const p = pan(), q = board[nx[0]].panels[nx[1]], j = trOf(p), Q = withPin(pic(q.g), q); if (!Q) return;
+    stage.querySelectorAll('.jpv').forEach(e => e.remove()); const v = document.createElement('video'); v.className = 'jpv'; v.muted = true; v.playsInline = true; v.poster = Q.img || ''; if (Q.video && moving) v.src = Q.video + '#t=' + (Q.in || 0).toFixed(1);
+    v.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:5;opacity:0'; stage.append(v); v.play().catch(() => { });
+    const dur = j.type === 'cut' ? 0 : j.dur * 1000, blk = document.createElement('div'); blk.className = 'jpv'; blk.style.cssText = 'position:absolute;inset:0;background:#000;z-index:4;opacity:0;pointer-events:none'; stage.append(blk);
+    setTimeout(() => {
+      if (j.type === 'cut') v.style.opacity = 1;
+      if (j.type === 'dissolve') { v.style.transition = `opacity ${dur}ms ease`; v.style.opacity = 1; }
+      if (j.type === 'dip') { blk.style.transition = `opacity ${dur / 2}ms ease`; blk.style.opacity = 1; setTimeout(() => { v.style.transition = `opacity ${dur / 2}ms ease`; v.style.opacity = 1; blk.style.opacity = 0; }, dur / 2); }
+      if (j.type === 'wipe') { v.style.opacity = 1; v.animate([{ clipPath: 'inset(0 0 0 100%)' }, { clipPath: 'inset(0 0 0 0)' }], { duration: dur, easing: 'cubic-bezier(.3,.7,.2,1)' }); }
+    }, 700);
+    $('#esub').textContent = `${TRN[j.type]}${j.type === 'cut' ? '' : ' ' + j.dur.toFixed(1) + 's'} into ${nx[0] + 1}.${nx[1] + 1} · ${SNDN[j.audio]}`;
+    setTimeout(() => { stage.querySelectorAll('.jpv').forEach(e => e.remove()); $('#esub').textContent = ''; }, 700 + dur + 1600);
   }
   function figAct(a) {
     const p = pan(), g = p.figs[sel]; if (!g) return; if (a === 'none') { sel = -1; drawFrame(); drawDeck(); return; } if (a === 'del') { removeFig(sel); return; } snap();
@@ -689,7 +782,7 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
     const c = chap(); if (a !== 'undo') snap();
     if (a === 'add') { c.panels.splice(cur[1] + 1, 0, blank()); cur = [cur[0], cur[1] + 1]; render(); openWriter(); return; }
     if (a === 'dup') { const p = JSON.parse(JSON.stringify(pan())); p.id = nid(); p.hasRec = false; if (p.call === 'rec') p.call = 'tts'; c.panels.splice(cur[1] + 1, 0, p); cur = [cur[0], cur[1] + 1]; toast('Copied'); }
-    if (a === 'cut') { c.panels.splice(cur[1], 1); if (!c.panels.length) c.panels.push(blank()); cur = [cur[0], Math.min(cur[1], c.panels.length - 1)]; toast('Shot cut · UNDO brings it back'); }
+    if (a === 'cut') { c.panels.splice(cur[1], 1); if (!c.panels.length) c.panels.push(blank()); cur = [cur[0], Math.min(cur[1], c.panels.length - 1)]; toast('Shot cut', true); }
     if (a === 'up') { const p = c.panels[cur[1]]; if (cur[1] > 0) { c.panels.splice(cur[1], 1); c.panels.splice(cur[1] - 1, 0, p); cur = [cur[0], cur[1] - 1]; } else if (cur[0] > 0) { c.panels.splice(0, 1); if (!c.panels.length) c.panels.push(blank()); const b = board[cur[0] - 1]; b.panels.push(p); cur = [cur[0] - 1, b.panels.length - 1]; } }
     if (a === 'down') { const p = c.panels[cur[1]]; if (cur[1] < c.panels.length - 1) { c.panels.splice(cur[1], 1); c.panels.splice(cur[1] + 1, 0, p); cur = [cur[0], cur[1] + 1]; } else if (cur[0] < board.length - 1) { c.panels.splice(cur[1], 1); if (!c.panels.length) c.panels.push(blank()); board[cur[0] + 1].panels.unshift(p); cur = [cur[0] + 1, 0]; } }
     if (a === 'undo') { if (!undo.length) return; const v = JSON.parse(undo.pop()); board = v.board; cur = v.cur; sel = -1; toast('Undone'); }
@@ -703,14 +796,23 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
     c.panels.forEach((p, pi) => { const b = document.createElement('button'), Pc = pic(p.g), S = signOf(p.g); b.className = 's' + (pi === cur[1] ? ' on' : '') + (p.text && !fresh(p) ? ' own' : ''); bgOf(b, Pc ? Pc.img : '');
       b.innerHTML = `<i>${pi + 1}</i><span class="bar" style="background:${S ? FCOL(S.fam) : 'transparent'}"></span>`; b.title = (p.text || '(empty)') + (S ? ` · ${S.s} ${S.name}` : ''); b.onclick = () => go([cur[0], pi]); el.append(b); });
     const a = document.createElement('button'); a.className = 'addS'; a.innerHTML = ico('plus'); a.setAttribute('aria-label', 'Add a shot'); a.onclick = () => { snap(); c.panels.push(blank()); go([cur[0], c.panels.length - 1]); openWriter(); }; el.append(a);
+    const k = document.createElement('button'); k.className = 'ik'; k.id = 'shotKey'; k.innerHTML = `${ico('shots')}SHOT`; k.onclick = shotSheet; el.prepend(k);
     const on = el.querySelector('.s.on'); if (on) { const r = on.getBoundingClientRect(), R = el.getBoundingClientRect(); if (r.left < R.left || r.right > R.right) el.scrollLeft += r.left - R.left - R.width / 2 + r.width / 2; }
+  }
+  /* the shot's operations, in one place: move it, copy it, cut it, add after it, undo; the chapter's name */
+  function shotSheet() {
+    const d = $('#deck'); d.querySelectorAll('.sheet').forEach(x => x.remove()); const all = flat(), i = all.findIndex(x => x[0] === cur[0] && x[1] === cur[1]), sh = document.createElement('div'); sh.className = 'sheet';
+    sh.innerHTML = `<div class="grp"><b>SHOT ${cur[0] + 1}.${cur[1] + 1} · ${esc((pan().text || 'empty').slice(0, 40))}</b></div><div class="pad">
+      <button data-a="up" ${i === 0 ? 'disabled' : ''}>${ico('left')}EARLIER</button><button data-a="down" ${i === all.length - 1 ? 'disabled' : ''}>${ico('right')}LATER</button><button data-a="add" class="hot">${ico('plus')}ADD AFTER</button><button data-a="cut" class="warn">${ico('cut')}CUT</button>
+      <button data-a="undo" ${undo.length ? '' : 'disabled'}>${ico('undo')}UNDO</button><button data-a="dup">${ico('copy')}COPY</button><button data-a="name">${ico('name')}CHAPTER NAME</button><button data-a="chap">${ico('chap')}NEW CHAPTER</button></div>
+      <div class="grp"><span class="sp"></span><button class="ik on" id="shX">${ico('x')}CLOSE</button></div>`;
+    d.append(sh); sh.querySelectorAll('.pad button').forEach(b => b.onclick = () => { sh.remove(); shotAct(b.dataset.a); }); sh.querySelector('#shX').onclick = () => sh.remove();
   }
   function drawTop() { $('#wC').textContent = `${cur[0] + 1} · ${chap().title.toUpperCase()}`; const all = flat(), i = all.findIndex(x => x[0] === cur[0] && x[1] === cur[1]); $('#wS').textContent = `shot ${cur[1] + 1} of ${chap().panels.length} · ${i + 1} of ${all.length}`; }
   function render() { if (!board) return; { const p = pan(), L = memoLine(p); if (L && L.av && p.ans && p.ans.s === L.av.s && !p.ans.e) p.ans = Object.assign({}, L.av); }   /* older boards get the film answer's waveform */
     suggestFor(pan()); follow(pan()); autoAnswer(pan()); drawTop(); drawFrame(); drawWords(); drawDeck(); drawShots(); save(); }
   function go(c) { sndStop(); closeCompare(); cur = c; sel = -1; render(); }
   const step = d => { const all = flat(), i = all.findIndex(x => x[0] === cur[0] && x[1] === cur[1]), j = i + d; if (j >= 0 && j < all.length) { go(all[j]); buzz(); coachDone('swipe'); } };
-  document.querySelectorAll('#dial button').forEach(b => b.onclick = () => { if (b.dataset.m === 'board') { openBoard(); return; } mode = b.dataset.m; if (mode !== 'pic') { figMode = false; sel = -1; } drawFrame(); drawDeck(); coachDone('mode-' + mode); });
   addEventListener('keydown', e => { if (/INPUT|TEXTAREA/.test(e.target.tagName)) { if (e.key === 'Escape') closeWriter(); return; } if (!$('#live').hidden) { liveKey(e); return; } if (!board) return; if (e.key === 'ArrowRight') step(1); if (e.key === 'ArrowLeft') step(-1); if ((e.key === 'Backspace' || e.key === 'Delete') && sel >= 0) removeFig(sel); if (e.key === 'Enter') { e.preventDefault(); openWriter(); } if (e.key === ' ') { e.preventDefault(); if (SND.on) sndStop(); else hearShot(true); } if (e.key === 'Escape') { $('#board').hidden = true; $('#signCard').hidden = true; } });
 
   /* ---- LIVE: the film jockey. It performs the board. Every choice it makes is written in the trace; PAUSE holds everything where it is */
@@ -724,10 +826,15 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
   }
   const lwait = ms => new Promise(ok => { let left = ms, t0 = performance.now(); const tick = () => { if (!LV.on) return ok(); if (LV.paused) { t0 = performance.now(); return setTimeout(tick, 100); } left -= performance.now() - t0; t0 = performance.now(); if (left <= 0) ok(); else setTimeout(tick, Math.min(100, left)); }; tick(); });
   function lnext() { [1, 2].forEach(n => { const q = LV.seq[LV.k + n], el = $('#lnx' + n), P = q ? pic(board[q[0]].panels[q[1]].g) : null; bgOf(el, P ? P.img : ''); el.querySelector('small').textContent = q ? `${n === 1 ? 'NEXT' : 'AFTER'} · ${q[0] + 1}.${q[1] + 1}` : ''; }); }
-  function lshow(P) {
+  function lshow(P, j) {   /* the picture arrives by its join: CUT, DISSOLVE, DIP (through black) or WIPE (a travelling edge), for the join's length */
     const v = lmain.find(x => !x.classList.contains('on')) || lmain[0]; if (!P) return; v.poster = P.img || ''; v.src = P.video ? P.video + '#t=' + (P.in || 0).toFixed(1) : ''; v._in = P.in || 0;
-    const swap = () => { v.classList.add('on'); lmain.forEach(o => { if (o !== v) { o.classList.remove('on'); setTimeout(() => o.pause(), 900); } }); };
-    v.style.transitionDuration = LV.cut ? '0s' : '.9s'; v.onloadeddata = swap; v.load(); v.play().catch(() => { }); setTimeout(() => { if (!v.classList.contains('on')) swap(); }, 1500);
+    const type = j ? j.type : 'dissolve', dur = j ? j.dur * 1000 : 900, box = lv.querySelector('.main'); let dip = box.querySelector('.dip'); if (!dip) { dip = document.createElement('div'); dip.className = 'dip'; dip.style.cssText = 'position:absolute;inset:0;background:#000;opacity:0;z-index:3;pointer-events:none'; box.append(dip); }
+    const swap = () => { if (v.classList.contains('on')) return; v.style.transitionDuration = type === 'dissolve' ? dur + 'ms' : '0s'; v.style.zIndex = 2; v.classList.add('on');
+      if (type === 'wipe') v.animate([{ clipPath: 'inset(0 0 0 100%)' }, { clipPath: 'inset(0 0 0 0)' }], { duration: dur, easing: 'cubic-bezier(.3,.7,.2,1)' });
+      lmain.forEach(o => { if (o !== v) { o.style.zIndex = 1; setTimeout(() => { o.classList.remove('on'); o.pause(); }, type === 'cut' ? 0 : dur + 100); } }); };
+    if (type === 'dip') { dip.style.transition = `opacity ${dur / 2}ms ease`; dip.style.opacity = 1; setTimeout(() => { swap(); dip.style.opacity = 0; }, dur / 2); }
+    else { v.onloadeddata = swap; setTimeout(swap, 1200); }
+    v.load(); v.play().catch(() => { });
   }
   function lplaySeg(el, src, t0, t1) {   /* pausable: PAUSE pauses the element, RESUME plays it on */
     return new Promise(ok => { let done = false; const fin = () => { if (done) return; done = true; clearInterval(iv); el.pause(); ok(); };
@@ -745,34 +852,42 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
   }
   function trace(ci, pi, p, next) {
     const S = signOf(p.g), c = callOf(p), nx = next ? board[next[0]].panels[next[1]] : null, NS = nx ? signOf(nx.g) : null, Pc = pic(p.g) || {};
-    $('#ltrace').innerHTML = `${ci + 1}.${pi + 1} · ${S ? esc(S.s + ' ' + S.name) : 'no sign'} · ${esc((Pc.title || '').slice(0, 30))}${Pc.year ? ' ' + Pc.year : ''}<br>call: ${c === 'memo' ? 'the memo' : c === 'rec' ? 'your voice' : 'read aloud'} · answer: ${LV.ansMode !== 'off' && p.ans ? esc((p.ans.ti || 'archive').slice(0, 28)) + ' · seen: ' + (LV.ansMode === 'set' ? (p.show || 'over') : LV.ansMode).replace('over', 'your picture') : 'none'}<br>order: ${ORDERS.find(o => o[0] === LV.order)[1].toLowerCase()} · next ${next ? `${next[0] + 1}.${next[1] + 1}${NS ? ' · ' + esc(NS.s) : ''}` : 'the end'}`;
+    $('#ltrace').innerHTML = `${ci + 1}.${pi + 1} · ${S ? esc(S.s + ' ' + S.name) : 'no sign'} · ${esc((Pc.title || '').slice(0, 30))}${Pc.year ? ' ' + Pc.year : ''}<br>call: ${c === 'memo' ? 'the memo' : c === 'rec' ? 'your voice' : 'read aloud'} · join: ${TRN[trOf(p).type]} · ${SNDN[trOf(p).audio]} · answer: ${LV.ansMode !== 'off' && p.ans ? esc((p.ans.ti || 'archive').slice(0, 28)) + ' · seen: ' + (LV.ansMode === 'set' ? showOf(p) : LV.ansMode).replace('over', 'your picture') : 'none'}<br>order: ${ORDERS.find(o => o[0] === LV.order)[1].toLowerCase()} · next ${next ? `${next[0] + 1}.${next[1] + 1}${NS ? ' · ' + esc(NS.s) : ''}` : 'the end'}`;
     const I = $('#linfo'); I.innerHTML = S ? `${sgTile(S)}<h4>${esc(S.name)}</h4><p>${esc(S.type)} · ${esc(S.fam)}</p>` : '';
   }
   async function liveRun() {
     while (LV.on && LV.k < LV.seq.length) {
       const my = ++LV.cut_, [ci, pi] = LV.seq[LV.k], p = board[ci].panels[pi]; cur = [ci, pi]; save();
-      trace(ci, pi, p, LV.seq[LV.k + 1]); lshow(withPin(pic(p.g), p)); lnext(); LV.tl = shotTimeline($('#ltl'), p, {}); LV.ph = null; const lph = ph => { LV.ph = ph; LV.ph0 = performance.now(); LV.pAcc = 0; }; $('#la').textContent = ''; $('#lwho').textContent = callOf(p) === 'memo' ? 'THE MEMO' : callOf(p) === 'rec' ? 'YOUR VOICE' : ''; $('#lc').textContent = p.text || '';
-      await lwait(500 * LV.pace); if (!LV.on || my !== LV.cut_) return;
-      const t = tm(p), show = LV.ansMode === 'set' ? (p.show || 'over') : LV.ansMode, sp = lv.querySelector('.spk'), was = lv.className;
-      lph('call'); const callP = lcall(p); let ansP = Promise.resolve();
-      if (LV.ansMode !== 'off' && p.ans) ansP = lwait((t.a0 - t.c0) * 1000).then(async () => { if (!LV.on || my !== LV.cut_) return; lph('answer'); $('#lwho').textContent = 'THE ARCHIVE ANSWERS'; $('#la').textContent = p.ans.s;
+      const prevJ = LV.prevJ; LV.prevJ = null;   /* the join from the shot before into this one */
+      trace(ci, pi, p, LV.seq[LV.k + 1]); lnext(); LV.tl = shotTimeline($('#ltl'), p, {}); LV.ph = null; const lph = ph => { LV.ph = ph; LV.ph0 = performance.now(); LV.pAcc = 0; };
+      const t = tm(p), show = LV.ansMode === 'set' ? showOf(p) : LV.ansMode, sp = lv.querySelector('.spk'), was = lv.className.replace(' spkon', ''); let callP = null, callT0 = 0;
+      const startCall = () => { $('#lwho').textContent = callOf(p) === 'memo' ? 'THE MEMO' : callOf(p) === 'rec' ? 'YOUR VOICE' : ''; $('#lc').textContent = p.text || ''; lph('call'); callT0 = performance.now(); callP = lcall(p); };
+      if (prevJ && prevJ.audio === 'lead') { startCall(); await lwait(1000); if (!LV.on || my !== LV.cut_) return; }   /* the next line leads in under the last picture */
+      lshow(withPin(pic(p.g), p), prevJ);
+      if (LV.carryP) { await LV.carryP; LV.carryP = null; if (!LV.on || my !== LV.cut_) return; }   /* the last answer finishes over this picture */
+      if (!callP) { $('#la').textContent = ''; await lwait(500 * LV.pace); if (!LV.on || my !== LV.cut_) return; startCall(); }
+      let ansP = Promise.resolve(), ansDone = true, ansEnd = 0;
+      if (LV.ansMode !== 'off' && p.ans) { ansDone = false; ansP = lwait(Math.max(0, (t.a0 - t.c0) * 1000 - (performance.now() - callT0))).then(async () => { if (!LV.on || my !== LV.cut_) return; lph('answer'); $('#lwho').textContent = 'THE ARCHIVE ANSWERS'; $('#la').textContent = p.ans.s;
         sp.classList.toggle('hide', show === 'over'); if (show === 'split' && LV.layout === 'one') lv.className = 'pair'; if (show !== 'over') lv.classList.add('spkon'); lspk.classList.add('on');
-        const [s0, s1] = ansSpan(p.ans, p); await lplaySeg(lspk, p.ans.v, s0, s1); lspk.classList.remove('on'); sp.classList.remove('hide'); lv.className = was; lv.classList.remove('spkon'); });
-      await Promise.all([callP, ansP]); if (!LV.on || my !== LV.cut_) return;
-      lph(null); LV.tl.set(null); await lwait(Math.max(300, t.hold * 1000) * LV.pace); if (!LV.on || my !== LV.cut_) return;
+        const [s0, s1] = ansSpan(p.ans, p); ansEnd = s1; await lplaySeg(lspk, p.ans.v, s0, s1); lspk.classList.remove('on'); sp.classList.remove('hide'); lv.className = was; $('#la').textContent = ''; }).finally(() => { ansDone = true; }); }
+      const j = trOf(p); LV.prevJ = j;
+      if (j.audio === 'carry' && !ansDone) {   /* the answer carries: the cut comes while it is still speaking */
+        await callP; await new Promise(ok => { const iv = setInterval(() => { if (!LV.on || ansDone || (ansEnd && lspk.currentTime >= ansEnd - 1.4)) { clearInterval(iv); ok(); } }, 80); }); LV.carryP = ansP;
+      } else { await Promise.all([callP, ansP]); if (!LV.on || my !== LV.cut_) return; lph(null); LV.tl.set(null); await lwait(Math.max(300, t.hold * 1000) * LV.pace); }
+      if (!LV.on || my !== LV.cut_) return;
       LV.k++;
     }
     if (LV.on) { $('#lwho').textContent = ''; $('#lc').textContent = 'The end of the board.'; $('#la').textContent = ''; LV.paused = true; drawLbar(); }
   }
   (function ltick() { if (LV.on && LV.tl && LV.ph) { if (LV.paused) LV.ph0 = performance.now() - (LV.pAcc || 0) * 1000; else LV.pAcc = (performance.now() - LV.ph0) / 1000; LV.tl.set(LV.ph, LV.pAcc); } requestAnimationFrame(ltick); })();
   function liveStart() {
-    sndStop(); LV.on = true; LV.paused = false; LV.cut_ = 0; LV.seq = liveSeq(); LV.k = Math.max(0, LV.seq.findIndex(x => x[0] === cur[0] && x[1] === cur[1])); $('#live').hidden = false; lv.className = LV.layout; drawLbar(); calmSoon();
+    sndStop(); LV.prevJ = null; LV.carryP = null; LV.on = true; LV.paused = false; LV.cut_ = 0; LV.seq = liveSeq(); LV.k = Math.max(0, LV.seq.findIndex(x => x[0] === cur[0] && x[1] === cur[1])); $('#live').hidden = false; lv.className = LV.layout; drawLbar(); calmSoon();
     try { const el = document.documentElement; (el.requestFullscreen || el.webkitRequestFullscreen || (() => { })).call(el); } catch (e) { }
     try { const u = aud.play(); u && u.then(() => aud.pause()).catch(() => { }); } catch (e) { } liveRun();
   }
   function liveStop() { LV.on = false; aud.pause(); lspk.pause(); lmain.forEach(v => v.pause()); try { speechSynthesis.cancel(); } catch (e) { } $('#live').hidden = true; try { document.fullscreenElement && document.exitFullscreen(); } catch (e) { } render(); }
   function livePause(on) { LV.paused = on; if (on) { aud.pause(); lspk.pause(); lmain.forEach(v => v.pause()); try { speechSynthesis.pause(); } catch (e) { } } else { lmain.forEach(v => v.classList.contains('on') && v.play().catch(() => { })); try { speechSynthesis.resume(); } catch (e) { } if (LV.k >= LV.seq.length) { LV.k = 0; LV.cut_++; liveRun(); } } drawLbar(); }
-  function liveJump(d) { LV.k = Math.max(0, Math.min(LV.seq.length - 1, LV.k + d)); aud.pause(); lspk.pause(); lspk.classList.remove('on'); try { speechSynthesis.cancel(); } catch (e) { } LV.paused = false; LV.cut_++; drawLbar(); setTimeout(liveRun, 50); }
+  function liveJump(d) { LV.carryP = null; LV.prevJ = null; LV.k = Math.max(0, Math.min(LV.seq.length - 1, LV.k + d)); aud.pause(); lspk.pause(); lspk.classList.remove('on'); try { speechSynthesis.cancel(); } catch (e) { } LV.paused = false; LV.cut_++; drawLbar(); setTimeout(liveRun, 50); }
   function drawLbar() { $('#lPauseL').textContent = LV.paused ? 'PLAY' : 'PAUSE'; $('#lPauseI').setAttribute('href', LV.paused ? '#i-play' : '#i-pause'); $('#lLayoutL').textContent = LV.layout.toUpperCase(); $('#lPaceL').textContent = PACES.find(x => x[0] === LV.pace)[1]; $('#lOrderL').textContent = ORDERS.find(o => o[0] === LV.order)[1]; $('#lAnsL').textContent = ANSMODES.find(m => m[0] === LV.ansMode)[1]; $('#lMixC').classList.toggle('off', !MIX.call); $('#lMixA').classList.toggle('off', !MIX.ans); $('#lMixC').querySelector('use').setAttribute('href', MIX.call ? '#i-mic' : '#i-mute'); $('#lMixA').querySelector('use').setAttribute('href', MIX.ans ? '#i-chat' : '#i-mute'); }
   function calmSoon() { $('#live').classList.remove('calm'); clearTimeout(LV.calm); LV.calm = setTimeout(() => { if (!LV.paused) $('#live').classList.add('calm'); }, 3200); }
   $('#live').addEventListener('pointerdown', e => { if (e.target.closest('#lbar')) { calmSoon(); return; } if ($('#live').classList.contains('calm')) calmSoon(); else livePause(!LV.paused); });
@@ -785,9 +900,28 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
   function liveKey(e) { if (e.key === ' ') { e.preventDefault(); livePause(!LV.paused); } if (e.key === 'ArrowRight') liveJump(1); if (e.key === 'ArrowLeft') liveJump(-1); if (e.key === 'Escape') liveStop(); calmSoon(); }
   $('#bLive').onclick = () => { liveStart(); coachDone('live'); };
 
+  /* ---- the side menu: the film as a whole. PLAY, the whole board, the film's flow (how shots join, how answers come in), tracks, keeping and sharing */
+  function drawMenu() {
+    $('#mFlow').innerHTML = `<div class="seg">${['cut', 'dissolve', 'dip', 'wipe'].map(k => `<button data-ft="${k}" class="${FLOW.tr === k ? 'on' : ''}">${DG[k]}${TRN[k]}</button>`).join('')}</div>
+      ${FLOW.tr !== 'cut' ? `<div class="rng" style="padding:6px 2px">LENGTH<input type="range" id="fDur" min="0.2" max="3" step="0.1" value="${FLOW.dur}"><b>${FLOW.dur.toFixed(1)}s</b></div>` : ''}
+      <div class="seg" style="margin-top:6px">${[['clean', 'ENDS CLEAN'], ['carry', 'ANSWER CARRIES'], ['lead', 'NEXT LEADS']].map(([k, l]) => `<button data-fa="${k}" class="${FLOW.audio === k ? 'on' : ''}">${DG[k]}${l}</button>`).join('')}</div>`;
+    $('#mAns').innerHTML = `<div class="seg">${[['after', 'clean', 'AFTER THE CALL'], ['over', 'carry', 'OVER THE CALL'], ['none', 'x', 'NO ANSWERS']].map(([k, d, l]) => `<button data-fn="${k}" class="${FLOW.ans === k ? 'on' : ''}">${DG[d] || ico(d)}${l}</button>`).join('')}</div>
+      <div class="seg" style="margin-top:6px">${[['over', 'pic', 'SEE PICTURE'], ['speaker', 'fig', 'SEE SPEAKER'], ['split', 'split', 'SEE BOTH']].map(([k, ic, l]) => `<button data-fs="${k}" class="${FLOW.show === k ? 'on' : ''}">${ico(ic)}${l}</button>`).join('')}</div>`;
+    $('#mTracks').innerHTML = `<button class="ik${MIX.call ? '' : ' off'}" data-mx="call" style="color:var(--call)">${ico(MIX.call ? 'mic' : 'mute')}CALL ${MIX.call ? 'ON' : 'MUTED'}</button><button class="ik${MIX.ans ? '' : ' off'}" data-mx="ans" style="color:var(--ans)">${ico(MIX.ans ? 'chat' : 'mute')}ANSWER ${MIX.ans ? 'ON' : 'MUTED'}</button>`;
+    $('#drawer').querySelectorAll('[data-ft]').forEach(b => b.onclick = () => { FLOW.tr = b.dataset.ft; save(); drawMenu(); drawTl(); });
+    $('#drawer').querySelectorAll('[data-fa]').forEach(b => b.onclick = () => { FLOW.audio = b.dataset.fa; save(); drawMenu(); drawTl(); });
+    $('#drawer').querySelectorAll('[data-fn]').forEach(b => b.onclick = () => { FLOW.ans = b.dataset.fn; save(); drawMenu(); render(); });
+    $('#drawer').querySelectorAll('[data-fs]').forEach(b => b.onclick = () => { FLOW.show = b.dataset.fs; save(); drawMenu(); });
+    $('#drawer').querySelectorAll('[data-mx]').forEach(b => b.onclick = () => toggleMix(b.dataset.mx));
+    if ($('#fDur')) $('#fDur').oninput = e => { FLOW.dur = +e.target.value; e.target.nextElementSibling.textContent = FLOW.dur.toFixed(1) + 's'; save(); drawTl(); };
+    $('#moveL').textContent = moving ? 'MOVING' : 'STILLS';
+  }
+  const menu = on => { if (on) drawMenu(); $('#drawer').hidden = !on; };
+  $('#bMenu').onclick = () => menu(true); $('#dClose').onclick = $('#dScrim').onclick = () => menu(false);
+  $('#mPlay').onclick = () => { menu(false); liveStart(); }; $('#mBoard').onclick = () => { menu(false); boardView = 'ch'; openBoard(); }; $('#mSigns').onclick = () => { menu(false); boardView = 'sg'; openBoard(); }; $('#mTl').onclick = () => { menu(false); boardView = 'tl'; openBoard(); };
   /* ---- the board overlay and export */
   function openBoard() {
-    sndStop(); const pg = $('#pages'), dots = $('#dots'); pg.innerHTML = ''; dots.innerHTML = ''; $('#vCh').classList.toggle('on', boardView === 'ch'); $('#vSg').classList.toggle('on', boardView === 'sg'); $('#vTl').classList.toggle('on', boardView === 'tl'); $('#moveL').textContent = moving ? 'MOVING' : 'STILLS';
+    sndStop(); const pg = $('#pages'), dots = $('#dots'); pg.innerHTML = ''; dots.innerHTML = ''; $('#vCh').classList.toggle('on', boardView === 'ch'); $('#vSg').classList.toggle('on', boardView === 'sg'); $('#vTl').classList.toggle('on', boardView === 'tl'); 
     const thumb = (ci, pi) => { const p = board[ci].panels[pi], b = document.createElement('button'), Pc = pic(p.g), S = signOf(p.g); bgOf(b, Pc ? Pc.img : ''); b.className = ci === cur[0] && pi === cur[1] ? 'on' : '';
       b.innerHTML = `${sgTile(S)}<i>${ci + 1}.${pi + 1}</i><span class="bar" style="background:${S ? FCOL(S.fam) : 'transparent'}"></span>`; b.title = p.text || ''; b.onclick = () => { $('#board').hidden = true; go([ci, pi]); }; return b; };
     const pages = [];
@@ -811,7 +945,7 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
   }
   $('#vCh').onclick = () => { boardView = 'ch'; openBoard(); }; $('#vTl').onclick = () => { boardView = 'tl'; openBoard(); }; $('#vSg').onclick = () => { boardView = 'sg'; openBoard(); };
   $('#bClose').onclick = () => { $('#board').hidden = true; }; $('#where').onclick = openBoard;
-  $('#bMove').onclick = () => { moving = !moving; vkey = null; save(); $('#moveL').textContent = moving ? 'MOVING' : 'STILLS'; drawFrame(); };
+  $('#bMove').onclick = () => { moving = !moving; vkey = null; save(); drawMenu(); drawFrame(); };
   function printBoard() {
     const sh = $('#sheet'); sh.innerHTML = `<h1>Norse Half Moon · storyboard</h1>`;
     board.forEach((c, ci) => { sh.insertAdjacentHTML('beforeend', `<h2>Chapter ${ci + 1} · ${esc(c.title)}</h2>`); const row = document.createElement('div'); row.className = 'rowp';
@@ -830,15 +964,16 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
   $('#bCsv').onclick = () => { const q = s => `"${String(s ?? '').replace(/"/g, '""')}"`, rows = [['chapter', 'shot', 'chapter title', 'words', 'call', 'answer', 'answer from', 'picture', 'year', 'sign', 'sign name', 'family', 'figures', 'video'].join(',')];
     board.forEach((c, ci) => c.panels.forEach((p, pi) => { const Pc = pic(p.g) || {}, S = signOf(p.g); rows.push([ci + 1, pi + 1, q(c.title), q(p.text), callOf(p), q(p.ans ? p.ans.s : ''), q(p.ans ? `${p.ans.ti || ''} ${p.ans.y || ''}`.trim() : ''), q(Pc.title), Pc.year || '', S ? S.s : '', q(S ? S.name : ''), S ? S.fam : '', q(p.figs.map(g => (D.figs[g.f] || {}).desc || 'figure').join('; ')), q(Pc.video || '')].join(',')); }));
     download(`norse-half-moon-shot-list-${stamp()}.csv`, rows.join('\n'), 'text/csv'); toast('Shot list saved · opens in any spreadsheet'); };
-  $('#bNew').onclick = () => { $('#board').hidden = true; showStart(); }; $('#bHow').onclick = () => { $('#board').hidden = true; coachStart(); };
+  $('#bNew').onclick = () => { menu(false); showStart(); }; $('#bHow').onclick = () => { menu(false); coachStart(); };
 
   /* ---- start, and the coach */
   const COACH = [
-    { el: '#words', t: 'WRITE OR SAY', p: 'Tap the words to write this shot, or SAY IT to dictate. The frame above changes as you type. DONE when it reads right.', wait: 'write' },
-    { el: '#deck', t: 'PICTURE', p: 'Moving pictures for your words. Hold one to watch it, tap to use it. The colours are Cineosis families; FIGURES adds people, never on its own.', wait: 'pic', before: () => { mode = 'pic'; figMode = false; drawDeck(); } },
-    { el: '#dial', t: 'VOICE', p: 'Tap VOICE. The call is your memo, your recorded voice, or the line read aloud. Below, archival voices that answer your words: tap one to hear it and choose it.', wait: 'answer' },
-    { el: '#top', t: 'LIVE', p: 'LIVE performs the board like a film jockey: picture, call, the archive answering, with layouts, pace and order you can change as it plays. PAUSE holds everything.' },
-    { el: '#dial', t: 'SHOTS AND BOARD', p: 'SHOTS moves, cuts, copies and adds shots. BOARD shows the film by chapter or by sign, and saves, prints, shares and exports it.' },
+    { el: '#tlbox', t: "THE SHOT'S MAP", p: 'Every shot has four parts, one colour each: PICTURE blue, CALL green, ANSWER gold, JOIN violet. Tap a lane to work on that part; the tools below change to it. Drag on the lanes to tune timing.' },
+    { el: '#deck', t: 'PICTURE', p: 'Moving pictures for your words. Hold one to watch it, tap to use it. Every change shows UNDO.', wait: 'pic', before: () => { mode = 'pic'; figMode = false; drawDeck(); } },
+    { el: '#tlbox', t: 'CALL', p: 'Tap the green CALL lane: who says the line, your memo voice, your own recording, or read aloud.', wait: 'part-call' },
+    { el: '#tlbox', t: 'ANSWER', p: 'Tap the gold ANSWER lane: archival voices that answer your words, and what is seen while they speak.', wait: 'part-ans' },
+    { el: '#tlbox', t: 'JOIN', p: 'Tap the violet JOIN lane: how this shot hands over to the next, CUT, DISSOLVE, DIP or WIPE, and where the sound goes across the cut.', wait: 'part-join' },
+    { el: '#bMenu', t: 'THE SIDE MENU', p: 'The film as a whole: PLAY it, see every shot, set how all shots join and how answers come in, mute a voice, save, print and share.' },
   ];
   let ci_ = -1;
   function coachStart() { ci_ = 0; coachShow(); }
