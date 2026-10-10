@@ -4,7 +4,8 @@ import json, os, sys
 N = os.path.dirname(os.path.abspath(__file__)); L = os.path.dirname(N)
 D = json.load(open(os.path.join(N, "storyboard.json"))); T = open(os.path.join(N, "storyboard-template.html")).read()
 import hashlib; WMV = hashlib.md5(open(os.path.join(N, "wordmap.bin"), "rb").read() + open(os.path.join(N, "wordmap.json"), "rb").read()).hexdigest()[:10]   # the word map's version, so a browser never reads an old one
-T = T.replace("{{WMV}}", WMV)
+VOV = hashlib.md5(open(os.path.join(N, "voices.bin"), "rb").read() + open(os.path.join(N, "voices.json"), "rb").read()).hexdigest()[:10]
+T = T.replace("{{WMV}}", WMV).replace("{{VOV}}", VOV)
 open(os.path.join(L, "markov-sam-norse.html"), "w").write(T.replace("{{DATA}}", json.dumps(D, separators=(",", ":"), ensure_ascii=False).replace("</", "<\\/")))
 sys.path.insert(0, os.path.join(L, "odyssey")); import importlib.util
 spec = importlib.util.spec_from_file_location("sa", os.path.join(L, "odyssey", "share_assets.py"))
