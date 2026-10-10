@@ -39,6 +39,11 @@ footer{border-top:1px solid var(--rule);padding:16px;text-align:center;color:var
 footer a{color:var(--dim)}
 @media (max-width:900px){.doors,.doors.four{grid-template-columns:1fr 1fr}}
 @media (max-width:600px){.doors,.doors.four{grid-template-columns:1fr}main{padding-top:44px}.strip{grid-template-columns:repeat(8,1fr)}}
+.door .dv{position:relative;display:block;margin:-20px -18px 14px;aspect-ratio:16/9;background:#000;border-radius:5px 5px 0 0;overflow:hidden}
+.door .dv img,.door .dv video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.door .dv video{opacity:0;transition:opacity .35s ease}.door .dv video.on{opacity:1}
+.door .dv i{position:absolute;left:8px;bottom:6px;display:flex;gap:3px}.door .dv i b{width:5px;height:5px;border-radius:50%;background:#fff6;margin:0;font-size:0}.door .dv i b.on{background:#fff}
+.door .tag{z-index:2;background:#0009}
 </style>
 </head>
 <body>
@@ -159,6 +164,31 @@ footer a{color:var(--dim)}
   }
   document.body.classList.toggle('static', !server);
   if (server) document.getElementById('reelDoor').href = 'lab/reel/cineosis-reel.mp4';
+})();
+</script>
+<script>
+/* every door plays its page's moving image: three archive clips from the page's own footage (or the shots that look most like
+   what the door says), cut every few seconds while the card is on screen; at most ten play at once; still for reduced motion */
+(async function () {
+  let D; try { D = await fetch('lab/doors/doors.json').then(r => r.json()); } catch (e) { return; }
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches, MAX = 10, live = new Set(), seen = new Map();
+  const doors = [...document.querySelectorAll('a.door')].filter(a => { const c = D[a.getAttribute('href')]; if (!c || !c.length) return false;
+    const dv = document.createElement('div'); dv.className = 'dv'; dv.innerHTML = `<img alt="" loading="lazy" src="${c[0].th}"><video muted playsinline preload="none"></video><video muted playsinline preload="none"></video><i>${c.map((_, i) => `<b class="${i ? '' : 'on'}"></b>`).join('')}</i>`;
+    dv.querySelector('img').onerror = function () { this.remove(); }; a.prepend(dv); a._c = c; a._i = 0; a._side = 0; return true; });
+  if (still) return;
+  function show(a) { const c = a._c[a._i % a._c.length], vs = a.querySelectorAll('.dv video'), v = vs[a._side], o = vs[1 - a._side];
+    v.src = c.v; v.preload = 'auto'; const go = () => { try { v.currentTime = c.in || 0; } catch (e) { } v.play().catch(() => { }); };
+    v.addEventListener('loadedmetadata', go, { once: true }); v.addEventListener('playing', () => { if (!live.has(a)) return; v.classList.add('on'); o.classList.remove('on'); setTimeout(() => o.pause(), 400); }, { once: true });
+    a.querySelectorAll('.dv i b').forEach((b, i) => b.classList.toggle('on', i === a._i % a._c.length));
+    clearTimeout(a._t); a._t = setTimeout(() => { if (!live.has(a)) return; a._i++; a._side = 1 - a._side; show(a); }, 2800); }
+  function start(a) { if (live.has(a)) return; live.add(a); show(a); }
+  function stop(a) { if (!live.has(a)) return; live.delete(a); clearTimeout(a._t); a.querySelectorAll('.dv video').forEach(v => { v.pause(); v.classList.remove('on'); }); }
+  function settle() { const vis = [...seen.entries()].filter(([, r]) => r > .4).map(([a]) => a), mid = innerHeight / 2;
+    vis.sort((x, y) => Math.abs(x.getBoundingClientRect().top - mid) - Math.abs(y.getBoundingClientRect().top - mid));
+    const keep = new Set(vis.slice(0, MAX)); [...live].forEach(a => { if (!keep.has(a)) stop(a); }); keep.forEach(start); }
+  const io = new IntersectionObserver(es => { es.forEach(e => seen.set(e.target, e.intersectionRatio)); settle(); }, { threshold: [0, .4, .8] });
+  doors.forEach(a => { io.observe(a); a.addEventListener('mouseenter', () => { if (!live.has(a)) { if (live.size >= MAX) stop([...live][0]); start(a); } }); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) [...live].forEach(stop); else settle(); });
 })();
 </script>
 </body>
