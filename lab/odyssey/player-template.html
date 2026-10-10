@@ -51,7 +51,7 @@ button{ font:inherit; color:inherit; }
 #voices{ display:block; width:100%; height:38px; }
 /* ---- THE WORDS ARE ACTORS. Each voice has its name, its face (upright for the line, italic gold for the archive) and its entrance:
    a word arrives when it is said, the word being said is lit, and a word the two voices share crosses from the line into the answer */
-.actor{ min-width:0; max-width:100%; transition:opacity .8s ease, transform .9s cubic-bezier(.2,.8,.2,1); transform-origin:0 0; }
+.actor{ min-width:0; max-width:100%; transition:opacity .35s ease-out, transform .45s cubic-bezier(.2,.9,.2,1); transform-origin:0 0; }
 .actor .tag{ overflow:hidden; min-width:0; display:flex; align-items:center; gap:8px; font:500 10px var(--mono); letter-spacing:.22em; text-transform:uppercase; color:var(--dim); margin-bottom:6px; min-height:14px; }
 .actor .tag i{ width:8px; height:8px; border-radius:50%; background:currentColor; flex:none; transition:transform .08s linear, opacity .3s; opacity:.35; }
 .actor .tag .nm{ white-space:nowrap; flex:none; } .actor .tag .src{ min-width:0;  letter-spacing:.06em; text-transform:none; color:#a39b8e; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -59,14 +59,14 @@ button{ font:inherit; color:inherit; }
 #callA .tag{ color:#d8d1c4; } #ansA .tag{ color:var(--hi); } #ansA .txt{ font-style:italic; color:var(--hi); }
 .actor.speaking .tag i{ opacity:1; }
 #stage.answer #callA{ opacity:.5; transform:scale(.9); }
-#callA .txt b{ font-weight:inherit; color:#efe9dd30; transition:color .35s ease, text-shadow .6s; text-decoration:underline 1px transparent; text-underline-offset:.2em; }
+#callA .txt b{ font-weight:inherit; color:#efe9dd38; transition:color .12s ease-out, text-shadow .3s; text-decoration:underline 1px transparent; text-underline-offset:.2em; }
 #callA .txt b.s{ color:var(--ink); } #callA .txt b.now{ color:#fff; text-shadow:0 0 14px #ffffff40; }
 #callA .txt b.h.s{ text-decoration-color:#e8c07099; } #callA .txt b.e{ color:var(--hi); text-shadow:0 0 18px #e8c07088; text-decoration-color:var(--hi); }
-#ansA .txt b{ font-weight:inherit; display:inline-block; opacity:0; transform:translateY(.4em); transition:opacity .45s ease, transform .55s cubic-bezier(.2,.8,.2,1); }
+#ansA .txt b{ font-weight:inherit; display:inline-block; opacity:0; transform:translateY(.3em); transition:opacity .16s ease-out, transform .28s cubic-bezier(.2,.9,.2,1); }
 #ansA .txt b.s{ opacity:1; transform:none; } #ansA .txt b.h{ font-style:normal; text-decoration:underline 1px var(--hi); text-underline-offset:.2em; }
 .fly{ position:fixed; z-index:30; pointer-events:none; font:400 clamp(21px,5.4vw,34px)/1.28 var(--serif); color:var(--hi); text-shadow:0 0 22px #e8c070aa; white-space:nowrap; transform-origin:0 0; }
 
-#card{ position:absolute; inset:0; z-index:6; display:grid; place-items:center; text-align:center; pointer-events:none; opacity:0; transition:opacity .9s ease; background:#050505; padding:0 8vw; }
+#card{ position:absolute; inset:0; z-index:6; display:grid; place-items:center; text-align:center; pointer-events:none; opacity:0; transition:opacity .45s ease-out; background:linear-gradient(#000d, #0009 60%, #000d); padding:0 8vw; }
 #card.on{ opacity:1; }
 #card .bn{ font:500 11px var(--mono); letter-spacing:.34em; color:var(--hi); }
 #card .bt{ font:300 clamp(32px,8vw,72px)/1.06 var(--serif); margin:.3em 0 .2em; text-wrap:balance; }
@@ -127,7 +127,7 @@ button{ font:inherit; color:inherit; }
    then the archive answering), a picture track, the answering voice's own footage, the words and the sound's envelope. The sound is the
    clock: everything on screen follows the track's time. */
 (() => {
-  const $ = s => document.querySelector(s), P = JSON.parse($('#prog').textContent), FILM = P.scenes.every(s => s.film), aud = FILM ? $('#film') : $('#aud'), stage = $('#stage'), CALLNAME = '{{CALLNAME}}';
+  const $ = s => document.querySelector(s), P = JSON.parse($('#prog').textContent), FILM = !!P.film, aud = FILM ? $('#film') : $('#aud'), stage = $('#stage'), CALLNAME = '{{CALLNAME}}';
   const main = [...document.querySelectorAll('video.m')], side = [...document.querySelectorAll('video.b')], callA = $('#callA'), ansA = $('#ansA');
   let si = 0, S = null, started = false, books = [], before = [], total = 0;
   const q = new URLSearchParams(location.search);
@@ -168,13 +168,13 @@ button{ font:inherit; color:inherit; }
   }
   const M = deck(main), B = deck(side);
   /* nothing waits: the first scene's sound and pictures start loading as the page opens */
-  function cue(i) { S = P.scenes[i]; si = i; aud.src = FILM ? S.film : S.audio; aud.preload = 'auto'; if (FILM) { aud.poster = S.thumb || ''; return; } $('#pic').style.backgroundImage = S.thumb ? `url("${S.thumb}")` : ''; if (S.pics[0]) M.prime(S.pics[0]); if (S.beside[0]) B.prime(S.beside[0]); }
+  function cue(i) { S = P.scenes[i]; si = i; if (FILM) { if (!aud.src) { aud.src = P.film; aud.preload = 'auto'; aud.poster = S.thumb || ''; } return; } aud.src = S.audio; aud.preload = 'auto'; $('#pic').style.backgroundImage = S.thumb ? `url("${S.thumb}")` : ''; if (S.pics[0]) M.prime(S.pics[0]); if (S.beside[0]) B.prime(S.beside[0]); }
   cue(Math.max(0, Math.min(P.scenes.length - 1, +(q.get('scene') || 1) - 1)));
   function load(i, go) {
-    M.hide(); B.hide(); stage.classList.remove('pair', 'answer'); if (i !== si) cue(i); else S = P.scenes[i]; try { aud.currentTime = 0; } catch (e) { }
+    M.hide(); B.hide(); stage.classList.remove('pair', 'answer'); if (i !== si) cue(i); else S = P.scenes[i]; try { aud.currentTime = FILM ? S.t0 + .01 : 0; } catch (e) { } entered = i;
     setLine(null); where();
     const c = $('#card'); c.querySelector('.bn').textContent = S.bnum ? `BOOK ${S.bnum}` : ''; c.querySelector('.bt').textContent = S.btitle || ''; c.querySelector('.st').textContent = S.title || ''; c.querySelector('.cd').textContent = S.card || '';
-    c.classList.add('on'); clearTimeout(load.t); const hold = i === 0 || P.scenes[i - 1].book !== S.book ? 2200 : 0;   /* a new book: its title held a moment in silence before the sound begins */
+    c.classList.add('on'); clearTimeout(load.t); const hold = !FILM && (i === 0 || P.scenes[i - 1].book !== S.book) ? 2200 : 0;   /* a new book: its title held a moment in silence before the sound begins */
     load.t = setTimeout(() => c.classList.remove('on'), hold + Math.max(1100, (((S.lines[0] || {}).at || 2) - 1) * 1000));   /* gone before the first voice */
     clearTimeout(load.p); if (go) load.p = setTimeout(() => { load.p = null; aud.play().catch(() => pause(true)); }, hold);
   }
@@ -185,8 +185,10 @@ button{ font:inherit; color:inherit; }
   }
   $('#play').onclick = () => start(si);
   function jump(i) { if (!started) { start(i); return; } $('#pause').classList.remove('on'); load(i, true); }
-  aud.addEventListener('ended', () => { if (si + 1 < P.scenes.length) load(si + 1, true); else finish(); });
+  aud.addEventListener('ended', () => { if (!FILM && si + 1 < P.scenes.length) load(si + 1, true); else finish(); });
   function finish() { M.hide(); B.hide(); setLine(null); const c = $('#card'); c.querySelector('.bn').textContent = 'THE END'; c.querySelector('.bt').textContent = P.title; c.querySelector('.st').textContent = ''; c.querySelector('.cd').textContent = P.end || ''; c.classList.add('on'); clearTimeout(load.t); }
+  let entered = -1;
+  function enter(i) { entered = i; si = i; S = P.scenes[i]; setLine(null); where(); const c = $('#card'); c.querySelector('.bn').textContent = S.bnum ? `BOOK ${S.bnum}` : ''; c.querySelector('.bt').textContent = S.btitle || ''; c.querySelector('.st').textContent = S.title || ''; c.querySelector('.cd').textContent = S.card || ''; c.classList.add('on'); clearTimeout(load.t); load.t = setTimeout(() => c.classList.remove('on'), Math.max(1100, (((S.lines[0] || {}).at || 2) - .5) * 1000)); }
   function where() { $('#where').textContent = `${S.bnum ? 'book ' + S.bnum.toLowerCase() + ' · ' : ''}${S.btitle || ''}${S.title ? ' · ' + S.title : ''}`; }
 
   /* ---- the voices strip */
@@ -227,7 +229,9 @@ button{ font:inherit; color:inherit; }
       { duration: 1100, easing: 'cubic-bezier(.3,.7,.2,1)' }).onfinish = () => f.remove();
   }
   function tick() {
-    requestAnimationFrame(tick); if (!S) return; const t = aud.currentTime;
+    requestAnimationFrame(tick); if (!S) return; let t = aud.currentTime;
+    if (FILM) {   /* one film: the scene is wherever the film's time is; entering one shows its title over the picture */
+      let i = 0; P.scenes.forEach((x, n) => { if (x.t0 <= t + .02) i = n; }); if (i !== entered) enter(i); t -= S.t0; }
     $('#bar').style.width = ((before[si] + t) / total * 100).toFixed(3) + '%';
     if (!FILM) {   /* live: the picture and the answering footage composed here; a baked film already holds them */
     let k = -1; S.pics.forEach((p, n) => { if (p.sw <= t) k = n; }); const p = S.pics[Math.max(0, k)];
@@ -255,16 +259,31 @@ button{ font:inherit; color:inherit; }
     $('#sch').textContent = b && b.scenes.length > 1 ? 'the scenes of this book' : ''; const sc = $('#scs'); sc.innerHTML = '';
     if (b && b.scenes.length > 1) b.scenes.forEach((i, k) => { const x = document.createElement('button'); x.className = i === si ? 'on' : ''; x.textContent = `${k + 1} · ${P.scenes[i].title || 'scene ' + (k + 1)}`; x.onclick = e => { e.stopPropagation(); jump(i); }; sc.append(x); });
   }
+  /* responsiveness: swipe sideways for the next or the previous line; drag along the voices strip to scrub through the sound */
+  const localT = () => FILM ? aud.currentTime - S.t0 : aud.currentTime, seekLocal = x => { try { aud.currentTime = Math.max(0, (FILM ? S.t0 : 0) + x); } catch (e) { } };
+  function step(d) {
+    const t = localT(), ls = S.lines;
+    if (d > 0) { const nx = ls.find(l => l.at - .6 > t + .2); if (nx) seekLocal(nx.at - .6); else if (si + 1 < P.scenes.length) load(si + 1, !aud.paused); }
+    else { let k = -1; ls.forEach((l, n) => { if (l.at - .6 <= t) k = n; }); if (k >= 0 && t - (ls[k].at - .6) > 1.5) seekLocal(ls[k].at - .6); else if (k > 0) seekLocal(ls[k - 1].at - .6); else if (si > 0) load(si - 1, !aud.paused); }
+    swiped = Date.now();
+  }
+  let swiped = 0, tx = null;
+  stage.addEventListener('touchstart', e => { const p = e.touches[0]; tx = [p.clientX, p.clientY]; }, { passive: true });
+  stage.addEventListener('touchend', e => { if (!tx || !started) return; const p = e.changedTouches[0], dx = p.clientX - tx[0], dy = p.clientY - tx[1]; tx = null; if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.4 && !$('#pause').classList.contains('on')) step(dx < 0 ? 1 : -1); }, { passive: true });
+  let drag = null;
+  cv.addEventListener('pointerdown', e => { e.stopPropagation(); drag = { x: e.clientX, t: localT() }; try { cv.setPointerCapture(e.pointerId); } catch (x) { } });
+  cv.addEventListener('pointermove', e => { if (!drag) return; const span = 12, dt = (e.clientX - drag.x) / cv.clientWidth * span; seekLocal(drag.t - dt); });
+  cv.addEventListener('pointerup', e => { if (drag && Math.abs(e.clientX - drag.x) > 4) swiped = Date.now(); drag = null; });
+  cv.addEventListener('click', e => e.stopPropagation());
   function pause(on) { if (!started) return; $('#pause').classList.toggle('on', on); if (on) { clearTimeout(load.p); chooser(); aud.pause(); [...main, ...side].forEach(v => v.pause()); } else aud.play().catch(() => { }); }
-  $('#pic').addEventListener('click', e => { if (e.target.id !== 'booksBtn') pause(!aud.paused); });
-  $('#words').addEventListener('click', () => pause(!aud.paused));
+  $('#pic').addEventListener('click', e => { if (Date.now() - swiped < 400) return; if (e.target.id !== 'booksBtn') pause(!aud.paused); });
+  $('#words').addEventListener('click', () => { if (Date.now() - swiped < 400) return; pause(!aud.paused); });
   $('#booksBtn').addEventListener('click', e => { e.stopPropagation(); pause(true); });
   $('#pause').addEventListener('click', e => { if (e.target.id === 'go' || e.target.classList.contains('in') || e.target.id === 'pause') pause(false); });
   addEventListener('keydown', e => {
     if (!started) { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); $('#play').click(); } return; }
     if (e.key === ' ') { e.preventDefault(); pause(!aud.paused); } if (e.key === 'Escape' && aud.paused) pause(false); if (e.key === 'b' || e.key === 'B') pause(true);
-    if (e.key === 'ArrowRight' && si + 1 < P.scenes.length) load(si + 1, !aud.paused);
-    if (e.key === 'ArrowLeft') load(aud.currentTime > 4 ? si : Math.max(0, si - 1), !aud.paused);
+    if (e.key === 'ArrowRight') step(1); if (e.key === 'ArrowLeft') step(-1);
   });
 })();
 </script></body></html>
