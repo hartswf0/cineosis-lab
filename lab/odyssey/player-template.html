@@ -1,185 +1,260 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>{{TITLE}}</title>
 <meta name="description" content="{{DESC}}">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#050505"><meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="{{SHORT}}">
+<link rel="icon" type="image/svg+xml" href="{{ICON}}"><link rel="icon" type="image/png" sizes="32x32" href="{{ICON32}}"><link rel="apple-touch-icon" href="{{TOUCH}}">
+<link rel="canonical" href="{{URL}}">
+<meta property="og:type" content="website"><meta property="og:site_name" content="Cineosis Lab"><meta property="og:title" content="{{TITLE}}"><meta property="og:description" content="{{DESC}}">
+<meta property="og:url" content="{{URL}}"><meta property="og:image" content="{{OG}}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="{{TITLE}}">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{{TITLE}}"><meta name="twitter:description" content="{{DESC}}"><meta name="twitter:image" content="{{OG}}">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="preconnect" href="https://pub-075ff01374c04555b51c9bc50f258b42.r2.dev" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preload" as="audio" href="{{FIRSTAUDIO}}">
 <style>
-:root{ color-scheme:dark; --bg:#050505; --ink:#efe9dd; --dim:#8a8378; --hi:#e8c070; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,serif; }
-*{ box-sizing:border-box; } html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); overflow:hidden; font:13px var(--mono); }
-#stage{ position:fixed; inset:0; background:#000; cursor:none; }
-#stage video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity 1.2s ease, filter 1.1s ease; }
-#stage video.on{ opacity:1; }
+:root{ color-scheme:dark; --bg:#050505; --ink:#efe9dd; --dim:#8a8378; --faint:#2a2723; --hi:#e8c070; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --serif:'Fraunces',Georgia,'Times New Roman',serif; }
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; } html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); overflow:hidden; font:13px var(--mono); -webkit-text-size-adjust:100%; }
+button{ font:inherit; color:inherit; }
+
+/* ---- THE STAGE. Phone held upright: the picture above, the voices and their words below. Held sideways or on a screen: the picture
+   fills it and the words play over its foot. */
+#stage{ position:fixed; inset:0; background:#000; display:grid; grid-template-rows:minmax(0,1fr) auto; }
+#pic{ position:relative; z-index:0; isolation:isolate; overflow:hidden; background:#000 center/cover no-repeat; min-height:0; }
+#words{ position:relative; z-index:2; overflow:hidden; min-width:0; background:var(--bg); padding:10px 22px calc(22px + env(safe-area-inset-bottom)); min-height:44dvh; display:flex; flex-direction:column; gap:14px; }
+@media (orientation:landscape) and (min-aspect-ratio:5/4){
+  #stage{ grid-template-rows:minmax(0,1fr); } #pic{ grid-row:1; grid-column:1; }
+  #words{ grid-row:1; grid-column:1; align-self:end; min-height:0; background:linear-gradient(transparent, #000c 32%, #000e); padding:16vh 8vw calc(4.5vh + env(safe-area-inset-bottom)); text-align:center; }
+  #words .actor .tag{ justify-content:center; margin-bottom:3px; } #words .actor{ transform-origin:50% 100%; } #words .actor .txt{ min-height:0; font-size:clamp(17px,min(2.7vw,5.2vh),36px); }
+  #words{ gap:8px; padding-top:10vh; } #voices{ height:clamp(18px,5vh,34px); max-width:760px; margin:0 auto; }
+  #stage.answer #callA{ transform:scale(.82); opacity:.55; } .fly{ font-size:clamp(17px,min(2.7vw,5.2vh),36px); }
+}
+#pic video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity 1.2s ease, filter 1.1s ease; background:transparent; }
+#pic video.on{ opacity:1; }
+
 /* the two pictures are one picture: when the archive answers, its speaker blends into the story, full frame, through a soft edge that
-   travels across it (an interpolated mask, not a cut, not a window); as the answer ends the edge travels back and the story returns */
+   travels across it (an interpolated mask), and travels back as the answer ends */
 @property --edge{ syntax:'<percentage>'; inherits:true; initial-value:135%; }
 @property --mix{ syntax:'<number>'; inherits:true; initial-value:0; }
 #stage{ --edge:135%; --mix:0; transition:--edge 1.8s cubic-bezier(.45,.05,.25,1), --mix 1.4s ease; }
 #stage.pair{ --edge:38%; --mix:1; }
-#stage.pair video.m.on{ filter:brightness(calc(1 - var(--mix) * .25)) saturate(calc(1 - var(--mix) * .2)); }
+#stage.pair #pic video.m.on{ filter:brightness(.78) saturate(.85); }
 #win{ position:absolute; inset:0; z-index:3; pointer-events:none; opacity:var(--mix);
   -webkit-mask-image:linear-gradient(100deg, transparent calc(var(--edge) - 46%), rgba(0,0,0,.55) calc(var(--edge) - 18%), #000 var(--edge));
           mask-image:linear-gradient(100deg, transparent calc(var(--edge) - 46%), rgba(0,0,0,.55) calc(var(--edge) - 18%), #000 var(--edge)); }
-#win video{ transition:opacity .9s ease; }
-#wl{ position:absolute; z-index:5; right:4vw; top:5vh; max-width:40vw; text-align:right; font:500 clamp(9px,.95vw,12px)/1.6 var(--mono); letter-spacing:.16em; color:var(--hi); text-transform:uppercase; opacity:0; transition:opacity .8s ease .5s; }
-#wl span{ color:#cfc7b8aa; letter-spacing:.08em; } #wl i{ display:inline-block; height:2px; background:var(--hi); vertical-align:middle; margin:0 0 2px 8px; opacity:.8; }
-#stage.pair #wl{ opacity:1; }
-#where{ position:absolute; z-index:5; left:4vw; top:5vh; font:500 clamp(9px,.95vw,12px) var(--mono); letter-spacing:.2em; color:#8a837899; text-transform:uppercase; }
-#shade{ position:absolute; inset:0; background:linear-gradient(transparent 48%, #000e 90%); z-index:4; pointer-events:none; }
-#cap{ position:absolute; left:0; right:0; bottom:0; padding:0 7vw calc(5.5vh + env(safe-area-inset-bottom)); z-index:5; text-align:center; pointer-events:none; }
-#cap .who{ font:500 clamp(9px,1vw,12px) var(--mono); letter-spacing:.24em; color:var(--dim); text-transform:uppercase; min-height:1.5em; transition:color .5s; }
-#cap .l{ font:300 clamp(18px,2.7vw,36px)/1.3 var(--serif); margin-top:.25em; text-wrap:balance; transform-origin:50% 100%; transition:transform .9s cubic-bezier(.2,.8,.2,1), opacity .9s; }
-#cap .a{ font:italic 300 clamp(17px,2.5vw,33px)/1.3 var(--serif); color:var(--hi); margin-top:.3em; min-height:1.3em; text-wrap:balance; }
-#cap.answer .l{ transform:scale(.74); opacity:.8; } #cap.answer .who{ color:var(--hi); }
-/* each word arrives when it is said: the line's words brighten as the voice reaches them; the answer's words rise into place */
-#cap .l b{ font-weight:inherit; color:#efe9dd38; transition:color .35s ease, text-decoration-color .5s, text-shadow .6s; text-decoration:underline 1px transparent; text-underline-offset:.22em; }
-#cap .l b.s{ color:var(--ink); } #cap .l b.h.s{ text-decoration-color:#e8c07099; }
-#cap .l b.e{ color:var(--hi); text-shadow:0 0 18px #e8c07088; text-decoration-color:var(--hi); }
-#cap .a b{ font-weight:inherit; display:inline-block; opacity:0; transform:translateY(.35em); transition:opacity .4s ease, transform .5s cubic-bezier(.2,.8,.2,1); }
-#cap .a b.s{ opacity:1; transform:none; } #cap .a b.h{ text-decoration:underline 1px var(--hi); text-underline-offset:.22em; font-style:normal; }
-#card{ position:absolute; inset:0; z-index:6; display:grid; place-items:center; text-align:center; pointer-events:none; opacity:0; transition:opacity 1.4s ease; background:radial-gradient(ellipse at center, #000a, #000e 70%); }
+#top{ position:absolute; z-index:5; left:0; right:0; top:0; display:flex; align-items:center; gap:10px; padding:calc(12px + env(safe-area-inset-top)) 16px 30px; background:linear-gradient(#000a, transparent); font:500 10px var(--mono); letter-spacing:.2em; color:#cfc7b8b0; text-transform:uppercase; }
+#top .w{ flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#booksBtn{ background:#0008; border:1px solid #efe9dd33; border-radius:999px; padding:7px 13px; font:500 10px var(--mono); letter-spacing:.2em; cursor:pointer; -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
+
+/* ---- THE VOICES: the sound itself, drawn as it plays: white where the line is said, gold where the archive answers, grey in the rests */
+#voices{ display:block; width:100%; height:38px; }
+/* ---- THE WORDS ARE ACTORS. Each voice has its name, its face (upright for the line, italic gold for the archive) and its entrance:
+   a word arrives when it is said, the word being said is lit, and a word the two voices share crosses from the line into the answer */
+.actor{ min-width:0; max-width:100%; transition:opacity .8s ease, transform .9s cubic-bezier(.2,.8,.2,1); transform-origin:0 0; }
+.actor .tag{ overflow:hidden; min-width:0; display:flex; align-items:center; gap:8px; font:500 10px var(--mono); letter-spacing:.22em; text-transform:uppercase; color:var(--dim); margin-bottom:6px; min-height:14px; }
+.actor .tag i{ width:8px; height:8px; border-radius:50%; background:currentColor; flex:none; transition:transform .08s linear, opacity .3s; opacity:.35; }
+.actor .tag .nm{ white-space:nowrap; flex:none; } .actor .tag .src{ min-width:0;  letter-spacing:.06em; text-transform:none; color:#a39b8e; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.actor .txt{ font:300 clamp(21px,5.4vw,34px)/1.28 var(--serif); text-wrap:pretty; min-height:2.56em; }
+#callA .tag{ color:#d8d1c4; } #ansA .tag{ color:var(--hi); } #ansA .txt{ font-style:italic; color:var(--hi); }
+.actor.speaking .tag i{ opacity:1; }
+#stage.answer #callA{ opacity:.5; transform:scale(.9); }
+#callA .txt b{ font-weight:inherit; color:#efe9dd30; transition:color .35s ease, text-shadow .6s; text-decoration:underline 1px transparent; text-underline-offset:.2em; }
+#callA .txt b.s{ color:var(--ink); } #callA .txt b.now{ color:#fff; text-shadow:0 0 14px #ffffff40; }
+#callA .txt b.h.s{ text-decoration-color:#e8c07099; } #callA .txt b.e{ color:var(--hi); text-shadow:0 0 18px #e8c07088; text-decoration-color:var(--hi); }
+#ansA .txt b{ font-weight:inherit; display:inline-block; opacity:0; transform:translateY(.4em); transition:opacity .45s ease, transform .55s cubic-bezier(.2,.8,.2,1); }
+#ansA .txt b.s{ opacity:1; transform:none; } #ansA .txt b.h{ font-style:normal; text-decoration:underline 1px var(--hi); text-underline-offset:.2em; }
+.fly{ position:fixed; z-index:30; pointer-events:none; font:400 clamp(21px,5.4vw,34px)/1.28 var(--serif); color:var(--hi); text-shadow:0 0 22px #e8c070aa; white-space:nowrap; transform-origin:0 0; }
+
+#card{ position:absolute; inset:0; z-index:6; display:grid; place-items:center; text-align:center; pointer-events:none; opacity:0; transition:opacity .9s ease; background:#050505; padding:0 8vw; }
 #card.on{ opacity:1; }
-#card .bk{ font:500 clamp(11px,1.2vw,14px) var(--mono); letter-spacing:.34em; color:var(--hi); }
-#card .bt{ font:300 clamp(30px,5.2vw,68px)/1.08 var(--serif); margin:.25em 0 .15em; }
-#card .st{ font:italic 300 clamp(17px,2.2vw,28px) var(--serif); color:#d8d1c4; }
-#card .cd{ font:300 clamp(14px,1.5vw,19px)/1.45 var(--serif); color:var(--dim); max-width:46em; margin:1.2em auto 0; padding:0 8vw; }
-#bar{ position:absolute; left:0; bottom:0; height:2px; background:var(--hi); opacity:.55; z-index:7; width:0; }
-#pause{ position:absolute; inset:0; z-index:8; display:none; background:#050505ee; overflow:auto; cursor:auto; padding:6vh 5vw 8vh; -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
-#pause.on{ display:block; } #pause .top{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; margin-bottom:22px; }
-#pause .top b{ font:500 12px var(--mono); letter-spacing:.3em; color:var(--dim); font-weight:500; }
-#go{ font:500 13px var(--mono); letter-spacing:.3em; color:#050505; background:var(--hi); border:0; border-radius:999px; padding:13px 30px; cursor:pointer; }
-.sc{ display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 26px; } .sc button{ font:400 12px var(--mono); color:#cfc7b8; background:#16130f; border:1px solid #2a2723; border-radius:999px; padding:7px 12px; cursor:pointer; }
-.sc button.on{ border-color:var(--hi); color:var(--hi); } .sc button:hover{ border-color:#e8c07088; }
-.hd{ font:500 11px var(--mono); letter-spacing:.24em; color:var(--dim); text-transform:uppercase; margin:6px 0 10px; text-align:left; }
-/* the books, as pictures: each card the book's first picture, its number, its title, how long it plays */
-.books{ display:grid; grid-template-columns:repeat(auto-fill,minmax(178px,1fr)); gap:10px; text-align:left; }
-.bk{ position:relative; aspect-ratio:16/10; border-radius:6px; overflow:hidden; cursor:pointer; background:#16130f center/cover no-repeat; border:1px solid #2a2723; transition:transform .25s ease, border-color .25s; }
-.bk::after{ content:''; position:absolute; inset:0; background:linear-gradient(transparent 25%, #000d 92%); }
-.bk:hover{ transform:translateY(-3px); border-color:#e8c070aa; } .bk.on{ border-color:var(--hi); box-shadow:0 0 0 1px var(--hi); }
-.bk div{ position:absolute; left:10px; right:10px; bottom:9px; z-index:1; } .bk small{ display:block; font:500 9.5px var(--mono); letter-spacing:.24em; color:var(--hi); }
-.bk span{ display:block; font:300 16px/1.18 var(--serif); color:var(--ink); margin-top:3px; } .bk em{ display:block; font:400 10px var(--mono); color:#a39b8e; margin-top:4px; font-style:normal; }
-#wait{ position:absolute; right:18px; top:16px; z-index:8; font:500 11px var(--mono); letter-spacing:.2em; color:var(--dim); opacity:0; transition:opacity .4s; }
-#wait.on{ opacity:1; }
-#front{ position:fixed; inset:0; z-index:20; display:grid; place-items:center; overflow:auto; text-align:center; background:radial-gradient(ellipse at 50% 40%, #16130f, #050505 70%); padding:24px; }
-#front h1{ font:300 clamp(38px,7vw,92px)/1.02 var(--serif); margin:0; letter-spacing:-.01em; }
-#front p{ font:300 clamp(15px,1.7vw,21px)/1.5 var(--serif); color:#cfc7b8; max-width:36em; margin:18px auto 0; }
-#front .meta{ font:500 11px var(--mono); letter-spacing:.22em; color:var(--dim); margin-top:22px; text-transform:uppercase; }
-#play{ margin-top:38px; font:500 15px var(--mono); letter-spacing:.34em; color:#050505; background:var(--hi); border:0; border-radius:999px; padding:18px 44px 18px 50px; cursor:pointer; }
-#play:disabled{ opacity:.4; cursor:wait; }
-#front .how{ font:400 11px var(--mono); color:#6b655d; margin-top:20px; letter-spacing:.06em; } #front .books{ max-width:1100px; margin:6px auto 0; } #front .hd{ max-width:1100px; margin:44px auto 10px; }
+#card .bn{ font:500 11px var(--mono); letter-spacing:.34em; color:var(--hi); }
+#card .bt{ font:300 clamp(32px,8vw,72px)/1.06 var(--serif); margin:.3em 0 .2em; text-wrap:balance; }
+#card .st{ font:italic 300 clamp(18px,4.4vw,28px) var(--serif); color:#d8d1c4; }
+#card .cd{ font:300 clamp(15px,3.8vw,20px)/1.45 var(--serif); color:#a39b8e; max-width:34em; margin:1.1em auto 0; text-wrap:pretty; }
+#bar{ position:absolute; left:0; bottom:0; height:2px; background:var(--hi); opacity:.6; z-index:7; width:0; }
+
+/* ---- PAUSED: the books, and the scenes of the book we are in */
+#pause{ position:absolute; inset:0; z-index:8; display:none; background:#050505f2; overflow:auto; padding:calc(22px + env(safe-area-inset-top)) 18px calc(40px + env(safe-area-inset-bottom)); }
+#pause.on{ display:block; } #pause .in{ max-width:1100px; margin:0 auto; }
+#pause .top{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:24px; } #pause .top b{ font:500 11px var(--mono); letter-spacing:.2em; color:var(--dim); text-transform:uppercase; font-weight:500; }
+.pill{ font:500 13px var(--mono); letter-spacing:.3em; color:#050505; background:var(--hi); border:0; border-radius:999px; padding:15px 30px; cursor:pointer; }
+.sc{ display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 26px; } .sc button{ font:400 12px var(--mono); color:#cfc7b8; background:#16130f; border:1px solid var(--faint); border-radius:999px; padding:8px 12px; cursor:pointer; text-align:left; }
+.sc button.on{ border-color:var(--hi); color:var(--hi); }
+.hd{ font:500 10.5px var(--mono); letter-spacing:.24em; color:var(--dim); text-transform:uppercase; margin:6px 0 10px; }
+.books{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+.bk{ position:relative; aspect-ratio:4/3; border-radius:8px; overflow:hidden; cursor:pointer; background:#16130f center/cover no-repeat; border:1px solid var(--faint); transition:transform .25s ease, border-color .25s; }
+.bk::after{ content:''; position:absolute; inset:0; background:linear-gradient(transparent 20%, #000e 94%); }
+.bk:active{ transform:scale(.98); } .bk.on{ border-color:var(--hi); box-shadow:0 0 0 1px var(--hi); }
+.bk div{ position:absolute; left:10px; right:10px; bottom:9px; z-index:1; } .bk small{ display:block; font:500 9px var(--mono); letter-spacing:.24em; color:var(--hi); }
+.bk span{ display:block; font:300 16px/1.16 var(--serif); color:var(--ink); margin-top:3px; } .bk em{ display:block; font:400 10px var(--mono); color:#a39b8e; margin-top:4px; font-style:normal; }
+
+/* ---- THE FRONT: what this is, how the two voices work, one button, and the books */
+#front{ position:fixed; inset:0; z-index:20; overflow:auto; background:radial-gradient(ellipse at 50% 0%, #1c1711, #050505 60%); }
+#front .in{ width:100%; max-width:760px; margin:0 auto; padding:calc(9vh + env(safe-area-inset-top)) 22px calc(48px + env(safe-area-inset-bottom)); }
+#front .k{ font:500 10.5px var(--mono); letter-spacing:.3em; color:var(--hi); text-transform:uppercase; }
+#front h1{ font:300 clamp(44px,12vw,96px)/.98 var(--serif); margin:14px 0 0; letter-spacing:-.015em; text-wrap:balance; }
+#front p.sub{ font:300 clamp(17px,4.4vw,22px)/1.45 var(--serif); color:#cfc7b8; margin:18px 0 0; text-wrap:pretty; }
+.legend{ margin:26px 0 0; display:grid; gap:10px; }
+.legend div{ display:grid; grid-template-columns:14px 1fr; gap:10px; align-items:baseline; font:300 16px/1.4 var(--serif); color:#d8d1c4; }
+.legend i{ width:9px; height:9px; border-radius:50%; display:inline-block; transform:translateY(-1px); } .legend em{ color:var(--hi); }
+#play{ display:block; width:100%; margin:30px 0 0; padding:19px; font-size:15px; letter-spacing:.36em; }
+#front .meta{ font:500 10.5px var(--mono); letter-spacing:.2em; color:var(--dim); margin-top:12px; text-align:center; text-transform:uppercase; }
+#front .hd{ margin:40px 0 12px; }
+#front .foot{ margin-top:36px; font:400 11px/1.6 var(--mono); color:#6b655d; }
 </style></head><body>
-<div id="stage"><video class="m" muted playsinline preload="auto"></video><video class="m" muted playsinline preload="auto"></video><div id="win"><video class="b" muted playsinline preload="auto"></video><video class="b" muted playsinline preload="auto"></video></div><div id="wl"></div><div id="where"></div>
-  <div id="shade"></div><div id="cap"><div class="who"></div><div class="l"></div><div class="a"></div></div>
-  <div id="card"><div><div class="bk"></div><div class="bt"></div><div class="st"></div><div class="cd"></div></div></div>
-  <div id="bar"></div><div id="wait">LOADING</div><div id="pause"><div class="top"><button id="go">CONTINUE</button><b id="pw"></b></div><div class="hd" id="sch"></div><div class="sc" id="scs"></div><div class="hd">the books</div><div class="books" id="pbooks"></div></div></div>
-<div id="front"><div><h1>{{TITLE}}</h1><p>{{SUB}}</p><div class="meta" id="meta">loading</div><button id="play" disabled>PLAY</button><div class="how">full screen · plays from the beginning to the end · tap to pause and choose a book</div><div class="hd" id="fh"></div><div class="books" id="fbooks"></div></div></div>
-<audio id="aud" preload="auto"></audio>
+<div id="stage">
+  <div id="pic"><video class="m" muted playsinline preload="auto"></video><video class="m" muted playsinline preload="auto"></video>
+    <div id="win"><video class="b" muted playsinline preload="auto"></video><video class="b" muted playsinline preload="auto"></video></div>
+    <div id="top"><span class="w" id="where"></span><button id="booksBtn">BOOKS</button></div></div>
+  <div id="words"><canvas id="voices"></canvas>
+    <div class="actor" id="callA"><div class="tag"><i></i><span class="nm"></span></div><div class="txt"></div></div>
+    <div class="actor" id="ansA"><div class="tag"><i></i><span class="nm">the archive answers</span><span class="src"></span></div><div class="txt"></div></div></div>
+  <div id="card"><div><div class="bn"></div><div class="bt"></div><div class="st"></div><div class="cd"></div></div></div>
+  <div id="bar"></div>
+  <div id="pause"><div class="in"><div class="top"><button class="pill" id="go">CONTINUE</button><b id="pw"></b></div><div class="hd" id="sch"></div><div class="sc" id="scs"></div><div class="hd">the books</div><div class="books" id="pbooks"></div></div></div>
+</div>
+<div id="front"><div class="in">
+  <div class="k">{{KICKER}}</div><h1>{{TITLE}}</h1><p class="sub">{{SUB}}</p>
+  <div class="legend"><div><i style="background:#efe9dd"></i><span>{{CALLWHO}}</span></div><div><i style="background:#e8c070"></i><span><em>The archive answers</em>, each line in the words of real people, said on film.</span></div></div>
+  <button class="pill" id="play">PLAY</button><div class="meta" id="meta"></div>
+  <div class="hd">or begin at a book</div><div class="books" id="fbooks"></div>
+  <div class="foot">{{FOOT}}</div></div></div>
+<audio id="aud" preload="auto" playsinline></audio>
+<script id="prog" type="application/json">{{PROGRAM}}</script>
 <script>
-/* One button. The program is a list of scenes; each has one rendered sound track (the line said plainly, then the archive answering),
-   a picture track (what we see, and when it changes), the answering voice's own footage beside it, and the words. The sound is the clock:
-   everything on screen follows the track's time. */
+/* One button. The program (in the page, so nothing waits) is a list of scenes; each has one rendered sound track (the line said plainly,
+   then the archive answering), a picture track, the answering voice's own footage, the words and the sound's envelope. The sound is the
+   clock: everything on screen follows the track's time. */
 (() => {
-  const PROGRAM = '{{PROGRAM}}', $ = s => document.querySelector(s), aud = $('#aud'), stage = $('#stage'), cap = $('#cap');
-  const main = [...document.querySelectorAll('video.m')], side = [...document.querySelectorAll('video.b')];
-  let P = null, si = 0, S = null, total = 0, before = [], started = false, books = [];
-  const q = new URLSearchParams(location.search), url = u => /^https?:/.test(u) ? u : (P.root || '') + u;
-  const fmt = s => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h ? `${h} h ${m} min` : `${m} min`; };
-  fetch(PROGRAM).then(r => r.json()).then(p => {
-    P = p; let acc = 0; before = p.scenes.map(s => { const a = acc; acc += s.dur; return a; }); total = acc;
-    books = []; p.scenes.forEach((sc, i) => { let b = books[books.length - 1]; if (!b || b.n !== sc.book) books.push(b = { n: sc.book, num: sc.bnum, title: sc.btitle, first: i, dur: 0, thumb: sc.thumb, scenes: [] }); b.dur += sc.dur; b.scenes.push(i); if (!b.thumb) b.thumb = sc.thumb; });
-    grid($('#fbooks'), -1); $('#fh').textContent = 'or begin at a book';
-    $('#meta').textContent = `${books.length} book${books.length === 1 ? '' : 's'}${books.length < p.scenes.length ? ` · ${p.scenes.length} scenes` : ''} · ${fmt(total)}`; $('#play').disabled = false;
-  }).catch(() => { $('#meta').textContent = 'the program did not load'; });
+  const $ = s => document.querySelector(s), aud = $('#aud'), stage = $('#stage'), P = JSON.parse($('#prog').textContent), CALLNAME = '{{CALLNAME}}';
+  const main = [...document.querySelectorAll('video.m')], side = [...document.querySelectorAll('video.b')], callA = $('#callA'), ansA = $('#ansA');
+  let si = 0, S = null, started = false, books = [], before = [], total = 0;
+  const q = new URLSearchParams(location.search);
+  const fmt = s => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.max(1, Math.round(s % 3600 / 60)); return h ? `${h} h ${Math.floor(s % 3600 / 60)} min` : `${m} min`; };
+  const poster = v => /\/clips\/[^/]+\.mp4$/.test(v || '') ? v.replace(/\/clips\/([^/]+)\.mp4$/, '/thumbnails/$1.jpg') : '';
+  { let acc = 0; before = P.scenes.map(s => { const a = acc; acc += s.dur; return a; }); total = acc; }
+  P.scenes.forEach((sc, i) => { let b = books[books.length - 1]; if (!b || b.n !== sc.book) books.push(b = { n: sc.book, num: sc.bnum, title: sc.btitle, first: i, dur: 0, thumb: sc.thumb, scenes: [] }); b.dur += sc.dur; b.scenes.push(i); if (!b.thumb) b.thumb = sc.thumb; });
+  $('#meta').textContent = `${books.length} book${books.length === 1 ? '' : 's'}${books.length < P.scenes.length ? ` · ${P.scenes.length} scenes` : ''} · ${fmt(total)} · sound on`;
   function grid(el, cur) {
     el.innerHTML = ''; books.forEach(b => { const d = document.createElement('div'); d.className = 'bk' + (b.n === cur ? ' on' : ''); if (b.thumb) d.style.backgroundImage = `url("${b.thumb}")`;
       d.innerHTML = `<div><small>${b.num ? 'BOOK ' + b.num : ''}</small><span></span><em>${fmt(b.dur)}${books.length < P.scenes.length ? ` · ${b.scenes.length} scene${b.scenes.length === 1 ? '' : 's'}` : ''}</em></div>`; d.querySelector('span').textContent = b.title;
       d.onclick = e => { e.stopPropagation(); jump(b.first); }; el.append(d); });
   }
-  function jump(i) { if (!started) { start(i); return; } $('#pause').classList.remove('on'); load(i, true); }
-  function chooser() {   /* paused: the books, and the scenes of the book we are in */
-    const b = books.find(x => x.scenes.includes(si)); grid($('#pbooks'), b && b.n); $('#pw').textContent = `${b && b.num ? 'book ' + b.num.toLowerCase() + ' · ' : ''}${b ? b.title : ''}`;
-    $('#sch').textContent = b && b.scenes.length > 1 ? 'the scenes of this book' : ''; const sc = $('#scs'); sc.innerHTML = '';
-    if (b && b.scenes.length > 1) b.scenes.forEach((i, k) => { const x = document.createElement('button'); x.className = i === si ? 'on' : ''; x.textContent = `${k + 1} · ${P.scenes[i].title || 'scene ' + (k + 1)}`; x.onclick = e => { e.stopPropagation(); jump(i); }; sc.append(x); });
-  }
-  function start(i) {
-    const el = document.documentElement; try { (el.requestFullscreen || el.webkitRequestFullscreen || (() => { })).call(el); } catch (e) { }
-    try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => { }); } catch (e) { }
-    $('#front').style.display = 'none'; started = true; load(i, true); requestAnimationFrame(tick);
-  }
-  $('#play').onclick = () => start(Math.max(0, Math.min(P.scenes.length - 1, +(q.get('scene') || 1) - 1)));
-  /* a deck: two video elements taking turns, the next clip loaded in the hidden one before its moment */
+  grid($('#fbooks'), -1);
+  /* a deck: two video elements taking turns; the next clip loads in the hidden one ahead of its moment, its still shown until it plays */
   function deck(els) {
-    const D = { els, cur: null, key: null };
-    D.prime = (c) => { if (!c) return; const k = c.video + '@' + c.in; if (els.some(e => e._k === k)) return; const e = els.find(x => !x.classList.contains('on')) || els[0]; if (e.classList.contains('on')) return; e._k = k; e.src = c.video; e.preload = 'auto'; e.load(); e._in = c.in || 0; e.addEventListener('loadedmetadata', () => { try { e.currentTime = e._in; } catch (x) { } }, { once: true }); };
+    const D = { els, cur: null, key: null, z: 1 };
+    D.prime = c => { if (!c) return; const k = c.video + '@' + c.in; if (els.some(e => e._k === k)) return; const e = els.find(x => !x.classList.contains('on')); if (!e) return;
+      e._k = k; e.poster = poster(c.video); e.src = c.video; e.preload = 'auto'; e._in = c.in || 0; e.addEventListener('loadedmetadata', () => { try { e.currentTime = e._in; } catch (x) { } }, { once: true }); e.load(); };
     D.show = (c, dd, want) => {
-      const k = c.video + '@' + c.in; let e = els.find(x => x._k === k);
-      if (!e) { D.prime(c); e = els.find(x => x._k === k); } if (!e) return;
-      if (e.readyState < 2) { $('#wait').classList.add('on'); return false; }
-      $('#wait').classList.remove('on'); try { if (Math.abs(e.currentTime - want) > .35) e.currentTime = want; } catch (x) { }
+      const k = c.video + '@' + c.in; let e = els.find(x => x._k === k); if (!e) { D.prime(c); e = els.find(x => x._k === k); } if (!e) return false;
+      if (e.readyState >= 1) try { if (Math.abs(e.currentTime - want) > .35) e.currentTime = want; } catch (x) { } else e._in = want;
       e.playbackRate = c.rate || 1; if (!aud.paused) e.play().catch(() => { });
-      e.style.transitionDuration = (c.tr === 'cut' || !dd ? 0 : Math.min(2000, dd)) + 'ms, .8s'; e.style.zIndex = (D.z = (D.z || 1) + 1);
+      e.style.transitionDuration = (c.tr === 'cut' || !dd ? 0 : Math.min(2000, dd)) + 'ms, 1.1s'; e.style.zIndex = ++D.z;
       els.forEach(x => { if (x !== e && x.classList.contains('on')) { x.classList.remove('on'); setTimeout(() => { if (!x.classList.contains('on')) x.pause(); }, 2200); } });
       e.classList.add('on'); D.cur = c; D.key = k; return true;
     };
-    D.keep = (want, rate) => { const e = els.find(x => x._k === D.key); if (!e || e.readyState < 2 || e.seeking) return; const dur = e.duration || 1e9; const w = want > dur - .15 ? Math.max(0, dur - .15) : want; if (Math.abs(e.currentTime - w) > .6) try { e.currentTime = w; } catch (x) { } if (aud.paused && !e.paused) e.pause(); if (!aud.paused && e.paused && w < dur - .2) e.play().catch(() => { }); };
+    D.keep = want => { const e = els.find(x => x._k === D.key); if (!e || e.readyState < 2 || e.seeking) return; const dur = e.duration || 1e9, w = Math.min(want, Math.max(0, dur - .15)); if (Math.abs(e.currentTime - w) > .6) try { e.currentTime = w; } catch (x) { } if (aud.paused && !e.paused) e.pause(); if (!aud.paused && e.paused && w < dur - .2) e.play().catch(() => { }); };
     D.hide = () => { els.forEach(x => { x.classList.remove('on'); setTimeout(() => { if (!x.classList.contains('on')) x.pause(); }, 900); }); D.cur = null; D.key = null; };
     return D;
   }
   const M = deck(main), B = deck(side);
+  /* nothing waits: the first scene's sound and pictures start loading as the page opens */
+  function cue(i) { S = P.scenes[i]; si = i; aud.src = S.audio; aud.preload = 'auto'; $('#pic').style.backgroundImage = S.thumb ? `url("${S.thumb}")` : ''; if (S.pics[0]) M.prime(S.pics[0]); if (S.beside[0]) B.prime(S.beside[0]); }
+  cue(Math.max(0, Math.min(P.scenes.length - 1, +(q.get('scene') || 1) - 1)));
   function load(i, go) {
-    si = i; S = P.scenes[i]; M.hide(); B.hide(); stage.classList.remove('pair'); setLine(null); where(); aud.src = url(S.audio); aud.currentTime = 0;
-    if (S.pics[0]) M.prime(S.pics[0]); if (S.beside[0]) B.prime(S.beside[0]);
-    const c = $('#card'); c.querySelector('.bk').textContent = S.bnum ? `BOOK ${S.bnum}` : ''; c.querySelector('.bt').textContent = S.btitle || ''; c.querySelector('.st').textContent = S.title || ''; c.querySelector('.cd').textContent = S.card || '';
-    c.classList.add('on'); clearTimeout(load.t); load.t = setTimeout(() => c.classList.remove('on'), Math.max(2600, ((S.lines[0] || {}).at || 2) * 1000 - 200));
-    if (go) aud.play().catch(() => { pause(true); });
+    M.hide(); B.hide(); stage.classList.remove('pair', 'answer'); if (i !== si) cue(i); else S = P.scenes[i]; try { aud.currentTime = 0; } catch (e) { }
+    setLine(null); where();
+    const c = $('#card'); c.querySelector('.bn').textContent = S.bnum ? `BOOK ${S.bnum}` : ''; c.querySelector('.bt').textContent = S.btitle || ''; c.querySelector('.st').textContent = S.title || ''; c.querySelector('.cd').textContent = S.card || '';
+    c.classList.add('on'); clearTimeout(load.t); const hold = i === 0 || P.scenes[i - 1].book !== S.book ? 2200 : 0;   /* a new book: its title held a moment in silence before the sound begins */
+    load.t = setTimeout(() => c.classList.remove('on'), hold + Math.max(1100, (((S.lines[0] || {}).at || 2) - 1) * 1000));   /* gone before the first voice */
+    clearTimeout(load.p); if (go) load.p = setTimeout(() => { load.p = null; aud.play().catch(() => pause(true)); }, hold);
   }
+  function start(i) {
+    const el = document.documentElement; try { const f = el.requestFullscreen || el.webkitRequestFullscreen; if (f) { const r = f.call(el); if (r && r.catch) r.catch(() => { }); } } catch (e) { }
+    try { const u = aud.play(); if (u && u.then) u.then(() => { if (load.p) aud.pause(); }).catch(() => { }); } catch (e) { }   /* the tap unlocks the sound on phones; the book's title then holds before it plays */
+    $('#front').style.display = 'none'; started = true; load(i, true); requestAnimationFrame(tick); size();
+  }
+  $('#play').onclick = () => start(si);
+  function jump(i) { if (!started) { start(i); return; } $('#pause').classList.remove('on'); load(i, true); }
   aud.addEventListener('ended', () => { if (si + 1 < P.scenes.length) load(si + 1, true); else finish(); });
-  function finish() { M.hide(); B.hide(); cap.querySelector('.l').textContent = ''; cap.querySelector('.a').textContent = ''; cap.querySelector('.who').textContent = ''; const c = $('#card'); c.querySelector('.bk').textContent = 'THE END'; c.querySelector('.bt').textContent = P.title; c.querySelector('.st').textContent = ''; c.querySelector('.cd').textContent = P.end || ''; c.classList.add('on'); clearTimeout(load.t); }
-  function tick() {
-    requestAnimationFrame(tick); if (!S) return; const t = aud.currentTime;
-    $('#bar').style.width = ((before[si] + t) / total * 100).toFixed(3) + '%';
-    /* the picture: the last change at or before now; the one after it loaded ahead */
-    let k = -1; S.pics.forEach((p, n) => { if (p.sw <= t) k = n; }); const p = S.pics[Math.max(0, k)];
-    if (p) { const want = (p.in || 0) + Math.max(0, t - p.sw) * (p.rate || 1); if (M.cur !== p) M.show(p, p.dd, want); else M.keep(want); const nx = S.pics[k + 1]; if (nx && nx.sw - t < 6) M.prime(nx); }
-    /* beside: while an archival voice answers, its own footage takes the right half, in step with the words */
-    const b = S.beside.find(x => x.sw <= t && t < x.end), bn = S.beside.find(x => x.sw > t);
-    if (b) { if (B.closing) { clearTimeout(B.closing); B.closing = null; } const want = b.in + (t - b.sw); if (B.cur !== b) { if (B.show(b, 0, want) !== false) stage.classList.add('pair'); } else B.keep(want); }
-    else if (B.cur && !B.closing) { stage.classList.remove('pair'); B.closing = setTimeout(() => { B.hide(); B.closing = null; }, 1050); }   /* the window closes over its picture, then lets it go */
-    if (bn && bn.sw - t < 5) B.prime(bn);
-    /* the words, as a reading of how the system works: the line arrives word by word as it is said; when the archive answers, the line
-       steps back, the answer rises word by word under it, and every word the two share lights in both at the moment the archive says it */
-    const L = S.lines.filter(l => l.at - .3 <= t).pop(), show = L && t < L.aend + 1.4, ans = show && t >= L.aat - .2;
-    if ((show ? L : null) !== words.L) setLine(show ? L : null);
-    if (words.L) {
-      const lt = words.lt, at = words.at; let echo = null;
-      words.lb.forEach((b, k) => b.classList.toggle('s', t >= lt[k]));
-      words.ab.forEach((b, k) => { const on = t >= at[k]; b.classList.toggle('s', on); if (on && b._h && t < at[k] + 1.6) echo = b._st; });
-      words.lb.forEach(b => b.classList.toggle('e', !!(ans && echo && b._st === echo)));
-      cap.classList.toggle('answer', !!ans); cap.querySelector('.who').textContent = ans ? 'the archive answers' : (words.L.who || '');
-    }
+  function finish() { M.hide(); B.hide(); setLine(null); const c = $('#card'); c.querySelector('.bn').textContent = 'THE END'; c.querySelector('.bt').textContent = P.title; c.querySelector('.st').textContent = ''; c.querySelector('.cd').textContent = P.end || ''; c.classList.add('on'); clearTimeout(load.t); }
+  function where() { $('#where').textContent = `${S.bnum ? 'book ' + S.bnum.toLowerCase() + ' · ' : ''}${S.btitle || ''}${S.title ? ' · ' + S.title : ''}`; }
+
+  /* ---- the voices strip */
+  const cv = $('#voices'), cx = cv.getContext('2d'); let DPR = 1;
+  function size() { DPR = Math.min(2, devicePixelRatio || 1); cv.width = cv.clientWidth * DPR; cv.height = cv.clientHeight * DPR; }
+  addEventListener('resize', size);
+  const lev = (s, t) => { const e = s.env || '', k = Math.floor(t * 10); return k < 0 || k >= e.length ? 0 : parseInt(e[k], 36) / 35; };
+  const roleAt = (s, t) => { for (const l of s.lines) { if (t >= l.at && t < l.end + .1) return 1; if (t >= l.aat && t < l.aend) return 2; } return 0; };
+  function voices(t) {
+    const w = cv.width, h = cv.height; cx.clearRect(0, 0, w, h); if (!S || !w) return; const span = 12, n = span * 10, x0 = t - 3, bw = Math.max(1, w / n - DPR);
+    for (let k = 0; k < n; k++) { const tt = x0 + k / 10, v = lev(S, tt), r = roleAt(S, tt), x = k / n * w, bh = Math.max(1.5 * DPR, v * h * .92);
+      cx.globalAlpha = tt <= t ? 1 : .4; cx.fillStyle = r === 1 ? '#efe9dd' : r === 2 ? '#e8c070' : '#4a4640'; cx.fillRect(x, (h - bh) / 2, bw, bh); }
+    cx.globalAlpha = 1; cx.fillStyle = '#ffffff'; cx.fillRect(Math.round(3 / span * w), 0, Math.max(1, DPR), h);
   }
-  const words = { L: null, lb: [], ab: [], lt: [], at: [] }, stemOf = w => { w = w.toLowerCase().replace(/[^a-z']/g, '').replace(/^'+|'+$/g, ''); for (const s of ['ings', 'ing', 'edly', 'ed', 'es', 's', 'ly']) if (w.length > s.length + 3 && w.endsWith(s)) return w.slice(0, -s.length); return w; };
-  /* when each word is said: the memo's own word times where we have them, otherwise spread over the voice by the length of each word */
+
+  /* ---- the words */
+  const words = { L: null, lb: [], ab: [], lt: [], at: [], flown: new Set() };
+  const stemOf = w => { w = w.toLowerCase().replace(/[^a-z']/g, '').replace(/^'+|'+$/g, ''); for (const s of ['ings', 'ing', 'edly', 'ed', 'es', 's', 'ly']) if (w.length > s.length + 3 && w.endsWith(s)) return w.slice(0, -s.length); return w; };
   const spread = (ws, a, b) => { const n = ws.map(w => w.length + 1), tot = n.reduce((x, y) => x + y, 0) || 1; let acc = 0; return ws.map((w, k) => { const v = a + (b - a) * acc / tot; acc += n[k]; return v; }); };
+  const callName = L => { const w = (L.who || '').trim(); return !w || /^(epic narrator|the memo)$/i.test(w) ? CALLNAME : `${CALLNAME} · ${w}`; };
   function setLine(L) {
-    words.L = L; const lc = cap.querySelector('.l'), la = cap.querySelector('.a'); lc.innerHTML = ''; la.innerHTML = ''; words.lb = []; words.ab = []; cap.classList.remove('answer'); cap.querySelector('.who').textContent = '';
-    if (!L) { $('#wl').innerHTML = ''; return; }
+    words.L = L; words.flown = new Set(); const lc = callA.querySelector('.txt'), la = ansA.querySelector('.txt'); lc.innerHTML = ''; la.innerHTML = ''; words.lb = []; words.ab = [];
+    callA.querySelector('.nm').textContent = L ? callName(L) : ''; ansA.querySelector('.src').textContent = L && L.src ? `· ${L.src}` : '';
+    ansA.style.visibility = L ? 'visible' : 'hidden'; callA.style.visibility = L ? 'visible' : 'hidden';
+    if (!L) return;
     const lw = L.text.split(/\s+/), aw = (L.ans || '').split(/\s+/).filter(Boolean), hl = new Set(L.hl || []), ha = new Set(L.ha || []);
     lw.forEach((w, k) => { const b = document.createElement('b'); b.textContent = w; b._st = stemOf(w); if (hl.has(k)) b.className = 'h'; lc.append(b, ' '); words.lb.push(b); });
     aw.forEach((w, k) => { const b = document.createElement('b'); b.textContent = w; b._st = stemOf(w); b._h = ha.has(k); if (b._h) b.className = 'h'; la.append(b, ' '); words.ab.push(b); });
     words.lt = L.lt && L.lt.length === lw.length ? L.lt : spread(lw, L.at, Math.max(L.at + .5, L.end - .15));
     words.at = L.awt && L.awt.length === aw.length ? L.awt : spread(aw, L.aat, Math.max(L.aat + .5, L.aend - .45));
-    const sh = (L.hl || []).length;
-    $('#wl').innerHTML = `the archive answers${L.src ? ` <span>· ${L.src}</span>` : ''}<br><span>meaning ${Math.round((L.sc || 0) * 100)}${sh ? ` · ${sh} word${sh === 1 ? '' : 's'} in common` : ''}</span><i style="width:${Math.round((L.sc || 0) * 90)}px"></i>`;
   }
-  function where() { $('#where').textContent = `${S.bnum ? 'book ' + S.bnum.toLowerCase() : ''}${S.title ? ' · ' + S.title : ''} · ${si + 1} of ${P.scenes.length}`; }
-  function pause(on) { if (!started) return; $('#pause').classList.toggle('on', on); if (on) { chooser(); aud.pause(); [...main, ...side].forEach(v => v.pause()); } else aud.play().catch(() => { }); }
-  stage.addEventListener('click', () => pause(!aud.paused ? true : false));
-  $('#pause').addEventListener('click', e => { if (e.target.id === 'pause' || e.target.id === 'go') pause(false); });
+  /* a shared word crosses from the line into the answer as the archive says it */
+  function fly(from, to) {
+    const a = from.getBoundingClientRect(), b = to.getBoundingClientRect(); if (!a.width || !b.width) return;
+    const f = document.createElement('span'); f.className = 'fly'; f.textContent = to.textContent; f.style.left = a.left + 'px'; f.style.top = a.top + 'px'; document.body.append(f);
+    const sx = a.width / Math.max(1, f.getBoundingClientRect().width);
+    f.animate([{ transform: `scale(${sx})`, opacity: .3 }, { transform: `translate(${(b.left - a.left) * .5}px, ${(b.top - a.top) * .5 - 26}px) scale(1.12)`, opacity: 1, offset: .55 }, { transform: `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(1)`, opacity: 0 }],
+      { duration: 1100, easing: 'cubic-bezier(.3,.7,.2,1)' }).onfinish = () => f.remove();
+  }
+  function tick() {
+    requestAnimationFrame(tick); if (!S) return; const t = aud.currentTime;
+    $('#bar').style.width = ((before[si] + t) / total * 100).toFixed(3) + '%';
+    let k = -1; S.pics.forEach((p, n) => { if (p.sw <= t) k = n; }); const p = S.pics[Math.max(0, k)];
+    if (p) { const want = (p.in || 0) + Math.max(0, t - p.sw) * (p.rate || 1); if (M.cur !== p) M.show(p, p.dd, want); else M.keep(want); const nx = S.pics[k + 1]; if (nx && nx.sw - t < 8) M.prime(nx); }
+    const b = S.beside.find(x => x.sw <= t && t < x.end), bn = S.beside.find(x => x.sw > t);
+    if (b) { if (B.closing) { clearTimeout(B.closing); B.closing = null; } const want = b.in + (t - b.sw); if (B.cur !== b) { if (B.show(b, 0, want)) stage.classList.add('pair'); } else B.keep(want); }
+    else if (B.cur && !B.closing) { stage.classList.remove('pair'); B.closing = setTimeout(() => { B.hide(); B.closing = null; }, 1050); }
+    if (bn && bn.sw - t < 6) B.prime(bn);
+    const L = S.lines.filter(l => l.at - .3 <= t).pop(), show = L && t < L.aend + 1.4, ans = show && t >= L.aat - .2;
+    if ((show ? L : null) !== words.L) setLine(show ? L : null);
+    if (words.L) {
+      let now = -1; words.lb.forEach((w, k) => { const s = t >= words.lt[k]; w.classList.toggle('s', s); if (s && t < words.L.end + .1) now = k; });
+      words.lb.forEach((w, k) => w.classList.toggle('now', k === now && !ans));
+      let echo = null; words.ab.forEach((w, k) => { const on = t >= words.at[k]; w.classList.toggle('s', on); if (on && w._h) { if (t < words.at[k] + 1.6) echo = w._st; if (!words.flown.has(k)) { words.flown.add(k); const src = words.lb.find(x => x._st === w._st); if (src && t < words.at[k] + .5) fly(src, w); } } });
+      words.lb.forEach(w => w.classList.toggle('e', !!(ans && echo && w._st === echo)));
+      stage.classList.toggle('answer', !!ans);
+    }
+    const r = roleAt(S, t), v = lev(S, t); callA.classList.toggle('speaking', r === 1); ansA.classList.toggle('speaking', r === 2);
+    callA.querySelector('.tag i').style.transform = `scale(${r === 1 ? 1 + v * 1.1 : 1})`; ansA.querySelector('.tag i').style.transform = `scale(${r === 2 ? 1 + v * 1.1 : 1})`;
+    voices(t);
+  }
+  function chooser() {
+    const b = books.find(x => x.scenes.includes(si)); grid($('#pbooks'), b && b.n); $('#pw').textContent = `${b && b.num ? 'book ' + b.num.toLowerCase() + ' · ' : ''}${b ? b.title : ''}`;
+    $('#sch').textContent = b && b.scenes.length > 1 ? 'the scenes of this book' : ''; const sc = $('#scs'); sc.innerHTML = '';
+    if (b && b.scenes.length > 1) b.scenes.forEach((i, k) => { const x = document.createElement('button'); x.className = i === si ? 'on' : ''; x.textContent = `${k + 1} · ${P.scenes[i].title || 'scene ' + (k + 1)}`; x.onclick = e => { e.stopPropagation(); jump(i); }; sc.append(x); });
+  }
+  function pause(on) { if (!started) return; $('#pause').classList.toggle('on', on); if (on) { clearTimeout(load.p); chooser(); aud.pause(); [...main, ...side].forEach(v => v.pause()); } else aud.play().catch(() => { }); }
+  $('#pic').addEventListener('click', e => { if (e.target.id !== 'booksBtn') pause(!aud.paused); });
+  $('#words').addEventListener('click', () => pause(!aud.paused));
+  $('#booksBtn').addEventListener('click', e => { e.stopPropagation(); pause(true); });
+  $('#pause').addEventListener('click', e => { if (e.target.id === 'go' || e.target.classList.contains('in') || e.target.id === 'pause') pause(false); });
   addEventListener('keydown', e => {
     if (!started) { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); $('#play').click(); } return; }
     if (e.key === ' ') { e.preventDefault(); pause(!aud.paused); } if (e.key === 'Escape' && aud.paused) pause(false); if (e.key === 'b' || e.key === 'B') pause(true);
-    if (e.key === 'ArrowRight' && si + 1 < P.scenes.length) load(si + 1, !aud.paused);   /* for whoever is presenting: the next scene, the one before */
+    if (e.key === 'ArrowRight' && si + 1 < P.scenes.length) load(si + 1, !aud.paused);
     if (e.key === 'ArrowLeft') load(aud.currentTime > 4 ? si : Math.max(0, si - 1), !aud.paused);
   });
 })();
