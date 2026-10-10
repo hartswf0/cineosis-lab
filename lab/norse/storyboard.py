@@ -45,7 +45,7 @@ for B, PB in zip(poem["books"], prog["scenes"]):
     out = []
     for l, P in zip(lines, PB["lines"]):
         gr = [i for i in l["cand"] if still(i) and ok(still(i))][:12]
-        for i in gr: used_pics[i] = {"img": still(i), "title": lib[i].get("title") or "", "year": lib[i].get("year")}
+        for i in gr: used_pics[i] = {"img": still(i), "video": lib[i].get("video") or "", "in": lib[i].get("in") or 0, "title": lib[i].get("title") or "", "year": lib[i].get("year")}
         fs = SE @ l["q"]; fs[~figok] = -9; ft = [int(k) for k in np.argsort(-fs)[:10]]; used_figs.update(ft)
         place = []
         for n, f in enumerate(ft[:2]):   # begin with the two best, where SAM found them in their own shot, a little apart
