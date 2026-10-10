@@ -21,6 +21,7 @@ for p in PAGES:
     out = T
     for k, v in {"TITLE": html.escape(p["title"]), "SHORT": html.escape(p["short"]), "DESC": html.escape(p["desc"]), "SUB": html.escape(p["sub"]), "KICKER": html.escape(p["kicker"]),
                  "CALLNAME": p["callname"], "CALLWHO": p["callwho"], "FOOT": html.escape(p["foot"]), "ICON": p["icon"], "ICON32": p["icon32"], "TOUCH": p["touch"],
-                 "URL": SITE + p["file"], "OG": SITE + p["og"], "FIRSTAUDIO": prog["scenes"][0]["audio"]}.items(): out = out.replace("{{" + k + "}}", v)
+                 "URL": SITE + p["file"], "OG": SITE + p["og"], "FIRSTAS": "video" if prog["scenes"][0].get("film") else "audio", "FIRSTAUDIO": prog["scenes"][0].get("film") or prog["scenes"][0]["audio"]}.items(): out = out.replace("{{" + k + "}}", v)
+    if prog["scenes"][0].get("film"): out = out.replace('<link rel="preload" as="video" href="' + prog["scenes"][0]["film"] + '">', "")   # the film element buffers its own start
     out = out.replace("{{PROGRAM}}", blob)
     open(os.path.join(L, p["file"]), "w").write(out); print("wrote", p["file"], os.path.getsize(os.path.join(L, p["file"])) // 1024, "KB")
