@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Markov Sam Republic</title>
+<meta name="description" content="THE REPUBLIC, seventeen episodes from the writers' room, built as a multiplane film out of archival footage and voiced by open AI voices. Press play.">
+<meta property="og:title" content="MARKOV SAM · THE REPUBLIC">
+<meta property="og:description" content="Seventeen Republics, one film: archival footage cut into multiplane glass, voiced by AI. Press play.">
+<meta property="og:image" content="https://hartswf0.github.io/cineosis-lab/lab/republic/share.jpg">
+<meta property="og:type" content="video.other">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#120806">
+<link rel="icon" href="republic/icon.svg" type="image/svg+xml">
+<link rel="icon" href="republic/icon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="republic/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;600&family=Fraunces:ital,opsz,wght@1,9..144,500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#120806;--ink:#f4e9dc;--dim:#a8968a;--line:#3a2620;--rust:#e0572a;--far:#5b8cff;--mid:#3fc7a6;--near:#f2c14e;--cast:#ff6f91;--prop:#c68bff;--words:#f4e9dc;--grade:#e0572a;--cam:#9fe870;--join:#a78bfa;--voice:#ff6f91;
+--mono:'IBM Plex Mono',ui-monospace,monospace;--head:'Archivo Black',Impact,sans-serif;--ser:'Fraunces',Georgia,serif}
+:root[data-theme="light"]{--bg:#f3ebe1;--ink:#1c120e;--dim:#6c5a50;--line:#d8c8ba}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--mono);overflow:hidden;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+/* ---------- the stage: the multiplane ---------- */
+#stagewrap{position:relative;flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden}
+body.studio #stagewrap{flex:0 0 auto;height:min(46vh,56.25vw)}
+#stage{position:relative;width:100%;height:100%;max-height:135vw;overflow:hidden;background:#000;perspective:1400px}
+.stack{position:absolute;inset:0;transform-style:preserve-3d;transition:opacity .8s ease}
+.plane{position:absolute;inset:0;will-change:transform;transform-origin:50% 50%;pointer-events:none}
+.plane img{position:absolute;inset:-9%;width:118%;height:118%;object-fit:cover;user-select:none;-webkit-user-drag:none}
+.plane.fig img{position:absolute;inset:auto;width:auto;max-width:none;object-fit:contain;transform:translateX(-50%);transition:filter .5s,opacity .45s,left .7s cubic-bezier(.6,0,.3,1),height .7s}
+.grade{position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;transition:background .8s}
+.grain{position:absolute;inset:-50%;pointer-events:none;opacity:.12;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");animation:grain .5s steps(4) infinite}
+@keyframes grain{0%{transform:translate(0,0)}25%{transform:translate(-3%,2%)}50%{transform:translate(2%,-3%)}75%{transform:translate(-2%,-1%)}}
+.vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 55%,rgba(0,0,0,.55))}
+/* words are actors: the line, set by who says it */
+#words{position:absolute;left:4%;right:4%;bottom:5%;z-index:20;text-align:center;pointer-events:none}
+@media (max-aspect-ratio:3/4){#stagewrap{align-items:flex-start}#words{top:calc(135vw + 18px);bottom:auto}#line{text-shadow:none}}
+body.studio #words{top:auto;bottom:4%}body.studio #line{text-shadow:0 2px 12px rgba(0,0,0,.9),0 0 2px #000;font-size:15px}
+#who{display:inline-block;font:600 clamp(9px,1.5vw,12px)/1 var(--mono);letter-spacing:.18em;padding:4px 8px;margin-bottom:6px;color:#000;background:var(--cast);border-radius:2px;opacity:0;transition:opacity .3s}
+#line{font:500 clamp(15px,2.6vw,30px)/1.22 var(--ser);font-style:italic;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.9),0 0 2px #000;text-wrap:balance}
+#line .w{opacity:.18;transition:opacity .18s}
+#line .w.on{opacity:1}
+#line.act{font:400 clamp(12px,1.9vw,19px)/1.35 var(--mono);font-style:normal;color:#f4e9dc;letter-spacing:.02em}
+#card{position:absolute;inset:0;z-index:25;display:flex;align-items:center;justify-content:center;text-align:center;padding:8%;background:#000;color:#fff;font:clamp(20px,4.6vw,58px)/1.02 var(--head);letter-spacing:.01em;text-transform:uppercase;opacity:0;pointer-events:none;transition:opacity .35s}
+#card.on{opacity:1}
+body:not(.go) #card,body:not(.go) #words{opacity:0!important}
+#card.title{background:transparent;text-shadow:0 4px 30px #000;flex-direction:column;gap:.4em}
+#card small{display:block;font:600 clamp(9px,1.4vw,13px)/1.4 var(--mono);letter-spacing:.24em;color:var(--rust)}
+#card em{display:block;font:500 clamp(12px,1.8vw,19px)/1.35 var(--ser);font-style:italic;text-transform:none;max-width:40em;margin:0 auto;color:#f4e9dc}
+/* the play door */
+#door{position:absolute;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:radial-gradient(ellipse at 50% 60%,rgba(18,8,6,.25),rgba(18,8,6,.92));text-align:center;padding:24px}
+#door h1{font:clamp(30px,7vw,86px)/.9 var(--head);letter-spacing:-.01em;color:#fff}
+#door h1 span{color:var(--rust)}
+#door p{max-width:34em;font-size:clamp(11px,1.6vw,14px);line-height:1.5;color:#e8d9c9}
+@media (max-width:600px){#door p{font-size:11.5px}#line{font-size:19px}#line.act{font-size:13px}#words{bottom:4%}#card{font-size:clamp(22px,8vw,40px)}}
+#play{width:84px;height:84px;border-radius:50%;background:var(--rust);display:grid;place-items:center;box-shadow:0 0 0 8px rgba(224,87,42,.25);transition:transform .15s}
+#play:active{transform:scale(.94)}
+#door .meta{font-size:10px;letter-spacing:.2em;color:var(--dim)}
+/* ---------- the bar: one row of iconic keys ---------- */
+#bar{flex:0 0 auto;display:flex;align-items:center;gap:4px;padding:6px 8px;border-top:1px solid var(--line);background:var(--bg)}
+.k{min-width:44px;height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:8px;font-size:8.5px;letter-spacing:.12em;color:var(--dim)}
+.k svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.k.on{color:var(--ink);background:rgba(255,255,255,.07)}
+.k:active{background:rgba(255,255,255,.12)}
+#epname{flex:1;min-width:0;padding:0 6px;cursor:pointer}
+#epname b{display:block;font:clamp(11px,1.7vw,14px)/1.1 var(--head);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#epname span{display:block;font-size:9px;letter-spacing:.14em;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+#prog{position:absolute;left:0;right:0;bottom:0;height:3px;z-index:30;display:flex;gap:2px;opacity:.85}
+#prog i{flex:1;background:rgba(255,255,255,.18);position:relative;overflow:hidden}
+#prog i b{position:absolute;inset:0;background:var(--rust);transform-origin:0 50%;transform:scaleX(0)}
+/* ---------- the chooser: seventeen Republics ---------- */
+#books{position:absolute;inset:0;z-index:50;background:rgba(12,6,4,.97);display:none;flex-direction:column}
+#books.on{display:flex}
+#books header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+#books header b{font:18px var(--head)}
+#bk{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;padding:12px 16px 24px}
+.bn{position:relative;aspect-ratio:16/10;border-radius:6px;overflow:hidden;background:#000;text-align:left;border:1px solid var(--line)}
+.bn img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.7}
+.bn .t{position:absolute;left:8px;right:8px;bottom:7px;font:12px/1.05 var(--head);color:#fff;text-shadow:0 1px 6px #000}
+.bn .n{position:absolute;left:8px;top:6px;font-size:9px;letter-spacing:.16em;color:#fff;background:rgba(0,0,0,.5);padding:2px 5px}
+.bn .g{display:block;font:9px/1.3 var(--mono);letter-spacing:.06em;color:#f2c14e;margin-top:3px;text-transform:uppercase}
+.bn.cur{outline:2px solid var(--rust)}
+/* ---------- the studio: the x-sheet ---------- */
+#studio{display:none;flex:1 1 auto;min-height:0;flex-direction:column;border-top:1px solid var(--line)}
+body.studio #studio{display:flex}
+#planes{display:flex;gap:4px;padding:6px 8px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line)}
+.pl{flex:0 0 auto;display:flex;align-items:center;gap:5px;height:30px;padding:0 8px;border-radius:15px;font-size:9.5px;letter-spacing:.12em;border:1px solid var(--line);color:var(--dim)}
+.pl i{width:9px;height:9px;border-radius:50%;background:currentColor}
+.pl.on{color:var(--ink);border-color:currentColor}
+.pl.off{opacity:.35;text-decoration:line-through}
+#xs{flex:1 1 auto;min-height:0;overflow-x:auto;overflow-y:hidden;position:relative;scrollbar-width:thin}
+#xsin{position:relative;height:100%;display:grid;grid-template-rows:16px repeat(5,1fr);min-width:100%}
+.lane{position:sticky;left:0;z-index:3;font-size:8.5px;letter-spacing:.14em;padding:0 6px;display:flex;align-items:center;background:var(--bg);border-right:1px solid var(--line);width:58px;cursor:pointer}
+.lane.on{color:#000}
+.cell{position:absolute;border-radius:3px;overflow:hidden;cursor:pointer;border:1px solid transparent}
+.cell.sel{border-color:#fff;box-shadow:0 0 0 1px #fff}
+.cell img{width:100%;height:100%;object-fit:cover;display:block}
+.cell svg{display:block;width:100%;height:100%}
+.ruler{position:absolute;top:0;height:16px;font-size:8px;color:var(--dim);border-left:1px solid var(--line);padding-left:2px}
+#head{position:absolute;top:0;bottom:0;width:2px;background:#fff;z-index:4;pointer-events:none;box-shadow:0 0 6px #fff}
+#deck{flex:0 0 auto;border-top:1px solid var(--line);padding:6px 8px 8px;min-height:96px}
+#deck .band{display:flex;align-items:center;justify-content:space-between;font-size:9.5px;letter-spacing:.14em;padding:2px 2px 6px}
+#deck .band b{padding:3px 7px;border-radius:3px;color:#000}
+#tools{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.tl{flex:0 0 auto;min-width:64px;height:58px;border-radius:8px;border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:8.5px;letter-spacing:.1em;color:var(--dim);padding:0 6px}
+.tl svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tl.on{color:var(--ink);border-color:var(--ink);background:rgba(255,255,255,.06)}
+.tl img{width:52px;height:30px;object-fit:cover;border-radius:3px}
+.tl.fig img{object-fit:contain;background:#2a1a14}
+/* the exploded stand: the planes pulled apart in depth */
+body.explode #stage .stack{transform:rotateY(-48deg) rotateX(8deg) scale(.56)}
+.stack{transition:opacity .8s ease,transform .9s cubic-bezier(.6,0,.3,1)}
+body.explode .stack{filter:none!important}
+body.explode .plane{outline:1px solid rgba(255,255,255,.35);outline-offset:-1px}
+body.explode .grain,body.explode .vig{opacity:0}
+.plane .tag{position:absolute;left:3%;top:3%;font:600 10px var(--mono);letter-spacing:.14em;padding:3px 6px;border-radius:2px;color:#000;opacity:0;transition:opacity .4s;z-index:9}
+body.explode .tag{opacity:1}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);background:#000;color:#fff;border:1px solid var(--line);padding:9px 14px;border-radius:20px;font-size:11px;opacity:0;transition:.25s;z-index:90;display:flex;gap:12px;align-items:center}
+#toast.on{opacity:1;transform:translateX(-50%)}
+#toast button{color:var(--rust);font-weight:600;letter-spacing:.1em}
+#credit{position:absolute;right:8px;top:6px;z-index:21;font-size:9px;letter-spacing:.06em;color:rgba(255,255,255,.55);max-width:46%;text-align:right;text-shadow:0 1px 3px #000;pointer-events:none}
+@media (max-width:600px){#credit{display:none}.k{min-width:40px}}
+</style>
+</head>
+<body>
+<div id="app">
+ <div id="stagewrap">
+  <div id="stage" aria-label="the multiplane stage">
+   <div class="stack" id="sA"></div><div class="stack" id="sB" style="opacity:0"></div>
+   <div class="grade" id="tint"></div><div class="grain"></div><div class="vig"></div>
+   <div id="credit"></div>
+   <div id="card"></div>
+   <div id="prog"></div>
+   <div id="door">
+    <div class="meta">MARKOV SAM · CINEOSIS LAB</div>
+    <h1>THE <span>REPUBLIC</span></h1>
+    <p>Seventeen Republics from the writers' room, played as one film. Every picture is archival film cut into multiplane glass (far, middle, near, cast), every voice an open AI voice.</p>
+    <button id="play" aria-label="Play the film"><svg width="34" height="34" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="#fff"/></svg></button>
+    <div class="meta" id="runtime"></div>
+    <div class="meta">FROM THE WRITERS' ROOM: <a href="https://hartswf0.github.io/the-republic/screenplay.html" style="color:#f2c14e">SCREENPLAY</a> · <a href="https://hartswf0.github.io/the-republic/megamap.html" style="color:#f2c14e">MEGAMAP</a></div>
+   </div>
+  </div>
+  <div id="words"><div id="who"></div><div id="line"></div></div>
+ </div>
+ <div id="studio">
+  <div id="planes"></div>
+  <div id="xs"><div id="xsin"></div></div>
+  <div id="deck"><div class="band"><b id="dname">SHOT</b><span id="dinfo"></span></div><div id="tools"></div></div>
+ </div>
+ <div id="bar">
+  <button class="k" id="kplay" aria-label="Play or pause"><svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg><span>PLAY</span></button>
+  <button class="k" id="kprev" aria-label="Previous shot"><svg viewBox="0 0 24 24"><path d="M18 5L8 12l10 7zM6 5v14"/></svg><span>BACK</span></button>
+  <button class="k" id="knext" aria-label="Next shot"><svg viewBox="0 0 24 24"><path d="M6 5l10 7-10 7zM18 5v14"/></svg><span>NEXT</span></button>
+  <div id="epname" role="button" aria-label="Choose an episode"><b></b><span></span></div>
+  <button class="k" id="kbooks" aria-label="Episodes"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="7" height="7"/><rect x="14" y="4" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span>EPISODES</span></button>
+  <button class="k" id="kplanes" aria-label="See the planes"><svg viewBox="0 0 24 24"><path d="M4 8l8-4 8 4-8 4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16l8 4 8-4"/></svg><span>PLANES</span></button>
+  <button class="k" id="kstudio" aria-label="Studio"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 10h18M8 5v14M13 5v14"/></svg><span>X-SHEET</span></button>
+ </div>
+ <div id="books"><header><b>THE REPUBLICS</b><button class="k" id="kclose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header><div id="bk"></div></div>
+</div>
+<div id="toast"><span id="tmsg"></span><button id="tundo">UNDO</button></div>
+<script>
+const D = {{DATA}};
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+// ---------- one vocabulary: the planes, front to back, and the parts of a shot ----------
+const PLANES = [ // n, name, depth (parallax is 1/depth), colour
+  {n:0, k:'far',   name:'FAR',   depth:7,   c:'var(--far)'},
+  {n:1, k:'mid',   name:'MID',   depth:3.6, c:'var(--mid)'},
+  {n:2, k:'near',  name:'NEAR',  depth:2.2, c:'var(--near)'},
+  {n:3, k:'cast',  name:'CAST',  depth:1.7, c:'var(--cast)'},
+  {n:4, k:'prop',  name:'PROP',  depth:1.35,c:'var(--prop)'},
+  {n:5, k:'words', name:'WORDS', depth:0,   c:'var(--words)'},
+  {n:6, k:'grade', name:'GRADE', depth:0,   c:'var(--grade)'}];
+const PARTS = {place:{name:'PLACE',c:'var(--far)'}, cast:{name:'CAST',c:'var(--cast)'}, voice:{name:'VOICE',c:'var(--voice)'}, camera:{name:'CAMERA',c:'var(--cam)'}, join:{name:'JOIN',c:'var(--join)'}};
+const MOVES = {hold:'HOLD', in:'TRUCK IN', out:'TRUCK OUT', panl:'PAN LEFT', panr:'PAN RIGHT', up:'TILT UP'};
+const JOINS = {cut:'CUT', dissolve:'DISSOLVE', dip:'DIP', wipe:'WIPE'};
+const ICON = {
+ hold:'<rect x="6" y="6" width="12" height="12"/>', in:'<rect x="4" y="5" width="16" height="14"/><rect x="9" y="9" width="6" height="6"/><path d="M5 6l4 3M19 6l-4 3M5 18l4-3M19 18l-4-3"/>',
+ out:'<rect x="8" y="8" width="8" height="8"/><path d="M8 8L4 4M16 8l4-4M8 16l-4 4M16 16l4 4"/>', panl:'<path d="M20 12H5M10 7l-5 5 5 5"/>', panr:'<path d="M4 12h15M14 7l5 5-5 5"/>', up:'<path d="M12 20V5M7 10l5-5 5 5"/>',
+ cut:'<path d="M12 3v18"/>', dissolve:'<path d="M3 18L21 6M3 6l18 12" opacity=".5"/>', dip:'<path d="M3 6c6 0 6 12 9 12s3-12 9-12"/>', wipe:'<path d="M5 4v16M5 12h14M15 8l4 4-4 4"/>',
+ swap:'<path d="M4 8h13l-3-3M20 16H7l3 3"/>', eye:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>', off:'<path d="M3 3l18 18M10.6 5.1C11 5 11.5 5 12 5c6 0 10 7 10 7a17 17 0 0 1-3 3.6M6.6 6.6C3.8 8.4 2 12 2 12s4 7 10 7c1.7 0 3.2-.5 4.5-1.2"/>',
+ left:'<path d="M4 4v16"/><circle cx="9" cy="12" r="3"/>', right:'<path d="M20 4v16"/><circle cx="15" cy="12" r="3"/>', center:'<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3"/>',
+ big:'<rect x="5" y="3" width="14" height="18"/>', small:'<rect x="8" y="9" width="8" height="12"/>', play:'<path d="M7 4l13 8-13 8z"/>', mute:'<path d="M4 9v6h4l5 4V5L8 9zM17 9l4 6M21 9l-4 6"/>',
+ spread:'<path d="M3 12h18M6 8l-3 4 3 4M18 8l3 4-3 4"/>', flat:'<path d="M8 12h8"/>', save:'<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8"/>', share:'<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 11l7.6-4M8.2 13l7.6 4"/>',
+ csv:'<path d="M4 4h16v16H4zM4 10h16M4 15h16M10 4v16"/>', reset:'<path d="M4 12a8 8 0 1 0 3-6.2L4 8M4 3v5h5"/>'};
+const svg = (k, sw) => `<svg viewBox="0 0 24 24">${ICON[k] || ''}</svg>`;
+const ASSET = f => f;            // paths are relative to the lab
+const EPS = D.eps;
+let E = 0;                       // the episode on the stand
+let edits = {};                  // the studio's changes, per episode, per shot
+try { edits = JSON.parse(localStorage.getItem('republic.edits') || '{}') } catch (e) {}
+const keepEdits = () => { try { localStorage.setItem('republic.edits', JSON.stringify(edits)) } catch (e) {} };
+const planeOn = {far:1, mid:1, near:1, cast:1, prop:1, words:1, grade:1};
+let spread = 1;                  // how far apart the planes are (parallax strength)
+// ---------- the x-sheet: every shot of an episode, planned, then the studio's changes laid over it ----------
+function plan(ep) {
+  const out = [], order = [], cyc = ['in', 'panr', 'out', 'panl', 'up'];
+  let place = 0, since = 0, setup = 0, last = null;
+  const push = (o) => { out.push(o) };
+  const vo = ep.voice || [];
+  push({k:'open', i:-1, place:0, who:'NARRATOR', text:ep.logline, v:vo[0], setup:0});
+  ep.beats.forEach((b, i) => {
+    const v = vo[i + 1] || null;
+    if (b.k === 'act' && since >= 4 && i > 2) { place = (place + 1) % Math.max(1, ep.places.length); since = 0; setup++ }
+    if (b.k === 'line') { since++; const w = ep.alias[b.who] || b.who; if (!order.includes(w)) order.push(w) }
+    push({k:b.k, i, place, who:b.k === 'line' ? (ep.alias[b.who] || b.who) : 'NARRATOR', how:b.how || '', text:b.text, v, setup});
+  });
+  // who listens: the last other speaker in the same setup
+  let prev = {};
+  out.forEach(s => {
+    if (s.k === 'line') { s.side = order.indexOf(s.who) % 2 ? 'R' : 'L'; s.listener = prev[s.setup] && prev[s.setup] !== s.who ? prev[s.setup] : null; prev[s.setup] = s.who }
+    s.move = cyc[s.setup % cyc.length]; s.join = 'cut'; s.alt = 0; s.figalt = 0; s.size = 'big'; s.mute = 0; s.figoff = 0;
+    s.dur = s.k === 'card' ? 2.6 : (s.v ? s.v.d : 2) + (s.k === 'open' ? 1.4 : s.k === 'act' ? .45 : .28);
+  });
+  out.forEach((s, j) => { if (j && out[j - 1].place !== s.place) out[j].join = 'dissolve' });
+  out[0].join = 'dip';
+  const ed = edits[ep.id] || {};
+  out.forEach((s, j) => Object.assign(s, ed[j] || {}));
+  let t = 0; out.forEach(s => { s.t0 = t; t += s.dur }); out.total = t;
+  return out;
+}
+// ---------- the stand: building one stack of planes for a shot ----------
+const imgCache = new Map();
+function img(src) {
+  if (!src) return null;
+  if (!imgCache.has(src)) { const im = new Image(); im.decoding = 'async'; im.src = src; imgCache.set(src, im) }
+  return imgCache.get(src);
+}
+function figOf(ep, who, alt) { const f = (D.cast[who] || []); return f.length ? f[Math.min(alt || 0, f.length - 1)] : null }
+function placeOf(ep, s) { const p = ep.places[s.place] || ep.places[0]; if (!p || !p.alts.length) return null; return p.alts[Math.min(s.alt || 0, p.alts.length - 1)] }
+function preload(ep, s) {
+  if (!s) return; const p = placeOf(ep, s);
+  if (p) ['far', 'mid', 'near'].forEach(k => img(`${p.f}_${k}.webp`));
+  if (s.k === 'line') { const f = figOf(ep, s.who, s.figalt); if (f) img(f.f) }
+}
+function build(stack, ep, s) {
+  const p = placeOf(ep, s); let h = '';
+  const tag = P => `<div class="tag" style="background:${P.c}">${P.n} ${P.name}</div>`;
+  if (p) ['far', 'mid', 'near'].forEach((k, n) => { h += `<div class="plane" data-p="${k}" style="z-index:${n}"><img src="${p.f}_${k}.webp" alt="">${tag(PLANES[n])}</div>` });
+  h += `<div class="plane fig" data-p="cast" style="z-index:3">${tag(PLANES[3])}</div><div class="plane fig" data-p="prop" style="z-index:4">${tag(PLANES[4])}</div>`;
+  stack.innerHTML = h; stack.dataset.place = p ? p.f : ''; stack._figs = {};
+  applyPlaneVis(stack);
+}
+function applyPlaneVis(stack) {
+  stack.querySelectorAll('.plane').forEach(el => el.style.visibility = planeOn[el.dataset.p] ? '' : 'hidden');
+  $('#words').style.visibility = planeOn.words ? '' : 'hidden';
+  $('#tint').style.visibility = planeOn.grade ? '' : 'hidden';
+}
+function setFig(stack, slot, key, f, css) {
+  const host = stack.querySelector(`.plane[data-p="${slot}"]`); if (!host) return;
+  stack._figs = stack._figs || {};
+  let el = stack._figs[key];
+  if (!f) { if (el) { el.style.opacity = 0 } return }
+  if (!el || el.dataset.src !== f.f) {
+    if (el) { const old = el; old.style.opacity = 0; setTimeout(() => old.remove(), 500) }
+    el = document.createElement('img'); el.src = f.f; el.dataset.src = f.f; el.alt = ''; el.style.opacity = 0; host.appendChild(el); stack._figs[key] = el;
+    requestAnimationFrame(() => requestAnimationFrame(() => el.style.opacity = 1));
+  }
+  if (css.hfrac) {                                 // the figure's height, but never wider than its share of the frame
+    const st = $('#stage').getBoundingClientRect(), ar = f.w / f.h;
+    const h = Math.min(css.hfrac * st.height, css.wmax * st.width / ar); css.height = h + 'px'; delete css.hfrac; delete css.wmax;
+  }
+  Object.assign(el.style, css);
+}
+function stageFigs(stack, ep, s) {
+  stack._figs = stack._figs || {};
+  const used = new Set();
+  if (s.k === 'line' && !s.figoff) {
+    const f = figOf(ep, s.who, s.figalt);
+    if (f) {
+      const H = s.size === 'small' ? 58 : 84, ar = f.w / f.h, side = s.side === 'R' ? 66 : s.side === 'C' ? 50 : 34;
+      setFig(stack, 'cast', 'speaker:' + s.who, f, {hfrac: H / 100, wmax: .62, left: side + '%', bottom: f.cut ? '-1%' : '6%', filter: 'drop-shadow(0 8px 18px rgba(0,0,0,.55))', opacity: 1, zIndex: 2});
+      used.add('speaker:' + s.who);
+    }
+    if (s.listener) {
+      const g = figOf(ep, s.listener, 0);
+      if (g) {
+        const H = 52, ar = g.w / g.h, side = s.side === 'R' ? 22 : 78;
+        setFig(stack, 'cast', 'speaker:' + s.listener, g, {hfrac: H / 100, wmax: .4, left: side + '%', bottom: g.cut ? '-1%' : '10%', filter: 'brightness(.62) blur(1.6px)', opacity: .92, zIndex: 1});
+        used.add('speaker:' + s.listener);
+      }
+    }
+  }
+  if ((s.k === 'act' || s.k === 'open') && ep.prop && s.i >= 0 && s.i % 3 === 0) {
+    const f = ep.prop, H = 34, ar = f.w / f.h;
+    setFig(stack, 'prop', 'prop', f, {hfrac: H / 100, wmax: .34, left: '76%', bottom: '8%', filter: 'drop-shadow(0 6px 14px rgba(0,0,0,.6))', opacity: 1}); used.add('prop');
+  }
+  Object.entries(stack._figs).forEach(([k, el]) => { if (!used.has(k)) el.style.opacity = 0 });
+}
+// ---------- the camera: one move per setup, every plane displaced by 1/depth ----------
+function camAt(move, u) {
+  const e = u < 0 ? 0 : u > 1 ? 1 : u * u * (3 - 2 * u);
+  switch (move) {
+    case 'in': return {x: 0, y: 0, z: 1 + .16 * e};
+    case 'out': return {x: 0, y: 0, z: 1.16 - .16 * e};
+    case 'panl': return {x: 1 - 2 * e, y: 0, z: 1.06};
+    case 'panr': return {x: -1 + 2 * e, y: 0, z: 1.06};
+    case 'up': return {x: 0, y: 1 - 2 * e, z: 1.07};
+    default: return {x: 0, y: 0, z: 1.02};
+  }
+}
+let STW = 800;
+function paint(stack, cam, focus) {
+  if (!stack) return; STW = $('#stage').clientWidth || STW;
+  stack.querySelectorAll('.plane').forEach(el => {
+    const P = PLANES.find(p => p.k === el.dataset.p); if (!P || !P.depth) return;
+    const par = (1 / P.depth) * spread, k = par * 7;                 // percent of the frame per unit of camera travel
+    const z = 1 + (cam.z - 1) * (par * 2.2), ex = document.body.classList.contains('explode') ? `translateZ(${(P.n - 1.5) * STW * .26}px)` : '';
+    el.style.transform = `${ex} translate(${(-cam.x * k).toFixed(2)}%,${(-cam.y * k * .6).toFixed(2)}%) scale(${z.toFixed(4)})`;
+    if (P.n < 3) el.style.filter = focus ? `blur(${(P.n === 0 ? 1.6 : P.n === 1 ? 1 : .4) * focus}px)` : '';
+  });
+}
+// ---------- the sound: voices, the score under them ----------
+const AC = {voice: null, score: new Audio(), pool: new Map()};
+AC.score.loop = true; AC.score.preload = 'auto';
+function voice(src) {
+  if (!AC.pool.has(src)) { const a = new Audio(); a.preload = 'auto'; a.src = src; AC.pool.set(src, a); if (AC.pool.size > 24) { const k = AC.pool.keys().next().value; AC.pool.delete(k) } }
+  return AC.pool.get(src);
+}
+// ---------- the projector ----------
+const S = {shots: [], j: 0, playing: false, t0: 0, front: 'A', raf: 0, shotStart: 0, setupStart: 0, pausedAt: 0};
+const stacks = {A: $('#sA'), B: $('#sB')};
+function front() { return stacks[S.front] } function back() { return stacks[S.front === 'A' ? 'B' : 'A'] }
+function loadEpisode(n, autoplay) {
+  E = (n + EPS.length) % EPS.length; const ep = EPS[E];
+  S.shots = plan(ep); S.j = 0;
+  $('#epname b').textContent = ep.name; $('#epname span').textContent = `${E + 1}/${EPS.length} · ${ep.series || ep.genre}`.toUpperCase();
+  const g = D.grades[ep.grade] || {}; $('#stage').style.setProperty('--gf', g.f || 'none');
+  [stacks.A, stacks.B].forEach(st => st.style.filter = g.f || 'none');
+  $('#tint').style.background = g.tint || 'transparent'; $('#tint').style.opacity = g.mix || 0;
+  if (ep.score) { const was = AC.score.src; if (!was.endsWith(ep.score)) { AC.score.src = ep.score; AC.score.currentTime = 0 } }
+  $('#prog').innerHTML = S.shots.map(() => '<i><b></b></i>').join('');
+  build(front(), ep, S.shots[0]); back().innerHTML = ''; back().style.opacity = 0; front().style.opacity = 1;
+  S.shots.slice(0, 4).forEach(s => preload(ep, s));
+  renderBooks(); if (document.body.classList.contains('studio')) renderXS();
+  show(0, autoplay);
+}
+function show(j, play) {
+  const ep = EPS[E], s = S.shots[j]; if (!s) return;
+  const prev = S.shots[S.j]; S.j = j;
+  if (AC.voice) { AC.voice.pause(); AC.voice.onended = null; AC.voice = null }
+  // a new place: build it on the back stack and join to it
+  const p = placeOf(ep, s);
+  if (!p || front().dataset.place !== p.f) {
+    const b = back(); build(b, ep, s); stageFigs(b, ep, s);
+    const jn = s.join || 'cut', f = front();
+    b.style.transition = f.style.transition = jn === 'cut' ? 'none' : jn === 'dip' ? 'opacity .5s ease' : 'opacity .85s ease';
+    b.style.clipPath = ''; f.style.clipPath = '';
+    if (jn === 'wipe') { b.style.transition = 'clip-path .7s cubic-bezier(.7,0,.3,1)'; b.style.clipPath = 'inset(0 100% 0 0)'; b.style.opacity = 1; requestAnimationFrame(() => requestAnimationFrame(() => b.style.clipPath = 'inset(0 0 0 0)')) }
+    else if (jn === 'dip') { f.style.opacity = 0; setTimeout(() => { b.style.opacity = 1 }, 450) }
+    else { b.style.opacity = 1; f.style.opacity = 0 }
+    S.front = S.front === 'A' ? 'B' : 'A'; S.setupStart = performance.now();
+  } else if (!prev || prev.setup !== s.setup) S.setupStart = performance.now();
+  stageFigs(front(), ep, s);
+  // the words, as actors
+  const card = $('#card'), line = $('#line'), who = $('#who');
+  card.className = ''; card.innerHTML = '';
+  if (s.k === 'card') { card.textContent = s.text; card.className = 'on'; line.innerHTML = ''; who.style.opacity = 0 }
+  else if (s.k === 'open') { card.className = 'on title'; card.innerHTML = `<small>EPISODE ${E + 1} OF ${EPS.length} · ${esc((ep.series || '').toUpperCase())}</small>${esc(ep.name)}<em>${esc(ep.logline)}</em>`; line.innerHTML = ''; who.style.opacity = 0 }
+  else {
+    line.className = s.k === 'act' ? 'act' : ''; line.innerHTML = s.text.split(/\s+/).map(w => `<span class="w">${esc(w)}</span>`).join(' ');
+    if (s.k === 'line') { who.textContent = s.who + (s.how && s.how.length < 30 ? ' · ' + s.how.toUpperCase() : ''); who.style.opacity = 1; who.style.background = colorOf(s.who) } else who.style.opacity = 0;
+  }
+  const src = placeOf(ep, s); $('#credit').textContent = src ? `${src.title}${src.year ? ' (' + src.year + ')' : ''}` : '';
+  S.shotStart = performance.now(); S.pausedAt = 0;
+  for (let k = 1; k <= 3; k++) preload(ep, S.shots[j + k]);
+  if (s.v && !s.mute) { const a = voice(s.v.f); a.currentTime = 0; AC.voice = a; if (play || S.playing) a.play().catch(() => {}); a.onended = () => { AC.voice = null } }
+  S.shots.slice(j + 1, j + 3).forEach(n => n.v && voice(n.v.f));
+  if (play) setPlaying(true);
+  markXS();
+}
+function colorOf(who) { let h = 0; for (const c of who) h = (h * 31 + c.charCodeAt(0)) % 360; return `hsl(${h} 80% 66%)` }
+function esc(t) { return String(t).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c])) }
+function setPlaying(on) {
+  S.playing = on; $('#kplay').innerHTML = on ? `<svg viewBox="0 0 24 24"><path d="M7 4v16M17 4v16"/></svg><span>PAUSE</span>` : `<svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg><span>PLAY</span>`;
+  if (on) {
+    if (S.pausedAt) { const d = performance.now() - S.pausedAt; S.shotStart += d; S.setupStart += d; S.pausedAt = 0 }
+    if (AC.voice) AC.voice.play().catch(() => {});
+    AC.score.volume = .16; AC.score.play().catch(() => {});
+  } else { S.pausedAt = performance.now(); if (AC.voice) AC.voice.pause(); AC.score.pause() }
+}
+function tick() {
+  S.raf = requestAnimationFrame(tick);
+  const ep = EPS[E], s = S.shots[S.j]; if (!s) return;
+  const now = S.pausedAt || performance.now();
+  const el = (now - S.shotStart) / 1000;
+  // the setup's whole length, so one move runs under all its shots
+  let a = S.j, b = S.j; while (a > 0 && S.shots[a - 1].setup === s.setup) a--; while (b < S.shots.length - 1 && S.shots[b + 1].setup === s.setup) b++;
+  const setupDur = S.shots[b].t0 + S.shots[b].dur - S.shots[a].t0;
+  const u = ((now - S.setupStart) / 1000) / Math.max(1, setupDur);
+  const cam = camAt(s.move, u);
+  if (s.k === 'line') cam.x += (s.side === 'R' ? .18 : -.18);    // the operator leans toward who speaks
+  // the speaker breathes with the voice
+  if (s.v && s.v.e && AC.voice && !AC.voice.paused) {
+    const q = Math.min(39, Math.floor(AC.voice.currentTime / Math.max(.1, s.v.d) * 40)), lv = parseInt(s.v.e[q] || '0', 36) / 35;
+    const sp = front()._figs && front()._figs['speaker:' + s.who]; if (sp) sp.style.transform = `translateX(-50%) scale(${1 + lv * .012}) translateY(${-lv * .6}%)`;
+    // the words light as they are said
+    const ws = $$('#line .w'), n = Math.floor(ws.length * Math.min(1, AC.voice.currentTime / Math.max(.1, s.v.d) * 1.08));
+    ws.forEach((w, i) => w.classList.toggle('on', i <= n));
+  } else if (s.k !== 'line') $$('#line .w').forEach(w => w.classList.add('on'));
+  paint(front(), cam, s.k === 'line' ? 1 : 0); paint(back(), cam, 0);
+  // progress
+  const bars = $$('#prog b'); bars.forEach((x, i) => x.style.transform = `scaleX(${i < S.j ? 1 : i > S.j ? 0 : Math.min(1, el / s.dur)})`);
+  if (document.body.classList.contains('studio')) { const hd = $('#head'); if (hd) hd.style.left = (58 + (s.t0 + Math.min(el, s.dur)) * PX) + 'px' }
+  // duck the score under voices
+  if (S.playing) { const tgt = AC.voice && !AC.voice.paused ? .08 : .2; AC.score.volume += (tgt - AC.score.volume) * .05 }
+  if (S.playing && el >= s.dur && (!AC.voice || AC.voice.ended || AC.voice.paused)) {
+    if (S.j < S.shots.length - 1) show(S.j + 1);
+    else { loadEpisode(E + 1, true) }
+  }
+}
+// ---------- the chooser ----------
+function renderBooks() {
+  $('#bk').innerHTML = EPS.map((ep, n) => {
+    const p = ep.places[0] && ep.places[0].alts[0];
+    return `<button class="bn ${n === E ? 'cur' : ''}" data-n="${n}">${p ? `<img src="${p.f}_thumb.jpg" alt="" loading="lazy">` : ''}<span class="n">${String(n + 1).padStart(2, '0')}</span><span class="t">${esc(ep.name)}<span class="g">${esc(ep.series || ep.genre)}</span></span></button>`;
+  }).join('');
+  $$('#bk .bn').forEach(b => b.onclick = () => { $('#books').classList.remove('on'); unlock(); loadEpisode(+b.dataset.n, true) });
+}
+// ---------- the studio: the x-sheet, lanes for each part of a shot ----------
+let PX = 14, SEL = 0, PART = 'place';
+const LANES = ['place', 'cast', 'voice', 'camera', 'join'];
+function renderXS() {
+  const ep = EPS[E], sh = S.shots, total = sh.total, W = Math.max($('#xs').clientWidth - 64, 200);
+  PX = Math.max(10, Math.min(40, W / Math.min(total, 60)));
+  let h = '';
+  LANES.forEach((L, r) => h += `<div class="lane ${PART === L ? 'on' : ''}" data-l="${L}" style="grid-row:${r + 2};${PART === L ? `background:${PARTS[L].c}` : `color:${PARTS[L].c}`}">${PARTS[L].name}</div>`);
+  h += `<div style="grid-row:1;grid-column:1"></div>`;
+  for (let t = 0; t < total; t += 10) h += `<div class="ruler" style="left:${58 + t * PX}px">${t}s</div>`;
+  const rowH = 100 / 6;
+  sh.forEach((s, j) => {
+    const x = 58 + s.t0 * PX, w = Math.max(6, s.dur * PX - 2);
+    const top = r => `top:calc(16px + (100% - 16px) * ${r} / 5 + 2px);height:calc((100% - 16px) / 5 - 4px)`;
+    const p = placeOf(ep, s), f = s.k === 'line' ? figOf(ep, s.who, s.figalt) : null;
+    h += `<div class="cell ${j === SEL ? 'sel' : ''}" data-j="${j}" data-l="place" style="left:${x}px;width:${w}px;${top(0)};background:#111">${p ? `<img src="${p.f}_thumb.jpg" loading="lazy" alt="">` : ''}</div>`;
+    h += `<div class="cell ${j === SEL ? 'sel' : ''}" data-j="${j}" data-l="cast" style="left:${x}px;width:${w}px;${top(1)};background:${s.k === 'line' ? colorOf(s.who) + '33' : '#0000'}">${f && !s.figoff ? `<img src="${f.f}" style="object-fit:contain" loading="lazy" alt="">` : s.k === 'card' ? `<svg viewBox="0 0 40 20"><text x="2" y="14" font-size="9" fill="#fff" font-family="monospace">CARD</text></svg>` : ''}</div>`;
+    h += `<div class="cell ${j === SEL ? 'sel' : ''}" data-j="${j}" data-l="voice" style="left:${x}px;width:${w}px;${top(2)}">${wave(s)}</div>`;
+    h += `<div class="cell ${j === SEL ? 'sel' : ''}" data-j="${j}" data-l="camera" style="left:${x}px;width:${w}px;${top(3)};color:var(--cam);background:#9fe8701a"><svg viewBox="0 0 24 24" style="width:20px;height:100%;margin:auto;stroke:currentColor;fill:none;stroke-width:1.8">${ICON[s.move]}</svg></div>`;
+    h += `<div class="cell ${j === SEL ? 'sel' : ''}" data-j="${j}" data-l="join" style="left:${x - 6}px;width:12px;${top(4)};color:var(--join);background:${s.join === 'cut' ? '#0000' : '#a78bfa33'}"><svg viewBox="0 0 24 24" style="stroke:currentColor;fill:none;stroke-width:2">${ICON[s.join]}</svg></div>`;
+  });
+  h += `<div id="head"></div>`;
+  $('#xsin').innerHTML = h; $('#xsin').style.width = (64 + total * PX + 40) + 'px';
+  $$('#xsin .lane').forEach(el => el.onclick = () => { PART = el.dataset.l; renderXS(); renderDeck() });
+  $$('#xsin .cell').forEach(el => el.onclick = () => { SEL = +el.dataset.j; PART = el.dataset.l; const was = S.playing; show(SEL, was); renderXS(); renderDeck() });
+  renderPlanes(); renderDeck();
+}
+function wave(s) {
+  if (!s.v || !s.v.e) return s.k === 'card' ? '' : '';
+  const c = s.k === 'line' ? colorOf(s.who) : '#a8968a', n = s.v.e.length;
+  const pts = [...s.v.e].map((ch, i) => { const v = parseInt(ch, 36) / 35; return `${(i / (n - 1) * 100).toFixed(1)},${(50 - v * 46).toFixed(1)}` });
+  const low = [...s.v.e].map((ch, i) => { const v = parseInt(ch, 36) / 35; return `${((n - 1 - i) / (n - 1) * 100).toFixed(1)},${(50 + parseInt(s.v.e[n - 1 - i], 36) / 35 * 46).toFixed(1)}` });
+  return `<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="opacity:${s.mute ? .25 : 1}"><polygon points="${pts.join(' ')} ${low.join(' ')}" fill="${c}"/></svg>`;
+}
+function markXS() {
+  if (!document.body.classList.contains('studio')) return;
+  SEL = S.j; $$('#xsin .cell').forEach(el => el.classList.toggle('sel', +el.dataset.j === SEL));
+  const c = $(`#xsin .cell[data-j="${SEL}"]`); if (c) { const xs = $('#xs'), x = c.offsetLeft; if (x < xs.scrollLeft + 60 || x > xs.scrollLeft + xs.clientWidth - 80) xs.scrollTo({left: x - 80, behavior: 'smooth'}) }
+  renderDeck();
+}
+function renderPlanes() {
+  $('#planes').innerHTML = PLANES.map(P => `<button class="pl ${planeOn[P.k] ? 'on' : 'off'}" data-k="${P.k}" style="color:${P.c}" aria-label="Show or hide plane ${P.name}"><i></i>${P.n} ${P.name}</button>`).join('') +
+    `<button class="pl on" id="pspread" style="color:var(--cam)"><i></i>DEPTH ${spread.toFixed(1)}×</button>`;
+  $$('#planes .pl[data-k]').forEach(b => b.onclick = () => { planeOn[b.dataset.k] ^= 1; applyPlaneVis(stacks.A); applyPlaneVis(stacks.B); renderPlanes() });
+  $('#pspread').onclick = () => { spread = spread >= 2.5 ? 0 : +(spread + .5).toFixed(1); renderPlanes(); toast(`DEPTH ${spread.toFixed(1)}×  (parallax is 1 / depth)`) };
+}
+function edit(j, o, label) {
+  const ep = EPS[E], before = JSON.stringify(edits[ep.id] || {});
+  edits[ep.id] = edits[ep.id] || {}; edits[ep.id][j] = Object.assign(edits[ep.id][j] || {}, o); keepEdits();
+  const keep = S.j; S.shots = plan(ep); renderXS(); front().dataset.place = '__'; show(keep, S.playing);
+  toast(label, () => { edits[ep.id] = JSON.parse(before); keepEdits(); S.shots = plan(ep); renderXS(); front().dataset.place = '__'; show(keep, S.playing) });
+}
+function renderDeck() {
+  const ep = EPS[E], s = S.shots[SEL]; if (!s) return;
+  $('#dname').textContent = PARTS[PART].name; $('#dname').style.background = PARTS[PART].c;
+  $('#dinfo').textContent = `SHOT ${SEL + 1}/${S.shots.length} · ${s.k === 'line' ? s.who : s.k === 'card' ? 'CARD' : 'NARRATOR'} · ${s.dur.toFixed(1)}s`;
+  let h = '';
+  if (PART === 'place') {
+    ep.places.forEach((p, pi) => p.alts.forEach((a, ai) => h += `<button class="tl ${s.place === pi && (s.alt || 0) === ai ? 'on' : ''}" data-a="place" data-p="${pi}" data-x="${ai}"><img src="${a.f}_thumb.jpg" alt="">${'ABC'[pi]}${ai + 1}</button>`));
+    h += `<button class="tl" data-a="setup">${svg('swap')}ALL IN SETUP</button>`;
+  } else if (PART === 'cast') {
+    if (s.k !== 'line') h += `<div class="tl">NO ONE SPEAKS</div>`;
+    else {
+      (D.cast[s.who] || []).forEach((f, fi) => h += `<button class="tl fig ${(s.figalt || 0) === fi && !s.figoff ? 'on' : ''}" data-a="fig" data-x="${fi}"><img src="${f.f}" alt="">${fi + 1}</button>`);
+      h += `<button class="tl ${s.figoff ? 'on' : ''}" data-a="figoff">${svg('off')}HIDE</button>`;
+      ['L', 'C', 'R'].forEach(sd => h += `<button class="tl ${s.side === sd ? 'on' : ''}" data-a="side" data-x="${sd}">${svg(sd === 'L' ? 'left' : sd === 'R' ? 'right' : 'center')}${sd === 'L' ? 'LEFT' : sd === 'R' ? 'RIGHT' : 'CENTRE'}</button>`);
+      ['big', 'small'].forEach(z => h += `<button class="tl ${s.size === z ? 'on' : ''}" data-a="size" data-x="${z}">${svg(z)}${z === 'big' ? 'CLOSE' : 'WIDE'}</button>`);
+    }
+  } else if (PART === 'voice') {
+    h += `<button class="tl" data-a="hear">${svg('play')}HEAR</button><button class="tl ${s.mute ? 'on' : ''}" data-a="mute">${svg('mute')}${s.mute ? 'MUTED' : 'MUTE'}</button>`;
+    if (s.v) h += `<div class="tl" style="min-width:150px;align-items:flex-start;padding:6px 10px"><b style="color:var(--ink)">${esc(s.who)}</b>${esc(s.v.v)} · ${s.v.d.toFixed(1)}s${(D.castInfo[s.who] || {}).robot ? ' · METAL' : ''}</div>`;
+  } else if (PART === 'camera') {
+    Object.entries(MOVES).forEach(([k, n]) => h += `<button class="tl ${s.move === k ? 'on' : ''}" data-a="move" data-x="${k}">${svg(k)}${n}</button>`);
+  } else if (PART === 'join') {
+    Object.entries(JOINS).forEach(([k, n]) => h += `<button class="tl ${s.join === k ? 'on' : ''}" data-a="join" data-x="${k}">${svg(k)}${n}</button>`);
+  }
+  h += `<span style="flex:0 0 12px"></span><button class="tl" data-a="export">${svg('save')}SAVE .JSON</button><button class="tl" data-a="csv">${svg('csv')}X-SHEET .CSV</button><button class="tl" data-a="reset">${svg('reset')}RESET</button>`;
+  $('#tools').innerHTML = h;
+  $$('#tools [data-a]').forEach(b => b.onclick = () => act(b.dataset.a, b.dataset, s));
+}
+function act(a, d, s) {
+  const ep = EPS[E], j = SEL;
+  if (a === 'place') edit(j, {place: +d.p, alt: +d.x}, `PLACE ${'ABC'[+d.p]}${+d.x + 1}`);
+  else if (a === 'setup') { const o = {}; S.shots.forEach((x, k) => { if (x.setup === s.setup) o[k] = {place: s.place, alt: s.alt || 0} }); const before = JSON.stringify(edits[ep.id] || {}); edits[ep.id] = edits[ep.id] || {}; Object.entries(o).forEach(([k, v]) => edits[ep.id][k] = Object.assign(edits[ep.id][k] || {}, v)); keepEdits(); S.shots = plan(ep); renderXS(); toast('PLACE · ALL IN SETUP', () => { edits[ep.id] = JSON.parse(before); keepEdits(); S.shots = plan(ep); renderXS() }) }
+  else if (a === 'fig') edit(j, {figalt: +d.x, figoff: 0}, `CAST ${s.who} ${+d.x + 1}`);
+  else if (a === 'figoff') edit(j, {figoff: s.figoff ? 0 : 1}, s.figoff ? 'CAST SHOWN' : 'CAST HIDDEN');
+  else if (a === 'side') edit(j, {side: d.x}, `CAST ${d.x === 'L' ? 'LEFT' : d.x === 'R' ? 'RIGHT' : 'CENTRE'}`);
+  else if (a === 'size') edit(j, {size: d.x}, d.x === 'big' ? 'CAST CLOSE' : 'CAST WIDE');
+  else if (a === 'hear') { show(j, false); if (AC.voice) AC.voice.play().catch(() => {}) }
+  else if (a === 'mute') edit(j, {mute: s.mute ? 0 : 1}, s.mute ? 'VOICE ON' : 'VOICE MUTED');
+  else if (a === 'move') edit(j, {move: d.x}, `CAMERA ${MOVES[d.x]}`);
+  else if (a === 'join') edit(j, {join: d.x}, `JOIN ${JOINS[d.x]}`);
+  else if (a === 'export') download(`republic-${ep.id}.json`, JSON.stringify({episode: ep.name, edits: edits[ep.id] || {}, xsheet: S.shots.map(xrow)}, null, 1), 'application/json');
+  else if (a === 'csv') download(`republic-${ep.id}-xsheet.csv`, 'shot,t0,dur,kind,who,place,source,year,cast_figure,camera,join,text\n' + S.shots.map((x, k) => { const r = xrow(x); return [k + 1, r.t0, r.dur, r.kind, r.who, r.place, `"${(r.source || '').replace(/"/g, "'")}"`, r.year || '', `"${(r.figure || '').replace(/"/g, "'")}"`, r.camera, r.join, `"${r.text.replace(/"/g, "'")}"`].join(',') }).join('\n'), 'text/csv');
+  else if (a === 'reset') { const before = JSON.stringify(edits[ep.id] || {}); delete edits[ep.id]; keepEdits(); S.shots = plan(ep); renderXS(); front().dataset.place = '__'; show(Math.min(SEL, S.shots.length - 1), S.playing); toast('EPISODE RESET', () => { edits[ep.id] = JSON.parse(before); keepEdits(); S.shots = plan(ep); renderXS() }) }
+}
+function xrow(x) { const ep = EPS[E], p = placeOf(ep, x), f = x.k === 'line' ? figOf(ep, x.who, x.figalt) : null; return {t0: +x.t0.toFixed(2), dur: +x.dur.toFixed(2), kind: x.k, who: x.who, place: 'ABC'[x.place] + ((x.alt || 0) + 1), source: p && p.title, year: p && p.year, figure: f && f.title, camera: MOVES[x.move], join: JOINS[x.join], text: x.text} }
+function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], {type})); a.download = name; a.click() }
+let tT = 0; function toast(m, undo) { $('#tmsg').textContent = m; $('#tundo').style.display = undo ? '' : 'none'; $('#tundo').onclick = () => { undo && undo(); $('#toast').classList.remove('on') }; $('#toast').classList.add('on'); clearTimeout(tT); tT = setTimeout(() => $('#toast').classList.remove('on'), 3200) }
+// ---------- keys ----------
+let unlocked = false;
+function unlock() { if (unlocked) return; unlocked = true; document.body.classList.add('go'); $('#door').style.display = 'none'; try { AC.score.play().then(() => { if (!S.playing) AC.score.pause() }).catch(() => {}) } catch (e) {} }
+$('#play').onclick = () => { unlock(); show(S.j, true) };
+$('#kplay').onclick = () => { unlock(); if (S.playing) setPlaying(false); else { if (!AC.voice && S.shots[S.j].v && !S.shots[S.j].mute) show(S.j, true); else setPlaying(true) } };
+$('#knext').onclick = () => { unlock(); S.j < S.shots.length - 1 ? show(S.j + 1, S.playing) : loadEpisode(E + 1, S.playing) };
+$('#kprev').onclick = () => { unlock(); S.j > 0 ? show(S.j - 1, S.playing) : loadEpisode(E - 1, S.playing) };
+$('#kbooks').onclick = $('#epname').onclick = () => $('#books').classList.add('on');
+$('#kclose').onclick = () => $('#books').classList.remove('on');
+$('#kplanes').onclick = () => { document.body.classList.toggle('explode'); $('#kplanes').classList.toggle('on'); toast(document.body.classList.contains('explode') ? 'THE STAND: each plane at its depth' : 'THROUGH THE LENS') };
+$('#kstudio').onclick = () => { document.body.classList.toggle('studio'); $('#kstudio').classList.toggle('on'); if (document.body.classList.contains('studio')) { SEL = S.j; renderXS(); markXS() } };
+document.addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); $('#kplay').click() } else if (e.key === 'ArrowRight') $('#knext').click(); else if (e.key === 'ArrowLeft') $('#kprev').click(); else if (e.key === 'Escape') $('#books').classList.remove('on') });
+addEventListener('resize', () => { if (document.body.classList.contains('studio')) renderXS(); stageFigs(front(), EPS[E], S.shots[S.j]) });
+// a shared link can open an episode: #e=3
+const m = location.hash.match(/e=(\d+)/);
+const runtime = EPS.reduce((t, ep) => t + plan(ep).total, 0); $('#runtime').textContent = `${EPS.length} EPISODES · ${Math.round(runtime / 60)} MINUTES · PRESS PLAY`;
+loadEpisode(m ? (+m[1] - 1) : 0, false); tick();
+addEventListener('hashchange', () => { const m = location.hash.match(/e=(\d+)/); if (m) loadEpisode(+m[1] - 1, S.playing) });
+</script>
+</body>
+</html>
