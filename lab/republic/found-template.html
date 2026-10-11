@@ -36,7 +36,15 @@ video.slow{transition:opacity .8s ease}
 #src{margin-top:6px;font-size:10px;letter-spacing:.08em;color:#d8c8ba;text-shadow:0 1px 4px #000;min-height:12px}
 @media (max-aspect-ratio:3/4){#wrap{align-items:flex-start}#words{top:calc(135vw + 16px);bottom:auto}#line{text-shadow:none}}
 /* avatars: the multiplane's cut-out cast, worn as faces over the found film */
-#cast{position:absolute;inset:0;z-index:6;pointer-events:none}
+#cast{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.actor{position:absolute;bottom:0;transform-origin:50% 100%;opacity:0;transition:opacity .35s ease,left .6s cubic-bezier(.3,1.25,.5,1),height .55s cubic-bezier(.3,1.2,.5,1),filter .4s;will-change:transform}
+.actor canvas{display:block;height:100%;width:auto}
+.actor.on{opacity:1}
+.actor .sh{position:absolute;left:12%;right:12%;bottom:-3%;height:7%;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.55),transparent);filter:blur(2px)}
+.actor.listen{filter:brightness(.62) saturate(.7)}
+.actor.voiced{filter:drop-shadow(0 0 3px var(--ans)) drop-shadow(0 0 14px rgba(242,193,78,.45))}
+video{transform-origin:50% 50%}
+#line .w{opacity:.28;transition:opacity .15s}#line .w.on{opacity:1}
 .av{position:absolute;bottom:4%;display:flex;flex-direction:column;align-items:center;gap:5px;opacity:0;transform:translateY(12px) scale(.9);transition:opacity .3s,transform .35s cubic-bezier(.3,1.4,.5,1),left .45s,right .45s,filter .3s}
 .av.on{opacity:1;transform:none}
 .av .disc{position:relative;width:var(--s);height:var(--s);border-radius:50%;overflow:hidden;background:radial-gradient(circle at 50% 35%,var(--c),#120806 78%);box-shadow:0 0 0 3px var(--c),0 6px 22px rgba(0,0,0,.6)}
@@ -95,9 +103,9 @@ body.go #door{display:none}body:not(.go) #words,body:not(.go) #card{opacity:0!im
  <div id="wrap">
   <div id="screen">
    <video id="v0" playsinline preload="auto"></video><video id="v1" playsinline preload="auto"></video><video id="v2" playsinline preload="auto"></video><video id="v3" playsinline preload="auto"></video>
+   <div id="cast"></div>
    <div id="tint"></div><div class="vig"></div>
    <div id="tag"><b id="tagk"></b><span id="tags"></span></div><div id="wait"></div>
-   <div id="cast"></div>
    <div id="card"></div>
    <div id="door">
     <div class="meta">MARKOV FOUND · CINEOSIS LAB</div>
@@ -204,7 +212,7 @@ async function go(j) {
   } else {
     const pv = await placeVideo(ep, s.place);
     if (P.j !== j) return;
-    if (pv !== P.pv) { if (P.pv) P.pv.pause(); P.pv = pv; P.pidx = s.place; show(pv, true) } else show(pv, false);
+    if (pv !== P.pv) { if (P.pv) P.pv.pause(); pv._z = 1; P.pv = pv; P.pidx = s.place; show(pv, true) } else show(pv, false);
     if (P.playing) pv.play().catch(() => {});
     pv.muted = false; pv.volume = s.kind === 'card' ? .15 : s.kind === 'call' ? .16 : .32;
     V.slice(2).forEach(x => { if (!x.classList.contains('on')) x.pause() });
@@ -212,7 +220,7 @@ async function go(j) {
     if (s.kind === 'card') { card.textContent = s.text; card.className = 'on black'; line.textContent = ''; who.style.opacity = 0 }
     else if (s.card === 'title') { card.className = 'on'; card.innerHTML = `<small>EPISODE ${E + 1} OF ${EPS.length}${ep.series ? ' · ' + esc(ep.series) : ''}</small>${esc(ep.name)}<em>${esc(ep.logline)}</em>`; line.textContent = ''; who.style.opacity = 0 }
     else {
-      line.className = s.kind === 'picture' ? 'act' : ''; line.textContent = s.text;
+      line.className = s.kind === 'picture' ? 'act' : ''; if (s.kind === 'call') line.innerHTML = s.text.split(/\s+/).map(w => `<span class="w">${esc(w)}</span>`).join(' '); else line.textContent = s.text;
       if (s.kind === 'call') { who.textContent = s.who; who.style.background = 'var(--call)'; who.style.opacity = 1 } else who.style.opacity = 0;
     }
     if (s.ai) { P.voice.src = s.ai.f; P.voice.currentTime = 0; if (P.playing) P.voice.play().catch(() => {}) }
@@ -224,33 +232,69 @@ async function go(j) {
   const nx = P.shots.slice(j + 1).find(x => x.kind !== 'answer' && x.place !== P.pidx);
   if (nx) { const c = ep.places[nx.place % ep.places.length], w = P.pv === V[0] ? V[1] : V[0]; if (w.dataset.src !== c.v && !w.classList.contains('on')) load(w, c.v, clipIn(c)) }
 }
-// ---------- avatars ----------
+// ---------- the cast as actors: the archive's own figures, moving as their clips moved ----------
 function colorOf(who) { let h = 0; for (const c of who) h = (h * 31 + c.charCodeAt(0)) % 360; return `hsl(${h} 78% 64%)` }
-function face(who, size) {
+function face(who, size) {   // a portrait for the line-up on the title
   const f = (D.cast[who] || [])[0], el = document.createElement('div'); el.className = 'av';
   el.style.setProperty('--c', colorOf(who)); el.style.setProperty('--s', size);
-  el.innerHTML = `<div class="disc">${f ? `<img src="${f.f}" alt="">` : `<b>${esc(who.replace(/[^A-Z ]/g, '').split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2) || '?')}</b>`}<span class="ring"></span></div><i>${esc(who)}</i>`;
+  el.innerHTML = `<div class="disc">${f ? `<img src="${f.f}" alt="">` : `<b>${esc(who.replace(/[^A-Z ]/g, '').split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2) || '?')}</b>`}</div><i>${esc(who)}</i>`;
   return el;
 }
-const AV = {};
-function av(who) { if (!AV[who]) { AV[who] = face(who, 'min(26vw,22vh,150px)'); $('#cast').appendChild(AV[who]) } return AV[who] }
+const ACT = {};
+function actor(who) {
+  if (ACT[who] !== undefined) return ACT[who];
+  const f = (D.cast[who] || [])[0]; if (!f) return ACT[who] = null;
+  const el = document.createElement('div'); el.className = 'actor'; el.innerHTML = '<div class="sh"></div><canvas></canvas>';
+  const cv = el.querySelector('canvas'), sp = f.sp, img = new Image();
+  const A = {who, el, cv, ctx: cv.getContext('2d'), sp, img, phase: Math.random() * 10, dir: 1, ready: false, cut: sp ? sp.cut : f.cut, lift: 0, nod: 0, x: 50, h: 50, lean: 0, rate: .3, seen: false};
+  img.onload = () => { A.ready = true; cv.width = sp ? sp.w : img.naturalWidth; cv.height = sp ? sp.h : img.naturalHeight; draw(A, 0) };
+  img.src = sp ? sp.f : f.f;
+  $('#cast').appendChild(el); return ACT[who] = A;
+}
+function draw(A, k) {
+  if (!A.ready) return; const c = A.ctx; c.clearRect(0, 0, A.cv.width, A.cv.height);
+  if (A.sp) c.drawImage(A.img, k * A.sp.w, 0, A.sp.w, A.sp.h, 0, 0, A.sp.w, A.sp.h); else c.drawImage(A.img, 0, 0);
+}
+let CAST_ON = new Set();
+function place(A, x, h, mode) {
+  const first = !A.seen; A.seen = true;
+  if (first) { A.el.style.transition = 'none'; A.el.style.left = (x < 50 ? -30 : 110) + '%'; A.el.offsetWidth; A.el.style.transition = '' }   // an entrance: in from their side
+  A.x = x; A.h = h; A.mode = mode; A.el.style.left = x + '%';
+  const r = $('#screen').getBoundingClientRect(), f = (D.cast[A.who] || [])[0] || {}, ar = A.sp ? A.sp.w / A.sp.h : (f.w || 1) / (f.h || 1);
+  const wmax = mode === 'speak' ? .56 : mode === 'listen' ? .36 : .28;
+  A.el.style.height = Math.min(h / 100 * r.height, wmax * r.width / ar) + 'px';
+  A.el.style.bottom = A.cut ? '-1%' : '3%'; A.el.classList.add('on');
+  A.el.classList.toggle('listen', mode === 'listen'); A.el.classList.toggle('voiced', mode === 'voiced');
+}
 function stage(s) {
-  // who speaks stands lit on one side, who listens dims on the other; the archive's answer rings gold around the one it speaks for
-  const keep = new Set();
+  const on = new Set();
   if (s.kind === 'call' || s.kind === 'answer') {
-    const a = av(s.who); keep.add(a); a.classList.add('on'); a.classList.remove('listen', 'small');
-    a.classList.toggle('talk', s.kind === 'call'); a.classList.toggle('arch', s.kind === 'answer');
-    a.style.left = s.side === 'R' ? 'auto' : '4%'; a.style.right = s.side === 'R' ? '4%' : 'auto';
-    if (s.kind === 'answer') a.classList.add('small');
-    if (s.listener && s.listener !== s.who && s.kind === 'call') {
-      const b = av(s.listener); keep.add(b); b.classList.add('on', 'listen', 'small'); b.classList.remove('talk', 'arch');
-      b.style.left = s.side === 'R' ? '4%' : 'auto'; b.style.right = s.side === 'R' ? 'auto' : '4%';
-    }
+    const L = s.side !== 'R', A = actor(s.who);
+    if (A) { if (s.kind === 'call') place(A, L ? 27 : 73, 64, 'speak'); else place(A, L ? 14 : 86, 34, 'voiced'); on.add(A) }
+    if (s.listener && s.listener !== s.who && s.kind === 'call') { const B = actor(s.listener); if (B) { place(B, L ? 76 : 24, 46, 'listen'); on.add(B) } }
   }
-  Object.values(AV).forEach(x => { if (!keep.has(x)) x.classList.remove('on', 'talk', 'arch') });
+  Object.values(ACT).forEach(A => { if (A && !on.has(A)) A.el.classList.remove('on') });
+  CAST_ON = on;
   const lu = $('#lineup');
-  if (s.card === 'title') { const ep = EPS[E]; lu.innerHTML = ''; (ep.cast || []).slice(0, 5).forEach(w => { const f = face(w, 'min(15vw,12vh,86px)'); lu.appendChild(f) }); lu.classList.add('on') }
+  if (s.card === 'title') { const ep = EPS[E]; lu.innerHTML = ''; (ep.cast || []).slice(0, 5).forEach(w => lu.appendChild(face(w, 'min(15vw,12vh,86px)'))); lu.classList.add('on') }
   else lu.classList.remove('on');
+}
+let lastT = performance.now();
+function animateCast(s) {
+  const now = performance.now(), dt = Math.min(.1, (now - lastT) / 1000); lastT = now;
+  let lv = 0;
+  if (s && s.kind === 'call' && s.ai && s.ai.e && !P.voice.paused) { const q = Math.min(39, Math.floor(P.voice.currentTime / Math.max(.1, s.ai.d) * 40)); lv = parseInt(s.ai.e[q] || '0', 36) / 35 }
+  const t = now / 1000;
+  CAST_ON.forEach(A => {
+    // speaking: the clip runs with the voice (faster on loud syllables, nearly still in the pauses); listening: slow, breathing; voiced by the archive: half pace
+    const target = A.mode === 'speak' ? (P.playing ? .25 + 1.5 * lv : .15) : A.mode === 'listen' ? .3 : .5;
+    A.rate += (target - A.rate) * .2;
+    if (A.sp) { A.phase += dt * A.sp.fps * A.rate; const n = A.sp.n, per = 2 * (n - 1), k = Math.floor(A.phase) % per; draw(A, k < n ? k : per - k) }
+    A.lift += ((A.mode === 'speak' ? lv : 0) - A.lift) * .35;
+    if (A.mode === 'listen' && lv > .8 && A.nod < .05) A.nod = 1; A.nod *= .9;   // the listener nods at the speaker's stresses
+    const breathe = Math.sin(t * 1.7 + A.phase * .1) * .008, lean = A.mode === 'speak' ? (A.x < 50 ? 1.6 : -1.6) * (.5 + A.lift) : A.mode === 'listen' ? (A.x < 50 ? .8 : -.8) + A.nod * (A.x < 50 ? 2.4 : -2.4) : 0;
+    A.el.style.transform = `translateX(-50%) translateY(${-A.lift * 2.2}%) rotate(${lean.toFixed(2)}deg) scale(${(1 + breathe + A.lift * .02).toFixed(4)})`;
+  });
 }
 function esc(t) { return String(t).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c])) }
 function setPlaying(on) {
@@ -262,7 +306,7 @@ function setPlaying(on) {
 }
 function tick() {
   requestAnimationFrame(tick);
-  const s = P.shots[P.j]; if (!s || !P.playing) return;
+  const s = P.shots[P.j]; if (!P.playing) { animateCast(s); return } if (!s) return;
   const el = (performance.now() - P.start) / 1000;
   const vis = V.find(v => v.classList.contains('on'));
   // an answer ends where its sentence ends; a place that runs out hands over to the next clip of the place
@@ -270,7 +314,9 @@ function tick() {
   if (P.pv && !P.handing && P.pv.currentTime >= +P.pv.dataset.end) handover();
   // the score sits under everything, lower under any voice
   const speaking = (!P.voice.paused && !P.voice.ended) || s.kind === 'answer'; score.volume += ((speaking ? .05 : .14) - score.volume) * .05;
-  if (s.kind === 'call' && s.ai && s.ai.e && AV[s.who]) { const q = Math.min(39, Math.floor(P.voice.currentTime / Math.max(.1, s.ai.d) * 40)), lv = P.voice.paused ? 0 : parseInt(s.ai.e[q] || '0', 36) / 35; const r = AV[s.who].querySelector('.ring'); r.style.transform = `scale(${1 + lv * .14})`; r.style.opacity = .35 + lv * .65; AV[s.who].querySelector('.disc').style.transform = `translateY(${-lv * 3}px)` }
+  animateCast(s);
+  if (s.kind === 'call') { const ws = $$('#line .w'), n = Math.floor(ws.length * Math.min(1, P.voice.currentTime / Math.max(.1, s.ai.d) * 1.06)); ws.forEach((w, i) => w.classList.toggle('on', i <= n)) }
+  if (P.pv) { P.pv._z = Math.min(1.09, (P.pv._z || 1) + .00012); P.pv.style.transform = `scale(${P.pv._z.toFixed(4)})` }   // the place drifts in, slowly, as if the camera were breathing
   const st = $('#strip u'); if (st) st.style.left = ((s.t0 + Math.min(el, s.dur)) / P.shots.total * 100) + '%';
   const voiceDone = !s.ai || P.voice.ended || P.voice.paused;
   const ansDone = s.kind !== 'answer' || (vis && (vis.paused || vis.ended));
@@ -323,6 +369,7 @@ $('#kbooks').onclick = $('#ep').onclick = () => $('#books').classList.add('on');
 $('#kclose').onclick = () => $('#books').classList.remove('on');
 document.addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); $('#kplay').click() } else if (e.key === 'ArrowRight') $('#knext').click(); else if (e.key === 'ArrowLeft') $('#kprev').click() });
 const tot = EPS.reduce((t, ep) => t + program(ep).total, 0); $('#runtime').textContent = `${EPS.length} EPISODES · ${Math.round(tot / 60)} MINUTES · ${MODES[MODE].n}`;
+addEventListener('resize', () => P.shots[P.j] && stage(P.shots[P.j]));
 drawMode(); const m = location.hash.match(/e=(\d+)/); episode(m ? +m[1] - 1 : 0); tick();
 </script>
 </body>
