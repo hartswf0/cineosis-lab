@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Found Republic</title>
+<meta name="description" content="THE REPUBLIC in four versions over one script: the screenplay voiced, the archive's own speakers, the archive by montage, and the mixed cut. The script is always in view.">
+<meta property="og:title" content="MARKOV FOUND · THE REPUBLIC">
+<meta property="og:description" content="One script, four versions: screenplay, archive, montage, mixed. Press play.">
+<meta property="og:image" content="https://hartswf0.github.io/cineosis-lab/lab/republic/share.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0c0806">
+<link rel="icon" href="republic/icon.svg" type="image/svg+xml"><link rel="icon" href="republic/icon-32.png" sizes="32x32"><link rel="apple-touch-icon" href="republic/icon-180.png">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;600&family=Fraunces:ital,opsz,wght@1,9..144,500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0806;--panel:#130c09;--ink:#f4e9dc;--dim:#a8968a;--faint:#6d5d53;--line:#2e211b;--rust:#e0572a;
+--v1:#3fc78a;--v2:#f2c14e;--v3:#ff6f91;--v4:#9fb4ff;--place:#5b8cff;
+--mono:'IBM Plex Mono',ui-monospace,monospace;--head:'Archivo Black',Impact,sans-serif;--ser:'Fraunces',Georgia,serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--mono);overflow:hidden;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+#app{position:fixed;inset:0;display:grid;grid-template-rows:auto auto 1fr auto;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+/* the versions: one script, four rules */
+#versions{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}
+.ver{padding:8px 6px 7px;text-align:left;border-right:1px solid var(--line);opacity:.55;position:relative}
+.ver:last-child{border-right:0}
+.ver b{display:block;font:12px/1.05 var(--head);letter-spacing:.02em}
+.ver span{display:block;font-size:9px;line-height:1.25;color:var(--dim);margin-top:3px}
+.ver::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:3px;background:var(--c);transform:scaleX(0);transition:transform .25s}
+.ver.on{opacity:1}.ver.on::after{transform:none}
+.ver i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:5px;vertical-align:1px}
+@media (max-width:640px){.ver span{display:none}.ver b{font-size:10.5px}.ver{padding:9px 5px}}
+/* the stage */
+#main{min-height:0;display:grid;grid-template-columns:1fr;grid-template-rows:auto 1fr}
+#stage{position:relative;background:#000;aspect-ratio:16/9;width:100%;overflow:hidden}
+@media (min-width:900px){#main{grid-template-columns:minmax(0,1fr) 400px;grid-template-rows:1fr}#stage{aspect-ratio:auto;height:100%}}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .14s linear;background:#000}
+video.on{opacity:1}video.slow{transition:opacity .6s ease}
+#stage.frozen video{filter:grayscale(.85) brightness(.5) blur(1.5px)}
+#cast{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.actor{position:absolute;bottom:0;transform-origin:50% 100%;opacity:0;transition:opacity .3s,left .55s cubic-bezier(.3,1.2,.5,1),height .45s;will-change:transform}
+.actor.on{opacity:1}
+.actor canvas{display:block;height:100%;width:auto;filter:drop-shadow(1.5px 0 0 #f1e6d2) drop-shadow(-1.5px 0 0 #f1e6d2) drop-shadow(0 1.5px 0 #f1e6d2) drop-shadow(0 -1.5px 0 #f1e6d2) drop-shadow(0 8px 14px rgba(0,0,0,.55))}
+.actor.listen{filter:brightness(.6)}
+#tint{position:absolute;inset:0;mix-blend-mode:multiply;pointer-events:none}
+#tag{position:absolute;left:8px;top:8px;right:8px;display:flex;gap:6px;align-items:center;font:600 9.5px var(--mono);letter-spacing:.12em;z-index:4}
+#tag b{padding:3px 6px;border-radius:2px;color:#000}#tag span{color:#fff;text-shadow:0 1px 3px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:400;letter-spacing:.02em}
+#sub{position:absolute;left:4%;right:4%;bottom:5%;z-index:5;text-align:center;pointer-events:none}
+#sub i{display:inline-block;font:600 10px var(--mono);letter-spacing:.14em;color:#000;padding:3px 7px;border-radius:2px;margin-bottom:6px;font-style:normal}
+#sub p{font:500 clamp(14px,2.2vw,24px)/1.25 var(--ser);font-style:italic;color:#fff;text-shadow:0 2px 10px #000,0 0 2px #000;text-wrap:balance}
+#card{position:absolute;inset:0;z-index:6;display:none;flex-direction:column;align-items:center;justify-content:center;gap:.4em;text-align:center;padding:7%;color:#fff;font:clamp(18px,4vw,48px)/1.02 var(--head);text-transform:uppercase;background:rgba(0,0,0,.4);text-shadow:0 4px 24px #000}
+#card.on{display:flex}#card.black{background:#000}
+#card small{font:600 10px/1.4 var(--mono);letter-spacing:.22em;color:var(--rust)}
+#card em{font:500 clamp(11px,1.6vw,17px)/1.35 var(--ser);font-style:italic;text-transform:none;max-width:36em;color:#f4e9dc}
+#door{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:16px;background:rgba(12,8,6,.86)}
+#door h1{font:clamp(22px,5vw,58px)/.92 var(--head)}#door h1 span{color:var(--v2)}
+#door p{max-width:32em;font-size:11px;line-height:1.5;color:#e8d9c9}
+#play{width:68px;height:68px;border-radius:50%;background:var(--rust);display:grid;place-items:center;box-shadow:0 0 0 7px rgba(224,87,42,.25)}
+body.go #door{display:none}
+#wait{position:absolute;right:10px;top:30px;z-index:6;width:13px;height:13px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite;opacity:0}
+#wait.on{opacity:1}@keyframes sp{to{transform:rotate(360deg)}}
+/* the script: the spine, always in view */
+#script{min-height:0;min-width:0;display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--line)}
+#shead{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line)}
+#shead b{font:13px/1.1 var(--head);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tc{font:600 11px var(--mono);letter-spacing:.06em;color:var(--v2);white-space:nowrap}
+#rows{flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 0 40vh;scroll-behavior:smooth}
+.beat{padding:12px 12px 4px;font:600 9px var(--mono);letter-spacing:.18em;color:var(--faint)}
+.beat q{display:block;font:400 10.5px/1.4 var(--mono);letter-spacing:0;color:var(--dim);margin-top:3px;quotes:none}
+.p{display:grid;grid-template-columns:52px minmax(0,1fr);gap:2px 8px;padding:7px 12px;border-left:3px solid transparent;cursor:pointer}
+.p:hover{background:rgba(255,255,255,.03)}
+.p.on{background:rgba(242,193,78,.08);border-left-color:var(--v2)}
+.p .id{font:600 9px/1.3 var(--mono);color:var(--faint)}.p .id small{display:block;font-weight:400;font-size:8.5px}
+.p .who{font:600 9.5px var(--mono);letter-spacing:.12em}
+.p .who i{font-style:normal;font-weight:600;font-size:8px;letter-spacing:.12em;padding:1px 4px;border-radius:2px;color:#000;margin-left:6px}
+.p .ln{grid-column:2;font:500 14px/1.32 var(--ser);font-style:italic;color:var(--ink)}
+.p .hd{grid-column:2;font-size:10.5px;line-height:1.35;color:var(--dim)}.p .hd b{color:var(--v2);font-weight:600;font-size:8.5px;letter-spacing:.14em;margin-right:4px}
+.p .pc{grid-column:2;font-size:9px;color:var(--faint)}
+.p.act .ln{font:400 11px/1.4 var(--mono);font-style:normal;color:var(--dim)}
+.p.card .ln{font:12px var(--head);font-style:normal;text-transform:uppercase;color:var(--dim)}
+/* the strip and the bar */
+#strip{height:20px;position:relative;background:#000;border-top:1px solid var(--line);cursor:pointer;overflow:hidden}
+#strip i{position:absolute;top:4px;bottom:4px;border-radius:1px;opacity:.5}#strip i.on{opacity:1}
+#strip u{position:absolute;top:0;bottom:0;width:2px;background:#fff}
+#bar{display:flex;align-items:center;gap:2px;padding:4px 6px;border-top:1px solid var(--line)}
+.k{min-width:42px;height:42px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:8px;font-size:8px;letter-spacing:.12em;color:var(--dim)}
+.k svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.k.on{color:var(--ink)}
+#ep{flex:1;min-width:0;padding:0 6px;cursor:pointer}#ep b{display:block;font:12px/1.1 var(--head);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#ep span{display:block;font-size:8.5px;letter-spacing:.12em;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+#books{position:fixed;inset:0;z-index:50;background:rgba(10,6,4,.97);display:none;flex-direction:column}#books.on{display:flex}
+#books header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}#books header b{font:17px var(--head)}
+#bk{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;padding:12px 16px 24px}
+.bn{position:relative;aspect-ratio:16/10;border-radius:6px;overflow:hidden;background:#000;text-align:left;border:1px solid var(--line)}
+.bn img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.7}
+.bn .t{position:absolute;left:8px;right:8px;bottom:7px;font:12px/1.05 var(--head);color:#fff;text-shadow:0 1px 6px #000}
+.bn .n{position:absolute;left:8px;top:6px;font-size:9px;letter-spacing:.16em;color:#fff;background:rgba(0,0,0,.5);padding:2px 5px}.bn.cur{outline:2px solid var(--rust)}
+</style>
+</head>
+<body>
+<div id="app">
+ <div id="versions"></div>
+ <div></div>
+ <div id="main">
+  <div id="stage">
+   <video id="v0" playsinline preload="auto"></video><video id="v1" playsinline preload="auto"></video><video id="v2" playsinline preload="auto"></video>
+   <div id="cast"></div><div id="tint"></div>
+   <div id="tag"><b id="tagk"></b><span id="tags"></span></div><div id="wait"></div>
+   <div id="sub"><i id="subw"></i><p id="subp"></p></div>
+   <div id="card"></div>
+   <div id="door">
+    <div style="font-size:9.5px;letter-spacing:.2em;color:var(--dim)">MARKOV FOUND · CINEOSIS LAB</div>
+    <h1>THE <span>REPUBLIC</span></h1>
+    <p>One script, four versions. Choose a version above; the script on the right (below, on a phone) is the story, patch by patch, whichever version you watch.</p>
+    <button id="play" aria-label="Play"><svg width="28" height="28" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="#fff"/></svg></button>
+    <div id="runtime" style="font-size:9.5px;letter-spacing:.2em;color:var(--dim)"></div>
+    <div style="font-size:9.5px;letter-spacing:.12em;color:var(--dim)"><a href="markov-sam-republic.html" style="color:var(--v2)">THE MULTIPLANE</a> · <a href="https://hartswf0.github.io/the-republic/screenplay.html" style="color:var(--v2)">SCREENPLAY</a> · <a href="https://hartswf0.github.io/the-republic/megamap.html" style="color:var(--v2)">MEGAMAP</a></div>
+   </div>
+  </div>
+  <div id="script"><div id="shead"><b id="sname"></b><span id="tc">01:00:00:00</span></div><div id="rows"></div></div>
+ </div>
+ <div>
+  <div id="strip"></div>
+  <div id="bar">
+   <button class="k" id="kplay" aria-label="Play or pause"><svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg><span>PLAY</span></button>
+   <button class="k" id="kprev" aria-label="Previous patch"><svg viewBox="0 0 24 24"><path d="M18 5L8 12l10 7zM6 5v14"/></svg><span>BACK</span></button>
+   <button class="k" id="knext" aria-label="Next patch"><svg viewBox="0 0 24 24"><path d="M6 5l10 7-10 7zM18 5v14"/></svg><span>NEXT</span></button>
+   <div id="ep" role="button" aria-label="Choose an episode"><b></b><span></span></div>
+   <button class="k" id="kcast" aria-label="Cut-outs on or off"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="3.5"/><path d="M5 21c0-4 3-7 7-7s7 3 7 7"/></svg><span>CAST</span></button>
+   <button class="k" id="kbooks" aria-label="Episodes"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="7" height="7"/><rect x="14" y="4" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span>EPISODES</span></button>
+  </div>
+ </div>
+</div>
+<div id="books"><header><b>THE REPUBLICS</b><button class="k" id="kclose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header><div id="bk"></div></div>
+<script>
+const D = {{DATA}};
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const EPS = D.eps;
+// ---------- the versions: one script, four rules ----------
+const VERSIONS = [
+  {k: 'screen', n: '1 SCREENPLAY', c: 'var(--v1)', rule: 'the script in the characters’ own voices; paper cut-outs over archive pictures'},
+  {k: 'archive', n: '2 ARCHIVE', c: 'var(--v2)', rule: 'only the archive: each line a real speaker, in their own picture and sound'},
+  {k: 'montage', n: '3 MONTAGE', c: 'var(--v3)', rule: 'archive voices heard over other clips; the cut-outs speak them'},
+  {k: 'mixed', n: '4 MIXED', c: 'var(--v4)', rule: 'puppet, archive and aside: the cut-out steps out where the archive fails'}];
+const MODE = {screen: ['SCREENPLAY', 'var(--v1)'], archive: ['ARCHIVE', 'var(--v2)'], montage: ['MONTAGE', 'var(--v3)'], aside: ['ASIDE', '#f1e6d2'], place: ['PLACE', 'var(--place)'], card: ['CARD', '#fff']};
+let VER = 0; try { VER = +(localStorage.getItem('found.ver') || 0) % 4 } catch (e) {}
+let E = 0, P = [], TOTAL = 0;
+function program(ep, ver) {
+  const out = [], vk = VERSIONS[ver].k;
+  ep.segs.forEach(s => {
+    if (s.k !== 'line') {
+      out.push({kind: s.k === 'card' ? 'card' : 'place', k: s.k, pic: s.v ? {v: s.v, in: s.in, src: s.src, y: s.y} : null, vol: s.vol || 0, dur: s.dur, text: s.text, mode: s.k === 'card' ? 'card' : 'place'});
+      return;
+    }
+    const montage = {v: s.v, in: s.in, src: s.src, y: s.y, pk: s.pk}, own = {v: s.a.v, in: s.a.in, src: s.a.src, y: s.a.y};
+    const base = {kind: 'line', who: s.who, line: s.line, said: s.said, env: s.env, body: s.body && s.own};
+    let m = vk === 'mixed' ? (s.mode === 'puppet' ? 'montage' : s.mode === 'duet' ? 'archive' : 'aside') : vk;
+    if ((m === 'screen' || m === 'aside') && !s.ai) m = 'montage';
+    if (m === 'screen') out.push({...base, mode: 'screen', pic: montage, vol: .1, aud: {v: s.ai.f, in: 0}, dur: s.ai.d + .3, heard: null, env: s.ai.e, body: s.body, puppet: 1});
+    else if (m === 'archive') out.push({...base, mode: 'archive', pic: own, vol: 1, aud: null, dur: s.dur, heard: s.said, puppet: 0});
+    else if (m === 'montage') out.push({...base, mode: 'montage', pic: montage, vol: .1, aud: {v: s.a.v, in: s.a.in}, dur: s.dur, heard: s.said, puppet: 1});
+    else {                                                              // the aside: the clip just heard stops; the character steps out
+      const prev = out[out.length - 1], pic = prev && prev.pic ? {v: prev.pic.v, in: prev.pic.in + Math.max(0, prev.dur - .06), src: prev.pic.src, y: prev.pic.y} : montage;
+      out.push({...base, mode: 'aside', pic, freeze: 1, vol: 0, aud: {v: s.ai.f, in: 0}, dur: s.ai.d + .35, heard: null, env: s.ai.e, body: s.body, puppet: 1});
+    }
+  });
+  // sides and listeners, patch ids, timecodes, beats
+  const order = [], last = []; let beat = 0, beatText = '';
+  let t = 0, n = 0;
+  out.forEach((s, j) => {
+    if (s.k === 'act') { beat++; beatText = s.text }
+    s.beat = beat; s.beatText = beatText;
+    if (s.kind === 'line') { if (!order.includes(s.who)) order.push(s.who); s.side = order.indexOf(s.who) % 2 ? 'R' : 'L'; s.listener = last.filter(w => w !== s.who).slice(-1)[0] || null; if (last[last.length - 1] !== s.who) last.push(s.who) }
+    s.t0 = t; t += s.dur; s.id = 'P' + String(++n).padStart(2, '0');
+  });
+  out.total = t; return out;
+}
+const tc = t => { const f = Math.floor(t * 24), h = 1 + Math.floor(f / 86400), m = Math.floor(f / 1440) % 60, sx = Math.floor(f / 24) % 60, fr = f % 24; return [h, m, sx, fr].map(x => String(x).padStart(2, '0')).join(':') };
+const esc = t => String(t || '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+const colorOf = who => { let h = 0; for (const c of who) h = (h * 31 + c.charCodeAt(0)) % 360; return `hsl(${h} 78% 64%)` };
+// ---------- one clock; pictures and voices follow it ----------
+const C = {T: 0, playing: false, last: performance.now(), j: -1, hold: false, holdSince: 0};
+const POOL = [$('#v0'), $('#v1'), $('#v2')], slot = new Map();
+const AUD = [new Audio(), new Audio(), new Audio()], aslot = new Map(); AUD.forEach(a => a.preload = 'auto');
+const at = T => { const j = P.findIndex(s => T < s.t0 + s.dur); return j < 0 ? P.length - 1 : j };
+function take(pool, map, j, src, start) {
+  if (map.has(j)) return map.get(j);
+  const keep = new Set([C.j, C.j + 1, C.j + 2].map(k => map.get(k)).filter(Boolean));
+  const el = pool.find(x => !keep.has(x)) || pool[0];
+  for (const [k, x] of map) if (x === el) map.delete(k);
+  map.set(j, el);
+  if (el.dataset.src !== src) { el.dataset.src = src; el.src = src }
+  const seek = () => { try { el.currentTime = start } catch (e) {} };
+  if (el.readyState >= 1) seek(); else el.addEventListener('loadedmetadata', seek, {once: true});
+  el.volume = 0; el.pause(); return el;
+}
+const pic = j => { const s = P[j]; return s && s.pic ? take(POOL, slot, j, s.pic.v, s.pic.in) : null };
+const aud = j => { const s = P[j]; return s && s.aud ? take(AUD, aslot, j, s.aud.v, s.aud.in) : null };
+function follow(el, start, u, s, vol, now, freeze) {
+  if (freeze) {
+    if (!el.paused) el.pause();
+    if (!el.seeking && Math.abs(el.currentTime - start) > .12 && now - (el._fix || 0) > 800) { el.currentTime = start; el._fix = now }
+    return (!el.seeking && el.readyState >= 2) || now - (el._fix || 0) > 2500;
+  }
+  const want = start + u, end = el.ended || (el.duration && el.currentTime >= el.duration - .06);
+  let ready = true;
+  if (end) ready = true;
+  else if (el.seeking || el.readyState < 3) ready = (now - (el._fix || 0) > 2500) && el.readyState >= 2;
+  else if (Math.abs(el.currentTime - want) > .35 && now - (el._fix || 0) > 1500 && (!el.duration || want < el.duration - .1)) { el.currentTime = want; el._fix = now }
+  el.volume = Math.max(0, Math.min(1, vol * Math.min(1, u / .08, (s.dur - u) / .1)));
+  if (C.playing && ready && el.paused && !end) el.play().catch(() => {});
+  if (!C.playing && !el.paused) el.pause();
+  return ready;
+}
+function enter(j) {
+  const s = P[j], prev = P[C.j]; C.j = j;
+  for (const m of [slot, aslot]) for (const [k] of [...m]) if (k < j) m.delete(k);
+  const v = pic(j), a = aud(j);
+  POOL.forEach(x => { if (x !== v) { x.classList.remove('on'); x.pause() } }); AUD.forEach(x => { if (x !== a) x.pause() });
+  if (v) { v.classList.toggle('slow', !prev || prev.kind !== s.kind || s.k === 'title'); v.classList.add('on') }
+  pic(j + 1); pic(j + 2); aud(j + 1); aud(j + 2);
+  show(s); stage(s); mark();
+}
+function tick() { requestAnimationFrame(tick); if (!document.hidden) step() }
+setInterval(() => { if (document.hidden) step() }, 200);
+function step() {
+  const now = performance.now(), dt = Math.min(.25, (now - C.last) / 1000); C.last = now;
+  if (!P.length) return;
+  const j = at(C.T); if (j !== C.j) enter(j);
+  const s = P[j], u = C.T - s.t0, v = slot.get(j), a = aslot.get(j);
+  let ready = true;
+  if (v) ready = follow(v, s.pic.in, u, s, s.vol, now, s.freeze);
+  if (a) ready = follow(a, s.aud.in, u, s, 1, now) && ready;
+  $('#stage').classList.toggle('frozen', !!s.freeze);
+  if (!ready && C.playing) { if (!C.hold) { C.hold = true; C.holdSince = now } } else C.hold = false;
+  $('#wait').classList.toggle('on', C.hold && now - C.holdSince > 400);
+  if (C.playing && ready) { C.T += dt; if (C.T >= TOTAL) { episode(E + 1, true); return } }
+  animate(dt, level(s, u), C.playing && ready);
+  $('#tc').textContent = tc(C.T); const st = $('#strip u'); if (st) st.style.left = (C.T / TOTAL * 100) + '%';
+}
+const level = (s, u) => { if (!s || !s.env) return 0; const q = Math.max(0, Math.min(39, Math.floor(u / s.dur * 40))); return parseInt(s.env[q] || '0', 36) / 35 };
+// ---------- what is on the screen ----------
+function show(s) {
+  const ep = EPS[E], card = $('#card'), mode = MODE[s.mode] || MODE.place;
+  $('#tagk').textContent = s.id + ' · ' + mode[0]; $('#tagk').style.background = mode[1];
+  $('#tags').textContent = s.pic ? `picture: ${s.pic.src}${s.pic.y ? ' (' + s.pic.y + ')' : ''}` : '';
+  card.className = ''; card.innerHTML = '';
+  if (s.k === 'card') { card.textContent = s.text; card.className = 'on black' }
+  else if (s.k === 'title') { card.className = 'on'; card.innerHTML = `<small>EPISODE ${E + 1} OF ${EPS.length}${ep.series ? ' · ' + esc(ep.series) : ''} · ${VERSIONS[VER].n}</small>${esc(ep.name)}<em>${esc(ep.logline)}</em>` }
+  // the subtitle is what you hear; the script panel carries what is meant
+  if (s.kind === 'line') { $('#subw').textContent = s.who + (s.mode === 'aside' ? ' · ASIDE, TO YOU' : ''); $('#subw').style.background = colorOf(s.who); $('#subw').style.display = ''; $('#subp').textContent = s.heard || s.line }
+  else if (s.k === 'act') { $('#subw').style.display = 'none'; $('#subp').textContent = '' }
+  else { $('#subw').style.display = 'none'; $('#subp').textContent = '' }
+}
+// ---------- the cut-outs: no mouths; they move as their clips moved, lean into the voice, and only where the version says ----------
+const ACT = {}; let CASTON = true; try { CASTON = localStorage.getItem('found.cast') !== '0' } catch (e) {}
+function actor(who) {
+  if (ACT[who] !== undefined) return ACT[who];
+  const f = (D.cast[who] || [])[0]; if (!f) return ACT[who] = null;
+  const el = document.createElement('div'); el.className = 'actor'; el.innerHTML = '<canvas></canvas>';
+  const cv = el.querySelector('canvas'), A = {who, el, cv, ctx: cv.getContext('2d'), sp: f.sp, img: new Image(), ok: false, phase: Math.random() * 10, rate: .3, lift: 0, nod: 0, x: 50, ar: f.sp ? f.sp.w / f.sp.h : f.w / f.h, cut: f.cut, seen: false};
+  A.img.onload = () => { A.ok = true; if (f.sp) { cv.width = f.sp.w; cv.height = f.sp.h } else { cv.width = A.img.naturalWidth; cv.height = A.img.naturalHeight } paint(A, 0) };
+  A.img.src = f.sp ? f.sp.f : f.f; $('#cast').appendChild(el); return ACT[who] = A;
+}
+function paint(A, k) { if (!A.ok) return; const c = A.ctx; c.clearRect(0, 0, A.cv.width, A.cv.height); if (A.sp) c.drawImage(A.img, k * A.sp.w, 0, A.sp.w, A.sp.h, 0, 0, A.sp.w, A.sp.h); else c.drawImage(A.img, 0, 0) }
+let ON = new Set();
+function put(A, x, h, wmax, mode) {
+  if (!A.seen) { A.seen = true; A.el.style.transition = 'none'; A.el.style.left = (x < 50 ? -30 : 130) + '%'; A.el.offsetWidth; A.el.style.transition = '' }
+  const r = $('#stage').getBoundingClientRect();
+  A.x = x; A.mode = mode; A.el.style.left = x + '%'; A.el.style.height = Math.min(h * r.height, wmax * r.width / A.ar) + 'px';
+  A.el.style.bottom = A.cut ? '-1%' : '3%'; A.el.style.zIndex = mode === 'speak' ? 2 : 1; A.el.classList.add('on'); A.el.classList.toggle('listen', mode === 'listen');
+}
+function stage(s) {
+  const on = new Set();
+  if (CASTON && s.kind === 'line' && s.puppet && s.body) {
+    const A = actor(s.who), L = s.side !== 'R';
+    if (A && s.mode === 'aside') { put(A, 50, .8, .6, 'speak'); on.add(A) }
+    else if (A) {
+      put(A, L ? 24 : 76, .62, .42, 'speak'); on.add(A);
+      const prev = P[C.j - 1];
+      if (s.listener && prev && prev.kind === 'line' && prev.who === s.listener && prev.puppet && prev.body) { const B = actor(s.listener); if (B) { put(B, L ? 80 : 20, .44, .28, 'listen'); on.add(B) } }
+    }
+  }
+  Object.values(ACT).forEach(A => { if (A && !on.has(A)) A.el.classList.remove('on') }); ON = on;
+}
+function animate(dt, lv, running) {
+  const t = performance.now() / 1000;
+  ON.forEach(A => {
+    const tgt = A.mode === 'speak' ? (running ? .25 + 1.4 * lv : .1) : (running ? .3 : .1); A.rate += (tgt - A.rate) * .2;
+    if (A.sp) { A.phase += dt * A.sp.fps * A.rate; const n = A.sp.n, per = Math.max(1, 2 * (n - 1)), k = Math.floor(A.phase) % per; paint(A, k < n ? k : per - k) }
+    A.lift += ((A.mode === 'speak' && running ? lv : 0) - A.lift) * .3;
+    if (A.mode === 'listen' && lv > .85 && A.nod < .05) A.nod = 1; A.nod *= .9;
+    const inward = A.x < 45 ? 1 : A.x > 55 ? -1 : 0, lean = A.mode === 'speak' ? inward * 1.2 * (.4 + A.lift) : inward * (.6 + A.nod * 2.2);
+    A.el.style.transform = `translateX(-50%) translateY(${(-A.lift * 2).toFixed(2)}%) rotate(${lean.toFixed(2)}deg) scale(${(1 + Math.sin(t * 1.7 + A.phase * .1) * .007).toFixed(4)})`;
+  });
+}
+// ---------- the script panel: the story, patch by patch ----------
+function renderScript() {
+  const ep = EPS[E]; $('#sname').textContent = ep.name; let h = '', beat = -1;
+  P.forEach((s, j) => {
+    if (s.beat !== beat) { beat = s.beat; h += `<div class="beat">BEAT ${beat + 1}</div>` }
+    if (s.k === 'title') return;
+    const m = MODE[s.mode] || MODE.place, id = `<div class="id">${s.id}<small>${tc(s.t0)}</small></div>`;
+    if (s.kind === 'line') h += `<div class="p" data-j="${j}">${id}<div class="who" style="color:${colorOf(s.who)}">${esc(s.who)}<i style="background:${m[1]}">${m[0]}</i></div><div class="ln">${esc(s.line)}</div>${s.heard ? `<div class="hd"><b>HEARD</b>${esc(s.heard)}</div>` : ''}${s.pic ? `<div class="pc">${s.mode === 'archive' ? 'speaker' : 'picture'}: ${esc(s.pic.src)}${s.pic.y ? ' (' + s.pic.y + ')' : ''}</div>` : ''}</div>`;
+    else if (s.k === 'card') h += `<div class="p card" data-j="${j}">${id}<div class="ln">${esc(s.text)}</div></div>`;
+    else h += `<div class="p act" data-j="${j}">${id}<div class="ln">${esc(s.text)}</div></div>`;
+  });
+  $('#rows').innerHTML = h;
+  $$('#rows .p').forEach(r => r.onclick = () => { begin(); seek(+r.dataset.j); setPlaying(true) });
+}
+let userScroll = 0; $('#rows').addEventListener('wheel', () => userScroll = performance.now()); $('#rows').addEventListener('touchmove', () => userScroll = performance.now());
+function mark() {
+  $$('#rows .p').forEach(x => x.classList.toggle('on', +x.dataset.j === C.j)); $$('#strip i').forEach(x => x.classList.toggle('on', +x.dataset.j === C.j));
+  const r = $(`#rows .p[data-j="${C.j}"]`); if (r && performance.now() - userScroll > 4000) { const box = $('#rows'); box.scrollTop = r.offsetTop - box.clientHeight * .3 }
+}
+// ---------- episodes, versions ----------
+function episode(n, play) {
+  E = (n + EPS.length) % EPS.length; const ep = EPS[E];
+  const keepT = null;
+  P = program(ep, VER); TOTAL = P.total; slot.clear(); aslot.clear(); C.T = 0; C.j = -1;
+  $('#ep b').textContent = ep.name; $('#ep span').textContent = `${E + 1}/${EPS.length} · ${tc(TOTAL).slice(3, 8)} · ${VERSIONS[VER].n}`;
+  const g = D.grades[ep.grade] || {}; POOL.forEach(v => v.style.filter = g.f || 'none'); $('#tint').style.background = g.tint || 'transparent'; $('#tint').style.opacity = (g.mix || 0) * .5;
+  $('#strip').innerHTML = P.map((s, j) => `<i data-j="${j}" style="left:${s.t0 / TOTAL * 100}%;width:calc(${s.dur / TOTAL * 100}% - 1px);background:${(MODE[s.mode] || MODE.place)[1]}"></i>`).join('') + '<u></u>';
+  renderScript(); renderBooks();
+  if (play !== undefined) setPlaying(play);
+}
+function version(n) {
+  // switching version keeps your place in the story: the same patch, in the other version
+  const at_ = P[C.j] ? C.j : 0; VER = n; try { localStorage.setItem('found.ver', n) } catch (e) {}
+  renderVersions(); const playing = C.playing; P = program(EPS[E], VER); TOTAL = P.total; slot.clear(); aslot.clear();
+  $('#ep span').textContent = `${E + 1}/${EPS.length} · ${tc(TOTAL).slice(3, 8)} · ${VERSIONS[VER].n}`;
+  $('#strip').innerHTML = P.map((s, j) => `<i data-j="${j}" style="left:${s.t0 / TOTAL * 100}%;width:calc(${s.dur / TOTAL * 100}% - 1px);background:${(MODE[s.mode] || MODE.place)[1]}"></i>`).join('') + '<u></u>';
+  renderScript(); seek(Math.min(at_, P.length - 1)); setPlaying(playing);
+}
+function renderVersions() {
+  $('#versions').innerHTML = VERSIONS.map((v, i) => `<button class="ver ${i === VER ? 'on' : ''}" style="--c:${v.c}" data-i="${i}"><b><i></i>${v.n}</b><span>${v.rule}</span></button>`).join('');
+  $$('#versions .ver').forEach(b => b.onclick = () => { begin(); version(+b.dataset.i) });
+}
+function seek(j) { j = Math.max(0, Math.min(P.length - 1, j)); C.T = P[j].t0 + .01; slot.delete(j); aslot.delete(j); C.j = -1 }
+$('#strip').onclick = e => { const r = $('#strip').getBoundingClientRect(); begin(); seek(at((e.clientX - r.left) / r.width * TOTAL)) };
+function setPlaying(on) {
+  C.playing = on;
+  $('#kplay').innerHTML = on ? `<svg viewBox="0 0 24 24"><path d="M7 4v16M17 4v16"/></svg><span>PAUSE</span>` : `<svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg><span>PLAY</span>`;
+  if (!on) { POOL.forEach(v => v.pause()); AUD.forEach(a => a.pause()) }
+}
+function renderBooks() {
+  $('#bk').innerHTML = EPS.map((ep, n) => `<button class="bn ${n === E ? 'cur' : ''}" data-n="${n}"><img src="${ep.thumb}" alt="" loading="lazy"><span class="n">${String(n + 1).padStart(2, '0')}</span><span class="t">${esc(ep.name)}</span></button>`).join('');
+  $$('#bk .bn').forEach(b => b.onclick = () => { $('#books').classList.remove('on'); begin(); episode(+b.dataset.n, true) });
+}
+let begun = false;
+function begin() {
+  if (begun) return; begun = true; document.body.classList.add('go');
+  [...POOL, ...AUD].forEach(m => { if (m.src) { const p = m.play(); p && p.then(() => { if (!C.playing) m.pause() }).catch(() => {}) } });
+}
+$('#play').onclick = () => { begin(); setPlaying(true) };
+$('#kplay').onclick = () => { begin(); setPlaying(!C.playing) };
+$('#knext').onclick = () => { begin(); C.j < P.length - 1 ? seek(C.j + 1) : episode(E + 1, C.playing) };
+$('#kprev').onclick = () => { begin(); C.j > 0 ? seek(C.j - 1) : episode(E - 1, C.playing) };
+$('#kcast').onclick = () => { CASTON = !CASTON; try { localStorage.setItem('found.cast', CASTON ? '1' : '0') } catch (e) {} $('#kcast').classList.toggle('on', CASTON); if (P[C.j]) stage(P[C.j]) };
+$('#kbooks').onclick = $('#ep').onclick = () => $('#books').classList.add('on');
+$('#kclose').onclick = () => $('#books').classList.remove('on');
+document.addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); $('#kplay').click() } else if (e.key === 'ArrowRight') $('#knext').click(); else if (e.key === 'ArrowLeft') $('#kprev').click(); else if ('1234'.includes(e.key)) { begin(); version(+e.key - 1) } else if (e.key === 'Escape') $('#books').classList.remove('on') });
+addEventListener('resize', () => P[C.j] && stage(P[C.j]));
+$('#kcast').classList.toggle('on', CASTON);
+$('#runtime').textContent = `${EPS.length} EPISODES · ${Math.round(EPS.reduce((t, e) => t + program(e, VER).total, 0) / 60)} MINUTES IN THIS VERSION`;
+renderVersions(); const mh = location.hash.match(/e=(\d+)/); episode(mh ? +mh[1] - 1 : 0); tick();
+</script>
+</body>
+</html>

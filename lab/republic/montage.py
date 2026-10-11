@@ -95,29 +95,20 @@ for eid, ep in A.items():
     segs = ep["segs"]; lines = [s for s in segs if s["k"] == "line"]
     fits = sorted(s["fit"] for s in lines); low = fits[max(0, len(fits) * 15 // 100 - 1)] if fits else 0
     seen, scene, n_aside, last, li = set(), 0, 0, None, -1
-    out = []
-    for s in segs:
+    for s in segs:                                                     # every option kept; the page's VERSION chooses
         if s["k"] == "act": scene += 1
-        if s["k"] != "line": out.append(s); last = s; continue
+        if s["k"] != "line": last = s; continue
         c = s["who"]; first = c not in seen; seen.add(c); li += 1
         weak = s.get("how") == "archive" or s["fit"] <= low
         row = (VO.get(eid) or [])[s["bk"] + 1] if s.get("bk") is not None and s["bk"] + 1 < len(VO.get(eid) or []) else None
-        if not first and weak and n_aside < 4 and row and last is not None and last.get("pk") != "aside" and last.get("v"):
-            fz = last["in"] + max(0, last["dur"] - .06)
-            s.update(pk="aside", v=last["v"], **{"in": round(fz, 2)}, freeze=1, vol=0, a={"v": row["f"], "in": 0, "src": "the character, to camera", "y": None},
-                     said=s["line"], env=row.get("e", ""), dur=round(row["d"] + .35, 2), src=last.get("src", ""), y=last.get("y"))
-            n_aside += 1
-        elif (first or (li // 3) % 2 == 0) and body_ok(c) and s.get("how") == "voice":   # runs of three: puppets, then the archive's own faces
-            s["pk"] = s.get("pk") or "ground"; s["show"] = 1                 # a puppet: picture stays the montage's ground or insert
-        else:
-            a = s.get("a") or {}
-            s.update(pk="duet", v=a.get("v", s["v"]), **{"in": a.get("in", s["in"])}, vol=1.0, src=a.get("src", s.get("src")), y=a.get("y")); s.pop("a", None)
-        out.append(s); last = s
-    t = 0
-    for s in out: s["t0"] = round(t, 2); t += s["dur"]
-    ep["segs"], ep["total"] = out, round(t, 1)
+        if row: s["ai"] = {"f": row["f"], "d": row["d"], "e": row.get("e", "")}
+        s["body"] = int(body_ok(c)); s["own"] = int(s.get("how") == "voice")
+        if not first and weak and n_aside < 4 and row and last is not None and last.get("mode") != "aside": s["mode"] = "aside"; n_aside += 1
+        elif (first or (li // 3) % 2 == 0) and s["body"] and s["own"]: s["mode"] = "puppet"
+        else: s["mode"] = "duet"
+        last = s
     from collections import Counter as _C
-    print(eid, dict(_C(("puppet" if s.get("show") else s.get("pk")) for s in out if s["k"] == "line")), flush=True)
+    print(eid, dict(_C(s.get("mode") for s in segs if s["k"] == "line")), flush=True)
 # ---- inserts fitted to their clips' real lengths (the catalogue's length is sometimes wrong)
 segs = [s for ep in A.values() for s in ep["segs"] if s["k"] == "line" and s.get("pk") == "insert"]
 vs = sorted({s["v"] for s in segs})
