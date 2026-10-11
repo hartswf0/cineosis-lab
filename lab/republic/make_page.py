@@ -24,3 +24,16 @@ D = {"eps": eps, "cast": cast, "castInfo": {n: trim(c, ("as", "voice", "robot"))
 page = open(os.path.join(H, "template.html")).read().replace("{{DATA}}", json.dumps(D, ensure_ascii=False, separators=(",", ":")))
 open(os.path.join(L, "markov-sam-republic.html"), "w").write(page)
 print(len(eps), "episodes ·", len(cast), "cast ·", len(page) // 1024, "KB")
+# ---- the found page: the archive's own moving pictures and sound (republic/found.json from found.py)
+FJ = os.path.join(H, "found.json")
+if os.path.exists(FJ):
+    F = json.load(open(FJ)); feps = []
+    for e in eps:
+        f = F.get(e["id"])
+        if not f: continue
+        places = [p for p in f["places"] if p["v"]]
+        feps.append({k: e[k] for k in ("id", "name", "series", "genre", "logline", "grade", "score", "beats", "voice")} |
+                    {"answers": {int(k): v for k, v in f["answers"].items()}, "places": places, "thumb": e["places"][0]["alts"][0]["f"] + "_thumb.jpg"})
+    page = open(os.path.join(H, "found-template.html")).read().replace("{{DATA}}", json.dumps({"eps": feps, "grades": W["grades"]}, ensure_ascii=False, separators=(",", ":")))
+    open(os.path.join(L, "markov-found-republic.html"), "w").write(page)
+    print("found:", len(feps), "episodes ·", len(page) // 1024, "KB")
