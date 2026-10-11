@@ -35,6 +35,23 @@ video.slow{transition:opacity .8s ease}
 #line.act{font:400 clamp(12px,1.8vw,18px)/1.4 var(--mono);font-style:normal}
 #src{margin-top:6px;font-size:10px;letter-spacing:.08em;color:#d8c8ba;text-shadow:0 1px 4px #000;min-height:12px}
 @media (max-aspect-ratio:3/4){#wrap{align-items:flex-start}#words{top:calc(135vw + 16px);bottom:auto}#line{text-shadow:none}}
+/* avatars: the multiplane's cut-out cast, worn as faces over the found film */
+#cast{position:absolute;inset:0;z-index:6;pointer-events:none}
+.av{position:absolute;bottom:4%;display:flex;flex-direction:column;align-items:center;gap:5px;opacity:0;transform:translateY(12px) scale(.9);transition:opacity .3s,transform .35s cubic-bezier(.3,1.4,.5,1),left .45s,right .45s,filter .3s}
+.av.on{opacity:1;transform:none}
+.av .disc{position:relative;width:var(--s);height:var(--s);border-radius:50%;overflow:hidden;background:radial-gradient(circle at 50% 35%,var(--c),#120806 78%);box-shadow:0 0 0 3px var(--c),0 6px 22px rgba(0,0,0,.6)}
+.av .disc img{position:absolute;left:8%;top:10%;width:84%;height:90%;object-fit:contain;object-position:50% 100%;filter:drop-shadow(0 3px 6px rgba(0,0,0,.5))}
+.av .disc b{position:absolute;inset:0;display:grid;place-items:center;font:calc(var(--s) * .34) var(--head);color:#120806}
+.av .ring{position:absolute;inset:calc(var(--s) * -0.08);border-radius:50%;border:3px solid var(--c);opacity:0;transform:scale(1);pointer-events:none}
+.av.talk .ring{opacity:.9}
+.av.arch .ring{border-color:var(--ans);animation:pulse 1.1s ease-in-out infinite;opacity:.9}
+@keyframes pulse{50%{transform:scale(1.1);opacity:.35}}
+.av i{font:600 10px var(--mono);letter-spacing:.14em;color:#000;background:var(--c);padding:3px 6px;border-radius:2px;white-space:nowrap;font-style:normal}
+.av.listen{filter:brightness(.55) saturate(.6)}
+.av.small .disc{width:calc(var(--s) * .62);height:calc(var(--s) * .62)}
+#lineup{position:relative;display:flex;margin-bottom:8px;justify-content:center;gap:12px;flex-wrap:wrap;padding:0 4%;opacity:0;transition:opacity .5s;pointer-events:none}
+#lineup.on{opacity:1}#lineup:not(.on){display:none}
+#lineup .av{position:relative;bottom:auto;opacity:1;transform:none}
 #card{position:absolute;inset:0;z-index:7;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4em;text-align:center;padding:8%;color:#fff;font:clamp(22px,5vw,60px)/1.02 var(--head);text-transform:uppercase;opacity:0;pointer-events:none;transition:opacity .35s;background:rgba(0,0,0,.35);text-shadow:0 4px 30px #000}
 #card.on{opacity:1}#card.black{background:#000}
 #card small{font:600 11px/1.4 var(--mono);letter-spacing:.24em;color:var(--rust)}
@@ -80,6 +97,7 @@ body.go #door{display:none}body:not(.go) #words,body:not(.go) #card{opacity:0!im
    <video id="v0" playsinline preload="auto"></video><video id="v1" playsinline preload="auto"></video><video id="v2" playsinline preload="auto"></video><video id="v3" playsinline preload="auto"></video>
    <div id="tint"></div><div class="vig"></div>
    <div id="tag"><b id="tagk"></b><span id="tags"></span></div><div id="wait"></div>
+   <div id="cast"></div>
    <div id="card"></div>
    <div id="door">
     <div class="meta">MARKOV FOUND · CINEOSIS LAB</div>
@@ -90,7 +108,7 @@ body.go #door{display:none}body:not(.go) #words,body:not(.go) #card{opacity:0!im
     <div class="meta">ALSO: <a href="markov-sam-republic.html">THE MULTIPLANE</a> · <a href="https://hartswf0.github.io/the-republic/screenplay.html">SCREENPLAY</a> · <a href="https://hartswf0.github.io/the-republic/megamap.html">MEGAMAP</a></div>
    </div>
   </div>
-  <div id="words"><div id="who"></div><div id="line"></div><div id="src"></div></div>
+  <div id="words"><div id="lineup"></div><div id="who"></div><div id="line"></div><div id="src"></div></div>
  </div>
  <div id="strip" aria-label="the episode, shot by shot: green CALL, gold ANSWER, blue PICTURE"></div>
  <div id="bar">
@@ -124,10 +142,17 @@ function program(ep) {
     if (b.k === 'card') out.push({kind: 'card', place, dur: 2.2, text: b.text});
     else if (b.k === 'act') out.push({kind: 'picture', place, ai: v, dur: v.d + .35, text: b.text, who: 'NARRATOR'});
     else {
-      since++; const a = ep.answers[i];
+      since++; const a = ep.answers[i]; b = Object.assign({}, b, {who: ep.alias[b.who] || b.who});
       if (m !== 'answer') out.push({kind: 'call', place, ai: v, dur: v.d + .12, text: b.text, who: b.who});
       if (m !== 'call' && a) out.push({kind: 'answer', place, a, dur: a.t1 - a.t0 + .3, text: a.s, who: b.who});
     }
+  });
+  const order = [], last = []; out.forEach(s => {
+    if (s.kind !== 'call' && s.kind !== 'answer') return;
+    if (!order.includes(s.who)) order.push(s.who);
+    s.side = order.indexOf(s.who) % 2 ? 'R' : 'L';
+    s.listener = last.filter(w => w !== s.who).slice(-1)[0] || null;
+    if (last[last.length - 1] !== s.who) last.push(s.who);
   });
   let t = 0; out.forEach(s => { s.t0 = t; t += s.dur }); out.total = t; return out;
 }
@@ -192,11 +217,40 @@ async function go(j) {
     }
     if (s.ai) { P.voice.src = s.ai.f; P.voice.currentTime = 0; if (P.playing) P.voice.play().catch(() => {}) }
   }
+  stage(s);
   P.start = performance.now(); P.pausedAt = P.playing ? 0 : P.start;
   preloadAnswer(j + 1); markStrip();
   // the next place, ready before it is needed
   const nx = P.shots.slice(j + 1).find(x => x.kind !== 'answer' && x.place !== P.pidx);
   if (nx) { const c = ep.places[nx.place % ep.places.length], w = P.pv === V[0] ? V[1] : V[0]; if (w.dataset.src !== c.v && !w.classList.contains('on')) load(w, c.v, clipIn(c)) }
+}
+// ---------- avatars ----------
+function colorOf(who) { let h = 0; for (const c of who) h = (h * 31 + c.charCodeAt(0)) % 360; return `hsl(${h} 78% 64%)` }
+function face(who, size) {
+  const f = (D.cast[who] || [])[0], el = document.createElement('div'); el.className = 'av';
+  el.style.setProperty('--c', colorOf(who)); el.style.setProperty('--s', size);
+  el.innerHTML = `<div class="disc">${f ? `<img src="${f.f}" alt="">` : `<b>${esc(who.replace(/[^A-Z ]/g, '').split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2) || '?')}</b>`}<span class="ring"></span></div><i>${esc(who)}</i>`;
+  return el;
+}
+const AV = {};
+function av(who) { if (!AV[who]) { AV[who] = face(who, 'min(26vw,22vh,150px)'); $('#cast').appendChild(AV[who]) } return AV[who] }
+function stage(s) {
+  // who speaks stands lit on one side, who listens dims on the other; the archive's answer rings gold around the one it speaks for
+  const keep = new Set();
+  if (s.kind === 'call' || s.kind === 'answer') {
+    const a = av(s.who); keep.add(a); a.classList.add('on'); a.classList.remove('listen', 'small');
+    a.classList.toggle('talk', s.kind === 'call'); a.classList.toggle('arch', s.kind === 'answer');
+    a.style.left = s.side === 'R' ? 'auto' : '4%'; a.style.right = s.side === 'R' ? '4%' : 'auto';
+    if (s.kind === 'answer') a.classList.add('small');
+    if (s.listener && s.listener !== s.who && s.kind === 'call') {
+      const b = av(s.listener); keep.add(b); b.classList.add('on', 'listen', 'small'); b.classList.remove('talk', 'arch');
+      b.style.left = s.side === 'R' ? '4%' : 'auto'; b.style.right = s.side === 'R' ? 'auto' : '4%';
+    }
+  }
+  Object.values(AV).forEach(x => { if (!keep.has(x)) x.classList.remove('on', 'talk', 'arch') });
+  const lu = $('#lineup');
+  if (s.card === 'title') { const ep = EPS[E]; lu.innerHTML = ''; (ep.cast || []).slice(0, 5).forEach(w => { const f = face(w, 'min(15vw,12vh,86px)'); lu.appendChild(f) }); lu.classList.add('on') }
+  else lu.classList.remove('on');
 }
 function esc(t) { return String(t).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c])) }
 function setPlaying(on) {
@@ -216,6 +270,7 @@ function tick() {
   if (P.pv && !P.handing && P.pv.currentTime >= +P.pv.dataset.end) handover();
   // the score sits under everything, lower under any voice
   const speaking = (!P.voice.paused && !P.voice.ended) || s.kind === 'answer'; score.volume += ((speaking ? .05 : .14) - score.volume) * .05;
+  if (s.kind === 'call' && s.ai && s.ai.e && AV[s.who]) { const q = Math.min(39, Math.floor(P.voice.currentTime / Math.max(.1, s.ai.d) * 40)), lv = P.voice.paused ? 0 : parseInt(s.ai.e[q] || '0', 36) / 35; const r = AV[s.who].querySelector('.ring'); r.style.transform = `scale(${1 + lv * .14})`; r.style.opacity = .35 + lv * .65; AV[s.who].querySelector('.disc').style.transform = `translateY(${-lv * 3}px)` }
   const st = $('#strip u'); if (st) st.style.left = ((s.t0 + Math.min(el, s.dur)) / P.shots.total * 100) + '%';
   const voiceDone = !s.ai || P.voice.ended || P.voice.paused;
   const ansDone = s.kind !== 'answer' || (vis && (vis.paused || vis.ended));

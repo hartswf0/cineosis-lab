@@ -33,7 +33,8 @@ if os.path.exists(FJ):
         if not f: continue
         places = [p for p in f["places"] if p["v"]]
         feps.append({k: e[k] for k in ("id", "name", "series", "genre", "logline", "grade", "score", "beats", "voice")} |
-                    {"answers": {int(k): v for k, v in f["answers"].items()}, "places": places, "thumb": e["places"][0]["alts"][0]["f"] + "_thumb.jpg"})
-    page = open(os.path.join(H, "found-template.html")).read().replace("{{DATA}}", json.dumps({"eps": feps, "grades": W["grades"]}, ensure_ascii=False, separators=(",", ":")))
+                    {"answers": {int(k): v for k, v in f["answers"].items()}, "places": places, "thumb": e["places"][0]["alts"][0]["f"] + "_thumb.jpg", "alias": W["alias"],
+                     "cast": list(dict.fromkeys(W["alias"].get(c, c) for c in next(x for x in S["episodes"] if x["id"] == e["id"])["cast"]))})
+    page = open(os.path.join(H, "found-template.html")).read().replace("{{DATA}}", json.dumps({"eps": feps, "grades": W["grades"], "cast": {n: fs[:1] for n, fs in cast.items()}}, ensure_ascii=False, separators=(",", ":")))
     open(os.path.join(L, "markov-found-republic.html"), "w").write(page)
     print("found:", len(feps), "episodes ·", len(page) // 1024, "KB")
