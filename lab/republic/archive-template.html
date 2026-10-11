@@ -102,8 +102,8 @@ body.go #door{display:none}body:not(.go) #words,body:not(.go) #card{opacity:0!im
    <div id="card"></div>
    <div id="door">
     <div class="meta">MARKOV FOUND · CINEOSIS LAB</div>
-    <h1>THE <span>REPUBLIC</span><br>AS THE ARCHIVE SAYS IT</h1>
-    <p>The screenplay proposed; the archive answered. Each character is voiced by one archival film, and every line is a real sentence in its own picture and sound, exactly as long as it was spoken. The cast move to the archive's voices. What you hear is the new Republic; what the screenplay meant runs underneath.</p>
+    <h1>THE <span>REPUBLIC</span><br>BY MONTAGE</h1>
+    <p>The screenplay proposed; the archive answers, by montage. Each character speaks through one archival film's voice, but what we see is never that film: the cast stand in other archival pictures and converse through the borrowed voices. Sound from one clip, image from another; the story is in the join.</p>
     <button id="play" aria-label="Play"><svg width="34" height="34" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="#fff"/></svg></button>
     <div class="meta" id="runtime"></div>
     <div class="meta">ALSO: <a href="markov-sam-republic.html">THE MULTIPLANE</a> · <a href="https://hartswf0.github.io/the-republic/screenplay.html">SCREENPLAY</a> · <a href="https://hartswf0.github.io/the-republic/megamap.html">MEGAMAP</a></div>
@@ -134,7 +134,9 @@ let E = 0, SEGS = [], TOTAL = 0;
 // ---------- one clock: the program says where we are; every video is slaved to it ----------
 const C = {T: 0, playing: false, last: performance.now(), j: -1, hold: false, holdSince: 0};
 const POOL = [$('#v0'), $('#v1'), $('#v2')];
-const slot = new Map();                                       // segment index → video element
+const slot = new Map();                                       // segment index → video element (the picture)
+const AUD = [new Audio(), new Audio(), new Audio()], aslot = new Map();   // segment index → the voice (another clip's sound, heard not seen)
+AUD.forEach(a => a.preload = 'auto');
 const score = new Audio(); score.loop = true; let scoreOn = true;
 function segAt(T) { let j = SEGS.findIndex(s => T < s.t0 + s.dur); return j < 0 ? SEGS.length - 1 : j }
 function assign(j) {
@@ -151,6 +153,30 @@ function assign(j) {
   v.muted = false; v.volume = 0; v.pause();
   return v;
 }
+function assignA(j) {
+  const s = SEGS[j]; if (!s || !s.a) return null;
+  if (aslot.has(j)) return aslot.get(j);
+  const keep = new Set([C.j, C.j + 1, C.j + 2].map(k => aslot.get(k)).filter(Boolean));
+  const a = AUD.find(x => !keep.has(x)) || AUD[0];
+  for (const [k, x] of aslot) if (x === a) aslot.delete(k);
+  aslot.set(j, a);
+  if (a.dataset.src !== s.a.v) { a.dataset.src = s.a.v; a.src = s.a.v }
+  const seek = () => { try { a.currentTime = s.a.in } catch (e) {} };
+  if (a.readyState >= 1) seek(); else a.addEventListener('loadedmetadata', seek, {once: true});
+  a.volume = 0; a.pause(); return a;
+}
+// one rule for every medium: be where the clock says, or say you are not ready
+function follow(el, start, u, s, vol, now) {
+  const want = start + u, atEnd = el.ended || (el.duration && el.currentTime >= el.duration - .06);
+  let ready = true;
+  if (atEnd) ready = true;
+  else if (el.seeking || el.readyState < 3) ready = (now - (el._fix || 0) > 2500) && el.readyState >= 2;
+  else if (Math.abs(el.currentTime - want) > .35 && now - (el._fix || 0) > 1500 && (!el.duration || want < el.duration - .1)) { el.currentTime = want; el._fix = now }
+  const ramp = Math.min(1, u / .08, (s.dur - u) / .1); el.volume = Math.max(0, Math.min(1, vol * ramp));
+  if (C.playing && ready && el.paused && !atEnd) el.play().catch(() => {});
+  if (!C.playing && !el.paused) el.pause();
+  return ready;
+}
 function enter(j) {
   const s = SEGS[j], prev = SEGS[C.j]; C.j = j;
   for (const [k] of [...slot]) if (k < j) slot.delete(k);
@@ -158,6 +184,8 @@ function enter(j) {
   POOL.forEach(x => { if (x !== v) { x.classList.remove('on'); x.pause() } });
   if (v) { v.classList.toggle('slow', !prev || prev.k === 'card' || (s.k !== 'line' && prev.k === 'line') || s.k === 'title'); v.classList.add('on'); v._z = 1 }
   assign(j + 1); assign(j + 2);
+  const a = assignA(j); AUD.forEach(x => { if (x !== a) x.pause() }); assignA(j + 1); assignA(j + 2);
+  for (const [k] of [...aslot]) if (k < j) aslot.delete(k);
   words(s); stage(s); markStrip();
 }
 function tick() { requestAnimationFrame(tick); if (!document.hidden) step() }
@@ -170,16 +198,10 @@ function step() {
   // the clip must be where the clock is; if it is not ready, the clock waits for it (the film holds, the sync never slips)
   let ready = true;
   if (v) {
-    const want = s.in + u, atEnd = v.ended || (v.duration && v.currentTime >= v.duration - .06);
-    if (atEnd) ready = true;                                                   // the clip is shorter than its words: hold its last frame, keep time
-    else if (v.seeking || v.readyState < 3) ready = (now - (v._fix || 0) > 2500) && v.readyState >= 2;   // never wait more than a moment on one clip
-    else if (Math.abs(v.currentTime - want) > .35 && now - (v._fix || 0) > 1500 && (!v.duration || want < v.duration - .1)) { v.currentTime = want; v._fix = now }
-    const ramp = Math.min(1, u / .08, (s.dur - u) / .1);
-    v.volume = Math.max(0, Math.min(1, s.vol * ramp));
-    if (C.playing && ready && v.paused && !atEnd) v.play().catch(() => {});
-    if (!C.playing && !v.paused) v.pause();
-    if (s.k !== 'line') { v._z = Math.min(1.07, (v._z || 1) + dt * .006); v.style.transform = `scale(${v._z.toFixed(4)})` } else v.style.transform = '';
+    ready = follow(v, s.in, u, s, s.vol, now);
+    if (s.k !== 'line' || s.pk === 'ground') { v._z = Math.min(1.07, (v._z || 1) + dt * .006); v.style.transform = `scale(${v._z.toFixed(4)})` } else v.style.transform = '';
   }
+  const au = aslot.get(j); if (au && s.a) ready = follow(au, s.a.in, u, s, 1, now) && ready;
   if (!ready && C.playing) { if (!C.hold) { C.hold = true; C.holdSince = now } } else C.hold = false;
   $('#wait').classList.toggle('on', C.hold && now - C.holdSince > 400);
   if (C.playing && ready) {
@@ -197,7 +219,8 @@ function level(s, u) { if (!s || !s.env) return 0; const q = Math.max(0, Math.mi
 // ---------- words: what the archive says, big; what the screenplay meant, underneath ----------
 function words(s) {
   const card = $('#card'), said = $('#said'), who = $('#who'), meant = $('#meant'), ep = EPS[E];
-  card.className = ''; card.innerHTML = ''; $('#tagk').textContent = KIND[s.k].n; $('#tagk').style.background = KIND[s.k].c;
+  card.className = ''; card.innerHTML = ''; const kk = s.k === 'line' ? (s.pk === 'insert' ? 'INSERT' : 'GROUND') : KIND[s.k].n;
+  $('#tagk').textContent = kk; $('#tagk').style.background = s.k === 'line' ? (s.pk === 'insert' ? '#ff6f91' : 'var(--pic)') : KIND[s.k].c;
   $('#tags').textContent = s.src ? `${s.src}${s.y ? ' (' + s.y + ')' : ''}` : '';
   if (s.k === 'card') { card.textContent = s.text; card.className = 'on black'; said.textContent = ''; meant.textContent = ''; who.style.opacity = 0 }
   else if (s.k === 'title') { card.className = 'on'; card.innerHTML = `<small>EPISODE ${E + 1} OF ${EPS.length}${ep.series ? ' · ' + esc(ep.series) : ''}</small>${esc(ep.name)}<em>${esc(ep.logline)}</em>`; said.textContent = ''; meant.textContent = ''; who.style.opacity = 0 }
@@ -205,7 +228,7 @@ function words(s) {
   else {
     said.className = ''; said.innerHTML = s.said.split(/\s+/).map(w => `<span class="w">${esc(w)}</span>`).join(' ');
     who.textContent = s.who; who.style.background = colorOf(s.who); who.style.opacity = 1;
-    meant.innerHTML = `<b>THE SCREENPLAY</b>${esc(s.line)}`;
+    meant.innerHTML = `<b>VOICE</b>${esc(s.a ? s.a.src : s.src)}${s.a && s.a.y ? ' (' + s.a.y + ')' : ''}<br><b>THE SCREENPLAY</b>${esc(s.line)}`;
   }
   lineup(s);
 }
@@ -233,10 +256,10 @@ function put(A, x, h, wmax, mode) {
 function stage(s) {
   const on = new Set();
   if (SHOWCAST && s.k === 'line') {
-    // the archive's speaker fills the frame; the character it speaks for stands at the edge, moving to that voice; the one listening, across
+    // the voice is one film, the picture another; the cast stand in the picture and converse through the borrowed voice
     const L = s.side !== 'R', A = actor(s.who);
-    if (A) { put(A, L ? 18 : 82, .56, .34, 'speak'); on.add(A) }
-    if (s.listener) { const B = actor(s.listener); if (B) { put(B, L ? 86 : 14, .38, .24, 'listen'); on.add(B) } }
+    if (A) { put(A, L ? 24 : 76, .66, .44, 'speak'); on.add(A) }
+    if (s.listener) { const B = actor(s.listener); if (B) { put(B, L ? 80 : 20, .46, .3, 'listen'); on.add(B) } }
   }
   Object.values(ACT).forEach(A => { if (A && !on.has(A)) A.el.classList.remove('on') }); ON = on;
 }
@@ -265,7 +288,7 @@ function episode(n, play) {
   // sides: who speaks first stands left; who listens is the last other speaker
   const order = [], last = [];
   SEGS.forEach(s => { if (s.k !== 'line') return; if (!order.includes(s.who)) order.push(s.who); s.side = order.indexOf(s.who) % 2 ? 'R' : 'L'; s.listener = last.filter(w => w !== s.who).slice(-1)[0] || null; if (last[last.length - 1] !== s.who) last.push(s.who) });
-  slot.clear(); C.T = 0; C.j = -1;
+  slot.clear(); aslot.clear(); C.T = 0; C.j = -1;
   $('#ep b').textContent = ep.name; $('#ep span').textContent = `${E + 1}/${EPS.length} · ${(ep.series || ep.genre || '').toUpperCase()}`;
   const g = D.grades[ep.grade] || {}; POOL.forEach(v => v.style.filter = g.f || 'none'); $('#tint').style.background = g.tint || 'transparent'; $('#tint').style.opacity = (g.mix || 0) * .6;
   if (ep.score && !score.src.endsWith(ep.score)) { score.src = ep.score; score.volume = .05; if (C.playing && scoreOn) score.play().catch(() => {}) }
@@ -274,12 +297,12 @@ function episode(n, play) {
 }
 function drawStrip() { $('#strip').innerHTML = SEGS.map((s, j) => `<i data-j="${j}" style="left:${s.t0 / TOTAL * 100}%;width:calc(${s.dur / TOTAL * 100}% - 1px);background:${s.k === 'line' ? colorOf(s.who) : KIND[s.k].c}"></i>`).join('') + '<u></u>' }
 function markStrip() { $$('#strip i').forEach(x => x.classList.toggle('on', +x.dataset.j === C.j)); $$('#sc .r').forEach(x => x.classList.toggle('on', +x.dataset.j === C.j)) }
-function seekTo(j) { j = Math.max(0, Math.min(SEGS.length - 1, j)); C.T = SEGS[j].t0 + .01; slot.delete(j); C.j = -1 }
+function seekTo(j) { j = Math.max(0, Math.min(SEGS.length - 1, j)); C.T = SEGS[j].t0 + .01; slot.delete(j); aslot.delete(j); C.j = -1 }
 $('#strip').onclick = e => { const r = $('#strip').getBoundingClientRect(); begin(); seekTo(segAt((e.clientX - r.left) / r.width * TOTAL)) };
 function setPlaying(on) {
   C.playing = on;
   $('#kplay').innerHTML = on ? `<svg viewBox="0 0 24 24"><path d="M7 4v16M17 4v16"/></svg><span>PAUSE</span>` : `<svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg><span>PLAY</span>`;
-  if (on) { if (scoreOn) score.play().catch(() => {}) } else { POOL.forEach(v => v.pause()); score.pause() }
+  if (on) { if (scoreOn) score.play().catch(() => {}) } else { POOL.forEach(v => v.pause()); AUD.forEach(a => a.pause()); score.pause() }
 }
 function renderBooks() {
   $('#bk').innerHTML = EPS.map((ep, n) => `<button class="bn ${n === E ? 'cur' : ''}" data-n="${n}"><img src="${ep.thumb}" alt="" loading="lazy"><span class="n">${String(n + 1).padStart(2, '0')}</span><span class="t">${esc(ep.name)}</span></button>`).join('');
@@ -296,6 +319,7 @@ function begin() {
   if (begun) return; begun = true; document.body.classList.add('go');
   // one tap unlocks every player on a phone: each is started and stopped inside the gesture
   POOL.forEach(v => { if (v.src) { const p = v.play(); p && p.then(() => { if (!C.playing) v.pause() }).catch(() => {}) } });
+  AUD.forEach(a => { if (a.src) { const p = a.play(); p && p.then(() => { if (!C.playing) a.pause() }).catch(() => {}) } });
   if (score.src) score.play().then(() => { if (!C.playing) score.pause() }).catch(() => {});
 }
 $('#play').onclick = () => { begin(); setPlaying(true) };
