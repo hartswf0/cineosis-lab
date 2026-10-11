@@ -44,7 +44,11 @@ video.on{opacity:1}video.slow{transition:opacity .6s ease}
 .actor.listen{filter:brightness(.6)}
 #tint{position:absolute;inset:0;mix-blend-mode:multiply;pointer-events:none}
 #tag{position:absolute;left:8px;top:8px;right:8px;display:flex;gap:6px;align-items:center;font:600 9.5px var(--mono);letter-spacing:.12em;z-index:4}
-#tag b{padding:3px 6px;border-radius:2px;color:#000}#tag span{color:#fff;text-shadow:0 1px 3px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:400;letter-spacing:.02em}
+#tag b{padding:3px 6px;border-radius:2px;color:#000}
+#scorecred{position:absolute;right:8px;bottom:8px;z-index:5;text-align:right;font:600 9.5px var(--mono);letter-spacing:.1em;color:#f1e6d2;text-shadow:0 1px 3px #000;opacity:0;transition:opacity .5s;pointer-events:none}
+#scorecred small{display:block;font-weight:400;letter-spacing:.02em;color:#d8c8ba}
+#scorecred.on{opacity:1}
+.beat .sc{display:block;margin-top:3px;font:400 9.5px var(--mono);letter-spacing:.02em;color:#c9b8ff}#tag span{color:#fff;text-shadow:0 1px 3px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:400;letter-spacing:.02em}
 #sub{position:absolute;left:4%;right:4%;bottom:5%;z-index:5;text-align:center;pointer-events:none}
 #sub i{display:inline-block;font:600 10px var(--mono);letter-spacing:.14em;color:#000;padding:3px 7px;border-radius:2px;margin-bottom:6px;font-style:normal}
 #sub p{font:500 clamp(14px,2.2vw,24px)/1.25 var(--ser);font-style:italic;color:#fff;text-shadow:0 2px 10px #000,0 0 2px #000;text-wrap:balance}
@@ -105,6 +109,7 @@ body.go #door{display:none}
    <video id="v0" playsinline preload="auto"></video><video id="v1" playsinline preload="auto"></video><video id="v2" playsinline preload="auto"></video>
    <div id="cast"></div><div id="tint"></div>
    <div id="tag"><b id="tagk"></b><span id="tags"></span></div><div id="wait"></div>
+   <div id="scorecred"></div>
    <div id="sub"><i id="subw"></i><p id="subp"></p></div>
    <div id="card"></div>
    <div id="door">
@@ -125,6 +130,7 @@ body.go #door{display:none}
    <button class="k" id="kprev" aria-label="Previous patch"><svg viewBox="0 0 24 24"><path d="M18 5L8 12l10 7zM6 5v14"/></svg><span>BACK</span></button>
    <button class="k" id="knext" aria-label="Next patch"><svg viewBox="0 0 24 24"><path d="M6 5l10 7-10 7zM18 5v14"/></svg><span>NEXT</span></button>
    <div id="ep" role="button" aria-label="Choose an episode"><b></b><span></span></div>
+   <button class="k" id="kscore" aria-label="Score: off, D-A-E, or the Republic songs"><svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg><span>SCORE</span></button>
    <button class="k" id="kcast" aria-label="Cut-outs on or off"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="3.5"/><path d="M5 21c0-4 3-7 7-7s7 3 7 7"/></svg><span>CAST</span></button>
    <button class="k" id="kbooks" aria-label="Episodes"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="7" height="7"/><rect x="14" y="4" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span>EPISODES</span></button>
   </div>
@@ -164,6 +170,7 @@ function program(ep, ver) {
     }
   });
   // sides and listeners, patch ids, timecodes, beats
+  let mv = -1; out.forEach(s => { if (s.k === 'title' || s.k === 'act' || mv < 0) mv++; s.mv = mv });
   const order = [], last = []; let beat = 0, beatText = '';
   let t = 0, n = 0;
   out.forEach((s, j) => {
@@ -234,10 +241,38 @@ function step() {
   if (!ready && C.playing) { if (!C.hold) { C.hold = true; C.holdSince = now } } else C.hold = false;
   $('#wait').classList.toggle('on', C.hold && now - C.holdSince > 400);
   if (C.playing && ready) { C.T += dt; if (C.T >= TOTAL) { episode(E + 1, true); return } }
-  animate(dt, level(s, u), C.playing && ready);
+  animate(dt, level(s, u), C.playing && ready); scoreStep(s, now, dt);
   $('#tc').textContent = tc(C.T); const st = $('#strip u'); if (st) st.style.left = (C.T / TOTAL * 100) + '%';
 }
 const level = (s, u) => { if (!s || !s.env) return 0; const q = Math.max(0, Math.min(39, Math.floor(u / s.dur * 40))); return parseInt(s.env[q] || '0', 36) / 35 };
+// ---------- the score: music chosen by what each beat says (CLAP), under the archive and the voices, never on top of them ----------
+const SCORES = [null, 'D-A-E', 'The Republic'], SNAME = {'D-A-E': 'D-A-E · Honed for Film', 'The Republic': 'The Republic Spilled Its Drink'};
+let SC = 0; try { SC = +(localStorage.getItem('found.score') || 1) % 3 } catch (e) {}
+const MUS = [new Audio(), new Audio()]; MUS.forEach(a => { a.preload = 'auto'; a._g = 0 }); let musMv = -1, musEl = 0, credT = 0;
+function cueOf(s) { const ep = EPS[E], pl = SCORES[SC] && ep.score && ep.score[SCORES[SC]]; return pl ? pl[Math.min(s.mv, pl.length - 1)] : null }
+function mvStart(m) { const f = P.find(x => x.mv === m); return f ? f.t0 : 0 }
+function scoreStep(s, now, dt) {
+  const cue = s ? cueOf(s) : null;
+  if (!cue) { MUS.forEach(a => { a._g = Math.max(0, a._g - dt * 2); a.volume = a._g; if (a._g === 0 && !a.paused) a.pause() }); musMv = -1; return }
+  if (s.mv !== musMv) {                                                   // a new beat: the next cue comes in on the other player, the old one fades
+    const cur = MUS[musEl];
+    if (musMv >= 0 && cur.dataset.src === cue.f && !cur.paused) { musMv = s.mv; cur._eff = cur.currentTime - (C.T - mvStart(s.mv)) } // the same cue: it simply runs on
+    else {
+    musMv = s.mv; const prev = MUS[musEl]; musEl = 1 - musEl; const a = MUS[musEl]; a._eff = null;
+    if (a.dataset.src !== cue.f) { a.dataset.src = cue.f; a.src = cue.f }
+    a._fix = 0; a._from = cue.offset; prev._fade = 1;
+    const ep = EPS[E]; if (!prev.dataset.src || prev.dataset.src !== cue.f) { $('#scorecred').innerHTML = `SCORE · ${esc(cue.title)}<small>${esc(SNAME[SCORES[SC]])} · ${esc(cue.mood.join(', '))}</small>`; $('#scorecred').classList.add('on'); credT = now }
+    }
+  }
+  if (credT && now - credT > 3800) { $('#scorecred').classList.remove('on'); credT = 0 }
+  const a = MUS[musEl], u = C.T - mvStart(s.mv), want = (a._eff != null ? a._eff : cue.offset) + u;
+  if (a.readyState >= 1 && !a.seeking && Math.abs(a.currentTime - want) > .6 && now - (a._fix || 0) > 2000) { a.currentTime = want; a._fix = now }
+  // under a voice the score all but leaves; in the places it comes up; under a real citizen of the archive it is gone
+  const tgt = !C.playing ? 0 : s.k === 'title' ? .4 : s.kind === 'card' ? .28 : s.kind === 'place' ? .24 : s.mode === 'archive' ? .035 : .06;
+  a._g += (tgt - a._g) * Math.min(1, dt * 3); a.volume = Math.max(0, Math.min(1, a._g));
+  if (C.playing && a.paused && a.readyState >= 2) a.play().catch(() => {}); if (!C.playing && !a.paused) a.pause();
+  const o = MUS[1 - musEl]; if (o._fade) { o._g = Math.max(0, o._g - dt * .9); o.volume = o._g; if (o._g === 0) { o.pause(); o._fade = 0 } }
+}
 // ---------- what is on the screen ----------
 function show(s) {
   const ep = EPS[E], card = $('#card'), mode = MODE[s.mode] || MODE.place;
@@ -297,7 +332,7 @@ function animate(dt, lv, running) {
 function renderScript() {
   const ep = EPS[E]; $('#sname').textContent = ep.name; let h = '', beat = -1;
   P.forEach((s, j) => {
-    if (s.beat !== beat) { beat = s.beat; h += `<div class="beat">BEAT ${beat + 1}</div>` }
+    if (s.beat !== beat) { beat = s.beat; const cq = cueOf(s); h += `<div class="beat">BEAT ${beat + 1}${cq ? `<span class="sc">score: ${esc(cq.title)} · ${esc(cq.mood.join(', '))}</span>` : ''}</div>` }
     if (s.k === 'title') return;
     const m = MODE[s.mode] || MODE.place, id = `<div class="id">${s.id}<small>${tc(s.t0)}</small></div>`;
     if (s.kind === 'line') h += `<div class="p" data-j="${j}">${id}<div class="who" style="color:${colorOf(s.who)}">${esc(s.who)}<i style="background:${m[1]}">${m[0]}</i></div><div class="ln">${esc(s.line)}</div>${s.heard ? `<div class="hd"><b>HEARD</b>${esc(s.heard)}</div>` : ''}${s.pic ? `<div class="pc">${s.mode === 'archive' ? 'speaker' : 'picture'}: ${esc(s.pic.src)}${s.pic.y ? ' (' + s.pic.y + ')' : ''}</div>` : ''}</div>`;
@@ -340,7 +375,7 @@ $('#strip').onclick = e => { const r = $('#strip').getBoundingClientRect(); begi
 function setPlaying(on) {
   C.playing = on;
   $('#kplay').innerHTML = on ? `<svg viewBox="0 0 24 24"><path d="M7 4v16M17 4v16"/></svg><span>PAUSE</span>` : `<svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg><span>PLAY</span>`;
-  if (!on) { POOL.forEach(v => v.pause()); AUD.forEach(a => a.pause()) }
+  if (!on) { POOL.forEach(v => v.pause()); AUD.forEach(a => a.pause()); MUS.forEach(a => a.pause()) }
 }
 function renderBooks() {
   $('#bk').innerHTML = EPS.map((ep, n) => `<button class="bn ${n === E ? 'cur' : ''}" data-n="${n}"><img src="${ep.thumb}" alt="" loading="lazy"><span class="n">${String(n + 1).padStart(2, '0')}</span><span class="t">${esc(ep.name)}</span></button>`).join('');
@@ -349,18 +384,21 @@ function renderBooks() {
 let begun = false;
 function begin() {
   if (begun) return; begun = true; document.body.classList.add('go');
-  [...POOL, ...AUD].forEach(m => { if (m.src) { const p = m.play(); p && p.then(() => { if (!C.playing) m.pause() }).catch(() => {}) } });
+  MUS.forEach(a => { const c = P[0] && cueOf(P[0]); if (c && !a.src) { a.src = c.f; a.dataset.src = c.f } });
+  [...POOL, ...AUD, ...MUS].forEach(m => { if (m.src) { const p = m.play(); p && p.then(() => { if (!C.playing) m.pause() }).catch(() => {}) } });
 }
 $('#play').onclick = () => { begin(); setPlaying(true) };
 $('#kplay').onclick = () => { begin(); setPlaying(!C.playing) };
 $('#knext').onclick = () => { begin(); C.j < P.length - 1 ? seek(C.j + 1) : episode(E + 1, C.playing) };
 $('#kprev').onclick = () => { begin(); C.j > 0 ? seek(C.j - 1) : episode(E - 1, C.playing) };
-$('#kcast').onclick = () => { CASTON = !CASTON; try { localStorage.setItem('found.cast', CASTON ? '1' : '0') } catch (e) {} $('#kcast').classList.toggle('on', CASTON); if (P[C.j]) stage(P[C.j]) };
+function drawScoreKey() { $('#kscore').classList.toggle('on', SC > 0); $('#kscore span').textContent = SC ? (SC === 1 ? 'D-A-E' : 'REPUBLIC') : 'NO SCORE' }
+$('#kscore').onclick = () => { begin(); SC = (SC + 1) % 3; try { localStorage.setItem('found.score', SC) } catch (e) {} musMv = -1; drawScoreKey(); renderScript(); mark() };
+$('#kcast').onclick = () => { CASTON = !CASTON; try { localStorage.setItem('found.cast', CASTON ? '1' : '0') } catch (e) {} $('#kcast').classList.toggle('on', CASTON); drawScoreKey(); if (P[C.j]) stage(P[C.j]) };
 $('#kbooks').onclick = $('#ep').onclick = () => $('#books').classList.add('on');
 $('#kclose').onclick = () => $('#books').classList.remove('on');
 document.addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); $('#kplay').click() } else if (e.key === 'ArrowRight') $('#knext').click(); else if (e.key === 'ArrowLeft') $('#kprev').click(); else if ('1234'.includes(e.key)) { begin(); version(+e.key - 1) } else if (e.key === 'Escape') $('#books').classList.remove('on') });
 addEventListener('resize', () => P[C.j] && stage(P[C.j]));
-$('#kcast').classList.toggle('on', CASTON);
+$('#kcast').classList.toggle('on', CASTON); drawScoreKey();
 $('#runtime').textContent = `${EPS.length} EPISODES · ${Math.round(EPS.reduce((t, e) => t + program(e, VER).total, 0) / 60)} MINUTES IN THIS VERSION`;
 renderVersions(); const mh = location.hash.match(/e=(\d+)/); episode(mh ? +mh[1] - 1 : 0); tick();
 </script>

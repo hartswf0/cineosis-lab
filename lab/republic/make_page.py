@@ -45,7 +45,9 @@ if os.path.exists(AJ):
     for e in eps:
         a = A.get(e["id"])
         if not a: continue
-        aeps.append({k: e[k] for k in ("id", "name", "series", "genre", "logline", "grade", "score")} | {"segs": a["segs"], "total": a["total"], "voices": a["voices"], "thumb": e["places"][0]["alts"][0]["f"] + "_thumb.jpg"})
+        SCJ = json.load(open(os.path.join(H, "score.json"))) if os.path.exists(os.path.join(H, "score.json")) else {}
+        aeps.append({k: e[k] for k in ("id", "name", "series", "genre", "logline", "grade")} | {"segs": a["segs"], "total": a["total"], "voices": a["voices"], "thumb": e["places"][0]["alts"][0]["f"] + "_thumb.jpg",
+                     "score": {al: [{k: p[k] for k in ("f", "offset", "title", "mood")} for p in pl] for al, pl in SCJ.get(e["id"], {}).items()}})
     page = open(os.path.join(H, "versions-template.html")).read().replace("{{DATA}}", json.dumps({"eps": aeps, "grades": W["grades"], "cast": {n: fs[:1] for n, fs in cast.items()}}, ensure_ascii=False, separators=(",", ":")))
     open(os.path.join(L, "markov-found-republic.html"), "w").write(page)
     print("archive page:", len(aeps), "episodes ·", len(page) // 1024, "KB")

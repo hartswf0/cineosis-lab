@@ -282,7 +282,7 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
   <div id="ltl"></div><div id="lsub"><div class="who" id="lwho"></div><div class="c" id="lc"></div><div class="a" id="la"></div></div>
   <div id="lbar">
     <button class="ik" id="lPrev"><svg class="i"><use href="#i-left"/></svg>BACK</button><button class="ik big" id="lPause"><svg class="i"><use href="#i-pause" id="lPauseI"/></svg><span id="lPauseL">PAUSE</span></button><button class="ik" id="lNext"><svg class="i"><use href="#i-right"/></svg>NEXT</button>
-    <button class="ik" id="lMixC"><svg class="i"><use href="#i-mic"/></svg>CALL</button><button class="ik" id="lMixA"><svg class="i"><use href="#i-chat"/></svg>ANSWER</button><button class="ik" id="lAns"><svg class="i"><use href="#i-eye" id="lAnsI"/></svg><span id="lAnsL">AS SET</span></button>
+    <button class="ik" id="lMixC"><svg class="i"><use href="#i-mic"/></svg>CALL</button><button class="ik" id="lMixA"><svg class="i"><use href="#i-chat"/></svg>ANSWER</button><button class="ik" id="lScore" aria-label="Score: the D-A-E cues under the film"><svg class="i" viewBox="0 0 24 24" style="fill:none;stroke:currentColor;stroke-width:1.8"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg><span id="lScoreL">SCORE</span></button><button class="ik" id="lAns"><svg class="i"><use href="#i-eye" id="lAnsI"/></svg><span id="lAnsL">AS SET</span></button>
     <button class="ik" id="lLayout"><svg class="i"><use href="#i-layout"/></svg><span id="lLayoutL">ONE</span></button><button class="ik" id="lPace"><svg class="i"><use href="#i-pace"/></svg><span id="lPaceL">EVEN</span></button><button class="ik" id="lOrder"><svg class="i"><use href="#i-order"/></svg><span id="lOrderL">WRITTEN</span></button><button class="ik" id="lExit"><svg class="i"><use href="#i-stop"/></svg>STOP</button>
   </div>
 </div>
@@ -872,7 +872,7 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
     while (LV.on && LV.k < LV.seq.length) {
       const my = ++LV.cut_, [ci, pi] = LV.seq[LV.k], p = board[ci].panels[pi]; cur = [ci, pi]; save();
       const prevJ = LV.prevJ; LV.prevJ = null;   /* the join from the shot before into this one */
-      trace(ci, pi, p, LV.seq[LV.k + 1]); lnext(); LV.tl = shotTimeline($('#ltl'), p, {}); LV.ph = null; const lph = ph => { LV.ph = ph; LV.ph0 = performance.now(); LV.pAcc = 0; };
+      trace(ci, pi, p, LV.seq[LV.k + 1]); lnext(); scoreChapter(ci); LV.tl = shotTimeline($('#ltl'), p, {}); LV.ph = null; const lph = ph => { LV.ph = ph; LV.ph0 = performance.now(); LV.pAcc = 0; };
       const t = tm(p), show = LV.ansMode === 'set' ? showOf(p) : LV.ansMode, sp = lv.querySelector('.spk'), was = lv.className.replace(' spkon', ''); let callP = null, callT0 = 0;
       const startCall = () => { $('#lwho').textContent = callOf(p) === 'memo' ? 'THE MEMO' : callOf(p) === 'rec' ? 'YOUR VOICE' : ''; $('#lc').textContent = p.text || ''; lph('call'); callT0 = performance.now(); callP = lcall(p); };
       if (prevJ && prevJ.audio === 'lead') { startCall(); await lwait(1000); if (!LV.on || my !== LV.cut_) return; }   /* the next line leads in under the last picture */
@@ -893,12 +893,31 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
     if (LV.on) { $('#lwho').textContent = ''; $('#lc').textContent = 'The end of the board.'; $('#la').textContent = ''; LV.paused = true; drawLbar(); }
   }
   (function ltick() { if (LV.on && LV.tl && LV.ph) { if (LV.paused) LV.ph0 = performance.now() - (LV.pAcc || 0) * 1000; else LV.pAcc = (performance.now() - LV.ph0) / 1000; LV.tl.set(LV.ph, LV.pAcc); } requestAnimationFrame(ltick); })();
+  /* ---- the score: each chapter has a D-A-E cue chosen by what the chapter shows and asks to feel (score/fit.py, CLAP); it runs under the
+     film, all but gone while the memo or the archive speaks, up in the holds between; a credit says what is playing and why */
+  const SCOREPLAN = {{SCORE}}, mus = new Audio(); mus.preload = 'auto'; let musCh = -1, musOn = (() => { try { return localStorage.getItem('norse.score') !== '0' } catch (e) { return true } })(), musG = 0, musCred = 0;
+  function scoreChapter(ci) {
+    const c = SCOREPLAN[ci % SCOREPLAN.length]; if (!c || ci === musCh) return; musCh = ci;
+    if (!musOn) return;
+    if (mus.dataset.src !== c.f) { mus.dataset.src = c.f; mus.src = c.f; mus.addEventListener('loadedmetadata', () => { try { mus.currentTime = c.offset } catch (e) { } }, { once: true }); }
+    let cr = $('#lscore'); if (!cr) { cr = document.createElement('div'); cr.id = 'lscore'; cr.style.cssText = 'position:absolute;right:14px;top:14px;z-index:9;text-align:right;font:600 10px ui-monospace,monospace;letter-spacing:.1em;color:#f1e6d2;text-shadow:0 1px 3px #000;transition:opacity .6s;pointer-events:none'; lv.append(cr); }
+    cr.innerHTML = `SCORE · ${esc(c.title)}<br><span style="font-weight:400;letter-spacing:.02em;color:#d8c8ba">D-A-E · Honed for Film · ${esc(c.mood.join(', '))}</span>`; cr.style.opacity = 1; musCred = performance.now();
+  }
+  (function mtick() {
+    const speaking = LV.ph === 'call' || LV.ph === 'answer', tgt = !musOn || !LV.on || LV.paused ? 0 : speaking ? .06 : .26;
+    musG += (tgt - musG) * .05; mus.volume = Math.max(0, Math.min(1, musG));
+    if (tgt > 0 && mus.paused && mus.readyState >= 2) mus.play().catch(() => { }); if (tgt === 0 && musG < .01 && !mus.paused) mus.pause();
+    if (musCred && performance.now() - musCred > 4500) { const cr = $('#lscore'); if (cr) cr.style.opacity = 0; musCred = 0; }
+    requestAnimationFrame(mtick);
+  })();
+  function drawScoreKey() { const b = $('#lScore'); if (b) { b.classList.toggle('on', musOn); $('#lScoreL').textContent = musOn ? 'SCORE' : 'NO SCORE'; } }
   function liveStart() {
     sndStop(); LV.prevJ = null; LV.carryP = null; LV.on = true; LV.paused = false; LV.cut_ = 0; LV.seq = liveSeq(); LV.k = Math.max(0, LV.seq.findIndex(x => x[0] === cur[0] && x[1] === cur[1])); $('#live').hidden = false; lv.className = LV.layout; drawLbar(); calmSoon();
     try { const el = document.documentElement; (el.requestFullscreen || el.webkitRequestFullscreen || (() => { })).call(el); } catch (e) { }
-    try { const u = aud.play(); u && u.then(() => aud.pause()).catch(() => { }); } catch (e) { } liveRun();
+    try { const u = aud.play(); u && u.then(() => aud.pause()).catch(() => { }); } catch (e) { }
+    try { const c = SCOREPLAN[0]; if (musOn && c && !mus.src) { mus.src = c.f; mus.dataset.src = c.f; } const u2 = mus.play(); u2 && u2.then(() => { if (!LV.on) mus.pause() }).catch(() => { }); } catch (e) { } liveRun();
   }
-  function liveStop() { LV.on = false; aud.pause(); lspk.pause(); lmain.forEach(v => v.pause()); try { speechSynthesis.cancel(); } catch (e) { } $('#live').hidden = true; try { document.fullscreenElement && document.exitFullscreen(); } catch (e) { } render(); }
+  function liveStop() { musCh = -1; LV.on = false; aud.pause(); lspk.pause(); lmain.forEach(v => v.pause()); try { speechSynthesis.cancel(); } catch (e) { } $('#live').hidden = true; try { document.fullscreenElement && document.exitFullscreen(); } catch (e) { } render(); }
   function livePause(on) { LV.paused = on; if (on) { aud.pause(); lspk.pause(); lmain.forEach(v => v.pause()); try { speechSynthesis.pause(); } catch (e) { } } else { lmain.forEach(v => v.classList.contains('on') && v.play().catch(() => { })); try { speechSynthesis.resume(); } catch (e) { } if (LV.k >= LV.seq.length) { LV.k = 0; LV.cut_++; liveRun(); } } drawLbar(); }
   function liveJump(d) { LV.carryP = null; LV.prevJ = null; LV.k = Math.max(0, Math.min(LV.seq.length - 1, LV.k + d)); aud.pause(); lspk.pause(); lspk.classList.remove('on'); try { speechSynthesis.cancel(); } catch (e) { } LV.paused = false; LV.cut_++; drawLbar(); setTimeout(liveRun, 50); }
   function drawLbar() { $('#lPauseL').textContent = LV.paused ? 'PLAY' : 'PAUSE'; $('#lPauseI').setAttribute('href', LV.paused ? '#i-play' : '#i-pause'); $('#lLayoutL').textContent = LV.layout.toUpperCase(); $('#lPaceL').textContent = PACES.find(x => x[0] === LV.pace)[1]; $('#lOrderL').textContent = ORDERS.find(o => o[0] === LV.order)[1]; $('#lAnsL').textContent = ANSMODES.find(m => m[0] === LV.ansMode)[1]; $('#lMixC').classList.toggle('off', !MIX.call); $('#lMixA').classList.toggle('off', !MIX.ans); $('#lMixC').querySelector('use').setAttribute('href', MIX.call ? '#i-mic' : '#i-mute'); $('#lMixA').querySelector('use').setAttribute('href', MIX.ans ? '#i-chat' : '#i-mute'); }
@@ -908,6 +927,8 @@ svg.i{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8
   $('#lLayout').onclick = () => { LV.layout = LAYOUTS[(LAYOUTS.indexOf(LV.layout) + 1) % LAYOUTS.length]; lv.className = LV.layout; drawLbar(); };
   $('#lPace').onclick = () => { const i = PACES.findIndex(x => x[0] === LV.pace); LV.pace = PACES[(i + 1) % PACES.length][0]; drawLbar(); };
   $('#lOrder').onclick = () => { const i = ORDERS.findIndex(o => o[0] === LV.order); LV.order = ORDERS[(i + 1) % ORDERS.length][0]; const here = LV.seq[LV.k]; LV.seq = liveSeq(); LV.k = Math.max(0, LV.seq.findIndex(x => here && x[0] === here[0] && x[1] === here[1])); drawLbar(); trace(...LV.seq[LV.k], board[LV.seq[LV.k][0]].panels[LV.seq[LV.k][1]], LV.seq[LV.k + 1]); };
+  $('#lScore').onclick = () => { musOn = !musOn; try { localStorage.setItem('norse.score', musOn ? '1' : '0') } catch (e) { } const ci = musCh; musCh = -1; if (musOn && ci >= 0) scoreChapter(ci); drawScoreKey(); };
+  drawScoreKey();
   $('#lMixC').onclick = () => toggleMix('call'); $('#lMixA').onclick = () => toggleMix('ans');
   $('#lAns').onclick = () => { const i = ANSMODES.findIndex(m => m[0] === LV.ansMode); LV.ansMode = ANSMODES[(i + 1) % ANSMODES.length][0]; drawLbar(); };
   function liveKey(e) { if (e.key === ' ') { e.preventDefault(); livePause(!LV.paused); } if (e.key === 'ArrowRight') liveJump(1); if (e.key === 'ArrowLeft') liveJump(-1); if (e.key === 'Escape') liveStop(); calmSoon(); }

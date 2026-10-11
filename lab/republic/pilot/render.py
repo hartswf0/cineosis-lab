@@ -12,6 +12,8 @@ import numpy as np, soundfile as sf
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 H = os.path.dirname(os.path.abspath(__file__)); R = os.path.dirname(H); L = os.path.dirname(R)
 EP = sys.argv[1] if len(sys.argv) > 1 else "ep01"; cut = json.load(open(os.path.join(H, EP + ".picked.json")))
+SCORED = "--score" in sys.argv and cut.get("score")                 # the version that thinks with sound (score/fit.py wrote the plan)
+LIBS = {t["id"]: t for t in json.load(open(os.path.join(L, "score", "library.json")))["tracks"]} if SCORED else {}
 PL = json.load(open(os.path.join(R, "planes.json")))
 W_, H_, FPS, SR = 960, 540, 24, 48000
 F = "/System/Library/Fonts/Supplemental/"
@@ -91,6 +93,21 @@ for b in cut["beats"]:
     elif b["k"] == "chorus": segs.append(("chorus", b["d"] + .2, b))
     elif b["k"] == "end": segs.append(("end", 4.0, b))
 total = sum(d for _, d, _ in segs); audio = np.zeros(int(total * SR) + SR, np.float32)
+music = np.zeros_like(audio); gain = np.full(len(audio), .3, np.float32); credits = []
+if SCORED:
+    # the movements, as fit.py cut them: a title, a narration (with the exchange after it), the end
+    starts, t_ = [], 0.0
+    for kind, dur, b in segs:
+        if kind in ("title", "narr", "end") or not starts: starts.append([t_, 0.0])
+        starts[-1][1] += dur; t_ += dur
+    for (st_, du), pl in zip(starts, cut["score"]):
+        tr = LIBS[pl["track"]]; src = os.path.join(L, tr["f"]); xf = 1.2
+        y = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{pl['offset']:.2f}", "-i", src, "-t", f"{du + xf:.2f}", "-ac", "1", "-ar", str(SR), "-f", "f32le", "-"], capture_output=True).stdout
+        y = np.frombuffer(y, np.float32).copy(); f = int(xf * SR)
+        if len(y) > 2 * f: y[:f] *= np.linspace(0, 1, f); y[-f:] *= np.linspace(1, 0, f)
+        a = int(max(0, st_ - xf / 2) * SR); music[a: a + len(y)] += y[: len(music) - a]
+        if not credits or credits[-1][1] != pl["title"]: credits.append((st_, pl["title"], ", ".join(pl["mood"])))
+    music /= (np.percentile(np.abs(music), 99.5) + 1e-6)
 enc = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W_}x{H_}", "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-preset", "medium", "-crf", "25", "-pix_fmt", "yuv420p", os.path.join(H, EP + "-video.mp4")], stdin=subprocess.PIPE)
 t0 = 0.0; prev_who = None
 for kind, dur, b in segs:
@@ -105,6 +122,9 @@ for kind, dur, b in segs:
     else:
         fr = frames(b["v"], b["in"], dur); bed = sound(b["v"], b["in"], dur); pk = np.abs(bed).max() + 1e-6; bed = bed / pk * .7
     audio[s0: s0 + len(bed)] += bed[: len(audio) - s0]
+    if SCORED:   # the score never sits on a voice: low under the cast and narrator, gone under a citizen, up where no one speaks
+        g = {"title": .42, "end": .42, "narr": .10, "talk": .07, "chorus": .025}[kind]; gain[s0: s0 + int(dur * SR)] = g
+        if kind == "narr": gain[s0: s0 + int(.35 * SR)] = .3
     env = b.get("e", ""); voice = None
     if b.get("wav"):
         y, sr = sf.read(os.path.join(R, b["wav"]), dtype="float32"); y = y if y.ndim == 1 else y.mean(1)
@@ -147,12 +167,21 @@ for kind, dur, b in segs:
             a = min(1, tt / .8); ov = Image.new("RGBA", img.size, (0, 0, 0, int(150 * a))); img.alpha_composite(ov); d = ImageDraw.Draw(img)
             d.text((W_ / 2, H_ / 2 - 10), "TO BE CONTINUED", font=BIG, fill=(255, 255, 255, int(255 * a)), anchor="ma")
             d.text((W_ / 2, H_ / 2 + 66), "voices: Kokoro · pictures and citizens: the Moving Image Archive · words: the Republic writers' room", font=SMALL, fill=(220, 210, 200, int(255 * a)), anchor="ma")
+        if SCORED:
+            now_ = t0 + tt
+            for (cs, ct, cmood) in credits:
+                if cs <= now_ < cs + 3.5 and kind != "chorus":
+                    a_ = min(1, (now_ - cs) / .4, (cs + 3.5 - now_) / .5); d = ImageDraw.Draw(img)
+                    d.text((W_ - 18, 18), f"SCORE · {ct}", font=LAB, fill=(241, 230, 210, int(255 * a_)), anchor="ra", stroke_width=2, stroke_fill=(0, 0, 0))
+                    d.text((W_ - 18, 40), f"D-A-E · Honed for Film · {cmood}", font=SMALL, fill=(220, 200, 180, int(230 * a_)), anchor="ra", stroke_width=2, stroke_fill=(0, 0, 0))
         if i < 4 and kind in ("narr", "chorus", "title"): img.alpha_composite(Image.new("RGBA", img.size, (0, 0, 0, int(255 * (1 - i / 4)))))
         enc.stdin.write(img.convert("RGB").tobytes())
     t0 += dur; print(f"  {kind:6} {dur:5.1f}s  {(b.get('text') or b.get('said') or '')[:50]}", flush=True)
 enc.stdin.close(); enc.wait()
+if SCORED:
+    k_ = int(.3 * SR); gs = np.convolve(gain, np.ones(k_) / k_, mode="same"); audio += music * gs
 pk = np.abs(audio).max() + 1e-6; audio = audio / pk * .9
 sf.write(os.path.join(H, EP + "-audio.wav"), audio[: int(total * SR)], SR)
-subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", os.path.join(H, EP + "-video.mp4"), "-i", os.path.join(H, EP + "-audio.wav"), "-c:v", "copy", "-c:a", "aac", "-b:a", "128k", "-af", "loudnorm=I=-16:TP=-1.5", "-shortest", "-movflags", "+faststart", os.path.join(H, EP + ".mp4")], check=True)
+subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", os.path.join(H, EP + "-video.mp4"), "-i", os.path.join(H, EP + "-audio.wav"), "-c:v", "copy", "-c:a", "aac", "-b:a", "128k", "-af", "loudnorm=I=-16:TP=-1.5", "-shortest", "-movflags", "+faststart", os.path.join(H, EP + ("-score" if SCORED else "") + ".mp4")], check=True)
 os.unlink(os.path.join(H, EP + "-video.mp4")); os.unlink(os.path.join(H, EP + "-audio.wav"))
-print(f"{EP}.mp4 · {total:.0f}s · {os.path.getsize(os.path.join(H, EP + '.mp4')) // 1024} KB")
+print(f"{EP}{'-score' if SCORED else ''}.mp4 · {total:.0f}s")
