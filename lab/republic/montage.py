@@ -77,6 +77,47 @@ for eid, ep in A.items():
             s.update(pk="ground"); prev_insert = False
     print(f"{eid}: {ni}/{len(lines)} lines cut to an insert · e.g. " + "; ".join(f"“{s['said'][:28]}” over {s['src'][:26]}" for s in lines if s.get("pk") == "insert")[:150], flush=True)
 json.dump(A, open(os.path.join(H, "archive.json"), "w"), ensure_ascii=False, separators=(",", ":"))
+# ---- the grammar of each line: who is seen speaking, and in what voice
+#   PUPPET  the character's paper cut-out speaks the archive's voice in front of another clip (ground or insert), jaw on the syllables
+#   DUET    no cut-outs: the archival speaker is seen and heard in their own clip; two films answer each other, shot and reverse shot
+#   ASIDE   the fourth wall: where the archive failed the script (a borrowed voice, or the episode's weakest matches) the character steps
+#           out in front of the frozen clip it is answering and says the screenplay's line in its own voice (Kokoro), to camera
+# A character's first line is always a PUPPET (we learn face and voice together); runs of three lines alternate PUPPET and
+# DUET, so the style holds long enough to be read; a cut-out only ever speaks with its own film's voice and a body of its own kind.
+PC = json.load(open(os.path.join(H, "planes.json")))["cast"]; VO = json.load(open(os.path.join(H, "voices.json")))
+WC = json.load(open(os.path.join(H, "world.json")))["cast"]
+def body_ok(c):
+    f = (PC.get(c) or [None])[0]
+    if not f: return False
+    v = (WC.get(c) or {}).get("voice", ""); want = "f" if v[1:2] == "f" else "m"
+    return not ((want == "m" and f.get("kind") == "f") or (want == "f" and f.get("kind") == "m"))
+for eid, ep in A.items():
+    segs = ep["segs"]; lines = [s for s in segs if s["k"] == "line"]
+    fits = sorted(s["fit"] for s in lines); low = fits[max(0, len(fits) * 15 // 100 - 1)] if fits else 0
+    seen, scene, n_aside, last, li = set(), 0, 0, None, -1
+    out = []
+    for s in segs:
+        if s["k"] == "act": scene += 1
+        if s["k"] != "line": out.append(s); last = s; continue
+        c = s["who"]; first = c not in seen; seen.add(c); li += 1
+        weak = s.get("how") == "archive" or s["fit"] <= low
+        row = (VO.get(eid) or [])[s["bk"] + 1] if s.get("bk") is not None and s["bk"] + 1 < len(VO.get(eid) or []) else None
+        if not first and weak and n_aside < 4 and row and last is not None and last.get("pk") != "aside" and last.get("v"):
+            fz = last["in"] + max(0, last["dur"] - .06)
+            s.update(pk="aside", v=last["v"], **{"in": round(fz, 2)}, freeze=1, vol=0, a={"v": row["f"], "in": 0, "src": "the character, to camera", "y": None},
+                     said=s["line"], env=row.get("e", ""), dur=round(row["d"] + .35, 2), src=last.get("src", ""), y=last.get("y"))
+            n_aside += 1
+        elif (first or (li // 3) % 2 == 0) and body_ok(c) and s.get("how") == "voice":   # runs of three: puppets, then the archive's own faces
+            s["pk"] = s.get("pk") or "ground"; s["show"] = 1                 # a puppet: picture stays the montage's ground or insert
+        else:
+            a = s.get("a") or {}
+            s.update(pk="duet", v=a.get("v", s["v"]), **{"in": a.get("in", s["in"])}, vol=1.0, src=a.get("src", s.get("src")), y=a.get("y")); s.pop("a", None)
+        out.append(s); last = s
+    t = 0
+    for s in out: s["t0"] = round(t, 2); t += s["dur"]
+    ep["segs"], ep["total"] = out, round(t, 1)
+    from collections import Counter as _C
+    print(eid, dict(_C(("puppet" if s.get("show") else s.get("pk")) for s in out if s["k"] == "line")), flush=True)
 # ---- inserts fitted to their clips' real lengths (the catalogue's length is sometimes wrong)
 segs = [s for ep in A.values() for s in ep["segs"] if s["k"] == "line" and s.get("pk") == "insert"]
 vs = sorted({s["v"] for s in segs})

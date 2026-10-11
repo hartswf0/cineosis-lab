@@ -19,7 +19,7 @@ for e in S["episodes"]:
                 "grade": ew["grade"], "score": score(ew.get("score", "")), "places": places, "prop": trim(pe["prop"], ("f", "w", "h", "cut", "title", "year")) if pe.get("prop") else None,
                 "beats": [trim(b, ("k", "who", "how", "text")) for b in e["beats"]], "voice": vo, "alias": W["alias"]})
 ver = lambda f: f"{f}?v={int(os.path.getmtime(os.path.join(L, f))) % 100000}" if os.path.exists(os.path.join(L, f)) else f   # a re-cut figure is fetched fresh
-cast = {n: [dict(trim(f, ("f", "w", "h", "cut", "feet", "title", "year", "video", "t", "sp")), f=ver(f["f"]), **({"sp": dict(f["sp"], f=ver(f["sp"]["f"]))} if f.get("sp") else {})) for f in fs] for n, fs in P["cast"].items() if fs}
+cast = {n: [dict(trim(f, ("f", "w", "h", "cut", "feet", "title", "year", "video", "t", "sp", "face", "kind")), f=ver(f["f"]), **({"sp": dict(f["sp"], f=ver(f["sp"]["f"]))} if f.get("sp") else {})) for f in fs] for n, fs in P["cast"].items() if fs}
 D = {"eps": eps, "cast": cast, "castInfo": {n: trim(c, ("as", "voice", "robot")) for n, c in W["cast"].items()}, "grades": W["grades"], "source": S["source"]}
 page = open(os.path.join(H, "template.html")).read().replace("{{DATA}}", json.dumps(D, ensure_ascii=False, separators=(",", ":")))
 open(os.path.join(L, "markov-sam-republic.html"), "w").write(page)

@@ -29,11 +29,28 @@ for j, u in enumerate(U):
     r = row.get(u[0])
     if r is not None: s = EM[r] @ T.T; pers[j] = s[:2].max() - s[2:].max()
 pers = np.clip((pers - np.median(pers)) / (pers.std() + 1e-6), -2, 2)
+# whose voice: a man or a woman, from each clip's CLAP hearing (odyssey/cache/ears), by margin as the found Odyssey casts
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+from transformers import ClapModel, ClapProcessor
+cm_ = ClapModel.from_pretrained("laion/clap-htsat-unfused").eval(); cp_ = ClapProcessor.from_pretrained("laion/clap-htsat-unfused")
+with torch.no_grad(): TV = cm_.get_text_features(**cp_(text=["a man speaking", "a woman speaking"], return_tensors="pt", padding=True)); TV = (TV / TV.norm(dim=-1, keepdim=True)).numpy()
+eids = json.load(open(os.path.join(OD, "cache", "ears", "ids.json"))); CL = np.load(os.path.join(OD, "cache", "ears", "clap.npy")).astype(np.float32); CL /= np.linalg.norm(CL, axis=1, keepdims=True) + 1e-9
+MW = dict(zip(eids, (CL @ TV.T)[:, 0] - (CL @ TV.T)[:, 1]))
 film = lambda j: (lib[U[j][0]].get("src") or lib[U[j][0]].get("title") or U[j][0])
 FILM = np.array([film(j) if good[j] else "" for j in range(len(U))])
 byfilm = collections.defaultdict(list)
 for j in np.where(good)[0]: byfilm[FILM[j]].append(j)
 films = [f for f, js in byfilm.items() if len(js) >= 6]
+fsex = {}
+for f in films:
+    v = [MW[U[j][0]] for j in byfilm[f] if U[j][0] in MW and MW[U[j][0]] != 0]
+    m_ = float(np.mean(v)) if v else 0; fsex[f] = "m" if m_ > .006 else "f" if m_ < -.006 else ""
+print("film voices:", collections.Counter(fsex.values()), flush=True)
+NONHUMAN = {"W.A.L.T.-E", "BIG HANK", "S.O.C.R.A.T.E.S.", "CUFFS", "GOAT", "COW", "T-REX", "GORILLA", "MADISON-UNIT 3", "SOUL SPECTROMETER", "DIALECTICAL LOCK"}
+def sex_of(c):
+    if c in NONHUMAN: return ""
+    v = (W["cast"].get(c) or {}).get("voice", "")
+    return "f" if v[1:2] == "f" else "m" if v[1:2] == "m" else ""
 print(int(good.sum()), "clean sentences ·", len(films), "films with six or more", flush=True)
 STOP = set("a an the and or but of to in on at by for with from as is are was were be been it its this that i you he she we they me him her us them my your his our their not no so if then what who which when where how all any some one into out up down over very can will just do did have has had am would should could may might must oh well now there here let get got say said".split())
 words = lambda t: {w for w in re.findall(r"[a-z']+", t.lower()) if len(w) > 2 and w not in STOP}
@@ -70,6 +87,8 @@ for e in S["episodes"]:
             js = byfilm[f]
             if len(js) < len(rows_) + 2: continue
             sub = SIM[np.ix_(rows_, js)]; sc = float(np.sort(sub.max(1))[::-1][: max(1, len(rows_))].mean()) - .03 * used_films[f]
+            want = sex_of(c)
+            if want and fsex.get(f) and fsex[f] != want: sc -= .12                # a woman's part is not voiced by a man's film, nor the reverse
             if best is None or sc > best[0]: best = (sc, f)
         if best: voice[c] = best[1]; taken.add(best[1]); used_films[best[1]] += 1
     said, usedj = {}, set()
@@ -79,7 +98,7 @@ for e in S["episodes"]:
         if j is None or SIM[n, j] < .22:                                     # the film has nothing near: the archive at large answers
             j = next(int(j) for j in np.argsort(-SIM[n]) if j not in usedj); src_ = "archive"
         else: src_ = "voice"
-        usedj.add(j); said[k] = (j, src_)
+        usedj.add(j); said[k] = (j, src_, float(SIM[n, j]))
     # ---- the timeline
     places = [dict(p) for p in F[e["id"]]["places"]]
     with cf.ThreadPoolExecutor(8) as ex: real = list(ex.map(lambda p: probe(p["v"]), places))
@@ -101,13 +120,13 @@ for e in S["episodes"]:
         if b["k"] == "card": segs.append({"k": "card", "dur": 2.2, "text": b["text"]})
         elif b["k"] == "act": segs.append(place_seg(min(5.5, max(2.6, len(b["text"].split()) / 2.8)), "act", b["text"]))
         elif k in said:
-            since += 1; j, how = said[k]; i, t0, t1, text = U[j][:4]; s = lib[i]
+            since += 1; j, how, fit = said[k]; i, t0, t1, text = U[j][:4]; s = lib[i]
             segs.append({"k": "line", "who": alias(b["who"]), "line": b["text"], "said": text.strip(), "v": s["video"], "in": round(max(0, t0 - .08), 2), "dur": round(t1 - t0 + .22, 2),
-                         "vol": 1.0, "src": (s.get("title") or "")[:70], "y": s.get("year"), "env": env(i, t0 - .08, t1 + .14), "how": how})
+                         "vol": 1.0, "src": (s.get("title") or "")[:70], "y": s.get("year"), "env": env(i, t0 - .08, t1 + .14), "how": how, "fit": round(fit, 3), "bk": k, "head": round(float(pers[j]), 2), "sex": fsex.get(FILM[j], "")})
     segs = [s for s in segs if s]
     t = 0
     for s in segs: s["t0"] = round(t, 2); t += s["dur"]
-    OUT[e["id"]] = {"voices": {c: {"film": lib[byfilm[f][0][0] if False else U[byfilm[f][0]][0]].get("title", f)[:70]} for c, f in voice.items()}, "segs": segs, "total": round(t, 1)}
+    OUT[e["id"]] = {"voices": {c: {"film": lib[U[byfilm[f][0]][0]].get("title", f)[:70], "sex": fsex.get(f, ""), "want": sex_of(c)} for c, f in voice.items()}, "segs": segs, "total": round(t, 1)}
     nv = sum(1 for s in segs if s["k"] == "line" and s["how"] == "voice"); nl = sum(1 for s in segs if s["k"] == "line")
     print(f"{e['id']} {e['name'][:28]:28} {t/60:4.1f} min · {nv}/{nl} lines in the character's own archival voice · " + "; ".join(f"{c}={OUT[e['id']]['voices'][c]['film'][:22]}" for c in list(voice)[:3]), flush=True)
 json.dump(OUT, open(os.path.join(H, "archive.json"), "w"), ensure_ascii=False, separators=(",", ":"))
