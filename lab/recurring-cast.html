@@ -72,6 +72,20 @@ footer{color:var(--dim);font-size:11.5px;border-top:1px solid var(--line);paddin
   <ol id="talkback"></ol>
 </section>
 
+<section id="ops">
+  <h2>WHAT THE IMAGES DO</h2>
+  <p>Every film asks its pictures for almost the same job: <b>match the words</b>. The picker finds the clip nearest to a spoken line or a named thing, so the same shot becomes whatever the sentence needs. Only WYGWYL asks pictures for an editing operation (hold, split, inset, dissolve, montage).</p>
+  <div class="tbl"><table><thead><tr><th>FILM</th><th>WHAT ITS PICTURES AND VOICES ARE ASKED TO DO</th><th>NEXT SHOT FROM THE SAME FILM</th></tr></thead><tbody id="kinds"></tbody></table></div>
+  <h2 style="margin-top:10px">ONE SHOT, MANY JOBS</h2>
+  <p>The same exact clip, and what each film used it for.</p>
+  <div class="list" id="sameclip"></div>
+  <h2 style="margin-top:10px">WHAT WE REACH FOR, AND WHAT WE LEAVE</h2>
+  <p>Every embedded archive clip sorted into one set of image types (CLIP, zero-shot), then compared with the pictures the films use. A ratio of 2.0 means a type is used twice as often as the archive holds it.</p>
+  <div class="tbl"><table><thead><tr><th>IMAGE TYPE</th><th>ARCHIVE</th><th>USED</th><th>RATIO</th></tr></thead><tbody id="types"></tbody></table></div>
+  <h2 style="margin-top:10px">WHO IS HEARD, AND WHEN</h2>
+  <div class="grid" id="voices"></div>
+</section>
+
 <section>
   <h2>EVERYWHERE</h2>
   <p>Ranked by how many films a source is seen or heard in (single borrowed words don't count toward the rank), then by how often. Tap a picture to play the clip it is used for most.</p>
@@ -130,7 +144,7 @@ function more(){const L=document.getElementById("list");L.insertAdjacentHTML("be
 function sortBy(k){order=SORTS[k](D.sources);shown=0;document.getElementById("list").innerHTML="";more();
   document.querySelectorAll("#sort button").forEach(b=>b.classList.toggle("on",b.dataset.s===k))}
 document.addEventListener("click",e=>{const p=e.target.closest(".pic");if(!p||!p.dataset.v)return;
-  if(p.querySelector("video"))return;p.innerHTML=`<video src="${p.dataset.v}" autoplay controls playsinline></video>`});
+  if(p.querySelector("video[controls]"))return;p.innerHTML=`<video src="${p.dataset.v}" autoplay controls playsinline></video>`});
 fetch("census/census.json").then(r=>r.json()).then(d=>{D=d;const words=d.n_words;
   const all6=d.sources.filter(s=>s.afilms===FILMS.length);
   document.getElementById("stats").innerHTML=[[FILMS.length,"FILMS"],[d.n_sources,"ARCHIVE SOURCES"],[d.n_clips,"CLIPS"],[d.n_uses,"USES"],[words,"OF THEM SINGLE WORDS"]].map(([v,l])=>`<div><b>${n(v)}</b><small>${l}</small></div>`).join("");
@@ -150,4 +164,18 @@ fetch("census/census.json").then(r=>r.json()).then(d=>{D=d;const words=d.n_words
   sortBy("everywhere")});
 document.getElementById("sort").addEventListener("click",e=>{const b=e.target.closest("button");if(b)sortBy(b.dataset.s)});
 document.getElementById("more").addEventListener("click",more);
+fetch("census/operations.json").then(r=>r.json()).then(o=>{
+  const pct=x=>(100*x).toFixed(x<.01?1:0)+"%";
+  document.getElementById("kinds").innerHTML=FILMS.map(f=>{const k=o.kinds_by_film[f]||[],t=k.reduce((a,[,n])=>a+n,0)||1;
+    return `<tr><td style="color:${col(f)};white-space:nowrap">${esc(f)}</td><td>${k.map(([j,n])=>`${esc(j)} <b>${pct(n/t)}</b>`).join(" · ")}</td><td>${pct(o.self_next[f]||0)}</td></tr>`}).join("");
+  document.getElementById("sameclip").innerHTML=o.same_clip.slice(0,6).map(c=>`<div class="card" style="grid-template-columns:168px minmax(0,1fr)"><button class="pic" data-v="${esc(c.video)}" aria-label="Play ${esc(c.title)}"><span>${c.jobs.length} FILMS</span></button>
+    <div class="body"><div class="t">${esc(c.title)}</div>${c.jobs.map(j=>`<div class="said"><span class="chip f" style="--c:${col(j.film)}">${esc(j.film)}</span> ${esc(j.role)}: <span style="color:var(--ink)">${esc(j.job)}</span></div>`).join("")}</div></div>`).join("");
+  document.querySelectorAll("#sameclip .pic").forEach(p=>{p.innerHTML=`<video src="${p.dataset.v}#t=0.5" muted preload="metadata" playsinline></video>`+p.innerHTML});
+  const T=o.types.filter(t=>t.pool>=.002);
+  document.getElementById("types").innerHTML=T.map(t=>`<tr><td>${esc(t.type)}</td><td>${pct(t.pool)}</td><td>${pct(t.used)}</td><td style="color:${t.ratio>=1.4?"var(--gold)":t.ratio<=.6?"var(--red)":"var(--dim)"}">${t.ratio.toFixed(2)}</td></tr>`).join("");
+  const sx=o.voice_sex, dv=o.dec_voice, tot=Object.values(dv).reduce((a,b)=>a+b,0)||1;
+  document.getElementById("voices").innerHTML=`<div class="cell"><div class="t">Character voices in the Found Republic</div><div class="said">${sx.m||0} men · ${sx.f||0} women · ${sx["?"]||0} unclear. The scripts asked for ${o.voice_want.m||0} men and ${o.voice_want.f||0} women.</div></div>`+
+    `<div class="cell"><div class="t">Voices by decade</div><div class="said">${Object.entries(dv).filter(([d])=>d!=="0").map(([d,n])=>`${d}s <b style="color:var(--ink)">${pct(n/tot)}</b>`).join(" · ")}</div></div>`;
+});
+
 </script></body></html>

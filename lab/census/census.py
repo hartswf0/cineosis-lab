@@ -38,39 +38,47 @@ for f in ("republic/planes.json", "republic/planes-eps.json", "republic/planes-e
             for a in pl.get("alts", []): know(a)
 title_src = {t.lower(): s for s, (t, y) in srcname.items()}
 
-uses = []   # one row per use
-def use(film, role, url=None, *, title=None, where="", said="", who=""):
+uses = []   # one row per use; "job" is what the film asked of it, "seq" its place in the film's running order of pictures
+SEQ = collections.Counter()
+def use(film, role, url=None, *, title=None, where="", said="", who="", job=""):
     if url is None and title:   # archive.json keeps film titles cut at 70 characters; match the cut title to its full one
         tl = title.lower().strip(); s = title_src.get(tl) or next((v for k, v in title_src.items() if len(tl) >= 20 and k.startswith(tl)), "t:" + tl)
         title = None
     else: s = src_of(url) or "?"
     t = srcname.get(s, (title or (s.replace("-", " ").title() if s else "?"), None))
+    seq = None
+    if role == "picture": SEQ[film] += 1; seq = SEQ[film]
     uses.append({"film": film, "role": role, "src": s, "title": title or t[0], "year": t[1], "clip": cid(url) if url else None,
-                 "video": url, "where": where, "said": said, "who": who})
+                 "video": url, "where": where, "said": said, "who": who, "job": job, "seq": seq})
+def line_at(lines, t):
+    cur = lines[0] if lines else {}
+    for ln in lines:
+        if ln.get("at", 0) <= t + .5: cur = ln
+    return cur.get("text", "")
 
 # ---- THE FOUND ODYSSEY (museum: the line is called, an archive person answers in their own voice, pictures carry it)
 mus = J("odyssey/museum.json")
 for sc in mus["scenes"]:
-    for p in sc["pics"]: use("Found Odyssey", "picture", p["video"], where=sc["id"])
+    for p in sc["pics"]: use("Found Odyssey", "picture", p["video"], where=sc["id"], job=line_at(sc["lines"], p.get("sw", 0)))
     for i, b in enumerate(sc["beside"]):
         ln = sc["lines"][i] if i < len(sc["lines"]) else {}
-        use("Found Odyssey", "voice", b["video"], where=sc["id"], said=ln.get("ans", ""), title=None)
+        use("Found Odyssey", "voice", b["video"], where=sc["id"], said=ln.get("ans", ""), job=ln.get("text", ""))
 fo = J("odyssey/found.json")
 for scid, lines in fo["scenes"].items():
     for ln in lines:
         for mode, m in (ln.get("modes") or {}).items():
             for fr in (m or {}).get("frags", []):
-                if fr.get("id") in meta: use("Found Odyssey", "word", meta[fr["id"]], where=f"{scid} · {mode}", said=fr.get("words", ""))
+                if fr.get("id") in meta: use("Found Odyssey", "word", meta[fr["id"]], where=f"{scid} · {mode}", said=fr.get("words", ""), job=ln.get("text", ""))
 # ---- THE MARKOV ODYSSEY (152 scenes cut from shots)
 for scid, c in J("odyssey/cuts.json")["cuts"].items():
     for s in c["shots"]:
-        if s.get("clip") in meta: use("Markov Odyssey", "picture", meta[s["clip"]], where=scid)
+        if s.get("clip") in meta: use("Markov Odyssey", "picture", meta[s["clip"]], where=scid, job=f"{s.get('role', '')}: {s.get('see', '')}")
 # ---- NORSE HALF MOON
 for sc in J("norse/program.json")["scenes"]:
-    for p in sc["pics"]: use("Norse Half Moon", "picture", p["video"], where=sc["id"])
+    for p in sc["pics"]: use("Norse Half Moon", "picture", p["video"], where=sc["id"], job=line_at(sc["lines"], p.get("sw", 0)))
     for i, b in enumerate(sc["beside"]):
         ln = sc["lines"][i] if i < len(sc["lines"]) else {}
-        use("Norse Half Moon", "voice", b["video"], where=sc["id"], said=ln.get("ans", ""))
+        use("Norse Half Moon", "voice", b["video"], where=sc["id"], said=ln.get("ans", ""), job=ln.get("text", ""))
 # ---- THE REPUBLIC, 17 episodes
 kokoro = collections.defaultdict(set); world = J("republic/world.json")
 for n in range(1, 18):
@@ -79,30 +87,33 @@ for n in range(1, 18):
     e = json.load(open(f)); ep = f"EP{n:02d}"
     for b in e["beats"]:
         if b["k"] == "narr":
-            for s in b.get("shots", []): use("The Republic", "picture", s["v"], where=ep)
-        elif b["k"] == "chorus": use("The Republic", "voice", b["v"], where=ep, said=b.get("said", ""), who=b.get("who", ""))
+            for s in b.get("shots", []):
+                q = s.get("q", ""); q = "establishing the place" if re.fullmatch(r"p\d+[ab]?", q or "") else q
+                use("The Republic", "picture", s["v"], where=ep, job=f"{q} | {b.get('text', '')}")
+        elif b["k"] == "chorus": use("The Republic", "voice", b["v"], where=ep, said=b.get("said", ""), who=b.get("who", ""), job=b.get("ask", ""))
         elif b["k"] == "intro" and b["who"] in CAST:
-            c = CAST[b["who"]]; use("The Republic", "character", c["video"], where=ep, who=b["who"])
+            c = CAST[b["who"]]; use("The Republic", "character", c["video"], where=ep, who=b["who"], job=f"cut out as {b['who']}")
         elif b["k"] == "talk" and b["who"] in world["cast"]: kokoro[world["cast"][b["who"]]["voice"]].add(b["who"])
     g = e["stage"].get("ground", "")
     for f2 in ("republic/planes-eps.json", "republic/planes-eps2.json"):
         for epi in J(f2)["episodes"].values():
             for pl in epi.get("places", []):
                 for a in pl.get("alts", []):
-                    if a.get("f") == g: use("The Republic", "place", a["video"], where=ep)
+                    if a.get("f") == g: use("The Republic", "place", a["video"], where=ep, job=f"the ground: {pl.get('q', '')}")
 # ---- THE FOUND REPUBLIC (versions page): archive voices play the characters
 for epid, ep in J("republic/archive.json").items():
     for who, v in ep["voices"].items():
-        use("Found Republic", "playedby", title=v["film"], where=epid, who=who)
+        use("Found Republic", "playedby", title=v["film"], where=epid, who=who, job=f"voice of {who}")
     for s in ep.get("segs", []):
         if not s.get("v"): continue
-        use("Found Republic", "picture", s["v"], where=epid, who=s.get("who", ""))
+        job = {"line": f"{s.get('who', '')} says: {s.get('line', '')}", "act": s.get("text", ""), "card": s.get("text", ""), "title": s.get("text", "")}.get(s.get("k"), "")
+        use("Found Republic", "picture", s["v"], where=epid, who=s.get("who", ""), job=f"{s.get('k')}: {job}")
         if s.get("k") == "line" and s.get("a", {}).get("v"):   # the montage: another clip's voice speaks this character's line
-            use("Found Republic", "voice", s["a"]["v"], where=epid, who=s.get("who", ""))
+            use("Found Republic", "voice", s["a"]["v"], where=epid, who=s.get("who", ""), job=s.get("line", ""))
 # ---- WYGWYL
 for b in J("wygwyl/wygwyl-cut.edl.json")["beats"]:
     for k in ("a", "b"):
-        if b.get(k) in meta: use("WYGWYL", "picture", meta[b[k]], where=f"beat {b['beat']}")
+        if b.get(k) in meta: use("WYGWYL", "picture", meta[b[k]], where=f"beat {b['beat']}", job=f"{b.get('mode', '')}: {b.get('title', '')}")
 
 # ---- tally
 FILMS = ["Found Odyssey", "Markov Odyssey", "Norse Half Moon", "The Republic", "Found Republic", "WYGWYL"]
@@ -141,6 +152,7 @@ out = {"films": FILMS, "n_uses": len(uses), "n_words": sum(1 for u in uses if u[
        "sources": src[:400], "clips": clist[:300], "multi_role": multi,
        "kokoro": {v: sorted(w) for v, w in sorted(kokoro.items(), key=lambda x: -len(x[1]))}}
 json.dump(out, open(os.path.join(H, "census.json"), "w"), ensure_ascii=False, default=list)
+json.dump(uses, open(os.path.join(H, "uses.json"), "w"), ensure_ascii=False)   # every use, for operations.py
 print(len(uses), "uses ·", len(src), "sources ·", len(clist), "clips")
 for f in FILMS: print(f"  {f:16} {out['per_film'][f]}")
 for s in src[:25]: print(f"{s['afilms']}/{s['nfilms']} films {s['appear']:4} seen/heard {s['words']:4} words {s['clips']:3} clips  {s['title'][:50]:50} {s['films']}  {s['roles']}")
