@@ -58,8 +58,12 @@ def hexcolor(who):
     for c in who: h = (h * 31 + ord(c)) % 360
     r, g, b = colorsys.hls_to_rgb(h / 360, .64, .78); return (int(r * 255), int(g * 255), int(b * 255))
 # ---- the cast: sprite frames, paper-edged, at their stage height
-def puppet(name, height):
+def paper(im):
+    a = im.split()[3]; edge = a.filter(ImageFilter.MaxFilter(5)); pp = Image.new("RGBA", im.size, (241, 230, 210, 255)); pp.putalpha(edge)
+    base = Image.new("RGBA", (im.width + 8, im.height + 8), (0, 0, 0, 0)); base.alpha_composite(pp, (4, 4)); base.alpha_composite(im, (4, 4)); return base
+def puppet(name, height, wmax=.34):
     f = PL["cast"][name][0]; sp = f.get("sp")
+    ar = (sp["w"] / sp["h"]) if sp else (f["w"] / f["h"]); height = int(min(height, wmax * W_ / ar))     # a wide figure never crowds the frame
     if sp: sh = Image.open(os.path.join(L, sp["f"])).convert("RGBA"); fr = [sh.crop((k * sp["w"], 0, (k + 1) * sp["w"], sp["h"])) for k in range(sp["n"])]
     else: fr = [Image.open(os.path.join(L, f["f"].split("?")[0])).convert("RGBA")]
     out = []
@@ -68,13 +72,16 @@ def puppet(name, height):
         a = im.split()[3]; edge = a.filter(ImageFilter.MaxFilter(5)); paper = Image.new("RGBA", im.size, (241, 230, 210, 255)); paper.putalpha(edge)
         base = Image.new("RGBA", (im.width + 8, im.height + 8), (0, 0, 0, 0)); base.alpha_composite(paper, (4, 4)); base.alpha_composite(im, (4, 4)); out.append(base)
     return out
-st = cut["stage"]; CAST = {st["left"]: {"fr": puppet(st["left"], 250), "x": .27}, st["right"]: {"fr": puppet(st["right"], 215), "x": .73}}
-for c in CAST.values(): c.update(phase=0.0, lift=0.0)
+st = cut["stage"]; SLOTS = [("left", .26, 240), ("right", .74, 240), ("back", .5, 175)]
+CAST = {st[k]: {"fr": puppet(st[k], h), "x": x, "h": h, "slot": k} for k, x, h in SLOTS if st.get(k) and PL["cast"].get(st[k])}
+INTRO = {b["who"] for b in cut["beats"] if b["k"] == "intro"}
+for n_, c in CAST.items(): c.update(phase=0.0, lift=0.0, on=n_ not in INTRO)   # a figure is on the stage only once it has been introduced
 EPS_ = {}
 for fn in ("planes-eps.json", "planes-eps2.json"): EPS_.update(json.load(open(os.path.join(R, fn)))["episodes"])
-gp = next(a for p in EPS_[cut["id"]]["places"] for a in p["alts"] if a["f"] == cut["stage"]["ground"])
+ALTS = {a["f"].rsplit("/", 1)[1]: a for p in EPS_[cut["id"]]["places"] for a in p["alts"]}
+gp = next(a for a in ALTS.values() if a["f"] == cut["stage"]["ground"])
 def probe(u): return float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", u], capture_output=True, text=True).stdout.strip() or 0)
-REEL = [gp] + [a for p in EPS_[cut["id"]]["places"][: cut["stage"].get("places", 2)] for a in p["alts"] if a is not gp]   # the stage is the land only: no strangers behind the puppets
+REEL = [ALTS[k] for k in cut["stage"]["reel"] if k in ALTS] if cut["stage"].get("reel") else [gp] + [a for p in EPS_[cut["id"]]["places"][: cut["stage"].get("places", 2)] for a in p["alts"] if a is not gp]   # the stage, chosen by eye: no strangers behind the puppets
 REEL = [dict(v=a["video"], d=probe(a["video"]), t=a.get("t", 0)) for a in REEL]; REEL = [a for a in REEL if a["d"] > 3]
 ground = {"i": 0, "at": max(0, REEL[0]["t"] - 1)}
 def ground_take(dur):
@@ -92,8 +99,20 @@ for b in cut["beats"]:
     elif b["k"] == "talk": segs.append(("talk", b["d"] + .3, b))
     elif b["k"] == "chorus": segs.append(("chorus", b["d"] + .2, b))
     elif b["k"] == "end": segs.append(("end", 4.0, b))
+    elif b["k"] == "intro" and b["who"] in CAST: segs.append(("intro", 5.4, b))
 total = sum(d for _, d, _ in segs); audio = np.zeros(int(total * SR) + SR, np.float32)
 music = np.zeros_like(audio); gain = np.full(len(audio), .3, np.float32); credits = []
+import cv2
+def locate(frame, cut_im):
+    """where the cut-out stands in the frame it was cut from: a masked template match over the scales the cover-crop could have made"""
+    rgb, a = np.asarray(cut_im)[..., :3], np.asarray(cut_im)[..., 3]; best = None
+    for s_ in np.arange(.6, 2.6, .08):
+        tw, th = int(cut_im.width * s_), int(cut_im.height * s_)
+        if tw >= W_ or th >= H_ or tw < 10 or th < 10: continue
+        t_ = cv2.resize(rgb, (tw, th)); m_ = cv2.resize(a, (tw, th)); r = cv2.matchTemplate(frame, t_, cv2.TM_CCORR_NORMED, mask=cv2.merge([m_, m_, m_])); r[~np.isfinite(r)] = 0
+        _, v_, _, loc = cv2.minMaxLoc(r)
+        if best is None or v_ > best[0]: best = (v_, loc[0], loc[1], tw, th)
+    return best
 if SCORED:
     # the movements, as fit.py cut them: a title, a narration (with the exchange after it), the end
     starts, t_ = [], 0.0
@@ -119,11 +138,22 @@ for kind, dur, b in segs:
         for k, s in enumerate(shots):
             got = frames(s["v"], s["in"], each); fr += got; bed[int(k * each * SR): int(k * each * SR) + int(each * SR)] = sound(s["v"], s["in"], each)[: len(bed[int(k * each * SR): int(k * each * SR) + int(each * SR)])] * .1
         fr = (fr + fr[-1:] * n)[:n]
+    elif kind == "intro":
+        # the figure in its own footage: three seconds of its clip as the archive has it, its own sound; then the frame the cut-out came from
+        F_ = PL["cast"][b["who"]][0]; tsrc = float(F_.get("t", 0)); pre = min(3.0, tsrc) if tsrc > .5 else 0.0
+        clip = frames(F_["video"], tsrc - pre, max(.5, pre)) if pre else []; freeze = frames(F_["video"], tsrc, .1)[0]
+        still = Image.open(os.path.join(L, F_["f"].split("?")[0])).convert("RGBA"); hit = locate(freeze, still)
+        gv, gt = ground_take(1.6); land = frames(gv, gt, 1.6)
+        n_clip = int(3.0 * FPS); fr = (clip + [freeze] * n_clip)[:n_clip] if clip else [freeze] * n_clip
+        fr += [freeze] * int(1.0 * FPS) + land; fr = (fr + fr[-1:] * n)[:n]
+        bed = np.zeros(int(dur * SR), np.float32)
+        if pre: s_ = sound(F_["video"], tsrc - pre, pre); s_ /= (np.abs(s_).max() + 1e-6); bed[: len(s_)] = s_ * .5
+        b["_fx"] = {"hit": hit if hit and hit[0] > .82 else None, "still": still, "title": F_.get("title", ""), "year": F_.get("year"), "n_clip": n_clip, "n_freeze": int(1.0 * FPS)}
     else:
         fr = frames(b["v"], b["in"], dur); bed = sound(b["v"], b["in"], dur); pk = np.abs(bed).max() + 1e-6; bed = bed / pk * .7
     audio[s0: s0 + len(bed)] += bed[: len(audio) - s0]
     if SCORED:   # the score never sits on a voice: low under the cast and narrator, gone under a citizen, up where no one speaks
-        g = {"title": .42, "end": .42, "narr": .10, "talk": .07, "chorus": .025}[kind]; gain[s0: s0 + int(dur * SR)] = g
+        g = {"title": .42, "end": .42, "narr": .10, "talk": .07, "chorus": .025, "intro": .12}[kind]; gain[s0: s0 + int(dur * SR)] = g
         if kind == "narr": gain[s0: s0 + int(.35 * SR)] = .3
     env = b.get("e", ""); voice = None
     if b.get("wav"):
@@ -132,7 +162,8 @@ for kind, dur, b in segs:
     for i in range(n):
         u = i / max(1, n - 1); tt = i / FPS
         f = fr[i]
-        if kind != "chorus": f = duotone(f)
+        fx = b.get("_fx") if kind == "intro" else None
+        if kind not in ("chorus", "intro") or (fx and i >= fx["n_clip"] + fx["n_freeze"]): f = duotone(f)
         img = Image.fromarray(f)
         if kind == "narr":
             each_n = n / max(1, len(b["shots"])); img = push(img, (i % each_n) / max(1, each_n))
@@ -140,7 +171,8 @@ for kind, dur, b in segs:
         if kind == "talk":
             vt = tt - .08; lv = 0.0
             if env and 0 <= vt <= b["d"]: q = min(39, int(vt / b["d"] * 40)); lv = int(env[q], 36) / 35
-            for name, c in CAST.items():
+            for name, c in sorted(CAST.items(), key=lambda kv: kv[1]["slot"] != "back"):
+                if not c["on"]: continue
                 speaking = name == b["who"]
                 c["phase"] += (FPS * (.25 + 1.3 * lv) if speaking else FPS * .3) / FPS
                 c["lift"] += ((lv if speaking else 0) - c["lift"]) * .35
@@ -151,8 +183,28 @@ for kind, dur, b in segs:
                 img.alpha_composite(im, (x, y))
             band = Image.new("RGBA", (W_, int(H_ * .2)), (8, 4, 3, 215)); img.alpha_composite(band, (0, int(H_ * .80))); d = ImageDraw.Draw(img)
             text_block(d, b["text"], SUB, H_ - 18, (255, 255, 255), stroke=0)
-            lab = b["who"]; w = d.textlength(lab, font=LAB) + 14; cx, cy = CAST[lab]["top"]
+            lab = b["who"]; w = d.textlength(lab, font=LAB) + 14
+            cx, cy = CAST[lab]["top"] if lab in CAST and CAST[lab]["on"] and "top" in CAST[lab] else (W_ // 2, int(H_ * .80) - 6)   # a voice without a figure is named above its line
             d.rectangle((cx - w / 2, cy - 30, cx + w / 2, cy - 8), fill=hexcolor(lab)); d.text((cx, cy - 27), lab, font=LAB, fill=(0, 0, 0), anchor="ma")
+        elif kind == "intro":
+            c = CAST[b["who"]]; nc, nf = fx["n_clip"], fx["n_freeze"]
+            if i < nc:                                            # MEET: the figure where the archive found it
+                a_ = min(1, i / 12, (nc - i) / 8 + .2); d.rectangle((0, H_ - 92, W_, H_), fill=(8, 4, 3, int(200 * a_)))
+                d.text((26, H_ - 80), f"MEET {b['who']}", font=LAB, fill=(*hexcolor(b["who"]), int(255 * a_)))
+                d.text((26, H_ - 52), f"as found in {fx['title'][:60]}{' · ' + str(fx['year']) if fx.get('year') else ''}", font=SMALL, fill=(230, 220, 205, int(255 * a_)))
+            elif fx["hit"]:
+                _, hx, hy, hw, hh = fx["hit"]; k = i - nc
+                if k < nf:                                         # the world falls away from the figure; the paper edge comes
+                    e_ = k / nf; dark = Image.fromarray((np.asarray(img.convert("RGB")).astype(np.float32) * (1 - .78 * e_)).astype(np.uint8)).convert("RGBA")
+                    img = dark; pc = paper(fx["still"].resize((hw, hh), Image.LANCZOS)); pc.putalpha(Image.fromarray((np.asarray(pc)[..., 3] * min(1, e_ * 1.5)).astype(np.uint8)))
+                    img.alpha_composite(pc, (hx - 4, hy - 4))
+                else:                                              # it lifts across onto the stage
+                    e_ = min(1, (k - nf) / (n - nc - nf - 4)); e_ = e_ * e_ * (3 - 2 * e_)
+                    th = int(hh + (c["h"] - hh) * e_); tw = max(1, int(hw * th / hh)); tx = int(hx + ((c["x"] * W_ - tw / 2) - hx) * e_); ty = int(hy + ((H_ * .80 - th) - hy) * e_)
+                    if e_ < 1: img.alpha_composite(Image.new("RGBA", img.size, (0, 0, 0, int(200 * (1 - e_)))))
+                    img.alpha_composite(paper(fx["still"].resize((tw, th), Image.LANCZOS)), (tx - 4, ty - 4))
+                d = ImageDraw.Draw(img); d.text((W_ // 2, 24), b["who"], font=LAB, fill=hexcolor(b["who"]), anchor="ma", stroke_width=2, stroke_fill=(0, 0, 0))
+            if i == n - 1: c["on"] = True
         elif kind == "narr":
             band = Image.new("RGBA", (W_, int(H_ * .2)), (8, 4, 3, 200)); img.alpha_composite(band, (0, int(H_ * .80))); d = ImageDraw.Draw(img)
             if tt > .3: text_block(d, b["text"], NARR, H_ - 18, (246, 236, 222), stroke=0)

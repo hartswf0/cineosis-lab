@@ -21,9 +21,10 @@ def tx(ts):
 TMEAN = tx([f"{v} music" for v in LIB["vocab"]]).mean(0)
 def read(text):
     t = tx([f"music for a film scene: {text}"[:300]])[0] - TMEAN; return t / (np.linalg.norm(t) + 1e-9)
-def plan(movements, album, used_before=()):
+def plan(movements, album, used_before=(), spent=None):
+    """spent: how often each cue has already scored other films (a series should not hear one cue everywhere)"""
     tracks = [t for t in LIB["tracks"] if t["album"].lower().startswith(album.lower()[:6])]
-    out, recent, prev = [], list(used_before)[-2:], None
+    out, recent, prev = [], list(used_before)[-2:], None; here = {}; spent = spent or {}
     for mv in movements:
         q = read(mv["text"])
         if mv.get("mood"): q = q + 1.4 * read(mv["mood"] + " music"); q /= np.linalg.norm(q)      # what the scene should feel like weighs above what it says
@@ -34,6 +35,7 @@ def plan(movements, album, used_before=()):
             for s in range(0, max(1, len(sc) - min(need, len(sc)) + 1)):
                 v = float(sc[s: s + need].mean())
                 cont = prev and prev["track"] == t["id"] and abs(t["win"][s] - prev["end"]) < 12
+                v -= .035 * spent.get(t["id"], 0) + .05 * here.get(t["id"], 0) * (not cont)
                 if cont: v += .09
                 elif t["id"] in recent: continue
                 if best is None or v > best[0]: best = (v, t, s)
@@ -44,7 +46,7 @@ def plan(movements, album, used_before=()):
         from collections import Counter
         mood = [k for k, _ in Counter(x for w in t["tags"][s: s + need] for x in w).most_common(2)]
         p = {"track": t["id"], "title": t["title"], "f": t["f"], "offset": round(off, 2), "fit": round(v, 3), "mood": mood, "end": round(off + mv["dur"], 2)}
-        out.append(p); prev = p; recent = (recent + [t["id"]])[-2:]
+        out.append(p); prev = p; recent = (recent + [t["id"]])[-2:]; here[t["id"]] = here.get(t["id"], 0) + 1
     return out
 if __name__ == "__main__":
     what = sys.argv[1] if len(sys.argv) > 1 else "republic"
@@ -69,11 +71,17 @@ if __name__ == "__main__":
         ep = sys.argv[2] if len(sys.argv) > 2 else "ep01"; P = os.path.join(L, "republic", "pilot", ep + ".picked.json"); cut = json.load(open(P))
         mvs, cur = [], None
         for b in cut["beats"]:
-            d = {"title": 4.0, "end": 4.0, "narr": b.get("d", 0) + .7, "talk": b.get("d", 0) + .3, "chorus": b.get("d", 0) + .2}[b["k"]]
+            d = {"title": 4.0, "end": 4.0, "narr": b.get("d", 0) + .7, "talk": b.get("d", 0) + .3, "chorus": b.get("d", 0) + .2, "intro": 5.4}[b["k"]]
             if b["k"] in ("title", "narr", "end") or cur is None:
                 cur = {"text": b.get("text") or cut["title"], "mood": b.get("mood", ""), "dur": 0.0}; mvs.append(cur)
             cur["dur"] += d
-        pl = plan(mvs, sys.argv[3] if len(sys.argv) > 3 else "D-A-E"); cut["score"] = pl
+        UP = os.path.join(L, "republic", "pilot", "score_usage.json"); use = json.load(open(UP)) if os.path.exists(UP) else {}
+        spent = {}
+        for e_, ids_ in use.items():
+            if e_ != ep:
+                for i_ in set(ids_): spent[i_] = spent.get(i_, 0) + 1
+        pl = plan(mvs, sys.argv[3] if len(sys.argv) > 3 else "D-A-E", spent=spent); cut["score"] = pl
+        use[ep] = [p["track"] for p in pl]; json.dump(use, open(UP, "w"), indent=0)
         json.dump(cut, open(P, "w"), ensure_ascii=False, indent=1)
         for m_, p in zip(mvs, pl): print(f"  {m_['dur']:5.1f}s  {p['title'][:30]:30} @{p['offset']:5.1f} fit {p['fit']:+.2f} ({', '.join(p['mood'])}) ← {m_['text'][:50]}")
     elif what == "norse":                        # each chapter of the Norse house, read by its title, what it shows, and the feeling it asks for
