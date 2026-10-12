@@ -75,6 +75,7 @@ h3{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)
 .files a{color:var(--dim)}
 @media (max-width:900px){main{grid-template-columns:1fr}aside{border-left:0;border-top:1px solid var(--rule);max-height:none;position:static}nav.cuts{margin-left:0;width:100%}}
 </style>
+<script src="cels/cels.js"></script>
 </head>
 <body>
 <header>
@@ -112,6 +113,7 @@ const CUTS = [
   { slug: 'scenes', title: 'Scenes', idea: 'Each poem line plays as one passage from a single archive film, shot after shot in that film’s order.' },
   { slug: 'cineosis', title: 'Cineosis', idea: 'Each shot is chosen for the cineosis signs the suite assigns its beat.' },
   { slug: 'drift', title: 'Drift', idea: 'A dérive through each chapter: every shot is chosen to follow the one before it.' },
+  { slug: 'cels', title: 'Cels', idea: 'The film redrawn as cartoon cels: each poem carved into patches on her reading, each patch one moving shot redrawn in the angular multiplane style.' },
   { slug: 'grid', title: 'All four', idea: 'The four cuts at once on one clock. Click a quarter to play that cut alone at the same moment.' },
 ];
 const QUAD = ['suite', 'scenes', 'cineosis', 'drift'];
@@ -120,9 +122,10 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const mmss = t => { t = Math.max(0, t || 0); return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(Math.floor(t % 60)).padStart(2, '0'); };
 const v = $('#v');
-const S = { cut: 'suite', patches: {}, signs: {}, local: false, i: -1, D: 1440.07 };
+const S = { cut: 'suite', patches: {}, signs: {}, local: false, celsLocal: false, i: -1, D: 1440.07 };
 
-const src = slug => S.local ? (slug === 'grid' ? 'wygwyl/cuts/grid.mp4' : `wygwyl/cuts/${slug}/cut.mp4`) : RELEASE + `wygwyl-${slug}.mp4`;
+const src = slug => slug === 'cels' ? (S.celsLocal ? 'wygwyl/cuts/cels/cut.mp4' : RELEASE + 'wygwyl-cels.mp4')
+  : S.local ? (slug === 'grid' ? 'wygwyl/cuts/grid.mp4' : `wygwyl/cuts/${slug}/cut.mp4`) : RELEASE + `wygwyl-${slug}.mp4`;
 const at = (P, t) => { let lo = 0, hi = P.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (P[m].t0 <= t) lo = m; else hi = m - 1; } return lo; };
 const P = () => S.patches[S.cut === 'grid' ? 'suite' : S.cut] || [];
 
@@ -154,7 +157,8 @@ function card() {
   host.innerHTML = `<div class="chap">Chapter ${esc(p.chapter)} · ${esc(p.film)} · shot ${S.i + 1} of ${L.length}</div>
     <div class="line${p.line ? '' : ' instr'}">${esc(p.line || 'instrumental')}</div>
     ${shotBlock(p)}
-    <p class="why"><b>Why this shot:</b> ${esc(p.why || '—')}</p>
+    <p class="why"><b>${S.cut === 'cels' ? 'The scene' : 'Why this shot'}:</b> ${esc(p.why || '—')}</p>
+    ${S.cut === 'cels' ? `<p class="why"><b>Drawn:</b> ${p.clip?.clip ? 'every frame redrawn as angular cels (keyframes through the drawing pipeline, the frames between carried by the footage’s motion)' : 'not yet: this patch is still to be made'}${p.clip?.clip ? ` · <a href="${esc(p.clip.clip)}" target="_blank">this patch’s cel ↗</a>` : ''}</p>` : (window.CELS && p.clip?.id ? `<p class="why">${CELS.chip(p.clip.id)}</p>` : '')}
     ${(p.codes || []).length ? `<h3>Signs the suite assigns this beat</h3><div class="signs">${p.codes.map(chip).join('')}</div>` : ''}
     <h3>Files for this cut</h3>
     <p class="files"><a href="${esc(src(S.cut))}" download>film (mp4)</a> · <a href="wygwyl/cuts/${esc(S.cut)}/patches.json">shot list (json)</a> · <a href="wygwyl/cuts/${esc(S.cut)}/matrix_B_story_map.md">story map (md)</a> · <a href="wygwyl/cuts/${esc(S.cut)}/matrix_A_patch_genome.yaml">patch genome (yaml)</a></p>`;
@@ -230,15 +234,17 @@ addEventListener('keydown', e => {
   else if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
   else if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
   else if ('1234'.includes(e.key)) choose(QUAD[+e.key - 1]);
+  else if (e.key === '5') choose('cels');
   else if (e.key === 'g' || e.key === 'G') choose('grid');
 });
-$('#cuts').innerHTML = CUTS.map((c, k) => `<button data-cut="${c.slug}" aria-pressed="false" title="${esc(c.idea)}">${esc(c.title)}<kbd>${k < 4 ? k + 1 : 'G'}</kbd></button>`).join('');
+$('#cuts').innerHTML = CUTS.map((c, k) => `<button data-cut="${c.slug}" aria-pressed="false" title="${esc(c.idea)}">${esc(c.title)}<kbd>${k < 5 ? k + 1 : 'G'}</kbd></button>`).join('');
 $('#cuts').querySelectorAll('button').forEach(b => b.onclick = () => choose(b.dataset.cut));
 
 (async () => {
   try { const r = await fetch('wygwyl/cuts/suite/cut.mp4', { method: 'HEAD', signal: AbortSignal.timeout(2500) }); S.local = r.ok; } catch (e) { S.local = false; }
-  const first = (location.hash.slice(1) in { suite: 1, scenes: 1, cineosis: 1, drift: 1, grid: 1 }) ? location.hash.slice(1) : 'suite';
-  const loads = QUAD.map(q => fetch(`wygwyl/cuts/${q}/patches.json`).then(r => r.json()).then(L => { S.patches[q] = L; }).catch(() => { S.patches[q] = []; }));
+  try { const r = await fetch('wygwyl/cuts/cels/cut.mp4', { method: 'HEAD', signal: AbortSignal.timeout(2500) }); S.celsLocal = r.ok; } catch (e) { S.celsLocal = false; }
+  const first = (location.hash.slice(1) in { suite: 1, scenes: 1, cineosis: 1, drift: 1, cels: 1, grid: 1 }) ? location.hash.slice(1) : 'suite';
+  const loads = [...QUAD, 'cels'].map(q => fetch(`wygwyl/cuts/${q}/patches.json`).then(r => r.json()).then(L => { S.patches[q] = L; }).catch(() => { S.patches[q] = []; }));
   const signs = fetch('tools/cineosis-index.json').then(r => r.json()).then(j => j.signs.forEach(s => S.signs[s.n] = s)).catch(() => {});
   choose(first);
   await Promise.all([...loads, signs]);
