@@ -44,6 +44,16 @@ def sound(v, t, dur):
 def push(img, u):                                                        # the slow push-in: 0 → 6% over the shot
     z = 1 + .06 * u; w, h = int(W_ / z), int(H_ / z); x, y = (W_ - w) // 2, (H_ - h) // 2
     return img.crop((x, y, x + w, y + h)).resize((W_, H_), Image.BILINEAR)
+def nlines(d, txt, f, width=820):
+    n, cur = 1, ""
+    for w in txt.split():
+        t = (cur + " " + w).strip()
+        if d.textlength(t, font=f) > width and cur: n += 1; cur = w
+        else: cur = t
+    return n
+def band_for(img, d, txt, f, alpha=215):
+    """the subtitle band grows to hold its line: two lines fit the stage's floor, longer lines raise it, never spill onto the picture"""
+    h = max(int(H_ * .2), (f.size + 8) * nlines(d, txt, f) + 30); img.alpha_composite(Image.new("RGBA", (W_, h), (8, 4, 3, alpha)), (0, H_ - h)); return h
 def text_block(d, txt, f, y, fill, width=820, stroke=3):
     words, lines, cur = txt.split(), [], ""
     for w in words:
@@ -181,7 +191,7 @@ for kind, dur, b in segs:
                 x = int(c["x"] * W_ - im.width / 2); y = int(H_ * .80 - im.height - c["lift"] * 8); c["top"] = (int(c["x"] * W_), y)
                 sh = Image.new("RGBA", (im.width, 26), (0, 0, 0, 0)); ImageDraw.Draw(sh).ellipse((im.width * .15, 4, im.width * .85, 22), fill=(0, 0, 0, 110)); img.alpha_composite(sh.filter(ImageFilter.GaussianBlur(5)), (x, int(H_ * .80) - 16))
                 img.alpha_composite(im, (x, y))
-            band = Image.new("RGBA", (W_, int(H_ * .2)), (8, 4, 3, 215)); img.alpha_composite(band, (0, int(H_ * .80))); d = ImageDraw.Draw(img)
+            band_for(img, d, b["text"], SUB); d = ImageDraw.Draw(img)
             text_block(d, b["text"], SUB, H_ - 18, (255, 255, 255), stroke=0)
             lab = b["who"]; w = d.textlength(lab, font=LAB) + 14
             cx, cy = CAST[lab]["top"] if lab in CAST and CAST[lab]["on"] and "top" in CAST[lab] else (W_ // 2, int(H_ * .80) - 6)   # a voice without a figure is named above its line
@@ -206,7 +216,7 @@ for kind, dur, b in segs:
                 d = ImageDraw.Draw(img); d.text((W_ // 2, 24), b["who"], font=LAB, fill=hexcolor(b["who"]), anchor="ma", stroke_width=2, stroke_fill=(0, 0, 0))
             if i == n - 1: c["on"] = True
         elif kind == "narr":
-            band = Image.new("RGBA", (W_, int(H_ * .2)), (8, 4, 3, 200)); img.alpha_composite(band, (0, int(H_ * .80))); d = ImageDraw.Draw(img)
+            band_for(img, d, b["text"], NARR, 200); d = ImageDraw.Draw(img)
             if tt > .3: text_block(d, b["text"], NARR, H_ - 18, (246, 236, 222), stroke=0)
             d.text((22, 18), "NARRATOR", font=LAB, fill=(246, 236, 222), stroke_width=2, stroke_fill=(0, 0, 0))
         elif kind == "chorus":

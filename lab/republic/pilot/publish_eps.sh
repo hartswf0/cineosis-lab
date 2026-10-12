@@ -1,6 +1,7 @@
 #!/bin/sh
 # push the finished episodes: their films, posters, cuts, the pages and the index (only what changed; the lab's publish rule otherwise)
 LAB="$(cd "$(dirname "$0")/../.." && pwd)"; DEST=~/cineosis-lab
+LOCK=/tmp/republic-publish.lock; until mkdir "$LOCK" 2>/dev/null; do sleep 5; done; trap 'rmdir "$LOCK"' EXIT   # one push at a time
 cd "$LAB" && republic/.tts/bin/python republic/pilot/make_episodes.py || exit 1
 cd "$DEST" && git pull -q --no-rebase || exit 1
 mkdir -p lab/republic/pilot lab/score/cues
