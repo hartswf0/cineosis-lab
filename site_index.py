@@ -16,7 +16,8 @@ SCRIPTS = [x for x in re.findall(r"<script>.*?</script>", OLD, re.S) if "the bar
 # the previews also read the new doors' clips (extra.json), and a door with only a still keeps its still
 SCRIPTS = [x.replace("let D; try { D = await fetch('lab/doors/doors.json').then(r => r.json()); } catch (e) { return; }",
                      "let D; try { D = await fetch('lab/doors/doors.json').then(r => r.json()); } catch (e) { return; } try { Object.assign(D, await fetch('lab/doors/extra.json').then(r => r.json())); } catch (e) { }")
-             .replace("function show(a) { const c = a._c[a._i % a._c.length],", "function show(a) { if (!a._c.some(x => x.v)) return; const c = a._c[a._i % a._c.length],") if "extra.json" not in x else x for x in SCRIPTS]
+             .replace("a.prepend(dv);", "(a.querySelector('.ui') || a).appendChild(dv);")
+             .replace("function show(a) { const c = a._c[a._i % a._c.length],", "function show(a) { if (!a._c.some(x => x.v)) return; const c = a._c[a._i % a._c.length],") if "extra.json" not in x else x.replace("a.prepend(dv);", "(a.querySelector('.ui') || a).appendChild(dv);") for x in SCRIPTS]
 NOTES = re.findall(r'<p class="note[^"]*">.*?</p>', OLD, re.S)
 STRIP = re.search(r'<div class="strip".*?</div>', OLD, re.S).group(0)
 MODES = {"WATCH": "#f4e9dc", "PLAY": "#ffd23f", "MAKE": "#9fe870", "READ": "#d9b8d2", "TOOL": "#a8a29a"}
@@ -45,19 +46,18 @@ P = [
    ("lab/shannon-poet.html", "MAKE"), ("lab/shannon-engine.html", "MAKE"), ("lab/shannon-narrative.html", "WATCH"), ("lab/markov-sam.html", "MAKE"),
    ("lab/markov-engine.html", "MAKE"), ("lab/markov-watch.html", "WATCH", "A Markov Poet film", "A film cut from the archive by someone's words. Watch it, then remix it.", "Watch →", 0),
    ("lab/markov-poet.html", "READ"), ("lab/shannon-engine.html?tests=1", "READ")]),
- ("ludens", "Play · Ludens and the Party", "#ffd23f", "Editing as play. The ball's path is the cut and the lab's critic is the physics; or a room of phones making one film together.", [
-   ("lab/ludens/tennis.html", "PLAY", "Ludens · Tennis", "Tennis for Two through the film corpus: twenty-four shots around the ring like a clock. Send the ball to the shot you want next; when it arrives it is cut in, and plays until the next one lands.", "Play →", 1),
-   ("lab/ludens/putt.html", "PLAY", "Ludens · Putt-Off", "Editing as golf: aim a line of flight through the field of shots; every shot the ball crosses is cut in, for as long as the ball is over it. See the exact cut before you swing.", "Play →", 1),
+ ("ludens", "Play · Ludens and the Party", "#ffd23f", "Editing as play, over any of the lab's films. The ball's path is the cut and the lab's critic is the physics; or a room of phones making one film together.", [
+   ("lab/ludens/tennis.html", "PLAY", "Ludens · Tennis", "Tennis for Two over any of the lab's films (the Republic, the Odyssey, Norse, the Signs, Slopfeeder): twenty-four shots around the ring like a clock. Send the ball to the shot you want next; when it arrives it is cut in, and plays until the next one lands.", "Play →", 1),
+   ("lab/ludens/putt.html", "PLAY", "Ludens · Putt-Off", "Editing as golf over any world's field of shots: aim a line of flight; every shot the ball crosses is cut in, for as long as the ball is over it. See the exact cut before you swing.", "Play →", 1),
    ("lab/ludens/open-cut.html", "PLAY", "Ludens · Open Cut", "Golf and tennis in one: players around a round field of shots putt in turn, and every shot a ball rests on must answer the last shot of the one film you are making together.", "Play →", 1),
-   ("lab/ludens/", "PLAY", "Ludens · all the games, and The Table", "Putt-Off, Tennis and Open Cut, and The Table on phones: bridge the film so far to the story's next beat with up to three shots, then vote.", "Play →", 1),
+   ("lab/ludens/", "PLAY", "Ludens · all the games, any world", "Choose a world (Slopfeeder, the Republic, the Odyssey, Norse Half Moon, the Signs), then Putt-Off, Tennis or Open Cut; and The Table on phones: bridge the film so far to the story's next beat with up to three shots, then vote.", "Play →", 1),
    ("lab/party.html", "PLAY"), ("lab/party.html?play=jam", "PLAY"), ("lab/party.html?play=show", "PLAY"), ("lab/party.html?play=cut", "PLAY"), ("lab/party.html?play=calltime", "PLAY"),
    ("lab/party.html?play=pictures", "PLAY"), ("lab/party.html?play=quiz", "PLAY"), ("lab/party.html?play=precisely", "PLAY"), ("lab/party.html?play=odyssey", "PLAY"),
    ("lab/party.html?play=machine", "PLAY"), ("lab/party.html?play=breed", "PLAY"), ("lab/live.html", "PLAY"), ("lab/cineosis.html", "PLAY"), ("lab/casino-tables.html", "PLAY"),
    ("lab/casino.html", "PLAY"), ("lab/calltime.html", "PLAY", "Call Time · solo", "Make today's movie with whatever survived yesterday: the call sheet, the TV guide, the hot remote.", "Play →", 0)]),
  ("monte", "Monte Carlo cinema", "#b39ddb", "Machines that make films: rules that evolve, a critic that scores, a tree search that imagines futures, and the galleries they leave.", [
    ("lab/monte.html", "MAKE"), ("lab/monte-gallery.html", "WATCH", "Monte Carlo Gallery", "The printed films and the ones you kept, each with its found title and chapters, to watch, save or send.", "Watch →", 0),
-   ("lab/mcts.html", "WATCH"), ("lab/pictures.html", "PLAY"), ("lab/takes.html", "PLAY"), ("lab/cascade-engine.html", "MAKE"), ("lab/patch.html", "TOOL"),
-   ("lab/film.html", "WATCH", "A film", "A film cut from the Cineosis archive; the whole film lives in its link.", "Watch →", 0)]),
+   ("lab/mcts.html", "WATCH"), ("lab/pictures.html", "PLAY"), ("lab/takes.html", "PLAY"), ("lab/cascade-engine.html", "MAKE"), ("lab/patch.html", "TOOL"),]),
  ("slopfeeder", "SLOPFEEDER", "#ff6f91", "A meme-born beach siege read from inside the lab: eight songs, eight films, the cartoons drawn in code, and the editors they were cut on.", [
    ("lab/slopfeeder-films.html", "WATCH", "Slopfeeder Films", "The eight films, one for each song of The Liturgy of the Two Buttons, each cut from the song's own lyric, with its logline and how it was made.", "Watch →", 1),
    ("lab/slopfeeder.html", "READ", "Slopfeeder in the lab", "The memes it comes from taken apart, its world segmented and named, and the archive's rhymes for every piece, beat and frame.", "Read →", 1),
@@ -80,10 +80,12 @@ P = [
    ("lab/abc-flix/c-bus.html", "TOOL", "Arc-Tunnel Operator", "A live video instrument: the ARC-TUNNEL fed with lab footage, played by hand.", "Open →", 0),
    ("lab/abc-flix/icaro-pro-bus.html", "TOOL", "ICARO · Worldtext instrument", "The unified worldtext instrument behind ABC FLIX.", "Open →", 0)]),
 ]
-START = [("lab/markov-republic.html", "WATCH", "republic", "Watch the Republic", "Seventeen short films, one after another."),
-         ("lab/ludens/tennis.html", "PLAY", "ludens", "Play Tennis with the archive", "The ball's path is the cut."),
-         ("lab/shannon-poet.html", "MAKE", "poet", "Make a film from your words", "Type or say a line; the archive answers."),
-         ("periodic-table.html", "READ", "signs", "Read a cinematic sign", "Forty-four ways an image can think.")]
+START = [("periodic-table.html", "READ", "signs", "The periodic table", "Forty-four ways an image can think. Click an element: its deciding test, the signs it is confused with, the shots that show it."),
+         ("lab/", "TOOL", "signs", "The explorer", "Thousands of archive shots on one wall. Pick a sign, a decade, a colour or a subject; the wall shows only those."),
+         ("lab/found-odyssey-museum.html", "WATCH", "odyssey", "The Found Odyssey", "Homer said plainly, every line answered by real people on archival film. One button, full screen, twenty-four books."),
+         ("lab/markov-sam.html", "MAKE", "poet", "Markov SAM", "A storyboard by hand: each line gets a ground from the archive and figures SAM has cut out of it. Drag them into place.")]
+UI = json.load(open(os.path.join(H, "lab", "doors", "ui.json"))) if os.path.exists(os.path.join(H, "lab", "doors", "ui.json")) else {}
+for h in ("lab/abc-flix/icaro-pro-bus.html",): UI.pop(h, None)          # its still is a blank panel: the archive preview says more
 E = html.escape
 def door(proj, color, d):
     href, mode = d[0], d[1]; t, x, c, new = (d + (None, None, None, 0))[2:6]
@@ -91,11 +93,15 @@ def door(proj, color, d):
     t = t or k[0] or href; x = x if x is not None else (k[1] or ""); c = c or k[2] or "Open →"
     if not d[2:3] and href not in KEEP: print("  no text for", href)
     rid = ' id="reelDoor"' if href.endswith("/releases/latest") else ""
-    return (f'<a class="door" data-p="{proj}" data-m="{mode}" href="{E(href)}"{rid} style="--c:{color}"><u>{mode}{" · NEW" if new else ""}</u>'
+    ui = f'<span class="ui"><img src="{UI[href]}" alt="" loading="lazy"></span>' if href in UI else ""
+    return (f'<a class="door" data-p="{proj}" data-m="{mode}" href="{E(href)}"{rid} style="--c:{color}">{ui}<u>{mode}{" · NEW" if new else ""}</u>'
             f'<b>{t}</b><span>{x}</span><em>{c}</em></a>')
 nav = "".join(f'<a href="#{k}" style="--c:{c}"><i></i>{E(n)}</a>' for k, n, c, _, _ in P)
 modes = "".join(f'<button data-m="{m}" style="--c:{c}">{m}</button>' for m, c in MODES.items())
-start = "".join(f'<a class="door big" data-p="{p}" data-m="{m}" href="{h}" style="--c:{next(c for k, _, c, _, _ in P if k == p)}"><u>{m}</u><b>{E(t)}</b><span>{E(x)}</span><em>Go →</em></a>' for h, m, p, t, x in START)
+def start_door(n, h, m, p, t, x):
+    col = next(c for k, _, c, _, _ in P if k == p); ui = '<span class="ui"><img src="%s" alt="" loading="lazy"></span>' % UI[h] if h in UI else ""
+    return f'<a class="door big" data-p="{p}" data-m="{m}" href="{h}" style="--c:{col}">{ui}<u>{n + 1} · {m}</u><b>{E(t)}</b><span>{E(x)}</span><em>Go →</em></a>'
+start = "".join(start_door(n, *d) for n, d in enumerate(START))
 sections = "".join(f'<section id="{k}" style="--c:{c}"><header><h2><i></i>{E(n)}</h2><p>{E(intro)}</p></header><div class="doors">{"".join(door(k, c, d) for d in ds)}</div></section>' for k, n, c, intro, ds in P)
 count = sum(len(ds) for *_, ds in P)
 CSS = STYLE + """
@@ -122,6 +128,12 @@ a.door.big b{font-size:1.15em}
 a.door[hidden]{display:none}
 section.empty{display:none}
 .count{color:var(--dim);font-size:12px}
+#find{font:inherit;font-size:12px;color:var(--ink);background:#14120f;border:1px solid var(--rule);border-radius:14px;padding:5px 11px;min-width:170px;margin-left:6px}
+#find:focus{outline:none;border-color:var(--ink)}
+a.door .ui{position:relative;display:block;margin:-20px -18px 12px;aspect-ratio:16/10;background:#000;border-radius:5px 5px 0 0;overflow:hidden}
+a.door .ui > img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top;display:block;opacity:.92}
+a.door .ui .dv{position:absolute;right:8px;bottom:8px;width:40%;margin:0;border:1px solid rgba(255,255,255,.45);border-radius:4px;box-shadow:0 4px 14px rgba(0,0,0,.6)}
+a.door .ui .dv i{display:none}
 @media (max-width:600px){#bar{padding:6px 12px;gap:6px;margin:14px -12px 0}#bar .modes{gap:4px}#bar .modes button{padding:4px 7px}.count{display:none}section{scroll-margin-top:96px}}
 """
 OUT = f"""<!doctype html>
@@ -144,7 +156,7 @@ OUT = f"""<!doctype html>
 <p class="sub">A laboratory of the moving-image archive. Films cut from it, games that edit with it, tools to make your own, and the cinematic signs it began with (Deleuze's, after Deamer).</p>
 {STRIP}
 <div class="start">{start}</div>
-<div id="bar"><nav>{nav}</nav><div class="modes">SHOW <button data-m="ALL" class="on" style="--c:#ece6da">ALL</button>{modes}<span class="count" id="count">{count} doors</span></div></div>
+<div id="bar"><nav>{nav}</nav><div class="modes">SHOW <button data-m="ALL" class="on" style="--c:#ece6da">ALL</button>{modes}<input id="find" type="search" placeholder="find a door…" aria-label="Find a door"><span class="count" id="count">{count} doors</span></div></div>
 {sections}
 {''.join(NOTES)}
 </main>
@@ -154,11 +166,14 @@ OUT = f"""<!doctype html>
 const secs = [...document.querySelectorAll('section')], chips = [...document.querySelectorAll('#bar nav a')];
 const io = new IntersectionObserver(es => es.forEach(e => {{ if (e.isIntersecting) chips.forEach(c => c.classList.toggle('on', c.getAttribute('href') === '#' + e.target.id)); }}), {{rootMargin: '-40% 0px -55% 0px'}});
 secs.forEach(s => io.observe(s));
-document.querySelectorAll('#bar .modes button').forEach(b => b.onclick = () => {{
-  const m = b.dataset.m; document.querySelectorAll('#bar .modes button').forEach(x => x.classList.toggle('on', x === b));
-  let n = 0; document.querySelectorAll('section a.door').forEach(a => {{ const on = m === 'ALL' || a.dataset.m === m; a.hidden = !on; n += on; }});
+let MODE = 'ALL';
+function filter() {{
+  const q = document.getElementById('find').value.trim().toLowerCase(); let n = 0;
+  document.querySelectorAll('section a.door').forEach(a => {{ const on = (MODE === 'ALL' || a.dataset.m === MODE) && (!q || a.textContent.toLowerCase().includes(q)); a.hidden = !on; n += on; }});
   secs.forEach(s => s.classList.toggle('empty', !s.querySelector('a.door:not([hidden])'))); document.getElementById('count').textContent = n + ' doors';
-}});
+}}
+document.querySelectorAll('#bar .modes button').forEach(b => b.onclick = () => {{ MODE = b.dataset.m; document.querySelectorAll('#bar .modes button').forEach(x => x.classList.toggle('on', x === b)); filter(); }});
+document.getElementById('find').oninput = filter;
 </script>
 </body>
 </html>
