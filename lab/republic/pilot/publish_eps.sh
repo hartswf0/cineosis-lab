@@ -8,7 +8,7 @@ mkdir -p lab/republic/pilot lab/score/cues
 cp "$LAB"/markov-republic*.html lab/
 for f in "$LAB"/republic/pilot/ep*-score.mp4; do n=$(basename "$f" -score.mp4); [ -f "$LAB/republic/pilot/$n.mp4" ] || continue
   for x in "$n-score.mp4" "$n.mp4" "$n-poster.jpg" "$n.json" "$n.picked.json"; do [ -f "$LAB/republic/pilot/$x" ] && cp "$LAB/republic/pilot/$x" lab/republic/pilot/; done; done
-cp "$LAB"/republic/pilot/*.py "$LAB"/republic/pilot/CUT_SPEC.md "$LAB"/republic/pilot/batch.sh "$LAB"/republic/pilot/publish_eps.sh lab/republic/pilot/ 2>/dev/null
+cp "$LAB"/republic/pilot/*.py "$LAB"/republic/pilot/binge-template.html "$LAB"/republic/pilot/CUT_SPEC.md "$LAB"/republic/pilot/batch.sh "$LAB"/republic/pilot/publish_eps.sh lab/republic/pilot/ 2>/dev/null
 cp "$LAB"/score/fit.py lab/score/
 # the cues the published episodes use
 "$LAB"/republic/.tts/bin/python - "$LAB" <<'PY'

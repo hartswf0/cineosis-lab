@@ -58,14 +58,11 @@ for i, e in enumerate(eps):
 <div class="nav">{prev_}{next_}</div>
 </main><script>const v=document.querySelector('video');document.querySelectorAll('.ver button').forEach(b=>b.onclick=()=>{{const t=v.currentTime,p=!v.paused;v.src=b.dataset.f;v.addEventListener('loadedmetadata',()=>{{v.currentTime=t;if(p)v.play()}},{{once:true}});document.querySelectorAll('.ver button').forEach(x=>x.classList.toggle('on',x===b))}});</script></body></html>"""
     open(os.path.join(L, page(n)), "w").write(out)
-cards = "".join(f"""<a class="ep" href="{page(e['n'])}"><img src="republic/pilot/ep{e['n']:02d}-poster.jpg" alt="" loading="lazy"><span><i>{e['n']:02d} · {round(e['d'] / 60, 1)} MIN</i><b>{esc(e['c']['title'])}</b><small>{esc(series.get(e['c']['id'], ''))}</small></span></a>""" for e in eps)
-idx = HEAD("The Republic", "THE REPUBLIC: seventeen episodes from the writers' room, cut from the archive. A narrator, cut-out figures, and the archive's citizens.", "republic/pilot/ep01-poster.jpg").replace("</style>", """.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
-.ep{display:flex;flex-direction:column;gap:8px;text-decoration:none;color:var(--ink);border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.ep img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}.ep span{padding:0 12px 12px;display:flex;flex-direction:column;gap:3px}
-.ep i{font-style:normal;font-size:10px;letter-spacing:.16em;color:#e0572a}.ep b{font:14px/1.15 'Arial Black',Impact,sans-serif}.ep small{color:var(--dim);font-size:10.5px}</style>""") + f"""
-<div class="k">CINEOSIS LAB · MARKOV FOUND</div><h1>THE REPUBLIC</h1>
-<p>Seventeen Republics from the writers' room, each cut as a short film from the archive: a narrator tells the story; the characters are figures cut from archival films, each introduced where the archive found it; the archive speaks as the Republic's citizens; the score is D-A-E · Honed for Film, chosen by what each scene says. Also: <a href="markov-found-republic.html">the four versions</a> · <a href="markov-sam-republic.html">the multiplane</a> · <a href="https://hartswf0.github.io/the-republic/screenplay.html">the screenplay</a>.</p>
-<div class="grid">{cards}</div></main></body></html>"""
+# ---- the index is the binge player: one PLAY, the series runs on, resuming where you left it
+PLAYLIST = [{"n": e["n"], "title": e["c"]["title"], "series": series.get(e["c"]["id"], ""), "d": round(e["d"], 1), "page": page(e["n"]),
+             "score": f"republic/pilot/ep{e['n']:02d}-score.mp4", "voice": f"republic/pilot/ep{e['n']:02d}.mp4", "poster": f"republic/pilot/ep{e['n']:02d}-poster.jpg",
+             "cast": [b["who"] for b in e["c"]["beats"] if b["k"] == "intro"]} for e in eps]
+idx = open(os.path.join(H, "binge-template.html")).read().replace("{{PLAYLIST}}", json.dumps(PLAYLIST, ensure_ascii=False)).replace("{{TOTAL}}", str(round(sum(e["d"] for e in eps) / 60)))
 open(os.path.join(L, "markov-republic.html"), "w").write(idx)
 open(os.path.join(L, "markov-republic-pilot.html"), "w").write('<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=markov-republic-ep01.html"><link rel="canonical" href="markov-republic-ep01.html"><a href="markov-republic-ep01.html">The Republic · Episode One</a>')
 print(len(eps), "episode pages · index")
