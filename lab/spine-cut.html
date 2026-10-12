@@ -45,7 +45,7 @@ button:focus-visible{ outline:2px solid var(--hi); outline-offset:2px; }
 .ph{ position:absolute; top:0; bottom:0; width:2px; background:var(--hi); pointer-events:none; z-index:4; }
 .help{ color:var(--dim); font-size:11px; margin-top:8px; }
 @media (max-width:900px){ .stage{ grid-template-columns:1fr; } .screen{ height:auto; width:100%; } .cr > b{ flex-basis:44px; } }
-</style></head>
+</style><script src="cels/cels.js"></script></head>
 <body>
 <header class="top">
   <b class="ttl">Spine-Cut</b>
@@ -59,20 +59,21 @@ button:focus-visible{ outline:2px solid var(--hi); outline-offset:2px; }
   <aside class="ref" id="ref"></aside>
 </section>
 <section class="cmp" id="cmp"></section>
-<p class="help">space play · 0–4 film · ← → section · [ ] poem · click any cell to play that film from there · dashed = storyboard beat between spoken lines</p>
+<p class="help">space play · 0–5 film (5 = cel) · ← → section · [ ] poem · click any cell to play that film from there · dashed = storyboard beat between spoken lines</p>
 <script>
 (() => {
   const $ = s => document.querySelector(s), h = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
-  const FILMS = [['hers', 'the spine'], ['echo', 'echo'], ['clean', 'clean'], ['quad', 'quad'], ['blend', 'blend']];
-  const TIP = { hers: 'the generated spine images, as the spine made them', echo: 'the nearest archive shot to each spine image and its words; repeats allowed', clean: 'no shot twice, no two neighbours from one film, then an editor’s review of every row', quad: 'the four nearest archive shots at once', blend: 'two archive shots composited with a blend mode, chosen so the result sits closest to the spine image' };
+  const FILMS = [['hers', 'the spine'], ['echo', 'echo'], ['clean', 'clean'], ['quad', 'quad'], ['blend', 'blend'], ['cel', 'cel']];
+  const TIP = { hers: 'the generated spine images, as the spine made them', echo: 'the nearest archive shot to each spine image and its words; repeats allowed', clean: 'no shot twice, no two neighbours from one film, then an editor’s review of every row', quad: 'the four nearest archive shots at once', blend: 'two archive shots composited with a blend mode, chosen so the result sits closest to the spine image', cel: 'the clean pick as the WYGWYL film drew it in cartoon cels, where it has been drawn; the clean pick itself where not yet' };
   const fmt = s => { s = Math.max(0, s | 0); return (s / 60 | 0) + ':' + String(s % 60).padStart(2, '0'); };
   let D, S, film = 'blend', t = 0, playing = false, si = -1, fi = 0, layers = [], act = 0;
   const A = new Audio(); A.preload = 'auto';
   const q = new URLSearchParams(location.search); if (FILMS.some(f => f[0] === q.get('film'))) film = q.get('film');
   const secAt = x => { let lo = 0, hi = S.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (S[m].t0 <= x) lo = m; else hi = m - 1; } return lo; };
   const filmAt = x => { for (let i = 0; i < D.films.length; i++) if (x < D.films[i].t1) return i; return D.films.length - 1; };
-  const shotsFor = (f, s) => f === 'echo' ? [s.echo] : f === 'clean' ? [s.clean] : f === 'quad' ? s.quad : f === 'blend' ? [s.blend.a, s.blend.b].filter(Boolean) : [];
-  const inpt = id => { const x = D.shots[id]; return Math.max(0, (x.read_t || 0) - .6); };
+  const shotsFor = (f, s) => f === 'echo' ? [s.echo] : (f === 'clean' || f === 'cel') ? [s.clean] : f === 'quad' ? s.quad : f === 'blend' ? [s.blend.a, s.blend.b].filter(Boolean) : [];
+  const celOf = (f, id) => f === 'cel' && window.CELS ? CELS.of(id) : null;      // the cel starts at its own window: in-point 0
+  const inpt = (id, f) => celOf(f, id) ? 0 : Math.max(0, (D.shots[id].read_t || 0) - .6);
 
   function mkLayer() {
     const L = h('div', 'layer'); const im = h('img'); L.append(im);
@@ -87,7 +88,8 @@ button:focus-visible{ outline:2px solid var(--hi); outline-offset:2px; }
     vs.forEach((v, k) => {
       const id = ids[k]; v.style.mixBlendMode = ''; v.style.opacity = '';
       if (!id) { v._id = null; v.removeAttribute('src'); return; }
-      if (v._id !== id) { v._id = id; v.poster = D.shots[id].thumb; v.src = D.shots[id].video; v.addEventListener('loadedmetadata', () => { try { v.currentTime = inpt(id); } catch (e) { } }, { once: true }); }
+      const cel = celOf(f, id), key = id + (cel ? '|cel' : '');
+      if (v._id !== key) { v._id = key; v.poster = cel ? cel.poster : D.shots[id].thumb; v.src = cel ? cel.cel : D.shots[id].video; v.addEventListener('loadedmetadata', () => { try { v.currentTime = inpt(id, f); } catch (e) { } }, { once: true }); }
     });
     if (f === 'blend' && s.blend.b) { vs[1].style.mixBlendMode = s.blend.mode; vs[1].style.opacity = s.blend.alpha; }
   }
@@ -95,7 +97,7 @@ button:focus-visible{ outline:2px solid var(--hi); outline-offset:2px; }
     const s = S[L._i], ids = shotsFor(L.dataset.f, s);
     L.querySelectorAll('video').forEach((v, k) => {
       const id = ids[k]; if (!id || v.readyState < 1) return;
-      const d = v.duration || 1e9; let want = inpt(id) + (x - s.t0); if (want >= d - .05) want = Math.min(inpt(id), d / 2) + (want - inpt(id)) % Math.max(.5, d - Math.min(inpt(id), d / 2));
+      const f = L.dataset.f, d = v.duration || 1e9, i0 = inpt(id, f); let want = i0 + (x - s.t0); if (want >= d - .05) want = Math.min(i0, d / 2) + (want - i0) % Math.max(.5, d - Math.min(i0, d / 2));
       if (Math.abs(v.currentTime - want) > (playing ? .5 : .05)) try { v.currentTime = Math.min(want, d - .05); } catch (e) { }
       if (playing && v.paused) v.play().catch(() => { }); if (!playing && !v.paused) v.pause();
     });
@@ -158,7 +160,7 @@ button:focus-visible{ outline:2px solid var(--hi); outline-offset:2px; }
   addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return; const k = e.key;
     if (k === ' ') { e.preventDefault(); playing ? pause() : play(); }
-    else if (/^[0-4]$/.test(k)) pick(FILMS[+k][0]);
+    else if (/^[0-5]$/.test(k)) pick(FILMS[+k][0]);
     else if (k === 'ArrowRight' || k === 'ArrowLeft') { e.preventDefault(); const i = Math.max(0, Math.min(S.length - 1, secAt(t) + (k === 'ArrowRight' ? 1 : -1))); seek(S[i].t0 + .01); }
     else if (k === ']' || k === '[') { const f = Math.max(0, Math.min(D.films.length - 1, fi + (k === ']' ? 1 : -1))); seek(D.films[f].t0 + .01); }
   });

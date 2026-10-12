@@ -179,6 +179,7 @@
           <i>scale</i><span>${esc(s.scale || '—')}${s.audio ? ` · sound: ${esc(s.audio.kind)}` : ''}${s.bw ? ' · b/w' : ''}</span>
           <i>subjects</i><span>${(s.subjects || []).slice(0, 4).map(x => esc(x.label)).join(' · ') || '—'}</span>
           <i>colour</i><span class="pg-pal">${(s.palette || []).map(c => `<b style="background:${esc(c)}" title="${esc(c)}"></b>`).join('')}</span>
+          ${window.CELS && (CELS.of(s.id) || CELS.able(s.id)) ? `<i>cel</i><span>${CELS.chip(s.id)}${CELS.of(s.id) ? ` <button class="pg-cel" title="play this shot as the WYGWYL film drew it">play the cel</button>` : ''}${CELS.able(s.id) && !CELS.of(s.id) ? ` <small>${esc(CELS.able(s.id).why.join(' · '))}</small>` : ''}</span>` : ''}
         </div>
         ${signs.length ? `<div class="pg-read">${signs.map(x => `${chip(String(x.n), 'sm')} ${esc((x.note || '').slice(0, 150))}`).join('<br>')}</div>` : ''}
         ${s.strip ? `<div class="pg-strip" style="background-image:url('${esc(s.strip)}')" title="the shot's frames"></div>` : ''}
@@ -186,6 +187,9 @@
       </div>`;
     const v = box.querySelector('video'); v.src = s.clip || s.video; v.addEventListener('loadedmetadata', () => { if (s.read_t != null) try { v.currentTime = Math.max(0, s.read_t - .6); } catch (e) {} }, { once: true }); v.play().catch(() => {});
     box.querySelector('.pg-snd').onclick = e => { v.muted = !v.muted; e.currentTarget.classList.toggle('on', !v.muted); };
+    const cb = box.querySelector('.pg-cel'), cel = window.CELS && CELS.of(s.id);
+    if (cb && cel) cb.onclick = () => { const on = v.dataset.cel !== '1'; v.dataset.cel = on ? '1' : ''; v.src = on ? cel.cel : (s.clip || s.video); cb.textContent = on ? 'play the footage' : 'play the cel';
+      if (!on) v.addEventListener('loadedmetadata', () => { if (s.read_t != null) try { v.currentTime = Math.max(0, s.read_t - .6); } catch (e) {} }, { once: true }); v.play().catch(() => {}); };
     box.querySelectorAll('.pg-acts button').forEach(b => b.onclick = () => { const a = b.dataset.a; if (a === 'try') api.tryShot(s); else if (a === 'keep') api.keep(s); else if (a === 'flag') { api.tryShot(s); api.verb('D'); } else if (a === 'ins') { N.alt = true; Inspector.open(s, PG.list.map(t => t._shot)); N.alt = false; toggle(false); } marks(); });
     marks();
   }

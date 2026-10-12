@@ -46,6 +46,7 @@ button:focus-visible{outline:2px solid var(--red);outline-offset:2px}
 .ov .alt img{display:block;width:112px;height:63px;object-fit:cover;border-radius:2px;background:#141418;margin-bottom:3px}.ov .alt span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ov .x{position:absolute;right:20px;top:20px;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.6);border:1px solid var(--rule2);font-size:18px;z-index:2}
 </style>
+<script src="../cels/cels.js"></script>
 </head><body>
 
 <div class="app" id="app">
@@ -303,9 +304,11 @@ function openArchive(it){
     <div class="cap"><div class="ttl">${esc(mt[0]||'—')}${mt[1]?' · '+mt[1]:''}</div>
     <div class="row"><span class="m">${esc(it[6])} · ${esc(r[0]||'no syntagma')}${p[3]?' · under “'+esc(p[3])+'”':''}</span></div>
     <div class="row"><span class="m">${r[1]?(it[5]?'cut as asked — ':'not cut as asked — ')+esc(RULE[r[1]]||r[1]):'no rule'} · fit ${r[2]??'—'}</span></div>
-    <div class="row alts">${alts}</div></div>`;
+    <div class="row alts">${alts}</div>${window.CELS&&(CELS.of(it[4])||CELS.able(it[4]))?`<div class="row">${CELS.chip(it[4])}${CELS.of(it[4])?' <button class="alt" id="ovcel">play the cel</button>':''}</div>`:''}</div>`;
   ov.hidden=false;$('#ovx').focus();
-  const v=$('#ovv');v.addEventListener('loadedmetadata',()=>{try{v.currentTime=st;}catch(e){}},{once:true});
+  const v=$('#ovv');
+  const cb=$('#ovcel'),cel=window.CELS&&CELS.of(it[4]);
+  if(cb&&cel)cb.onclick=()=>{const on=v.dataset.cel!=='1';v.dataset.cel=on?'1':'';v.src=on?cel.cel:(mt[2]||'');cb.textContent=on?'play the footage':'play the cel';if(!on)v.addEventListener('loadedmetadata',()=>{try{v.currentTime=st;}catch(e){}},{once:true});v.play().catch(()=>{});};v.addEventListener('loadedmetadata',()=>{try{v.currentTime=st;}catch(e){}},{once:true});
   ov.querySelectorAll('.alt').forEach(b=>b.onclick=()=>{const a=b.dataset.a;r[4]=[it[4]].concat((r[4]||[]).filter(x=>x!==a));
     it[4]=a;it[2]=null;it[5]=0;VID.forEach(x=>{if(x.dataset.id!==a)x.dataset.id='';});dirty=true;openArchive(it);});
 }
