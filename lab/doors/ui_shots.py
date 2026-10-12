@@ -21,4 +21,6 @@ def shot(h):
     finally: subprocess.run(["rm", "-rf", prof])
 with cf.ThreadPoolExecutor(3) as ex:
     for h, r in ex.map(shot, hrefs): print(f"{r:4} {h}", flush=True)
-json.dump({h: f"lab/doors/ui/{key(h)}.jpg" for h in hrefs if os.path.exists(os.path.join(H, "ui", key(h) + ".jpg"))}, open(os.path.join(H, "ui.json"), "w"), indent=0)
+UJ = os.path.join(H, "ui.json"); have = json.load(open(UJ)) if os.path.exists(UJ) else {}   # --only adds to the stills already kept
+have.update({h: f"lab/doors/ui/{key(h)}.jpg" for h in hrefs if os.path.exists(os.path.join(H, "ui", key(h) + ".jpg"))})
+json.dump(have, open(UJ, "w"), indent=0)
