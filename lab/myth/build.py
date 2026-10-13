@@ -13,6 +13,7 @@ HIST, MYTH = "bm_george", "am_michael"
 if "--voice" in sys.argv:
     import numpy as np, soundfile as sf
     from kokoro import KPipeline
+    import time; VER = time.strftime("%Y%m%d%H%M")
     P = {}; os.makedirs(os.path.join(H, "narr"), exist_ok=True); M = J("myth/myth.json")
     for n, it in enumerate(M["reel"]):
         if not it.get("line"): continue
@@ -20,7 +21,7 @@ if "--voice" in sys.argv:
         a = np.concatenate([np.asarray(x, np.float32) for _, _, x in p(it["line"], voice=vo, speed=.9)])
         wav = os.path.join(H, "narr", f"{n:02d}.wav"); sf.write(wav, np.concatenate([a, np.zeros(int(24000 * .35), np.float32)]), 24000)
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", wav, "-c:a", "aac", "-b:a", "112k", wav[:-3] + "m4a"]); os.unlink(wav)
-        it["a"] = f"myth/narr/{n:02d}.m4a"
+        it["a"] = f"myth/narr/{n:02d}.m4a?v={VER}"   # a new render never plays an old file from the browser's cache
     json.dump(M, open(os.path.join(H, "myth.json"), "w"), ensure_ascii=False, separators=(",", ":")); print("narration rendered"); sys.exit()
 
 PUR = J("research/purpose.json"); C = J("rushes/clips.json"); K = J("rushes/keys.json")["keys"]; UT = J("rushes/utts.json")["utts"]
@@ -75,46 +76,62 @@ def sponsor_phrase(p):
 def spoken_title(t):
     t = re.sub(r"\s*\((Part|Reel) [IVX\d]+\)", "", t or ""); t = re.sub(r"\s*\d{1,2}/\d{1,2}/\d{2,4}\b", "", t); t = re.sub(r"^.*? Presents:?\s*", "", t).strip()
     return t
+def short_title(t): return re.split(r"\s+:\s+|\s*:\s+(?=an? |the )", t)[0]
 def base_title(t): return re.sub(r"\W+", " ", spoken_title(t).lower()).strip()
 def purpose_line(p):
     t = p["purpose"]
     if not t: return ""
+    t = re.sub(r"\s*\bon \d{1,2}/\d{1,2}/\d{2,4}\b|\s*\d{1,2}/\d{1,2}/\d{2,4}\b", "", t); t = t.replace("interveiwed", "interviewed")
     w = t.split()
     if len(w) > 30:   # a long catalogue sentence is cut at a clause, never mid-thought
         cut = max((i for i, x in enumerate(w[:30]) if x.endswith((",", ";", ":"))), default=29); t = " ".join(w[:cut + 1]).rstrip(",;:")
-    t = re.sub(r"^This (\d{4} )?(U\.S\. government |archival |black-and-white |color |short |educational |promotional )*(film|documentary|newsreel|short)\s+(presents|documents|depicts|shows|surveys|follows|explains|describes|records|is about)\b", r"It \4", t)
+    t = re.sub(r"^This (\d{4} )?((?:[\w.\-]+ ){0,4})(film|documentary|newsreel|short|video|cartoon)\s+(\w+)\b", lambda m: "It " + m.group(4), t)
     return t if t.endswith((".", "!", "?")) else t + "."
 ACTS = [("PROMISE", "First, they promised a future."), ("INSTRUCTION", "Then they explained how to live in it."), ("SELLING", "And they sold it."),
         ("FEAR", "But the future came with a warning."), ("DREAM", "So people went into the dark, and dreamed."), ("WITNESS", "And then ordinary people turned the camera on themselves.")]
 ROMAN = ["I", "II", "III", "IV", "V", "VI"]
+FRESH_LINES = ["None of our films has used it. Until now.", "We never used this one.", "No film of ours has touched it.", "This one waited in the archive. We had left it alone.",
+               "It has never been in any of our films.", "Nobody in the lab had picked it up. Until now."]
 reel, used_src, used_u = [], set(), set()
+SPEAKS = collections.defaultdict(list)   # each source's clips where its own people speak
+for i, k in enumerate(K):
+    if C["rows"][i][7] >= 0 and slug_of.get(k): SPEAKS[slug_of[k]].append(i)
 def pick_clip(s):
     """the source's clip the lab used most, if Rushes holds it; else its clip with the most to say"""
     for cid, _ in clipuse[s].most_common():
         if cid in row: return row[cid]
-    cand = [row[k] for k in K if slug_of.get(k) == s]
-    cand.sort(key=lambda i: (C["rows"][i][7] < 0, -(C["rows"][i][3] or 0)))
+    cand = SPEAKS.get(s) or [row[k] for k in K if slug_of.get(k) == s]
+    cand = sorted(cand, key=lambda i: (C["rows"][i][7] < 0, C["rows"][i][6] < 0, -(C["rows"][i][3] or 0)))
     return cand[0] if cand else None
 for ai, (act, opener) in enumerate(ACTS):
-    cands = [s for s, p in PUR.items() if p["act"] == act and s not in used_src and weight[s] and (p["sponsor"] or p["purpose"])]
+    ok = lambda s: PUR[s]["act"] == act and s not in used_src and (PUR[s]["sponsor"] or PUR[s]["purpose"])
+    cands = [s for s in PUR if ok(s) and weight[s]]
     cands.sort(key=lambda s: (-min(PUR[s].get("fit", 0), 3), -len(films[s]), -weight[s]))   # films that are clearly of this act, then the most recurring
+    # and one the lab has never touched: the full research's strongest fit for this act, a film whose own people speak in it
+    fresh = [s for s in PUR if ok(s) and not weight[s] and PUR[s].get("fit", 0) >= 2 and PUR[s]["sponsor"] and PUR[s]["purpose"] and SPEAKS.get(s)]
+    fresh.sort(key=lambda s: (-min(PUR[s]["fit"], 4), -len(SPEAKS[s])))
     scenes = 0
-    for s in cands:
+    for s in cands[:12] + fresh[:1] + cands[12:]:
         if scenes == 3: break
+        if weight[s] and scenes == 2 and fresh and fresh[0] not in used_src and s not in fresh: continue   # the third scene is the stranger's
         p = PUR[s]; r0 = pick_clip(s)
         if r0 is None or base_title(p["title"]) in USED_TITLES: continue
         USED_TITLES.add(base_title(p["title"]))
         used_src.add(s); scenes += 1
         am = re.match(r"\[Amateur films?: (?:(.+?) collection: )?(.+?)\s*(\d{4}(?:-\d+)?)?\]", p["title"] or "")
         if am: hist = f"In {p['year']}, {am.group(1) or 'someone'} filmed his town: {am.group(2).rstrip(', ')}."
-        elif p.get("year"): hist = f"In {p['year']}, {sponsor_phrase(p)} made a film called {spoken_title(p['title'])}."
-        else: hist = f"{sponsor_phrase(p)} made a film called {spoken_title(p['title'])}."
+        elif p.get("year"): hist = f"In {p['year']}, {sponsor_phrase(p)} made a film called {short_title(spoken_title(p['title']))}."
+        else: hist = f"{sponsor_phrase(p)} made a film called {short_title(spoken_title(p['title']))}."
         pl = purpose_line(p)
         ln = hist + (" " + pl if pl else ""); ln = ln[0].upper() + ln[1:]
         first = {"k": "c", "r": r0, "line": (f"{opener} " if scenes == 1 else "") + ln, "voice": HIST}
         if scenes == 1: first["card"] = f"{ROMAN[ai]} · THE {act}"
         reel.append(first)
-        nx = C["rows"][r0][6]; ml = role_line(s)
+        nx = C["rows"][r0][6]; ml = role_line(s) if weight[s] else FRESH_LINES[ai % len(FRESH_LINES)]
+        END = {C["types"].index("text card"), C["types"].index("black / blank")}
+        if nx >= 0 and C["rows"][nx][4] in END:   # a title card or darkness does not carry a line: take another moment of the same film
+            alt = [i for i in (SPEAKS.get(s) or []) + [i for i, k in enumerate(K) if slug_of.get(k) == s] if i != r0 and C["rows"][i][4] not in END]
+            nx = alt[0] if alt else -1
         if nx >= 0: reel.append({"k": "c", "r": nx, **({"line": ml, "voice": MYTH} if ml else {})})
         elif ml:   # another clip from the same film carries the myth's line
             other = [i for i, k in enumerate(K) if slug_of.get(k) == s and i != r0]
@@ -124,7 +141,7 @@ for ai, (act, opener) in enumerate(ACTS):
             if ans: used_u.add(ans[0]); reel.append({"k": "u", "u": ans[0]})
     print(f"{act:11} {scenes} scenes")
 reel.append({"k": "c", "r": reel[0]["r"], "line": "These films were made to explain the future. We made them play gods, settlers and ghosts. The people in them are still talking.", "voice": MYTH, "card": "THE MYTH"})
-json.dump({"title": "THE MYTH", "sub": "One narrative from every lab film, told by the archive films they keep returning to.", "reel": reel},
+json.dump({"title": "THE MYTH", "sub": "One narrative from every lab film, told by the archive films they keep returning to, and in every act one film none of them has used.", "reel": reel},
           open(os.path.join(H, "myth.json"), "w"), ensure_ascii=False, separators=(",", ":"))
 print(len(reel), "items ·", sum(1 for x in reel if x.get("line")), "lines")
 for it in reel[:12]: print(" ", it.get("card", ""), "|", it.get("voice", "voice") , "|", (it.get("line") or ("ANSWER: " + UT[it["u"]][3] if it["k"] == "u" else "(its own sound)"))[:150])
