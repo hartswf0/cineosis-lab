@@ -61,7 +61,11 @@ window.EPISODE = {
   data: ['explain/ep/ep5.json?v=2', 'explain/ep/ep5_why.json?v=1'],
   cues: [],
   ready(K) {   /* Videotext, loaded once behind the stage, opened on the curtains line */
+    const snap = {}; try { Object.keys(localStorage).filter(k => k.startsWith('videotext')).forEach(k => snap[k] = localStorage.getItem(k)); } catch (e) { }
+    window.__vtrestore = () => { try { const cw = window.__vt && window.__vt.contentWindow; if (cw && cw.VT) cw.VT.S.binds.length = 0; Object.keys(localStorage).filter(k => k.startsWith('videotext')).forEach(k => localStorage.removeItem(k)); Object.entries(snap).forEach(([k, v]) => localStorage.setItem(k, v)); } catch (e) { } };
+    addEventListener('pagehide', () => window.__vtrestore());
     const f = document.createElement('iframe'); f.id = 'vt'; f.style.display = 'none'; f.src = 'videotext.html'; document.getElementById('stage').appendChild(f); window.__vt = f;
+    f.addEventListener('load', () => { try { const P = f.contentWindow.Storage.prototype, set = P.setItem; P.setItem = function (k, v) { if (String(k).startsWith('videotext')) return; return set.call(this, k, v); }; } catch (e) { } window.__vtrestore(); });
     let tries = 0; const find = () => { try { const V = f.contentWindow.VT, w = V && V.S.words; if (!w || !w.length) throw 0;
         const a = w.findIndex((x, i) => x.key === 'curtains' && w[i + 1] && w[i + 1].key === 'pulled'), b = w.findIndex((x, i) => i > a && x.key === 'down');
         if (a >= 0 && b > a) { window.__vtsel = { a, b }; f.contentWindow.setSel({ a, b }); } }
@@ -91,10 +95,21 @@ window.EPISODE = {
             pl.insertAdjacentHTML('beforeend', l.th.map(u => `<i style="background-image:url('${esc(u)}')"></i>`).join('')); }
           ck.innerHTML = `${hhmmss(Math.round(now))}<span>${k} questions · ${fmt(shots)} answers</span>`; return k < L.length; }); });
     B('How the archive was searched', 14, () => `${ask('Then what?')}<div class="path">${W.chain.map(([t, b, d], i) => `<div style="animation-delay:${i * 1.2}s"><small>${esc(t)}</small><b>${esc(b)}</b><span>${esc(d)}</span></div>`).join('')}</div>`);
-    /* 3 · the archive opened on one line: Videotext itself */
-    const VIEWS = [['055', 'Radial Tree'], ['059', 'Constellation'], ['076', 'Funnel'], ['078', 'Sieve'], ['082', 'Keyword in context'], ['058', 'Spiral']];
-    VIEWS.forEach(([id, nm], k) => B('Opening the archive on a line', k ? 6 : 9, () => `${k ? '' : ask('What did the editor see when choosing?')}<div class="vtcap">Videotext · ${esc(nm)} · the archive opened on “Curtains pulled… on a road winding down.”</div>`,
-      el => { const f = window.__vt; if (!f) return; f.style.display = 'block'; K.leave(() => { f.style.display = 'none'; }); try { const cw = f.contentWindow; if (window.__vtsel && (!cw.VT.S.sel || cw.VT.S.sel.a !== window.__vtsel.a)) cw.setSel(window.__vtsel); cw.openWall(id); } catch (e) { } }));
+    /* 3 · making one line, in Videotext itself: open the archive, couple word and shot, turn text into time, assemble */
+    const ACTS = [['1 · OPEN THE ARCHIVE', [['069', 7], ['052', 7], ['078', 9, 'sieve'], ['076', 7]]], ['2 · COUPLE WORD AND SHOT', [['085', 9, 'couple'], ['175', 7], ['182', 7]]],
+                  ['3 · TURN TEXT INTO TIME', [['201', 7], ['231', 7], ['212', 8]]], ['4 · ASSEMBLE', [['270', 7], ['283', 7], ['273', 8]]]];
+    B('Making one line', 8, () => `${ask('How does an editor make one line?')}<div class="big2" style="top:240px;font:italic 400 46px/1.3 var(--serif);color:var(--ink)">“Curtains pulled, and blinds up as far and as wise as possible — to see flashing lights, and the whispering screams of two souls on a road winding down.”</div>
+        ${line(['Watch it made, in Videotext, the lab\'s editor for the poem: four steps, one line.'])}`);
+    ACTS.forEach(([act, views]) => views.forEach(([id, secs, op], k) => B('Making one line', secs, () => `<div class="vtcap" id="vc"><b style="color:var(--red);margin-right:14px">${act}</b><span id="vn"></span></div>`,
+      el => { const f = window.__vt; if (!f) return; f.style.display = 'block'; K.leave(() => { f.style.display = 'none'; });
+        try { const cw = f.contentWindow, d = cw.document; if (window.__vtsel && (!cw.VT.S.sel || cw.VT.S.sel.a !== window.__vtsel.a)) cw.setSel(window.__vtsel); cw.openWall(id);
+          later(150, () => { const n = d.querySelector('#wName'), ds = d.querySelector('#wDesc'); $('#vn', el).textContent = `${n ? n.textContent.replace(/^\d+/, '').trim() : ''} — ${ds ? ds.textContent : ''}`; });
+          const C = () => d.querySelector('#wCanvas');
+          if (op === 'sieve') { later(2200, () => { const b = C().querySelector('.vbtn[data-t="flashing"]'); if (b) b.click(); }); later(5000, () => { const b = C().querySelector('.vbtn[data-t="lights"]') || C().querySelector('.vbtn[data-t="road"]'); if (b) b.click(); }); }
+          if (op === 'couple') later(3500, () => { const b = C().querySelector('.vx[data-line]'); if (b) b.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); });
+        } catch (e) { } })));
+    B('Making one line', 7, () => line(['The coupled shot now sits above the four takes, as one more way to answer the line.', 'Every view is a different way of asking the same archive.']).replace('class="line"', 'class="line" style="bottom:auto;top:360px"'),
+      el => { if (window.__vtrestore) window.__vtrestore(); });
     /* 4 · why that shot: the rule, replayed */
     const WHY = window.__why;
     ['suite', 'cineosis', 'drift'].forEach((tk, k) => { const r = WHY && WHY.takes[tk] && WHY.takes[tk]['20']; if (!r) return;
