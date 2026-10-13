@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Choosing · Lesson 8</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="explain/film.css?v=1"><link rel="stylesheet" href="explain/episode.css?v=3"><link rel="stylesheet" href="explain/lesson.css?v=3">
+<!-- CINEOSIS · LESSON 8 · CHOOSING. Unit B: why that shot and not another, and how far to trust the answer. Replays CUTBASTARD's
+     choosing rule (cutbastard/plan.py) at every moment of three takes (506 of 507 agree with the published cuts) and races one line:
+     the match, the bans, each adjustment, the margin. Then grades the graders: what each score looks at, what it is blind to, and how
+     often it decided. Ends with two races read without words. Data: explain/l8.py -> explain/lesson/l8.json. Devices: explain/lesson.js. -->
+<style>
+:root { --bg: #0b0a09; --ink: #ece6da; }
+body, #stage { background: var(--bg); }
+.pline { position: absolute; left: 140px; right: 140px; top: 210px; font: italic 54px/1.3 var(--serif); color: var(--ink); }
+.pline span { opacity: .12; transition: opacity .35s; } .pline span.on { opacity: 1; }
+.duo { position: absolute; left: 40px; right: 40px; top: 40px; height: 600px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.duo figure { margin: 0; display: grid; grid-template-rows: 1fr auto; transition: opacity 1s; } .duo video { width: 100%; height: 100%; object-fit: cover; background: #000; min-height: 0; outline: 0 solid var(--lime); outline-offset: 4px; transition: outline-width .4s; }
+.duo figcaption { padding-top: 10px; display: flex; justify-content: space-between; font: 24px var(--serif); } .duo figcaption b { font: 600 34px var(--mono); }
+.duo figure.win video { outline-width: 5px; } .duo figure.win b { color: var(--lime); } .duo figure.lose { opacity: .35; }
+.intents { position: absolute; left: 80px; right: 80px; top: 70px; display: flex; flex-direction: column; gap: 18px; }
+.intents .sb { position: relative; left: 0; right: 0; top: 0; height: 70px; font-size: 28px; opacity: 0; animation: up .7s ease forwards; }
+.hist { position: absolute; left: 80px; right: 80px; top: 80px; height: 560px; display: flex; align-items: flex-end; gap: 3px; }
+.hist i { flex: 1; background: #8b8478; height: 0; transition: height 1s cubic-bezier(.3,.7,.3,1); } .hist i.top { background: var(--lime); }
+.hax { position: absolute; left: 80px; right: 80px; top: 650px; display: flex; justify-content: space-between; font: 15px var(--mono); color: var(--dim); }
+.dots { position: absolute; left: 80px; right: 80px; top: 120px; height: 520px; }
+.dots i { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #d8d0c0; transform: translate(-50%, -50%); opacity: 0; transition: opacity .5s, left 1.4s cubic-bezier(.45,.05,.25,1); }
+.dots i.w { background: var(--lime); width: 22px; height: 22px; }
+.strip { position: absolute; left: 40px; right: 40px; top: 120px; display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; }
+.strip img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
+.strip .f { position: relative; } .strip .f.j::after { content: 'CLIP looked here'; position: absolute; left: 0; right: -40px; top: -30px; font: 600 13px var(--mono); color: var(--gold); white-space: nowrap; } .strip .f.j img { outline: 4px solid var(--gold); outline-offset: -4px; }
+.span { position: absolute; top: 290px; height: 8px; background: var(--lime); opacity: 0; transition: opacity .8s; } .span small { position: absolute; top: 16px; left: 0; font: 600 14px var(--mono); color: var(--lime); white-space: nowrap; }
+.big3 { position: absolute; left: 40px; right: 40px; top: 360px; height: 380px; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 380px; gap: 20px; overflow: hidden; } .big3 > * { min-height: 0; } .big3 video, .big3 img { width: 100%; height: 100%; object-fit: cover; background: #000; }
+.note { position: absolute; left: 1010px; right: 60px; top: 60px; display: flex; flex-direction: column; gap: 22px; }
+.note div { opacity: 0; animation: up .8s ease forwards; } .note small { display: block; font: 600 13px var(--mono); letter-spacing: .14em; color: var(--gold); margin-bottom: 6px; } .note p { margin: 0; font: italic 28px/1.3 var(--serif); color: var(--ink); }
+.marg { position: absolute; left: 80px; right: 80px; top: 70px; height: 600px; }
+.marg .lane { position: absolute; left: 160px; right: 0; height: 150px; } .marg .lane b { position: absolute; left: -160px; top: 60px; font: 600 15px var(--mono); letter-spacing: .14em; color: var(--lime); text-transform: uppercase; }
+.marg .lane i { position: absolute; bottom: 0; width: 6px; background: #cfc6b4; transform: translateX(-3px); height: 0; transition: height .6s; }
+.marg .lane i.c { background: var(--red); }
+.marg .zone { position: absolute; left: 160px; top: 0; bottom: 30px; background: rgba(224,72,58,.12); border-right: 2px dashed var(--red); opacity: 0; transition: opacity 1s; } .marg .zone span { position: absolute; right: 8px; top: 4px; font: 600 14px var(--mono); color: #ff8a7a; }
+.marg .ax { position: absolute; left: 160px; right: 0; bottom: 0; display: flex; justify-content: space-between; font: 14px var(--mono); color: var(--dim); }
+.hinge { position: absolute; left: 80px; right: 80px; top: 80px; display: flex; flex-direction: column; gap: 46px; }
+.hinge .row b { display: block; font: 600 15px var(--mono); letter-spacing: .14em; color: var(--lime); text-transform: uppercase; margin-bottom: 8px; }
+.hinge .bar { display: flex; height: 64px; } .hinge .bar i { height: 100%; width: 0; transition: width 1.2s cubic-bezier(.3,.7,.3,1); display: grid; place-items: center; font: 600 15px var(--mono); color: #111; overflow: hidden; white-space: nowrap; }
+.grades { position: absolute; left: 60px; right: 60px; top: 40px; display: grid; grid-template-columns: 210px 1fr 1fr 150px; gap: 0; font: 21px/1.3 var(--serif); }
+.grades > div { padding: 12px 14px; border-bottom: 1px solid #2c2925; opacity: 0; transition: opacity .7s; } .grades > div.on { opacity: 1; }
+.grades .h { font: 600 13px var(--mono); letter-spacing: .14em; color: var(--dim); opacity: 1; } .grades .k { font: 600 17px var(--mono); color: var(--lime); text-transform: uppercase; letter-spacing: .06em; } .grades .n { font: 600 24px var(--mono); text-align: right; color: var(--gold); }
+.grades .blind { color: #ffb3a6; }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage"></div></div>
+<div id="bar"><button id="bPrev" title="previous (←)">‹</button><button id="bPlay" title="play / pause (space)">❚❚</button><button id="bNext" title="next (→)">›</button><div id="chs"></div><span id="time"></span><button id="bSnd" title="sound">♪ on</button></div>
+<div id="start"><div><p style="font:600 16px var(--mono);letter-spacing:.2em;color:#b3ab9e;margin:0 0 14px">CINEOSIS · LESSON 8</p><h1 style="font-weight:600;color:#ece6da">Choosing</h1><p>Why that shot and not another, and how far to trust the answer. About seven minutes, with sound.</p><b style="background:#c4f46a">▶ Watch</b></div></div>
+<audio id="score" preload="auto"></audio><audio id="voice" preload="auto"></audio>
+<script src="explain/lesson.js?v=3"></script>
+<script>
+window.EPISODE = {
+  data: ['explain/lesson/l8.json?v=2'],
+  cues: ['dae-preparation-drift', 'dae-slide-carousel-at-blue-hour', 'dae-compass-spin-in-heavy-fog', 'dae-salvaged-room-traveling-light', 'dae-cold-current-paddle', 'dae-snowbound-umea-cabin', 'dae-cedar-and-cassette', 'dae-feather-rustle-dub'],
+  build(D, B, K) {
+    const L = D[0], esc = LX.esc, AU = 'wygwyl/WYGWYL_Suite_Audio.mp3', T = L.takes;
+    const R = T.suite.rows[L.focus].race, RC = T.cineosis.rows[L.focus].race, RD = T.drift.rows[L.focus].race;
+    const top = (r, n = 9) => r.cands.slice(0, n), win = R.cands.find(c => c.won), run = R.cands.find(c => !c.won && !c.out);
+    const vid = (src, t = 0) => `<video muted loop playsinline data-src="${esc(src)}" data-t="${t}"></video>`;
+    const go = (el, f) => { K.startVideos(el); LX.runBand(el, K); if (f) f(); };
+    const pline = line => `<div class="pline">${line.split(/\s+/).map(w => `<span>${esc(w)}</span>`).join(' ')}</div>`;
+    const speak = (el, secs) => { const ws = [...el.querySelectorAll('.pline span')]; ws.forEach((w, i) => K.later((.4 + i * (secs - 1.2) / ws.length) * 1000, () => w.classList.add('on'))); };
+    const margin = T.suite.rows[L.focus].margin, all = ['suite', 'cineosis', 'drift'].flatMap(s => T[s].rows.map(r => ({ s, m: r.margin })));
+    const n005 = all.filter(r => r.m < .005).length, n001 = all.filter(r => r.m < .001).length;
+
+    /* COLD OPEN · two shots, one thousandth apart */
+    B('Cold open', 13, () => `<div class="duo"><figure data-w="1">${vid(win.clip, 4.5)}<figcaption><span>${esc(win.title)}</span><b>${win.total.toFixed(3)}</b></figcaption></figure><figure>${vid(run.clip, 2)}<figcaption><span>${esc(run.title)}</span><b>${run.total.toFixed(3)}</b></figcaption></figure></div>`
+      + LX.band([[.4, 'Two shots from the archive, and the scores a rule gave them for one line of a poem.'], [7.2, 'One of them went into the film. Which one?']]), el => go(el));
+    B('Cold open', 9, () => `<div class="duo"><figure class="win">${vid(win.clip, 4.5)}<figcaption><span>${esc(win.title)}</span><b>${win.total.toFixed(3)}</b></figcaption></figure><figure class="lose">${vid(run.clip, 2)}<figcaption><span>${esc(run.title)}</span><b>${run.total.toFixed(3)}</b></figcaption></figure></div>`
+      + LX.band([[.3, `The left one, by <b>${margin.toFixed(4)}</b>.`], [4.2, 'This lesson is about that gap: how it was made, and whether to trust it.']]), el => { go(el); LX.ping(); });
+    B('Cold open', 8, () => `<div class="tc"><small>CINEOSIS · LESSON 8</small><h1>Choosing</h1><p>Lesson 7 asked the archive. Now: why that shot, and not another?</p></div>`, el => LX.ping());
+
+    /* THE MOMENT · the line and the description the Suite chose for */
+    const a0 = R.t0, a1 = R.t1;
+    B('The moment', Math.ceil(a1 - a0) + 2, () => pline(R.line) + LX.band([[.3, 'The line, 2:59 into the poem. The Suite has to choose a shot for it.']], 'Where You Go When You Leave'), el => { LX.runBand(el, K); LX.poem(K, AU, a0, a1); speak(el, a1 - a0); });
+    const SRC = ['the treatment\'s beat', 'a person\'s search', 'literal question', 'place question'];
+    B('The moment', 13, () => `<div class="intents">${R.intent.map((t, i) => `<div class="k-${['place', 'mood', 'literal', 'place'][i]}"><div class="sb" style="animation-delay:${.4 + i * .9}s"><b class="chip">${SRC[i]}</b><span style="white-space:nowrap">${esc(t)}</span></div></div>`).join('')}</div>`
+      + LX.band([[.3, 'You know this bar from Lesson 7. For this moment the Suite blends four descriptions into one.'], [7, 'Two come from people: the film\'s treatment and a forager\'s search. Two from the model\'s questions.']]), el => LX.runBand(el, K));
+
+    /* THE POOL · how tightly packed the answers are */
+    const ph = L.pool_hist, mx = Math.max(...ph.counts), bw = (ph.hi - ph.lo) / ph.counts.length;
+    B('The pool', 14, () => `<div class="hist">${ph.counts.map((c, i) => `<i class="${ph.lo + (i + 1) * bw > L.pool_top[39] ? 'top' : ''}" data-h="${(c / mx * 100).toFixed(1)}"></i>`).join('')}</div><div class="hax"><span>${ph.lo.toFixed(2)}</span><span>how close each shot sits to the description</span><span>${ph.hi.toFixed(2)}</span></div>`
+      + LX.band([[.3, `Every shot the rule may use: <b>${K.fmt(L.pool)}</b>, piled up by match.`], [6.5, 'Most crowd the middle. The forty best are the thin lime edge on the right.']]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.hist i').forEach((i, k) => K.later(300 + k * 22, () => i.style.height = i.dataset.h + '%')); });
+    const t40 = L.pool_top.slice(0, 40), lo40 = t40[39], hi40 = t40[0];
+    B('The pool', 13, () => `<div class="dots">${t40.map((v, i) => `<i style="left:${((v - lo40) / (hi40 - lo40) * 100).toFixed(2)}%;top:${(50 + ((i * 37) % 80) - 40)}%"></i>`).join('')}</div><div class="hax" style="top:660px"><span>${lo40.toFixed(3)}</span><span>the forty best, spread across the screen</span><span>${hi40.toFixed(3)}</span></div>`
+      + LX.band([[.3, `Zoom into that edge. The forty best differ by only <b>${(hi40 - lo40).toFixed(3)}</b>.`], [6.4, 'To the machine they are nearly the same answer. Something else has to decide.']]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.dots i').forEach((d, k) => K.later(200 + k * 60, () => d.style.opacity = 1)); });
+
+    /* THE RACE · the rule, one adjustment at a time */
+    const suiteSteps = [{ at: 5.5, ban: 1 }, { at: 11.5, key: 'pace' }, { at: 19, key: 'stock' }, { at: 27, key: 'reviewed' }, { at: 34, win: 1 }];
+    B('The race', 40, () => LX.race(top(R)) + LX.band([[.3, 'Start with the match alone: how close each shot sits to the description.'],
+        [5.5, 'Bans come first. A shot already in the film, or too short, or from a film used in the last three shots, is out.'],
+        [11.5, `<b>Pace.</b> The voice is loud here. Shots that move too little or too much for that lose up to 0.06.`],
+        [19, `<b>Colour switch.</b> The shot before was black and white. Switching to colour costs 0.03.`],
+        [27, `<b>Reviewed.</b> A person had watched this shot for this beat and graded it: +0.04.`],
+        [34, `The winner, by ${margin.toFixed(4)}.`]]),
+      el => { LX.runBand(el, K); LX.runRace(el, K, top(R), suiteSteps, { lo: .26, hi: .345 }); });
+    const nt = win.note || {};
+    B('The race', 15, () => `<div class="pic left">${vid(win.clip, 4.5)}</div><div class="note"><div style="animation-delay:.5s"><small>THE FORAGER SEARCHED</small><p>“${esc(nt.query || '')}”</p></div><div style="animation-delay:2.5s"><small>AND SAW</small><p>${esc(nt.observed || '')}</p></div><div style="animation-delay:5s"><small>AND WARNED</small><p>${esc(nt.use || '')}</p></div></div>`
+      + LX.band([[.3, 'The +0.04 was a person\'s judgement, twenty-six times the margin.'], [8.5, 'The rule took the grade and left the warning behind.']]), el => go(el));
+
+    /* WHAT THE BAR SAW · three frames against the window the film plays */
+    const S = L.strip, x = t => (t / S.dur * 100).toFixed(2) + '%';
+    B('What the score saw', 17, () => `<div class="strip">${S.frames.map(f => `<div class="f ${S.judged.some(j => Math.abs(j - f.t) < .7) ? 'j' : ''}"><img src="${esc(f.src)}" alt=""></div>`).join('')}</div>
+      <div class="span" style="left:calc(40px + (100% - 80px) * ${S.in / S.dur});width:calc((100% - 80px) * ${(S.out - S.in) / S.dur})"><small>the film plays only this</small></div>
+      <div class="big3"><video muted playsinline data-src="${esc(S.clip)}" data-t="${S.in}" data-end="${S.out}"></video><img src="${esc(S.frames[8].src)}" alt=""></div>`
+      + LX.band([[.3, 'The match score came from three still frames. Two of them show the couple in the car.'], [6.5, 'The film plays the first eight seconds: a dance hall, and the car only at the end.'], [12, 'The score describes a shot the viewer barely sees.']]),
+      el => { go(el); K.later(6500, () => el.querySelector('.span').style.opacity = 1); });
+    B('What the score saw', 12, () => `<div class="pic">${vid(win.clip, 9)}</div>` + LX.band([[.3, 'And the colour switch? This film is black and white.'], [5, 'Its transfer has a faint magenta cast, and the colour measure counted the cast as colour. A fine for a switch that never happened.']]), el => go(el));
+
+    /* ACROSS THE FILM · every choice's margin, and what decided it */
+    const lanes = ['suite', 'cineosis', 'drift'], mmax = .04;
+    B('Across the film', 17, () => `<div class="marg"><div class="zone" style="width:calc((100% - 160px) * ${.005 / mmax})"><span>under 0.005</span></div>${lanes.map((s, k) => `<div class="lane" style="top:${k * 180}px"><b>${s}</b>${T[s].rows.map(r => `<i class="${r.margin < .005 ? 'c' : ''}" style="left:${Math.min(100, r.margin / mmax * 100).toFixed(2)}%" data-h="${30 + (r.i * 53) % 70}"></i>`).join('')}</div>`).join('')}<div class="ax"><span>0</span><span>margin between the winner and the next allowed shot</span><span>${mmax}+</span></div></div>`
+      + LX.band([[.3, `Now every choice in three cuts: ${all.length} of them, one line each, placed by its margin.`], [7.5, `<b>${n005}</b>, about one in three, were decided by less than 0.005. ${n001} by less than a thousandth.`]]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.marg .lane i').forEach((i, k) => K.later(300 + (k % 169) * 18, () => i.style.height = i.dataset.h + '%')); K.later(7000, () => el.querySelector('.zone').style.opacity = 1); });
+    const HC = { base: '#d8d0c0', pace: '#8ea6ff', stock: '#f2c14e', sign: '#ff9f8e', reviewed: '#c4f46a', drift: '#c9a4ff', reuse: '#e0483a' };
+    const HN = { base: 'the match alone', pace: 'pace', stock: 'colour switch', sign: 'signs', reviewed: 'a person\'s grade', drift: 'follows the last', reuse: 'used before' };
+    B('Across the film', 18, () => `<div class="hinge">${lanes.map(s => { const h = { base: T[s].base_same, ...T[s].hinges }; return `<div class="row"><b>${s} · what tipped each of ${T[s].n} choices</b><div class="bar">${Object.entries(h).filter(([, v]) => v).map(([k, v]) => `<i style="background:${HC[k]}" data-w="${(v / T[s].n * 100).toFixed(2)}" title="${k}">${v > 9 ? HN[k] + ' ' + v : ''}</i>`).join('')}</div></div>`; }).join('')}</div>`
+      + LX.band([[.3, `Would the match alone have picked the same shot? In the Suite, only ${T.suite.base_same} times in ${T.suite.n}.`], [8, `Mostly, <b>pace</b> tipped it: how much a picture moves against how loud the voice is. In Cineosis, the signs. In Drift, likeness to the last shot.`]]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.hinge i').forEach((i, k) => K.later(500 + k * 150, () => i.style.width = i.dataset.w + '%')); });
+
+    /* GRADING THE GRADERS */
+    const G = [
+      ['match', 'three still frames against the words, by CLIP', 'what happens between the frames; sound; tone; a colour tint', T.suite.base_same + T.cineosis.base_same + T.drift.base_same],
+      ['pace', 'how much the pixels change, against how loud the voice is', 'what the movement is, or means', T.suite.hinges.pace + T.cineosis.hinges.pace + T.drift.hinges.pace],
+      ['signs', 'a machine\'s guess at which signs a shot carries', 'a reading: only 253 shots were read by a person', T.cineosis.hinges.sign],
+      ['follows', 'how much a shot looks like the one before', 'whether the join means anything', T.drift.hinges.drift],
+      ['colour', 'whether a shot is black and white', 'a tinted print; everything else', T.suite.hinges.stock + T.cineosis.hinges.stock + T.drift.hinges.stock],
+      ['grade', 'a person\'s judgement, for one beat', 'every shot nobody reviewed: 288 grades in all', T.suite.hinges.reviewed],
+      ['used before', 'whether an earlier cut took the shot', 'whether reusing it would rhyme', T.cineosis.hinges.reuse + T.drift.hinges.reuse]];
+    B('Grading the graders', 30, () => `<div class="grades"><div class="h">SCORE</div><div class="h">LOOKS AT</div><div class="h">BLIND TO</div><div class="h" style="text-align:right">DECIDED</div>${G.map((g, i) => `<div class="k" data-r="${i}">${g[0]}</div><div data-r="${i}">${esc(g[1])}</div><div class="blind" data-r="${i}">${esc(g[2])}</div><div class="n" data-r="${i}">${g[3]}</div>`).join('')}</div>`
+      + LX.band([[.3, 'Every score sees something and is blind to something. The last column: how many of the 507 choices each one decided.'], [16, 'The score that decided most, pace, is the one that looks least at meaning.']]),
+      el => { LX.runBand(el, K); G.forEach((g, i) => K.later((1.5 + i * 2) * 1000, () => { el.querySelectorAll(`[data-r="${i}"]`).forEach(d => d.classList.add('on')); LX.tick(1100, .06, .03); })); });
+
+    /* PRACTICE · two races, read without words */
+    B('Practice', 8, () => `<div class="tc"><small>YOUR TURN</small><h1 style="font-size:90px">The same line, two other rules</h1><p>Drift, then Cineosis. Read the race yourself.</p></div>`, el => LX.ping());
+    B('Practice', 22, () => LX.race(top(RD, 8)) + LX.band([[.3, '<small>Drift</small>']]), el => { LX.runRace(el, K, top(RD, 8), [{ at: 3, ban: 1 }, { at: 7, key: 'pace' }, { at: 11, key: 'drift' }, { at: 15, key: 'reuse' }, { at: 18, win: 1 }], { lo: .2, hi: .52 }); LX.runBand(el, K); });
+    B('Practice', 22, () => LX.race(top(RC, 8)) + LX.band([[.3, '<small>Cineosis</small>']]), el => { LX.runRace(el, K, top(RC, 8), [{ at: 3, ban: 1 }, { at: 7, key: 'pace' }, { at: 11, key: 'sign' }, { at: 18, win: 1 }], { lo: .2, hi: .345 }); LX.runBand(el, K); });
+
+    /* NOW YOU CAN READ */
+    B('Now you can read', 14, () => LX.race(top(R, 5)) + LX.band([[.3, 'Now you can read a ranking: the match, the bans in red, each adjustment, the winner in lime.'], [7.5, 'And the margin. When it is small, the choice was the rule\'s taste, not the archive\'s answer.']]),
+      el => { LX.runBand(el, K); LX.runRace(el, K, top(R, 5), [{ at: .2, ban: 1 }, { at: .4, key: 'pace' }, { at: .6, key: 'stock' }, { at: .8, key: 'reviewed' }, { at: 1.2, win: 1 }], { lo: .26, hi: .345 }); });
+    B('Now you can read', 10, () => `<div class="tc"><small>NEXT · LESSON 9</small><h1>Joining</h1><p>A shot is chosen. How does a film join it to the next?</p></div>`, el => LX.ping());
+  }
+};
+</script>
+<script src="explain/player.js?v=6"></script>
+</body>
+</html>

@@ -50,8 +50,33 @@
   function kwic(lines) { return `<div class="kw"><div class="rows">${lines.map(([l, k, r, kind]) => `<div class="row"><span class="l"><span>${esc(l)}</span></span><b>${esc(k)}</b><span class="r">${esc(r)}</span></div>`).join('')}</div></div>`; }
   function runKwic(el, K, secs) { const r = el.querySelector('.kw .rows'), H = r.scrollHeight - 600; K.raf(t => { r.style.transform = `translateY(${200 - Math.min(1, t / secs) * (H + 200)}px)`; return t < secs; }); }
 
+
+  /* DEVICE · the ranking: candidates as rows; each adjustment of the rule is applied in turn, the rows re-sort, bans turn red */
+  const ADJ = { pace: 'pace', stock: 'colour switch', sign: 'signs', reviewed: 'reviewed', drift: 'follows the last', reuse: 'used before' };
+  function race(cands, o = {}) { const n = cands.length, rh = Math.min(92, 690 / n);
+    return `<div class="rc" style="--rh:${rh}px">${cands.map((c, i) => `<div class="rr" data-i="${i}" style="transform:translateY(${i * rh}px)">
+      <div class="rt">${c.hide ? '<span>not shown</span>' : `<video muted playsinline loop preload="none" data-v="${esc(c.clip)}"></video><img src="${esc(c.thumb)}" alt="">`}</div>
+      <div class="rn">${esc(c.title)}<small>${c.year || ''}</small></div><div class="rb"><i></i><b class="dl"></b></div><div class="rv">0.000</div><div class="rx"></div></div>`).join('')}</div>`; }
+  function runRace(el, K, cands, steps, o = {}) {
+    const rows = [...el.querySelectorAll('.rc .rr')], lo = o.lo ?? .2, hi = o.hi ?? .36, rh = parseFloat(getComputedStyle(el.querySelector('.rc')).getPropertyValue('--rh')) || 80;
+    const cur = cands.map(c => c.base), out = cands.map(() => null), W = v => Math.max(1, (v - lo) / (hi - lo) * 100);
+    const draw = (delta, key) => {
+      const order = cands.map((c, i) => i).sort((a, b) => (out[a] ? 1 : 0) - (out[b] ? 1 : 0) || cur[b] - cur[a]);
+      order.forEach((i, k) => { const r = rows[i]; r.style.transform = `translateY(${k * rh}px)`; r.querySelector('.rb i').style.width = W(cur[i]) + '%'; r.querySelector('.rv').textContent = cur[i].toFixed(3);
+        const d = delta && delta[i], dl = r.querySelector('.dl'); if (d) { dl.textContent = (d > 0 ? '+' : '−') + Math.abs(d).toFixed(3) + ' ' + (ADJ[key] || key); dl.className = 'dl on ' + (d > 0 ? 'up' : 'down'); } else dl.className = 'dl';
+        r.classList.toggle('ban', !!out[i]); if (out[i]) r.querySelector('.rx').textContent = out[i]; });
+      return order; };
+    draw(); rows.forEach((r, i) => { const v = r.querySelector('video'); if (v) { v.src = v.dataset.v; v.preload = 'auto'; v.addEventListener('loadedmetadata', () => { try { v.currentTime = Math.min(2, v.duration / 3); } catch (e) { } v.play().catch(() => { }); }, { once: true }); v.load(); v.addEventListener('playing', () => r.classList.add('live'), { once: true }); } });
+    steps.forEach(st => K.later(st.at * 1000, () => {
+      let delta = null;
+      if (st.ban) cands.forEach((c, i) => { if (c.out) out[i] = c.out; });
+      else if (st.key) { delta = cands.map((c, i) => c[st.key] || 0); delta.forEach((d, i) => cur[i] += d); }
+      if (st.win) { const w = cands.findIndex(c => c.won); rows[w].classList.add('won'); ping(); }
+      draw(delta, st.key); if (delta && delta.some(d => d)) tick(700, .2, .04); else if (st.ban) tick(300, .3, .05); }));
+  }
+
   /* the poem, from a to b, through the episode's voice channel; the score ducks under it */
   function poem(K, src, a, b) { const v = K.voice(); v.src = src; K.duck(true); v.addEventListener('loadedmetadata', () => { v.currentTime = a; if (K.sound()) v.play().catch(() => { }); }, { once: true }); K.raf(() => { if (v.currentTime >= b) { v.pause(); K.duck(false); return false; } return true; }); }
 
-  window.LX = { esc, mmss, KIND, tick, ping, band, runBand, bar, typeBar, sheet, revealSheet, markKept, clock, runClock, words, runWords, kwic, runKwic, poem };
+  window.LX = { esc, mmss, KIND, tick, ping, band, runBand, bar, typeBar, sheet, revealSheet, markKept, clock, runClock, words, runWords, kwic, runKwic, poem, race, runRace };
 })();
