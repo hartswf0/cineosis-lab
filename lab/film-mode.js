@@ -147,7 +147,7 @@
     await MapMode.morph("xy", 900); say("SEEN · WHAT LOOKS LIKE IT · CLIP PLACES SHOTS BY PICTURE", 5000);
     if (!await frame([seed.id, ...seed.looks.map(c => c.id)], run)) return;
     lines(seed, seed.looks);
-    MapMode.playIn([{ ...seed, cls: "seed", px: 200, label: "THIS · " + lab(seed) }, ...seed.looks.map(c => ({ ...c, px: 170, label: lab(c) }))]);
+    MapMode.playIn([{ ...seed, cls: "seed", px: 200, label: "THIS · " + lab(seed) }, ...seed.looks.map(c => ({ ...c, px: 170, fan: true, label: lab(c) }))]);
     const sh = seed.looks_shared || {}; await sleep(1500, run);
     if (sh.words && sh.words.length) say(`IN COMMON · ${sh.words.join(" · ").toUpperCase()}${sh.decades ? " · " + sh.decades : ""}`, 6000);
     await sleep(7500, run); svg.innerHTML = "";
@@ -158,7 +158,7 @@
     const H = (SND.d && SND.d.heard) || {}, tagOf = c => (H[c.id] || []).map(x => x[0]).join(" · ") || c.sound || "";
     if (!await frame([seed.id, ...seed.sounds.map(c => c.id)], run)) return;
     lines(seed, seed.sounds);
-    const live = MapMode.playIn([{ ...seed, cls: "seed", px: 200, label: "THIS · " + tagOf(seed) }, ...seed.sounds.map(c => ({ ...c, px: 170, label: tagOf(c) }))]);
+    const live = MapMode.playIn([{ ...seed, cls: "seed", px: 200, label: "THIS · " + tagOf(seed) }, ...seed.sounds.map(c => ({ ...c, px: 170, fan: true, label: tagOf(c) }))]);
     say("NEAREST BY SOUND · EACH HEARD IN TURN", 4000); level(.1);
     for (const L1 of live) { if (run !== RUN) break; live.forEach(o => { o.box.classList.remove("loud"); o.v.muted = true; });
       L1.box.classList.add("loud"); L1.v.muted = false; L1.v.volume = 1; try { L1.v.currentTime = L1.o.t || 0; } catch (e) { } L1.v.play().catch(() => { }); await sleep(2800, run); }

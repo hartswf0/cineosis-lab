@@ -812,6 +812,7 @@ const MapMode = {
       this.cam.x = c0.x + (c1.x - c0.x) * e; this.cam.y = c0.y + (c1.y - c0.y) * e; this.cam.z = c0.z * Math.pow(c1.z / c0.z, e); this.draw();
       if (k < 1) requestAnimationFrame(step); else r(); }; step(); });
     $$('#mapKind button', this.host).forEach(b => b.classList.toggle('on', b.dataset.v === kind));
+    if (this.focus) { const byId = new Map(this.P.map(q => [q.s.id, q])); this.edges = (this.edges || []).map(([a, b]) => [byId.get(a.s.id), byId.get(b.s.id)]); this.placeIn(); this.draw(); }
   },
   /* 3. shots play where they sit: a video over each chosen tile, following the camera */
   playIn(list, opt = {}) {
@@ -823,11 +824,30 @@ const MapMode = {
   },
   placeIn() {
     if (!this.live || !this.live.length) return; const c = this.cam, W2 = this.W / 2, H2 = this.H / 2, R = this.cv.getBoundingClientRect(), Hr = this.host.getBoundingClientRect();
-    for (const L1 of this.live) { const p = L1.p, w = L1.o.px || Math.max(40, p.w * c.z * (L1.o.grow || 1)), h = w * .75, sx = (p.x - c.x) * c.z + W2 + R.left - Hr.left, sy = (p.y - c.y) * c.z + H2 + R.top - Hr.top;
-      Object.assign(L1.box.style, { left: (sx - w / 2) + 'px', top: (sy - h / 2) + 'px', width: w + 'px', height: h + 'px' }); }
+    const fans = this.live.filter(L1 => L1.o.fan), seed = this.live.find(L1 => !L1.o.fan);
+    const at = p => [(p.x - c.x) * c.z + W2 + R.left - Hr.left, (p.y - c.y) * c.z + H2 + R.top - Hr.top];
+    for (const L1 of this.live) { const p = L1.p, w = L1.o.px || Math.max(40, p.w * c.z * (L1.o.grow || 1)), h = w * .75; let [sx, sy] = at(p); L1.true = [sx, sy];
+      if (L1.o.fan && seed) { const i = fans.indexOf(L1), a = -Math.PI / 2 + i * 2 * Math.PI / fans.length, [cx2, cy2] = at(seed.p), rad = Math.min(this.W, this.H) * .3; sx = cx2 + Math.cos(a) * rad * 1.35; sy = cy2 + Math.sin(a) * rad; }
+      L1.at = [sx, sy]; Object.assign(L1.box.style, { left: (sx - w / 2) + 'px', top: (sy - h / 2) + 'px', width: w + 'px', height: h + 'px' }); }
+    let svg = $('svg.mp-lines', this.host); if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'mp-lines'); this.host.appendChild(svg); }
+    svg.innerHTML = fans.map(L1 => `<line x1="${L1.at[0]}" y1="${L1.at[1]}" x2="${L1.true[0]}" y2="${L1.true[1]}"/><circle cx="${L1.true[0]}" cy="${L1.true[1]}" r="4"/>`).join('');
   },
-  stopIn() { (this.live || []).forEach(L1 => { L1.v.pause(); L1.box.remove(); }); this.live = []; },
+  stopIn() { (this.live || []).forEach(L1 => { L1.v.pause(); L1.box.remove(); }); this.live = []; const sv = this.host && $('svg.mp-lines', this.host); if (sv) sv.innerHTML = ''; },
   hide() { this.stopIn(); },
+  focusOn(s, k = 10) {
+    const p = this.P.find(q => q.s === s || q.s.id === s.id); if (!p) return;
+    const near = this.P.filter(q => q !== p && q.s.video).map(q => [q, (q.x - p.x) ** 2 + (q.y - p.y) ** 2]).sort((a, b) => a[1] - b[1]).slice(0, k).map(x => x[0]);
+    this.focus = new Set([p, ...near].map(q => q.s.id));
+    this.edges = near.map(q => [p, q]);
+    near.forEach(q => { const n2 = near.filter(r => r !== q).map(r => [r, (r.x - q.x) ** 2 + (r.y - q.y) ** 2]).sort((a, b) => a[1] - b[1]).slice(0, 2); n2.forEach(([r]) => this.edges.push([q, r])); });
+    const xs = [p, ...near].map(q => q.x), ys = [p, ...near].map(q => q.y), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const c = this.cam, from = { ...c }, z = Math.min((this.W - 320) / Math.max(.003, x1 - x0), (this.H - 260) / Math.max(.003, y1 - y0), 140 / Math.max(1e-5, p.w)), to = { x: (x0 + x1) / 2, y: (y0 + y1) / 2, z };
+    const t0 = performance.now(), step = () => { const e = Math.min(1, (performance.now() - t0) / 1600), k2 = e * e * (3 - 2 * e);
+      c.x = from.x + (to.x - from.x) * k2; c.y = from.y + (to.y - from.y) * k2; c.z = from.z * Math.pow(to.z / from.z, k2); this.draw(); if (e < 1) requestAnimationFrame(step);
+      else this.playIn([{ id: p.s.id, cls: 'seed', px: 190, label: 'THIS · ' + esc((CAPS.map && CAPS.map[p.s.id]) || p.s.title) }, ...near.slice(0, 6).map(q => ({ id: q.s.id, px: 150, fan: true, label: esc((CAPS.map && CAPS.map[q.s.id]) || q.s.title) }))]); };
+    step();
+  },
+  unfocus() { this.focus = null; this.edges = null; this.stopIn(); this.req(); },
   fit() {
     const [x0, y0, x1, y1] = this.bounds, top = this.liveRow != null ? this.liveRow : y0;
     const cells = this.axes && this.axes.cols, small = this.W < 640;
@@ -881,16 +901,23 @@ const MapMode = {
     if (this.axes && this.axes.strip) { g.fillStyle = '#a8a196'; g.font = '11px "IBM Plex Mono", monospace'; g.textAlign = 'left'; g.fillText(this.axes.strip.label, (0 - c.x) * c.z + W2, (this.axes.strip.y - c.y) * c.z + H2); }
     if (this.liveRow != null) { g.fillStyle = '#e8e4da'; g.font = '11px "IBM Plex Mono", monospace'; g.textAlign = 'left'; g.fillText('LIVE · “' + L.liveQ + '”', (this.bounds[0] - c.x) * c.z + W2, (this.liveRow - c.y) * c.z + H2); }
     let loads = 0;
+    if (this.focus && this.edges) {   // the neighbourhood's links, under the tiles
+      g.strokeStyle = 'rgba(242,193,78,.55)'; g.lineWidth = 1.5; g.beginPath();
+      for (const [a, b] of this.edges) { if (!a || !b) continue; g.moveTo((a.x - c.x) * c.z + W2, (a.y - c.y) * c.z + H2); g.lineTo((b.x - c.x) * c.z + W2, (b.y - c.y) * c.z + H2); }
+      g.stroke();
+    }
     for (let pass = 0; pass < 2; pass++) {
       for (const p of this.P) {
+        const outF = this.focus && !this.focus.has(p.s.id);   // outside the neighbourhood a shot carries less: a faint dot of its colour
         const lit = p.s._in || p.s._live;
         if (anyIn) { if (pass === 0 && lit) continue; if (pass === 1 && !lit) continue; } // dim first, lit on top
         else if (pass === 1) continue;
         const w = p.w * c.z, h = w * .75, sx = (p.x - c.x) * c.z + W2, sy = (p.y - c.y) * c.z + H2;
         if (sx + w < 0 || sx - w > W || sy + h < 0 || sy - h > H) continue;
-        g.globalAlpha = lit || !anyIn ? 1 : .13;
-        if (w < 18) {
-          g.fillStyle = p.s._dot; g.fillRect(sx - w / 2, sy - h / 2, Math.max(1.2, w * .9), Math.max(1, h * .9));
+        g.globalAlpha = (lit || !anyIn ? 1 : .13) * (outF ? .22 : 1);
+        if (w < 18 || outF) {
+          const dw = outF ? Math.min(5, Math.max(1.5, w * .9)) : Math.max(1.2, w * .9), dh = outF ? dw : Math.max(1, h * .9);
+          g.fillStyle = p.s._dot; g.fillRect(sx - dw / 2, sy - dh / 2, dw, dh);
         } else {
           const r = (lit || !anyIn || w > 60) ? (loads++ < 400 ? IMG.want(p.s.thumb) : IMG.get(p.s.thumb)) : IMG.get(p.s.thumb);
           if (r.ok) drawCover(g, r.img, sx - w / 2, sy - h / 2, w * .96, h * .96);
@@ -1445,7 +1472,43 @@ function readingBar(n, e) {
 
 /* ================================================================ INSPECTOR */
 const SND = { d: null, p: null, load(after) { if (this.d) { after && after(); return this.p; } if (!this.p) this.p = fetch('sound-layer.json').then(r => r.ok ? r.json() : {}).catch(() => ({})).then(d => { this.d = d || {}; }); return this.p.then(() => after && after()); } };
+const lazy = url => ({ d: null, p: null, load(after) { if (this.d) { after && after(); return; } if (!this.p) this.p = fetch(url).then(r => r.ok ? r.json() : {}).catch(() => ({})).then(d => { this.d = d || {}; }); this.p.then(() => after && after()); } });
+const PROV = lazy('provenance.json'), TX = lazy('transcripts.json');
 const CAPS = { map: null, p: null, load(after) { if (this.map || this.p) return; this.p = fetch('rushes/captions.json').then(r => r.ok ? r.json() : {}).then(m => { this.map = m; after && after(); }).catch(() => { this.map = {}; }); } };
+/* where a shot sits in four spaces at once: every shot a faint dot, this one ringed, its nearest neighbours in that space lit and linked */
+const Minis = {
+  pos: {},
+  of(kind) {
+    if (this.pos[kind]) return this.pos[kind];
+    const D = [1900, 1910, 1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020], j = s => hashf(s.id), jy = s => hashf(s.id + 'y');
+    const out = [];
+    for (const s of L.shots) {
+      let xy = null, di = D.indexOf(s.decade ?? -1);
+      if (kind === 'xy') xy = s.xy;
+      else if (kind === 'sound') xy = SND.d && SND.d.xy && SND.d.xy[s.id];
+      else if (kind === 'hue' && di >= 0 && s._hb != null) xy = [(di + .1 + .8 * j(s)) / D.length, (s._hb + .1 + .8 * jy(s)) / 14];
+      else if (kind === 'sign' && di >= 0) { const n = s._read[0] || s._found[0]; if (n && L.sidx[n] != null) xy = [(di + .1 + .8 * j(s)) / D.length, (L.sidx[n] + .1 + .8 * jy(s)) / L.signs.length]; }
+      if (xy) out.push([s, xy[0], xy[1]]);
+    }
+    if (kind !== 'sound' || (SND.d && SND.d.xy)) this.pos[kind] = out;
+    return out;
+  },
+  draw(s, R) {
+    $$('.mini-m', R).forEach(b => {
+      const k = b.dataset.k, cv = $('canvas', b), g = cv.getContext('2d'), W = cv.width, H = cv.height, P = this.of(k);
+      g.fillStyle = '#050505'; g.fillRect(0, 0, W, H);
+      const me = P.find(q => q[0] === s); const X = x => 6 + x * (W - 12), Y = y => 6 + y * (H - 12);
+      g.fillStyle = 'rgba(200,190,170,.22)'; for (const [o, x, y] of P) g.fillRect(X(x), Y(y), 1.4, 1.4);
+      if (!me) { g.fillStyle = '#8f887c'; g.font = '11px "IBM Plex Mono", monospace'; g.fillText(k === 'sound' ? 'no sound reading' : 'not placed here', 10, H - 10); b.classList.add('off'); return; }
+      b.classList.remove('off');
+      const near = P.filter(q => q !== me).map(q => [q, (q[1] - me[1]) ** 2 + (q[2] - me[2]) ** 2]).sort((a, c) => a[1] - c[1]).slice(0, 8);
+      g.strokeStyle = 'rgba(242,193,78,.8)'; g.lineWidth = 1; g.beginPath(); near.forEach(([q]) => { g.moveTo(X(me[1]), Y(me[2])); g.lineTo(X(q[1]), Y(q[2])); }); g.stroke();
+      g.fillStyle = '#f2c14e'; near.forEach(([q]) => { g.beginPath(); g.arc(X(q[1]), Y(q[2]), 2.6, 0, 7); g.fill(); });
+      g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(X(me[1]), Y(me[2]), 6, 0, 7); g.stroke();
+      b.title = 'nearest here: ' + near.slice(0, 4).map(([q]) => q[0].title).join(' · ');
+    });
+  },
+};
 const Inspector = {
   root: null, s: null, list: [], A: null, B: null, loopAB: false, speed: 1, showCuts: false,
   build() {
@@ -1635,7 +1698,8 @@ const Inspector = {
     $$('[data-a="loop"]', R).forEach(b => b.classList.toggle('on', this.loopAB));
   },
   side() {
-    const s = this.s, R = this.root; CAPS.load(() => { if (this.s === s) this.side(); }); if (!SND.d) SND.load(() => { if (this.s === s) this.side(); });
+    const s = this.s, R = this.root; const again = () => { if (this.s === s) this.side(); };
+    if (!CAPS.map) CAPS.load(again); if (!SND.d) SND.load(again); if (!PROV.d) PROV.load(again); if (!TX.d) TX.load(again);
     const pend = t => `<span class="pending">${t}</span>`;
     const pal = s.palette ? `<div class="pal">${s.palette.map(c => `<i style="background:${esc(c)}" title="${esc(c)}"></i>`).join('')}</div>` : pend('palette pending');
     const subj = s.subjects && s.subjects.length ? s.subjects.map(x => `<div class="sbar"><span>${esc(x.label)}</span><i><b style="width:${Math.round((x.p || 0) * 100)}%"></b></i><em>${Math.round((x.p || 0) * 100)}%</em></div>`).join('') : pend('subjects pending');
@@ -1650,27 +1714,38 @@ const Inspector = {
     const found = (s.found || []).slice(0, 12).map(f => `<div class="fd">${chip(String(f.n), 'sm')}<span>“${esc(f.q)}”</span><em>#${f.rank + 1}</em></div>`).join('');
     const mine = L.assignments.filter(a => a.id === s.id).map(a => `<div class="fd">${chip(String(a.n), 'sm')}<span>${esc(a.note || '')}</span><em>${a.a != null ? (+a.a).toFixed(1) : '—'}–${a.b != null ? (+a.b).toFixed(1) : '—'}s</em></div>`).join('');
     const seg = this.segs(), cuts = !seg && s.cutouts && s.cutouts.length;
-    /* how the shot came to be here, in the order it happened: searched, seen, heard, said, read; then what the machines propose */
-    const step = (n, t, body, cls = '') => body ? `<div class="sd-block step ${cls}"><h4><i>${n}</i>${t}</h4>${body}</div>` : '';
-    const cap = CAPS.map && CAPS.map[s.id], snd = SND.d || {}, hd = (snd.heard || {})[s.id], sd = (snd.said || {})[s.id];
-    const searched = (s.found || []).slice(0, 3).map(f => `<div class="q-row">${chip(String(f.n), 'sm')}<b>“${esc(f.q)}”</b><em>#${f.rank + 1}</em></div>`).join('');
-    const seenB = `${cap ? `<p class="big-t">${esc(cap)}</p>` : ''}${s.subjects && s.subjects.length ? `<div class="bars">${s.subjects.slice(0, 3).map(x => `<div class="bar2"><span>${esc(x.label)}</span><i><b style="width:${Math.round((x.p || 0) * 100)}%"></b></i><em>${Math.round((x.p || 0) * 100)}</em></div>`).join('')}</div>` : ''}`;
-    const heardB = `${hd ? `<div class="tags">${hd.map(([t, z]) => `<span class="tag" style="--a:${Math.min(1, .35 + z / 4)}">${esc(t)}</span>`).join('')}</div>` : ''}${s.audio ? `<div class="mini">${esc(s.audio.kind || '')}${s.audio.rms_db != null && s.audio.rms_db > -100 ? ` · ${s.audio.rms_db.toFixed(0)} dB` : ''}${s.audio.silence != null ? ` · ${Math.round((s.audio.silence || 0) * 100)}% silence` : ''}</div>` : ''}`;
-    R.querySelector('#insLeft').innerHTML = `
-      ${step(1, 'searched <small>the words that found it</small>', searched || (s._live ? '<p class="mini">found live, by your description</p>' : ''), 's1')}
-      ${step(2, 'seen <small>BLIP caption · CLIP subjects</small>', seenB, 's2')}
-      ${step(3, 'heard <small>CLAP</small>', heardB, 's3')}
-      ${step(4, 'said', sd ? `<p class="big-t said">“${esc(sd)}”</p>` : '', 's4')}
-      ${step(5, 'read <small>by an editor</small>', reads || pend(s._live ? 'live result — not read yet; assign it below' : 'not read yet'), 's5')}
-      ${mine ? `<div class="sd-block"><h4>your sub-shots</h4>${mine}<div class="cutbtns" style="margin-top:8px"><button class="ghost" id="insExport">export assignments.json</button></div></div>` : ''}`;
+    /* the shot as a flow: where it came from, how it was found, seen, heard, said and read, and where it went; then where it sits */
+    const node = (k, t, body, sub = '') => `<div class="fl ${k}"><div class="fl-h"><i></i><b>${t}</b>${sub ? `<small>${sub}</small>` : ''}</div>${body}</div>`;
+    const cap = CAPS.map && CAPS.map[s.id], snd = SND.d || {}, hd = (snd.heard || {})[s.id], tx = (TX.d || {})[s.id] || (snd.said || {})[s.id];
+    const pv = PROV.d || {}, film = pv.films && pv.films[s.slug], used = (pv.used || {})[s.id] || [], ours = pv.ours || {};
+    let fromB = pend('loading its film…');
+    if (film) { const [ft, fy, fs, fk, fp] = film, order = film[6], at = order.indexOf(s.id);
+      const strip = order.map((id, i) => { const o = L.byId.get(id); return o ? `<button class="fs${id === s.id ? ' on' : ''}" data-id="${esc(id)}" title="${i + 1} · ${esc(o.title)}" style="background-image:url('${esc(o.thumb)}')"></button>` : ''; }).join('');
+      fromB = `<p class="fl-t">${esc(ft)}${fy ? ` <em>${fy}</em>` : ''}</p>${fs ? `<p class="fl-m">made by <b>${esc(fs)}</b></p>` : ''}${fp ? `<p class="fl-p">${esc(fp)}</p>` : ''}<div class="fstrip">${strip}</div><p class="fl-m">clip <b>${at + 1}</b> of ${order.length} in this film · ${tc(s.start || 0)}–${tc(s.end || 0)}</p>`; }
+    const foundB = (s.found || []).slice(0, 2).map(f => `<p class="fl-q">${chip(String(f.n), 'sm')} “${esc(f.q)}” <em>#${f.rank + 1}</em></p>`).join('');
+    const seenB = `${cap ? `<p class="fl-t">${esc(cap)}</p>` : ''}${s.subjects && s.subjects.length ? `<div class="subs">${s.subjects.slice(0, 3).map(x => `<span style="--p:${Math.round((x.p || 0) * 100)}%">${esc(x.label)} <em>${Math.round((x.p || 0) * 100)}</em></span>`).join('')}</div>` : ''}`;
+    const heardB = hd || s.audio ? `<div class="tags">${(hd || []).map(([t, z]) => `<span class="tag" style="--a:${Math.min(1, .35 + z / 4)}">${esc(t)}</span>`).join('')}${s.audio ? `<span class="mini">${esc(s.audio.kind || '')}${s.audio.rms_db != null && s.audio.rms_db > -100 ? ` · ${s.audio.rms_db.toFixed(0)} dB` : ''}</span>` : ''}</div>` : '';
+    const usedB = used.length ? used.map(([n, w, r, j, href]) => `<a class="use" href="${esc(href)}" target="_blank" rel="noopener" style="--c:${(Object.values(ours).find(o => o[0] === n) || [, '#f2c14e'])[1]}"><b>${esc(n)}</b><span>${esc(w)} · ${esc(r)}</span>${j ? `<i>${esc(j)}</i>` : ''}</a>`).join('') : '<p class="fl-m">not yet used by any of our films</p>';
+    R.querySelector('#insLeft').innerHTML = `<div class="flow">
+      ${node('f0', 'from', fromB, 'the source film')}
+      ${foundB ? node('f1', 'found', foundB, 'by these words') : ''}
+      ${node('f2', 'seen', seenB || pend('not seen yet'), 'BLIP · CLIP')}
+      ${heardB ? node('f3', 'heard', heardB, 'CLAP') : ''}
+      ${tx ? node('f4', 'said', `<div class="fl-said">${esc(tx)}</div>`, 'transcribed') : ''}
+      ${node('f5', 'read', reads || pend(s._live ? 'not read yet' : 'not read yet'), 'by an editor')}
+      ${node('f6', 'used in', usedB, 'our films')}
+    </div>${mine ? `<div class="sd-block"><h4>your sub-shots</h4>${mine}<div class="cutbtns" style="margin-top:8px"><button class="ghost" id="insExport">export assignments.json</button></div></div>` : ''}`;
     R.querySelector('#insSide').innerHTML = `
+      <div class="sd-block where"><h4>where it sits <small>its nearest shots in each space</small></h4><div class="minis">${['xy', 'sound', 'hue', 'sign'].map(k => `<button class="mini-m" data-k="${k}"><canvas width="300" height="190"></canvas><span>${({ xy: 'picture', sound: 'sound', hue: 'colour × decade', sign: 'sign × decade' })[k]}</span></button>`).join('')}</div></div>
       ${wygBlock(s)}
-      <div class="sd-block step s6"><h4><i>6</i>suggested <small>CLIP against the 44 signs</small></h4></div>
       ${affinityBlock(s)}
-      ${seg ? this.segBlock(seg).replace('<div class="sd-block"><h4>segments over time <small>SAM 2', '<div class="sd-block step s7"><h4><i>7</i>cut out <small>SAM 2') : ''}
+      ${seg ? this.segBlock(seg) : ''}
       ${cuts ? `<div class="sd-block"><h4>single-frame cut-outs · ${s.cutouts.length}</h4><div class="cutbtns"><button class="ghost" id="insCutT">${this.showCuts ? 'hide' : 'show'} on frame (C)</button><button class="ghost" id="insCutSend">send to table</button></div>
         <div class="cutthumbs">${s.cutouts.map(c => `<span><img src="${esc(c.png)}" alt=""><em>${esc(c.label)}</em></span>`).join('')}</div></div>` : ''}
-      <div class="sd-block facts"><div class="fact-row"><span><em>year</em>${s.year ?? '—'}</span><span><em>length</em>${s._dur.toFixed(1)}s</span><span><em>scale</em>${s.scale ? esc(s.scale) : '—'}</span><span><em>colour</em>${s.bw ? 'b&amp;w' : 'colour'}</span><a class="arch" href="${esc(s.page)}" target="_blank" rel="noopener">archive ↗</a></div>${pal}</div>`;
+      <div class="sd-block facts"><div class="fact-row"><span><em>length</em>${s._dur.toFixed(1)}s</span><span><em>scale</em>${s.scale ? esc(s.scale) : '—'}</span><span><em>colour</em>${s.bw ? 'b&amp;w' : 'colour'}</span><a class="arch" href="${esc(s.page)}" target="_blank" rel="noopener">archive ↗</a></div>${pal}</div>`;
+    $$('.fs', R).forEach(b => b.onclick = () => { const o = L.byId.get(b.dataset.id); if (o) this.open(o, film[6].map(id => L.byId.get(id)).filter(Boolean)); });
+    $$('.mini-m', R).forEach(b => b.onclick = () => { const k = b.dataset.k; this.close(); Shell.setMode('map'); setTimeout(() => MapMode.morph(k).then(() => MapMode.focusOn(s)), 450); });
+    Minis.draw(s, R);
     const ex = $('#insExport', R); if (ex) ex.onclick = exportAssignments;
     const ct = $('#insCutT', R); if (ct) ct.onclick = () => this.toggleCuts();
     const cs = $('#insCutSend', R); if (cs) cs.onclick = () => { Cuts.send(s); toast(`${s.cutouts.length} cut-out${s.cutouts.length > 1 ? 's' : ''} sent to the table`); };
@@ -1859,16 +1934,13 @@ function affinityBlock(s) {
     return `<button class="${cls}" data-n="${esc(n)}" style="grid-column:${sg.col + 1};grid-row:${sg.dom === 'read' ? '1 / span 3' : sg.row + 1};--c:${DOMC[sg.dom]};--op:${op.toFixed(3)}" aria-label="${esc(sg.name)} ${a.toFixed(1)}%">
       <i></i><span>${esc(sg.symbol)}</span>${r && r.conf != null ? `<em>${r.conf}</em>` : ''}${found.has(n) ? '<u></u>' : ''}</button>`;
   }).join('');
-  const top = (s.aff_top || []).slice(0, 3).map(([n, v], i) => { const sg = L.S[String(n)]; if (!sg) return ''; return `
-    <div class="sug"><div class="sug-h"><span class="sug-i">${i + 1}</span>${chip(sg.n)}<b>${esc(sg.name)}</b><em>${(+v).toFixed(1)}%</em></div>
-      <p>${esc(sg.difference || sg.gloss || '')}</p></div>`; }).join('');
-  const def = A ? `hover a sign for its affinity · click to filter the wall · ⌥-click sends its family to CUT` : 'affinity not computed for this shot';
+  const top = (s.aff_top || []).slice(0, 3).map(([n, v], i) => { const sg = L.S[String(n)]; if (!sg) return ''; return `<span class="sugc" title="${esc(sg.difference || sg.gloss || '')}">${chip(sg.n)}<b>${esc(sg.name)}</b><em>${(+v).toFixed(0)}%</em></span>`; }).join('');
+  const def = '';
   return `<div class="sd-block affblock"><h4>the 45 signs</h4>
     <div class="aff">${cells}</div>
     <div class="aff-key"><span><i class="k-rd"></i>editor’s reading + conf %</span><span><i class="k-alt"></i>rival</span><span><i class="k-dot"></i>found by its search</span><span><i class="k-heat"></i>machine affinity</span></div>
     <div class="aff-read">${def}</div>
-    ${top ? `<h5>machine suggestions</h5>${top}` : ''}
-    <p class="honest">Machine affinity (CLIP vs sign descriptions + exemplars) — a pointer, not a reading.</p></div>`;
+    ${top ? `<div class="sugs">${top}</div>` : ''}</div>`;
 }
 function affReadout(s, n) {
   const sg = L.S[n], a = s.affinity ? s.affinity[n] ?? 0 : null;
