@@ -84,7 +84,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const esc = t => String(t ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const DOMC = { perception: '#e9d9a8', affect: '#f0b9a4', action: '#e7a37c', reflection: '#b9cfa0', mental: '#a9c9c9', break: '#d9d3c7', time: '#b8b3d8', read: '#d9b8d2' };
 const fmt = n => Number(n).toLocaleString('en-US');
-let F, P1, MV, WA, S, beats = [], cur = -1, timer = 0, paused = false, sound = true, tok = 0, t0 = 0, left = 0;
+let F, P1, MV, WA, VJ, S, beats = [], cur = -1, timer = 0, paused = false, sound = true, tok = 0, t0 = 0, left = 0;
 const stage = $('#stage'), score = $('#score'), voice = $('#voice');
 const say = (lines, cls = '') => `<div class="say ${cls}">${lines.map((l, i) => `<span style="animation-delay:${.25 + i * 1.1}s">${l}</span>`).join('')}</div>`;
 const chip = (n, size = '') => { const s = S[n]; return s ? `<span class="chip" style="background:${DOMC[s.dom]};${size}">${esc(s.symbol)}</span>` : ''; };
@@ -234,6 +234,9 @@ function build() {
   const W8 = Object.entries(WA.shots), vc = r => W8.filter(([, w]) => w.reading === r).length;
   W8.filter(([k]) => k !== sid && k !== rf).slice(0, 4).forEach(([k, w], i) => B('A moving image', 9, () => `${film8(k)}<div class="panel fadein" style="left:40px;right:40px;top:420px;font:26px/1.35 var(--serif);animation-delay:2.5s">${esc(w.happens)}<br><span style="display:block;margin-top:10px"><span class="verdict2 v-${w.reading}">${w.reading.toUpperCase()}</span> <span style="color:var(--dim)">${esc(w.why)}</span></span></div>
       ${i ? '' : `<div class="label" style="position:absolute;left:40px;top:80px">watched whole by a frontier model · ${esc(WA.by.split(',')[0])}</div>`}`));
+  VJ.pair_cards.forEach((p, i) => B('A moving image', 11, () => `<div class="vs" style="inset:80px 80px 180px">${['a', 'b'].map(k => `<figure>${vid(p[k].video, p[k].t, '', true, 'width:100%;aspect-ratio:4/3;object-fit:cover;display:block')}<div class="read show" style="opacity:1"><em>${esc(p[k].title)}</em></div></figure>`).join('')}</div>
+      ${i ? '' : say(['V-JEPA 2 learned from video itself. It calls these two close: different things, the same movement.'], 'small')}`, el => startVideos(el)));
+  B('A moving image', 10, () => say([`Its nearest shot moves the same way <b>${Math.round(VJ.camera_match.vjepa * 100)}%</b> of the time.`, `CLIP's still frames: ${Math.round(VJ.camera_match.clip * 100)}%. Chance: ${Math.round(VJ.camera_match.chance * 100)}%.`, `${VJ.shots} shots in ${Math.round(VJ.seconds / 60)} minutes on a laptop.`], 'mid small'));
   B('A moving image', 11, () => say([`Nine shots watched whole: <b>${vc('holds')} hold</b>, <b>${vc('partial')} partly</b>, <b>${vc('revise')} need a new reading</b>.`, 'A reading from one frame is a hypothesis.', 'Watching the shot is how it gets tested.'], 'mid small'));
   /* 6 · FEW WORDS */
   const V = F.vocab;
@@ -311,7 +314,7 @@ addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); paus
 $('#bPlay').onclick = () => pause(!paused); $('#bNext').onclick = () => show(cur + 1); $('#bPrev').onclick = () => show(cur - 1);
 $('#bSnd').onclick = () => { sound = !sound; $('#bSnd').textContent = sound ? '♪ on' : '♪ off'; duck(false); voice.muted = !sound; stage.querySelectorAll('video').forEach(v => { if (!sound) v.muted = true; }); };
 (async function () {
-  fit(); [F, P1, MV, WA] = await Promise.all(['explain/film2.json?v=2', 'explain/film.json?v=2', 'explain/moving.json?v=1', 'explain/watched.json?v=1'].map(u => fetch(u).then(r => r.json()))); S = Object.fromEntries(P1.signs.map(s => [s.n, s]));
+  fit(); [F, P1, MV, WA, VJ] = await Promise.all(['explain/film2.json?v=2', 'explain/film.json?v=2', 'explain/moving.json?v=1', 'explain/watched.json?v=1', 'explain/vjepa.json?v=1'].map(u => fetch(u).then(r => r.json()))); S = Object.fromEntries(P1.signs.map(s => [s.n, s]));
   build();
   beats.forEach(b => { let c = chapters.find(c => c.name === b.ch); if (!c) chapters.push(c = { name: b.ch, secs: 0 }); c.secs += b.secs; });
   $('#chs').innerHTML = chapters.map(c => `<div style="--w:${c.secs}"><i></i><span>${esc(c.name)}</span></div>`).join('');
