@@ -54,12 +54,29 @@
 .subline { position: absolute; left: 140px; right: 140px; bottom: 70px; text-align: center; font: 36px/1.3 var(--serif); text-shadow: 0 2px 10px #000; }
 .subline span { background: rgba(0,0,0,.55); padding: 2px 12px; } .subline small { display: block; font: 15px var(--mono); color: var(--dim); margin-bottom: 6px; letter-spacing: .1em; }
 .score { position: absolute; right: 50px; top: 40px; background: rgba(0,0,0,.82); border: 1px solid #333; padding: 12px 16px; font: 16px var(--mono); color: var(--dim); text-align: right; } .score b { display: block; font: 600 44px var(--serif); color: var(--gold); }
+
+.idc { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 140px; gap: 18px; }
+.idc h1 { margin: 0; line-height: 1; } .idc p { margin: 0; max-width: 1100px; font: 30px/1.35 var(--serif); color: #eee6d6; } .idc small { font: 16px var(--mono); letter-spacing: .14em; opacity: .8; }
+.id-ody { background: radial-gradient(ellipse at 70% 120%, #1d2d6b, #050816 70%); } .id-ody h1 { font: 600 120px 'Fraunces', serif; color: #8ea6ff; letter-spacing: .04em; }
+.id-ody::before, .id-ody::after { content: ''; position: absolute; left: 0; right: 0; height: 22px; background: repeating-linear-gradient(90deg, #6f8cff 0 22px, transparent 22px 44px), repeating-linear-gradient(0deg, transparent 0 6px, #050816 6px 16px); opacity: .55; }
+.id-ody::before { top: 40px; } .id-ody::after { bottom: 40px; }
+.id-nor { background: linear-gradient(160deg, #06161a, #0c2a30); } .id-nor h1 { font: 600 112px var(--mono); letter-spacing: .3em; color: #6cc4d6; text-transform: uppercase; }
+.id-nor::after { content: ''; position: absolute; right: 160px; top: 140px; width: 300px; height: 300px; border-radius: 50%; background: linear-gradient(90deg, #6cc4d6 50%, transparent 50%); opacity: .35; animation: spin 40s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+.id-rep { background: repeating-linear-gradient(135deg, #2a0d05 0 40px, #1c0803 40px 80px); } .id-rep h1 { font: 900 128px Impact, 'Arial Narrow', sans-serif; color: #e0572a; letter-spacing: .02em; text-transform: uppercase; text-shadow: 6px 6px 0 #000; }
+.id-wyg { background: radial-gradient(ellipse at 30% 40%, #1d2a0a, #050603 70%); } .id-wyg h1 { font: italic 400 96px 'Fraunces', serif; color: #c4f46a; }
+.id-wyg::after { content: ''; position: absolute; left: 0; right: 0; bottom: 120px; height: 3px; background: repeating-linear-gradient(90deg, #c4f46a 0 60px, transparent 60px 110px); animation: road 3s linear infinite; } @keyframes road { to { background-position: 110px 0; } }
+.verdict2 { display: inline-block; font: 600 14px var(--mono); letter-spacing: .12em; padding: 2px 8px; border-radius: 3px; color: #000; }
+.v-holds { background: var(--ours); } .v-partial { background: var(--gold); } .v-revise { background: #ff8a7e; }
+.strike { text-decoration: line-through; text-decoration-color: #ff8a7e; text-decoration-thickness: 3px; color: #8f877a; }
+.planes { position: absolute; left: 200px; top: 70px; width: 1200px; height: 680px; overflow: hidden; border: 1px solid #333; }
+.planes img { position: absolute; inset: -6%; width: 112%; height: 112%; object-fit: cover; }
+@keyframes par1 { to { transform: translateX(-2%); } } @keyframes par2 { to { transform: translateX(-5%) scale(1.02); } } @keyframes par3 { to { transform: translateX(-9%) scale(1.05); } }
 </style>
 </head>
 <body>
 <div id="wrap"><div id="stage"></div></div>
 <div id="bar"><button id="bPrev" title="previous (←)">‹</button><button id="bPlay" title="play / pause (space)">❚❚</button><button id="bNext" title="next (→)">›</button><div id="chs"></div><span id="time"></span><button id="bSnd" title="sound">♪ on</button></div>
-<div id="start"><div><h1>How the Image Becomes Operative</h1><p>Part II. What the lab does to a moving image: how a colour becomes a number, how a shot is asked its questions, how our films decide what to show and say, what no machine sees, what is brittle, and what it all costs. About eight minutes, with sound.</p><b>▶ Watch</b></div></div>
+<div id="start"><div><h1>How the Image Becomes Operative</h1><p>Part II. What the lab does to a moving image: how a colour becomes a number, how a shot is asked its questions, how our films decide what to show and say, what no machine sees, what is brittle, and what it all costs. About eleven minutes, with sound.</p><b>▶ Watch</b></div></div>
 <audio id="score" preload="auto"></audio><audio id="voice" preload="auto"></audio>
 <script>
 'use strict';
@@ -67,7 +84,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const esc = t => String(t ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const DOMC = { perception: '#e9d9a8', affect: '#f0b9a4', action: '#e7a37c', reflection: '#b9cfa0', mental: '#a9c9c9', break: '#d9d3c7', time: '#b8b3d8', read: '#d9b8d2' };
 const fmt = n => Number(n).toLocaleString('en-US');
-let F, P1, S, beats = [], cur = -1, timer = 0, paused = false, sound = true, tok = 0, t0 = 0, left = 0;
+let F, P1, MV, WA, S, beats = [], cur = -1, timer = 0, paused = false, sound = true, tok = 0, t0 = 0, left = 0;
 const stage = $('#stage'), score = $('#score'), voice = $('#voice');
 const say = (lines, cls = '') => `<div class="say ${cls}">${lines.map((l, i) => `<span style="animation-delay:${.25 + i * 1.1}s">${l}</span>`).join('')}</div>`;
 const chip = (n, size = '') => { const s = S[n]; return s ? `<span class="chip" style="background:${DOMC[s.dom]};${size}">${esc(s.symbol)}</span>` : ''; };
@@ -137,6 +154,11 @@ function build() {
       ${say(['SAM cut out three things. CLIP named them.', 'The flock became <b>“cloud”</b>. Something became <b>“weapon”</b>.'], 'small')}`);
   B('What counts as a thing', 8, () => `${vid(seed.video, seed.t, 'full dimmed')}${say(['The reading was about a stray.', 'Nothing ever cut the stray out.'], 'mid')}`, el => startVideos(el));
   /* 4 · INTO THE FILMS */
+  const ID = [['id-ody', 'The Odyssey', 'after Homer', 'Homer\'s lines, spoken in the studio. The archive answers each one in its own recorded words.', '152 scenes · 1,474 lines'],
+    ['id-nor', 'Norse Half Moon', 'with Brandon Polack', 'A voice memo about a house built by one man is the script. The archive answers it, line by line.', '7 books · 82 lines'],
+    ['id-rep', 'The Republic', 'a satire', 'Screenplays pitched by machine witnesses. Every line is recast by a sentence someone once said on film.', '17 episodes · 374 lines'],
+    ['id-wyg', 'Where You Go When You Leave', 'a poem by Mark Anthony Thomas', 'A 24-minute poem suite in 88 beats, cut four ways by four rules.', '4 takes · 169 patches each']];
+  ID.forEach(([c, t, by, what, n]) => B('Into the films', 7, () => `<div class="idc ${c}"><small>${esc(by)}</small><h1>${esc(t)}</h1><p class="fadein" style="animation-delay:1s">${esc(what)}</p><small class="fadein" style="animation-delay:2s">${esc(n)}</small></div>`));
   B('Into the films', 15, () => `<div class="chain">
       <div style="animation-delay:.2s"><small>SOURCE</small><p>Amateur Film Northwest</p><img src="${esc(seed.thumb)}"></div>
       <div style="animation-delay:1.4s"><small>READ</small>${chip(String(rd.n), 'font-size:22px')}<p style="margin-top:8px">${esc(rd.note)}</p></div>
@@ -173,9 +195,25 @@ function build() {
   B('Into the films', 13, () => `<div class="hbars" style="left:120px;top:110px;right:120px">${Object.entries(Tk.shared).map(([k, v], i) => `<div style="animation-delay:${i * .3}s"><span>${esc(k.replace('+', ' and '))}</span><i><b data-w="${v / 169 * 100 * 5}" style="background:var(--gold)"></b></i><em>${v} of 169</em></div>`).join('')}</div>
       <div class="panel fadein" style="left:120px;right:120px;top:430px;font:25px/1.4 var(--serif);animation-delay:2s">${NAMES.map(n => `<b style="color:var(--gold);text-transform:uppercase;font:600 16px var(--mono)">${n}</b> ${esc(Tk.ideas[n])}`).join('<br>')}</div>
       ${say(['The takes share almost nothing, by design:', 'a different rule for each, and a cost for reusing what an earlier take used.'], 'small')}`, grow);
-  /* 5 · WHAT NONE OF THEM SEES */
-  const motion = (m, i) => B('What none of them sees', i ? 9 : 15, () => `${vid(m.video, m.frames[0].t - 1 / m.fps, 'full')}<canvas id="fl" width="1600" height="900" style="position:absolute;inset:0"></canvas><canvas id="cv" width="1400" height="120" style="position:absolute;left:100px;bottom:30px;width:1400px;height:120px;background:rgba(0,0,0,.6)"></canvas>
-      ${i ? '' : say(['Nothing in the lab sees movement. Here is what moves:', 'every arrow points one way. It is the camera panning, not the sheep.'], 'top small')}`,
+  /* 5 · A MOVING IMAGE */
+  const ms = MV.summary, mvs = MV.shots, sid = seed.id, sm = mvs[sid], strip = k => `explain/strip8_${k.slice(0, 8)}.jpg`;
+  const film8 = (k, far) => `<div style="position:absolute;left:40px;right:40px;top:120px;height:${(1520 / 8) * .75}px;display:grid;grid-template-columns:repeat(8,1fr);gap:4px">${Array.from({ length: 8 }, (_, i) => `<div style="background:url('${strip(k)}') ${i / 7 * 100}% 0 / 800% 100%;opacity:0;animation:fade .6s ease forwards ${.3 + i * .45}s"></div>`).join('')}</div>
+      ${far ? `<div style="position:absolute;left:40px;right:40px;top:${130 + (1520 / 8) * .75}px;height:150px;display:grid;grid-template-columns:repeat(8,1fr);gap:4px;align-items:end">${far.map((v, i) => `<div style="height:${Math.min(100, v / .8 * 100)}%;background:${v > .25 ? 'var(--snd)' : 'var(--pic)'};opacity:0;animation:fade .6s ease forwards ${4 + i * .2}s;position:relative"><span style="position:absolute;top:-22px;left:0;font:14px var(--mono);color:var(--dim)">${v.toFixed(2)}</span></div>`).join('')}</div>` : ''}`;
+  B('A moving image', 7, () => say(['Everything so far read <b>one still frame</b> per shot.', 'This is a moving image archive.'], 'mid'));
+  B('A moving image', 13, () => `${film8(sid, sm.clip_far)}<div class="label" style="position:absolute;left:40px;top:96px">the whole shot: 8 moments across ${sm.dur.toFixed(1)} seconds</div><div class="label fadein" style="position:absolute;left:40px;top:${310 + 150}px;animation-delay:4s">how far each moment is from the one frame the lab read (CLIP)</div>${say(['Watch it whole, and the shot keeps changing.'], 'small')}`);
+  B('A moving image', 13, () => { const w = WA.shots[sid]; return `<img class="full" src="explain/mid_${sid.slice(0, 8)}.jpg" style="object-fit:contain">
+      <div class="panel fadein" style="left:60px;right:60px;bottom:40px;font:27px/1.35 var(--serif)"><span class="strike">${esc(rd.note)}</span><br><span class="fadein" style="animation-delay:3s;display:block;margin-top:8px;color:#ffe39a">${esc(w.happens.split(';').slice(0, 2).join(';'))}.</span>
+      <span class="fadein" style="animation-delay:6s;display:block;margin-top:8px"><span class="verdict2 v-${w.reading}">${w.reading.toUpperCase()}</span> ${esc(w.why)}</span></div>`; });
+  const rf = '7ad22207-8c29-5be6-af5c-3baae38dec31';
+  B('A moving image', 12, () => `${film8(rf)}<div class="label" style="position:absolute;left:40px;top:96px">National Wildlife Refuge System · one clip in the archive</div>${say(['One clip, five shots: drought, a stamp, a purchase, birds.', 'It was read from the stamp alone.'], 'small')}`);
+  B('A moving image', 14, () => `<div class="hbars" style="left:120px;right:120px;top:100px">
+      <div><span>travel far from their one frame</span><i><b data-w="${ms.far_gt / ms.shots * 100}" style="background:var(--snd)"></b></i><em>${ms.far_gt} of ${ms.shots}</em></div>
+      <div style="animation-delay:.4s"><span>hide a cut the archive missed*</span><i><b data-w="${ms.with_cuts / ms.shots * 100}" style="background:#ff8a7e"></b></i><em>${ms.with_cuts} of ${ms.shots}</em></div>
+      ${Object.entries(ms.camera).map(([c, n], i) => `<div style="animation-delay:${.8 + i * .3}s"><span>camera: ${c === 'handheld' ? 'unsteady' : c}</span><i><b data-w="${n / ms.shots * 100}"></b></i><em>${n}</em></div>`).join('')}</div>
+      <div class="label" style="position:absolute;left:120px;bottom:150px;text-transform:none;letter-spacing:0">* an eager detector: old-film flicker trips it too · unsteady = a hand-held camera, or the film itself weaving in the gate</div>
+      ${say(['The 253 read shots, watched whole: six minutes on a laptop.'], 'small')}`, grow);
+  const motion = (m, i) => B('A moving image', i ? 9 : 15, () => `${vid(m.video, m.frames[0].t - 1 / m.fps, 'full')}<canvas id="fl" width="1600" height="900" style="position:absolute;inset:0"></canvas><canvas id="cv" width="1400" height="120" style="position:absolute;left:100px;bottom:30px;width:1400px;height:120px;background:rgba(0,0,0,.6)"></canvas>
+      ${i ? '' : say(['What moves: every arrow points one way.', 'The camera pans. The sheep stand.'], 'top small')}`,
     el => { startVideos(el); const v = el.querySelector('video'), g = $('#fl', el).getContext('2d'), c = $('#cv', el).getContext('2d'), fr = m.frames, mx = Math.max(...fr.map(f => f.m)), t0f = fr[0].t, t1f = fr.at(-1).t;
       raf(() => { const t = v.currentTime; let k = fr.findIndex(f => f.t >= t); if (k < 0) k = fr.length - 1; const f = fr[k]; g.clearRect(0, 0, 1600, 900); g.strokeStyle = '#f2c14e'; g.lineWidth = 3;
         for (let y = 0; y < m.gh; y++) for (let x = 0; x < m.gw; x++) { const j = (y * m.gw + x) * 2, dx = f.v[j], dy = f.v[j + 1], cx = (x + .5) * 1600 / m.gw, cy = (y + .5) * 900 / m.gh, s = 12; if (Math.hypot(dx, dy) < .15) continue;
@@ -183,7 +221,20 @@ function build() {
         g.globalAlpha = 1; c.clearRect(0, 0, 1400, 120); c.strokeStyle = '#f2c14e'; c.lineWidth = 2; c.beginPath(); fr.forEach((q, j) => { const x = (q.t - t0f) / (t1f - t0f) * 1400, y = 110 - q.m / mx * 100; j ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke();
         const xn = (t - t0f) / (t1f - t0f) * 1400; c.fillStyle = '#fff'; c.fillRect(xn, 0, 2, 120); c.fillStyle = '#a8a196'; c.font = '14px IBM Plex Mono'; c.fillText('how much moves, frame by frame (optical flow)', 8, 18); }); });
   F.motion.forEach(motion);
-  B('What none of them sees', 8, () => say([`A motion pass costs <b>${F.costs['motion / optical flow (per clip, 48 frames)'].toFixed(1)} seconds</b> a shot on this laptop:`, `about ${hms(F.costs['motion / optical flow (per clip, 48 frames)'] * T)} for the archive.`, 'It has not been run.'], 'mid small'));
+  ['21171e70', '3b4530d3'].forEach((k, i) => B('A moving image', 10, () => `<img src="explain/mid_${k}.jpg" style="position:absolute;left:60px;top:90px;width:720px;height:540px;object-fit:cover"><img src="explain/depth_${k}.png" style="position:absolute;left:820px;top:90px;width:720px;height:540px;object-fit:cover;opacity:0;transition:opacity 2s" id="dpt">
+      ${i ? '' : say(['Depth Anything guesses how far each point is.', 'Bright is near. Dark is far.'], 'small')}`, el => later(1000, () => $('#dpt', el).style.opacity = 1)));
+  B('A moving image', 12, () => `<div class="planes"><img src="republic/planes/42c8aa/p0a_far.webp" style="animation:par1 12s linear forwards"><img src="republic/planes/42c8aa/p0a_mid.webp" style="animation:par2 12s linear forwards"><img src="republic/planes/42c8aa/p0a_near.webp" style="animation:par3 12s linear forwards"></div>
+      ${say(['The Republic already uses it: depth splits a frame into far, middle and near,', 'SAM cuts the near things out, and the camera moves between them.'], 'small')}`);
+  B('A moving image', 13, () => `<div class="chain" style="top:150px">
+      <div style="animation-delay:.2s"><small>1 · SAM PROPOSES</small><p>every outline it can find in the read frame</p></div>
+      <div style="animation-delay:2s"><small>2 · CLIP SCORES THEM</small><p>against the reading's words: “${esc(rd.note.split(':')[0])}”</p></div>
+      <div style="animation-delay:3.8s"><small>3 · THE BEST IS KEPT</small><img src="${esc((P1.sam.objects[0] || {}).png || '')}" style="object-fit:contain;background:#111"></div>
+      <div style="animation-delay:5.6s"><small>4 · SAM 2 FOLLOWS IT</small><p>forward and back through ${P1.sam.frames} frames of the clip</p></div></div>
+      ${say(['How a cut-out is chosen: SAM finds things, CLIP picks the one the reading names,', 'SAM 2 tracks it in time. Only for the 253 read shots.'], 'small')}`);
+  const W8 = Object.entries(WA.shots), vc = r => W8.filter(([, w]) => w.reading === r).length;
+  W8.filter(([k]) => k !== sid && k !== rf).slice(0, 4).forEach(([k, w], i) => B('A moving image', 9, () => `${film8(k)}<div class="panel fadein" style="left:40px;right:40px;top:420px;font:26px/1.35 var(--serif);animation-delay:2.5s">${esc(w.happens)}<br><span style="display:block;margin-top:10px"><span class="verdict2 v-${w.reading}">${w.reading.toUpperCase()}</span> <span style="color:var(--dim)">${esc(w.why)}</span></span></div>
+      ${i ? '' : `<div class="label" style="position:absolute;left:40px;top:80px">watched whole by a frontier model · ${esc(WA.by.split(',')[0])}</div>`}`));
+  B('A moving image', 11, () => say([`Nine shots watched whole: <b>${vc('holds')} hold</b>, <b>${vc('partial')} partly</b>, <b>${vc('revise')} need a new reading</b>.`, 'A reading from one frame is a hypothesis.', 'Watching the shot is how it gets tested.'], 'mid small'));
   /* 6 · FEW WORDS */
   const V = F.vocab;
   B('Few words', 10, () => `<div class="count4">${[[V.subjects, 'subjects'], [V.scales, 'shot scales'], [V.sounds, 'sounds'], [V.signs, 'signs']].map(([n, l], i) => `<div style="animation-delay:${i * .6}s"><b>${n}</b><span>${l}</span></div>`).join('')}</div>${say(['The machines answer only in the words we hand them.'], 'small')}`);
@@ -210,6 +261,15 @@ function build() {
       <div class="label" style="position:absolute;left:120px;top:560px">bars on a log scale: each step right is ten times longer</div>${say([`Each pass over all ${fmt(T)} shots, on one laptop.`], 'small')}`, grow);
   B('What it costs', 11, () => `<div class="count4" style="grid-template-columns:1fr 1fr"><div><b>5 min</b><span>a careful reading of one shot (our estimate)</span></div><div style="animation-delay:1.2s"><b>${fmt(Math.round(T * 5 / 60))} h</b><span>to read the whole archive that way</span></div></div>
       ${say(['About seven months of full-time work.', 'So we read 253, and let machines point at the rest.'], 'small')}`);
+  const machH = rows.reduce((a, [, x]) => a + x * T, 0) / 3600, tok = { in: 1200, out: 300 };
+  B('What it costs', 15, () => `<div class="hbars" style="left:120px;right:120px;top:100px">
+      <div><span>every pass, on this laptop</span><i><b data-w="${machH / 1260 * 100}"></b></i><em>${Math.round(machH)} h</em></div>
+      <div style="animation-delay:.4s"><span>the same, rented A100s*</span><i style="background:none"></i><em>≤ $${Math.round(machH * 1.39)}–${Math.round(machH * 3.43)}</em></div>
+      <div style="animation-delay:.8s"><span>a frontier model watches every shot**</span><i style="background:none"></i><em>≈ $${Math.round(T * (tok.in * 4e-6 + tok.out * 20e-6))}–${Math.round(T * (tok.in * 5e-6 + tok.out * 25e-6))}</em></div>
+      <div style="animation-delay:1.2s"><span>a small model watches every shot**</span><i style="background:none"></i><em>≈ $${Math.round(T * (tok.in * 1e-6 + tok.out * 5e-6))}</em></div>
+      <div style="animation-delay:1.6s"><span>a person reads every shot</span><i><b data-w="100" style="background:#ff8a7e"></b></i><em>${fmt(Math.round(T * 5 / 60))} h</em></div></div>
+      <div class="label" style="position:absolute;left:120px;right:120px;bottom:150px;text-transform:none;letter-spacing:0;line-height:1.6">* $1.39–3.43 per GPU hour, list prices found online in October 2026; a GPU is faster than this laptop, so this is an upper bound.<br>** about ${fmt(tok.in)} tokens in (8 small frames and a transcript) and ${tok.out} out per shot, at $4–5 / $20–25 and $1 / $5 per million tokens; batch is about half. Estimates: check prices before quoting.</div>
+      ${say(['Machines can watch the whole archive for a few hundred dollars.', 'A careful person would need seven months. <b>The work is checking.</b>'], 'small')}`, grow);
   /* 10 · WHAT WE COULD DO */
   const todo = [['Motion', 'optical flow: what moves, how fast, which way · the pass shown above', 'ready to run'], ['DINO', 'pictures without words: shape and texture neighbours', 'run for Part I · not a layer yet'], ['Any word, not 20', 'open-vocabulary detection (Grounding DINO, OWL-ViT)', 'models on this machine'], ['Cut out the stray', 'SAM 3 finds things from a phrase: “the one dark sheep”', 'model on this machine'],
     ['Near and far', 'depth from one frame (Depth Anything)', 'model on this machine'], ['Voice apart from music', 'source separation (HTDemucs) before CLAP and Whisper listen', 'model on this machine'], ['Every language', 'Whisper large-v3-turbo instead of base.en', 'model on this machine'], ['Titles and intertitles', 'read the words on screen (OCR)', 'not yet'],
@@ -251,7 +311,7 @@ addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); paus
 $('#bPlay').onclick = () => pause(!paused); $('#bNext').onclick = () => show(cur + 1); $('#bPrev').onclick = () => show(cur - 1);
 $('#bSnd').onclick = () => { sound = !sound; $('#bSnd').textContent = sound ? '♪ on' : '♪ off'; duck(false); voice.muted = !sound; stage.querySelectorAll('video').forEach(v => { if (!sound) v.muted = true; }); };
 (async function () {
-  fit(); [F, P1] = await Promise.all([fetch('explain/film2.json?v=1').then(r => r.json()), fetch('explain/film.json?v=1').then(r => r.json())]); S = Object.fromEntries(P1.signs.map(s => [s.n, s]));
+  fit(); [F, P1, MV, WA] = await Promise.all(['explain/film2.json?v=2', 'explain/film.json?v=2', 'explain/moving.json?v=1', 'explain/watched.json?v=1'].map(u => fetch(u).then(r => r.json()))); S = Object.fromEntries(P1.signs.map(s => [s.n, s]));
   build();
   beats.forEach(b => { let c = chapters.find(c => c.name === b.ch); if (!c) chapters.push(c = { name: b.ch, secs: 0 }); c.secs += b.secs; });
   $('#chs').innerHTML = chapters.map(c => `<div style="--w:${c.secs}"><i></i><span>${esc(c.name)}</span></div>`).join('');

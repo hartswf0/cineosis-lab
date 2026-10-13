@@ -245,16 +245,22 @@ function build() {
     el => el.querySelectorAll('figcaption').forEach((f, i) => later(400 + i * 1700, () => typeIn(f, f.dataset.c))));
   B('One sentence', 7, () => say(['Plain, and sure of itself.', 'It never says who, where, or when.'], 'mid'));
   /* CINEOSIS */
-  B('The reading', 6, () => say(['Now the question', '<b>none of them can answer.</b>'], 'mid'));
-  B('The reading', 14, () => `<img src="${esc(seed.thumb)}" style="position:absolute;left:80px;top:140px;width:680px;border:1px solid #333">
+  B('The question', 6, () => say(['Now the question', '<b>none of them can answer.</b>'], 'mid'));
+  B('The question', 14, () => `<img src="${esc(seed.thumb)}" style="position:absolute;left:80px;top:140px;width:680px;border:1px solid #333">
       <div class="layers"><div style="animation-delay:.4s"><small style="color:var(--pic)">CLIP · WHAT IT RESEMBLES</small><p>an animal, a landscape</p></div>
       <div style="animation-delay:3s"><small style="color:var(--word)">BLIP · WHAT IT SHOWS</small><p>“${esc(seed.cap)}”</p></div>
       <div style="animation-delay:6s"><small style="color:var(--gold)">THE EDITOR · WHAT IT DOES</small><p style="color:var(--gold)">${esc(rd.note)}</p></div></div>`);
-  B('The reading', 8, () => say(['The third sentence is a <b>reading</b>.', 'It names what the image does,', 'not what it shows.'], 'mid'));
+  B('The question', 8, () => say(['The third sentence is a <b>reading</b>.', 'It names what the image does,', 'not what it shows.'], 'mid'));
   const table = (lit = []) => { const cols = Math.max(...F.signs.map(s => s.col)) + 1; return `<div class="table" style="grid-template-columns:repeat(${cols},82px)">${F.signs.map(s => `<div class="t${lit.includes(s.n) ? ' lit' : ''}" style="grid-column:${s.col + 1};grid-row:${s.row + 1};background:${DOMC[s.dom]};animation-delay:${s.col * .12 + s.row * .05}s">${esc(s.symbol)}<small>${esc(s.name)}</small></div>`).join('')}</div>`; };
-  B('The reading', 12, () => `${table()}${say(['Gilles Deleuze wrote two books describing cinema as a field of signs.', 'David Deamer arranged them into a table: 45 signs.'], 'small')}`);
+  B('The families', 9, () => `${table()}${say(['Deleuze: cinema as signs.', 'Deamer: a table of <b>45</b>.'], 'small')}`);
+  (F.families || []).forEach(fm => { const col = DOMC[fm.dom], hero = (fm.signs.find(x => x.shots.length) || {}).shots?.[0], tiles = fm.signs.flatMap(sg => sg.shots.slice(0, fm.signs.length > 3 ? 1 : 3).map(sh => ({ sg, sh }))).slice(0, 9);
+    B('The families', fm.signs.length > 3 ? 11 : 8, () => `<div style="position:absolute;inset:0;background:radial-gradient(ellipse at 20% 30%, ${col}33, #000 70%)"></div>
+      ${hero ? vid(hero, '', true).replace('<video', `<video style="position:absolute;left:60px;top:70px;width:760px;height:570px;object-fit:cover;border:3px solid ${col}"`) : ''}
+      <div style="position:absolute;left:60px;top:660px;font:600 64px var(--serif);color:${col}" class="fadein">${esc(fm.name)}</div>
+      <div style="position:absolute;left:62px;top:745px;display:flex;gap:6px" class="fadein">${fm.signs.map(sg => chip(sg.n, 'font-size:26px')).join('')}</div>
+      <div style="position:absolute;left:860px;top:70px;right:60px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px">${tiles.map(({ sg, sh }, i) => `<figure style="margin:0;position:relative;opacity:0;animation:up .8s ease forwards ${.4 + i * .35}s"><img src="${esc(sh.thumb)}" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block;border:1px solid ${col}66" class="ken"><span style="position:absolute;left:6px;top:6px">${chip(sg.n, 'font-size:18px')}</span></figure>`).join('')}</div>`, el => startVideos(el)); });
   const qs = ['1', '4', '9', '14', '32', '42'];
-  B('The reading', 13, () => `${table()}<div class="panel" id="qp" style="left:80px;right:80px;bottom:60px;font:38px/1.3 var(--serif)"></div>`,
+  B('The families', 13, () => `${table()}<div class="panel" id="qp" style="left:80px;right:80px;bottom:60px;font:38px/1.3 var(--serif)"></div>`,
     el => { const p = $('#qp', el); qs.forEach((n, i) => later(i * 2000, () => { el.querySelectorAll('.t').forEach(t => t.classList.remove('lit')); const t = [...el.querySelectorAll('.t')][F.signs.findIndex(s => s.n === n)]; if (t) t.classList.add('lit'); p.innerHTML = `${chip(n, 'font-size:34px')} <span style="color:var(--dim);font-size:28px">${esc(S[n].name)} asks</span> <b style="color:var(--gold)">${esc(S[n].question)}</b>`; })); });
   B('The reading', 11, () => `<div class="qbig" style="top:140px">${chip(String(rd.n))}<h2>${esc(dm.question)}</h2><p><span style="color:var(--dim)">It is ${esc(dm.name)} if</span> ${esc(dm.difference)}</p></div>`);
   B('The reading', 9, () => `${vid(seed, 'full')}${say(['Ask it of the field.', 'The pattern: a flock. <b>The break: one dark sheep.</b>'], 'small')}`, el => startVideos(el));
@@ -325,7 +331,7 @@ addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); paus
 $('#bPlay').onclick = () => pause(!paused); $('#bNext').onclick = () => show(cur + 1); $('#bPrev').onclick = () => show(cur - 1);
 $('#bSnd').onclick = () => { sound = !sound; $('#bSnd').textContent = sound ? '♪ on' : '♪ off'; duck(false); stage.querySelectorAll('video').forEach(v => { if (!sound) v.muted = true; }); };
 (async function () {
-  fit(); F = await fetch('explain/film.json?v=1').then(r => r.json()); S = Object.fromEntries(F.signs.map(s => [s.n, s]));
+  fit(); F = await fetch('explain/film.json?v=2').then(r => r.json()); S = Object.fromEntries(F.signs.map(s => [s.n, s]));
   build();
   beats.forEach(b => { let c = chapters.find(c => c.name === b.ch); if (!c) chapters.push(c = { name: b.ch, secs: 0 }); c.secs += b.secs; });
   $('#chs').innerHTML = chapters.map(c => `<div style="--w:${c.secs}"><i></i><span>${esc(c.name)}</span></div>`).join('');
