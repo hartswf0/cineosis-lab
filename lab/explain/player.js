@@ -13,7 +13,7 @@
   const later = (ms, f) => { const my = tok; setTimeout(() => { if (my === tok) f(); }, ms); };
   const raf = f => { const my = tok, t = performance.now(); const go = () => { if (my !== tok) return; if (f((performance.now() - t) / 1000) !== false) requestAnimationFrame(go); }; go(); };
   const line = (ls, sm = '', gap = 2.2) => `<div class="line">${ls.map((l, i) => `<span style="animation-delay:${.4 + i * gap}s">${l}</span>`).join('')}${sm ? `<small style="animation-delay:${.6 + ls.length * gap}s">${sm}</small>` : ''}</div>`;
-  function startVideos(el) { el.querySelectorAll('video[data-src]').forEach(v => { v.src = v.dataset.src; v.addEventListener('loadedmetadata', () => { try { v.currentTime = +v.dataset.t || 0; } catch (e) { } if (v.dataset.snd && sound) { v.muted = false; v.volume = 1; } v.play().catch(() => { v.muted = true; v.play().catch(() => { }); }); }, { once: true }); }); }
+  function startVideos(el) { el.querySelectorAll('video[data-src]').forEach(v => { v.src = v.dataset.src; if (v.dataset.end) v.addEventListener('timeupdate', () => { if (v.currentTime > +v.dataset.end) v.currentTime = +v.dataset.t; }); v.addEventListener('loadedmetadata', () => { try { v.currentTime = +v.dataset.t || 0; } catch (e) { } if (v.dataset.snd && sound) { v.muted = false; v.volume = 1; } v.play().catch(() => { v.muted = true; v.play().catch(() => { }); }); }, { once: true }); }); }
   function typeIn(el, text, cps = 26) { const my = tok; let i = 0; const step = () => { if (my !== tok || !el) return; el.textContent = text.slice(0, ++i); if (i < text.length) setTimeout(step, 1000 / cps); }; step(); }
   /* a scene of one of our films: its audio from a to b, its pictures switched by the scene's own cut list, subtitles from its lines */
   function scene(el, sc, a, b, subs) {
@@ -32,7 +32,7 @@
     const v0 = score.volume, t = performance.now(); const out = () => { const k = Math.min(1, (performance.now() - t) / 900); score.volume = v0 * (1 - k); if (k < 1) requestAnimationFrame(out); else { score.src = src; score.currentTime = 0; duck(false); if (!paused) score.play().catch(() => { }); } }; out(); }
   function show(i) {
     if (i < 0 || i >= beats.length) return; clearTimeout(timer); tok++; cur = i; const b = beats[i]; voice.pause();
-    stage.querySelectorAll('.beat').forEach(o => { o.classList.remove('on'); o.querySelectorAll('video').forEach(v => { v.pause(); v.muted = true; }); setTimeout(() => o.remove(), 1000); });
+    stage.querySelectorAll('.beat').forEach(o => { o.classList.remove('on'); o.querySelectorAll('video').forEach(v => { v.pause(); v.muted = true; }); setTimeout(() => { o.querySelectorAll('video').forEach(v => { v.removeAttribute('src'); v.load(); }); o.remove(); }, 1000); });
     const el = document.createElement('div'); el.className = 'beat'; el.innerHTML = b.html(); stage.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
     duck(false); if (b.after) b.after(el); cue(chapters.findIndex(c => c.name === b.ch));
     left = b.secs * 1000; t0 = performance.now(); if (!paused) timer = setTimeout(() => show(i + 1), left); ui();

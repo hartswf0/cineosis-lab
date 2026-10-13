@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where You Go When You Leave · Episode 5</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="explain/film.css?v=1"><link rel="stylesheet" href="explain/episode.css?v=2">
+<!-- CINEOSIS · EPISODE 5 · WHERE YOU GO WHEN YOU LEAVE. A poem suite by Mark Anthony Thomas, cut from the public archive four ways.
+     Watched, not read: the episode runs on the suite's own sound and its four takes, and answers the questions a viewer would ask,
+     each with pictures. In WYGWYL's own colours (wygwyl.html). Data: explain/ep5.py → explain/ep/ep5.json. -->
+<style>
+:root { --bg: #0b0a09; --ink: #ece6da; --red: #e0483a; --lime: #c4f46a; }
+body, #stage { background: var(--bg); }
+.ask { position: absolute; left: 70px; top: 52px; font: 600 20px var(--mono); color: var(--red); letter-spacing: .04em; opacity: 0; animation: up .8s ease forwards; z-index: 3; text-shadow: 0 1px 8px #000; }
+.ask::before { content: '— '; }
+.poemsub { position: absolute; left: 140px; right: 140px; bottom: 54px; text-align: center; font: italic 30px/1.35 var(--serif); color: var(--ink); text-shadow: 0 2px 12px #000, 0 0 3px #000; }
+.ttl { position: absolute; left: 70px; bottom: 70px; opacity: 0; animation: up 1.4s ease forwards 1s; } .ttl b { display: block; font: italic 400 72px/1 var(--serif); color: var(--lime); } .ttl span { font: 18px var(--mono); color: var(--ink); letter-spacing: .08em; }
+.parts { position: absolute; left: 50px; right: 50px; top: 120px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+.parts figure { margin: 0; opacity: 0; animation: up .7s ease forwards; } .parts video { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; background: #111; } .parts figcaption { font: 12px var(--mono); color: var(--dim); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .parts figcaption b { color: var(--lime); font-weight: 600; margin-right: 6px; }
+.quad figcaption b { color: var(--lime); }
+.lanes { position: absolute; left: 150px; right: 50px; top: 110px; display: flex; flex-direction: column; gap: 14px; }
+.lane { position: relative; height: 92px; display: flex; gap: 1px; } .lane i { flex: none; height: 100%; background-size: cover; background-position: center; opacity: 0; animation: fade .3s ease forwards; }
+.lane i.agree { outline: 2px solid var(--lime); outline-offset: -2px; z-index: 1; }
+.lanelab { position: absolute; left: -120px; top: 34px; font: 600 15px var(--mono); color: var(--lime); letter-spacing: .1em; text-transform: uppercase; }
+.lanerule { position: absolute; left: 0; right: 0; top: 30px; text-align: center; font: 22px var(--serif); color: var(--ink); background: rgba(11,10,9,.82); padding: 4px; opacity: 0; transition: opacity 1s; }
+.playhead { position: absolute; top: 96px; bottom: 270px; width: 2px; background: var(--red); box-shadow: 0 0 10px var(--red); z-index: 2; }
+.gapbox { position: absolute; left: 70px; right: 70px; bottom: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.gapbox div { background: rgba(11,10,9,.86); padding: 14px 18px; opacity: 0; animation: up .9s ease forwards; } .gapbox small { display: block; font: 600 14px var(--mono); letter-spacing: .12em; margin-bottom: 6px; } .gapbox p { margin: 0; font: 24px/1.35 var(--serif); }
+.two { position: absolute; inset: 40px 50px 160px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .two figure { margin: 0; position: relative; } .two video { width: 100%; height: 100%; object-fit: cover; display: block; background: #111; } .two figcaption { position: absolute; left: 10px; top: 8px; font: 600 15px var(--mono); color: var(--lime); letter-spacing: .12em; text-transform: uppercase; text-shadow: 0 1px 6px #000; }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage"></div></div>
+<div id="bar"><button id="bPrev" title="previous (←)">‹</button><button id="bPlay" title="play / pause (space)">❚❚</button><button id="bNext" title="next (→)">›</button><div id="chs"></div><span id="time"></span><button id="bSnd" title="sound">♪ on</button></div>
+<div id="start"><div><p style="font:600 16px var(--mono);letter-spacing:.2em;color:#b3ab9e;margin:0 0 14px">CINEOSIS · EPISODE 5</p><h1 style="font-style:italic;font-weight:400;color:#c4f46a">Where You Go When You Leave</h1><p>A poem by Mark Anthony Thomas, cut from the public archive four ways. About seven minutes, with sound.</p><b style="background:#c4f46a">▶ Watch</b></div></div>
+<audio id="score" preload="auto"></audio><audio id="voice" preload="auto"></audio>
+<script>
+window.EPISODE = {
+  data: ['explain/ep/ep5.json?v=1'],
+  cues: [],
+  build([W], B, K) {
+    const { esc, fmt, line, later, raf, typeIn, startVideos } = K, $ = K.$, NAMES = ['suite', 'scenes', 'cineosis', 'drift'];
+    const RULE = { suite: 'what the treatment asks for each beat', scenes: 'each line from one film, in that film\'s own order', cineosis: 'the signs each beat is meant to carry', drift: 'each shot follows the one before' };
+    const ask = q => `<div class="ask">${q}</div>`;
+    const lineAt = t => { const c = W.poem.filter(p => p.text).find(p => t >= p.t && t < p.t + p.d); return c ? c.text : ''; };
+    const film = (take, t, sound, cls = 'full', style = '') => `<video class="${cls}" style="${style}" data-src="${esc(W.films[take])}" data-t="${t}" ${sound ? 'data-snd="1"' : 'muted'} playsinline></video>`;
+    const subs = el => { const v = el.querySelector('video[data-snd]') || el.querySelector('video'), s = el.querySelector('.poemsub'); if (!s || !v) return; raf(() => { const tx = lineAt(v.currentTime); if (s.dataset.tx !== tx) { s.dataset.tx = tx; s.textContent = tx; } }); };
+    const P = W.takes, patch = i => NAMES.map(n => P[n][i]);
+    /* 1 · the poem, first */
+    B('The poem', 25, () => `${film('suite', 29.6, true)}<div class="poemsub"></div>`, el => { startVideos(el); subs(el); });
+    B('The poem', 10, () => `${film('suite', 54.6, true)}<div class="poemsub"></div><div class="ttl"><b>Where You Go When You Leave</b><span>a poem by Mark Anthony Thomas</span></div>`, el => { startVideos(el); subs(el); });
+    /* 2 · what am I watching */
+    B('What am I watching?', 13, () => `${ask('What am I watching?')}<div class="parts">${W.parts.map((p, i) => `<figure style="animation-delay:${i * .15}s">${film('suite', p.t + 8, false, '', '')}<figcaption><b>${p.n}</b>${esc(p.title)}</figcaption></figure>`).join('')}</div>
+        ${line([`A poem suite in ${W.parts.length} parts, twenty-four minutes long.`, 'Every picture is a shot from the public archive. None was filmed for the poem.'])}`, el => startVideos(el));
+    /* 3 · how did a poem find its pictures */
+    const S = W.search;
+    B('Where do the pictures come from?', 14, () => `${ask('Where do the pictures come from?')}<div style="--c:var(--lime)"><div class="big2" style="top:100px;font:400 30px var(--serif);color:var(--ink)">The treatment, beat 1: <i style="color:var(--lime)">${esc(S.beat)}</i></div><div class="sbar" style="top:170px"><i></i><span id="q"></span></div>
+        <div class="sheet" style="top:270px">${S.hits.map((h, i) => `<figure style="animation-delay:${3 + i * .2}s"><img src="${esc(h.thumb)}"><figcaption>${esc(h.title)} ${esc(h.year || '')}</figcaption></figure>`).join('')}</div></div>`, el => later(1200, () => typeIn($('#q', el), S.q)));
+    B('Where do the pictures come from?', 8, () => line([`Each of the poem's ${W.beats.length} beats was asked for in words like these.`, `${fmt(W.scope.searches)} searches; ${fmt(W.scope.retrievedClips)} shots came back to choose from.`]).replace('class="line"', 'class="line" style="bottom:auto;top:360px"'));
+    /* 4 · why four films */
+    [20, 61].forEach((i, k) => B('Why four films?', k ? 12 : 17, () => { const ps = patch(i); return `${k ? '' : ask('Why is the same poem four different films?')}<div class="quad" style="inset:${k ? 40 : 90}px 50px 150px">${NAMES.map((n, j) => `<figure>${film(n, ps[j][0] + .3, n === 'suite', '', 'width:100%;height:100%;object-fit:cover').replace('<video', `<video data-end="${ps[j][1] - .2}"`)}<figcaption><b>${n}</b> · ${esc(ps[j][3])}<em>${RULE[n]}</em></figcaption></figure>`).join('')}</div><div class="poemsub" style="bottom:40px;font-size:24px"></div>`; },
+      el => { startVideos(el); subs(el); }));
+    B('Why four films?', 7, () => line(['Same line, same sound, same moment.', 'Four rules for choosing the picture.']).replace('class="line"', 'class="line" style="bottom:auto;top:380px"'));
+    /* 5 · the map of every shot */
+    const lanes = rule => `<div class="lanes">${NAMES.map((n, j) => `<div class="lane" data-n="${n}"><span class="lanelab">${n}</span>${P[n].map((p, i) => `<i class="${W.agree.includes(i) ? 'agree' : ''}" style="width:${(p[1] - p[0]) / W.dur * 1400}px;background-image:url('${esc(p[2])}');animation-delay:${j * .5 + i * .006}s"></i>`).join('')}${rule ? `<div class="lanerule" style="transition-delay:${j * .8}s">${RULE[n]}</div>` : ''}</div>`).join('')}</div>`;
+    B('How different are they?', 15, () => `${ask('How different are they, really?')}${lanes(false)}<div class="playhead" id="ph" style="left:150px"></div>
+        ${line([`Every shot of all four takes, along the poem's twenty-four minutes.`, `Any two share at most ${Math.max(...Object.values(W.shared))} of their ${P.suite.length}. All four agree only ${W.agree.length} times.`], 'the lime frames: the few moments all four chose the same')}`,
+      el => raf(t => { $('#ph', el).style.left = (150 + Math.min(1, t / 14) * 1400) + 'px'; return t < 14; }));
+    B('How different are they?', 13, () => `${ask('Why so different?')}${lanes(true)}${line(['A different question for each take,', 'and a rule against reusing what an earlier take already used.'])}`, el => later(300, () => el.querySelectorAll('.lanerule').forEach(r => r.style.opacity = 1)));
+    /* 6 · which one is right */
+    B('Which one is right?', 17, () => { const ps = patch(120); return `${ask('Which one is right?')}<div class="two" style="top:100px">${[['suite', 0], ['drift', 3]].map(([n, j]) => `<figure>${film(n, ps[j][0] + .3, n === 'suite', '', 'width:100%;height:100%;object-fit:cover')}<figcaption>${n}</figcaption></figure>`).join('')}</div>
+        ${line(['None of them. Each rule makes a different film.', 'You choose by watching.'])}`; }, el => startVideos(el));
+    /* 7 · what the archive could not give */
+    W.beats.filter(b => [1, 4, 5].includes(b.id)).forEach((b, k) => B('What the archive could not give', 10, () => `${k ? '' : ask('What could the archive not give?')}${film('suite', b.t0 + .5, true)}
+        <div class="gapbox"><div style="animation-delay:.6s;border-left:4px solid var(--lime)"><small style="color:var(--lime)">THE TREATMENT ASKED FOR</small><p>${esc(b.title)}</p></div><div style="animation-delay:2.4s;border-left:4px solid var(--red)"><small style="color:var(--red)">THE ARCHIVE COULD NOT GIVE</small><p>${esc(b.gap)}</p></div></div>`, el => startVideos(el)));
+    B('What the archive could not give', 8, () => line(['The poet is never in the picture.', 'Strangers from old films stand in for him, every time.']).replace('class="line"', 'class="line" style="bottom:auto;top:380px"'));
+    /* 8 · next */
+    B('What next', 14, () => `${film('cineosis', 600, true)}<div class="fog"></div>${line(['The cineosis take chose by sign.', 'Next: what happens if signs are atoms and cuts are bonds?'])}`, el => startVideos(el));
+    B('What next', 40, () => `<div class="next"><small>WATCH ALL FOUR TAKES · OR CUT YOUR OWN</small><h1 style="color:var(--lime);font-style:italic;font-weight:400">Where You Go When You Leave</h1>
+        <nav><a href="wygwyl.html" style="background:var(--lime)">The four takes</a><a class="ghost" href="videotext.html" style="color:var(--lime);border-color:var(--lime)">Videotext: cut your own</a><a class="ghost" href="series.html" style="color:var(--lime);border-color:var(--lime)">All episodes</a></nav></div>`);
+  }
+};
+</script>
+<script src="explain/player.js?v=4"></script>
+</body>
+</html>
