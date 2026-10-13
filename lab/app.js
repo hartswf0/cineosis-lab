@@ -692,18 +692,18 @@ const IMG = {
 
 /* ================================================================ MAP */
 const MapMode = {
-  host: null, cv: null, g: null, P: [], cam: { x: .5, y: .5, z: 600 }, kind: null, hover: null, dirty: true,
+  host: null, cv: null, g: null, P: [], cam: { x: .5, y: .5, z: 600 }, kind: null, hover: null, dirty: true, live: [],
   mount(host) {
     if (this.cv) return;
     this.host = host;
     host.innerHTML = `<canvas class="mapcv"></canvas>
       <div class="hud hud-tl"><div class="hud-title" id="mapTitle"></div><div class="seg" id="mapKind">
-        <button data-v="xy">similarity</button><button data-v="hue">hue × decade</button><button data-v="sign">sign × decade</button></div>
+        <button data-v="xy">picture</button><button data-v="sound">sound</button><button data-v="hue">colour × decade</button><button data-v="sign">sign × decade</button></div>
         <div class="hud-note" id="mapNote"></div></div>
       <div class="hud hud-br"><button class="ghost" data-z="in">+</button><button class="ghost" data-z="out">−</button><button class="ghost" data-z="fit">fit</button></div>`;
     this.cv = $('canvas', host); this.g = this.cv.getContext('2d');
     IMG.onload = rafThrottle(() => { if (Shell.mode === 'map') this.draw(); });
-    $('#mapKind', host).addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; this.kind = b.dataset.v; this.build(); this.fit(); });
+    $('#mapKind', host).addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; this.morph(b.dataset.v); });
     $('.hud-br', host).addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return; const z = b.dataset.z;
       if (z === 'fit') this.fit(); else this.zoomAt(this.W / 2, this.H / 2, z === 'in' ? 1.6 : 1 / 1.6);
@@ -767,7 +767,13 @@ const MapMode = {
     const P = [], shots = L.shots;
     this.axes = null;
     const decs = [1900, 1910, 1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020, -1];
-    if (this.kind === 'xy') {
+    if (this.kind === 'sound' && SND.d && SND.d.xy) {   // laid out by what each shot sounds like (UMAP of CLAP); the unheard wait in a band below
+      const XY = SND.d.xy, heard = shots.filter(s => XY[s.id]), mute = shots.filter(s => !XY[s.id]);
+      const w = 1.05 / Math.sqrt(Math.max(1, heard.length));
+      for (const s of heard) P.push({ s, x: XY[s.id][0], y: XY[s.id][1], w });
+      if (mute.length) { const band = []; packCell(mute, 0, 1.08, 1, 0.1, band); P.push(...band); this.axes = { strip: { y: 1.07, label: `${mute.length} with no sound or not yet heard` } }; }
+      this.bounds = [0, 0, 1, mute.length ? 1.2 : 1];
+    } else if (this.kind === 'xy') {
       const withXY = shots.filter(s => s.xy), without = shots.filter(s => !s.xy);
       const w = 1.05 / Math.sqrt(Math.max(1, withXY.length));
       for (const s of withXY) P.push({ s, x: s.xy[0], y: s.xy[1], w });
@@ -795,6 +801,33 @@ const MapMode = {
     if (lv.length) { const band = []; packCell(lv, this.bounds[0], this.bounds[1] - 0.14, this.bounds[2] - this.bounds[0], 0.11, band); this.P.push(...band); }
     this.liveRow = lv.length ? this.bounds[1] - 0.15 : null;
   },
+  async morph(kind, ms = 1700) {
+    if (kind === 'sound') await SND.load();
+    const old = new Map(this.P.map(p => [p.s, p])), c0 = { ...this.cam };
+    this.kind = kind; this.build(); this.fit(); const c1 = { ...this.cam };
+    const from = this.P.map(p => old.get(p.s) || { x: p.x, y: p.y + .3, w: p.w }), to = this.P.map(p => ({ x: p.x, y: p.y, w: p.w }));
+    const t0 = performance.now();
+    await new Promise(r => { const step = () => { const k = Math.min(1, (performance.now() - t0) / ms), e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+      this.P.forEach((p, i) => { p.x = from[i].x + (to[i].x - from[i].x) * e; p.y = from[i].y + (to[i].y - from[i].y) * e; p.w = from[i].w + (to[i].w - from[i].w) * e; });
+      this.cam.x = c0.x + (c1.x - c0.x) * e; this.cam.y = c0.y + (c1.y - c0.y) * e; this.cam.z = c0.z * Math.pow(c1.z / c0.z, e); this.draw();
+      if (k < 1) requestAnimationFrame(step); else r(); }; step(); });
+    $$('#mapKind button', this.host).forEach(b => b.classList.toggle('on', b.dataset.v === kind));
+  },
+  /* 3. shots play where they sit: a video over each chosen tile, following the camera */
+  playIn(list, opt = {}) {
+    this.stopIn(); this.live = list.map(o => { const p = this.P.find(q => q.s.id === o.id); if (!p) return null;
+      const box = el('div', 'mapplay' + (o.cls ? ' ' + o.cls : '')); const v = document.createElement('video'); v.src = o.video || p.s.video; v.muted = !o.sound; v.loop = true; v.playsInline = true;
+      v.addEventListener('loadedmetadata', () => { try { v.currentTime = o.t ?? readT(p.s); } catch (e) { } v.play().catch(() => { v.muted = true; v.play().catch(() => { }); }); }, { once: true });
+      box.appendChild(v); if (o.label) box.insertAdjacentHTML('beforeend', `<span class="mp-l">${o.label}</span>`); this.host.appendChild(box); return { p, box, v, o }; }).filter(Boolean);
+    this.placeIn(); return this.live;
+  },
+  placeIn() {
+    if (!this.live || !this.live.length) return; const c = this.cam, W2 = this.W / 2, H2 = this.H / 2, R = this.cv.getBoundingClientRect(), Hr = this.host.getBoundingClientRect();
+    for (const L1 of this.live) { const p = L1.p, w = L1.o.px || Math.max(40, p.w * c.z * (L1.o.grow || 1)), h = w * .75, sx = (p.x - c.x) * c.z + W2 + R.left - Hr.left, sy = (p.y - c.y) * c.z + H2 + R.top - Hr.top;
+      Object.assign(L1.box.style, { left: (sx - w / 2) + 'px', top: (sy - h / 2) + 'px', width: w + 'px', height: h + 'px' }); }
+  },
+  stopIn() { (this.live || []).forEach(L1 => { L1.v.pause(); L1.box.remove(); }); this.live = []; },
+  hide() { this.stopIn(); },
   fit() {
     const [x0, y0, x1, y1] = this.bounds, top = this.liveRow != null ? this.liveRow : y0;
     const cells = this.axes && this.axes.cols, small = this.W < 640;
@@ -820,6 +853,7 @@ const MapMode = {
   },
   draw() {
     if (!this.g || Shell.mode !== 'map') return;
+    if (this.live && this.live.length) requestAnimationFrame(() => this.placeIn());
     const g = this.g, c = this.cam, W = this.W, H = this.H, W2 = W / 2, H2 = H / 2;
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
@@ -1410,6 +1444,7 @@ function readingBar(n, e) {
 }
 
 /* ================================================================ INSPECTOR */
+const SND = { d: null, p: null, load(after) { if (this.d) { after && after(); return this.p; } if (!this.p) this.p = fetch('sound-layer.json').then(r => r.ok ? r.json() : {}).catch(() => ({})).then(d => { this.d = d || {}; }); return this.p.then(() => after && after()); } };
 const CAPS = { map: null, p: null, load(after) { if (this.map || this.p) return; this.p = fetch('rushes/captions.json').then(r => r.ok ? r.json() : {}).then(m => { this.map = m; after && after(); }).catch(() => { this.map = {}; }); } };
 const Inspector = {
   root: null, s: null, list: [], A: null, B: null, loopAB: false, speed: 1, showCuts: false,
@@ -1600,7 +1635,7 @@ const Inspector = {
     $$('[data-a="loop"]', R).forEach(b => b.classList.toggle('on', this.loopAB));
   },
   side() {
-    const s = this.s, R = this.root; CAPS.load(() => { if (this.s === s) this.side(); });
+    const s = this.s, R = this.root; CAPS.load(() => { if (this.s === s) this.side(); }); if (!SND.d) SND.load(() => { if (this.s === s) this.side(); });
     const pend = t => `<span class="pending">${t}</span>`;
     const pal = s.palette ? `<div class="pal">${s.palette.map(c => `<i style="background:${esc(c)}" title="${esc(c)}"></i>`).join('')}</div>` : pend('palette pending');
     const subj = s.subjects && s.subjects.length ? s.subjects.map(x => `<div class="sbar"><span>${esc(x.label)}</span><i><b style="width:${Math.round((x.p || 0) * 100)}%"></b></i><em>${Math.round((x.p || 0) * 100)}%</em></div>`).join('') : pend('subjects pending');
@@ -1615,26 +1650,27 @@ const Inspector = {
     const found = (s.found || []).slice(0, 12).map(f => `<div class="fd">${chip(String(f.n), 'sm')}<span>“${esc(f.q)}”</span><em>#${f.rank + 1}</em></div>`).join('');
     const mine = L.assignments.filter(a => a.id === s.id).map(a => `<div class="fd">${chip(String(a.n), 'sm')}<span>${esc(a.note || '')}</span><em>${a.a != null ? (+a.a).toFixed(1) : '—'}–${a.b != null ? (+a.b).toFixed(1) : '—'}s</em></div>`).join('');
     const seg = this.segs(), cuts = !seg && s.cutouts && s.cutouts.length;
-    const seen = CAPS.map && CAPS.map[s.id] ? `<div class="sd-block sees"><h4>what the image model sees <small>BLIP, from one frame</small></h4><p class="sees-t">${esc(CAPS.map[s.id])}</p></div>` : '';
+    /* how the shot came to be here, in the order it happened: searched, seen, heard, said, read; then what the machines propose */
+    const step = (n, t, body, cls = '') => body ? `<div class="sd-block step ${cls}"><h4><i>${n}</i>${t}</h4>${body}</div>` : '';
+    const cap = CAPS.map && CAPS.map[s.id], snd = SND.d || {}, hd = (snd.heard || {})[s.id], sd = (snd.said || {})[s.id];
+    const searched = (s.found || []).slice(0, 3).map(f => `<div class="q-row">${chip(String(f.n), 'sm')}<b>“${esc(f.q)}”</b><em>#${f.rank + 1}</em></div>`).join('');
+    const seenB = `${cap ? `<p class="big-t">${esc(cap)}</p>` : ''}${s.subjects && s.subjects.length ? `<div class="bars">${s.subjects.slice(0, 3).map(x => `<div class="bar2"><span>${esc(x.label)}</span><i><b style="width:${Math.round((x.p || 0) * 100)}%"></b></i><em>${Math.round((x.p || 0) * 100)}</em></div>`).join('')}</div>` : ''}`;
+    const heardB = `${hd ? `<div class="tags">${hd.map(([t, z]) => `<span class="tag" style="--a:${Math.min(1, .35 + z / 4)}">${esc(t)}</span>`).join('')}</div>` : ''}${s.audio ? `<div class="mini">${esc(s.audio.kind || '')}${s.audio.rms_db != null && s.audio.rms_db > -100 ? ` · ${s.audio.rms_db.toFixed(0)} dB` : ''}${s.audio.silence != null ? ` · ${Math.round((s.audio.silence || 0) * 100)}% silence` : ''}</div>` : ''}`;
     R.querySelector('#insLeft').innerHTML = `
-      ${seen}
-      <div class="sd-block"><h4>editor’s reading</h4>${reads || pend(s._live ? 'live result — not read yet; assign it below' : 'not read — surfaced by search only')}</div>
-      ${found ? `<div class="sd-block"><h4>found by these searches</h4>${found}</div>` : ''}
-      <div class="sd-block"><h4>subjects <small>CLIP zero-shot</small></h4>${subj}</div>
-      <div class="sd-block"><h4>audio</h4><div class="au">${au}</div></div>
-      <div class="sd-block"><h4>shot</h4><a class="arch" href="${esc(s.page)}" target="_blank" rel="noopener">open in the archive ↗</a>
-        <div class="kv"><span>year</span><b>${s.year ?? '—'}</b><span>source</span><b>${tc(s.start || 0)} → ${tc(s.end || 0)}</b><span>length</span><b>${s._dur.toFixed(2)} s</b>
-        ${s.read_t != null ? `<span>read</span><b>${tc((s.start || 0) + s.read_t)}</b>` : ''}
-        <span>matched</span><b>${tc(s.match || 0)}</b><span>colour</span><b>${s.bw ? 'black &amp; white' : 'colour'}</b><span>scale</span><b>${s.scale ? esc(s.scale) : '<span class="pending">pending</span>'}</b>
-        ${s.hue != null ? `<span>hue</span><b>${Math.round(s.hue)}° ${hbLabel(s._hb)} · lum ${(s.lum ?? 0).toFixed(2)} · sat ${(s.sat ?? 0).toFixed(2)}</b>` : ''}
-        ${s.sim != null ? `<span>sim</span><b>#${s.sim}</b>` : ''}</div>${pal}</div>
-      ${mine ? `<div class="sd-block"><h4>your sub-shots <small>${L.server ? 'saved to assignments.json' : 'saved in this browser'}</small></h4>${mine}<div class="cutbtns" style="margin-top:10px"><button class="ghost" id="insExport">export assignments.json</button></div></div>` : ''}`;
+      ${step(1, 'searched <small>the words that found it</small>', searched || (s._live ? '<p class="mini">found live, by your description</p>' : ''), 's1')}
+      ${step(2, 'seen <small>BLIP caption · CLIP subjects</small>', seenB, 's2')}
+      ${step(3, 'heard <small>CLAP</small>', heardB, 's3')}
+      ${step(4, 'said', sd ? `<p class="big-t said">“${esc(sd)}”</p>` : '', 's4')}
+      ${step(5, 'read <small>by an editor</small>', reads || pend(s._live ? 'live result — not read yet; assign it below' : 'not read yet'), 's5')}
+      ${mine ? `<div class="sd-block"><h4>your sub-shots</h4>${mine}<div class="cutbtns" style="margin-top:8px"><button class="ghost" id="insExport">export assignments.json</button></div></div>` : ''}`;
     R.querySelector('#insSide').innerHTML = `
       ${wygBlock(s)}
+      <div class="sd-block step s6"><h4><i>6</i>suggested <small>CLIP against the 44 signs</small></h4></div>
       ${affinityBlock(s)}
-      ${seg ? this.segBlock(seg) : (s._read.length ? `<div class="sd-block"><h4>segments over time</h4>${pend('SAM 2 tracking for this shot is still running — press ↻ later')}</div>` : '')}
+      ${seg ? this.segBlock(seg).replace('<div class="sd-block"><h4>segments over time <small>SAM 2', '<div class="sd-block step s7"><h4><i>7</i>cut out <small>SAM 2') : ''}
       ${cuts ? `<div class="sd-block"><h4>single-frame cut-outs · ${s.cutouts.length}</h4><div class="cutbtns"><button class="ghost" id="insCutT">${this.showCuts ? 'hide' : 'show'} on frame (C)</button><button class="ghost" id="insCutSend">send to table</button></div>
-        <div class="cutthumbs">${s.cutouts.map(c => `<span><img src="${esc(c.png)}" alt=""><em>${esc(c.label)}</em></span>`).join('')}</div></div>` : ''}`;
+        <div class="cutthumbs">${s.cutouts.map(c => `<span><img src="${esc(c.png)}" alt=""><em>${esc(c.label)}</em></span>`).join('')}</div></div>` : ''}
+      <div class="sd-block facts"><div class="fact-row"><span><em>year</em>${s.year ?? '—'}</span><span><em>length</em>${s._dur.toFixed(1)}s</span><span><em>scale</em>${s.scale ? esc(s.scale) : '—'}</span><span><em>colour</em>${s.bw ? 'b&amp;w' : 'colour'}</span><a class="arch" href="${esc(s.page)}" target="_blank" rel="noopener">archive ↗</a></div>${pal}</div>`;
     const ex = $('#insExport', R); if (ex) ex.onclick = exportAssignments;
     const ct = $('#insCutT', R); if (ct) ct.onclick = () => this.toggleCuts();
     const cs = $('#insCutSend', R); if (cs) cs.onclick = () => { Cuts.send(s); toast(`${s.cutouts.length} cut-out${s.cutouts.length > 1 ? 's' : ''} sent to the table`); };

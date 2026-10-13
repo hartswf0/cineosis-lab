@@ -93,16 +93,15 @@
     const s = shotOf(seed.id); if (!s) return;
     Inspector.open(s, VIEW.length ? VIEW : [s]); say("OPEN IT"); await sleep(1800, run);
     const v = document.getElementById("insVid"); if (v) { v.muted = false; v.volume = .9; v.play().catch(() => { v.muted = true; v.play(); }); }
-    const blocks = [...document.querySelectorAll("#insLeft .sd-block, #insSide .sd-block")];
-    const pick = (h, label) => { const b = blocks.find(x => (x.querySelector("h4") || {}).textContent?.toLowerCase().startsWith(h)); return b ? [b, label] : null; };
-    const tour = [pick("what the image model sees", "WHAT THE IMAGE MODEL SEES IN ONE FRAME"), pick("editor", "WHAT A PERSON READ IN IT"), pick("found by", "THE SEARCHES THAT FOUND IT"),
-      pick("subjects", "WHAT CLIP THINKS IS IN IT"), pick("audio", "WHAT ITS SOUND IS"), pick("the 45 signs", "WHERE IT SITS ON THE TABLE OF SIGNS"),
-      pick("machine suggestions", "WHAT THE MACHINE WOULD CALL IT"), pick("segments", "WHAT SAM CUT OUT OF IT, FRAME BY FRAME")].filter(Boolean);
+    const NAMES = { s1: "1 · SEARCHED · THE WORDS THAT FOUND IT", s2: "2 · SEEN · WHAT THE IMAGE MODELS SEE", s3: "3 · HEARD · WHAT THE SOUND MODEL HEARS", s4: "4 · SAID · WHAT ITS PEOPLE SAY",
+      s5: "5 · READ · WHAT AN EDITOR SAW IN IT", s6: "6 · SUGGESTED · WHAT CLIP WOULD CALL IT", s7: "7 · CUT OUT · WHAT SAM LIFTED, FRAME BY FRAME" };
     level(.18);
-    for (const [b, label] of tour) {
-      if (run !== RUN) return; await moveTo(b, run, 700); light(b, label);
-      if (label.startsWith("WHAT SAM")) { try { if (!Inspector.showSegs) Inspector.toggleSegs(); } catch (e) { } }
-      await sleep(label.startsWith("WHAT A PERSON") || label.startsWith("WHAT SAM") ? 3600 : 2600, run);
+    for (const k of ["s1", "s2", "s3", "s4", "s5", "s6", "s7"]) {
+      if (run !== RUN) return; let b = document.querySelector("#inspector .step." + k); if (!b) continue;
+      if (k === "s6") b = b.nextElementSibling || b;   // the table of signs itself
+      await moveTo(b, run, 650); light(b, NAMES[k]);
+      if (k === "s7") { try { if (!Inspector.showSegs) Inspector.toggleSegs(); } catch (e) { } }
+      await sleep(k === "s4" || k === "s5" || k === "s7" ? 3600 : 2700, run);
     }
     light(null); level(.45); await sleep(600, run);
     try { Inspector.close(); } catch (e) { }
@@ -126,30 +125,45 @@
     seed.looks.forEach(n => { const b = pos(n.id); if (b) h += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#f2c14e" stroke-width="2" stroke-dasharray="6 5" opacity=".9"/><circle cx="${b.x}" cy="${b.y}" r="16" fill="none" stroke="#f2c14e" stroke-width="2"/>`; });
     h += `<circle cx="${a.x}" cy="${a.y}" r="22" fill="none" stroke="#fff" stroke-width="3"/>`; svg.innerHTML = h;
   }
-  async function looks(seed, run) {
-    reset(); refresh(); mode("map"); MapMode.kind = "xy"; MapMode.build(); MapMode.fit(); say("WHAT LOOKS LIKE IT · CLIP, PICTURE BY PICTURE");
-    [seed, ...seed.looks].forEach(c => { const i = new Image(); i.src = c.thumb; });   // the pictures it will land on are already loaded
-    await sleep(1500, run);
-    const p = MapMode.P.find(q => q.s.id === seed.id), c = MapMode.cam;
-    if (p) {
-      const from = { x: c.x, y: c.y, z: c.z }, toZ = Math.min(60000, Math.max(from.z * 3, 260 / Math.max(p.w, 1e-4)));
-      const t0 = performance.now();
-      while (run === RUN) { const k = Math.min(1, (performance.now() - t0) / 3200), e = k * k * (3 - 2 * k);
-        c.x = from.x + (p.x - from.x) * e; c.y = from.y + (p.y - from.y) * e; c.z = from.z * Math.pow(toZ / from.z, e); MapMode.hover = p; MapMode.req(); if (k >= 1) break; await new Promise(r => requestAnimationFrame(r)); }
-      await sleep(400, run); lines(seed); await sleep(2600, run);
-    }
-    svg.innerHTML = "";
-    showStrip("LOOKS LIKE IT", "its nearest shots by picture (CLIP), from other films", seed.looks_shared, [seed, ...seed.looks]);
-    await sleep(9000, run); hideStrip(); await sleep(700, run);
+  function frame(ids, run) {   // the camera frames the shot and its neighbours, so all of them can be seen playing
+    const ps = ids.map(id => MapMode.P.find(q => q.s.id === id)).filter(Boolean); if (!ps.length) return Promise.resolve(true);
+    const xs = ps.map(p => p.x), ys = ps.map(p => p.y), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const c = MapMode.cam, from = { ...c }, W = MapMode.W, H = MapMode.H;
+    const z = Math.min((W - 360) / Math.max(.004, x1 - x0), (H - 300) / Math.max(.004, y1 - y0), 60000), to = { x: (x0 + x1) / 2, y: (y0 + y1) / 2 + 20 / z, z };
+    const t0 = performance.now();
+    return new Promise(r => { const st = () => { if (run !== RUN) return r(false); const k = Math.min(1, (performance.now() - t0) / 2800), e = k * k * (3 - 2 * k);
+      c.x = from.x + (to.x - from.x) * e; c.y = from.y + (to.y - from.y) * e; c.z = from.z * Math.pow(to.z / from.z, e); MapMode.draw(); if (k < 1) requestAnimationFrame(st); else r(true); }; st(); });
   }
-  /* ---------- 4. SOUNDS LIKE IT: each heard in turn ---------- */
+  function lines(seed, list) {
+    svg.innerHTML = ""; const c = MapMode.cam, cv = MapMode.cv; if (!cv) return; const R = cv.getBoundingClientRect();
+    const pos = id => { const p = MapMode.P.find(q => q.s.id === id); return p ? { x: R.left + (p.x - c.x) * c.z + R.width / 2, y: R.top + (p.y - c.y) * c.z + R.height / 2 } : null; };
+    const a = pos(seed.id); if (!a) return; let h = "";
+    list.forEach(n => { const b = pos(n.id); if (b) h += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#f2c14e" stroke-width="2.5" stroke-dasharray="7 6" opacity=".95"/>`; });
+    svg.innerHTML = h;
+  }
+  const lab = c => (c.caption || (c.subjects || []).join(", ") || c.title || "").replace(/</g, "&lt;");
+  async function looks(seed, run) {
+    reset(); refresh(); mode("map"); [seed, ...seed.looks].forEach(c => { const i = new Image(); i.src = c.thumb; });
+    await MapMode.morph("xy", 900); say("SEEN · WHAT LOOKS LIKE IT · CLIP PLACES SHOTS BY PICTURE", 5000);
+    if (!await frame([seed.id, ...seed.looks.map(c => c.id)], run)) return;
+    lines(seed, seed.looks);
+    MapMode.playIn([{ ...seed, cls: "seed", px: 200, label: "THIS · " + lab(seed) }, ...seed.looks.map(c => ({ ...c, px: 170, label: lab(c) }))]);
+    const sh = seed.looks_shared || {}; await sleep(1500, run);
+    if (sh.words && sh.words.length) say(`IN COMMON · ${sh.words.join(" · ").toUpperCase()}${sh.decades ? " · " + sh.decades : ""}`, 6000);
+    await sleep(7500, run); svg.innerHTML = "";
+  }
   async function sounds(seed, run) {
-    say("WHAT SOUNDS LIKE IT · CLAP, SOUND BY SOUND");
-    const cells = showStrip("SOUNDS LIKE IT", "its nearest shots by sound (CLAP), each heard in turn", seed.sounds_shared, [seed, ...seed.sounds]);
-    level(.12);
-    for (const d of cells) { if (run !== RUN) return; cells.forEach(o => { o.classList.remove("loud"); const v = o.querySelector("video"); if (v) v.muted = true; });
-      d.classList.add("loud"); const v = d.querySelector("video"); if (v) { v.muted = false; v.volume = 1; try { v.currentTime = 0; } catch (e) { } v.play().catch(() => { }); } await sleep(2600, run); }
-    cells.forEach(o => { const v = o.querySelector("video"); if (v) v.muted = true; }); level(.45); hideStrip(); await sleep(700, run);
+    MapMode.stopIn(); say("HEARD · THE MAP REARRANGES ITSELF BY SOUND", 4000);
+    await MapMode.morph("sound", 2600); if (run !== RUN) return;
+    const H = (SND.d && SND.d.heard) || {}, tagOf = c => (H[c.id] || []).map(x => x[0]).join(" · ") || c.sound || "";
+    if (!await frame([seed.id, ...seed.sounds.map(c => c.id)], run)) return;
+    lines(seed, seed.sounds);
+    const live = MapMode.playIn([{ ...seed, cls: "seed", px: 200, label: "THIS · " + tagOf(seed) }, ...seed.sounds.map(c => ({ ...c, px: 170, label: tagOf(c) }))]);
+    say("NEAREST BY SOUND · EACH HEARD IN TURN", 4000); level(.1);
+    for (const L1 of live) { if (run !== RUN) break; live.forEach(o => { o.box.classList.remove("loud"); o.v.muted = true; });
+      L1.box.classList.add("loud"); L1.v.muted = false; L1.v.volume = 1; try { L1.v.currentTime = L1.o.t || 0; } catch (e) { } L1.v.play().catch(() => { }); await sleep(2800, run); }
+    live.forEach(o => { o.v.muted = true; }); level(.45); svg.innerHTML = ""; MapMode.stopIn();
+    say("COLOUR × DECADE · THE SAME SHOTS, ANOTHER ORDER", 3500); await MapMode.morph("hue", 2200); await sleep(1800, run);
   }
   /* ---------- 5. SAME SIGN: the ring turns to it, stops, and opens another ---------- */
   async function sign(seed, run) {
@@ -164,7 +178,7 @@
     Ring.auto = true;
   }
   async function film() {
-    const run = ++RUN; document.body.classList.add("filming"); start.hidden = true; score(); try { CAPS.load(); } catch (e) { }
+    const run = ++RUN; document.body.classList.add("filming"); start.hidden = true; score(); try { CAPS.load(); SND.load(); } catch (e) { }
     reset(); refresh(); mode("wall"); say(`${L.shots.length.toLocaleString()} SHOTS · ONE AT A TIME`, 3000); await sleep(3200, run);
     for (const seed of SEEDS) {
       if (run !== RUN) return;
