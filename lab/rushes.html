@@ -1,0 +1,330 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<title>Rushes</title>
+<meta name="description" content="Start from the footage. Every archive clip offers four ways on: keep watching, a voice that answers it, an echo, somewhere the films never go. Keep what you want, say a line over it, share the reel.">
+<meta property="og:title" content="Rushes · Cineosis Lab"><meta property="og:description" content="Start from the footage. Every clip answers back. Keep what you want and share the reel.">
+<meta property="og:image" content="https://hartswf0.github.io/cineosis-lab/lab/doors/ui/lab-rushes-html.jpg"><meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0b0a09"><meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+:root{--bg:#0b0a09;--panel:#16130f;--ink:#f3ebe0;--dim:#9c9083;--line:#2b2520;--gold:#f2c14e;
+--long:#7fb6d9;--ans:#ff7a45;--echo:#bdb3a6;--else:#b99be0}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}[hidden]{display:none!important}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font:13px/1.4 ui-monospace,'IBM Plex Mono',Menlo,monospace;overscroll-behavior:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;touch-action:manipulation}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+#app{height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;max-width:720px;margin:0 auto;padding:env(safe-area-inset-top) 10px calc(env(safe-area-inset-bottom) + 8px)}
+/* top bar */
+.bar{display:flex;align-items:center;gap:4px;height:48px}
+.brand{font:20px/1 'Arial Black',Impact,sans-serif;letter-spacing:.02em;margin-right:auto;display:flex;align-items:baseline;gap:8px}
+.brand small{font:10px ui-monospace,monospace;letter-spacing:.16em;color:var(--dim)}
+@media (max-width:420px){.brand small{display:none}.bar{gap:0}}
+.ib{width:40px;height:40px;display:grid;place-items:center;border-radius:50%;color:var(--ink)}
+.ib:active{background:var(--line)}
+/* stage */
+.stage{position:relative;background:#000;border-radius:10px;overflow:hidden;min-height:0}
+.stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .35s}
+.stage video.on{opacity:1}
+.chip{position:absolute;left:10px;top:10px;right:60px;display:flex;flex-wrap:wrap;gap:6px;font-size:10.5px;letter-spacing:.06em;pointer-events:none}
+.chip span{background:rgba(0,0,0,.62);padding:3px 8px;border-radius:10px;color:#eee}
+.chip span.k{color:#0b0a09;background:var(--c,#eee)}
+.says{position:absolute;left:4%;right:4%;bottom:12px;text-align:center;font:italic 600 clamp(14px,3.6vw,19px)/1.32 Georgia,'Times New Roman',serif;color:#fff;text-shadow:0 1px 3px #000,0 0 14px rgba(0,0,0,.9)}
+.says.narr{font:600 clamp(14px,3.6vw,19px)/1.3 'Helvetica Neue',Arial,sans-serif;font-style:normal;color:#fff}
+.fab{position:absolute;right:10px;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.6);color:#fff;border:1px solid rgba(255,255,255,.25)}
+.fab.keep{top:10px;background:var(--gold);color:#0b0a09;border-color:var(--gold)}
+.fab.say{top:64px}
+.fab.snd{top:118px}
+.cover{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px;background:radial-gradient(circle at 50% 40%,#1d1914,#0b0a09 70%)}
+.cover h1{font:clamp(44px,13vw,84px)/.9 'Arial Black',Impact,sans-serif}
+.cover p{color:var(--dim);max-width:34ch;font-size:12.5px}
+.go{display:inline-flex;align-items:center;gap:8px;font:700 12px ui-monospace,monospace;letter-spacing:.14em;padding:12px 22px;border-radius:24px;background:var(--gold);color:#0b0a09}
+.go svg{width:18px;height:18px}
+.legend{display:grid;grid-template-columns:repeat(2,auto);gap:6px 16px;font-size:11px;color:var(--dim);text-align:left}
+.legend b{color:var(--c);font-weight:700}
+/* four ways on */
+.ways{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding-top:8px}
+.way{position:relative;display:flex;flex-direction:column;gap:4px;border:1px solid var(--line);border-top:3px solid var(--c);border-radius:8px;padding:5px;background:var(--panel);text-align:left;min-width:0}
+.way[disabled]{opacity:.32;pointer-events:none}
+.way .th{position:relative;width:100%;aspect-ratio:16/10;border-radius:4px;overflow:hidden;background:#000}
+.way .th img,.way .th video{width:100%;height:100%;object-fit:cover;display:block}
+.way .th svg{position:absolute;left:5px;bottom:5px;width:18px;height:18px;color:#fff;filter:drop-shadow(0 1px 2px #000)}
+.way b{font-size:9.5px;letter-spacing:.12em;color:var(--c);display:flex;justify-content:space-between;align-items:center}
+.way i{font-style:normal;font-size:10.5px;color:var(--dim);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.7em}
+.way .alt{font-size:9.5px;color:var(--dim);padding:2px 4px;border-radius:6px;border:1px solid var(--line)}
+/* reel */
+.reel{display:flex;align-items:center;gap:6px;height:64px;padding-top:8px}
+.reel .rp{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:#0b0a09;flex:none}
+.strip{flex:1;display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;height:56px;align-items:center}
+.strip::-webkit-scrollbar{display:none}
+.strip .it{position:relative;flex:0 0 auto;width:62px;height:46px;border-radius:5px;overflow:hidden;border:2px solid var(--c);background:#000}
+.strip .it img,.strip .it video{width:100%;height:100%;object-fit:cover;display:block}
+.strip .it.sel{outline:2px solid var(--gold);outline-offset:1px}
+.strip .it u{position:absolute;right:2px;bottom:2px;text-decoration:none;font-size:9px;background:rgba(0,0,0,.7);color:#fff;border-radius:6px;padding:0 4px}
+.strip .empty{color:var(--dim);font-size:11px;padding:0 6px}
+.count{font-size:10.5px;color:var(--dim);flex:none;width:44px;text-align:right}
+/* sheets */
+.sheet{position:fixed;inset:auto 0 0 0;max-height:82dvh;display:flex;flex-direction:column;gap:10px;background:#15120f;border-top:1px solid var(--line);border-radius:16px 16px 0 0;padding:14px 14px calc(env(safe-area-inset-bottom) + 14px);z-index:30;max-width:720px;margin:0 auto;box-shadow:0 -20px 50px rgba(0,0,0,.6)}
+.sheet h3{font:15px 'Arial Black',Impact,sans-serif;display:flex;align-items:center;gap:8px}
+.sheet h3 .x{margin-left:auto}
+.sheet .scroll{overflow-y:auto;min-height:0;display:flex;flex-direction:column;gap:8px}
+.draft{text-align:left;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:14px/1.35 Georgia,serif;color:var(--ink)}
+.draft small{display:block;font:10px ui-monospace,monospace;letter-spacing:.12em;color:var(--dim);margin-bottom:2px}
+textarea,input[type=search]{width:100%;font:15px/1.4 Georgia,serif;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px}
+textarea{min-height:64px;resize:none}
+.voices{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.vo{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 9px;border:1px solid var(--line);border-radius:10px;min-width:70px}
+.vo.on{border-color:var(--gold);color:var(--gold)}
+.vo svg{width:20px;height:20px}
+.vo small{font-size:9.5px;color:var(--dim)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;font:700 11px ui-monospace,monospace;letter-spacing:.12em;padding:10px 14px;border-radius:20px;border:1px solid var(--line)}
+.btn.pri{background:var(--gold);color:#0b0a09;border-color:var(--gold)}
+.btn svg{width:16px;height:16px}
+.hit{display:flex;gap:8px;align-items:center;text-align:left;border:1px solid var(--line);border-radius:8px;padding:5px}
+.hit .th{width:72px;flex:none;aspect-ratio:16/10;border-radius:4px;overflow:hidden;background:#000}
+.hit .th img,.hit .th video{width:100%;height:100%;object-fit:cover}
+.hit span{font-size:12px}.hit em{display:block;font:italic 12.5px Georgia,serif;color:var(--dim)}
+.toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:var(--ink);color:#0b0a09;padding:8px 14px;border-radius:16px;font-size:12px;z-index:40;pointer-events:none}
+.status{font-size:11px;color:var(--gold)}
+.veil{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:29}
+</style></head><body>
+<div id="app">
+  <div class="bar">
+    <div class="brand">RUSHES <small>CINEOSIS LAB</small></div>
+    <button class="ib" id="back" aria-label="Back to the last clip" title="Back"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+    <button class="ib" id="find" aria-label="Find footage" title="Find"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+    <button class="ib" id="dice" aria-label="Start from another clip" title="Another clip"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1" fill="currentColor"/><circle cx="15" cy="15" r="1" fill="currentColor"/><circle cx="15" cy="9" r="1" fill="currentColor"/><circle cx="9" cy="15" r="1" fill="currentColor"/></svg></button>
+    <button class="ib" id="scoreb" aria-label="Choose the score" title="Score"><svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></button>
+    <button class="ib" id="share" aria-label="Share the reel" title="Share"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
+    <button class="ib" id="info" aria-label="How it works" title="How it works"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.5"/></svg></button>
+  </div>
+
+  <div class="stage" id="stage">
+    <video id="va" playsinline preload="auto"></video><video id="vb" playsinline preload="auto"></video>
+    <div class="chip" id="chip"></div>
+    <div class="says" id="says"></div>
+    <button class="fab keep" id="keep" aria-label="Keep this in the reel" title="Keep"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button class="fab say" id="sayb" aria-label="Say a line over this" title="Say a line"><svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+    <button class="fab snd" id="snd" aria-label="Sound on or off" title="Sound"><svg viewBox="0 0 24 24" id="sndi"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg></button>
+    <div class="cover" id="cover">
+      <h1>RUSHES</h1>
+      <p>Start from the footage. Every clip in the archive offers four ways on. Keep what you want, say a line over it if you must, and share the reel.</p>
+      <div class="legend"><span><b style="--c:var(--long)">KEEP WATCHING</b> its own film runs on</span><span><b style="--c:var(--ans)">ANSWER</b> a voice that answers it</span><span><b style="--c:var(--echo)">ECHO</b> a picture like it</span><span><b style="--c:var(--else)">ELSEWHERE</b> what the films never use</span></div>
+      <button class="go" id="start"><svg viewBox="0 0 24 24"><path d="M7 5v14l12-7z" fill="currentColor"/></svg><span id="startl">START FROM A CLIP</span></button>
+      <small style="color:var(--dim)" id="loading">loading 19,821 clips…</small>
+    </div>
+  </div>
+
+  <div class="ways" id="ways"></div>
+
+  <div class="reel">
+    <button class="rp" id="play" aria-label="Play the reel" title="Play the reel"><svg viewBox="0 0 24 24" id="playi"><path d="M7 5v14l12-7z" fill="currentColor"/></svg></button>
+    <div class="strip" id="strip"><span class="empty">Your reel is empty. Tap + to keep a clip.</span></div>
+    <span class="count" id="count"></span>
+  </div>
+</div>
+<div class="veil" id="veil" hidden></div>
+<div class="sheet" id="sheet" hidden></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const IC={
+ long:'<svg viewBox="0 0 24 24"><path d="m6 6 6 6-6 6"/><path d="m13 6 6 6-6 6"/></svg>',
+ ans:'<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M10 9.5a2 2 0 1 1 2.5 1.9c-.4.2-.5.5-.5.9V13"/></svg>',
+ echo:'<svg viewBox="0 0 24 24"><rect x="3" y="7" width="12" height="12" rx="2"/><rect x="9" y="3" width="12" height="12" rx="2"/></svg>',
+ else:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>',
+ mic:'<svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0"/></svg>',
+ x:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+ left:'<svg viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></svg>',
+ trash:'<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+ play:'<svg viewBox="0 0 24 24"><path d="M7 5v14l12-7z" fill="currentColor"/></svg>',
+ stop:'<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>'};
+const WAYS=[["long","KEEP WATCHING","var(--long)"],["ans","ANSWER","var(--ans)"],["echo","ECHO","var(--echo)"],["else","ELSEWHERE","var(--else)"]];
+/* narrators: Kokoro voices, read in the browser */
+const NARR=[["am_michael","Michael","US"],["bm_george","George","UK"],["am_fenrir","Fenrir","US"],["bm_fable","Fable","UK"],["af_heart","Heart","US"],["af_bella","Bella","US"],["am_onyx","Onyx","US"],["bf_isabella","Isabella","UK"]];
+let C=null,UT=null,PRE="",TYPES=[];
+let cur=null,hist=[],reel=[],sel=-1,alt={long:0,ans:0,echo:0,else:0},SOUND=true,started=false,PLAYING=0,lastVoice="am_michael";
+const full=v=>/^https?:/.test(v)?v:PRE+v;
+const thumbOf=v=>{v=full(v);return /\/clips\/[0-9a-f-]{36}\.mp4$/.test(v)?v.replace(/\/clips\/([0-9a-f-]{36})\.mp4$/,"/thumbnails/$1.jpg"):null};
+const pv=(v,t=.6)=>{const th=thumbOf(v);return th?`<img loading="lazy" alt="" src="${esc(th)}" onerror="this.outerHTML='<video muted playsinline preload=metadata src=&quot;${esc(full(v))}#t=${t}&quot;></video>'">`:`<video muted playsinline preload="metadata" src="${esc(full(v))}#t=${t}"></video>`};
+const toast=t=>{const e=$("toast");e.textContent=t;e.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,1800)};
+const R=i=>C.rows[i];
+/* an item: a clip {k:'c',r} or a voice in its clip {k:'u',u}; both stand in a row of the archive */
+const rowOf=it=>it.k==="c"?it.r:UT[it.u][4];
+const vidOf=it=>it.k==="c"?R(it.r)[0]:UT[it.u][0];
+const inOf=it=>it.k==="u"?Math.max(0,UT[it.u][1]-1.6):0;
+const saysOf=it=>it.k==="u"?UT[it.u][3]:(R(it.r)[7]>=0?UT[R(it.r)[7]][3]:"");
+function waysOf(it){const r=R(rowOf(it));
+  return {long:r[6]>=0?[{k:"c",r:r[6]}]:[],ans:r[10].filter(u=>!(it.k==="u"&&u===it.u)).map(u=>({k:"u",u})),echo:r[8].map(x=>({k:"c",r:x})),else:r[9].map(x=>({k:"c",r:x}))}}
+function label(it){const r=R(rowOf(it));return `${r[1]}${r[2]?" · "+r[2]:""}`}
+
+/* ---------- the stage ---------- */
+const VA=$("va"),VB=$("vb");let front=VA;
+const IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);   // iOS will not set a video's volume
+/* a volume that moves, never jumps */
+function ramp(el,to,secs=.8){clearInterval(el._r);const from=el.volume,t0=performance.now();if(IOS){el.volume=1;el.muted=to<=.02||!SOUND||!started;return}
+  el._r=setInterval(()=>{const k=Math.min(1,(performance.now()-t0)/(secs*1000));el.volume=Math.max(0,Math.min(1,from+(to-from)*k*k*(3-2*k)));if(k>=1)clearInterval(el._r)},40)}
+/* cut to a new picture: the new one fades up while the old one's sound fades away under it */
+function show(it,{vol=1,at=null,fade=.9}={}){const back=front===VA?VB:VA;back.muted=!SOUND||!started;back.volume=IOS?1:0;back.loop=false;
+  return new Promise(res=>{let done=false;const go=()=>{if(done)return;done=true;try{back.currentTime=at!=null?at:inOf(it)}catch(e){}back.play().catch(()=>{});
+      back.classList.add("on");front.classList.remove("on");const old=front;ramp(old,0,fade);setTimeout(()=>{old.pause()},fade*1000+150);ramp(back,vol,fade*.8);front=back;res(back)};
+    back.src=full(vidOf(it));back.addEventListener("loadeddata",go,{once:true});setTimeout(go,3500)})}
+/* how a voice is framed: a run-in before the words and a tail after them, so nothing is cut on the last syllable */
+const RUNIN=1.6,TAIL=2.4;
+const speechOf=it=>{if(it.k==="u")return[UT[it.u][1],UT[it.u][2]];const r=R(it.r);return r[7]>=0?[UT[r[7]][1],UT[r[7]][2]]:null};
+function chip(it){const r=R(rowOf(it)),k=it.k==="u"?`<span class="k" style="--c:var(--ans)">ANSWER</span>`:"";
+  $("chip").innerHTML=`${k}<span>${esc(r[1])}${r[2]?" · "+r[2]:""}</span><span>${esc(TYPES[r[4]])}</span><span>${r[5]?`the lab used it ${r[5]}×`:"never used by the lab"}</span>`}
+let holdT=0;
+async function go(it,push=true){if(PLAYING)stopReel();if(push&&cur)hist.push(cur);cur=it;alt={long:0,ans:0,echo:0,else:0};
+  chip(it);$("says").className="says";$("says").textContent=saysOf(it)?`“${saysOf(it)}”`:"";drawWays();
+  const v=await show(it);clearInterval(holdT);
+  if(it.k==="u"){const t1=UT[it.u][2]+TAIL;holdT=setInterval(()=>{if(v.currentTime>=t1-1.2&&!v._fading){v._fading=1;ramp(v,0,1.2)}if(v.currentTime>=t1){v.pause();clearInterval(holdT)}},100)}
+  else v.loop=true;
+  $("back").style.opacity=hist.length?1:.35}
+function drawWays(){const w=waysOf(cur);
+  $("ways").innerHTML=WAYS.map(([k,l,c])=>{const xs=w[k],x=xs[alt[k]%Math.max(1,xs.length)];
+    if(!x)return `<button class="way" style="--c:${c}" disabled><b>${l}</b><div class="th">${IC[k]}</div><i>${k==="long"?"the film ends here":"nothing comes back"}</i></button>`;
+    const hint=k==="ans"?`“${UT[x.u][3]}”`:label(x);
+    return `<button class="way" style="--c:${c}" data-w="${k}" aria-label="${l}: ${esc(hint)}"><b>${l}${xs.length>1?`<span class="alt" data-alt="${k}" role="button" aria-label="Another ${l.toLowerCase()}">${alt[k]%xs.length+1}/${xs.length}</span>`:""}</b><div class="th">${pv(vidOf(x),inOf(x)+.6)}${IC[k]}</div><i>${esc(hint)}</i></button>`}).join("")}
+$("ways").addEventListener("click",e=>{const a=e.target.closest("[data-alt]");if(a){e.stopPropagation();alt[a.dataset.alt]++;drawWays();return}
+  const b=e.target.closest("[data-w]");if(!b)return;const k=b.dataset.w,xs=waysOf(cur)[k];go(xs[alt[k]%xs.length])});
+$("back").onclick=()=>{if(hist.length)go(hist.pop(),false)};
+$("dice").onclick=()=>{start(true)};
+$("snd").onclick=()=>{SOUND=!SOUND;front.muted=!SOUND;$("sndi").innerHTML=SOUND?'<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9a4 4 0 0 1 0 6"/>':'<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="m17 9 5 6M22 9l-5 6"/>'};
+
+/* ---------- the reel ---------- */
+const colOf=it=>it.k==="u"?"var(--ans)":"var(--long)";
+function drawReel(){
+  $("strip").innerHTML=reel.length?reel.map((it,i)=>`<button class="it${i===sel?" sel":""}" style="--c:${it.line?"var(--gold)":colOf(it)}" data-i="${i}" aria-label="Reel item ${i+1}: ${esc(label(it))}">${pv(vidOf(it),inOf(it)+.6)}<u>${i+1}${it.line?" ✎":""}</u></button>`).join(""):`<span class="empty">Your reel is empty. Tap + to keep a clip.</span>`;
+  const secs=reel.reduce((a,it)=>a+durOf(it),0);$("count").textContent=reel.length?`${reel.length} · ${Math.floor(secs/60)}:${String(Math.round(secs%60)).padStart(2,"0")}`:"";save()}
+const durOf=it=>it.k==="u"?UT[it.u][2]-UT[it.u][1]+.5:Math.min(R(it.r)[3]||6,20);
+$("keep").onclick=()=>{if(!cur)return;reel.push({...cur});sel=reel.length-1;drawReel();$("strip").scrollLeft=1e6;toast(`Kept · ${reel.length} in the reel`)};
+$("strip").addEventListener("click",e=>{const b=e.target.closest("[data-i]");if(!b)return;const i=+b.dataset.i;sel=i;drawReel();itemSheet(i)});
+function itemSheet(i){const it=reel[i];sheet(`<h3>${i+1} · ${esc(label(it))}<button class="ib x" data-close aria-label="Close">${IC.x}</button></h3>
+  <div class="draft"><small>${it.line?`SAID BY ${esc((NARR.find(n=>n[0]===it.voice)||NARR[0])[1]).toUpperCase()}`:"NO LINE YET"}</small>${esc(it.line||saysOf(it)&&`The footage speaks for itself: “${saysOf(it)}”`||"The footage speaks for itself.")}</div>
+  <div class="row"><button class="btn" data-a="open">${IC.play}OPEN IT</button><button class="btn" data-a="line">${IC.mic}${it.line?"CHANGE THE LINE":"SAY A LINE"}</button><button class="btn" data-a="left" ${i?"":"disabled"}>${IC.left}EARLIER</button><button class="btn" data-a="del">${IC.trash}REMOVE</button></div>`,
+  a=>{if(a==="open"){closeSheet();go(it)}if(a==="line"){sayFor(i)}if(a==="left"&&i){[reel[i-1],reel[i]]=[reel[i],reel[i-1]];sel=i-1;drawReel();closeSheet()}if(a==="del"){reel.splice(i,1);sel=-1;drawReel();closeSheet()}})}
+
+/* ---------- saying a line: drafts written from what the footage is, narrators to read them ---------- */
+let TTS=null,ttsP=null;const AUD=new Map();
+function loadTTS(st){if(ttsP)return ttsP;ttsP=(async()=>{st&&st("loading the narrators (about 90 MB, once)");const m=await import("https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm");
+  TTS=await m.KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX",{dtype:"q8",device:"wasm"});return TTS})().catch(e=>{ttsP=null;throw e});return ttsP}
+async function voiceOf(text,voice,st){const key=voice+"|"+text;if(AUD.has(key))return AUD.get(key);await loadTTS(st);st&&st("reading the line");
+  const a=await TTS.generate(text,{voice});const url=URL.createObjectURL(a.toBlob());AUD.set(key,url);return url}
+function drafts(it,i){const r=R(rowOf(it)),y=r[2],t=r[1],out=[];
+  out.push(["PLACE IT",`${y?`In ${y}, `:""}a film called ${t}.`]);
+  if(it.k==="u")out.push(["TURN",`But someone in ${t} answers.`]);
+  const prev=i>0?reel[i-1]:null;if(prev){const p=R(rowOf(prev));if(p[1]!==t)out.push(["CONNECT",`At the same time${y?`, in ${y}`:""}, another film was being made.`])}
+  if(saysOf(it))out.push(["LET IT SPEAK","(no line: the people in the footage say it)"]);
+  return out}
+function sayFor(i){if(i==null){if(!cur)return;reel.push({...cur});i=reel.length-1;sel=i;drawReel()}
+  const it=reel[i];let voice=it.voice||lastVoice;
+  sheet(`<h3>${IC.mic} A LINE OVER ${i+1}<button class="ib x" data-close aria-label="Close">${IC.x}</button></h3>
+  <div class="scroll">${drafts(it,i).map(([k,t])=>`<button class="draft" data-d="${esc(t)}"><small>${k}</small>${esc(t)}</button>`).join("")}
+  <textarea id="lt" placeholder="Say only what the footage can show.">${esc(it.line||"")}</textarea>
+  <div class="voices" id="vs">${NARR.map(([id,n,a])=>`<button class="vo${id===voice?" on":""}" data-v="${id}">${IC.mic}<span>${n}</span><small>${a}</small></button>`).join("")}</div></div>
+  <div class="row"><button class="btn" data-a="hear">${IC.play}HEAR IT</button><button class="btn pri" data-a="ok">KEEP THE LINE</button><button class="btn" data-a="none">NO LINE</button><span class="status" id="lst"></span></div>`,
+  async a=>{const t=$("lt").value.trim(),st=s=>$("lst").textContent=s;
+    if(a==="hear"&&t){try{const u=await voiceOf(t,voice,st);st("");const au=new Audio(u);au.play()}catch(e){st("the narrators could not load here: "+(e.message||e))}}
+    if(a==="ok"){it.line=t||null;it.voice=voice;lastVoice=voice;drawReel();closeSheet();if(t)voiceOf(t,voice).catch(()=>{});toast(t?"Line kept":"No line")}
+    if(a==="none"){it.line=null;drawReel();closeSheet()}});
+  $("sheet").onclick=e=>{const d=e.target.closest("[data-d]");if(d&&!/^\(no line/.test(d.dataset.d))$("lt").value=d.dataset.d;else if(d)$("lt").value="";
+    const v=e.target.closest("[data-v]");if(v){voice=v.dataset.v;document.querySelectorAll(".vo").forEach(x=>x.classList.toggle("on",x===v))}}}
+$("sayb").onclick=()=>{const i=reel.findIndex(it=>JSON.stringify(it.k==="c"?{k:"c",r:it.r}:{k:"u",u:it.u})===JSON.stringify(cur));sayFor(i>=0?i:null)};
+
+/* ---------- sheets ---------- */
+let onAct=null;
+function sheet(h,act){$("sheet").onclick=null;$("sheet").innerHTML=h;$("sheet").hidden=false;$("veil").hidden=false;onAct=act}
+function closeSheet(){$("sheet").hidden=true;$("veil").hidden=true;onAct=null}
+$("veil").onclick=closeSheet;
+$("sheet").addEventListener("click",e=>{if(e.target.closest("[data-close]"))return closeSheet();const a=e.target.closest("[data-a]");if(a&&onAct)onAct(a.dataset.a)});
+$("info").onclick=()=>sheet(`<h3>HOW RUSHES WORKS<button class="ib x" data-close aria-label="Close">${IC.x}</button></h3><div class="scroll" style="color:var(--dim);font-size:12.5px;line-height:1.5">
+  <p>The film starts from footage, not a script. Every clip in the archive (19,821 of them) offers four ways on, worked out from the clip itself:</p>
+  <p><b style="color:var(--long)">KEEP WATCHING</b> the clip that follows it in its own film, past the useful moment.<br><b style="color:var(--ans)">ANSWER</b> a voice from another film that answers what this clip says (or shows), preferring one that doubts, refuses or asks.<br><b style="color:var(--echo)">ECHO</b> the nearest picture from another film: what most of the lab's films do.<br><b style="color:var(--else)">ELSEWHERE</b> the nearest picture among the image types the lab's films leave out, from clips none of them has used.</p>
+  <p>Tap + to keep a clip. Tap the microphone to say a line over it, in one of eight narrator voices, or let the footage speak. When the line and the picture disagree, change the line. Then play the reel, and share it as a link.</p>
+  <p>Built from the lab's archive: <a style="color:var(--gold)" href="recurring-cast.html">the Recurring Cast</a> counts what the films use; <a style="color:var(--gold)" href="talk-back.html">the Talk-Back Desk</a> starts from an essay instead. <a style="color:var(--gold)" href="index.html">The lab</a>.</p></div>`);
+$("find").onclick=()=>{sheet(`<h3>FIND FOOTAGE<button class="ib x" data-close aria-label="Close">${IC.x}</button></h3><input type="search" id="q" placeholder="what it's called, or what someone says in it" autocomplete="off"><div class="scroll" id="hits"></div>`);
+  const q=$("q");q.focus();q.oninput=()=>{const s=q.value.trim().toLowerCase();if(s.length<3){$("hits").innerHTML="";return}
+    const out=[];for(let i=0;i<C.rows.length&&out.length<40;i++)if(C.rows[i][1].toLowerCase().includes(s))out.push({k:"c",r:i});
+    for(let u=0;u<UT.length&&out.length<80;u++)if(UT[u][3].toLowerCase().includes(s))out.push({k:"u",u});
+    $("hits").innerHTML=out.length?out.map((it,j)=>`<button class="hit" data-h="${j}"><div class="th">${pv(vidOf(it),inOf(it)+.6)}</div><span>${esc(label(it))}${it.k==="u"?`<em>“${esc(UT[it.u][3])}”</em>`:""}</span></button>`).join(""):`<p style="color:var(--dim)">Nothing called that, and nobody says it.</p>`;
+    $("hits").onclick=e=>{const h=e.target.closest("[data-h]");if(h){closeSheet();go(out[+h.dataset.h])}}}};
+
+/* ---------- the score: D-A-E, through Web Audio so it can be ducked anywhere (phones too) ---------- */
+const SCORES=[["","No score · the archive alone",""],
+ ["score/cues/dae-snowbound-umea-cabin.m4a","Snowbound Umeå Cabin","quiet, a warm return"],["score/cues/dae-paddle-meets-current.m4a","Paddle Meets Current","dreamy, lonely"],
+ ["score/cues/dae-conquerors-of-the-useless.m4a","Conquerors of the Useless","strings, sorrow"],["score/cues/dae-preparation-drift.m4a","Preparation & Drift","tension, suspense"],
+ ["score/cues/dae-cold-current-paddle.m4a","Cold Current Paddle","melancholy guitar"],["score/cues/dae-slide-carousel-at-blue-hour.m4a","Slide Carousel at Blue Hour","blue hour, dub"],
+ ["score/cues/dae-the-geezer-s-stride.m4a","The Geezer's Stride","something breaking apart"],["score/cues/dae-salvaged-room-traveling-light.m4a","Salvaged Room, Traveling Light","ritual, ceremony"],
+ ["score/cues/dae-odin-above-the-breakers.m4a","Odin Above the Breakers","ritual, triumph"]];
+let SCORE=1,AC=null,SG=null,SE=null;
+function scoreEl(){if(!SE){SE=new Audio();SE.loop=true;SE.preload="auto"}const f=SCORES[SCORE][0];if(f&&!SE.src.endsWith(f))SE.src=f;
+  if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();const src=AC.createMediaElementSource(SE);SG=AC.createGain();SG.gain.value=0;src.connect(SG).connect(AC.destination)}catch(e){AC=null}}
+  if(AC&&AC.state==="suspended")AC.resume();return SE}
+const BED=.42,UNDER=.1;   // the score's level between voices, and under them
+function duck(level,secs=.5){if(!SCORES[SCORE][0])return;if(SG&&AC)SG.gain.setTargetAtTime(level,AC.currentTime,secs/3);else if(SE)ramp(SE,level,secs)}
+function scoreSheet(){sheet(`<h3><svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg> THE SCORE<button class="ib x" data-close aria-label="Close">${IC.x}</button></h3>
+  <p style="color:var(--dim);font-size:12px">D-A-E · Honed for Film. It plays under the reel, drops whenever someone speaks, and comes back up in the gaps.</p>
+  <div class="scroll">${SCORES.map(([f,t,m],i)=>`<button class="draft${i===SCORE?" on":""}" data-sc="${i}" style="${i===SCORE?"border-color:var(--gold)":""}"><small>${esc(m||"silence under the footage")}</small>${esc(t)}</button>`).join("")}</div>
+  <div class="row"><button class="btn" data-a="aud">${IC.play}LISTEN</button><button class="btn pri" data-close>DONE</button></div>`,
+  a=>{if(a==="aud"&&SCORES[SCORE][0]){const e=scoreEl();e.currentTime=20;e.play();duck(BED,.8);setTimeout(()=>{duck(0,1.5);setTimeout(()=>e.pause(),1600)},6000)}});
+  $("sheet").onclick=e=>{const b=e.target.closest("[data-sc]");if(b){SCORE=+b.dataset.sc;try{localStorage.setItem("rushes-score",SCORE)}catch(x){}document.querySelectorAll("[data-sc]").forEach(x=>{x.style.borderColor=x===b?"var(--gold)":""})}}}
+try{const s=+localStorage.getItem("rushes-score");if(s>=0&&s<SCORES.length&&localStorage.getItem("rushes-score")!==null)SCORE=s}catch(e){}
+
+/* ---------- playing the reel: room tone in, the narrator (if any) over a quiet picture, then the archive's people at full sound, a held tail, a crossfade ---------- */
+function stopReel(){PLAYING=0;$("playi").outerHTML=IC.play.replace("<svg",'<svg id="playi"');ramp(front,0,.6);setTimeout(()=>front.pause(),700);try{$("nar").pause()}catch(e){}if(SE){duck(0,1.2);setTimeout(()=>SE&&SE.pause(),1300)}}
+const wait=(ms,run)=>new Promise(r=>{const t0=performance.now();const tick=()=>{if(PLAYING!==run||performance.now()-t0>=ms)return r();setTimeout(tick,60)};tick()});
+async function playReel(){if(!reel.length)return toast("Keep a clip first");if(PLAYING){stopReel();return}
+  started=true;$("cover").hidden=true;const run=PLAYING=Date.now();$("playi").outerHTML=IC.stop.replace("<svg",'<svg id="playi"');
+  const need=reel.filter(it=>it.line);if(need.length){toast("Preparing the narrators…");try{for(const it of need)await voiceOf(it.line,it.voice||lastVoice)}catch(e){toast("Narrators unavailable here; playing without them")}}
+  if(PLAYING!==run)return;
+  if(SCORES[SCORE][0]){const e=scoreEl();e.currentTime=0;e.play().catch(()=>{});duck(BED,2.5)}
+  await wait(900,run);
+  for(let i=0;i<reel.length;i++){if(PLAYING!==run)return;const it=reel[i];sel=i;drawReel();chip(it);
+    const key=(it.voice||lastVoice)+"|"+(it.line||""),sp=speechOf(it),said=saysOf(it);
+    let nd=0,au=null;
+    if(it.line&&AUD.has(key)){au=$("nar")||Object.assign(document.body.appendChild(document.createElement("audio")),{id:"nar"});au.src=AUD.get(key);
+      await new Promise(r=>{au.onloadedmetadata=r;setTimeout(r,1500)});nd=au.duration||3}
+    // where the picture starts: early enough that the narrator finishes, and a breath of room tone, before anyone in the footage speaks
+    const speakAt=sp?sp[0]:null,start=Math.max(0,(speakAt!=null?speakAt-RUNIN:0)-(nd?nd+.6:0));
+    const v=await show(it,{vol:au?(IOS?0:.16):1,at:start,fade:i?1.1:.6});v.loop=false;
+    if(au){if(IOS)v.muted=true;$("says").className="says narr";$("says").textContent=it.line;duck(UNDER,.4);await wait(250,run);
+      await new Promise(r=>{au.onended=r;au.play().catch(r);setTimeout(r,(nd+2)*1000)});if(PLAYING!==run)return;
+      v.muted=!SOUND;ramp(v,1,1.2);duck(sp?BED*.8:BED,1.2);await wait(400,run)}
+    $("says").className="says";$("says").textContent=said?`“${said}”`:"";
+    // to the end: through the speech and its tail, or for a clip without words, long enough to be seen
+    const clipEnd=sp?sp[1]+TAIL:Math.min((R(rowOf(it))[3]||8),30),floor=sp?0:Math.min(R(rowOf(it))[3]||8,9);
+    const t0=performance.now();let ducked=false,stall=0,lastT=-1;
+    await new Promise(r=>{const tick=()=>{if(PLAYING!==run)return r();const t=v.currentTime;
+      if(sp){if(!ducked&&t>=sp[0]-.25){ducked=true;duck(UNDER,.5)}if(ducked&&t>=sp[1]+.4){ducked=false;duck(BED,1.6)}}
+      stall=(Math.abs(t-lastT)<.01)?stall+1:0;lastT=t;
+      if(t>=clipEnd||v.ended||stall>25||(performance.now()-t0)/1000>Math.max(clipEnd-start,floor)+6)return r();setTimeout(tick,80)};tick()});
+    if(sp)duck(BED,1.2)}
+  if(PLAYING===run){await wait(1200,run);stopReel();toast("The end")}}
+$("play").onclick=playReel;$("scoreb").onclick=scoreSheet;
+
+/* ---------- share: the reel travels in the link ---------- */
+const enc=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const dec=s=>JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g,"+").replace(/_/g,"/")))));
+const pack=()=>reel.map(it=>[it.k==="c"?it.r:-1-it.u,it.line||0,it.voice||0]);
+const unpack=a=>a.map(([x,l,v])=>Object.assign(x>=0?{k:"c",r:x}:{k:"u",u:-1-x},l?{line:l}:{},v?{voice:v}:{}));
+function save(){try{localStorage.setItem("rushes-v1",JSON.stringify(pack()))}catch(e){}}
+$("share").onclick=async()=>{if(!reel.length)return toast("Keep a clip first");const url=location.href.split("#")[0]+"#r="+enc(pack());
+  history.replaceState(null,"","#r="+enc(pack()));
+  if(navigator.share){try{await navigator.share({title:"Rushes",text:`A reel of ${reel.length} archive clips`,url});return}catch(e){}}
+  try{await navigator.clipboard.writeText(url);toast("Link copied")}catch(e){toast("Copy the address bar to share")}};
+
+/* ---------- start ---------- */
+function start(fresh){const s=C.starts;started=true;$("cover").hidden=true;front.muted=!SOUND;go({k:"c",r:s[Math.floor(Math.random()*s.length)]},!fresh?false:true)}
+Promise.all([fetch("rushes/clips.json").then(r=>r.json()),fetch("rushes/utts.json").then(r=>r.json())]).then(([c,u])=>{C=c;UT=u.utts;PRE=c.pre;TYPES=c.types;
+  $("loading").textContent=`${c.rows.length.toLocaleString()} clips · ${u.utts.length.toLocaleString()} voices`;
+  let shared=null;const m=location.hash.match(/^#r=([\w-]+)/);if(m){try{shared=unpack(dec(m[1]))}catch(e){}}
+  if(!shared){try{const s=JSON.parse(localStorage.getItem("rushes-v1")||"null");if(s&&s.length)reel=unpack(s)}catch(e){}}
+  if(shared){reel=shared;$("startl").textContent=`PLAY THIS REEL · ${reel.length} CLIPS`;$("start").onclick=()=>{started=true;playReel()}}
+  else $("start").onclick=()=>start(false);
+  drawReel()}).catch(()=>$("loading").textContent="The archive could not load. Reload to try again.");
+document.addEventListener("keydown",e=>{if(e.target.matches("input,textarea"))return;const k={ArrowRight:"long","1":"long","2":"ans","3":"echo","4":"else"}[e.key];
+  if(k&&cur){const b=document.querySelector(`[data-w="${k}"]`);b&&b.click()}if(e.key===" "&&cur){e.preventDefault();$("keep").click()}if(e.key==="Backspace")$("back").click()});
+</script></body></html>

@@ -12,20 +12,21 @@ H = os.path.dirname(os.path.abspath(__file__)); L = os.path.dirname(H)
 J = lambda p: json.load(open(os.path.join(L, p)))
 ESSAY = J("curtis/essay.json")
 
-if "--voice" in sys.argv:   # the narrator: a woman's voice, against the archive's 51 men to 9 women
+if "--voice" in sys.argv:   # the narrators: a different voice for each move, so locate, explain, turn and connect are heard as different speakers
     from kokoro import KPipeline
     import soundfile as sf
-    P = KPipeline(lang_code="b", repo_id="hexgrad/Kokoro-82M"); os.makedirs(os.path.join(H, "narr"), exist_ok=True)
+    PS = {}; os.makedirs(os.path.join(H, "narr"), exist_ok=True)
     for i, ln in enumerate(ESSAY["lines"]):
         wav = os.path.join(H, "narr", f"{i:02d}.wav"); m4a = wav[:-3] + "m4a"
-        a = np.concatenate([np.asarray(x, np.float32) for _, _, x in P(ln["text"], voice=ESSAY.get("voice", "bf_emma"), speed=.92)])
+        vo = ESSAY["narrators"].get(ln["move"], "am_michael"); P = PS.setdefault(vo[0], KPipeline(lang_code=vo[0], repo_id="hexgrad/Kokoro-82M"))
+        a = np.concatenate([np.asarray(x, np.float32) for _, _, x in P(ln["text"], voice=vo, speed=.95)])
         sf.write(wav, np.concatenate([a, np.zeros(int(24000 * .25), np.float32)]), 24000)
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", wav, "-c:a", "aac", "-b:a", "96k", m4a]); os.unlink(wav)
     film = J("curtis/film.json")
     for i, ln in enumerate(film["lines"]):
         p = os.path.join(H, "narr", f"{i:02d}.m4a")
         d = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", p], capture_output=True, text=True).stdout)
-        ln["narr"] = {"f": f"curtis/narr/{i:02d}.m4a", "d": round(d, 2)}
+        ln["narr"] = {"f": f"curtis/narr/{i:02d}.m4a", "d": round(d, 2), "voice": ESSAY["narrators"].get(ln["move"])}
     json.dump(film, open(os.path.join(H, "film.json"), "w"), ensure_ascii=False, separators=(",", ":")); print("narration rendered"); sys.exit()
 
 # ---- every archive clip the in-page reader can search (markov/emb.bin rows), with its type, its use, its place in its source
@@ -103,6 +104,15 @@ def voices(line, k=4):
     return out
 
 Q = text([ln["text"] for ln in ESSAY["lines"]]); SC = M[arch] @ Q.T
+RU = json.load(open(os.path.join(L, "rushes/clips.json"))); RT = json.load(open(os.path.join(L, "rushes/utts.json")))["utts"]
+said = {RU["pre"] + r[0] if not r[0].startswith("http") else r[0]: RT[r[7]][3] for r in RU["rows"] if r[7] >= 0}
+LEX = [((shots[i].get("title") or "") + " " + said.get(shots[i]["video"], "")).lower() for i in arch]
+for li, ln in enumerate(ESSAY["lines"]):   # a film named for what the line says, or whose people say it, comes forward
+    ws = {w for w in re.findall(r"[a-z]{4,}", ln["text"].lower()) if w not in STOP}
+    ph = [" ".join(p) for p in zip(*(re.findall(r"[a-z]+", ln["text"].lower())[k:] for k in range(3)))]
+    for j, t in enumerate(LEX):
+        b = .02 * sum(w in t for w in ws) + .12 * sum(p in t for p in ph)
+        if b: SC[j, li] += min(b, .16)
 film = {"title": ESSAY["title"], "sub": ESSAY["sub"], "types": names, "under": [names[i] for i in UNDER], "lines": []}
 DEFAULT = {"locate": "long", "explain": "match", "turn": "turn", "connect": "elsewhere"}
 for li, ln in enumerate(ESSAY["lines"]):
