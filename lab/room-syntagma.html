@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How a Film Joins Its Shots</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="explain/film.css?v=1"><link rel="stylesheet" href="explain/episode.css?v=3">
+<!-- CINEOSIS · A ROOM, FILMED · THE GRAND SYNTAGMATIQUE. Christian Metz sorted the ways a narrative film joins its shots into eight kinds.
+     The lab's room syntagma.html applies his table to the four takes of WYGWYL. This film teaches the table with the takes' own footage:
+     each kind shown where it happens, the kinds that never happen, the one place the rule misreads, the count, and the room operated.
+     Data: explain/ep_metz.js runs the room's own classifier (syntagma/metz.js) over every beat → explain/ep/metz.json. -->
+<style>
+:root { --bg: #0b0a09; --ink: #ece6da; --red: #e0483a; --lime: #c4f46a; --dim: #b3ab9e; }
+body, #stage { background: var(--bg); }
+.tree { position: absolute; }
+.tree line { stroke: #3a352d; stroke-width: 2; transition: stroke .6s; } .tree line.on { stroke: var(--lime); stroke-width: 4; }
+.tree text { font: 17px var(--mono); fill: var(--dim); transition: fill .6s; } .tree text.on { fill: var(--ink); }
+.tree .lf rect { fill: #14120f; stroke: #3a352d; stroke-width: 1.5; transition: all .6s; } .tree .lf text { font: 600 16px var(--mono); fill: var(--ink); }
+.tree .lf.on rect { fill: var(--lime); stroke: var(--lime); } .tree .lf.on text { fill: #0b0a09; } .tree .lf.none rect { stroke-dasharray: 5 5; } .tree .lf.none text { fill: #6f685d; }
+.tree .q { opacity: 0; transition: opacity .8s; } .tree .q.in { opacity: 1; }
+.kind { position: absolute; left: 1180px; top: 36px; right: 40px; } .kind small { display: block; font: 600 15px var(--mono); color: var(--dim); letter-spacing: .14em; } .kind b { display: block; font: 600 40px/1.1 var(--serif); color: var(--lime); margin: 8px 0 14px; } .kind p { margin: 0 0 12px; font: 21px/1.4 var(--serif); color: var(--ink); }
+.kind .film { font: 15px/1.6 var(--mono); color: var(--dim); }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage"></div></div>
+<div id="bar"><button id="bPrev" title="previous (←)">‹</button><button id="bPlay" title="play / pause (space)">❚❚</button><button id="bNext" title="next (→)">›</button><div id="chs"></div><span id="time"></span><button id="bSnd" title="sound">♪ on</button></div>
+<div id="start"><div><p style="font:600 16px var(--mono);letter-spacing:.2em;color:#b3ab9e;margin:0 0 14px">CINEOSIS · A ROOM, FILMED</p><h1 style="color:#c4f46a">How a Film Joins Its Shots</h1><p>Christian Metz's eight kinds of sequence, found in the four takes of Where You Go When You Leave. About six minutes, with sound.</p><b style="background:#c4f46a">▶ Watch</b></div></div>
+<audio id="score" preload="auto"></audio><audio id="voice" preload="auto"></audio>
+<script>
+const FILMS = { suite: 'wygwyl-suite', scenes: 'wygwyl-scenes', cineosis: 'wygwyl-cineosis', drift: 'wygwyl-drift' };
+const NODES = { root: [500, 34, 'a stretch of film'], one: [140, 120, 'one shot'], many: [620, 120, 'several shots'], achron: [400, 210, 'no time between them'], chron: [800, 210, 'time passes'],
+  alt: [290, 300, 'motifs alternate'], noalt: [500, 300, 'side by side'], desc: [690, 300, 'describes one moment'], narr: [930, 300, 'tells'], altn: [820, 390, 'two lines alternate'], lin: [1040, 390, 'one line'],
+  cont: [940, 480, 'nothing skipped'], disc: [1150, 480, 'time skipped'], org: [1060, 570, 'in leaps'], scat: [1240, 570, 'here and there'] };
+const EDGES = [['root', 'one'], ['root', 'many'], ['many', 'achron'], ['many', 'chron'], ['achron', 'alt'], ['achron', 'noalt'], ['chron', 'desc'], ['chron', 'narr'], ['narr', 'altn'], ['narr', 'lin'], ['lin', 'cont'], ['lin', 'disc'], ['disc', 'org'], ['disc', 'scat']];
+const LEAF = { 1: ['one', 'AUTONOMOUS SHOT'], 2: ['alt', 'PARALLEL'], 3: ['noalt', 'BRACKET'], 4: ['desc', 'DESCRIPTIVE'], 5: ['altn', 'ALTERNATE'], 6: ['cont', 'SCENE'], 7: ['org', 'EPISODIC'], 8: ['scat', 'ORDINARY SEQUENCE'] };
+function tree(M, lit, scale = 1, opt = {}) {
+  const path = new Set(lit ? ['root', ...M.path[lit]] : []), never = opt.never || [];
+  let h = `<svg class="tree" width="${1340 * scale}" height="${680 * scale}" viewBox="0 0 1340 680" style="${opt.style || ''}">`;
+  EDGES.forEach(([a, b]) => { const [x1, y1] = NODES[a], [x2, y2] = NODES[b]; h += `<line x1="${x1}" y1="${y1 + 10}" x2="${x2}" y2="${y2 - 12}" class="${path.has(a) && path.has(b) ? 'on' : ''}"/>`; });
+  Object.entries(NODES).forEach(([k, [x, y, t]], i) => h += `<text x="${x}" y="${y}" text-anchor="middle" class="${path.has(k) ? 'on' : ''} ${opt.build ? 'q' : ''}" data-i="${i}">${t}</text>`);
+  Object.entries(LEAF).forEach(([n, [k, t]]) => { const [x, y] = NODES[k], w = t.length * 10.5 + 26; h += `<g class="lf ${String(lit) === n ? 'on' : ''} ${never.includes(+n) ? 'none' : ''} ${opt.build ? 'q' : ''}" data-i="${20 + +n}"><rect x="${x - w / 2}" y="${y + 18}" width="${w}" height="34" rx="4"/><text x="${x}" y="${y + 41}" text-anchor="middle">${t}</text></g>`; });
+  return h + '</svg>';
+}
+window.EPISODE = {
+  data: ['explain/ep/metz.json?v=2', 'explain/ep/ep5.json?v=4'],
+  cues: [],
+  build([M, W], B, K) {
+    const { esc, fmt, line, later, raf, startVideos } = K, $ = K.$;
+    const src = v => `https://github.com/hartswf0/cineosis-lab/releases/download/wygwyl-v1/${FILMS[v]}.mp4`;
+    const poemAt = t => { const c = W.poem.filter(p => p.text).find(p => t >= p.t && t < p.t + p.d); return c ? c.text : ''; };
+    const frame = (v, t, end) => `<div class="wv"><video data-src="${src(v)}" data-t="${t}" ${end ? `data-end="${end}"` : ''} data-snd="1" playsinline></video></div><div class="band" id="bd"></div>`;
+    const bandPoem = el => { const v = el.querySelector('video'), bd = $('#bd', el); raf(() => { const tx = poemAt(v.currentTime); if (bd.dataset.t !== tx) { bd.dataset.t = tx; bd.innerHTML = tx ? `<small>THE POEM</small>${esc(tx)}` : ''; } }); };
+    const EX = M.ex, gapsOf = sh => sh.slice(1).map((s, i) => (s.st != null && sh[i].st != null) ? Math.round(s.st - (sh[i].st + (sh[i].t1 - sh[i].t0))) : null);
+    /* 1 · two ways of joining */
+    const O = EX[8], Bk = EX[3];
+    B('Two ways of joining', 14, () => `${frame('scenes', O.t0, O.t1)}<div class="kind"><small>TAKE · SCENES</small><p class="fadein" style="animation-delay:6s">One film. Its moments in order.</p><div class="film fadein" style="animation-delay:7s">${O.shots.map(s => esc(s.title)).join('<br>')}</div></div>`, el => { startVideos(el); bandPoem(el); });
+    B('Two ways of joining', 15, () => `${frame('suite', Bk.t0)}<div class="kind"><small>TAKE · SUITE</small><p class="fadein" style="animation-delay:6s">Four films, side by side.</p><div class="film fadein" style="animation-delay:7s">${Bk.shots.map(s => esc(s.title)).join('<br>')}</div></div>`, el => { startVideos(el); bandPoem(el); });
+    B('Two ways of joining', 9, () => line(['Both are cuts of the same poem.', 'They join their shots in different ways, and a viewer feels it.']).replace('class="line"', 'class="line" style="bottom:auto;top:350px"'));
+    /* 2 · Metz's table, built */
+    B("Metz's table", 10, () => `<div class="big2" style="top:220px;font:600 52px/1.2 var(--serif)">In 1966 Christian Metz sorted the ways a story film joins its shots into eight kinds.</div>${line(['He asked a few questions of any stretch of film, one after another.'])}`);
+    B("Metz's table", 22, () => `${tree(M, null, 1.12, { build: true, style: 'left:40px;top:40px' })}<div class="kind" style="top:auto;bottom:60px;left:60px;right:auto;width:620px"><p id="tq" style="font:30px/1.3 var(--serif)"></p></div>`,
+      el => { const qs = [[0, 'One shot, or several?'], [3, 'Several: is there time between them?'], [6, 'If not: do motifs alternate, or sit side by side?'], [10, 'If time passes: does it describe, or tell?'], [13, 'If it tells: do two lines alternate, or is there one?'], [16, 'One line: is anything skipped? In leaps, or here and there?']];
+        const order = [['root'], ['one', 'many'], ['achron', 'chron'], ['alt', 'noalt'], ['desc', 'narr'], ['altn', 'lin'], ['cont', 'disc', 'org', 'scat']];
+        qs.forEach(([t, q], k) => later(t * 1000, () => { $('#tq', el).textContent = q; (order[k] || []).concat(order[k + 1] || []).forEach(n => { const i = Object.keys(NODES).indexOf(n); const e = el.querySelector(`.q[data-i="${i}"]`); if (e) e.classList.add('in'); }); }));
+        later(19500, () => el.querySelectorAll('.q').forEach(e => e.classList.add('in'))); });
+    /* 3 · the eight, found */
+    const TEACH = { 1: 'One shot holds the whole moment. Nothing is joined at all.', 3: 'Shots from several films, with no time between them: not a story, a category of things.', 6: 'One film, nothing skipped: the cuts follow time as it passes. This is a scene.',
+      7: 'One film, in long organised leaps: a story told in episodes.', 8: 'One film, its moments skipped here and there: an ordinary sequence.' };
+    [1, 6, 8, 7, 3].forEach(n => { const e = EX[n]; if (!e) return; const g = gapsOf(e.shots).filter(x => x != null);
+      B('The eight kinds, found', Math.min(15, e.t1 - e.t0) + 3, () => `${frame(e.version, e.t0 + .2, e.t1)}${tree(M, n, .3, { style: 'left:1160px;top:470px;transform:scale(1.25);transform-origin:0 0' })}
+          <div class="kind"><small>TAKE · ${e.version.toUpperCase()}</small><b>${esc(M.types[n].n)}</b><p>${esc(TEACH[n])}</p><div class="film">${e.shots.map(s => `${esc(s.title)}${s.year ? ' · ' + s.year : ''}`).join('<br>')}</div>${g.length ? `<div class="film" style="color:var(--lime);margin-top:10px">time skipped between shots in the source film: ${g.map(x => x + ' s').join(', ')}</div>` : ''}</div>`,
+        el => { startVideos(el); bandPoem(el); }); });
+    B('The eight kinds, found', 12, () => `${tree(M, null, 1, { never: [2, 4, 5], style: 'left:130px;top:30px' })}${line(['Three kinds never happen in these cuts: parallel, descriptive, and two lines alternating.', 'No rule here sets two motifs against each other, or follows two stories at once.'])}`);
+    const AL = { t0: 659.68, t1: 707.99 };
+    B('The eight kinds, found', 16, () => `${frame('suite', AL.t0 + .3)}${tree(M, 5, .3, { style: 'left:1160px;top:470px;transform:scale(1.25);transform-origin:0 0' })}<div class="kind"><small>THE ROOM'S ONE ALTERNATION</small><b>Is this alternating?</b><p>The rule says yes: Moonwalk One comes back after five other films.</p><p class="fadein" style="animation-delay:7s;color:#ff9f8e">Metz would say no. Six films pass in between; nothing alternates. A machine reading of a film theory has its own blind spots.</p></div>`,
+      el => { startVideos(el); bandPoem(el); });
+    /* 4 · the count */
+    const VS = ['suite', 'scenes', 'cineosis', 'drift'], COL = { 1: '#ece6da', 3: '#6f685d', 5: '#ff9f8e', 6: '#c4f46a', 7: '#8ea6ff', 8: '#f2c14e' };
+    B('The count', 15, () => `<div style="position:absolute;left:60px;right:60px;top:110px;display:flex;flex-direction:column;gap:30px">${VS.map((v, i) => { const c = M.versions[v], tot = Object.values(c).reduce((a, b) => a + b, 0);
+        return `<div style="opacity:0;animation:up .7s ease forwards ${i * .6}s"><div style="font:600 18px var(--mono);color:var(--lime);letter-spacing:.12em;margin-bottom:6px">${v.toUpperCase()}</div><div style="display:flex;height:50px;border-radius:4px;overflow:hidden">${Object.entries(c).map(([k, n]) => `<i title="${M.types[k].n}" style="flex:${n};background:${COL[k] || '#444'};display:flex;align-items:center;padding-left:8px;font:600 14px var(--mono);color:#0b0a09;white-space:nowrap;overflow:hidden">${n} ${M.types[k].n}</i>`).join('')}</div></div>`; }).join('')}</div>
+        ${line(['Three takes are almost all brackets: catalogues of resemblance.', 'Only Scenes, the one rule that keeps a film\'s own time, ever tells a story.'])}`);
+    /* 5 · the room, operated */
+    const S6 = EX[6];
+    B('In the room', 34, () => `<div class="roomcap"></div>`, el => K.room(el, 'syntagma.html', [
+      { act: d => { const b = [...d.querySelectorAll('button')].find(x => /^Scenes/.test(x.textContent.trim())); if (b) b.click(); const a = d.querySelector('audio'); if (a) a.currentTime = S6.t0 + .5; const p = d.querySelector('#play'); if (p) p.click(); }, cap: '<b>The Grand Syntagmatique</b>The room that did all of this: here, the Scenes take at the scene we just watched.' },
+      { at: 5, sel: '#tree', max: 2.4, cap: '<b>Its table</b>The same questions, lit for the stretch now playing.' },
+      { at: 13, sel: '#mons', cap: '<b>Every take at this moment</b>The same beat, four ways of joining.' },
+      { at: 21, sel: '#tbl', cap: '<b>Every beat, every take</b>Each cell one kind of sequence: open it and try your own reading against the machine\'s.' }]));
+    B('In the room', 40, () => `<div class="next"><small>TRY IT · OR WATCH THE NEXT ROOM</small><h1 style="color:var(--lime)">The Grand Syntagmatique</h1><nav><a href="syntagma.html" style="background:var(--lime)">Open the room</a><a class="ghost" href="series.html" style="color:var(--lime);border-color:var(--lime)">All episodes</a></nav></div>`);
+  }
+};
+</script>
+<script src="explain/player.js?v=6"></script>
+</body>
+</html>
