@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Recurring Cast · A Room, Filmed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="explain/film.css?v=1"><link rel="stylesheet" href="explain/episode.css?v=3"><link rel="stylesheet" href="explain/lesson.css?v=3">
+<!-- CINEOSIS · A ROOM, FILMED · THE RECURRING CAST. The census room (recurring-cast.html) counts every archive film, clip and voice the
+     lab's six films use and what job each was given. Filmed: one clip with four jobs, the repertory the films keep returning to, the job
+     almost every shot is asked to do, the signs no film used, and whose voices are heard (the imbalance is in the scripts first).
+     Data: explain/lcast.py -> explain/lesson/cast.json, from census/census.json and census/operations.json. -->
+<style>
+:root { --bg: #0b0a09; --ink: #ece6da; }
+body, #stage { background: var(--bg); }
+.jobs { position: absolute; left: 1010px; right: 50px; top: 50px; display: flex; flex-direction: column; gap: 22px; }
+.jobs div { opacity: 0; transform: translateX(12px); transition: opacity .6s, transform .6s; } .jobs div.on { opacity: 1; transform: none; }
+.jobs small { display: block; font: 600 13px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--fc, var(--gold)); margin-bottom: 4px; } .jobs p { margin: 0; font: italic 24px/1.3 var(--serif); color: var(--ink); }
+.rep { position: absolute; left: 40px; right: 40px; top: 40px; height: 710px; display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 1fr; gap: 10px; }
+.rep figure { margin: 0; position: relative; background: #111 center/cover; opacity: 0; animation: fade .5s ease forwards; } .rep figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 8px 6px; background: linear-gradient(transparent, rgba(0,0,0,.85)); font: 13px/1.2 var(--mono); color: #ddd; }
+.rep figcaption b { display: block; font: 600 26px var(--serif); color: var(--gold); }
+.mr { position: absolute; left: 80px; right: 80px; top: 70px; display: flex; flex-direction: column; gap: 26px; }
+.mr div { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: baseline; border-bottom: 1px solid #2c2925; padding-bottom: 14px; opacity: 0; animation: up .8s ease forwards; }
+.mr span { font: 28px/1.2 var(--serif); color: var(--ink); } .mr b { font: 600 22px var(--mono); color: var(--lime); letter-spacing: .06em; }
+.kb { position: absolute; left: 80px; right: 80px; top: 70px; display: flex; flex-direction: column; gap: 34px; }
+.kb .row > b { display: block; font: 600 15px var(--mono); letter-spacing: .12em; color: var(--ink); text-transform: uppercase; margin-bottom: 8px; }
+.kb .bar { display: flex; height: 54px; } .kb .bar i { height: 100%; width: 0; transition: width 1.2s cubic-bezier(.3,.7,.3,1); overflow: hidden; white-space: nowrap; font: 600 13px var(--mono); color: #111; display: grid; place-items: center; }
+.tbl { position: absolute; left: 80px; right: 80px; top: 60px; display: grid; grid-template-columns: repeat(9, 1fr); gap: 10px; }
+.tbl div { height: 112px; border-radius: 6px; display: grid; place-items: center; text-align: center; font: 600 30px var(--serif); color: #111; background: var(--c); transition: opacity .8s, filter .8s; padding: 6px; } .tbl div small { display: block; font: 11px/1.2 var(--mono); color: #222; }
+.tbl.dimmed div.nv { opacity: .14; filter: grayscale(1); }
+.vx { position: absolute; left: 120px; right: 120px; top: 120px; display: flex; flex-direction: column; gap: 70px; }
+.vx .row b { display: block; font: 600 16px var(--mono); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 12px; color: var(--ink); }
+.vx .people { display: flex; flex-wrap: wrap; gap: 6px; } .vx .people i { width: 18px; height: 40px; border-radius: 9px 9px 3px 3px; background: #6f8cff; opacity: 0; transition: opacity .3s; } .vx .people i.f { background: #ff9f8e; } .vx .people i.u { background: #6d675d; } .vx .people i.on { opacity: 1; }
+.ty { position: absolute; left: 80px; right: 80px; top: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 60px; }
+.ty div { display: grid; grid-template-columns: 220px 1fr 64px; align-items: center; gap: 12px; height: 54px; font: 21px var(--serif); color: var(--ink); opacity: 0; transition: opacity .5s; } .ty div.on { opacity: 1; }
+.ty div i { height: 18px; background: var(--gold); } .ty div.lo i { background: var(--red); } .ty div b { font: 600 18px var(--mono); text-align: right; }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage"></div></div>
+<div id="bar"><button id="bPrev" title="previous (←)">‹</button><button id="bPlay" title="play / pause (space)">❚❚</button><button id="bNext" title="next (→)">›</button><div id="chs"></div><span id="time"></span><button id="bSnd" title="sound">♪ on</button></div>
+<div id="start"><div><p style="font:600 16px var(--mono);letter-spacing:.2em;color:#b3ab9e;margin:0 0 14px">CINEOSIS · A ROOM, FILMED</p><h1 style="font-weight:600;color:#ece6da">The Recurring Cast</h1><p>Which pieces of the archive our films keep reaching for, and what they make them do. About six minutes, with sound.</p><b style="background:#c4f46a">▶ Watch</b></div></div>
+<audio id="score" preload="auto"></audio><audio id="voice" preload="auto"></audio>
+<script src="explain/lesson.js?v=3"></script>
+<script>
+window.EPISODE = {
+  data: ['explain/lesson/cast.json?v=1'],
+  cues: ['dae-the-geezer-s-stride', 'dae-rusty-carnivals-barnacled-porch-stride', 'dae-slide-carousel-at-blue-hour', 'dae-salvaged-timber', 'dae-cedar-and-cassette', 'dae-snowbound-umea-cabin', 'dae-preparation-drift'],
+  build(D, B, K) {
+    const C = D[0], esc = LX.esc, fmt = K.fmt;
+    const FC = { 'Found Odyssey': '#6f8cff', 'Markov Odyssey': '#8ea6ff', 'Norse Half Moon': '#6cc4d6', 'The Republic': '#e0572a', 'Found Republic': '#ff9f8e', 'WYGWYL': '#c4f46a' };
+    const vid = (src, t = .5) => `<video muted loop playsinline data-src="${esc(src)}" data-t="${t}"></video>`;
+    const go = (el, f) => { K.startVideos(el); LX.runBand(el, K); if (f) f(); };
+    const clipJobs = (c, words = true) => `<div class="pic left">${vid(c.video)}</div><div class="jobs">${c.jobs.map(j => `<div style="--fc:${FC[j.film] || '#f2c14e'}"><small>${esc(j.film)} · ${esc(j.role)}</small><p>${esc(j.job.split('|').pop().trim())}</p></div>`).join('')}</div>`;
+    const showJobs = (el, at = 2, gap = 2.6) => el.querySelectorAll('.jobs div').forEach((d, i) => K.later((at + i * gap) * 1000, () => { d.classList.add('on'); LX.tick(1000 + i * 120, .06, .03); }));
+    const P = C.same_clip[0];
+
+    /* COLD OPEN · one shot, four jobs */
+    B('Cold open', 9, () => `<div class="pic">${vid(P.video)}</div>` + LX.band([[.5, 'A few seconds from a 1948 film called <em>The Photographer</em>.'], [4.5, 'Our films have used this exact shot over and over. Four times, for four different things.']]), el => go(el));
+    B('Cold open', 15, () => clipJobs(P) + LX.band([[.3, 'In one film it is two eagles fighting over an assembly. In another, a crowd looking up.'], [8, 'In a third, Mars in the year 2085.']]), el => go(el, () => showJobs(el, 1.2, 2.4)));
+    B('Cold open', 8, () => `<div class="tc"><small>CINEOSIS · A ROOM, FILMED</small><h1>The Recurring Cast</h1><p>Which pieces of the archive our films keep reaching for, and what they make them do.</p></div>`, el => LX.ping());
+
+    /* THE REPERTORY */
+    B('The repertory', 15, () => `<div class="rep">${C.sources.slice(0, 24).map((s, i) => `<figure style="background-image:url('${esc(s.thumb)}');animation-delay:${i * .12}s"><figcaption><b>${s.uses}</b>${esc(s.title.slice(0, 42))} · ${s.nfilms} films</figcaption></figure>`).join('')}</div>`
+      + LX.band([[.3, `Six of our films use the archive ${fmt(C.n_uses)} times: ${fmt(C.n_clips)} clips from ${fmt(C.n_sources)} source films.`], [7.5, 'And they keep coming back to the same few. Here are the films they share most, with how often each was used.']]), el => LX.runBand(el, K));
+    const SE = C.sources[0], SR = C.recurring.find(r => r.title === SE.title) || {};
+    B('The repertory', 16, () => `<div class="pic left">${vid(SE.top_video, 1)}</div><div class="jobs">${Object.entries(SR.by_film || {}).map(([f, ks]) => `<div style="--fc:${FC[f] || '#f2c14e'}"><small>${esc(f)}</small><p>${esc(ks.join(', '))}</p></div>`).join('')}</div>`
+      + LX.band([[.3, `<em>${esc(SE.title)}</em>, ${SE.year}, a film about how spiders build. It is in all six films, ${SE.uses} times.`], [8.5, 'It speaks Homer\'s lines, sets a Martian scene, joins the poem\'s montage. A spider film plays everyone.']]), el => go(el, () => showJobs(el, 1.5, 1.6)));
+    B('The repertory', 14, () => `<div class="mr">${C.multi_role.slice(0, 6).map((m, i) => `<div style="animation-delay:${.4 + i * .7}s"><span>${esc(m.title)}</span><b>${m.plays.map(esc).join(' · ')}</b></div>`).join('')}</div>`
+      + LX.band([[.3, 'One source film can even play two characters in the same story.'], [6.5, 'A local history society\'s lecture is both JIM and S.O.C.R.A.T.E.S.']]), el => LX.runBand(el, K));
+
+    /* THE JOB · what a shot is asked to do */
+    const KC = ['#c4f46a', '#8ea6ff', '#f2c14e', '#ff9f8e', '#c9a4ff'];
+    B('The job', 17, () => `<div class="kb">${Object.entries(C.kinds_by_film).map(([f, ks]) => { const t = ks.reduce((a, [, n]) => a + n, 0) || 1; return `<div class="row"><b style="color:${FC[f]}">${esc(f)}</b><div class="bar">${ks.map(([k, n], i) => `<i style="background:${KC[i]}" data-w="${(n / t * 100).toFixed(1)}">${n / t > .12 ? esc(k) : ''}</i>`).join('')}</div></div>`; }).join('')}</div>`
+      + LX.band([[.3, 'What each film asks an archive shot to do.'], [7, `Across all six, ${Math.round(C.job_baseline * 100)}% of the time the job is the same: show what the words say, or say what the words say.`]]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.kb i').forEach((i, k) => K.later(500 + k * 160, () => i.style.width = i.dataset.w + '%')); });
+    B('The job', 15, () => `<div class="ty">${C.types.slice(0, 7).concat(C.types.slice(-7)).map((t, i) => `<div class="${t.ratio < 1 ? 'lo' : ''}" data-i="${i}"><span>${esc(t.type)}</span><i style="width:${Math.min(100, t.ratio / 2.2 * 100).toFixed(1)}%"></i><b>${t.ratio.toFixed(2)}×</b></div>`).join('')}</div>`
+      + LX.band([[.3, 'Against what the archive holds, the films pick some kinds of shot far more often: faces, streets, hands at work.'], [8, 'And they avoid others: talking heads, printed pages, animation. The archive is full of what our films do not want.']]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.ty div').forEach((d, i) => K.later(400 + i * 280, () => d.classList.add('on'))); });
+
+    /* THE MISSING SIGNS */
+    const SN = C.signs, never = new Set(C.never_signs.map(x => x[0])), dom = { perception: '#7fd6a4', affect: '#ff9f8e', action: '#f2c14e', reflection: '#8ea6ff', mental: '#c9a4ff', time: '#7fd6e8', read: '#c4f46a', break: '#ffb86b' };
+    B('Missing', 15, () => `<div class="tbl">${Object.entries(SN).map(([n, s]) => `<div class="${never.has(n) ? 'nv' : ''}" style="--c:${dom[s.dom] || '#a29d90'}">${esc(s.symbol)}<small>${esc(s.name)}</small></div>`).join('')}</div>`
+      + LX.band([[.3, 'The lab reads shots for 45 of Deleuze\'s signs. Here they all are.'], [6.5, `Now dim the ones no film ever used: <b>${never.size}</b> of 45. The films speak a small part of the language they were built on.`]]),
+      el => { LX.runBand(el, K); K.later(6500, () => { el.querySelector('.tbl').classList.add('dimmed'); LX.tick(400, .4, .05); }); });
+
+    /* WHOSE VOICES */
+    const vs = C.voice_sex, vw = C.voice_want, ppl = (m, f, u) => [...Array(m).fill('m'), ...Array(f).fill('f'), ...Array(u).fill('u')].map(c => `<i class="${c}"></i>`).join('');
+    B('Whose voices', 17, () => `<div class="vx"><div class="row"><b>the scripts asked for <span style="color:#6f8cff">${vw.m} men</span> and <span style="color:#ff9f8e">${vw.f} women</span></b><div class="people" data-r="0">${ppl(vw.m, vw.f, vw['?'] || 0)}</div></div>
+        <div class="row"><b>the archive gave <span style="color:#6f8cff">${vs.m} men's voices</span> and <span style="color:#ff9f8e">${vs.f} women's</span></b><div class="people" data-r="1">${ppl(vs.m, vs.f, vs['?'] || 0)}</div></div></div>`
+      + LX.band([[.3, 'In the Found Republic, every character speaks with a voice found in the archive.'], [8, 'The archive is mostly men talking. But look at the first row: the scripts had already asked for men.']]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.people').forEach((p, r) => p.querySelectorAll('i').forEach((i, k) => K.later((1 + r * 4 + k * .04) * 1000, () => i.classList.add('on')))); });
+    const dh = Object.entries(C.decades_heard).filter(([d]) => d !== 'None').sort((a, b) => a[0] - b[0]), dm = Math.max(...dh.map(d => d[1]));
+    B('Whose voices', 12, () => `<div class="hist" style="position:absolute;left:160px;right:160px;top:120px;height:480px;display:flex;align-items:flex-end;gap:14px">${dh.map(([d, n]) => `<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%"><i style="display:block;background:var(--gold);height:0;transition:height 1s" data-h="${(n / dm * 100).toFixed(1)}"></i><span style="font:14px var(--mono);color:var(--dim);text-align:center;padding-top:8px">${d}s</span></div>`).join('')}</div>`
+      + LX.band([[.3, 'When the voices we hear were recorded.'], [5.5, 'Mostly the 1940s and 1950s: the years of the educational film, of the narrator who explains.']]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.hist i').forEach((i, k) => K.later(300 + k * 150, () => i.style.height = i.dataset.h + '%')); });
+
+    /* PRACTICE */
+    const Q = C.same_clip[1];
+    B('Practice', 15, () => clipJobs(Q) + LX.band([[.3, '<small>Your turn</small>']]), el => go(el, () => showJobs(el, 1.5, 2.5)));
+
+    /* NOW YOU CAN READ */
+    B('Now you can read', 13, () => clipJobs(P) + LX.band([[.3, 'Now you can read a census: count what returns, name the job it was given, look for what is missing.'], [7, 'An archive this large, and the films keep casting the same few.']]), el => go(el, () => showJobs(el, .2, .3)));
+    B('Now you can read', 9, () => `<div class="tc"><small>THE ROOM</small><h1 style="font-size:90px">The Recurring Cast</h1><p>recurring-cast.html: every film, clip and voice, counted by the job it was given.</p></div>`, el => LX.ping());
+  }
+};
+</script>
+<script src="explain/player.js?v=6"></script>
+</body>
+</html>
