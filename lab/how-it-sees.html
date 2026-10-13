@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How the Lab Sees</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<!-- HOW THE LAB SEES — a short film, played in the browser, about how the Cineosis Lab's machines learned to look and listen, and the one
+     step none of them can do: the reading. Every image is the lab's own archive; every number is a real output of the lab's own models
+     on those shots (explain/build.py → explain/film.json). No narrator: type, the archive's own sound, and the D-A-E score. -->
+<style>
+:root { --ink: #f3efe6; --dim: #a8a196; --faint: #6f685d; --gold: #f2c14e; --pic: #6f8cff; --snd: #ff9f43; --word: #c9a4ff; --ours: #7fd6a4; --bg: #000; --serif: 'Fraunces', Georgia, serif; --mono: 'IBM Plex Mono', ui-monospace, monospace; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: var(--mono); overflow: hidden; }
+#wrap { position: fixed; inset: 0 0 64px 0; display: grid; place-items: center; }
+#stage { position: absolute; left: 50%; top: 50%; width: 1600px; height: 900px; transform-origin: 50% 50%; overflow: hidden; background: #000; }
+.beat { position: absolute; inset: 0; opacity: 0; transition: opacity .9s ease; }
+.beat.on { opacity: 1; }
+/* type */
+.say { position: absolute; left: 120px; right: 120px; bottom: 96px; font: 400 46px/1.25 var(--serif); text-shadow: 0 2px 18px #000, 0 0 4px #000; }
+.say.mid { top: 50%; bottom: auto; transform: translateY(-50%); text-align: left; }
+.say.top { top: 70px; bottom: auto; }
+.say.small { font-size: 34px; }
+.say.corner { left: 40px; right: auto; width: 500px; top: 34px; bottom: auto; font-size: 29px; }
+.say span { display: block; opacity: 0; transform: translateY(14px); animation: up 1s ease forwards; }
+.say b { color: var(--gold); font-weight: 600; }
+@keyframes up { to { opacity: 1; transform: none; } }
+@keyframes fade { to { opacity: 1; } }
+.fadein { opacity: 0; animation: fade 1s ease forwards; }
+.label { font: 600 15px var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--dim); }
+.full { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.dimmed { filter: brightness(.45); }
+.ken { animation: ken 14s ease-out forwards; } @keyframes ken { from { transform: scale(1.0); } to { transform: scale(1.08); } }
+.big { font: 600 150px/1 var(--serif); letter-spacing: -.02em; }
+.chip { display: inline-grid; place-items: center; min-width: 1.9em; padding: 0 .3em; height: 1.5em; border-radius: 3px; color: #1a1712; font: 600 1em/1 var(--serif); }
+.tag { display: inline-block; background: var(--snd); color: #111; padding: 2px 10px; border-radius: 4px; font: 600 22px var(--mono); }
+/* grids of frames */
+.wall { position: absolute; inset: -40px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; animation: drift 30s linear forwards; }
+@keyframes drift { to { transform: translateY(-220px); } }
+.pair { background: #0d0c0a; border: 1px solid #222; } .pair img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; } .pair p { margin: 0; padding: 6px 8px 8px; font: 15px/1.3 var(--serif); color: #e6dfd2; height: 52px; overflow: hidden; }
+.pair.gone { opacity: .1; transition: opacity 1.2s; }
+.counter { position: absolute; right: 70px; top: 50px; text-align: right; background: rgba(0,0,0,.8); padding: 14px 20px; }
+.counter b { display: block; font: 600 64px var(--serif); color: var(--gold); } .counter small { color: var(--dim); font-size: 15px; }
+.standin { position: absolute; left: 70px; top: 54px; background: rgba(0,0,0,.8); padding: 6px 10px; font-size: 14px; color: var(--dim); }
+/* the matrix */
+.mx { position: absolute; }
+.mx .col { position: absolute; } .mx .col img { width: 100%; height: 100%; object-fit: cover; display: block; border: 1px solid #222; }
+.mx .row { position: absolute; display: flex; align-items: center; justify-content: flex-end; text-align: right; font: 18px/1.2 var(--serif); color: #e6dfd2; padding-right: 14px; }
+.mx .cell { position: absolute; display: grid; place-items: center; font: 14px var(--mono); color: #000; opacity: 0; animation: fade .5s ease forwards; border-radius: 3px; }
+.mx .cell.diag { box-shadow: 0 0 0 3px var(--gold), 0 0 26px rgba(242,193,78,.7); }
+.mx.settle .cell:not(.diag) { filter: brightness(.35) saturate(.4); transition: filter 1.5s; }
+.mx .spec { width: 100%; height: 100%; object-fit: fill; }
+.bars { position: absolute; display: flex; flex-direction: column; gap: 9px; }
+.bars div { display: grid; grid-template-columns: 330px 1fr 80px; align-items: center; gap: 14px; font: 21px var(--serif); }
+.bars i { height: 18px; background: #1a1916; border-radius: 3px; position: relative; overflow: hidden; } .bars i b { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--pic); border-radius: 3px; transition: width 1.6s cubic-bezier(.2,.7,.2,1); }
+.bars em { font: 18px var(--mono); color: var(--dim); font-style: normal; text-align: right; }
+.code { display: block; }
+.panel { position: absolute; background: rgba(10,9,8,.9); border: 1px solid #2a2722; padding: 18px 22px; }
+.sim { font: 600 70px var(--serif); color: var(--gold); }
+.thumbs { position: absolute; display: flex; gap: 14px; } .thumbs figure { margin: 0; width: 230px; opacity: 0; animation: up .8s ease forwards; } .thumbs img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; border: 1px solid #2a2722; } .thumbs figcaption { font: 16px/1.3 var(--serif); color: #ddd5c6; margin-top: 6px; height: 42px; overflow: hidden; } .thumbs figcaption em { display: block; font: 12px var(--mono); color: var(--faint); font-style: normal; }
+.rowlabel { position: absolute; font: 600 18px var(--mono); letter-spacing: .14em; }
+canvas.map { position: absolute; inset: 0; }
+.crop { position: absolute; border: 4px solid var(--gold); transition: all 1.4s ease; }
+.cut { position: absolute; transition: transform 1.6s cubic-bezier(.2,.7,.2,1), filter 1.6s; filter: drop-shadow(0 0 18px rgba(111,140,255,.9)); }
+.box { position: absolute; border: 3px solid var(--pic); box-shadow: 0 0 20px rgba(111,140,255,.6); }
+.spec-wrap { position: absolute; left: 120px; right: 120px; height: 260px; border: 1px solid #2a2722; } .spec-wrap img { width: 100%; height: 100%; object-fit: fill; display: block; } .spec-wrap .ph { position: absolute; top: -6px; bottom: -6px; width: 3px; background: #fff; box-shadow: 0 0 10px #fff; }
+.axis { position: absolute; font: 14px var(--mono); color: var(--dim); }
+.subs { position: absolute; left: 140px; right: 140px; bottom: 80px; text-align: center; font: 40px/1.3 var(--serif); text-shadow: 0 2px 10px #000; min-height: 60px; }
+.subs span { background: rgba(0,0,0,.55); padding: 2px 12px; }
+.typed::after { content: '▌'; animation: blink 1s steps(1) infinite; } @keyframes blink { 50% { opacity: 0; } }
+.blip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; position: absolute; inset: 90px 110px 120px; } .blip figure { margin: 0; } .blip img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; } .blip figcaption { font: 21px/1.3 var(--serif); color: var(--word); min-height: 56px; margin-top: 8px; }
+.layers { position: absolute; left: 820px; right: 80px; top: 140px; display: flex; flex-direction: column; gap: 28px; }
+.layers div { opacity: 0; animation: up 1s ease forwards; } .layers small { display: block; font: 600 15px var(--mono); letter-spacing: .16em; margin-bottom: 6px; } .layers p { margin: 0; font: 32px/1.25 var(--serif); }
+.table { position: absolute; left: 80px; top: 120px; display: grid; gap: 6px; }
+.table .t { width: 82px; height: 82px; border-radius: 4px; color: #1a1712; padding: 6px; font: 600 30px var(--serif); opacity: 0; animation: fade .5s ease forwards; position: relative; }
+.table .t small { position: absolute; left: 6px; bottom: 5px; font: 10px var(--mono); line-height: 1.1; right: 4px; }
+.table .t.lit { outline: 4px solid #fff; z-index: 2; }
+.qbig { position: absolute; left: 120px; right: 120px; top: 200px; }
+.qbig .chip { font-size: 70px; } .qbig h2 { font: 600 80px/1.1 var(--serif); color: var(--gold); margin: 24px 0 20px; } .qbig p { font: 28px/1.4 var(--serif); color: #e6dfd2; max-width: 1200px; }
+.vs { position: absolute; inset: 90px 80px 150px; display: grid; grid-template-columns: 1fr 1fr; gap: 50px; }
+.vs figure { margin: 0; } .vs img, .vs video { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; border: 1px solid #2a2722; background: #111; }
+.vs .read { margin-top: 14px; font: 24px/1.3 var(--serif); opacity: 0; } .vs .read.show { animation: up 1s ease forwards; } .vs .read em { display: block; font: 15px var(--mono); color: var(--dim); font-style: normal; margin-bottom: 6px; }
+.verdict { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); background: rgba(0,0,0,.88); border: 2px solid var(--pic); padding: 18px 34px; text-align: center; z-index: 3; transition: opacity 1s, top 1.2s; }
+.verdict b { display: block; font: 600 74px var(--serif); color: var(--pic); } .verdict small { font: 16px var(--mono); color: var(--dim); letter-spacing: .12em; text-transform: uppercase; }
+.verdict.up { top: 8%; transform: translate(-50%, 0) scale(.6); }
+.road { position: absolute; left: 70px; right: 70px; top: 170px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px; }
+.road div { border: 1px solid #2a2722; background: #0c0b09; padding: 16px; opacity: 0; animation: up .9s ease forwards; min-height: 380px; }
+.road small { display: block; font: 600 14px var(--mono); letter-spacing: .14em; color: var(--gold); margin-bottom: 10px; } .road p { margin: 0; font: 22px/1.3 var(--serif); } .road img { width: 100%; aspect-ratio: 4/3; object-fit: cover; margin-top: 10px; display: block; }
+.road .sheet { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; } .road .sheet i { aspect-ratio: 4/3; background-size: cover; opacity: .4; } .road .sheet i.k { opacity: 1; outline: 3px solid var(--gold); }
+.dots { position: absolute; left: 120px; right: 120px; top: 120px; height: 520px; }
+.end { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 140px; gap: 30px; }
+.end h1 { font: 600 76px/1.1 var(--serif); margin: 0; } .end nav { display: flex; gap: 20px; } .end a { color: #000; background: var(--gold); padding: 14px 26px; font: 600 22px var(--mono); text-decoration: none; border-radius: 4px; pointer-events: auto; } .end a.ghost { background: transparent; color: var(--gold); border: 2px solid var(--gold); }
+.credit { position: absolute; left: 70px; bottom: 30px; font: 14px var(--mono); color: var(--faint); }
+/* controls */
+#bar { position: fixed; left: 0; right: 0; bottom: 0; height: 64px; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: #050505; border-top: 1px solid #1d1a16; }
+#bar button { background: none; border: 1px solid #333; color: var(--ink); font: 14px var(--mono); padding: 6px 10px; border-radius: 4px; cursor: pointer; min-width: 40px; }
+#chs { flex: 1; display: flex; gap: 3px; height: 36px; min-width: 0; }
+#chs div { position: relative; flex: var(--w); background: #15130f; border-radius: 3px; cursor: pointer; overflow: hidden; min-width: 0; }
+#chs div i { position: absolute; inset: 0 auto 0 0; width: 0; background: rgba(242,193,78,.35); }
+#chs div span { position: absolute; left: 6px; top: 50%; transform: translateY(-50%); font: 11px var(--mono); color: var(--dim); white-space: nowrap; letter-spacing: .08em; }
+#chs div.on span { color: #fff; }
+#time { font-size: 12px; color: var(--dim); width: 92px; text-align: right; }
+#start { position: fixed; inset: 0; z-index: 10; background: radial-gradient(ellipse at center, rgba(0,0,0,.5), #000 80%); display: grid; place-items: center; text-align: center; cursor: pointer; }
+#start h1 { font: 600 88px/1 var(--serif); margin: 0 0 18px; } #start p { font: 22px/1.4 var(--serif); color: var(--dim); max-width: 760px; margin: 0 auto 30px; } #start b { display: inline-block; background: var(--gold); color: #000; font: 600 22px var(--mono); padding: 14px 30px; border-radius: 6px; }
+@media (max-width: 700px) { #bar { gap: 6px; padding: 0 8px; } #chs div span { display: none; } #time { display: none; } #start h1 { font-size: 48px; } #start p { font-size: 17px; padding: 0 16px; } }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage"></div></div>
+<div id="bar"><button id="bPrev" title="previous (←)">‹</button><button id="bPlay" title="play / pause (space)">❚❚</button><button id="bNext" title="next (→)">›</button><div id="chs"></div><span id="time"></span><button id="bSnd" title="sound">♪ on</button></div>
+<div id="start"><div><h1>How the Lab Sees</h1><p>Seven machines learned to look and listen from the internet. One person reads what they cannot. A film about the Cineosis Lab, made of its own archive and its models' real answers. About eight minutes, with sound.</p><b>▶ Watch</b></div></div>
+<audio id="score" preload="auto"></audio>
+<script>
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const esc = t => String(t ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+const DOMC = { perception: '#e9d9a8', affect: '#f0b9a4', action: '#e7a37c', reflection: '#b9cfa0', mental: '#a9c9c9', break: '#d9d3c7', time: '#b8b3d8', read: '#d9b8d2' };
+const fmt = n => Number(n).toLocaleString('en-US');
+let F, S, beats = [], cur = -1, timer = 0, paused = false, sound = true, tok = 0, t0 = 0, left = 0;
+const stage = $('#stage'), score = $('#score');
+
+/* ---------- small makers ---------- */
+const say = (lines, cls = '') => `<div class="say ${cls}">${lines.map((l, i) => `<span style="animation-delay:${.25 + i * 1.1}s">${l}</span>`).join('')}</div>`;
+const chip = (n, size = '') => { const s = S[n]; return s ? `<span class="chip" style="background:${DOMC[s.dom]};${size}">${esc(s.symbol)}</span>` : ''; };
+const vid = (s, cls = 'full', muted = true) => `<video class="${cls}" data-src="${esc(s.video)}" data-t="${s.t || 0}" ${muted ? 'muted' : ''} playsinline loop></video>`;
+const heat = v => { const x = Math.max(0, Math.min(1, (v - .05) / .3)); return `hsl(${45 - x * 10},${40 + x * 50}%,${10 + x * 55}%)`; };
+function startVideos(el, withSound) { el.querySelectorAll('video[data-src]').forEach(v => { v.src = v.dataset.src; v.addEventListener('loadedmetadata', () => { try { v.currentTime = +v.dataset.t || 0; } catch (e) { } if (withSound && sound && !v.hasAttribute('muted')) { v.muted = false; v.volume = 1; } v.play().catch(() => { v.muted = true; v.play().catch(() => { }); }); }, { once: true }); }); }
+function bars(cv, arr, rgb) { const g = cv.getContext('2d'), W = cv.width, H = cv.height, bw = W / arr.length; g.clearRect(0, 0, W, H);
+  arr.forEach((q, i) => { const v = q / 127, h = Math.abs(v) * H / 2; g.fillStyle = `rgba(${rgb},${.3 + Math.abs(v) * .7})`; g.fillRect(i * bw, v > 0 ? H / 2 - h : H / 2, Math.max(1, bw - .3), Math.max(1, h)); }); }
+const later = (ms, f) => { const my = tok; setTimeout(() => { if (my === tok) f(); }, ms); };
+const typeIn = (el, text, cps = 34) => { const my = tok; let i = 0; el.classList.add('typed'); const step = () => { if (my !== tok) return; el.textContent = text.slice(0, ++i); if (i < text.length) setTimeout(step, 1000 / cps); else el.classList.remove('typed'); }; step(); };
+const duck = on => { score.volume = sound ? (on ? .07 : .32) : 0; };
+
+/* ---------- the film ---------- */
+function build() {
+  const seed = F.seed, C = F.clip, Z = F.zero, rd = seed.reading, dm = S[String(rd.n)];
+  const B = (ch, secs, html, after, opt = {}) => beats.push({ ch, secs, html, after, ...opt });
+  /* OPEN */
+  B('A field', 7, () => `${vid(seed, 'full ken')}${say(['A field. Sheep.', 'One of them is dark.'])}`, el => startVideos(el));
+  B('A field', 7, () => `${vid(seed, 'full dimmed')}${say(['We asked some machines, and one person,', 'what they find here.'])}`, el => startVideos(el));
+  B('A field', 12, () => `<img class="full dimmed" src="${esc(seed.thumb)}">
+    <div class="layers" style="left:120px;top:110px;right:120px;gap:22px">
+      <div style="animation-delay:.3s"><small style="color:var(--pic)">A PICTURE MACHINE</small><p>an animal · ${Math.round(Z.subjects[0][1] * 100)}%</p></div>
+      <div style="animation-delay:2.2s"><small style="color:var(--word)">A SENTENCE MACHINE</small><p>“${esc(seed.cap)}”</p></div>
+      <div style="animation-delay:4.1s"><small style="color:var(--snd)">A SOUND MACHINE</small><p>silence</p></div>
+      <div style="animation-delay:6.4s"><small style="color:var(--gold)">A PERSON</small><p style="color:var(--gold)">${esc(rd.note)}</p></div></div>`);
+  B('A field', 7, () => say(['Only the last one is a reading.', 'None of the machines was made for films.', 'They learned from the internet.'], 'mid'));
+  /* LAION */
+  const pool = [...C.shots, ...F.blip, ...F.map.near, ...F.dino.near, ...F.clap.shots].filter(x => x.cap);
+  const wall = () => `<div class="wall">${Array.from({ length: 42 }, (_, i) => pool[i % pool.length]).map((p, i) => `<div class="pair" data-i="${i}"><img src="${esc(p.thumb)}"><p>${esc(p.cap)}</p></div>`).join('')}</div>`;
+  B('Where they learned', 10, () => `${say(['<b>LAION</b> is a non-profit in Germany.', 'It gathered links to pictures on the public web,', 'and the words people wrote under them.'], 'mid')}`);
+  B('Where they learned', 11, () => `${wall()}<div class="standin">stand-ins: our frames and our captions. LAION's pairs are web images and their alt-text.</div><div class="counter"><b id="cnt">0</b><small>picture–text pairs in LAION-5B</small></div>${say(['5.85 billion pairs.', '2.3 billion of them in English.'], 'small')}`,
+    el => { const c = $('#cnt', el), my = tok, t = performance.now(); const go = () => { if (my !== tok) return; const k = Math.min(1, (performance.now() - t) / 6000); c.textContent = fmt(Math.round(5850000000 * (1 - Math.pow(1 - k, 3)))); if (k < 1) requestAnimationFrame(go); }; go(); });
+  B('Where they learned', 10, () => `${wall()}${say(['Nobody looked at them all.', 'An earlier CLIP kept a pair', 'if the words seemed to match the picture.'], 'small')}`,
+    el => { const ps = [...el.querySelectorAll('.pair')]; ps.forEach((p, i) => { if ((i * 7) % 5 === 0) later(2500 + i * 60, () => p.classList.add('gone')); }); });
+  B('Where they learned', 10, () => say(['In 2023, researchers found links to child sexual abuse material in it.', 'LAION took it down,', 'and released a cleaned version in 2024.'], 'mid small'));
+  B('Where they learned', 7, () => say(['So the machine\'s eye is the web\'s eye:', '<b>what people wrote under pictures.</b>'], 'mid'));
+  /* CLIP */
+  B('The matching game', 9, () => `<div class="qbig" style="top:230px"><div class="big fadein">CLIP</div><h2 style="color:var(--ink);font-size:52px" class="fadein"><b style="color:var(--gold)">C</b>ontrastive <b style="color:var(--gold)">L</b>anguage–<b style="color:var(--gold)">I</b>mage <b style="color:var(--gold)">P</b>re-training</h2><p class="fadein">OpenAI, 2021. The copy we use was trained by LAION, on LAION-2B.</p></div>`);
+  const mx = (opts = {}) => { const N = C.shots.length, cx = 560, cy = 210, cw = 124, chh = 76;
+    const order = opts.shuffle ? [3, 6, 0, 5, 2, 7, 1, 4] : [...Array(N).keys()];
+    let h = `<div class="mx${opts.settle ? ' settle' : ''}" style="inset:0">`;
+    C.shots.forEach((s, j) => h += `<div class="col" style="left:${cx + j * cw}px;top:${cy - 104}px;width:${cw - 8}px;height:90px"><img src="${esc(s.thumb)}"></div>`);
+    order.forEach((i, r) => h += `<div class="row" style="left:40px;top:${cy + r * chh}px;width:${cx - 50}px;height:${chh - 6}px">${esc(C.shots[i].cap)}</div>`);
+    if (opts.cells) order.forEach((i, r) => C.shots.forEach((_, j) => { const v = C.cos[j][i]; h += `<div class="cell${opts.diag && i === j ? ' diag' : ''}" style="left:${cx + j * cw}px;top:${cy + r * chh}px;width:${cw - 8}px;height:${chh - 8}px;background:${heat(v)};animation-delay:${opts.fast ? 0 : (r * N + j) * .07}s">${v.toFixed(2)}</div>`; }));
+    return h + '</div>'; };
+  B('The matching game', 10, () => `${mx({ shuffle: true })}${say(['The game: eight pictures, eight sentences.', 'Which sentence goes with which picture?'], 'corner')}`);
+  B('The matching game', 11, () => `${mx({ cells: true })}${say(['It scores every picture against every sentence.'], 'corner')}`);
+  B('The matching game', 11, () => `${mx({ cells: true, diag: true, fast: true })}${say(['Training pulls the right pairs together,', 'and pushes every wrong pair apart.', 'Billions of times.'], 'corner')}`, el => later(1800, () => el.querySelector('.mx').classList.add('settle')));
+  B('The matching game', 8, () => say(['That is all “contrastive” means:', 'learn what goes together', '<b>by contrast with what does not.</b>'], 'mid'));
+  B('The matching game', 9, () => { const p = C.p[0]; return `<img src="${esc(seed.thumb)}" style="position:absolute;left:120px;top:150px;width:420px;border:1px solid #333">
+      <div class="bars" style="left:600px;top:150px;right:120px">${C.shots.map((s, j) => `<div><span style="font-size:18px">${esc(s.cap)}</span><i><b data-w="${p[j] * 100}" style="background:${j === 0 ? 'var(--gold)' : 'var(--pic)'}"></b></i><em>${(p[j] * 100).toFixed(1)}%</em></div>`).join('')}</div>
+      ${say([`For the sheep it bets <b>${(p[0] * 100).toFixed(0)}%</b> on the right sentence.`], 'small')}`; }, el => later(400, () => el.querySelectorAll('.bars b').forEach(b => b.style.width = b.dataset.w + '%')));
+  B('The matching game', 13, () => `<img src="${esc(seed.thumb)}" style="position:absolute;left:120px;top:90px;width:300px;border:1px solid #333">
+      <canvas class="code" id="ci" width="1024" height="110" style="position:absolute;left:460px;top:110px;width:1020px;height:110px"></canvas>
+      <div class="rowlabel" style="left:120px;top:330px;color:var(--word);font:28px var(--serif)">“${esc(seed.cap)}”</div>
+      <canvas class="code" id="ct" width="1024" height="110" style="position:absolute;left:460px;top:380px;width:1020px;height:110px"></canvas>
+      <div class="axis" style="left:460px;top:228px">512 numbers for the picture</div><div class="axis" style="left:460px;top:498px">512 numbers for the sentence</div>
+      <div class="panel fadein" style="left:120px;top:560px;animation-delay:3s">closeness <span class="sim">${Z.cos.toFixed(2)}</span> &nbsp; <span style="color:var(--dim);font-size:18px">${Z.wrong.map(([w, c]) => `“${esc(w)}” ${c.toFixed(2)}`).join(' · ')}</span></div>
+      ${say(['Afterwards, a picture and a sentence each become 512 numbers,', 'in one shared space. Close numbers, close meaning.'], 'small')}`,
+    el => { bars($('#ci', el), Z.img, '111,140,255'); later(1200, () => bars($('#ct', el), Z.txt, '201,164,255')); });
+  B('The matching game', 11, () => `<img src="${esc(seed.thumb)}" style="position:absolute;left:120px;top:120px;width:380px;border:1px solid #333">
+      <div class="bars" style="left:560px;top:96px;right:120px;gap:5px">${Z.subjects.slice(0, 12).map(([w, p]) => `<div style="font-size:18px"><span>${esc(w)}</span><i><b data-w="${p * 100}"></b></i><em>${(p * 100).toFixed(1)}%</em></div>`).join('')}</div>
+      ${say(['So we can ask it about words it was never trained on:', 'which of these is closest?'], 'small')}`, el => later(500, () => el.querySelectorAll('.bars b').forEach(b => b.style.width = Math.max(.5, b.dataset.w) + '%')));
+  B('The matching game', 8, () => `<img class="full dimmed" src="${esc(seed.thumb)}">${say(['It looks at one still frame.', 'No motion. No sound. No before, no after.'], 'mid')}`);
+  /* THE MAP */
+  B('Near and far', 11, () => `<canvas class="map" id="mp" width="1600" height="900"></canvas>${say(['Do that for all 15,149 shots,', 'and lay them out so close numbers sit close.'], 'small')}`, el => drawMap(el, false));
+  B('Near and far', 11, () => `<canvas class="map" id="mp" width="1600" height="900" style="opacity:.35"></canvas><div class="thumbs" style="left:80px;top:150px;flex-wrap:wrap;width:1460px">${F.map.near.map((n, i) => `<figure style="animation-delay:${.3 + i * .5}s">
+      <img src="${esc(n.thumb)}"><figcaption>${esc(n.cap || n.title)}<em>${esc(n.title)} · ${n.sim.toFixed(2)}</em></figcaption></figure>`).join('')}</div>${say(['Its nearest neighbours: flocks and herds, from other films.'], 'small')}`, el => drawMap(el, true));
+  B('Near and far', 7, () => `<canvas class="map" id="mp" width="1600" height="900" style="opacity:.6"></canvas>${say(['Near means alike.', 'Far means little: the map is torn to fit a page.'], 'mid')}`, el => drawMap(el, true));
+  /* DINO */
+  B('Without words', 8, () => `<div class="qbig" style="top:250px"><div class="big fadein">DINO</div><p class="fadein" style="font-size:34px">It learned from pictures alone. No captions at all.<br><span style="color:var(--dim);font-size:24px">Meta, 2021 · DINOv2, 2023 · the copy used here: DINOv2 ViT-S/14</span></p></div>`);
+  B('Without words', 11, () => `<div style="position:absolute;left:120px;top:110px;width:760px;height:570px"><img src="${esc(seed.thumb)}" style="width:100%;height:100%;object-fit:cover"><div class="crop" id="c1" style="left:5%;top:10%;width:55%;height:55%"></div><div class="crop" id="c2" style="left:40%;top:35%;width:50%;height:50%;border-color:var(--pic)"></div></div>
+      <div style="position:absolute;left:940px;top:120px;width:300px;height:225px;overflow:hidden;border:4px solid var(--gold)"><img src="${esc(seed.thumb)}" style="width:181%;margin-left:-9%;margin-top:-18%"></div>
+      <div style="position:absolute;left:940px;top:380px;width:300px;height:225px;overflow:hidden;border:4px solid var(--pic)"><img src="${esc(seed.thumb)}" style="width:200%;margin-left:-80%;margin-top:-52%"></div>
+      <div class="rowlabel fadein" style="left:1270px;top:340px;color:var(--gold);animation-delay:2.5s">= the same thing</div>
+      ${say(['Its game: two crops of one picture.', 'Learn that they show the same thing.'], 'small')}`,
+    el => { later(3500, () => { const a = $('#c1', el), b = $('#c2', el); Object.assign(a.style, { left: '30%', top: '5%', width: '45%', height: '60%' }); Object.assign(b.style, { left: '8%', top: '45%', width: '60%', height: '45%' }); }); });
+  F.dino.patch.forEach((p, i) => B('Without words', i ? 7 : 11, () => `<figure style="position:absolute;left:60px;top:70px;width:720px;margin:0"><img src="${esc(p.frame)}" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block"><figcaption class="label" style="margin-top:8px">the frame</figcaption></figure>
+      <figure style="position:absolute;left:820px;top:70px;width:720px;margin:0;opacity:0;transition:opacity 1.6s" id="dp"><img src="${esc(p.png)}" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block;image-rendering:pixelated"><figcaption class="label" style="margin-top:8px;color:var(--ours)">what DINO makes of it: one square per 14×14 patch</figcaption></figure>
+      ${i ? '' : say(['What it learns is parts.', 'Same colour: a kind of patch it has learned to tell apart.'], 'small')}`, el => later(1200, () => $('#dp', el).style.opacity = 1)));
+  B('Without words', 13, () => `<div class="rowlabel" style="left:80px;top:96px;color:var(--pic)">CLIP's neighbours · learned with words</div><div class="thumbs" style="left:80px;top:130px">${F.dino.clip_near.slice(0, 6).map((n, i) => `<figure style="animation-delay:${i * .25}s;width:228px"><img src="${esc(n.thumb)}"><figcaption>${esc(n.cap || n.title)}</figcaption></figure>`).join('')}</div>
+      <div class="rowlabel" style="left:80px;top:430px;color:var(--ours)">DINO's neighbours · learned from pictures alone</div><div class="thumbs" style="left:80px;top:464px">${F.dino.near.slice(0, 6).map((n, i) => `<figure style="animation-delay:${1.5 + i * .25}s;width:228px"><img src="${esc(n.thumb)}"><figcaption>${esc(n.cap || n.title)}</figcaption></figure>`).join('')}</div>
+      ${say(['Here they mostly agree.', 'CLIP lets in a herd of cattle: near in words. DINO keeps to the look of sheep.'], 'small')}`);
+  B('Without words', 6, () => say(['We ran DINO for this film.', 'It is not yet a layer of the lab.'], 'mid'));
+  /* SAM */
+  const sam = F.sam;
+  B('Cutting out', 8, () => `<div class="qbig" style="top:250px"><div class="big fadein">SAM</div><p class="fadein" style="font-size:34px">Segment Anything. Meta, 2023.<br><span style="color:var(--dim);font-size:24px">11 million photos, 1.1 billion outlines drawn on them. SAM 2 (2024) follows them through video.</span></p></div>`);
+  B('Cutting out', 10, () => `<div id="sf" style="position:absolute;left:200px;top:80px;width:1200px;height:${1200 * .75 * .8}px"><img src="${esc(sam.frame)}" style="width:100%;height:100%;object-fit:fill;filter:brightness(.35)">${sam.objects.filter(o => o.png && o.bbox).map((o, i) => `<img class="cut" src="${esc(o.png)}" style="left:${o.bbox[0] * 100}%;top:${o.bbox[1] * 100}%;width:${(o.bbox[2] - o.bbox[0]) * 100}%;height:${(o.bbox[3] - o.bbox[1]) * 100}%;opacity:0;transition:opacity 1s ${i * .8}s, transform 1.6s ${3 + i * .3}s" data-i="${i}">`).join('')}</div>
+      ${say(['Point at anything: it returns the outline of a thing.'], 'small')}`, el => { later(200, () => el.querySelectorAll('.cut').forEach(c => c.style.opacity = 1)); later(3500, () => el.querySelectorAll('.cut').forEach((c, i) => c.style.transform = `translate(${(i - 1) * 60}px, ${-40 - i * 20}px) scale(1.05)`)); });
+  B('Cutting out', 10, () => `<div id="sv" style="position:absolute;left:200px;top:70px;width:1200px;height:720px">${vid({ video: seed.video, t: sam.t0 }, '', true).replace('<video', '<video style="width:100%;height:100%;object-fit:fill"')}${sam.objects.filter(o => o.boxes).map((o, i) => `<div class="box" data-i="${i}" style="border-color:${['#6f8cff', '#7fd6a4', '#ff9f43', '#c9a4ff'][i]}"></div>`).join('')}</div>
+      ${say(['SAM 2 carries each outline from frame to frame.'], 'small')}`,
+    el => { startVideos(el); const v = el.querySelector('video'), bx = [...el.querySelectorAll('.box')], obs = sam.objects.filter(o => o.boxes), my = tok;
+      const tick = () => { if (my !== tok) return; const f = Math.max(0, Math.min(sam.frames - 1, Math.floor((v.currentTime - sam.t0) * sam.fps))); bx.forEach((b, i) => { const q = obs[i].boxes[f]; if (!q) { b.style.display = 'none'; return; } Object.assign(b.style, { display: 'block', left: q[0] * 100 + '%', top: q[1] * 100 + '%', width: (q[2] - q[0]) * 100 + '%', height: (q[3] - q[1]) * 100 + '%' }); }); requestAnimationFrame(tick); }; tick(); });
+  B('Cutting out', 8, () => `<img class="full dimmed" src="${esc(sam.frame)}">${say(['We point it with the reading\'s own words:', `CLIP picks the outline the reading is about: <b>“${esc(rd.note.split(':')[0])}”</b>.`], 'small')}`);
+  /* CLAP */
+  const K = F.clap;
+  B('Hearing', 9, () => `<div class="qbig" style="top:230px"><div class="big fadein">CLAP</div><h2 style="color:var(--ink);font-size:52px" class="fadein"><b style="color:var(--snd)">C</b>ontrastive <b style="color:var(--snd)">L</b>anguage–<b style="color:var(--snd)">A</b>udio <b style="color:var(--snd)">P</b>re-training</h2><p class="fadein">The same game, played with sound. The version we use: LAION, 2023.</p></div>`);
+  B('Hearing', 11, () => { const k = K.shots[0]; return `${vid(k, '', false).replace('<video', '<video style="position:absolute;left:120px;top:60px;width:430px;aspect-ratio:4/3;object-fit:cover"')}
+      <div class="spec-wrap" style="top:420px"><img src="${esc(k.spec)}"><div class="ph" id="ph" style="left:0"></div></div><div class="axis" style="left:120px;top:690px">time →</div><div class="axis" style="left:60px;top:420px;writing-mode:vertical-rl;transform:rotate(180deg)">pitch →</div>
+      ${say(['Sound is drawn as a picture first:', 'time runs across, pitch goes up, loud is bright.'], 'top small').replace('left: 120px', '')}`; },
+    el => { startVideos(el, true); duck(true); const p = $('#ph', el), my = tok, t = performance.now(); const go = () => { if (my !== tok) return; p.style.left = Math.min(100, (performance.now() - t) / 40) + '%'; requestAnimationFrame(go); }; go(); }, { sound: true });
+  const cmx = (diag) => { const N = K.shots.length, cx = 600, cy = 230, cw = 150, chh = 84; let h = '<div class="mx' + (diag ? ' settle' : '') + '" style="inset:0">';
+    K.shots.forEach((s, j) => h += `<div class="col" style="left:${cx + j * cw}px;top:${cy - 92}px;width:${cw - 8}px;height:78px"><img class="spec" src="${esc(s.spec)}"></div>`);
+    K.texts.forEach((t, i) => h += `<div class="row" style="left:40px;top:${cy + i * chh}px;width:${cx - 50}px;height:${chh - 6}px">${esc(t)}</div>`);
+    K.texts.forEach((t, i) => K.shots.forEach((_, j) => { const v = K.cos[j][i], best = Math.max(...K.shots.map((_, jj) => K.cos[jj][i])) === v; h += `<div class="cell${diag && best ? ' diag' : ''}" style="left:${cx + j * cw}px;top:${cy + i * chh}px;width:${cw - 8}px;height:${chh - 8}px;background:${heat(v - .1)};animation-delay:${diag ? 0 : (i * N + j) * .08}s">${v.toFixed(2)}</div>`; }));
+    return h + '</div>'; };
+  const right = K.texts.filter((t, i) => Math.max(...K.shots.map((_, j) => K.cos[j][i])) === K.cos[i][i]).length;
+  B('Hearing', 11, () => `${cmx(false)}${say(['Six sounds from the archive, six descriptions.', 'Which goes with which?'], 'corner')}`);
+  B('Hearing', 9, () => `${cmx(true)}${say([`It matches <b>${right} of 6</b>:`, 'six sounds it was surest of.'], 'corner')}`);
+  K.shots.forEach((k, i) => B('Hearing', 4.2, () => `${vid(k, 'full', false)}<div class="say small" style="bottom:80px"><span>heard: <span class="tag" style="display:inline">${esc(k.heard[0][0])}</span></span></div><div class="credit">${esc(k.title)} ${esc(k.year || '')}</div>`, el => { startVideos(el, true); duck(true); }, { sound: true }));
+  B('Hearing', 8, () => say(['It learned from about 630,000 sound clips with descriptions.', 'Old film sound often fools it.'], 'mid small'));
+  /* WHISPER */
+  const W = F.whisper, wlen = Math.min(15, (W.words.at(-1)[1] || 8) + 1.6);
+  B('Writing down speech', 8, () => `<div class="qbig" style="top:250px"><div class="big fadein">Whisper</div><p class="fadein" style="font-size:34px">OpenAI, 2022. 680,000 hours of speech from the web, with transcripts.<br><span style="color:var(--dim);font-size:24px">the copy we use: faster-whisper base.en</span></p></div>`);
+  B('Writing down speech', wlen, () => `${vid({ video: W.video, t: 0 }, 'full', false)}<div class="spec-wrap" style="top:30px;height:120px;left:60px;right:60px;opacity:.85"><img src="${esc(W.spec)}"><div class="ph" id="ph"></div></div><div class="subs" id="subs"></div><div class="credit">${esc(W.title)} ${esc(W.year || '')}</div>`,
+    el => { startVideos(el, true); duck(true); const v = el.querySelector('video'), sb = $('#subs', el), ph = $('#ph', el), my = tok;
+      v.addEventListener('loadedmetadata', () => { try { v.currentTime = 0; } catch (e) { } }, { once: true });
+      const tick = () => { if (my !== tok) return; const t = v.currentTime; ph.style.left = Math.min(100, t / Math.min(12, wlen) * 100) + '%'; const said = W.words.filter(w => w[1] <= t + .05 && w[1] >= t - 3.2).map(w => w[0]).join(' '); sb.innerHTML = said ? `<span>${esc(said)}</span>` : ''; requestAnimationFrame(tick); }; tick(); }, { sound: true });
+  B('Writing down speech', 7, () => say(['It guesses at names and old voices.', 'It never knows who is speaking.'], 'mid'));
+  /* BLIP */
+  B('One sentence', 7, () => `<div class="qbig" style="top:260px"><div class="big fadein">BLIP</div><p class="fadein" style="font-size:34px">It writes one sentence for one frame. Salesforce, 2022.</p></div>`);
+  B('One sentence', 13, () => `<div class="blip">${F.blip.map((b, i) => `<figure><img src="${esc(b.thumb)}"><figcaption data-c="${esc(b.cap)}"></figcaption></figure>`).join('')}</div>`,
+    el => el.querySelectorAll('figcaption').forEach((f, i) => later(400 + i * 1700, () => typeIn(f, f.dataset.c))));
+  B('One sentence', 7, () => say(['Plain, and sure of itself.', 'It never says who, where, or when.'], 'mid'));
+  /* CINEOSIS */
+  B('The reading', 6, () => say(['Now the question', '<b>none of them can answer.</b>'], 'mid'));
+  B('The reading', 14, () => `<img src="${esc(seed.thumb)}" style="position:absolute;left:80px;top:140px;width:680px;border:1px solid #333">
+      <div class="layers"><div style="animation-delay:.4s"><small style="color:var(--pic)">CLIP · WHAT IT RESEMBLES</small><p>an animal, a landscape</p></div>
+      <div style="animation-delay:3s"><small style="color:var(--word)">BLIP · WHAT IT SHOWS</small><p>“${esc(seed.cap)}”</p></div>
+      <div style="animation-delay:6s"><small style="color:var(--gold)">THE EDITOR · WHAT IT DOES</small><p style="color:var(--gold)">${esc(rd.note)}</p></div></div>`);
+  B('The reading', 8, () => say(['The third sentence is a <b>reading</b>.', 'It names what the image does,', 'not what it shows.'], 'mid'));
+  const table = (lit = []) => { const cols = Math.max(...F.signs.map(s => s.col)) + 1; return `<div class="table" style="grid-template-columns:repeat(${cols},82px)">${F.signs.map(s => `<div class="t${lit.includes(s.n) ? ' lit' : ''}" style="grid-column:${s.col + 1};grid-row:${s.row + 1};background:${DOMC[s.dom]};animation-delay:${s.col * .12 + s.row * .05}s">${esc(s.symbol)}<small>${esc(s.name)}</small></div>`).join('')}</div>`; };
+  B('The reading', 12, () => `${table()}${say(['Gilles Deleuze wrote two books describing cinema as a field of signs.', 'David Deamer arranged them into a table: 45 signs.'], 'small')}`);
+  const qs = ['1', '4', '9', '14', '32', '42'];
+  B('The reading', 13, () => `${table()}<div class="panel" id="qp" style="left:80px;right:80px;bottom:60px;font:38px/1.3 var(--serif)"></div>`,
+    el => { const p = $('#qp', el); qs.forEach((n, i) => later(i * 2000, () => { el.querySelectorAll('.t').forEach(t => t.classList.remove('lit')); const t = [...el.querySelectorAll('.t')][F.signs.findIndex(s => s.n === n)]; if (t) t.classList.add('lit'); p.innerHTML = `${chip(n, 'font-size:34px')} <span style="color:var(--dim);font-size:28px">${esc(S[n].name)} asks</span> <b style="color:var(--gold)">${esc(S[n].question)}</b>`; })); });
+  B('The reading', 11, () => `<div class="qbig" style="top:140px">${chip(String(rd.n))}<h2>${esc(dm.question)}</h2><p><span style="color:var(--dim)">It is ${esc(dm.name)} if</span> ${esc(dm.difference)}</p></div>`);
+  B('The reading', 9, () => `${vid(seed, 'full')}${say(['Ask it of the field.', 'The pattern: a flock. <b>The break: one dark sheep.</b>'], 'small')}`, el => startVideos(el));
+  const vsBeat = (p, kind) => `<div class="vs">${[p.a, p.b].map(x => `<figure><img src="${esc(x.thumb)}"><div class="read"><em>${esc(x.title)} ${esc(x.year || '')}</em>${chip(String(x.reading.n), 'font-size:22px')} <b style="color:${DOMC[S[String(x.reading.n)].dom]}">${esc(S[String(x.reading.n)].name)}</b><br>${esc(x.reading.note)}</div></figure>`).join('')}</div>
+      <div class="verdict" id="vd"><small>CLIP says these two are</small><b>${Math.round(p.cos * 100)}% alike</b></div>
+      <div class="say small" id="vs2" style="opacity:0;transition:opacity 1s"><span style="animation:none;opacity:1;transform:none">${kind === 'alike' ? 'Read as <b>two different signs.</b>' : 'Read as <b>the same sign.</b>'}</span></div>`;
+  const vsAfter = el => { later(3200, () => { $('#vd', el).classList.add('up'); el.querySelectorAll('.read').forEach((r, i) => setTimeout(() => r.classList.add('show'), i * 900)); }); later(6200, () => $('#vs2', el).style.opacity = 1); };
+  F.alike.forEach(p => B('The reading', 14, () => vsBeat(p, 'alike'), vsAfter));
+  F.unlike.slice().reverse().forEach(p => B('The reading', 14, () => vsBeat(p, 'unlike'), vsAfter));
+  B('The reading', 8, () => say(['Looks and signs part ways.', '<b>That gap is the work of the lab.</b>'], 'mid'));
+  const fq = (seed.found || [])[0];
+  B('The reading', 18, () => `<div class="say top small" style="top:60px"><span>How a shot gets read:</span></div><div class="road">
+      <div style="animation-delay:.5s"><small>1 · THE QUESTION</small>${chip(String(rd.n), 'font-size:30px')}<p style="color:var(--gold);margin-top:10px">${esc(dm.question)}</p></div>
+      <div style="animation-delay:3s"><small>2 · A SCENE TO SEARCH FOR</small><p style="color:var(--word)">“${esc(fq ? fq.q : '')}”</p></div>
+      <div style="animation-delay:5.5s"><small>3 · THE ARCHIVE RETURNS</small><div class="sheet">${F.sheet.map(x => `<i class="${x.id === seed.id ? 'k' : ''}" style="background-image:url('${esc(x.thumb)}')"></i>`).join('')}</div><p style="margin-top:10px;font-size:18px;color:var(--dim)">the first ${F.sheet.length} results, as the editor saw them</p></div>
+      <div style="animation-delay:8s"><small>4 · A PERSON KEEPS ONE</small><img src="${esc(seed.thumb)}"></div>
+      <div style="animation-delay:10.5s"><small>5 · AND WRITES WHY</small><p style="color:var(--gold)">${esc(rd.note)}</p></div></div>`);
+  B('The reading', 13, () => `<div class="bars" style="left:120px;top:150px;right:120px;gap:24px">
+      <div><span>in its film, in sequence</span><i><b data-w="${rd.conf}" style="background:var(--gold)"></b></i><em>${rd.conf}%</em></div>
+      <div><span>from this shot alone</span><i><b data-w="${rd.shot}" style="background:var(--gold);opacity:.6"></b></i><em>${rd.shot}%</em></div>
+      ${rd.alt ? `<div><span>the rival: ${esc(S[String(rd.alt)].name)}</span><i><b data-w="${rd.alt_conf}" style="background:${DOMC[S[String(rd.alt)].dom]}"></b></i><em>${rd.alt_conf}%</em></div>` : ''}</div>
+      ${rd.flip ? `<div class="panel fadein" style="left:120px;right:120px;top:430px;font:26px/1.35 var(--serif);animation-delay:3s"><span style="color:var(--dim)">what would flip it:</span> ${esc(rd.flip)}</div>` : ''}
+      ${say(['A sign lives in a sequence.', 'One shot alone carries only part of it.'], 'small')}`, el => later(500, () => el.querySelectorAll('.bars b').forEach(b => b.style.width = b.dataset.w + '%')));
+  B('The reading', 12, () => `<div class="bars" style="left:120px;top:120px;right:120px;gap:12px">${F.seed_aff.slice(0, 6).map(([n, v]) => `<div><span>${chip(n, 'font-size:18px')} ${esc(S[n].name)}</span><i><b data-w="${v * 9}" style="background:${DOMC[S[n].dom]}"></b></i><em>${v}%</em></div>`).join('')}</div>
+      ${say(['The readings teach the machine where to look.', 'For this shot it now points first at Demark:', '<b>a place to look, never a reading.</b>'], 'small')}`, el => later(500, () => el.querySelectorAll('.bars b').forEach(b => b.style.width = b.dataset.w + '%')));
+  B('The reading', 11, () => `<canvas id="dots" class="dots" width="1360" height="520"></canvas>${say([`${fmt(F.counts.shots)} shots. <b>${fmt(F.counts.read)} read.</b>`, 'Every other shot is waiting with a question.'], 'small')}`,
+    el => { const c = $('#dots', el), g = c.getContext('2d'), N = F.counts.shots, cols = 170, s = 1360 / cols, rows = Math.ceil(N / cols), my = tok; let i = 0;
+      const step = () => { if (my !== tok) return; for (let k = 0; k < 600 && i < N; k++, i++) { const gold = (i * 59) % N < F.counts.read; g.fillStyle = gold ? '#f2c14e' : '#2a2620'; g.fillRect((i % cols) * s, Math.floor(i / cols) * (520 / rows), s - 1.2, 520 / rows - 1.2); } if (i < N) requestAnimationFrame(step); }; step(); });
+  B('The reading', 30, () => `<div class="end"><h1>Open any shot.<br>Ask its question.<br><span style="color:var(--gold)">Read it.</span></h1><nav><a href="./#wall">Open the lab ↗</a><a class="ghost" href="./?made">How a shot is made ↗</a></nav></div>
+      <div class="credit">Cineosis Lab · archive: Moving Image Archive · models: OpenCLIP (LAION), DINOv2 (Meta), SAM 2.1 (Meta), CLAP (LAION), Whisper (OpenAI), BLIP (Salesforce) · score: D-A-E</div>`);
+}
+function drawMap(el, zoom) {
+  const c = $('#mp', el), g = c.getContext('2d'), xy = F.map.xy, sd = xy[F.map.seed], my = tok, t = performance.now();
+  const go = () => { if (my !== tok) return; const k = Math.min(1, (performance.now() - t) / (zoom ? 2500 : 4500)), e = 1 - Math.pow(1 - k, 3);
+    g.fillStyle = '#000'; g.fillRect(0, 0, 1600, 900);
+    const z = zoom ? 1 + 5 * e : 1, cx = zoom ? sd[0] : .5, cy = zoom ? sd[1] : .5;
+    xy.forEach((p, i) => { if (!p) return; const h = (i * 2654435761 % 1000) / 1000, x0 = zoom ? p[0] : (h * .9 + .05) * (1 - e) + p[0] * e, y0 = zoom ? p[1] : (((i * 40503) % 1000) / 1000) * (1 - e) + p[1] * e;
+      const x = 800 + (x0 - cx) * 820 * z, y = 450 + (y0 - cy) * 820 * z; if (x < 0 || x > 1600 || y < 0 || y > 900) return; g.fillStyle = 'rgba(200,190,170,.55)'; g.fillRect(x, y, 1.6, 1.6); });
+    const x = 800 + (sd[0] - cx) * 820 * z, y = 450 + (sd[1] - cy) * 820 * z; g.strokeStyle = '#f2c14e'; g.lineWidth = 3; g.beginPath(); g.arc(x, y, 12, 0, 7); g.stroke();
+    if (k < 1) requestAnimationFrame(go); }; go();
+}
+/* ---------- the player ---------- */
+const CUES = ['dae-preparation-drift', 'dae-compass-spin-in-heavy-fog', 'dae-snowbound-umea-cabin', 'dae-slide-carousel-at-blue-hour', 'dae-salvaged-room-traveling-light', 'dae-cold-current-paddle', 'republic-ordinary-magic', 'dae-cedar-and-cassette', 'dae-odin-above-the-breakers', 'dae-salvaged-timber'];
+let chapters = [];
+function cue(ci) { const src = `score/cues/${CUES[ci % CUES.length]}.m4a`; if (score.dataset.src === src) return; score.dataset.src = src;
+  const v0 = score.volume, t = performance.now(); const out = () => { const k = Math.min(1, (performance.now() - t) / 900); score.volume = v0 * (1 - k); if (k < 1) requestAnimationFrame(out); else { score.src = src; score.currentTime = 0; duck(false); if (!paused) score.play().catch(() => { }); } }; out(); }
+function show(i) {
+  if (i < 0 || i >= beats.length) return; clearTimeout(timer); tok++; cur = i; const b = beats[i];
+  const old = stage.querySelectorAll('.beat'); old.forEach(o => { o.classList.remove('on'); o.querySelectorAll('video').forEach(v => { v.pause(); v.muted = true; }); setTimeout(() => o.remove(), 1000); });
+  const el = document.createElement('div'); el.className = 'beat'; el.innerHTML = b.html(); stage.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
+  duck(false); if (b.after) b.after(el);
+  const ci = chapters.findIndex(c => c.name === b.ch); cue(ci);
+  left = b.secs * 1000; t0 = performance.now(); if (!paused) timer = setTimeout(() => show(i + 1), left);
+  ui();
+}
+function ui() {
+  const done = beats.slice(0, cur).reduce((a, b) => a + b.secs, 0), tot = beats.reduce((a, b) => a + b.secs, 0);
+  document.querySelectorAll('#chs div').forEach((d, ci) => { const c = chapters[ci], cb = beats.filter(b => b.ch === c.name), first = beats.indexOf(cb[0]), passed = beats.slice(first, cur).reduce((a, b) => a + b.secs, 0);
+    d.classList.toggle('on', beats[cur] && beats[cur].ch === c.name); d.querySelector('i').style.width = Math.min(100, (cur > first + cb.length - 1 ? 1 : cur < first ? 0 : passed / c.secs) * 100) + '%'; });
+  const m = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`; $('#time').textContent = `${m(done)} / ${m(tot)}`;
+}
+function pause(p) { paused = p; $('#bPlay').textContent = p ? '▶' : '❚❚';
+  stage.querySelectorAll('.beat.on video').forEach(v => p ? v.pause() : v.play().catch(() => { })); p ? score.pause() : score.play().catch(() => { });
+  if (p) { clearTimeout(timer); left -= performance.now() - t0; } else { t0 = performance.now(); timer = setTimeout(() => show(cur + 1), Math.max(500, left)); } }
+function fit() { const W = innerWidth, H = innerHeight - 64, k = Math.min(W / 1600, H / 900); stage.style.transform = `translate(-50%, -50%) scale(${k})`; $('#wrap').style.height = H + 'px'; }
+addEventListener('resize', fit);
+addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); pause(!paused); } if (e.key === 'ArrowRight') show(cur + 1); if (e.key === 'ArrowLeft') show(cur - 1); });
+$('#bPlay').onclick = () => pause(!paused); $('#bNext').onclick = () => show(cur + 1); $('#bPrev').onclick = () => show(cur - 1);
+$('#bSnd').onclick = () => { sound = !sound; $('#bSnd').textContent = sound ? '♪ on' : '♪ off'; duck(false); stage.querySelectorAll('video').forEach(v => { if (!sound) v.muted = true; }); };
+(async function () {
+  fit(); F = await fetch('explain/film.json?v=1').then(r => r.json()); S = Object.fromEntries(F.signs.map(s => [s.n, s]));
+  build();
+  beats.forEach(b => { let c = chapters.find(c => c.name === b.ch); if (!c) chapters.push(c = { name: b.ch, secs: 0 }); c.secs += b.secs; });
+  $('#chs').innerHTML = chapters.map(c => `<div style="--w:${c.secs}"><i></i><span>${esc(c.name)}</span></div>`).join('');
+  document.querySelectorAll('#chs div').forEach((d, ci) => d.onclick = () => show(beats.findIndex(b => b.ch === chapters[ci].name)));
+  const q = new URLSearchParams(location.search), at = q.get('ch');
+  $('#start').onclick = () => { $('#start').remove(); score.volume = .32; show(at ? Math.max(0, beats.findIndex(b => b.ch.toLowerCase().startsWith(at.toLowerCase()))) : 0); };
+  if (q.has('auto')) $('#start').onclick();
+})();
+</script>
+</body>
+</html>
