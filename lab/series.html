@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cineosis Episodes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<!-- CINEOSIS · THE EPISODES: a series of short films about the lab, one question each, made of the archive and our own films.
+     Each card: the question the episode answers, what you will see, and whether it is ready. -->
+<style>
+:root { --ink: #f3efe6; --dim: #a8a196; --faint: #6f685d; --bg: #070707; --gold: #f2c14e; --serif: 'Fraunces', Georgia, serif; --mono: 'IBM Plex Mono', ui-monospace, monospace; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg: #070707; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--serif); }
+header { padding: 56px 16px 20px; max-width: 1180px; margin: 0 auto; }
+header small { font: 600 13px var(--mono); letter-spacing: .2em; color: var(--dim); }
+header h1 { font-weight: 600; font-size: clamp(40px, 7vw, 76px); line-height: 1; margin: 12px 0 14px; }
+header p { font-size: 20px; line-height: 1.45; color: #d8d0c2; max-width: 820px; margin: 0; }
+main { max-width: 1180px; margin: 0 auto; padding: 16px 16px 80px; display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 18px; }
+.ep { position: relative; border: 1px solid #221f1a; background: #0d0c0a; border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; text-decoration: none; color: inherit; }
+.ep .poster { aspect-ratio: 16/9; background-size: cover; background-position: center; position: relative; }
+.ep .poster::after { content: ''; position: absolute; inset: 0; background: linear-gradient(transparent 40%, rgba(0,0,0,.85)); }
+.ep .num { position: absolute; left: 14px; bottom: 10px; z-index: 1; font: 600 13px var(--mono); letter-spacing: .16em; color: var(--c); }
+.ep .st { position: absolute; right: 12px; top: 12px; z-index: 1; font: 600 11px var(--mono); letter-spacing: .12em; padding: 3px 8px; border-radius: 3px; background: #000a; color: var(--dim); border: 1px solid #333; }
+.ep .st.ready { color: #000; background: var(--c); border-color: var(--c); }
+.ep .body { padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.ep h2 { margin: 0; font-size: 25px; line-height: 1.15; color: var(--c); }
+.ep .q { margin: 0; font-size: 18px; line-height: 1.4; }
+.ep .see { margin: 0; font: 13px/1.55 var(--mono); color: var(--dim); }
+a.ep:hover { border-color: var(--c); }
+footer { max-width: 1180px; margin: 0 auto; padding: 0 16px 60px; font: 13px var(--mono); color: var(--faint); }
+footer a { color: var(--dim); }
+</style>
+</head>
+<body>
+<header><small>CINEOSIS LAB · THE EPISODES</small><h1>How a moving image becomes something you can work with</h1>
+<p>Short films about the lab, each with one question. They are made of the archive and of the films we made from it.</p></header>
+<main id="eps"></main>
+<footer>Each episode states what it measured and when. <a href="./#wall">Explore the archive</a> · <a href="../">all projects</a></footer>
+<script>
+const R2 = 'https://pub-075ff01374c04555b51c9bc50f258b42.r2.dev/sources/';
+const EPS = [
+  { n: 1, t: 'Where the Archive Came From', c: '#f2c14e', st: 'ready', href: 'episode-1.html', img: 'thumbs/21171e70-f59f-55b6-85c3-29691c97e312.jpg',
+    q: 'How did 15,149 shots come out of an archive of about 122,000?', see: 'the real searches of five projects typed out, and what the archive sent back · the 253 read shots · our films' },
+  { n: 2, t: 'How the Lab Sees', c: '#6f8cff', st: 'ready · first cut', href: 'how-it-sees.html', img: 'thumbs/c1613029-4190-51f7-a98b-304aed511307.jpg',
+    q: 'How did the machines learn to look and listen, and what is the one thing they cannot do?', see: 'the matching game played for real · the sign families · shots a machine calls alike that a reader calls different' },
+  { n: 3, t: 'A Moving Image', c: '#ff9f43', st: 'ready · first cut', href: 'operative.html?ch=A%20moving%20image', img: 'thumbs/7ad22207-8c29-5be6-af5c-3baae38dec31.jpg',
+    q: 'What changes when a shot is read whole, not as one still frame?', see: 'the sheep with a stray that is really a sheepdog · a clip that holds five shots · camera movement · depth · what a model that learns from video (V-JEPA) could add' },
+  { n: 4, t: 'The Odyssey', c: '#6f8cff', st: 'planned', href: 'found-odyssey-museum.html', img: 'thumbs/21171e70-f59f-55b6-85c3-29691c97e312.jpg',
+    q: 'What happens when Homer asks and the archive answers in its own recorded words?', see: '4,537 questions, 28,611 clips · how a line chooses its answer · a critic that says what a scene lacks' },
+  { n: 5, t: 'Where You Go When You Leave', c: '#c4f46a', st: 'planned', href: 'wygwyl.html', img: '',
+    q: 'Why do four rules cut one poem by Mark Anthony Thomas into four films that share almost nothing?', see: 'the same line in four takes at once · what each rule keeps and throws away' },
+  { n: 6, t: 'Norse Half Moon', c: '#6cc4d6', st: 'planned', href: 'norse-half-moon.html', img: '',
+    q: 'Can a voice memo about a house one man built be answered by strangers\' films?', see: 'the memo, the archive\'s replies, the film (with Brandon Polack)' },
+  { n: 7, t: 'The Republic', c: '#e0572a', st: 'planned', href: 'markov-republic.html', img: '',
+    q: 'What does a satire pitched by machines become when people filmed in 1941 speak its lines?', see: 'seventeen episodes · depth cut into planes · the script against what the archive said instead' },
+  { n: 8, t: 'Slopfeeder', c: '#ff6b5b', st: 'planned', href: 'slopfeeder-films.html', img: '',
+    q: 'What happens when AI images and archival film share one timeline, and why do machines keep them apart?', see: 'a meme read as a beach landing · eight songs · AI and archive as two continents in CLIP space' },
+  { n: 9, t: 'Precisely So', c: '#f4c7d0', st: 'planned', href: 'wes.html', img: '',
+    q: 'Can a director\'s style be found in public films nobody made in it?', see: 'a Wes Anderson cineosis · 906 frames judged, 3 kept · four short films' },
+  { n: 10, t: 'Narrative Chemistry', c: '#b9cfa0', st: 'planned', href: 'chemistry.html', img: '',
+    q: 'If signs are atoms and cuts are bonds, what does a poem\'s compound look like, and which predictions failed?', see: 'fourteen poems as compounds · seven generated films each · three predictions refuted, one held' },
+  { n: 11, t: 'What It Costs, What Is Next', c: '#a8a196', st: 'first cut', href: 'operative.html?ch=What%20it%20costs', img: '',
+    q: 'What would it take, in hours, money and attention, to read the whole archive well?', see: 'every pass timed · machines against a person · the passes not yet run' }];
+fetch('explain/ep/ep1.json').then(r => r.json()).then(E => { const pool = E.read.map(r => r.thumb); EPS.forEach((e, i) => { if (!e.img) e.img = pool[(i * 23) % pool.length]; }); draw(); }).catch(draw);
+function draw() {
+  document.getElementById('eps').innerHTML = EPS.map(e => `<a class="ep" href="${e.href}" style="--c:${e.c}"><div class="poster" style="background-image:url('${e.img}')"><span class="num">EPISODE ${e.n}</span><span class="st ${e.st.startsWith('ready') ? 'ready' : ''}">${e.st.toUpperCase()}</span></div>
+    <div class="body"><h2>${e.t}</h2><p class="q">${e.q}</p><p class="see">${e.see}</p></div></a>`).join('');
+}
+</script>
+</body>
+</html>
