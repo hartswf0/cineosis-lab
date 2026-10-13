@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>When the Tracks Agree · Syzygy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="explain/film.css?v=1"><link rel="stylesheet" href="explain/episode.css?v=3"><link rel="stylesheet" href="explain/lesson.css?v=3">
+<!-- CINEOSIS · A ROOM, FILMED · SYZYGY. The Syzygy room (syzygy/index.html) lays thirteen tracks of the lab on the poem's one clock.
+     This film teaches what each track is, then finds the moments when tracks chosen by different rules carry the same sign, and
+     tests them against chance by sliding every track along the clock at random: shared signs are far above chance (the tracks
+     all follow the same beats), shared films are not. Footage kept out of examples is never shown. Data: explain/lsyz.py ->
+     explain/lesson/syz.json, from syzygy/lanes.json. -->
+<style>
+:root { --bg: #08080a; --ink: #ece6da; }
+body, #stage { background: var(--bg); }
+.g9 { position: absolute; left: 40px; right: 40px; top: 30px; height: 720px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 10px 14px; }
+.g9 figure { margin: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; transition: opacity .8s; } .g9 video { width: 100%; height: 100%; object-fit: cover; background: #111; outline: 0 solid var(--lime); outline-offset: -4px; transition: outline-width .4s; }
+.g9 figcaption { display: flex; gap: 10px; align-items: center; padding-top: 5px; font: 14px var(--mono); color: var(--dim); white-space: nowrap; overflow: hidden; } .g9 figcaption b { color: var(--ink); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.g9 .sg { font: 600 13px var(--mono); padding: 2px 8px; border-radius: 10px; background: #2a2723; color: var(--ink); opacity: 0; transition: opacity .5s; } .g9.signs .sg { opacity: 1; }
+.g9.signs figure.a video { outline-width: 5px; } .g9.signs figure.a .sg { background: var(--lime); color: #111; } .g9.signs figure:not(.a) { opacity: .45; }
+.g9 .cp { color: var(--gold); }
+.lanes { position: absolute; left: 260px; right: 40px; top: 40px; height: 700px; }
+.lanes .ln { position: absolute; left: 0; right: 0; height: 40px; opacity: 0; transition: opacity .6s; } .lanes .ln.on { opacity: 1; }
+.lanes .ln i { position: absolute; top: 6px; bottom: 6px; } .lanes .ln b { position: absolute; left: -220px; top: 4px; width: 210px; font: 600 14px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink); text-align: right; } .lanes .ln b small { display: block; font: 12px var(--serif); text-transform: none; letter-spacing: 0; color: var(--dim); }
+canvas.tide { position: absolute; left: 80px; top: 120px; width: 1440px; height: 480px; }
+.tl { position: absolute; left: 80px; right: 80px; top: 610px; display: flex; justify-content: space-between; font: 14px var(--mono); color: var(--dim); }
+.pk { position: absolute; font: 600 14px var(--mono); color: var(--lime); transform: translateX(-50%); white-space: nowrap; opacity: 0; transition: opacity .6s; }
+.ch2 { position: absolute; left: 120px; right: 120px; top: 150px; display: flex; flex-direction: column; gap: 60px; }
+.ch2 .row b { display: block; font: 600 16px var(--mono); letter-spacing: .12em; color: var(--ink); text-transform: uppercase; margin-bottom: 10px; } .ch2 .row b em { font-style: normal; color: var(--dim); }
+.ch2 .bar { height: 64px; background: #1a1916; } .ch2 .bar i { display: block; height: 100%; width: 0; transition: width 1.6s cubic-bezier(.3,.7,.3,1); }
+.ch2 .bar i span { position: relative; left: calc(100% + 14px); top: 16px; font: 600 26px var(--mono); color: var(--ink); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage"></div></div>
+<div id="bar"><button id="bPrev" title="previous (←)">‹</button><button id="bPlay" title="play / pause (space)">❚❚</button><button id="bNext" title="next (→)">›</button><div id="chs"></div><span id="time"></span><button id="bSnd" title="sound">♪ on</button></div>
+<div id="start"><div><p style="font:600 16px var(--mono);letter-spacing:.2em;color:#b3ab9e;margin:0 0 14px">CINEOSIS · A ROOM, FILMED</p><h1 style="font-weight:600;color:#ece6da">When the Tracks Agree</h1><p>Thirteen tracks of the lab on one clock, and the rare moments they line up. About six minutes, with sound.</p><b style="background:#c4f46a">▶ Watch</b></div></div>
+<audio id="score" preload="auto"></audio><audio id="voice" preload="auto"></audio>
+<script src="explain/lesson.js?v=3"></script>
+<script>
+window.EPISODE = {
+  data: ['explain/lesson/syz.json?v=1'],
+  cues: ['dae-compass-spin-in-heavy-fog', 'dae-wai-lana-layover-anakena-tuning', 'dae-slide-carousel-at-blue-hour', 'dae-preparation-drift', 'dae-snowbound-umea-cabin', 'dae-cold-current-paddle', 'dae-cedar-and-cassette'],
+  build(D, B, K) {
+    const Z = D[0], esc = LX.esc, mmss = LX.mmss, AU = Z.audio, C = Z.chance;
+    const NAME = { voice: 'the voice', spine: 'generated', archive: 'archive', halfworld: 'halfworld', board: 'storyboard', suite: 'suite', scenes: 'scenes', cineosis: 'cineosis', drift: 'drift', spinecut: 'spine-cut', forage: 'forage', taxonomy: 'taxonomy', compound: 'compound' };
+    const WHAT = { voice: 'the poem, word by word', spine: 'an AI image for each line', archive: 'a router\'s archive shot for each AI image', halfworld: 'the author\'s drawings of each movement', board: 'a storyboard frame per beat',
+      suite: 'cut from the director\'s notes', scenes: 'one old film per line', cineosis: 'each shot must answer its signs', drift: 'each shot follows the last', spinecut: 'a clean cut of the AI spine\'s picks', forage: 'a person\'s forage cut', taxonomy: 'a chemistry-trial film', compound: 'another chemistry-trial film' };
+    const LC = { voice: '#ece6da', spine: '#c9a4ff', archive: '#8ea6ff', halfworld: '#f2c14e', board: '#a29d90', suite: '#c4f46a', scenes: '#7fd6a4', cineosis: '#ff9f8e', drift: '#7fd6e8', spinecut: '#e0b3ff', forage: '#ffb86b', taxonomy: '#9fb3c8', compound: '#c8b39f' };
+    const ok = Z.peaks.sign.filter(p => !p.blocked), top = ok[0], fpk = Z.peaks.film.filter(p => !p.blocked)[0];
+    const copies = p => { const seen = {}; p.lanes.forEach(x => (seen[x.id] = seen[x.id] || []).push(x.lane)); return seen; };
+    function grid(p, o = {}) { const cp = copies(p);
+      return `<div class="g9 ${o.signs ? 'signs' : ''}">${p.lanes.map(x => `<figure class="${(p.kind === 'sign' ? x.agree : x.agree) ? 'a' : ''}"><video muted loop playsinline data-src="${esc(x.video || '')}" data-t="1"></video>
+        <figcaption><b>${NAME[x.lane]}</b><span class="sg">${p.kind === 'sign' ? esc(Z.signs[x.sign] || x.sign) : esc((x.film || '').slice(0, 24))}</span>${o.copies && cp[x.id].length > 1 ? `<span class="cp">same shot as ${cp[x.id].filter(l => l !== x.lane).map(l => NAME[l]).join(', ')}</span>` : `<span>${esc((x.film || '').slice(0, 34))}</span>`}</figcaption></figure>`).join('')}</div>`; }
+    const go = (el, f) => { K.startVideos(el); LX.runBand(el, K); if (f) f(); };
+    const around = p => [Math.max(0, p.t - 4), p.t + 5];
+
+    /* COLD OPEN · nine pictures, five seconds, one sign */
+    B('Cold open', 13, () => grid(top) + LX.band([[.4, 'Nine pictures for the same five seconds of a poem, each chosen by a different track of the lab.'], [7.4, 'No track could see the others. Look for what they share.']]),
+      el => go(el, () => { const [a, b] = around(top); K.later(600, () => LX.poem(K, AU, a, b)); }));
+    B('Cold open', 11, () => grid(top, { signs: 1 }) + LX.band([[.3, `${top.n} of ${top.of} carry the same sign: <b>${esc(top.sign_name)}</b>.`], [5.2, 'A space emptied of any particular place: a field, a corridor, nowhere in particular.']]),
+      el => go(el, () => { LX.ping(); el.querySelector('.g9').classList.add('signs'); }));
+    B('Cold open', 8, () => `<div class="tc"><small>CINEOSIS · A ROOM, FILMED</small><h1>When the Tracks Agree</h1><p>Syzygy: thirteen tracks of the lab on one clock, and the rare moments they line up.</p></div>`, el => LX.ping());
+
+    /* THE TRACKS · what each lane is, on the 24-minute clock */
+    const order = Z.order, lane = (k, i) => `<div class="ln" data-i="${i}" style="top:${i * 53}px"><b>${NAME[k]}<small>${esc(WHAT[k])}</small></b>${(Z.lanes_draw[k] || []).map(([a, b]) => `<i style="left:${(a / Z.dur * 100).toFixed(3)}%;width:${Math.max(.05, (b - a) / Z.dur * 100 - .03).toFixed(3)}%;background:${LC[k]}"></i>`).join('')}</div>`;
+    B('The tracks', 30, () => `<div class="lanes">${order.map(lane).join('')}</div>` + LX.band([[.3, 'The Syzygy room lays thirteen tracks on the poem\'s one clock. Each block is one word, one image, or one shot.'], [11, 'The voice first. Then pictures made for it: generated images, drawings, storyboards.'], [19, 'Then nine tracks of archive shots, each chosen by its own rule.']]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.ln').forEach((l, i) => K.later(1200 + i * 1700, () => { l.classList.add('on'); LX.tick(800 + i * 60, .06, .03); })); });
+
+    /* THE TIDE · agreement over 24 minutes */
+    B('The tide', 15, () => `<canvas class="tide" width="1440" height="480"></canvas><div class="tl"><span>0:00</span><span>how many of the nine archive tracks carry the same sign, moment by moment</span><span>24:00</span></div>${ok.slice(0, 6).filter((p, i, a) => a.slice(0, i).every(q => Math.abs(q.t - p.t) > 90)).map(p => `<div class="pk" style="left:${80 + p.t / Z.dur * 1440}px;top:${600 - 480 * p.n / 9 - 30}px">${p.n} · ${esc(p.sign_name)}</div>`).join('')}`
+      + LX.band([[.3, 'All twenty-four minutes. The height is how many tracks agree on a sign.'], [6.5, `Usually three or four at most. Five or more: ${(C.real_sign_ge5 * 100).toFixed(1)}% of the time. Eight: once.`]]),
+      el => { LX.runBand(el, K); const g = el.querySelector('canvas').getContext('2d'), T = Z.tide, n = T.length;
+        K.raf(t => { const m = Math.min(n, Math.floor(n * t / 5)); g.clearRect(0, 0, 1440, 480);
+          for (let i = 0; i < m; i++) { const [tt, s] = T[i], x = tt / Z.dur * 1440, h = s / 9 * 480; g.fillStyle = s >= 7 ? '#f2c14e' : s >= 5 ? '#c4f46a' : '#4a4740'; g.fillRect(x, 480 - h, 1440 / n + .6, h); }
+          return t < 5.2; }); el.querySelectorAll('.pk').forEach((p, i) => K.later(5600 + i * 500, () => p.style.opacity = 1)); });
+
+    /* IS IT CHANCE? · slide each track at random and count again */
+    B('Is it chance?', 17, () => `<div class="ch2"><div class="row"><b>five or more tracks share a sign <em>· as the film is</em></b><div class="bar"><i style="background:var(--lime)" data-w="${C.real_sign_ge5 / .06 * 100}"><span>${(C.real_sign_ge5 * 100).toFixed(1)}%</span></i></div></div>
+        <div class="row"><b>the same, with every track slid along the clock at random <em>· 300 tries</em></b><div class="bar"><i style="background:#8b8478" data-w="${Math.max(.4, C.shuffled_sign_ge5_mean / .06 * 100)}"><span>${(C.shuffled_sign_ge5_mean * 100).toFixed(2)}%</span></i></div></div></div>`
+      + LX.band([[.3, 'Is that agreement luck? Slide every track along the clock by a random amount, keeping its own order, and count again.'], [8.5, `By chance it happens ${Math.round(C.real_sign_ge5 / C.shuffled_sign_ge5_mean)} times less often, and eight tracks never agree. So the agreement is real. Why?`]]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.ch2 i').forEach((i, k) => K.later(1500 + k * 3500, () => i.style.width = i.dataset.w + '%')); });
+    B('Is it chance?', 13, () => grid(top, { signs: 1, copies: 1 }) + LX.band([[.3, 'Because the tracks are not strangers. Every one follows the same beats of the same poem, and each beat asks for its signs.'], [7.5, `And some copy each other: ${top.n} tracks agree here, but on only ${Z.peak_distinct} different shots.`]]),
+      el => go(el, () => el.querySelector('.g9').classList.add('signs')));
+
+    /* MORE SYZYGIES · visited, with the poem */
+    ok.slice(1, 3).forEach((p, j) => {
+      B('Syzygies', 13, () => grid(p) + LX.band([[.3, `${mmss(p.t)} · ${p.n} of ${p.of} tracks carry <b>${esc(p.sign_name)}</b>.`]]),
+        el => go(el, () => { const [a, b] = around(p); LX.poem(K, AU, a, b); K.later(4500, () => { el.querySelector('.g9').classList.add('signs'); LX.tick(1200, .1, .03); }); }));
+    });
+    B('Syzygies', 15, () => grid(fpk) + LX.band([[.3, `${mmss(fpk.t)} · ${fpk.n} tracks show the same film: <em>${esc(fpk.film)}</em>.`], [6.8, `But slide the tracks at random and four land on one film in ${Math.round(C.shuffled_film_max_ge4 * 100)}% of tries. A shared film is a coincidence. A shared sign is not.`]]),
+      el => go(el, () => { const [a, b] = around(fpk); LX.poem(K, AU, a, b); K.later(4000, () => el.querySelector('.g9').classList.add('signs')); }));
+
+    /* PRACTICE */
+    const pp = ok[3] || ok[1];
+    B('Practice', 14, () => grid(pp) + LX.band([[.3, '<small>Your turn</small>']]), el => go(el, () => { const [a, b] = around(pp); LX.poem(K, AU, a, b); K.later(6500, () => el.querySelector('.g9').classList.add('signs')); }));
+
+    /* NOW YOU CAN READ */
+    B('Now you can read', 13, () => grid(top, { signs: 1 }) + LX.band([[.3, 'Now you can read a syzygy: separate tracks, one clock, and a sign they share.'], [6.5, 'Ask two things of it: is it more than chance, and are the tracks really separate?']]), el => go(el, () => el.querySelector('.g9').classList.add('signs')));
+    B('Now you can read', 9, () => `<div class="tc"><small>THE ROOM</small><h1 style="font-size:90px">Syzygy</h1><p>syzygy/index.html: drag the line through the clock, and every track slides under it.</p></div>`, el => LX.ping());
+  }
+};
+</script>
+<script src="explain/player.js?v=6"></script>
+</body>
+</html>
