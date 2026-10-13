@@ -1,102 +1,184 @@
-/* THE ARCHIVE IN MOTION. Open the explorer with ?film and it plays itself: a director drives its own views (wall, map, ring, strata,
-   cut-outs, reel) and its own filters (decade, colour, sign) as a film, under a D-A-E score. No narration; only the name of what you
-   are seeing, small, as it changes. Esc or the × hands the explorer back to you. Uses app.js's own objects: Shell, F, SORT, refresh,
-   Wall, MapMode, Ring, Strata. */
+/* THE ARCHIVE IN MOTION. Open the explorer with ?film and it shows you how it works, one shot at a time, by using itself:
+     FIND      a cursor types into the search; the wall narrows to what it typed
+     OPEN      it clicks the shot; the shot plays in the inspector, and each panel lights in turn: what the image model sees,
+               the editor's reading, the search that found it, the subjects, the sound, the sign on the table, SAM's segments
+     LOOKS     the map flies to the shot, lines run to its nearest shots by picture (CLIP), and they play side by side,
+               with what they have in common, in the machine's own words
+     SOUNDS    its nearest shots by sound (CLAP), each heard in turn
+     SIGN      the ring turns to the shot's sign, stops, and the cursor opens another shot of it
+   The shots and their neighbours come from film-seeds.json (film-seeds.py). Uses app.js's own Shell, F, SORT, refresh, parseQuery,
+   Inspector, MapMode, Ring. A D-A-E score under it, ducked when a shot speaks. Esc or × hands the explorer back. */
 (function () {
   if (!/[?&]film\b/.test(location.search)) return;
-  const CUE = "score/cues/dae-chicha-surf-boreal-glitch-workshop.m4a";
+  const CUE = "score/cues/dae-paddle-meets-current.m4a";
   const css = document.createElement("style");
-  css.textContent = `body.filming #top,body.filming #facets,body.filming #status,body.filming #livebar,body.filming .hud,body.filming #guide,body.filming #tip{opacity:0!important;pointer-events:none!important;transition:opacity .8s}
-    body.filming #stage{inset:0!important;left:0!important;top:0!important}
-    #fm-cap{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:90;font:600 12px/1 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.22em;color:#fff;background:rgba(0,0,0,.55);padding:8px 14px;border-radius:16px;opacity:0;transition:opacity .7s;pointer-events:none;white-space:nowrap}
+  css.textContent = `
+    body.filming #facets,body.filming #status,body.filming #livebar,body.filming #guide,body.filming #tip{opacity:0!important;pointer-events:none!important}
+    #fm-cur{position:fixed;left:0;top:0;z-index:120;width:26px;height:26px;pointer-events:none;transition:transform .9s cubic-bezier(.5,0,.2,1);transform:translate(50vw,50vh)}
+    #fm-cur svg{width:26px;height:26px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.8))}
+    #fm-cur.click::after{content:"";position:absolute;left:-14px;top:-14px;width:40px;height:40px;border-radius:50%;border:2px solid #f2c14e;animation:fmr .6s ease-out forwards}
+    @keyframes fmr{from{transform:scale(.3);opacity:1}to{transform:scale(1.6);opacity:0}}
+    .fm-hl{outline:3px solid #f2c14e!important;outline-offset:-3px;box-shadow:0 0 0 9999px rgba(0,0,0,.45)!important;position:relative;z-index:5;transition:outline .3s}
+    #fm-tag{position:fixed;z-index:121;font:700 11px/1 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.16em;color:#0b0a09;background:#f2c14e;padding:6px 10px;border-radius:3px;opacity:0;transition:opacity .4s;pointer-events:none;white-space:nowrap}
+    #fm-tag.on{opacity:1}
+    #fm-cap{position:fixed;left:50%;top:56px;transform:translateX(-50%);z-index:119;font:600 12px/1 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.2em;color:#fff;background:rgba(0,0,0,.7);padding:9px 16px;border-radius:18px;opacity:0;transition:opacity .6s;pointer-events:none;white-space:nowrap}
     #fm-cap.on{opacity:1}
-    #fm-start{position:fixed;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px;background:rgba(8,7,6,.9);color:#ece6da}
+    #fm-svg{position:fixed;inset:0;z-index:110;pointer-events:none}
+    #fm-strip{position:fixed;left:2vw;right:2vw;bottom:3vh;z-index:115;display:flex;flex-direction:column;gap:8px;background:rgba(8,7,6,.94);border:1px solid #3a352e;border-radius:10px;padding:12px;opacity:0;transform:translateY(20px);transition:opacity .6s,transform .6s}
+    #fm-strip.on{opacity:1;transform:none}
+    #fm-strip .hd{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;font:700 12px "IBM Plex Mono",monospace;letter-spacing:.16em;color:#f2c14e}
+    #fm-strip .hd small{font-weight:400;color:#ece6da;letter-spacing:.08em}
+    #fm-strip .hd em{font-style:normal;color:#0b0a09;background:#ece6da;padding:3px 8px;border-radius:12px;font-size:11px;letter-spacing:.06em}
+    #fm-strip .row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+    #fm-strip .c{display:flex;flex-direction:column;gap:4px;min-width:0}
+    #fm-strip .c video{width:100%;aspect-ratio:4/3;object-fit:cover;background:#000;border-radius:4px;border:2px solid transparent}
+    #fm-strip .c.seed video{border-color:#f2c14e}#fm-strip .c.loud video{border-color:#ff7a45}
+    #fm-strip .c b{font:italic 12px/1.25 Georgia,serif;color:#fff;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    #fm-strip .c span{font:10px "IBM Plex Mono",monospace;color:#9a9285;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #fm-start{position:fixed;inset:0;z-index:130;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px;background:rgba(8,7,6,.92);color:#ece6da}
     #fm-start h1{font:900 clamp(38px,8vw,96px)/.9 "Arial Black",Impact,sans-serif}
-    #fm-start p{font:12px "IBM Plex Mono",monospace;letter-spacing:.12em;color:#9a9285}
+    #fm-start p{font:12px "IBM Plex Mono",monospace;letter-spacing:.12em;color:#9a9285;max-width:60ch}
     #fm-start button{font:700 13px "IBM Plex Mono",monospace;letter-spacing:.16em;padding:13px 28px;border-radius:26px;background:#ece6da;color:#0b0a09;border:0;cursor:pointer}
-    #fm-x{position:fixed;right:14px;top:12px;z-index:96;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.5);color:#fff;font:16px sans-serif;cursor:pointer;opacity:.35}
-    #fm-x:hover{opacity:1}`;
+    #fm-x{position:fixed;right:14px;bottom:14px;z-index:131;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.6);color:#fff;font:16px sans-serif;cursor:pointer;opacity:.5}`;
   document.head.appendChild(css);
-  const cap = Object.assign(document.createElement("div"), { id: "fm-cap" });
-  const start = Object.assign(document.createElement("div"), { id: "fm-start" });
-  start.innerHTML = `<h1>THE ARCHIVE<br>IN MOTION</h1><p>THE EXPLORER PLAYS ITSELF · WALL · MAP · RING · STRATA · CUT-OUTS · REEL</p><button id="fm-go">▶ PLAY</button><p id="fm-n">loading the archive…</p>`;
-  const x = Object.assign(document.createElement("button"), { id: "fm-x", textContent: "×", title: "Stop the film and use the explorer" });
-  document.body.append(cap, start, x);
-  let RUN = 0, AC = null, G = null, el = null;
+  const mk = (id, tag = "div") => { const e = document.createElement(tag); e.id = id; document.body.appendChild(e); return e; };
+  const cur = mk("fm-cur"); cur.innerHTML = `<svg viewBox="0 0 24 24"><path d="M4 2l15 10-6.5 1.5L16 21l-3 1.2-3.4-7.4L4 19z" fill="#fff" stroke="#000" stroke-width="1.2"/></svg>`;
+  const tag = mk("fm-tag"), cap = mk("fm-cap"), strip = mk("fm-strip");
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.id = "fm-svg"; document.body.appendChild(svg);
+  const start = mk("fm-start"); start.innerHTML = `<h1>THE ARCHIVE<br>IN MOTION</h1><p>HOW THE EXPLORER READS A SHOT: FIND IT, OPEN IT, SEE WHAT THE MACHINES SAY ABOUT IT, THEN WHAT LOOKS LIKE IT, WHAT SOUNDS LIKE IT, AND WHAT SHARES ITS SIGN.</p><button id="fm-go">▶ PLAY</button><p id="fm-n">loading…</p>`;
+  const x = mk("fm-x", "button"); x.textContent = "×"; x.title = "Stop and use the explorer yourself";
+  let RUN = 0, AC = null, G = null, el = null, SEEDS = null;
   const sleep = (ms, run) => new Promise(r => setTimeout(() => r(run === RUN), ms));
-  const say = t => { cap.textContent = t; cap.classList.add("on"); clearTimeout(say.h); say.h = setTimeout(() => cap.classList.remove("on"), 3200); };
-  const tween = (ms, fn, run) => new Promise(r => { const t0 = performance.now(); const step = () => { if (run !== RUN) return r(false); const k = Math.min(1, (performance.now() - t0) / ms), e = k * k * (3 - 2 * k); fn(e); if (k < 1) requestAnimationFrame(step); else r(true); }; step(); });
+  const say = (t, ms = 3600) => { cap.textContent = t; cap.classList.add("on"); clearTimeout(say.h); say.h = setTimeout(() => cap.classList.remove("on"), ms); };
+  /* ---------- the hand ---------- */
+  let cx = innerWidth / 2, cy = innerHeight / 2;
+  async function moveTo(target, run, ms = 900) {
+    let r = target && target.getBoundingClientRect ? target.getBoundingClientRect() : null;
+    const tx = r ? r.left + Math.min(r.width * .35, 60) : target.x, ty = r ? r.top + Math.min(r.height * .5, 40) : target.y;
+    cur.style.transitionDuration = ms + "ms"; cur.style.transform = `translate(${tx}px,${ty}px)`; cx = tx; cy = ty; return sleep(ms + 80, run);
+  }
+  async function click(run) { cur.classList.remove("click"); void cur.offsetWidth; cur.classList.add("click"); return sleep(350, run); }
+  function light(elm, label) {
+    document.querySelectorAll(".fm-hl").forEach(e => e.classList.remove("fm-hl"));
+    if (!elm) { tag.classList.remove("on"); return; }
+    elm.classList.add("fm-hl"); const r = elm.getBoundingClientRect();
+    tag.textContent = label; tag.style.left = Math.max(8, Math.min(innerWidth - 320, r.left + 8)) + "px"; tag.style.top = Math.max(8, r.top - 30) + "px"; tag.classList.add("on");
+  }
+  /* ---------- the score ---------- */
   function score() {
     if (!AC) { AC = new (window.AudioContext || window.webkitAudioContext)(); el = new Audio(CUE); el.loop = true; G = AC.createGain(); G.gain.value = 0; AC.createMediaElementSource(el).connect(G).connect(AC.destination); }
-    if (AC.state === "suspended") AC.resume(); el.currentTime = 0; el.play().catch(() => { }); G.gain.setTargetAtTime(.6, AC.currentTime, 1.5);
+    if (AC.state === "suspended") AC.resume(); el.currentTime = 0; el.play().catch(() => { }); level(.45);
   }
-  const reset = () => { F.signs = new Set(); F.dec = new Set(); F.hue = null; F.color = "all"; F.subj = new Set(); F.q = ""; F.terms = []; F.signTerms = []; F.decTerms = []; GROUP = "none"; SORT.key = "sign"; SORT.dir = 1; };
+  const level = (v, s = .8) => G && G.gain.setTargetAtTime(v, AC.currentTime, s / 3);
+  const reset = () => { F.signs = new Set(); F.dec = new Set(); F.hue = null; F.color = "all"; F.subj = new Set(); GROUP = "none"; SORT.key = "sign"; SORT.dir = 1; const q = document.getElementById("q"); if (q) q.value = ""; parseQuery(""); };
   const mode = m => { if (Shell.mode !== m) Shell.setMode(m); };
-  const DECS = [1900, 1910, 1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010];
-  const HUES = [[345, 15], [15, 45], [45, 75], [75, 150], [150, 210], [210, 260], [260, 300], [300, 345]];
-
-  async function wall(run) {
-    reset(); SORT.key = "hue"; refresh(); mode("wall"); say("WALL · EVERY SHOT, BY COLOUR");
-    const sc = Wall.grid && Wall.grid.sc;
-    if (sc) await tween(16000, e => { sc.scrollTop = e * Math.min(sc.scrollHeight - sc.clientHeight, 9000); }, run);
-    for (const d of DECS) {   // the decades, one after another
-      if (run !== RUN) return; F.dec = new Set([d]); SORT.key = "hue"; refresh(); if (sc) sc.scrollTop = 0; say(`WALL · THE ${d}s`); if (!await sleep(1500, run)) return;
-    }
-    F.dec = new Set();
-    for (const h of HUES) { if (run !== RUN) return; F.hue = h; refresh(); say("WALL · ONE COLOUR AT A TIME"); if (!await sleep(1100, run)) return; }
-    F.hue = null; refresh();
+  const shotOf = id => L.shots.find(s => s.id === id);
+  /* ---------- 1. FIND: type into the search, and the wall narrows ---------- */
+  async function find(seed, run) {
+    reset(); refresh(); mode("wall"); say("FIND IT");
+    const q = document.getElementById("q"); await moveTo(q, run); await click(run);
+    const words = (seed.caption || seed.title).split(/\s+/).filter(w => w.length > 3).slice(0, 3).join(" ") || seed.title;
+    const text = seed.title.toLowerCase().split(/[\s:,(]+/).filter(w => w.length > 3).slice(0, 2).join(" ");
+    q.value = "";
+    for (const ch of text) { if (run !== RUN) return; q.value += ch; parseQuery(q.value); refresh(); await sleep(110, run); }
+    say(`${VIEW.length} SHOTS MATCH “${text.toUpperCase()}”`); await sleep(1400, run);
+    const s = shotOf(seed.id); if (!s) return;
+    let img = null;
+    for (let k = 0; k < 20 && !img; k++) { img = [...document.querySelectorAll("#m-wall img")].find(i => i.src && s.thumb && i.src.endsWith(s.thumb.split("/").pop())); if (!img) await sleep(150, run); }
+    if (img) { await moveTo(img, run); light(img.parentElement, "THIS ONE"); await sleep(900, run); await click(run); light(null); }
+    return words;
   }
-  async function map(run) {
-    reset(); refresh(); mode("map"); MapMode.kind = L.has.xy ? "xy" : "hue"; MapMode.build(); MapMode.fit(); say("MAP · SHOTS BY LIKENESS");
-    if (!await sleep(2500, run)) return;
-    const pts = MapMode.P.filter(p => p.s.xy);
-    for (let k = 0; k < 5 && pts.length; k++) {   // fly into a neighbourhood of alike shots, and out again
-      const p = pts[Math.floor(Math.random() * pts.length)], c = MapMode.cam, from = { x: c.x, y: c.y, z: c.z }, to = { x: p.x, y: p.y, z: from.z * (7 + Math.random() * 5) };
-      if (!await tween(4200, e => { c.x = from.x + (to.x - from.x) * e; c.y = from.y + (to.y - from.y) * e; c.z = from.z * Math.pow(to.z / from.z, e); MapMode.req(); }, run)) return;
-      if (!await sleep(1600, run)) return;
-      const back = { x: c.x, y: c.y, z: c.z }; if (!await tween(2600, e => { c.z = back.z * Math.pow(from.z * 1.6 / back.z, e); MapMode.req(); }, run)) return;
+  /* ---------- 2. OPEN: the inspector, panel by panel ---------- */
+  async function open(seed, run) {
+    const s = shotOf(seed.id); if (!s) return;
+    Inspector.open(s, VIEW.length ? VIEW : [s]); say("OPEN IT"); await sleep(1800, run);
+    const v = document.getElementById("insVid"); if (v) { v.muted = false; v.volume = .9; v.play().catch(() => { v.muted = true; v.play(); }); }
+    const blocks = [...document.querySelectorAll("#insLeft .sd-block, #insSide .sd-block")];
+    const pick = (h, label) => { const b = blocks.find(x => (x.querySelector("h4") || {}).textContent?.toLowerCase().startsWith(h)); return b ? [b, label] : null; };
+    const tour = [pick("what the image model sees", "WHAT THE IMAGE MODEL SEES IN ONE FRAME"), pick("editor", "WHAT A PERSON READ IN IT"), pick("found by", "THE SEARCHES THAT FOUND IT"),
+      pick("subjects", "WHAT CLIP THINKS IS IN IT"), pick("audio", "WHAT ITS SOUND IS"), pick("the 45 signs", "WHERE IT SITS ON THE TABLE OF SIGNS"),
+      pick("machine suggestions", "WHAT THE MACHINE WOULD CALL IT"), pick("segments", "WHAT SAM CUT OUT OF IT, FRAME BY FRAME")].filter(Boolean);
+    level(.18);
+    for (const [b, label] of tour) {
+      if (run !== RUN) return; await moveTo(b, run, 700); light(b, label);
+      if (label.startsWith("WHAT SAM")) { try { if (!Inspector.showSegs) Inspector.toggleSegs(); } catch (e) { } }
+      await sleep(label.startsWith("WHAT A PERSON") || label.startsWith("WHAT SAM") ? 3600 : 2600, run);
     }
-    for (const [kind, name] of [["hue", "MAP · COLOUR × DECADE"], ["sign", "MAP · SIGN × DECADE"]]) {
-      if (run !== RUN) return; MapMode.kind = kind; MapMode.build(); MapMode.fit(); say(name);
-      if (!await sleep(2800, run)) return;
-      const c = MapMode.cam, z0 = c.z, x0 = c.x;
-      if (!await tween(9000, e => { c.z = z0 * (1 + 2.2 * Math.sin(e * Math.PI)); c.x = x0 + (e - .5) * .5; MapMode.req(); }, run)) return;
-    }
-    for (const d of DECS.slice(2, 10)) { if (run !== RUN) return; F.dec = new Set([d]); refresh(); say(`MAP · THE ${d}s`); if (!await sleep(1300, run)) return; }
-    F.dec = new Set(); refresh();
+    light(null); level(.45); await sleep(600, run);
+    try { Inspector.close(); } catch (e) { }
   }
-  async function ring(run) {
-    reset(); refresh(); mode("ring"); Ring.auto = true; say("RING · THE FIRST 240, ON A CYLINDER");
-    if (!await tween(6000, e => { Ring.vel = 2.4 * (1 - e) + .3; Ring.tilt = -6 + 14 * Math.sin(e * Math.PI); Ring.apply && Ring.apply(); }, run)) return;
-    const signs = L.signs.map(s => s.n).filter(n => VIEW.some(v => (v._read || []).includes(n))).slice(0, 44);
-    for (let k = 0; k < 7 && signs.length; k++) {   // one sign at a time: the ring rebuilds from its shots
-      const n = signs[Math.floor(Math.random() * signs.length)]; F.signs = new Set([n]); refresh();
-      say(`RING · ${L.S[n].symbol} · ${L.S[n].name.toUpperCase()}`); Ring.vel = 3;
-      if (!await sleep(3600, run)) return;
-    }
-    F.signs = new Set(); refresh();
+  /* ---------- strips: shots side by side, playing ---------- */
+  function vid(c, sound) { const v = document.createElement("video"); v.src = c.video; v.muted = !sound; v.playsInline = true; v.loop = true; v.preload = "auto"; v.addEventListener("loadedmetadata", () => { try { v.currentTime = c.t || 0; } catch (e) { } v.play().catch(() => { v.muted = true; v.play().catch(() => { }); }); }, { once: true }); return v; }
+  function showStrip(title, sub, shared, cards) {
+    strip.innerHTML = `<div class="hd">${title}<small>${sub}</small>${shared.words && shared.words.length ? `<em>IN COMMON: ${shared.words.join(" · ")}${shared.decades ? " · " + shared.decades : ""}</em>` : (shared.decades ? `<em>${shared.decades}</em>` : "")}</div><div class="row"></div>`;
+    const row = strip.querySelector(".row");
+    cards.forEach((c, i) => { const d = document.createElement("div"); d.className = "c" + (i === 0 ? " seed" : ""); d.appendChild(vid(c, false));
+      d.insertAdjacentHTML("beforeend", `<b>${(c.caption || (c.subjects || []).join(", ") || "").replace(/</g, "&lt;")}</b><span>${(c.title || "").replace(/</g, "&lt;")}${c.year ? " · " + c.year : ""}</span>`); row.appendChild(d); });
+    strip.classList.add("on"); return [...row.children];
   }
-  async function strata(run) {
-    reset(); SORT.key = "hue"; refresh(); mode("strata"); say("STRATA · EVERY SHOT AS A STACK OF ITS FRAMES");
-    if (!await sleep(1500, run)) return;
-    const t0 = performance.now(), sc = Strata.grid && Strata.grid.sc;
-    while (run === RUN && performance.now() - t0 < 22000) {   // run the stacks in a wave, a cell at a time
-      const cells = [...document.querySelectorAll("#m-strata .stc")].filter(c => { const r = c.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight; });
-      for (const c of cells) { if (run !== RUN) return; Strata.heat(c); await sleep(260, run); }
-      if (sc) await tween(1800, e => { sc.scrollTop += 6; }, run);
-      if (sc) sc.scrollTop += Math.round(innerHeight * .6);
-    }
-    Strata.heat(null);
+  const hideStrip = () => { strip.classList.remove("on"); setTimeout(() => { strip.querySelectorAll("video").forEach(v => v.pause()); }, 700); };
+  /* ---------- 3. LOOKS LIKE IT: the map, with lines to the nearest pictures ---------- */
+  function lines(seed) {
+    svg.innerHTML = ""; const c = MapMode.cam, cv = MapMode.cv; if (!cv) return; const R = cv.getBoundingClientRect();
+    const pos = id => { const p = MapMode.P.find(q => q.s.id === id); return p ? { x: R.left + (p.x - c.x) * c.z + R.width / 2, y: R.top + (p.y - c.y) * c.z + R.height / 2 } : null; };
+    const a = pos(seed.id); if (!a) return;
+    let h = "";
+    seed.looks.forEach(n => { const b = pos(n.id); if (b) h += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#f2c14e" stroke-width="2" stroke-dasharray="6 5" opacity=".9"/><circle cx="${b.x}" cy="${b.y}" r="16" fill="none" stroke="#f2c14e" stroke-width="2"/>`; });
+    h += `<circle cx="${a.x}" cy="${a.y}" r="22" fill="none" stroke="#fff" stroke-width="3"/>`; svg.innerHTML = h;
   }
-  async function cuts(run) { reset(); refresh(); mode("cuts"); say("CUT-OUTS · FIGURES LIFTED FROM THE SHOTS"); await sleep(9000, run); }
-  async function reel(run) { reset(); refresh(); mode("reel"); say("REEL · THE TABLE, SIGN BY SIGN"); await sleep(1200, run); try { Reel.start && Reel.start(); } catch (e) { } await sleep(26000, run); }
+  async function looks(seed, run) {
+    reset(); refresh(); mode("map"); MapMode.kind = "xy"; MapMode.build(); MapMode.fit(); say("WHAT LOOKS LIKE IT · CLIP, PICTURE BY PICTURE");
+    [seed, ...seed.looks].forEach(c => { const i = new Image(); i.src = c.thumb; });   // the pictures it will land on are already loaded
+    await sleep(1500, run);
+    const p = MapMode.P.find(q => q.s.id === seed.id), c = MapMode.cam;
+    if (p) {
+      const from = { x: c.x, y: c.y, z: c.z }, toZ = Math.min(60000, Math.max(from.z * 3, 260 / Math.max(p.w, 1e-4)));
+      const t0 = performance.now();
+      while (run === RUN) { const k = Math.min(1, (performance.now() - t0) / 3200), e = k * k * (3 - 2 * k);
+        c.x = from.x + (p.x - from.x) * e; c.y = from.y + (p.y - from.y) * e; c.z = from.z * Math.pow(toZ / from.z, e); MapMode.hover = p; MapMode.req(); if (k >= 1) break; await new Promise(r => requestAnimationFrame(r)); }
+      await sleep(400, run); lines(seed); await sleep(2600, run);
+    }
+    svg.innerHTML = "";
+    showStrip("LOOKS LIKE IT", "its nearest shots by picture (CLIP), from other films", seed.looks_shared, [seed, ...seed.looks]);
+    await sleep(9000, run); hideStrip(); await sleep(700, run);
+  }
+  /* ---------- 4. SOUNDS LIKE IT: each heard in turn ---------- */
+  async function sounds(seed, run) {
+    say("WHAT SOUNDS LIKE IT · CLAP, SOUND BY SOUND");
+    const cells = showStrip("SOUNDS LIKE IT", "its nearest shots by sound (CLAP), each heard in turn", seed.sounds_shared, [seed, ...seed.sounds]);
+    level(.12);
+    for (const d of cells) { if (run !== RUN) return; cells.forEach(o => { o.classList.remove("loud"); const v = o.querySelector("video"); if (v) v.muted = true; });
+      d.classList.add("loud"); const v = d.querySelector("video"); if (v) { v.muted = false; v.volume = 1; try { v.currentTime = 0; } catch (e) { } v.play().catch(() => { }); } await sleep(2600, run); }
+    cells.forEach(o => { const v = o.querySelector("video"); if (v) v.muted = true; }); level(.45); hideStrip(); await sleep(700, run);
+  }
+  /* ---------- 5. SAME SIGN: the ring turns to it, stops, and opens another ---------- */
+  async function sign(seed, run) {
+    if (!seed.sign || !L.S[seed.sign]) return;
+    reset(); F.signs = new Set([String(seed.sign)]); refresh(); mode("ring"); Ring.auto = false; Ring.vel = 3.2;
+    say(`THE SAME SIGN · ${L.S[seed.sign].symbol} · ${L.S[seed.sign].name.toUpperCase()}`); await sleep(4200, run); Ring.vel = 0;
+    const cards = [...document.querySelectorAll("#m-ring .ring-rot > *")].filter(c => { const r = c.getBoundingClientRect(); return r.width > 60 && r.left > innerWidth * .3 && r.right < innerWidth * .7; });
+    const card = cards.sort((a, b) => b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0];
+    const other = VIEW.find(q => q.id !== seed.id && q.video);
+    if (card && other) { await moveTo(card, run); await click(run); Inspector.open(other, VIEW); await sleep(1500, run);
+      const v = document.getElementById("insVid"); if (v && !document.getElementById("inspector").hidden) { v.muted = false; v.play().catch(() => { }); await sleep(5500, run); try { Inspector.close(); } catch (e) { } } }
+    Ring.auto = true;
+  }
   async function film() {
-    const run = ++RUN; document.body.classList.add("filming"); start.hidden = true; score();
-    for (const part of [wall, map, ring, strata, cuts, reel, map]) { if (run !== RUN) return; await part(run); }
-    if (run === RUN) { G && G.gain.setTargetAtTime(0, AC.currentTime, 2); say("THE ARCHIVE · " + L.shots.length.toLocaleString() + " SHOTS"); }
+    const run = ++RUN; document.body.classList.add("filming"); start.hidden = true; score(); try { CAPS.load(); } catch (e) { }
+    reset(); refresh(); mode("wall"); say(`${L.shots.length.toLocaleString()} SHOTS · ONE AT A TIME`, 3000); await sleep(3200, run);
+    for (const seed of SEEDS) {
+      if (run !== RUN) return;
+      await find(seed, run); if (run !== RUN) return;
+      await open(seed, run); if (run !== RUN) return;
+      await looks(seed, run); if (run !== RUN) return;
+      await sounds(seed, run); if (run !== RUN) return;
+      await sign(seed, run);
+    }
+    if (run === RUN) { reset(); refresh(); mode("map"); MapMode.kind = "xy"; MapMode.build(); MapMode.fit(); say("NOW YOU · CLICK ANY SHOT", 6000); level(0, 4); setTimeout(stop, 6500); }
   }
-  function stop() { RUN++; document.body.classList.remove("filming"); start.hidden = true; x.hidden = true; if (G) G.gain.setTargetAtTime(0, AC.currentTime, .6); setTimeout(() => el && el.pause(), 900); }
-  x.onclick = stop; addEventListener("keydown", e => { if (e.key === "Escape" && document.body.classList.contains("filming")) stop(); }, true);
+  function stop() { RUN++; document.body.classList.remove("filming"); light(null); hideStrip(); svg.innerHTML = ""; cur.style.display = "none"; start.hidden = true; x.hidden = true; if (G) level(0, .6); setTimeout(() => el && el.pause(), 900); }
+  x.onclick = stop; addEventListener("keydown", e => { if (e.key === "Escape" && document.body.classList.contains("filming")) { e.stopPropagation(); stop(); } }, true);
   document.getElementById("fm-go").onclick = film;
-  const wait = setInterval(() => { if (typeof L !== "undefined" && L.shots && L.shots.length) { clearInterval(wait); document.getElementById("fm-n").textContent = L.shots.length.toLocaleString() + " shots ready"; } }, 300);
+  fetch("film-seeds.json").then(r => r.json()).then(d => { SEEDS = d.seeds; }).catch(() => { SEEDS = []; });
+  const wait = setInterval(() => { if (typeof L !== "undefined" && L.shots && L.shots.length && SEEDS) { clearInterval(wait); document.getElementById("fm-n").textContent = `${SEEDS.length} shots, read five ways each`; } }, 300);
 })();

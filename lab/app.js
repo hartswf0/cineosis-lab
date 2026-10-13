@@ -1410,6 +1410,7 @@ function readingBar(n, e) {
 }
 
 /* ================================================================ INSPECTOR */
+const CAPS = { map: null, p: null, load(after) { if (this.map || this.p) return; this.p = fetch('rushes/captions.json').then(r => r.ok ? r.json() : {}).then(m => { this.map = m; after && after(); }).catch(() => { this.map = {}; }); } };
 const Inspector = {
   root: null, s: null, list: [], A: null, B: null, loopAB: false, speed: 1, showCuts: false,
   build() {
@@ -1430,6 +1431,7 @@ const Inspector = {
           </div>
           <div class="ins-msg" id="insMsg" hidden></div>
         </div>
+        <aside class="ins-left" id="insLeft"></aside>
         <aside class="ins-side" id="insSide"></aside>
         <div class="scrub">
           <div class="scrub-read">
@@ -1598,7 +1600,7 @@ const Inspector = {
     $$('[data-a="loop"]', R).forEach(b => b.classList.toggle('on', this.loopAB));
   },
   side() {
-    const s = this.s, R = this.root;
+    const s = this.s, R = this.root; CAPS.load(() => { if (this.s === s) this.side(); });
     const pend = t => `<span class="pending">${t}</span>`;
     const pal = s.palette ? `<div class="pal">${s.palette.map(c => `<i style="background:${esc(c)}" title="${esc(c)}"></i>`).join('')}</div>` : pend('palette pending');
     const subj = s.subjects && s.subjects.length ? s.subjects.map(x => `<div class="sbar"><span>${esc(x.label)}</span><i><b style="width:${Math.round((x.p || 0) * 100)}%"></b></i><em>${Math.round((x.p || 0) * 100)}%</em></div>`).join('') : pend('subjects pending');
@@ -1613,24 +1615,26 @@ const Inspector = {
     const found = (s.found || []).slice(0, 12).map(f => `<div class="fd">${chip(String(f.n), 'sm')}<span>“${esc(f.q)}”</span><em>#${f.rank + 1}</em></div>`).join('');
     const mine = L.assignments.filter(a => a.id === s.id).map(a => `<div class="fd">${chip(String(a.n), 'sm')}<span>${esc(a.note || '')}</span><em>${a.a != null ? (+a.a).toFixed(1) : '—'}–${a.b != null ? (+a.b).toFixed(1) : '—'}s</em></div>`).join('');
     const seg = this.segs(), cuts = !seg && s.cutouts && s.cutouts.length;
-    R.querySelector('#insSide').innerHTML = `
-      ${wygBlock(s)}
-      ${affinityBlock(s)}
-      ${seg ? this.segBlock(seg) : (s._read.length ? `<div class="sd-block"><h4>segments over time</h4>${pend('SAM 2 tracking for this shot is still running — press ↻ later')}</div>` : '')}
+    const seen = CAPS.map && CAPS.map[s.id] ? `<div class="sd-block sees"><h4>what the image model sees <small>BLIP, from one frame</small></h4><p class="sees-t">${esc(CAPS.map[s.id])}</p></div>` : '';
+    R.querySelector('#insLeft').innerHTML = `
+      ${seen}
       <div class="sd-block"><h4>editor’s reading</h4>${reads || pend(s._live ? 'live result — not read yet; assign it below' : 'not read — surfaced by search only')}</div>
+      ${found ? `<div class="sd-block"><h4>found by these searches</h4>${found}</div>` : ''}
+      <div class="sd-block"><h4>subjects <small>CLIP zero-shot</small></h4>${subj}</div>
+      <div class="sd-block"><h4>audio</h4><div class="au">${au}</div></div>
       <div class="sd-block"><h4>shot</h4><a class="arch" href="${esc(s.page)}" target="_blank" rel="noopener">open in the archive ↗</a>
         <div class="kv"><span>year</span><b>${s.year ?? '—'}</b><span>source</span><b>${tc(s.start || 0)} → ${tc(s.end || 0)}</b><span>length</span><b>${s._dur.toFixed(2)} s</b>
         ${s.read_t != null ? `<span>read</span><b>${tc((s.start || 0) + s.read_t)}</b>` : ''}
         <span>matched</span><b>${tc(s.match || 0)}</b><span>colour</span><b>${s.bw ? 'black &amp; white' : 'colour'}</b><span>scale</span><b>${s.scale ? esc(s.scale) : '<span class="pending">pending</span>'}</b>
         ${s.hue != null ? `<span>hue</span><b>${Math.round(s.hue)}° ${hbLabel(s._hb)} · lum ${(s.lum ?? 0).toFixed(2)} · sat ${(s.sat ?? 0).toFixed(2)}</b>` : ''}
-        ${s.sim != null ? `<span>sim</span><b>#${s.sim}</b>` : ''}</div></div>
-      <div class="sd-block"><h4>palette</h4>${pal}</div>
-      <div class="sd-block"><h4>subjects <small>CLIP zero-shot</small></h4>${subj}</div>
-      <div class="sd-block"><h4>audio</h4><div class="au">${au}</div></div>
-      ${cuts ? `<div class="sd-block"><h4>single-frame cut-outs · ${s.cutouts.length}</h4><div class="cutbtns"><button class="ghost" id="insCutT">${this.showCuts ? 'hide' : 'show'} on frame (C)</button><button class="ghost" id="insCutSend">send to table</button></div>
-        <div class="cutthumbs">${s.cutouts.map(c => `<span><img src="${esc(c.png)}" alt=""><em>${esc(c.label)}</em></span>`).join('')}</div></div>` : ''}
-      ${found ? `<div class="sd-block"><h4>found by these searches</h4>${found}</div>` : ''}
+        ${s.sim != null ? `<span>sim</span><b>#${s.sim}</b>` : ''}</div>${pal}</div>
       ${mine ? `<div class="sd-block"><h4>your sub-shots <small>${L.server ? 'saved to assignments.json' : 'saved in this browser'}</small></h4>${mine}<div class="cutbtns" style="margin-top:10px"><button class="ghost" id="insExport">export assignments.json</button></div></div>` : ''}`;
+    R.querySelector('#insSide').innerHTML = `
+      ${wygBlock(s)}
+      ${affinityBlock(s)}
+      ${seg ? this.segBlock(seg) : (s._read.length ? `<div class="sd-block"><h4>segments over time</h4>${pend('SAM 2 tracking for this shot is still running — press ↻ later')}</div>` : '')}
+      ${cuts ? `<div class="sd-block"><h4>single-frame cut-outs · ${s.cutouts.length}</h4><div class="cutbtns"><button class="ghost" id="insCutT">${this.showCuts ? 'hide' : 'show'} on frame (C)</button><button class="ghost" id="insCutSend">send to table</button></div>
+        <div class="cutthumbs">${s.cutouts.map(c => `<span><img src="${esc(c.png)}" alt=""><em>${esc(c.label)}</em></span>`).join('')}</div></div>` : ''}`;
     const ex = $('#insExport', R); if (ex) ex.onclick = exportAssignments;
     const ct = $('#insCutT', R); if (ct) ct.onclick = () => this.toggleCuts();
     const cs = $('#insCutSend', R); if (cs) cs.onclick = () => { Cuts.send(s); toast(`${s.cutouts.length} cut-out${s.cutouts.length > 1 ? 's' : ''} sent to the table`); };
