@@ -722,12 +722,14 @@ const MapMode = {
     this.host = host;
     host.innerHTML = `<canvas class="mapcv"></canvas>
       <div class="hud hud-tl"><div class="hud-title" id="mapTitle"></div><div class="seg" id="mapKind">
-        <button data-v="xy">picture</button><button data-v="sound">sound</button><button data-v="hue">colour × decade</button><button data-v="sign">sign × decade</button><button data-v="axes">axes</button></div>
+        <button data-v="xy">picture</button><button data-v="sound">sound</button><button data-v="hue">colour × decade</button><button data-v="sign">sign × decade</button><button data-v="axes">axes</button></div><button class="ghost" id="mapOnly" title="draw only the shots your filters keep">hide the rest</button><button class="ghost" id="mapLeave" hidden title="leave this neighbourhood (Esc)">✕ leave neighbourhood</button>
         <div class="axpick" id="axPick">x <select id="axX"></select> y <select id="axY"></select></div>
         <div class="hud-note" id="mapNote"></div></div>
       <div class="hud hud-br"><button class="ghost" data-z="in">+</button><button class="ghost" data-z="out">−</button><button class="ghost" data-z="fit">fit</button></div>`;
     this.cv = $('canvas', host); this.g = this.cv.getContext('2d');
     IMG.onload = rafThrottle(() => { if (Shell.mode === 'map') this.draw(); });
+    $('#mapOnly', host).onclick = () => { this.only = !this.only; $('#mapOnly', host).classList.toggle('on', this.only); $('#mapOnly', host).textContent = this.only ? 'show the rest' : 'hide the rest'; this.morph(this.kind, 700); };
+    $('#mapLeave', host).onclick = () => this.unfocus();
     $('#mapKind', host).addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; this.morph(b.dataset.v); });
     const opts = Object.entries(DIMS).map(([k, d]) => `<option value="${k}">${d.name}</option>`).join('');
     $('#axX', host).innerHTML = opts; $('#axY', host).innerHTML = opts; $('#axX', host).value = this.ax[0]; $('#axY', host).value = this.ax[1];
@@ -763,7 +765,7 @@ const MapMode = {
     const up = e => {
       ptrs.delete(e.pointerId);
       if (ptrs.size < 2) pinch = null;
-      if (drag && !drag.moved && e.type === 'pointerup') { const h = this.hit(e.offsetX, e.offsetY); if (h) { Tip.hide(); Inspector.open(h.s, this.P.filter(p => p.s._in || p.s._live).map(p => p.s)); } }
+      if (drag && !drag.moved && e.type === 'pointerup') { const h = this.hit(e.offsetX, e.offsetY); if (h) { Tip.hide(); Inspector.open(h.s, this.P.filter(p => p.s._in || p.s._live).map(p => p.s)); } else if (this.focus) this.unfocus(); }
       drag = null;
     };
     cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
@@ -781,8 +783,8 @@ const MapMode = {
     this.W = r.width; this.H = r.height; this.dpr = dpr;
     this.cv.width = Math.max(1, Math.round(r.width * dpr)); this.cv.height = Math.max(1, Math.round(r.height * dpr));
   },
-  show() { this.size(); if (!this.kind || (this.kind === 'xy' && !L.has.xy) || (this.kind === 'hue' && !L.has.hue)) this.kind = L.has.xy ? 'xy' : L.has.hue ? 'hue' : 'sign'; this.build(); this.fit(); },
-  update() { this.buildLive(); this.req(); this.hud(); },
+  show() { this.focus = null; this.edges = null; this.stopIn(); this.leave(); this.size(); if (!this.kind || (this.kind === 'xy' && !L.has.xy) || (this.kind === 'hue' && !L.has.hue)) this.kind = L.has.xy ? 'xy' : L.has.hue ? 'hue' : 'sign'; this.build(); this.fit(); },
+  update() { if (this.only && this.kind === 'axes' && this.cv) { this.morph('axes', 500); return; } this.buildLive(); this.req(); this.hud(); },
   hud() {
     const H = this.host;
     $$('#mapKind button', H).forEach(b => { const v = b.dataset.v; b.disabled = (v === 'xy' && !L.has.xy) || (v === 'hue' && !L.has.hue); b.classList.toggle('on', v === this.kind); }); H.dataset.kind = this.kind;
@@ -805,7 +807,7 @@ const MapMode = {
     } else if (this.kind === 'axes') {   // any two dimensions: one column per value of x, one row per value of y, each cell packed with its shots
       const DX = DIMS[this.ax[0]], DY = DIMS[this.ax[1]], cx = DX.cats(), cy = DY.cats();
       const WW = Math.max(1, cx.length * .12), HH = Math.max(.6, cy.length * .06), cw = WW / cx.length, ch = HH / cy.length, cells = new Map();
-      for (const s of shots) { const i = cx.indexOf(DX.of(s)), j = cy.indexOf(DY.of(s)); if (i < 0 || j < 0) continue; const k = i + '|' + j; let c = cells.get(k); if (!c) cells.set(k, c = []); c.push(s); }
+      for (const s of (this.only ? shots.filter(s => s._in || s._live) : shots)) { const i = cx.indexOf(DX.of(s)), j = cy.indexOf(DY.of(s)); if (i < 0 || j < 0) continue; const k = i + '|' + j; let c = cells.get(k); if (!c) cells.set(k, c = []); c.push(s); }
       for (const [k, arr] of cells) { const [i, j] = k.split('|').map(Number); arr.sort((a, b) => (a.hue ?? 999) - (b.hue ?? 999) || a._i - b._i); packCell(arr, i * cw + cw * .04, j * ch + ch * .06, cw * .92, ch * .88, P); }
       this.axes = { cols: cx.map((c, i) => ({ x: (i + .5) * cw, label: DX.label(c) })), rows: cy.map((c, i) => ({ y: (i + .5) * ch, r: c, label: DY.label(c) })), cw, ch, WW, HH, counts: cells };
       this.bounds = [0, 0, WW, HH];
@@ -865,15 +867,13 @@ const MapMode = {
     for (const L1 of this.live) { const p = L1.p, w = L1.o.px || Math.max(40, p.w * c.z * (L1.o.grow || 1)), h = w * .75; let [sx, sy] = at(p); L1.true = [sx, sy];
       if (L1.o.fan && seed) { const i = fans.indexOf(L1), a = -Math.PI / 2 + i * 2 * Math.PI / fans.length, [cx2, cy2] = at(seed.p), rad = Math.min(this.W, this.H) * .3; sx = cx2 + Math.cos(a) * rad * 1.35; sy = cy2 + Math.sin(a) * rad; }
       L1.at = [sx, sy]; L1.wh = [w, h]; }
-    // neighbours sit where they really are; when they overlap, nudge them apart just enough, the seed fixed, and draw a line back to the true point
-    const loose = this.live.filter(L1 => !L1.o.fan);
-    for (let it = 0; it < 60; it++) { let moved = false;
-      for (let i = 0; i < loose.length; i++) for (let j = i + 1; j < loose.length; j++) { const a = loose[i], b = loose[j];
-        const ox = (a.wh[0] + b.wh[0]) / 2 + 6 - Math.abs(a.at[0] - b.at[0]), oy = (a.wh[1] + b.wh[1]) / 2 + 34 - Math.abs(a.at[1] - b.at[1]);
-        if (ox <= 0 || oy <= 0) continue; moved = true;
-        const dx = a.at[0] - b.at[0] || (i - j) * .01, dy = a.at[1] - b.at[1] || .01, horiz = ox * .75 < oy, fa = a.o.cls === 'seed' ? 0 : b.o.cls === 'seed' ? 1 : .5;
-        if (horiz) { const m = ox * Math.sign(dx); a.at[0] += m * fa; b.at[0] -= m * (1 - fa); } else { const m = oy * Math.sign(dy); a.at[1] += m * fa; b.at[1] -= m * (1 - fa); } }
-      if (!moved) break; }
+    // neighbours sit where they really are; when one would cover another, it takes the nearest free spot, the seed never moves
+    const placed = [], pad = 6, free = (x, y, w, h) => placed.every(q => Math.abs(q.at[0] - x) >= (q.wh[0] + w) / 2 + pad || Math.abs(q.at[1] - y) >= (q.wh[1] + h) / 2 + 30);
+    const loose = this.live.filter(L1 => !L1.o.fan).sort((a, b) => (b.o.cls === 'seed') - (a.o.cls === 'seed'));
+    for (const L1 of loose) { const [tx, ty] = L1.at, [w, h] = L1.wh;
+      if (!free(tx, ty, w, h)) { let done = false; for (let r = 20; r < 1400 && !done; r += 20) for (let a = 0; a < 24 && !done; a++) { const t = a / 24 * 2 * Math.PI, x = tx + Math.cos(t) * r * 1.3, y = ty + Math.sin(t) * r;
+          if (x - w / 2 > 4 && x + w / 2 < this.W - 4 && y - h / 2 > 60 && y + h / 2 + 28 < this.H && free(x, y, w, h)) { L1.at = [x, y]; done = true; } } }
+      placed.push(L1); }
     for (const L1 of this.live) { const [sx, sy] = L1.at, [w, h] = L1.wh; Object.assign(L1.box.style, { left: (sx - w / 2) + 'px', top: (sy - h / 2) + 'px', width: w + 'px', height: h + 'px' }); }
     let svg = $('svg.mp-lines', this.host); if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'mp-lines'); this.host.appendChild(svg); }
     svg.innerHTML = this.live.filter(L1 => Math.hypot(L1.at[0] - L1.true[0], L1.at[1] - L1.true[1]) > 8).map(L1 => `<line x1="${L1.at[0]}" y1="${L1.at[1]}" x2="${L1.true[0]}" y2="${L1.true[1]}"/><circle cx="${L1.true[0]}" cy="${L1.true[1]}" r="4"/>`).join('');
@@ -882,22 +882,27 @@ const MapMode = {
   hide() { this.stopIn(); },
   focusOn(s, k = 10) {
     const p = this.P.find(q => q.s === s || q.s.id === s.id); if (!p) return;
-    const near = this.P.filter(q => q !== p && q.s.video).map(q => [q, (q.x - p.x) ** 2 + (q.y - p.y) ** 2]).sort((a, b) => a[1] - b[1]).slice(0, k).map(x => x[0]);
+    // a shot in the waiting strip (no sound, no embedding) has no neighbourhood in this space: show it alone and say why
+    const inStrip = q => this.axes && this.axes.strip && q.y > this.axes.strip.y - .02;
+    if (inStrip(p)) k = 0;
+    const near = this.P.filter(q => q !== p && q.s.video && !inStrip(q) && (!this.only || q.s._in || q.s._live)).map(q => [q, (q.x - p.x) ** 2 + (q.y - p.y) ** 2]).sort((a, b) => a[1] - b[1]).slice(0, k).map(x => x[0]);
     this.focus = new Set([p, ...near].map(q => q.s.id));
     this.edges = near.map(q => [p, q]);
     near.forEach(q => { const n2 = near.filter(r => r !== q).map(r => [r, (r.x - q.x) ** 2 + (r.y - q.y) ** 2]).sort((a, b) => a[1] - b[1]).slice(0, 2); n2.forEach(([r]) => this.edges.push([q, r])); });
+    this.leave();
     const xs = [p, ...near].map(q => q.x), ys = [p, ...near].map(q => q.y), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    const c = this.cam, from = { ...c }, z = Math.min((this.W - 320) / Math.max(.003, x1 - x0), (this.H - 260) / Math.max(.003, y1 - y0), 90 / Math.max(1e-5, p.w)), to = { x: (x0 + x1) / 2, y: (y0 + y1) / 2, z };
+    const c = this.cam, from = { ...c }, z = Math.min((this.W - 320) / Math.max(.003, x1 - x0), (this.H - 260) / Math.max(.003, y1 - y0), 90 / Math.max(1e-5, p.w), near.length ? 1e9 : 3 * from.z), to = { x: (x0 + x1) / 2, y: (y0 + y1) / 2, z };
     const t0 = performance.now(), step = () => { const e = Math.min(1, (performance.now() - t0) / 1600), k2 = e * e * (3 - 2 * e);
       c.x = from.x + (to.x - from.x) * k2; c.y = from.y + (to.y - from.y) * k2; c.z = from.z * Math.pow(to.z / from.z, k2); this.draw(); if (e < 1) requestAnimationFrame(step);
-      else this.playIn([{ id: p.s.id, cls: 'seed', px: Math.max(150, p.w * this.cam.z * 1.2), label: 'THIS · ' + esc((CAPS.map && CAPS.map[p.s.id]) || p.s.title) }, ...near.slice(0, 6).map(q => ({ id: q.s.id, px: Math.max(110, q.w * this.cam.z), label: esc((CAPS.map && CAPS.map[q.s.id]) || q.s.title) }))]); };
+      else this.playIn([{ id: p.s.id, cls: 'seed', px: Math.max(150, p.w * this.cam.z * 1.2), label: 'THIS · ' + (inStrip(p) ? (this.kind === 'sound' ? 'silent: no place on the sound map' : 'no place on this map yet') : esc((CAPS.map && CAPS.map[p.s.id]) || p.s.title)) }, ...near.slice(0, 6).map(q => ({ id: q.s.id, px: Math.max(110, q.w * this.cam.z), label: esc((CAPS.map && CAPS.map[q.s.id]) || q.s.title) }))]); };
     step();
   },
-  unfocus() { this.focus = null; this.edges = null; this.stopIn(); this.req(); },
+  unfocus() { this.focus = null; this.edges = null; this.stopIn(); this.leave(); this.req(); },
+  leave() { const b = this.host && $('#mapLeave', this.host); if (b) b.hidden = !this.focus; },
   fit() {
     const [x0, y0, x1, y1] = this.bounds, top = this.liveRow != null ? this.liveRow : y0;
     const cells = this.axes && this.axes.cols, small = this.W < 640;
-    const pad = { l: cells ? (small ? 44 : 120) : 24, r: 24, t: small ? 96 : cells ? 150 : 120, b: 24 };
+    const pad = { l: cells ? (small ? 44 : 120) : 24, r: 24, t: small ? 96 : cells ? 200 : 120, b: 24 };
     const z = this.cam.z = Math.max(20, Math.min((this.W - pad.l - pad.r) / (x1 - x0), (this.H - pad.t - pad.b) / (y1 - top)));
     const sx = (pad.l + this.W - pad.r) / 2, sy = (pad.t + this.H - pad.b) / 2;
     this.cam.x = (x0 + x1) / 2 - (sx - this.W / 2) / z; this.cam.y = (top + y1) / 2 - (sy - this.H / 2) / z; this.req();
@@ -911,7 +916,7 @@ const MapMode = {
   hit(mx, my) {
     const c = this.cam, W2 = this.W / 2, H2 = this.H / 2;
     for (let i = this.P.length - 1; i >= 0; i--) {
-      const p = this.P[i], w = Math.max(5, p.w * c.z), h = w * .75;
+      const p = this.P[i]; if (this.only && !(p.s._in || p.s._live)) continue; const w = Math.max(5, p.w * c.z), h = w * .75;
       const sx = (p.x - c.x) * c.z + W2, sy = (p.y - c.y) * c.z + H2;
       if (Math.abs(mx - sx) <= w / 2 && Math.abs(my - sy) <= h / 2) return p;
     }
@@ -957,7 +962,7 @@ const MapMode = {
       for (const p of this.P) {
         const outF = false;
         const lit = p.s._in || p.s._live;
-        if (anyIn) { if (pass === 0 && lit) continue; if (pass === 1 && !lit) continue; } // dim first, lit on top
+        if (anyIn) { if (pass === 0 && (lit || this.only)) continue; if (pass === 1 && !lit) continue; } // dim first, lit on top; or only the lit
         else if (pass === 1) continue;
         const w = p.w * c.z, h = w * .75, sx = (p.x - c.x) * c.z + W2, sy = (p.y - c.y) * c.z + H2;
         if (sx + w < 0 || sx - w > W || sy + h < 0 || sy - h > H) continue;
@@ -1800,7 +1805,18 @@ const Inspector = {
     const seenB = `${cap ? `<p class="fl-t">${esc(cap)}</p>` : ''}${s.subjects && s.subjects.length ? `<div class="subs">${s.subjects.slice(0, 3).map(x => `<span style="--p:${Math.round((x.p || 0) * 100)}%">${esc(x.label)} <em>${Math.round((x.p || 0) * 100)}</em></span>`).join('')}</div>` : ''}`;
     const heardB = hd || s.audio ? `<div class="tags">${(hd || []).map(([t, z]) => `<span class="tag" style="--a:${Math.min(1, .35 + z / 4)}">${esc(t)}</span>`).join('')}${s.audio ? `<span class="mini">${esc(s.audio.kind || '')}${s.audio.rms_db != null && s.audio.rms_db > -100 ? ` · ${s.audio.rms_db.toFixed(0)} dB` : ''}</span>` : ''}</div>` : '';
     const usedB = used.length ? used.map(([n, w, r, j, href]) => `<a class="use" href="${esc(href)}" target="_blank" rel="noopener" style="--c:${(Object.values(ours).find(o => o[0] === n) || [, '#f2c14e'])[1]}"><b>${esc(n)}</b><span>${esc(w)} · ${esc(r)}</span>${j ? `<i>${esc(j)}</i>` : ''}</a>`).join('') : '<p class="fl-m">not yet used by any of our films</p>';
-    R.querySelector('#insLeft').innerHTML = `<div class="anchor">${reads || pend('not read yet')}</div><div class="flow">
+    // every shot carries a sign: the editor's reading, else the sign whose search found it, else the machine's first place to look
+    const qOf = n => L.S[n] && L.S[n].question ? `<p class="rd-q">ask the frame <b>${esc(L.S[n].question)}</b></p>` : '';
+    let anchor = reads ? reads.replace('<p class="rd-n">', () => qOf(String(s.signs[0].n)) + '<p class="rd-n">') : '';
+    if (!anchor) {
+      const fd = (s.found || [])[0], n = fd ? String(fd.n) : s._aff3[0], sg = L.S[n], top = (s.aff_top || [])[0];
+      anchor = sg ? `<div class="rd guess"><div class="rd-h">${chip(n, 'big')}<div><b>${esc(sg.name)}</b><span class="stamp">${fd ? 'found by its search · not read' : 'machine pointer · not read'}</span></div></div>
+        ${qOf(n)}<p class="rd-rule"><em>it is this sign if</em> ${esc((sg.difference || sg.gloss || '').split(/(?<=[.;—])\s/)[0])}</p>
+        <p class="rd-why">${fd ? `the search “${esc(fd.q)}” returned it at #${fd.rank + 1}; nobody has checked it against the question yet` : `of the 45 signs this one sits closest in CLIP (${top ? (+top[1]).toFixed(0) : '?'}%): a place to look, not a reading`}</p>
+        <div class="rd-act"><button class="ghost on" data-readas="${esc(n)}">read it as ${esc(sg.symbol)}</button><button class="ghost" data-readas="">another sign…</button></div></div>` : pend('not read yet');
+    }
+    anchor += `<button class="md-link" id="insMade">how this shot was made <b>▸</b></button>`;
+    R.querySelector('#insLeft').innerHTML = `<div class="anchor">${anchor}</div><div class="flow">
       ${node('f0', 'from', fromB, 'the source film')}
       ${foundB ? node('f1', 'found', foundB, 'by these words') : ''}
       ${node('f2', 'seen', seenB || pend('not seen yet'), 'BLIP · CLIP')}
@@ -1808,6 +1824,9 @@ const Inspector = {
       ${tx ? node('f4', 'said', `<div class="fl-said">${esc(tx)}</div>`, 'transcribed') : ''}
       ${node('f6', 'used in', usedB, 'our films')}
     </div>${mine ? `<div class="sd-block"><h4>your sub-shots</h4>${mine}<div class="cutbtns" style="margin-top:8px"><button class="ghost" id="insExport">export assignments.json</button></div></div>` : ''}`;
+    $$('[data-readas]', R).forEach(b => b.onclick = () => { const sel = $('#insSign', R), note = $('#insNote', R); if (b.dataset.readas) sel.value = b.dataset.readas; else { sel.focus(); return; }
+      note.placeholder = 'one sentence: what in the frame answers “' + ((L.S[sel.value] || {}).question || '') + '”'; note.focus(); });
+    const mk = $('#insMade', R); if (mk) mk.onclick = () => { if (typeof Made !== 'undefined') Made.open(s); };
     R.querySelector('#insSide').innerHTML = `
       <div class="sd-block where"><h4>where it sits <small>its nearest shots in each space</small></h4><div class="minis">${['xy', 'sound', 'hue', 'sign'].map(k => `<button class="mini-m" data-k="${k}" title="open the map in this space"><canvas width="200" height="140"></canvas><span>${({ xy: 'picture', sound: 'sound', hue: 'colour', sign: 'sign' })[k]}</span></button>`).join('')}</div><div class="agree" id="insAgree"></div></div>
       ${wygBlock(s)}
@@ -2994,6 +3013,7 @@ const Shell = {
     if (this.mode === 'cuts' && (e.key === 'Delete' || e.key === 'Backspace')) { Cuts.removeSel(); return; }
     if (this.mode === 'cuts' && e.key === '+') { Cuts.join(); return; }
     if (this.mode === 'map' && (e.key === '0')) MapMode.fit();
+    if (this.mode === 'map' && e.key === 'Escape' && MapMode.focus) MapMode.unfocus();
   },
 };
 
