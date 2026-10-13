@@ -109,6 +109,12 @@ async function loadData(silent) {
   L.shots = d.shots;
   L.byId = new Map();
   L.shots.forEach((s, i) => { prep(s, i); L.byId.set(s.id, s); });
+  // our films are collections too: every shot one of them uses (provenance.json), so a new film appears here by itself
+  try { if (!PROV.d) PROV.d = await fetch('provenance.json').then(r => r.ok ? r.json() : {}); } catch (e) { PROV.d = {}; }
+  const key = n => ({ 'The Odyssey': 'odyssey', 'The Republic': 'republic', 'Norse Half Moon': 'norse', 'Where You Go When You Leave': 'wygwyl' })[n] || n.toLowerCase().replace(/[^a-z]+/g, '');
+  L.colls = ['cineosis', 'wygwyl'];
+  for (const [id, rows] of Object.entries((PROV.d && PROV.d.used) || {})) { const o = L.byId.get(id); if (!o) continue;
+    for (const r of rows) { const k = key(r[0]); if (o._col === undefined) continue; if (!o._col.includes(k)) o._col = [...o._col, k]; if (!L.colls.includes(k)) L.colls.push(k); } }
   // re-attach live layer objects that are in the corpus
   L.live = L.live.map(s => { if (s._liveOnly) return s; const k = L.byId.get(s.id); if (k) { k._live = true; k._liveHit = true; return k; } return s; });
   const rows = await probeServer();
@@ -249,7 +255,7 @@ function viewList() { return [...liveView(), ...VIEW.filter(s => !s._liveHit || 
 
 function compute() {
   const P = FKEYS.map(k => PRED[k]), nF = P.length;
-  const C = { signs: {}, dec: {}, color: { bw: 0, col: 0 }, hue: new Array(36).fill(0), grey: 0, subj: {}, scale: {}, cut: 0, audio: {}, read: 0, col: { cineosis: 0, wygwyl: 0, both: 0 } };
+  const C = { signs: {}, dec: {}, color: { bw: 0, col: 0 }, hue: new Array(36).fill(0), grey: 0, subj: {}, scale: {}, cut: 0, audio: {}, read: 0, col: Object.fromEntries(['both', ...(L.colls || ['cineosis', 'wygwyl'])].map(k => [k, 0])) };
   const out = [];
   for (const s of L.shots) {
     let fails = 0, fk = -1;
@@ -411,6 +417,8 @@ const Facets = {
     });
     $('#ptable', R).classList.toggle('sel', F.signs.size > 0);
     $$('#fxScope button', R).forEach(b => b.classList.toggle('on', b.dataset.v === F.smode));
+    const cols = ['both', ...(L.colls || [])], fc = $('#fxCol', R);
+    if (fc && fc.children.length !== cols.length) fc.innerHTML = cols.map(k => `<button data-v="${k}" title="${({ both: 'every shot in the lab', cineosis: 'the Cineosis 44 corpus: searched for the 45 signs', wygwyl: 'used by Where You Go When You Leave' })[k] || 'used by our film ' + k}">${k === 'both' ? 'all' : k} <i></i></button>`).join('');
     $$('#fxCol button', R).forEach(b => { b.classList.toggle('on', b.dataset.v === F.col); b.querySelector('i').textContent = fmt(C.col[b.dataset.v] || 0); });
     $('#signNote', R).innerHTML = F.signs.size
       ? `${[...F.signs].map(n => chip(n)).join('')} <button class="ghost" id="clrSigns">clear</button>`
@@ -691,19 +699,40 @@ const IMG = {
 };
 
 /* ================================================================ MAP */
+/* the dimensions any map axis can take: each turns a shot into a category, and names it */
+const DECS = [1900, 1910, 1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020, -1];
+const bin10 = v => v == null ? -1 : Math.min(9, Math.max(0, Math.floor(v * 10)));
+const DIMS = {
+  scale: { name: 'shot scale', cats: () => [...SCALES, null], of: s => s.scale || null, label: c => c ? (SCALE_AB[c] || c) : 'no scale' },
+  decade: { name: 'decade', cats: () => DECS, of: s => s.decade ?? -1, label: c => c < 0 ? 'undated' : c + 's' },
+  colour: { name: 'colour', cats: () => [...Array(14).keys()], of: s => s._hb, label: c => hbLabel(c) },
+  sign: { name: 'sign (editor)', cats: () => [...L.signs.map(x => x.n), '-'], of: s => s._read[0] || s._found[0] || '-', label: c => L.S[c] ? L.S[c].symbol : 'no sign' },
+  heard: { name: 'what it sounds like', cats: () => [...((SND.d && SND.d.sounds) || []), 'unheard'], of: s => { const h = SND.d && SND.d.heard && SND.d.heard[s.id]; return h ? h[0][0] : 'unheard'; }, label: c => c },
+  audio: { name: 'sound kind', cats: () => ['speech', 'music', 'sound', 'silence', 'none', null], of: s => (s.audio && s.audio.kind) || null, label: c => c || 'unknown' },
+  film: { name: 'collection / our film', cats: () => [...(L.colls || []).filter(k => k !== 'cineosis'), 'cineosis'], of: s => s._col.find(c => c !== 'cineosis') || 'cineosis', label: c => c },
+  subject: { name: 'subject (CLIP)', cats: () => Object.entries(COUNTS.subj || {}).sort((a, b) => b[1] - a[1]).slice(0, 16).map(x => x[0]).concat(['other']), of: s => { const l = s.subjects && s.subjects[0] && s.subjects[0].label; return l && (COUNTS.subj || {})[l] ? l : 'other'; }, label: c => c },
+  px: { name: 'picture · across', cats: () => [...Array(10).keys(), -1], of: s => bin10(s.xy && s.xy[0]), label: c => c < 0 ? '—' : '' + (c + 1) },
+  sx: { name: 'sound · across', cats: () => [...Array(10).keys(), -1], of: s => bin10(SND.d && SND.d.xy && SND.d.xy[s.id] && SND.d.xy[s.id][0]), label: c => c < 0 ? 'unheard' : '' + (c + 1) },
+  read: { name: 'read or not', cats: () => ['read', 'surfaced'], of: s => s._read.length ? 'read' : 'surfaced', label: c => c },
+};
 const MapMode = {
-  host: null, cv: null, g: null, P: [], cam: { x: .5, y: .5, z: 600 }, kind: null, hover: null, dirty: true, live: [],
+  host: null, cv: null, g: null, P: [], cam: { x: .5, y: .5, z: 600 }, kind: null, hover: null, dirty: true, live: [], ax: ['scale', 'decade'],
   mount(host) {
     if (this.cv) return;
     this.host = host;
     host.innerHTML = `<canvas class="mapcv"></canvas>
       <div class="hud hud-tl"><div class="hud-title" id="mapTitle"></div><div class="seg" id="mapKind">
-        <button data-v="xy">picture</button><button data-v="sound">sound</button><button data-v="hue">colour × decade</button><button data-v="sign">sign × decade</button></div>
+        <button data-v="xy">picture</button><button data-v="sound">sound</button><button data-v="hue">colour × decade</button><button data-v="sign">sign × decade</button><button data-v="axes">axes</button></div>
+        <div class="axpick" id="axPick">x <select id="axX"></select> y <select id="axY"></select></div>
         <div class="hud-note" id="mapNote"></div></div>
       <div class="hud hud-br"><button class="ghost" data-z="in">+</button><button class="ghost" data-z="out">−</button><button class="ghost" data-z="fit">fit</button></div>`;
     this.cv = $('canvas', host); this.g = this.cv.getContext('2d');
     IMG.onload = rafThrottle(() => { if (Shell.mode === 'map') this.draw(); });
     $('#mapKind', host).addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; this.morph(b.dataset.v); });
+    const opts = Object.entries(DIMS).map(([k, d]) => `<option value="${k}">${d.name}</option>`).join('');
+    $('#axX', host).innerHTML = opts; $('#axY', host).innerHTML = opts; $('#axX', host).value = this.ax[0]; $('#axY', host).value = this.ax[1];
+    const pick = () => { this.ax = [$('#axX', host).value, $('#axY', host).value]; this.morph('axes'); };
+    $('#axX', host).onchange = pick; $('#axY', host).onchange = pick;
     $('.hud-br', host).addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return; const z = b.dataset.z;
       if (z === 'fit') this.fit(); else this.zoomAt(this.W / 2, this.H / 2, z === 'in' ? 1.6 : 1 / 1.6);
@@ -756,7 +785,7 @@ const MapMode = {
   update() { this.buildLive(); this.req(); this.hud(); },
   hud() {
     const H = this.host;
-    $$('#mapKind button', H).forEach(b => { const v = b.dataset.v; b.disabled = (v === 'xy' && !L.has.xy) || (v === 'hue' && !L.has.hue); b.classList.toggle('on', v === this.kind); });
+    $$('#mapKind button', H).forEach(b => { const v = b.dataset.v; b.disabled = (v === 'xy' && !L.has.xy) || (v === 'hue' && !L.has.hue); b.classList.toggle('on', v === this.kind); }); H.dataset.kind = this.kind;
     const t = { xy: 'SIMILARITY MAP · CLIP embedding, t-SNE', hue: 'FALLBACK · hue band × decade', sign: 'FALLBACK · sign × decade' }[this.kind];
     $('#mapTitle', H).textContent = t;
     const shown = this.P.filter(p => p.s._in).length;
@@ -773,6 +802,13 @@ const MapMode = {
       for (const s of heard) P.push({ s, x: XY[s.id][0], y: XY[s.id][1], w });
       if (mute.length) { const band = []; packCell(mute, 0, 1.08, 1, 0.1, band); P.push(...band); this.axes = { strip: { y: 1.07, label: `${mute.length} with no sound or not yet heard` } }; }
       this.bounds = [0, 0, 1, mute.length ? 1.2 : 1];
+    } else if (this.kind === 'axes') {   // any two dimensions: one column per value of x, one row per value of y, each cell packed with its shots
+      const DX = DIMS[this.ax[0]], DY = DIMS[this.ax[1]], cx = DX.cats(), cy = DY.cats();
+      const WW = Math.max(1, cx.length * .12), HH = Math.max(.6, cy.length * .06), cw = WW / cx.length, ch = HH / cy.length, cells = new Map();
+      for (const s of shots) { const i = cx.indexOf(DX.of(s)), j = cy.indexOf(DY.of(s)); if (i < 0 || j < 0) continue; const k = i + '|' + j; let c = cells.get(k); if (!c) cells.set(k, c = []); c.push(s); }
+      for (const [k, arr] of cells) { const [i, j] = k.split('|').map(Number); arr.sort((a, b) => (a.hue ?? 999) - (b.hue ?? 999) || a._i - b._i); packCell(arr, i * cw + cw * .04, j * ch + ch * .06, cw * .92, ch * .88, P); }
+      this.axes = { cols: cx.map((c, i) => ({ x: (i + .5) * cw, label: DX.label(c) })), rows: cy.map((c, i) => ({ y: (i + .5) * ch, r: c, label: DY.label(c) })), cw, ch, WW, HH, counts: cells };
+      this.bounds = [0, 0, WW, HH];
     } else if (this.kind === 'xy') {
       const withXY = shots.filter(s => s.xy), without = shots.filter(s => !s.xy);
       const w = 1.05 / Math.sqrt(Math.max(1, withXY.length));
@@ -802,7 +838,7 @@ const MapMode = {
     this.liveRow = lv.length ? this.bounds[1] - 0.15 : null;
   },
   async morph(kind, ms = 1700) {
-    if (kind === 'sound') await SND.load();
+    if (kind === 'sound' || (kind === 'axes' && /heard|sx/.test(this.ax.join(' ')))) await SND.load();
     const old = new Map(this.P.map(p => [p.s, p])), c0 = { ...this.cam };
     this.kind = kind; this.build(); this.fit(); const c1 = { ...this.cam };
     const from = this.P.map(p => old.get(p.s) || { x: p.x, y: p.y + .3, w: p.w }), to = this.P.map(p => ({ x: p.x, y: p.y, w: p.w }));
@@ -811,7 +847,7 @@ const MapMode = {
       this.P.forEach((p, i) => { p.x = from[i].x + (to[i].x - from[i].x) * e; p.y = from[i].y + (to[i].y - from[i].y) * e; p.w = from[i].w + (to[i].w - from[i].w) * e; });
       this.cam.x = c0.x + (c1.x - c0.x) * e; this.cam.y = c0.y + (c1.y - c0.y) * e; this.cam.z = c0.z * Math.pow(c1.z / c0.z, e); this.draw();
       if (k < 1) requestAnimationFrame(step); else r(); }; step(); });
-    $$('#mapKind button', this.host).forEach(b => b.classList.toggle('on', b.dataset.v === kind));
+    $$('#mapKind button', this.host).forEach(b => b.classList.toggle('on', b.dataset.v === kind)); this.host.dataset.kind = kind;
     if (this.focus) { const byId = new Map(this.P.map(q => [q.s.id, q])); this.edges = (this.edges || []).map(([a, b]) => [byId.get(a.s.id), byId.get(b.s.id)]); this.placeIn(); this.draw(); }
   },
   /* 3. shots play where they sit: a video over each chosen tile, following the camera */
@@ -828,9 +864,19 @@ const MapMode = {
     const at = p => [(p.x - c.x) * c.z + W2 + R.left - Hr.left, (p.y - c.y) * c.z + H2 + R.top - Hr.top];
     for (const L1 of this.live) { const p = L1.p, w = L1.o.px || Math.max(40, p.w * c.z * (L1.o.grow || 1)), h = w * .75; let [sx, sy] = at(p); L1.true = [sx, sy];
       if (L1.o.fan && seed) { const i = fans.indexOf(L1), a = -Math.PI / 2 + i * 2 * Math.PI / fans.length, [cx2, cy2] = at(seed.p), rad = Math.min(this.W, this.H) * .3; sx = cx2 + Math.cos(a) * rad * 1.35; sy = cy2 + Math.sin(a) * rad; }
-      L1.at = [sx, sy]; Object.assign(L1.box.style, { left: (sx - w / 2) + 'px', top: (sy - h / 2) + 'px', width: w + 'px', height: h + 'px' }); }
+      L1.at = [sx, sy]; L1.wh = [w, h]; }
+    // neighbours sit where they really are; when they overlap, nudge them apart just enough, the seed fixed, and draw a line back to the true point
+    const loose = this.live.filter(L1 => !L1.o.fan);
+    for (let it = 0; it < 60; it++) { let moved = false;
+      for (let i = 0; i < loose.length; i++) for (let j = i + 1; j < loose.length; j++) { const a = loose[i], b = loose[j];
+        const ox = (a.wh[0] + b.wh[0]) / 2 + 6 - Math.abs(a.at[0] - b.at[0]), oy = (a.wh[1] + b.wh[1]) / 2 + 34 - Math.abs(a.at[1] - b.at[1]);
+        if (ox <= 0 || oy <= 0) continue; moved = true;
+        const dx = a.at[0] - b.at[0] || (i - j) * .01, dy = a.at[1] - b.at[1] || .01, horiz = ox * .75 < oy, fa = a.o.cls === 'seed' ? 0 : b.o.cls === 'seed' ? 1 : .5;
+        if (horiz) { const m = ox * Math.sign(dx); a.at[0] += m * fa; b.at[0] -= m * (1 - fa); } else { const m = oy * Math.sign(dy); a.at[1] += m * fa; b.at[1] -= m * (1 - fa); } }
+      if (!moved) break; }
+    for (const L1 of this.live) { const [sx, sy] = L1.at, [w, h] = L1.wh; Object.assign(L1.box.style, { left: (sx - w / 2) + 'px', top: (sy - h / 2) + 'px', width: w + 'px', height: h + 'px' }); }
     let svg = $('svg.mp-lines', this.host); if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'mp-lines'); this.host.appendChild(svg); }
-    svg.innerHTML = fans.map(L1 => `<line x1="${L1.at[0]}" y1="${L1.at[1]}" x2="${L1.true[0]}" y2="${L1.true[1]}"/><circle cx="${L1.true[0]}" cy="${L1.true[1]}" r="4"/>`).join('');
+    svg.innerHTML = this.live.filter(L1 => Math.hypot(L1.at[0] - L1.true[0], L1.at[1] - L1.true[1]) > 8).map(L1 => `<line x1="${L1.at[0]}" y1="${L1.at[1]}" x2="${L1.true[0]}" y2="${L1.true[1]}"/><circle cx="${L1.true[0]}" cy="${L1.true[1]}" r="4"/>`).join('');
   },
   stopIn() { (this.live || []).forEach(L1 => { L1.v.pause(); L1.box.remove(); }); this.live = []; const sv = this.host && $('svg.mp-lines', this.host); if (sv) sv.innerHTML = ''; },
   hide() { this.stopIn(); },
@@ -841,10 +887,10 @@ const MapMode = {
     this.edges = near.map(q => [p, q]);
     near.forEach(q => { const n2 = near.filter(r => r !== q).map(r => [r, (r.x - q.x) ** 2 + (r.y - q.y) ** 2]).sort((a, b) => a[1] - b[1]).slice(0, 2); n2.forEach(([r]) => this.edges.push([q, r])); });
     const xs = [p, ...near].map(q => q.x), ys = [p, ...near].map(q => q.y), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    const c = this.cam, from = { ...c }, z = Math.min((this.W - 320) / Math.max(.003, x1 - x0), (this.H - 260) / Math.max(.003, y1 - y0), 140 / Math.max(1e-5, p.w)), to = { x: (x0 + x1) / 2, y: (y0 + y1) / 2, z };
+    const c = this.cam, from = { ...c }, z = Math.min((this.W - 320) / Math.max(.003, x1 - x0), (this.H - 260) / Math.max(.003, y1 - y0), 90 / Math.max(1e-5, p.w)), to = { x: (x0 + x1) / 2, y: (y0 + y1) / 2, z };
     const t0 = performance.now(), step = () => { const e = Math.min(1, (performance.now() - t0) / 1600), k2 = e * e * (3 - 2 * e);
       c.x = from.x + (to.x - from.x) * k2; c.y = from.y + (to.y - from.y) * k2; c.z = from.z * Math.pow(to.z / from.z, k2); this.draw(); if (e < 1) requestAnimationFrame(step);
-      else this.playIn([{ id: p.s.id, cls: 'seed', px: 190, label: 'THIS · ' + esc((CAPS.map && CAPS.map[p.s.id]) || p.s.title) }, ...near.slice(0, 6).map(q => ({ id: q.s.id, px: 150, fan: true, label: esc((CAPS.map && CAPS.map[q.s.id]) || q.s.title) }))]); };
+      else this.playIn([{ id: p.s.id, cls: 'seed', px: Math.max(150, p.w * this.cam.z * 1.2), label: 'THIS · ' + esc((CAPS.map && CAPS.map[p.s.id]) || p.s.title) }, ...near.slice(0, 6).map(q => ({ id: q.s.id, px: Math.max(110, q.w * this.cam.z), label: esc((CAPS.map && CAPS.map[q.s.id]) || q.s.title) }))]); };
     step();
   },
   unfocus() { this.focus = null; this.edges = null; this.stopIn(); this.req(); },
@@ -894,7 +940,8 @@ const MapMode = {
       const lx = Math.max(40, (0 - c.x) * c.z + W2 - 8);
       if (rowH >= 7) for (const r of A.rows) {
         const y = (r.y - c.y) * c.z + H2; if (y < -10 || y > H + 10) continue;
-        if (this.kind === 'hue') { g.fillStyle = r.r < 12 ? `hsl(${r.r * 30},60%,60%)` : '#a8a196'; g.fillText(hbLabel(r.r), lx, y); }
+        if (r.label != null) { g.fillStyle = '#d8d2c4'; g.fillText(r.label, lx, y); }
+        else if (this.kind === 'hue') { g.fillStyle = r.r < 12 ? `hsl(${r.r * 30},60%,60%)` : '#a8a196'; g.fillText(hbLabel(r.r), lx, y); }
         else { const s = L.S[r.r]; g.fillStyle = s ? DOMC[s.dom] : '#a8a196'; g.fillText(s ? s.symbol + (rowH > 16 ? ' ' + s.name : '') : 'no sign', lx, y); }
       }
     }
@@ -908,7 +955,7 @@ const MapMode = {
     }
     for (let pass = 0; pass < 2; pass++) {
       for (const p of this.P) {
-        const outF = this.focus && !this.focus.has(p.s.id);   // outside the neighbourhood a shot carries less: a faint dot of its colour
+        const outF = false;
         const lit = p.s._in || p.s._live;
         if (anyIn) { if (pass === 0 && lit) continue; if (pass === 1 && !lit) continue; } // dim first, lit on top
         else if (pass === 1) continue;
@@ -1753,13 +1800,12 @@ const Inspector = {
     const seenB = `${cap ? `<p class="fl-t">${esc(cap)}</p>` : ''}${s.subjects && s.subjects.length ? `<div class="subs">${s.subjects.slice(0, 3).map(x => `<span style="--p:${Math.round((x.p || 0) * 100)}%">${esc(x.label)} <em>${Math.round((x.p || 0) * 100)}</em></span>`).join('')}</div>` : ''}`;
     const heardB = hd || s.audio ? `<div class="tags">${(hd || []).map(([t, z]) => `<span class="tag" style="--a:${Math.min(1, .35 + z / 4)}">${esc(t)}</span>`).join('')}${s.audio ? `<span class="mini">${esc(s.audio.kind || '')}${s.audio.rms_db != null && s.audio.rms_db > -100 ? ` · ${s.audio.rms_db.toFixed(0)} dB` : ''}</span>` : ''}</div>` : '';
     const usedB = used.length ? used.map(([n, w, r, j, href]) => `<a class="use" href="${esc(href)}" target="_blank" rel="noopener" style="--c:${(Object.values(ours).find(o => o[0] === n) || [, '#f2c14e'])[1]}"><b>${esc(n)}</b><span>${esc(w)} · ${esc(r)}</span>${j ? `<i>${esc(j)}</i>` : ''}</a>`).join('') : '<p class="fl-m">not yet used by any of our films</p>';
-    R.querySelector('#insLeft').innerHTML = `<div class="flow">
+    R.querySelector('#insLeft').innerHTML = `<div class="anchor">${reads || pend('not read yet')}</div><div class="flow">
       ${node('f0', 'from', fromB, 'the source film')}
       ${foundB ? node('f1', 'found', foundB, 'by these words') : ''}
       ${node('f2', 'seen', seenB || pend('not seen yet'), 'BLIP · CLIP')}
       ${heardB ? node('f3', 'heard', heardB, 'CLAP') : ''}
       ${tx ? node('f4', 'said', `<div class="fl-said">${esc(tx)}</div>`, 'transcribed') : ''}
-      ${node('f5', 'read', reads || pend(s._live ? 'not read yet' : 'not read yet'), 'by an editor')}
       ${node('f6', 'used in', usedB, 'our films')}
     </div>${mine ? `<div class="sd-block"><h4>your sub-shots</h4>${mine}<div class="cutbtns" style="margin-top:8px"><button class="ghost" id="insExport">export assignments.json</button></div></div>` : ''}`;
     R.querySelector('#insSide').innerHTML = `
@@ -1771,7 +1817,7 @@ const Inspector = {
         <div class="cutthumbs">${s.cutouts.map(c => `<span><img src="${esc(c.png)}" alt=""><em>${esc(c.label)}</em></span>`).join('')}</div></div>` : ''}
 `;
     $$('.fs', R).forEach(b => b.onclick = () => { const o = L.byId.get(b.dataset.id); if (o) this.open(o, film[6].map(id => L.byId.get(id)).filter(Boolean)); });
-    $$('.mini-m', R).forEach(b => b.onclick = () => { const k = b.dataset.k; this.close(); Shell.setMode('map'); setTimeout(() => MapMode.morph(k).then(() => MapMode.focusOn(s)), 450); });
+    $$('.mini-m', R).forEach(b => b.onclick = () => { const k = b.dataset.k; const cold = !MapMode.cv || Shell.mode !== 'map'; this.close(); Shell.setMode('map'); setTimeout(() => MapMode.morph(k).then(() => MapMode.focusOn(s)), cold ? 1300 : 450); });
     Minis.draw(s, R);
     const ex = $('#insExport', R); if (ex) ex.onclick = exportAssignments;
     const ct = $('#insCutT', R); if (ct) ct.onclick = () => this.toggleCuts();
