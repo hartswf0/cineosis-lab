@@ -27,8 +27,32 @@
       if (sub) { const L = subs.find(l => t >= l.at - .1 && t <= l.aend + .4); sub.innerHTML = !L ? '' : t < L.aat - .1 ? `<small>${esc(L.who || 'Homer')}</small><span>${esc(L.text)}</span>` : `<small class="arch">the archive answers · ${esc(L.src || '')}</small><span class="arch">${esc(L.ans)}</span>`; }
       if (t >= b) { voice.pause(); return false; } return true; });
   }
+
+  /* a room of the lab, filmed: the page runs live at 1280x720 in a frame above a caption bar; a camera glides and zooms between its
+     regions (shots: {sel, frac:[x,y,w,h] of that element, pad, at: seconds, cap, act(doc)}). The room may not save anything. */
+  const snapLS = {}; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); snapLS[k] = localStorage.getItem(k); } } catch (e) { }
+  const restoreLS = () => { try { Object.keys(localStorage).forEach(k => { if (!(k in snapLS)) localStorage.removeItem(k); }); Object.entries(snapLS).forEach(([k, v]) => { if (localStorage.getItem(k) !== v) localStorage.setItem(k, v); }); } catch (e) { } };
+  addEventListener('pagehide', restoreLS);
+  function room(el, url, shots, o = {}) {
+    const AW = 1600, AH = o.h || 770, box = document.createElement('div'); box.style.cssText = `position:absolute;left:0;top:0;width:${AW}px;height:${AH}px;overflow:hidden;background:#000`;
+    const cam = document.createElement('div'); cam.style.cssText = 'position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0;transition:transform 2.4s cubic-bezier(.45,.05,.25,1)';
+    const f = document.createElement('iframe'); f.src = url; f.style.cssText = 'width:1280px;height:720px;border:0;background:#0b0a09'; cam.appendChild(f); box.appendChild(cam); el.prepend(box);
+    const capb = el.querySelector('.roomcap'); const s0 = Math.min(AW / 1280, AH / 720); cam.style.transition = 'none'; cam.style.transform = `translate(${(AW - 1280 * s0) / 2}px,${(AH - 720 * s0) / 2}px) scale(${s0})`;
+    f.addEventListener('load', () => { try { const P = f.contentWindow.Storage.prototype; P.setItem = function () { }; P.removeItem = function () { }; } catch (e) { }
+      const my = tok, d = () => f.contentDocument;
+      shots.forEach(sh => setTimeout(() => { if (my !== tok) return; try {
+          if (sh.act) sh.act(d(), f.contentWindow);
+          let z = s0, tx = (AW - 1280 * s0) / 2, ty = (AH - 720 * s0) / 2;
+          if (sh.sel) { const e = d().querySelector(sh.sel); if (e) { e.scrollIntoView({ block: 'center', inline: 'center' }); let r = e.getBoundingClientRect(); if (sh.frac) r = { left: r.left + r.width * sh.frac[0], top: r.top + r.height * sh.frac[1], width: r.width * sh.frac[2], height: r.height * sh.frac[3] };
+              const pad = sh.pad ?? 16; z = Math.min(sh.max || 2.6, AW / (r.width + 2 * pad), AH / (r.height + 2 * pad)); tx = AW / 2 - z * (r.left + r.width / 2); ty = AH / 2 - z * (r.top + r.height / 2); } }
+          cam.style.transition = 'transform 2.4s cubic-bezier(.45,.05,.25,1)'; cam.style.transform = `translate(${tx}px,${ty}px) scale(${z})`;
+          if (capb && sh.cap) { capb.innerHTML = sh.cap; capb.classList.remove('in'); void capb.offsetWidth; capb.classList.add('in'); }
+        } catch (e) { } }, (sh.at || 0) * 1000 + 600));
+      K.leave(() => { restoreLS(); });
+    });
+  }
   const leaving = []; const leave = f => leaving.push(f);
-  const K = { leave, $, esc, fmt, line, later, raf, startVideos, typeIn, duck, scene, voice: () => voice, sound: () => sound };
+  const K = { room, leave, $, esc, fmt, line, later, raf, startVideos, typeIn, duck, scene, voice: () => voice, sound: () => sound };
   function cue(ci) { const C = window.EPISODE.cues || []; if (!C.length) return; const src = `score/cues/${C[ci % C.length]}.m4a`; if (score.dataset.src === src) return; score.dataset.src = src;
     const v0 = score.volume, t = performance.now(); const out = () => { const k = Math.min(1, (performance.now() - t) / 900); score.volume = v0 * (1 - k); if (k < 1) requestAnimationFrame(out); else { score.src = src; score.currentTime = 0; duck(false); if (!paused) score.play().catch(() => { }); } }; out(); }
   function show(i) {
