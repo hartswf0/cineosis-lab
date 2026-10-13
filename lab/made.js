@@ -1,145 +1,188 @@
-/* HOW A SHOT IS MADE — the lab's pipeline drawn as an operative flow diagram for one shot (made.json, from made.py).
-   Columns run left to right in the order the lab works (once per film, per sign, per shot, per word, per read shot, per frame, per use);
-   rows are what is worked on (picture, sound, words). Each box is one operation with its result for THIS shot, or, dashed, the
-   reason the shot never went through it. ▶ runs the shot through the boxes in order.
-   Opens from the inspector ("how this shot was made") and from ?made or ?made=<shot id>. Uses app.js globals. */
+/* HOW A SHOT IS MADE — the lab as a river. All 15,149 shots enter at the left and flow right through the stations, in the order
+   the lab works. Every model the river passes lays a stratum into the bed: its numbers, words or tags for THIS shot, read in the core
+   sample at the right (newest on top, like sediment). Every filter takes shots up out of the river, and the bank says how many and why.
+   This shot is the gold pebble; where it is taken up, its line leaves the water. ▶ sends it down again.
+   Data: made.json (made.py: stations, models, counts), vec-pic.i8 / vec-snd.i8 (made_vec.py: the shot's real 512 CLIP and CLAP numbers,
+   fetched one row at a time with an HTTP Range request). Opens from the inspector and from ?made / ?made=<id>. Uses app.js globals. */
 const Made = {
-  M: null, s: null, root: null, timer: 0, i: 0,
+  M: null, s: null, root: null, timer: 0,
   ORDER: ['film', 'cut', 'frame', 'embed', 'name', 'describe', 'measure', 'listen', 'transcribe', 'ask', 'point', 'search', 'vet', 'read', 'rate', 'locate', 'segment', 'use'],
+  MED: { film: 'arc', cut: 'arc', frame: 'pic', embed: 'pic', name: 'pic', describe: 'word', measure: 'snd', listen: 'snd', transcribe: 'snd', ask: 'hand', point: 'word', search: 'arc', vet: 'hand', read: 'hand', rate: 'hand', locate: 'pic', segment: 'pic', use: 'ours' },
+  COL: { arc: '#8f877a', pic: '#6f8cff', snd: '#ff9f43', word: '#c9a4ff', hand: '#f2c14e', ours: '#7fd6a4' },
   async data() {
-    if (!this.M) this.M = await fetch('made.json?v=20261013n').then(r => r.json());
+    if (!this.M) this.M = await fetch('made.json?v=20261013t').then(r => r.json());
     const w = (o, f) => new Promise(r => { if (o.d || o.map) return r(); f(); const t = setInterval(() => { if (o.d || o.map) { clearInterval(t); r(); } }, 120); setTimeout(() => { clearInterval(t); r(); }, 8000); });
     await Promise.all([w(PROV, () => PROV.load()), w(TX, () => TX.load()), w(SND, () => SND.load()), w(CAPS, () => CAPS.load())]);
   },
+  async vec(file, s) {   // the shot's 512 numbers: one row of the file, by Range request
+    const i = L.shots.indexOf(s); if (i < 0) return null;
+    try { const r = await fetch(file, { headers: { Range: `bytes=${i * 512}-${i * 512 + 511}` } }); let b = new Int8Array(await r.arrayBuffer());
+      if (r.status === 200 && b.length > 512) b = b.slice(i * 512, i * 512 + 512); return b.some(x => x) ? b : null; } catch (e) { return null; }
+  },
   examples() {
     const read = L.byId.get('21171e70-f59f-55b6-85c3-29691c97e312') || L.shots.find(s => s._read.length);
-    const found = L.shots.find(s => !s._read.length && s.found && s.found.length && CAPS.map && CAPS.map[s.id] && (TX.d || {})[s.id]) || L.shots.find(s => !s._read.length && s._found.length);
+    const found = L.shots.find(s => !s._read.length && s.found && s.found.length && CAPS.map && CAPS.map[s.id] && (TX.d || {})[s.id] && SND.d && SND.d.heard && SND.d.heard[s.id]) || L.shots.find(s => !s._read.length && s._found.length);
     const forage = L.shots.find(s => !s._found.length && (s.collections || []).includes('wygwyl') && CAPS.map && CAPS.map[s.id] && SND.d && SND.d.heard && SND.d.heard[s.id]) || L.shots.find(s => !s._found.length);
     return { read, found, forage };
   },
   async open(s) {
     if (!this.root) this.build();
     this.from = s || null; this.root.hidden = false; document.body.classList.add('made-on');
-    await this.data();
-    this.ex = this.examples(); this.show(s || this.ex.read);
+    await this.data(); this.ex = this.examples(); this.show(s || this.ex.read);
   },
-  close() { clearTimeout(this.timer); if (this.root) { this.root.hidden = true; const v = $('#mdVid', this.root); v.pause(); } document.body.classList.remove('made-on'); },
+  close() { clearTimeout(this.timer); this.running = false; if (this.root) { this.root.hidden = true; $('#mdVid', this.root).pause(); } document.body.classList.remove('made-on'); },
   build() {
     const R = this.root = el('div', 'made'); R.id = 'made'; R.hidden = true;
     R.innerHTML = `<div class="md-top"><b>HOW A SHOT IS MADE</b><span id="mdTitle"></span><span class="md-now" id="mdNow"></span>
-        <span class="md-ex" id="mdEx"></span><button class="ghost" id="mdRun" title="run the shot through again">▶ run</button><button class="ghost" id="mdOpen" title="open this shot in the inspector">open shot</button><button class="ghost" id="mdClose" title="close (Esc)">✕</button></div>
-      <div class="md-body"><aside class="md-left">
-          <video id="mdVid" muted playsinline loop></video>
-          <ol class="md-rules">
-            <li><b>A box is one operation.</b> Read its verb, then what it produced for this shot.</li>
-            <li><b>Solid box:</b> the shot went through it. <b>Dashed:</b> it did not, and the grey line says what would send it through.</li>
-            <li><b>Left to right</b> is the order the lab works: per film, per sign, per shot, per word, per read shot, per frame, per use.</li>
-            <li><b>Gold wire:</b> the road this shot took. Press <b>▶ run</b> to send it down again.</li></ol>
-          <div class="md-fun" id="mdFun"></div>
-        </aside><div class="md-patch" id="mdPatch"></div></div>`;
+        <span class="md-ex" id="mdEx"></span><button class="ghost" id="mdRun" title="send the shot down the river again">▶ run</button><button class="ghost" id="mdOpen" title="open this shot in the inspector">open shot</button><button class="ghost" id="mdClose" title="close (Esc)">✕</button></div>
+      <div class="md-body"><aside class="md-left"><video id="mdVid" muted playsinline loop></video><div class="md-card" id="mdCard"></div>
+          <p class="md-legend"><b>River</b>: the shots still flowing, as wide as how many. <b>Up and out</b>: shots taken up, and why. <b>Bed</b>: what each model laid down for this shot, newest on top. <b>Gold</b>: this shot.</p></aside>
+        <div class="md-patch" id="mdPatch"></div></div>`;
     document.body.appendChild(R);
     $('#mdClose', R).onclick = () => this.close();
     $('#mdRun', R).onclick = () => this.run();
     $('#mdOpen', R).onclick = () => { const s = this.s; this.close(); Inspector.open(s); };
     $('#mdEx', R).onclick = e => { const b = e.target.closest('[data-ex]'); if (!b) return; const k = b.dataset.ex;
       this.show(k === 'random' ? L.shots[Math.floor(Math.random() * L.shots.length)] : k === 'this' ? this.from : this.ex[k]); };
+    $('#mdPatch', R).addEventListener('pointerover', e => { const r = e.target.closest('[data-st]'); if (r && !this.running) this.card(r.dataset.st); });
     addEventListener('keydown', e => { if (!R.hidden && e.key === 'Escape') { e.stopImmediatePropagation(); this.close(); } }, true);
-    new ResizeObserver(() => { if (!R.hidden) { this.fit(); this.wires(); } }).observe(R);
+    new ResizeObserver(() => { if (!R.hidden && this.s && this.F) { this.draw(); this.place(this.at ?? this.ORDER.length - 1, true); } }).observe(R);
   },
-  /* what each operation produced for shot s: [done, html] or [false, why it did not run] */
+  /* what each model laid down for shot s: [true, html] or [false, why not] */
   result(id, s) {
     const pv = PROV.d || {}, film = pv.films && pv.films[s.slug], cap = CAPS.map && CAPS.map[s.id], snd = SND.d || {}, tx = (TX.d || {})[s.id];
     const rd = (s.signs || [])[0], fd = (s.found || [])[0], forage = (s.collections || []).includes('wygwyl') && !s._found.length;
-    const pct = v => `<i class="md-bar"><b style="width:${Math.round(v)}%"></b></i>`;
-    const notRead = forage ? 'came in by the WYGWYL forage, so no sign search ever returned it and no contact sheet held it' : fd ? `the search for ${L.S[String(fd.n)] ? L.S[String(fd.n)].symbol : ''} returned it, but it was not kept on that sign's contact sheet` : 'no sign search returned it';
     switch (id) {
-      case 'film': return film ? [true, `<p class="md-t">${esc(film[0])} <em>${esc(film[1] || '')}</em></p>${film[2] ? `<p>made by <b>${esc(film[2])}</b></p>` : ''}${film[5] ? `<p class="md-k">${esc(film[5])}</p>` : ''}`] : [true, `<p class="md-t">${esc(s.title)} <em>${esc(s.year || '')}</em></p>`];
+      case 'film': return [true, `<span class="md-t">${esc(film ? film[0] : s.title)} <em>${esc((film ? film[1] : s.year) || '')}</em></span>${film && film[2] ? ` · made by <b>${esc(film[2])}</b>` : ''}${film && film[5] ? ` · <span class="md-k">${esc(film[5])}</span>` : ''}`];
       case 'cut': { const pass = (/\/(v\d-[a-z0-9-]+?)-\d\//.exec(s.video || '') || [])[1]; const o = film ? film[6] : [], at = o.indexOf(s.id);
-        return [true, `<p class="md-t">shot ${at + 1} of ${o.length || '?'}</p><p>${tc(s.start || 0)} · ${s._dur.toFixed(1)} s</p>${pass ? `<p class="md-k">pass ${esc(pass)}</p>` : ''}`]; }
-      case 'frame': return [true, `<img src="${esc(s.thumb)}" alt="">`];
-      case 'embed': return s.xy ? [true, `<canvas class="md-mini" data-map="xy" width="300" height="160"></canvas>`] : [false, 'not yet embedded'];
-      case 'name': return s.subjects && s.subjects.length ? [true, s.subjects.slice(0, 3).map(x => `<p class="md-r"><span>${esc(x.label)}</span>${pct((x.p || 0) * 100)}</p>`).join('') + (s.scale ? `<p class="md-k">${esc(s.scale)}</p>` : '')] : [false, 'not yet named'];
-      case 'describe': return cap ? [true, `<p class="md-t">“${esc(cap)}”</p>`] : [false, 'not yet described: BLIP ran on half the archive so far'];
-      case 'measure': return s.audio ? [true, `<p class="md-t">${esc(s.audio.kind || '')}</p><p>${s.audio.rms_db != null && s.audio.rms_db > -100 ? s.audio.rms_db.toFixed(0) + ' dB' : 'no level'}</p>`] : [false, 'measured only for read shots'];
-      case 'listen': { const hd = (snd.heard || {})[s.id]; return hd ? [true, `<div class="md-tags">${hd.map(([t]) => `<span>${esc(t)}</span>`).join('')}</div><canvas class="md-mini" data-map="sound" width="300" height="120"></canvas>`] : [false, s.audio && /silen/.test(s.audio.kind || '') ? 'silent: nothing to listen to' : 'silent or not yet heard']; }
-      case 'transcribe': return tx ? [true, `<p class="md-said">${esc(tx.split(/\s+/).slice(0, 16).join(' '))}${tx.split(/\s+/).length > 16 ? '…' : ''}</p>`] : [false, 'no words spoken, or not yet transcribed'];
-      case 'ask': { const n = rd ? String(rd.n) : fd ? String(fd.n) : s._aff3[0], sg = L.S[n]; return sg ? [true, `<p>${chip(n, 'sm')} <b>${esc(sg.name)}</b></p><p class="md-q">${esc(sg.question || '')}</p>`] : [true, '<p>45 questions</p>']; }
-      case 'point': return s.aff_top ? [true, s.aff_top.slice(0, 3).map(([n, v]) => `<p class="md-r">${chip(String(n), 'sm')}<span>${esc((L.S[String(n)] || {}).name || '')}</span><em>${(+v).toFixed(0)}%</em></p>`).join('') + '<p class="md-k">places to look, not a reading</p>'] : [false, 'not pointed'];
-      case 'search': return fd ? [true, `<p>${chip(String(fd.n), 'sm')} <span class="md-said">“${esc(fd.q)}”</span></p><p class="md-k">result #${fd.rank + 1}${s.found.length > 1 ? ` · and ${s.found.length - 1} more searches` : ''}</p>`] : [false, forage ? 'came in by the WYGWYL forage, not by a sign search' : 'no sign search returned it'];
-      case 'vet': return rd ? [true, `<p>kept on the contact sheet for ${chip(String(rd.n), 'sm')}</p>`] : [false, notRead];
-      case 'read': return rd ? [true, `<p>${chip(String(rd.n), 'sm')} <b>${esc(L.S[String(rd.n)].name)}</b></p><p class="md-t">${esc(rd.note || '')}</p>`] : [false, 'nobody has read it yet. Open it, ask the question, press “read it as”'];
-      case 'rate': return rd && rd.conf != null ? [true, `<p class="md-r"><span>in context</span>${pct(rd.conf)}<em>${rd.conf}%</em></p>${rd.shot != null ? `<p class="md-r"><span>shot alone</span>${pct(rd.shot)}<em>${rd.shot}%</em></p>` : ''}${rd.alt != null && L.S[String(rd.alt)] ? `<p>rival ${chip(String(rd.alt), 'sm')} ${rd.alt_conf ?? ''}%</p>` : ''}`] : [false, 'nothing to rate until it is read'];
-      case 'locate': return rd && s.read_t != null ? [true, `<p class="md-t">${(+s.read_t).toFixed(2)} s into the clip</p><p class="md-k">the read frame</p>`] : [false, 'located only for read shots'];
-      case 'segment': { const g = s.segments; return g && g.objects && g.objects.length ? [true, `<div class="md-tags">${g.objects.slice(0, 4).map(o => `<span>${esc(o.label || o.desc || o.role || '')}</span>`).join('')}</div><p class="md-k">${g.frames} frames @ ${g.fps} fps</p>`] : [false, 'segmented only for read shots']; }
-      case 'use': { const u = (pv.used || {})[s.id] || []; return u.length ? [true, u.slice(0, 4).map(([n, w, r]) => `<p><b>${esc(n)}</b> <span class="md-k">${esc(w)} · ${esc(r)}</span></p>`).join('')] : [false, 'not yet used by any of our films']; }
+        return [true, `shot <b>${at + 1}</b> of ${o.length || '?'} · ${tc(s.start || 0)} · ${s._dur.toFixed(1)} s${pass ? ` · <span class="md-k">pass ${esc(pass)}</span>` : ''}`]; }
+      case 'frame': return [true, `<img src="${esc(s.thumb)}" alt=""><span class="md-k">every machine below reads this one frame</span>`];
+      case 'embed': return s.xy ? [true, `<canvas class="md-code" data-vec="vec-pic.i8" width="512" height="22"></canvas><canvas class="md-mini" width="96" height="44"></canvas>`] : [false, 'not yet embedded'];
+      case 'name': return s.subjects && s.subjects.length ? [true, s.subjects.slice(0, 3).map(x => `<span class="md-w">${esc(x.label)} <em>${Math.round((x.p || 0) * 100)}</em></span>`).join('') + (s.scale ? `<span class="md-w sc">${esc(s.scale)}</span>` : '')] : [false, 'not yet named'];
+      case 'describe': return cap ? [true, `<span class="md-t">“${esc(cap)}”</span>`] : [false, 'not described yet: BLIP has run on half the archive'];
+      case 'measure': return s.audio ? [true, `<b>${esc(s.audio.kind || '')}</b>${s.audio.rms_db != null && s.audio.rms_db > -100 ? ` · ${s.audio.rms_db.toFixed(0)} dB` : ''}`] : [false, 'measured only for read shots'];
+      case 'listen': { const hd = (snd.heard || {})[s.id]; return hd ? [true, `<canvas class="md-code" data-vec="vec-snd.i8" width="512" height="22"></canvas><span class="md-tags">${hd.map(([t]) => `<span>${esc(t)}</span>`).join('')}</span>`] : [false, s.audio && /silen/.test(s.audio.kind || '') ? 'silent: nothing to lay down' : 'silent or not yet heard']; }
+      case 'transcribe': return tx ? [true, `<span class="md-said">${esc(tx.split(/\s+/).slice(0, 22).join(' '))}${tx.split(/\s+/).length > 22 ? '…' : ''}</span>`] : [false, 'no words spoken, or not yet transcribed'];
+      case 'ask': { const n = rd ? String(rd.n) : fd ? String(fd.n) : s._aff3[0], sg = L.S[n]; return sg ? [true, `${chip(n, 'sm')} <b>${esc(sg.name)}</b> asks <span class="md-q">${esc(sg.question || '')}</span>`] : [true, '45 questions']; }
+      case 'point': return s.aff_top ? [true, s.aff_top.slice(0, 3).map(([n, v]) => `<span class="md-w">${chip(String(n), 'sm')} ${esc((L.S[String(n)] || {}).name || '')} <em>${(+v).toFixed(0)}%</em></span>`).join('')] : [false, 'not pointed'];
+      case 'search': return fd ? [true, `${chip(String(fd.n), 'sm')} <span class="md-said">“${esc(fd.q)}”</span> <span class="md-k">#${fd.rank + 1}${s.found.length > 1 ? ` · +${s.found.length - 1} more` : ''}</span>`] : [false, forage ? 'came in by the WYGWYL forage: no sign search returned it' : 'no sign search returned it'];
+      case 'vet': return rd ? [true, `kept on the contact sheet for ${chip(String(rd.n), 'sm')}`] : [false, fd ? 'returned by a search, not kept on the contact sheet' : 'never on a contact sheet'];
+      case 'read': return rd ? [true, `${chip(String(rd.n), 'sm')} <span class="md-t">${esc(rd.note || '')}</span>`] : [false, 'not read: open it, ask the question, press “read it as”'];
+      case 'rate': return rd && rd.conf != null ? [true, `<span class="md-w">in context <em>${rd.conf}%</em></span>${rd.shot != null ? `<span class="md-w">shot alone <em>${rd.shot}%</em></span>` : ''}${rd.alt != null && L.S[String(rd.alt)] ? `<span class="md-w">rival ${chip(String(rd.alt), 'sm')} <em>${rd.alt_conf ?? ''}%</em></span>` : ''}`] : [false, 'nothing to rate until it is read'];
+      case 'locate': return rd && s.read_t != null ? [true, `the read frame sits <b>${(+s.read_t).toFixed(2)} s</b> into the clip`] : [false, 'only for read shots'];
+      case 'segment': { const g = s.segments; return g && g.objects && g.objects.length ? [true, `<span class="md-tags">${g.objects.slice(0, 4).map(o => `<span>${esc(o.label || o.desc || o.role || '')}</span>`).join('')}</span> <span class="md-k">${g.frames} frames @ ${g.fps} fps</span>`] : [false, 'only for read shots']; }
+      case 'use': { const u = (pv.used || {})[s.id] || []; return u.length ? [true, u.slice(0, 3).map(([n, w, r]) => `<span class="md-w"><b>${esc(n)}</b> ${esc(w)} · ${esc(r)}</span>`).join('')] : [false, 'not yet used by any of our films']; }
     }
     return [false, ''];
   },
+  /* how many shots are still in the river at each station, and what leaves */
+  flow() {
+    const T = L.shots.length, found = L.shots.filter(s => s._found.length).length, read = L.shots.filter(s => s._read.length).length;
+    const by = Object.fromEntries(this.M.stages.map(x => [x.id, x])), vet = Math.max(read, by.vet.n || read), forage = L.shots.filter(s => !s._found.length && (s.collections || []).includes('wygwyl')).length;
+    const U = (PROV.d && PROV.d.used) || {}, used = Object.keys(U).length || by.use.n, usedRead = L.shots.filter(s => s._read.length && U[s.id]).length;
+    const n = {}; let k = T; for (const id of this.ORDER) { if (id === 'search') k = found; if (id === 'vet') k = vet; if (id === 'read') k = read; n[id] = k; }
+    const out = { search: [T - found, 'never returned by a sign search', `${fmt(forage)} came in by the WYGWYL forage`],
+      vet: [found - vet, 'returned, not kept on a contact sheet', ''], read: [vet - read, 'kept, not read yet', ''],
+      use: [used, 'taken up into our films', `${fmt(usedRead)} of them read`] };
+    const cover = { describe: by.describe.n, measure: by.measure.n, listen: by.listen.n, transcribe: by.transcribe.n };
+    const exit = s => !s._found.length ? 'search' : !s._read.length ? 'vet' : null;
+    return { T, n, out, cover, exit };
+  },
   show(s) {
-    if (!s) return; this.s = s;
-    const M = this.M, R = this.root, P = $('#mdPatch', R), byBand = {};
+    if (!s) return; this.s = s; const R = this.root;
     $('#mdTitle', R).innerHTML = `${esc(s.title)} <em>${esc(s.year || '')}</em>`;
     const ex = this.ex, kind = x => x === ex.read ? 'read' : x === ex.found ? 'found' : x === ex.forage ? 'forage' : '';
     $('#mdEx', R).innerHTML = `${this.from ? `<button class="ghost${s === this.from ? ' on' : ''}" data-ex="this">this shot</button>` : ''}<button class="ghost${kind(s) === 'read' ? ' on' : ''}" data-ex="read">a read shot</button><button class="ghost${kind(s) === 'found' ? ' on' : ''}" data-ex="found">a found shot</button><button class="ghost${kind(s) === 'forage' ? ' on' : ''}" data-ex="forage">a forage shot</button><button class="ghost" data-ex="random">random</button>`;
     const v = $('#mdVid', R); v.src = s.video; v.onloadedmetadata = () => { try { v.currentTime = readT(s); } catch (e) { } v.play().catch(() => { }); };
-    // the patch: a grid, columns = rate bands, rows = picture / sound / words
-    const cols = M.bands.filter(b => M.stages.some(x => x.band === b[0])), rows = M.cols;
-    let h = `<div class="md-grid" style="grid-template-columns:64px repeat(${cols.length},minmax(0,1fr))"><div></div>${cols.map(b => `<div class="md-band">${esc(b[1])}</div>`).join('')}`;
-    for (const [rk, rl] of rows) {
-      h += `<div class="md-row">${esc(rl)}</div>`;
-      for (const [bk] of cols) {
-        const here = M.stages.filter(x => x.band === bk && (x.col === rk || (x.col === 'all' && rk === 'word')));
-        h += `<div class="md-cell${M.stages.some(x => x.band === bk && x.col === 'all') ? ' all' : ''}">${here.map(st => { const [ok, body] = this.result(st.id, s);
-          return `<div class="md-node${ok ? ' ok' : ' no'}" data-id="${st.id}"><div class="md-v">${esc(st.verb)}<small>${st.n != null ? fmt(st.n) + (st.id === 'ask' ? '' : ' / ' + fmt(M.total)) : ''}</small></div>
-            <div class="md-does" title="${esc(st.does)}">${esc(st.does)}</div><div class="md-out">${ok ? body : `<p class="md-why">${esc(body)}</p>`}</div>
-            <div class="md-tool">${esc(st.tool)}${st.day ? ` · ${st.day.slice(5)}` : ''}</div></div>`; }).join('')}</div>`;
-      }
-    }
-    P.innerHTML = h + '</div><svg class="md-wires"></svg>';
-    this.minis(); this.funnel(s); this.fit(); this.run();
+    // the core sample: one stratum per station, newest on top
+    const st = Object.fromEntries(this.M.stages.map(x => [x.id, x])), F = this.F = this.flow(), ex2 = F.exit(s), stop = ex2 ? this.ORDER.indexOf(ex2) : 99;
+    const rows = this.ORDER.slice().reverse().map(id => { const i = this.ORDER.indexOf(id), reached = i <= stop || id === 'use';
+      const [ok, body] = reached ? this.result(id, s) : [false, `not reached: this shot left the river at ${st[ex2].verb}`];
+      return `<div class="cr ${ok ? 'ok' : 'no'}" data-st="${id}" style="--c:${this.COL[this.MED[id]]}"><div class="cr-m"><b>${esc(st[id].verb)}</b><span>${esc(st[id].model)}</span></div><div class="cr-b">${ok ? body : `<em class="md-why">${esc(body)}</em>`}</div></div>`; }).join('');
+    $('#mdPatch', R).innerHTML = `<svg class="rv-svg"></svg><div class="rv-heads"></div><div class="rv-core">${rows}</div>`;
+    this.minis(); this.codes(s); this.draw(); this.run();
   },
   minis() {
     $$('canvas.md-mini', this.root).forEach(cv => {
-      const g = cv.getContext('2d'), W = cv.width, H = cv.height, s = this.s, sound = cv.dataset.map === 'sound', XY = sound ? (SND.d || {}).xy || {} : null;
-      g.fillStyle = '#060606'; g.fillRect(0, 0, W, H); g.fillStyle = 'rgba(200,190,170,.35)';
-      for (const o of L.shots) { const p = sound ? XY[o.id] : o.xy; if (p) g.fillRect(p[0] * (W - 8) + 4, p[1] * (H - 8) + 4, 1, 1); }
-      const p = sound ? XY[s.id] : s.xy; if (!p) return; const x = p[0] * (W - 8) + 4, y = p[1] * (H - 8) + 4;
-      g.strokeStyle = '#f2c14e'; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 7, 0, 7); g.stroke(); g.fillStyle = '#f2c14e'; g.fillRect(x - 2, y - 2, 4, 4);
+      const g = cv.getContext('2d'), W = cv.width, H = cv.height, s = this.s;
+      g.fillStyle = '#060606'; g.fillRect(0, 0, W, H); g.fillStyle = 'rgba(200,190,170,.4)';
+      for (const o of L.shots) if (o.xy) g.fillRect(o.xy[0] * (W - 4) + 2, o.xy[1] * (H - 4) + 2, 1, 1);
+      if (!s.xy) return; const x = s.xy[0] * (W - 4) + 2, y = s.xy[1] * (H - 4) + 2;
+      g.strokeStyle = '#f2c14e'; g.lineWidth = 1.5; g.beginPath(); g.arc(x, y, 4, 0, 7); g.stroke();
     });
   },
-  funnel(s) {
-    const M = this.M, by = Object.fromEntries(M.stages.map(x => [x.id, x])), T = M.total;
-    const rows = [['cut', 'cut into shots'], ['point', 'pointed at 3 signs by the machine'], ['search', 'returned by a sign search'], ['vet', 'kept on a contact sheet'], ['read', 'read by the editor'], ['use', 'used in our films']];
-    const at = id => this.result(id, s)[0];
-    $('#mdFun', this.root).innerHTML = `<h4>why most shots carry no reading</h4>${rows.map(([id, t]) => `<div class="md-f${at(id) ? ' in' : ''}"><i style="width:${Math.max(.6, by[id].n / T * 100)}%"></i><span>${fmt(by[id].n)}</span><em>${t}</em></div>`).join('')}
-      <p>A reading comes by one road only: a sign's search returns the shot, the editor keeps it, the editor writes the sentence. Every other shot carries the machine's three places to look. Gold rows: where this shot got to.</p>`;
+  async codes(s) {   // the 512 numbers, drawn: one thin bar per number, up is positive
+    for (const cv of $$('canvas.md-code', this.root)) { const b = await this.vec(cv.dataset.vec, s); if (this.s !== s) return; const g = cv.getContext('2d'), H = cv.height;
+      g.clearRect(0, 0, 512, H); if (!b) { g.fillStyle = '#6f685d'; g.font = '11px monospace'; g.fillText('numbers not published', 4, 15); continue; }
+      const col = cv.dataset.vec.includes('snd') ? '255,159,67' : '111,140,255';
+      for (let i = 0; i < 512; i++) { const v = b[i] / 127; g.fillStyle = `rgba(${col},${.25 + Math.abs(v) * .75})`; const h = Math.abs(v) * (H / 2); g.fillRect(i, v > 0 ? H / 2 - h : H / 2, 1, Math.max(1, h)); }
+      cv.title = '512 numbers ' + (cv.dataset.vec.includes('snd') ? 'CLAP heard' : 'CLIP saw') + ' in this shot; the first ten: ' + [...b.slice(0, 10)].map(x => (x / 127).toFixed(2)).join(' '); }
   },
-  /* the whole patch on one screen: shrink it until it fits, never grow it */
-  fit() {
-    const P = $('#mdPatch', this.root), G = $('.md-grid', P); if (!G) return; G.style.transform = ''; G.style.width = '';
-    const k = Math.min(1, (P.clientHeight - 14) / G.scrollHeight);
-    if (k < 1) { G.style.width = (100 / k) + '%'; G.style.transform = `scale(${k})`; const k2 = Math.min(1, (P.clientHeight - 14) / G.scrollHeight); if (k2 < k) G.style.transform = `scale(${k2})`; }
+  /* geometry: stations across the river; each stratum runs from its station into the core row that holds it */
+  geo() {
+    const P = $('#mdPatch', this.root), core = $('.rv-core', P), W = P.clientWidth, cw = core.offsetWidth, x0 = 24, x1 = W - cw - 30, N = this.ORDER.length;
+    const xs = this.ORDER.map((id, i) => x0 + (i + .5) * (x1 - x0) / N), yc = 128, hw0 = 52;
+    const hw = id => Math.max(1.2, hw0 * this.F.n[id] / this.F.T);
+    return { P, W, H: P.clientHeight, x0, x1, xs, yc, hw, hw0, coreL: W - cw - 12 };
   },
-  wires() {
-    const R = this.root, svg = $('svg.md-wires', R), P = $('#mdPatch', R); if (!svg) return; const pr = P.getBoundingClientRect();
-    svg.setAttribute('width', P.scrollWidth); svg.setAttribute('height', P.scrollHeight);
-    const box = id => { const n = $(`.md-node[data-id="${id}"]`, P); if (!n) return null; const r = n.getBoundingClientRect(); return { n, l: r.left - pr.left, r: r.right - pr.left, t: r.top - pr.top, b: r.bottom - pr.top, cx: (r.left + r.right) / 2 - pr.left, cy: (r.top + r.bottom) / 2 - pr.top }; };
-    svg.innerHTML = this.M.wires.map(([a, b]) => { const A = box(a), B = box(b); if (!A || !B) return '';
-      const lit = A.n.classList.contains('ok') && B.n.classList.contains('ok') && A.n.classList.contains('seen') && B.n.classList.contains('seen');
-      let d; if (Math.abs(A.cx - B.cx) < 20) d = A.cy < B.cy ? `M${A.cx},${A.b} L${B.cx},${B.t}` : `M${A.cx},${A.t} L${B.cx},${B.b}`;
-      else if (B.l > A.r) { const k = (B.l - A.r) / 2; d = `M${A.r},${A.cy} C${A.r + k},${A.cy} ${B.l - k},${B.cy} ${B.l},${B.cy}`; }
-      else { const k = 40; d = `M${A.l},${A.cy} C${A.l - k},${A.cy} ${B.r + k},${B.cy} ${B.r},${B.cy}`; }
-      return `<path d="${d}" class="${lit ? 'lit' : ''}"/>`; }).join('');
+  draw() {
+    const G = this.g = this.geo(), F = this.F, st = Object.fromEntries(this.M.stages.map(x => [x.id, x])), svg = $('svg.rv-svg', G.P), heads = $('.rv-heads', G.P);
+    const { xs, yc, hw } = G, ids = this.ORDER, pr = G.P.getBoundingClientRect();
+    svg.setAttribute('width', G.W); svg.setAttribute('height', G.H);
+    // the river: one channel, as wide as the shots still in it
+    const top = ids.map((id, i) => `${xs[i]},${yc - hw(id)}`), bot = ids.map((id, i) => `${xs[i]},${yc + hw(id)}`).reverse(), xe = G.x1 + 8;
+    let h = `<path class="rv-water" d="M${G.x0 - 14},${yc - G.hw0} L${top.join(' L')} L${xe},${yc - hw('use')} L${xe},${yc + hw('use')} L${bot.join(' L')} L${G.x0 - 14},${yc + G.hw0} Z"/>`;
+    // partial coverage: how much of the river a model reached, lit across the water
+    for (const [id, n] of Object.entries(F.cover)) { const i = ids.indexOf(id), f = Math.min(1, n / F.n[id]), x = xs[i]; h += `<rect class="rv-cov" x="${x - 2.5}" y="${yc - hw(id)}" width="5" height="${2 * hw(id)}"/><rect class="rv-cov on" x="${x - 2.5}" y="${yc + hw(id) - 2 * hw(id) * f}" width="5" height="${2 * hw(id) * f}" style="fill:${this.COL[this.MED[id]]}"/>`; }
+    // taken up: streams lifting out of the river into the bank, where a ledger says how many and why
+    let j = 0;
+    for (const [id, [n, why, sub]] of Object.entries(F.out)) { if (!n) continue; const i = ids.indexOf(id), x = xs[i], w = Math.max(1.5, G.hw0 * 2 * n / F.T), y0 = yc - hw(ids[Math.max(0, i - 1)]), ly = 24 + j++ * 34, lx = G.coreL + 4;
+      h += `<path class="rv-out${id === 'use' ? ' use' : ''}" d="M${x - 8},${y0 + Math.min(28, w) / 2} C${x - 4},${ly + 40} ${x + 30},${ly} ${lx - 8},${ly - 4}" style="stroke-width:${Math.min(50, w)}"/>`;
+      h += `<text class="rv-ol${id === 'use' ? ' use' : ''}" x="${lx}" y="${ly}"><tspan class="n">${fmt(n)}</tspan> ${esc(why)} <tspan class="at">at ${esc(st[id].verb)}</tspan></text>${sub ? `<text class="rv-ol sub" x="${lx}" y="${ly + 13}">${esc(sub)}</text>` : ''}`; }
+    // added: what flows in from outside the machines
+    for (const [id, t, dy] of [['ask', '45 questions flow in', 92], ['vet', 'the editor steps in', 66]]) { const x = xs[ids.indexOf(id)]; h += `<path class="rv-in" d="M${x - 6},${yc - dy + 4} C${x - 6},${yc - dy + 30} ${x - 3},${yc - 40} ${x - 3},${yc - hw(id) - 1}"/><text class="rv-il" x="${x - 6}" y="${yc - dy}" text-anchor="end">${esc(t)}</text>`; }
+    // the bed: each stratum from its station into its core row
+    const rows = Object.fromEntries($$('.cr', G.P).map(r => { const b = r.getBoundingClientRect(); return [r.dataset.st, [b.top - pr.top, b.bottom - pr.top, r.classList.contains('ok')]]; }));
+    h += `<line class="rv-floor" x1="${G.x0 - 14}" x2="${G.coreL}" y1="${yc + G.hw0 + 14}" y2="${yc + G.hw0 + 14}"/>`;
+    for (const id of ids) { const [a, b, ok] = rows[id] || []; if (a == null) continue; const x = xs[ids.indexOf(id)];
+      h += `<path class="rv-st${ok ? ' ok' : ''}" data-st="${id}" d="M${x - 4},${a + 2} L${G.coreL},${a + 2} L${G.coreL},${b - 2} L${x + 6},${b - 2} Z" style="--c:${this.COL[this.MED[id]]}"/>`; }
+    // the gold pebble's road, and the drops it lets fall into the bed
+    h += `<path class="rv-road" id="rvRoad" d=""/><g id="rvDrops"></g><circle class="rv-peb" id="rvPeb" r="6" cx="${xs[0]}" cy="${yc}"/>`;
+    svg.innerHTML = h;
+    heads.style.top = (yc + G.hw0 + 18) + 'px';
+    heads.innerHTML = ids.map((id, i) => `<span data-st="${id}" style="left:${xs[i]}px;--c:${this.COL[this.MED[id]]}">${esc(st[id].verb.split(' ')[0])}${F.cover[id] ? ` <i>${fmt(F.cover[id])}</i>` : ''}</span>`).join('');
+  },
+  lane() { let h = 0; for (const c of this.s.id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return ((h % 1000) / 1000 - .5) * 1.4; },
+  /* the pebble at station k: its road so far, and a drop into every stratum it laid */
+  place(k, instant) {
+    const G = this.g, ids = this.ORDER, s = this.s, ln = this.lane(), ex = this.F.exit(s), stop = ex ? ids.indexOf(ex) : 99, svg = $('svg.rv-svg', G.P); if (!svg || !G) return;
+    const used = ((PROV.d && PROV.d.used) || {})[s.id], pt = i => [G.xs[i], G.yc + ln * G.hw(ids[Math.min(i, stop - 1)])];
+    let d = `M${G.x0 - 14},${G.yc + ln * G.hw0}`, last = [G.x0, G.yc];
+    for (let i = 0; i <= Math.min(k, ids.length - 1); i++) {
+      const lift = i === stop || (ids[i] === 'use' && used);
+      if (lift) { const x = G.xs[i], [, y] = pt(i - 1), row = Object.keys(this.F.out).filter(o => this.F.out[o][0]).indexOf(ids[i]), ly = 24 + Math.max(0, row) * 34;
+        d += ` C${x - 4},${ly + 40} ${x + 30},${ly} ${G.coreL - 4},${ly - 4}`; last = [G.coreL - 4, ly - 4]; break; }
+      const [x, y] = pt(i); d += ` L${x},${y}`; last = [x, y]; }
+    $('#rvRoad', svg).setAttribute('d', d); const p = $('#rvPeb', svg); p.setAttribute('cx', last[0]); p.setAttribute('cy', last[1]);
+    const pr = G.P.getBoundingClientRect(), laid = ids.slice(0, k + 1).filter(id => { const r = $(`.cr[data-st="${id}"]`, G.P); return r && r.classList.contains('ok') && (ids.indexOf(id) < stop || id === 'use'); });
+    $('#rvDrops', svg).innerHTML = laid.map(id => { const i = ids.indexOf(id), r = $(`.cr[data-st="${id}"]`, G.P).getBoundingClientRect(), y = (r.top + r.bottom) / 2 - pr.top, x = G.xs[i], y0 = G.yc + G.hw(id) + 2;
+      return `<line x1="${x}" y1="${y0}" x2="${x}" y2="${y}"/><circle cx="${x}" cy="${y}" r="3.5"/>`; }).join('');
+    $$('.rv-st', svg).forEach(w => w.classList.toggle('laid', ids.indexOf(w.dataset.st) <= k));
+    $$('.cr', G.P).forEach(r => { r.classList.toggle('laid', ids.indexOf(r.dataset.st) <= k); r.classList.toggle('now', !instant && r.dataset.st === ids[k]); });
+    $$('.rv-heads span', G.P).forEach(h => h.classList.toggle('now', !instant && h.dataset.st === ids[k]));
+  },
+  card(id) {
+    const x = this.M.stages.find(t => t.id === id); if (!x) return;
+    $('#mdCard', this.root).innerHTML = `<div class="mc-v" style="--c:${this.COL[this.MED[id]]}">${esc(x.verb)}</div><div class="mc-m">${esc(x.model)}</div>
+      <dl><dt>learned from</dt><dd>${esc(x.trained)}</dd><dt>lays down</dt><dd>${esc(x.puts)}</dd><dt>cannot see</dt><dd>${esc(x.blind)}</dd>
+      <dt>ran on</dt><dd>${x.n != null ? fmt(x.n) + (id === 'ask' ? ' signs' : ` of ${fmt(this.M.total)} shots`) : '—'}${x.day ? ` · last ${x.day}` : ''}</dd></dl>`;
+    $$('.cr', this.root).forEach(r => r.classList.toggle('hov', r.dataset.st === id));
   },
   run() {
-    clearTimeout(this.timer); const R = this.root; $$('.md-node', R).forEach(n => n.classList.remove('seen', 'now')); this.wires();
-    const order = this.ORDER.filter(id => $(`.md-node[data-id="${id}"]`, R)); let i = 0;
-    const step = () => { $$('.md-node.now', R).forEach(n => n.classList.remove('now'));
-      if (i >= order.length) { $('#mdNow', R).textContent = ''; return; }
-      const id = order[i++], n = $(`.md-node[data-id="${id}"]`, R), st = this.M.stages.find(x => x.id === id);
-      n.classList.add('seen', 'now'); this.wires();
-      $('#mdNow', R).innerHTML = `${i}/${order.length} · <b>${esc(st.verb)}</b> ${n.classList.contains('ok') ? '' : '<em>· did not run for this shot</em>'}`;
-      this.timer = setTimeout(step, n.classList.contains('ok') ? 1100 : 650); };
+    clearTimeout(this.timer); const ids = this.ORDER, R = this.root; let k = 0; this.running = true;
+    const step = () => { this.at = k; this.place(k); this.card(ids[k]); const ok = $(`.cr[data-st="${ids[k]}"]`, R).classList.contains('ok');
+      $('#mdNow', R).innerHTML = `${k + 1}/${ids.length} · <b>${esc(this.M.stages.find(t => t.id === ids[k]).verb)}</b>${ok ? '' : ' <em>· nothing laid down for this shot</em>'}`;
+      if (++k < ids.length) this.timer = setTimeout(step, ok ? 1300 : 700); else { this.running = false; this.timer = setTimeout(() => { $('#mdNow', R).textContent = ''; }, 1500); } };
     step();
   },
 };
