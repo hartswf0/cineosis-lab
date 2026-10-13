@@ -1473,7 +1473,7 @@ function readingBar(n, e) {
 /* ================================================================ INSPECTOR */
 const SND = { d: null, p: null, load(after) { if (this.d) { after && after(); return this.p; } if (!this.p) this.p = fetch('sound-layer.json').then(r => r.ok ? r.json() : {}).catch(() => ({})).then(d => { this.d = d || {}; }); return this.p.then(() => after && after()); } };
 const lazy = url => ({ d: null, p: null, load(after) { if (this.d) { after && after(); return; } if (!this.p) this.p = fetch(url).then(r => r.ok ? r.json() : {}).catch(() => ({})).then(d => { this.d = d || {}; }); this.p.then(() => after && after()); } });
-const PROV = lazy('provenance.json'), TX = lazy('transcripts.json');
+const PROV = lazy('provenance.json'), TX = lazy('transcripts.json'), WORDS = lazy('words.json');
 const CAPS = { map: null, p: null, load(after) { if (this.map || this.p) return; this.p = fetch('rushes/captions.json').then(r => r.ok ? r.json() : {}).then(m => { this.map = m; after && after(); }).catch(() => { this.map = {}; }); } };
 /* where a shot sits in four spaces at once: every shot a faint dot, this one ringed, its nearest neighbours in that space lit and linked */
 const Minis = {
@@ -1505,8 +1505,15 @@ const Minis = {
       g.strokeStyle = 'rgba(242,193,78,.8)'; g.lineWidth = 1; g.beginPath(); near.forEach(([q]) => { g.moveTo(X(me[1]), Y(me[2])); g.lineTo(X(q[1]), Y(q[2])); }); g.stroke();
       g.fillStyle = '#f2c14e'; near.forEach(([q]) => { g.beginPath(); g.arc(X(q[1]), Y(q[2]), 2.6, 0, 7); g.fill(); });
       g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(X(me[1]), Y(me[2]), 6, 0, 7); g.stroke();
-      b.title = 'nearest here: ' + near.slice(0, 4).map(([q]) => q[0].title).join(' · ');
+      b._near = near.map(([q]) => q[0]);
     });
+    // which shots are near this one in more than one space: the strongest company it keeps
+    const tally = new Map(), KS = ['xy', 'sound', 'hue', 'sign'];
+    $$('.mini-m', R).forEach(b => (b._near || []).forEach((o, r) => { const t = tally.get(o) || { o, ks: new Set(), r: 0 }; t.ks.add(b.dataset.k); t.r += r; tally.set(o, t); }));
+    const rows = [...tally.values()].sort((a, b) => b.ks.size - a.ks.size || a.r - b.r).slice(0, 7);
+    const A = $('#insAgree', R); if (!A) return;
+    A.innerHTML = rows.length ? `<div class="ag-h"><span></span><span></span>${KS.map(k => `<i>${({ xy: 'pic', sound: 'snd', hue: 'col', sign: 'sgn' })[k]}</i>`).join('')}</div>` + rows.map(t => `<button class="ag" data-id="${esc(t.o.id)}"><img src="${esc(t.o.thumb)}" alt=""><span>${esc((CAPS.map && CAPS.map[t.o.id]) || t.o.title)}<em>${esc(t.o.title)}${t.o.year ? ' · ' + t.o.year : ''}</em></span>${KS.map(k => `<i class="${t.ks.has(k) ? 'y k-' + k : ''}"></i>`).join('')}</button>`).join('') : '';
+    $$('.ag', A).forEach(b => b.onclick = () => { const o = L.byId.get(b.dataset.id); if (o) Inspector.open(o, rows.map(t => t.o)); });
   },
 };
 const Inspector = {
@@ -1548,6 +1555,7 @@ const Inspector = {
             </div>
           </div>
           <div class="tl" id="insTL"><div class="tl-strip" id="insStrip"></div><div class="tl-ab" id="insAB"></div><div class="tl-seg" id="insSegWin" title="SAM 2 tracking window" hidden></div><div class="tl-ticks" id="insTicks"></div><div class="tl-marks" id="insMarks"></div><div class="tl-ph" id="insPH"></div></div>
+          <div class="track" id="insTrack"></div>
           <div class="save">
             <select id="insSign" aria-label="sign"></select>
             <input id="insNote" placeholder="note — why this sub-shot is this sign" spellcheck="false">
@@ -1674,6 +1682,7 @@ const Inspector = {
     const tcs = tc((s.start || 0) + t);
     if (tcs !== this._tc) { $('#insTC', R).textContent = tcs; this._tc = tcs; }
     $('#insPH', R).style.left = (t / d * 100) + '%';
+    if (this._words && this._words.length) { let k = -1; for (let i = 0; i < this._words.length; i++) { if (+this._words[i].dataset.t <= t) k = i; else break; } if (k !== this._wk) { if (this._words[this._wk]) this._words[this._wk].classList.remove('now'); if (this._words[k]) this._words[k].classList.add('now'); this._wk = k; } }
     this.segPaint();
   },
   ticks() {
@@ -1694,8 +1703,26 @@ const Inspector = {
     const g = this.segs(), sw = $('#insSegWin', R);
     if (g) { sw.hidden = false; sw.style.left = clamp(g.t0 / d, 0, 1) * 100 + '%'; sw.style.width = clamp(g.frames / g.fps / d, 0, 1) * 100 + '%'; } else sw.hidden = true;
     $('#insMline', R).innerHTML = list.map(([k, t, w]) => `<div class="ml" data-t="${t}"><b>${k}</b><span>${tc(s.start + t)}</span><em>${w}</em></div>`).join('');
+    this.track();
     $('#insABread', R).textContent = this.A != null || this.B != null ? `A ${this.A != null ? this.A.toFixed(2) + 's' : '—'} · B ${this.B != null ? this.B.toFixed(2) + 's' : '—'}` : 'set A / B for a sub-shot';
     $$('[data-a="loop"]', R).forEach(b => b.classList.toggle('on', this.loopAB));
+  },
+  /* one time axis, many things on it: what is said (word by word, where it is said) and what SAM tracks (each object a span) */
+  track() {
+    const R = this.root, s = this.s, d = this.dur(), T = $('#insTrack', R); if (!T || !s) return;
+    if (!WORDS.d) { WORDS.load(() => { if (this.s === s) this.track(); }); }
+    const w = (WORDS.d || {})[s.id] || [], g = this.segs();
+    let h = '';
+    if (w.length) {   // a word is drawn where it has room in one of two lanes; the rest are ticks, and each lights as it is said
+      const px = Math.max(200, T.clientWidth || 600), end = [-1e9, -1e9];
+      h += `<div class="tr-row tr-w"><em>said</em>${w.map(([t, at]) => { const x = clamp(at / d, 0, 1) * px, wd = t.length * 6.2 + 6, lane = end[0] <= x ? 0 : end[1] <= x ? 1 : -1;
+        if (lane >= 0) end[lane] = x + wd;
+        return `<span data-t="${at}" class="${lane < 0 ? 'tick' : ''}" style="left:${clamp(at / d, 0, 1) * 100}%;top:${Math.max(0, lane) * 13}px">${lane < 0 ? '' : esc(t)}</span>`; }).join('')}</div>`;
+    }
+    if (g && g.objects && g.objects.length) h += `<div class="tr-row tr-o"><em>in frame</em>${g.objects.slice(0, 6).map((o, i) => `<span style="left:${clamp(g.t0 / d, 0, 1) * 100}%;width:${clamp(g.frames / g.fps / d, 0, 1) * 100 * Math.max(.15, o.present || 1)}%;top:${i * 9}px;--sc:${segColor(o, i)}"><b>${esc(o.label || o.desc || '')}</b></span>`).join('')}</div>`;
+    T.innerHTML = h; T.style.height = (w.length ? 30 : 0) + (g && g.objects ? Math.min(6, g.objects.length) * 9 + 8 : 0) + 'px';
+    this._words = [...T.querySelectorAll('.tr-w span')];
+    T.onclick = e => { const sp = e.target.closest('[data-t]'); if (sp) { this.v.currentTime = +sp.dataset.t; } };
   },
   side() {
     const s = this.s, R = this.root; const again = () => { if (this.s === s) this.side(); };
@@ -1721,7 +1748,7 @@ const Inspector = {
     let fromB = pend('loading its film…');
     if (film) { const [ft, fy, fs, fk, fp] = film, order = film[6], at = order.indexOf(s.id);
       const strip = order.map((id, i) => { const o = L.byId.get(id); return o ? `<button class="fs${id === s.id ? ' on' : ''}" data-id="${esc(id)}" title="${i + 1} · ${esc(o.title)}" style="background-image:url('${esc(o.thumb)}')"></button>` : ''; }).join('');
-      fromB = `<p class="fl-t">${esc(ft)}${fy ? ` <em>${fy}</em>` : ''}</p>${fs ? `<p class="fl-m">made by <b>${esc(fs)}</b></p>` : ''}${fp ? `<p class="fl-p">${esc(fp)}</p>` : ''}<div class="fstrip">${strip}</div><p class="fl-m">clip <b>${at + 1}</b> of ${order.length} in this film · ${tc(s.start || 0)}–${tc(s.end || 0)}</p>`; }
+      fromB = `<p class="fl-t">${esc(ft)}${fy ? ` <em>${fy}</em>` : ''}</p>${fs ? `<p class="fl-m">made by <b>${esc(fs)}</b></p>` : ''}${fp ? `<p class="fl-p">${esc(fp)}</p>` : ''}<div class="fstrip">${strip}</div><p class="fl-m">clip <b>${at + 1}</b>/${order.length} · ${tc(s.start || 0)} · <b>${s._dur.toFixed(1)}s</b> · ${s.scale ? esc(s.scale) : ''} · ${s.bw ? 'b&amp;w' : 'colour'} · <a class="arch" href="${esc(s.page)}" target="_blank" rel="noopener">archive ↗</a></p>`; }
     const foundB = (s.found || []).slice(0, 2).map(f => `<p class="fl-q">${chip(String(f.n), 'sm')} “${esc(f.q)}” <em>#${f.rank + 1}</em></p>`).join('');
     const seenB = `${cap ? `<p class="fl-t">${esc(cap)}</p>` : ''}${s.subjects && s.subjects.length ? `<div class="subs">${s.subjects.slice(0, 3).map(x => `<span style="--p:${Math.round((x.p || 0) * 100)}%">${esc(x.label)} <em>${Math.round((x.p || 0) * 100)}</em></span>`).join('')}</div>` : ''}`;
     const heardB = hd || s.audio ? `<div class="tags">${(hd || []).map(([t, z]) => `<span class="tag" style="--a:${Math.min(1, .35 + z / 4)}">${esc(t)}</span>`).join('')}${s.audio ? `<span class="mini">${esc(s.audio.kind || '')}${s.audio.rms_db != null && s.audio.rms_db > -100 ? ` · ${s.audio.rms_db.toFixed(0)} dB` : ''}</span>` : ''}</div>` : '';
@@ -1736,13 +1763,13 @@ const Inspector = {
       ${node('f6', 'used in', usedB, 'our films')}
     </div>${mine ? `<div class="sd-block"><h4>your sub-shots</h4>${mine}<div class="cutbtns" style="margin-top:8px"><button class="ghost" id="insExport">export assignments.json</button></div></div>` : ''}`;
     R.querySelector('#insSide').innerHTML = `
-      <div class="sd-block where"><h4>where it sits <small>its nearest shots in each space</small></h4><div class="minis">${['xy', 'sound', 'hue', 'sign'].map(k => `<button class="mini-m" data-k="${k}"><canvas width="300" height="190"></canvas><span>${({ xy: 'picture', sound: 'sound', hue: 'colour × decade', sign: 'sign × decade' })[k]}</span></button>`).join('')}</div></div>
+      <div class="sd-block where"><h4>where it sits <small>its nearest shots in each space</small></h4><div class="minis">${['xy', 'sound', 'hue', 'sign'].map(k => `<button class="mini-m" data-k="${k}" title="open the map in this space"><canvas width="200" height="140"></canvas><span>${({ xy: 'picture', sound: 'sound', hue: 'colour', sign: 'sign' })[k]}</span></button>`).join('')}</div><div class="agree" id="insAgree"></div></div>
       ${wygBlock(s)}
       ${affinityBlock(s)}
       ${seg ? this.segBlock(seg) : ''}
       ${cuts ? `<div class="sd-block"><h4>single-frame cut-outs · ${s.cutouts.length}</h4><div class="cutbtns"><button class="ghost" id="insCutT">${this.showCuts ? 'hide' : 'show'} on frame (C)</button><button class="ghost" id="insCutSend">send to table</button></div>
         <div class="cutthumbs">${s.cutouts.map(c => `<span><img src="${esc(c.png)}" alt=""><em>${esc(c.label)}</em></span>`).join('')}</div></div>` : ''}
-      <div class="sd-block facts"><div class="fact-row"><span><em>length</em>${s._dur.toFixed(1)}s</span><span><em>scale</em>${s.scale ? esc(s.scale) : '—'}</span><span><em>colour</em>${s.bw ? 'b&amp;w' : 'colour'}</span><a class="arch" href="${esc(s.page)}" target="_blank" rel="noopener">archive ↗</a></div>${pal}</div>`;
+`;
     $$('.fs', R).forEach(b => b.onclick = () => { const o = L.byId.get(b.dataset.id); if (o) this.open(o, film[6].map(id => L.byId.get(id)).filter(Boolean)); });
     $$('.mini-m', R).forEach(b => b.onclick = () => { const k = b.dataset.k; this.close(); Shell.setMode('map'); setTimeout(() => MapMode.morph(k).then(() => MapMode.focusOn(s)), 450); });
     Minis.draw(s, R);

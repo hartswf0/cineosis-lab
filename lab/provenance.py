@@ -43,5 +43,8 @@ for f in glob.glob(os.path.join(H, "odyssey/cache/ears/words.*.json")): W.update
 text = {k: (W[k].get("text") or " ".join(w[0] for w in W[k].get("words") or [])).strip() for k in ids if k in W and (W[k].get("words") or W[k].get("text"))}
 text = {k: v for k, v in text.items() if len(v.split()) >= 3}
 json.dump(text, open(os.path.join(H, "transcripts.json"), "w"), ensure_ascii=False, separators=(",", ":"))
+# ---- every word with when it is said, on the clip's own clock (for the inspector's time track)
+words = {k: [[w[0], round(w[1], 2)] for w in (W[k].get("words") or [])] for k in text}
+json.dump(words, open(os.path.join(H, "words.json"), "w"), ensure_ascii=False, separators=(",", ":"))
 print(len(films), "source films ·", len(used), "shots used by our films ·", len(text), "transcribed ·",
       os.path.getsize(os.path.join(H, "provenance.json")) // 1024, "KB +", os.path.getsize(os.path.join(H, "transcripts.json")) // 1024, "KB")
