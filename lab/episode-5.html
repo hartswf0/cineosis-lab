@@ -29,6 +29,26 @@ body, #stage { background: var(--bg); }
 .gapbox { position: absolute; left: 70px; right: 70px; bottom: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .gapbox div { background: rgba(11,10,9,.86); padding: 14px 18px; opacity: 0; animation: up .9s ease forwards; } .gapbox small { display: block; font: 600 14px var(--mono); letter-spacing: .12em; margin-bottom: 6px; } .gapbox p { margin: 0; font: 24px/1.35 var(--serif); }
 .two { position: absolute; inset: 40px 50px 160px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .two figure { margin: 0; position: relative; } .two video { width: 100%; height: 100%; object-fit: cover; display: block; background: #111; } .two figcaption { position: absolute; left: 10px; top: 8px; font: 600 15px var(--mono); color: var(--lime); letter-spacing: .12em; text-transform: uppercase; text-shadow: 0 1px 6px #000; }
+
+.feed { position: absolute; left: 50px; top: 100px; width: 640px; bottom: 210px; overflow: hidden; display: flex; flex-direction: column-reverse; gap: 6px; }
+.feed div { font: 17px/1.3 var(--serif); color: var(--ink); display: grid; grid-template-columns: 74px 1fr; gap: 10px; animation: up .3s ease; } .feed b { font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; padding-top: 3px; }
+.k-literal { color: var(--lime); } .k-oblique { color: #8ea6ff; } .k-place { color: #f2c14e; } .k-mood { color: #ff9f8e; }
+.pool { position: absolute; left: 720px; right: 50px; top: 100px; bottom: 210px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 2px; overflow: hidden; }
+.pool i { width: 30px; height: 22px; background-size: cover; background-position: center; animation: fade .4s ease; }
+.clock { position: absolute; left: 50px; top: 40px; font: 600 22px var(--mono); color: var(--red); } .clock span { color: var(--dim); font-weight: 400; margin-left: 18px; font-size: 16px; }
+.path { position: absolute; left: 50px; right: 50px; top: 170px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+.path div { border-top: 3px solid var(--lime); padding-top: 10px; opacity: 0; animation: up .8s ease forwards; } .path small { font: 13px var(--mono); color: var(--dim); } .path b { display: block; font: 600 26px/1.15 var(--serif); color: var(--ink); margin: 6px 0; } .path span { font: 16px/1.35 var(--serif); color: var(--dim); }
+#vt { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #0b0a09; z-index: 5; }
+.vtcap { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; padding: 10px 24px; background: rgba(11,10,9,.88); font: 18px var(--mono); color: var(--lime); }
+.want { position: absolute; left: 50px; right: 50px; top: 96px; font: italic 26px/1.35 var(--serif); color: var(--ink); } .want b { font: 600 15px var(--mono); font-style: normal; color: var(--lime); letter-spacing: .12em; margin-right: 12px; text-transform: uppercase; }
+.cands { position: absolute; left: 50px; right: 50px; top: 230px; height: 470px; display: flex; align-items: flex-end; gap: 10px; }
+.cand { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; height: 100%; opacity: 0; animation: up .6s ease forwards; position: relative; }
+.cand .bar { background: #3a352d; border-radius: 3px 3px 0 0; position: relative; transition: height 1.4s cubic-bezier(.2,.7,.2,1); height: 0; }
+.cand.won .bar { background: var(--lime); } .cand.out .bar { background: #3a1e1a; }
+.cand img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; margin-top: 6px; } .cand.out img { filter: grayscale(1) brightness(.4); } .cand.won img { outline: 4px solid var(--lime); }
+.cand .sc { position: absolute; top: -26px; left: 0; right: 0; text-align: center; font: 15px var(--mono); color: var(--ink); } .cand .nm { font: 12px/1.25 var(--mono); color: var(--dim); height: 32px; overflow: hidden; margin-top: 4px; }
+.cand .why { position: absolute; left: 0; right: 0; top: 35%; text-align: center; font: 600 12px/1.25 var(--mono); color: #ff8a7e; transform: rotate(-8deg); }
+.cand .adj { font: 11px/1.3 var(--mono); color: #f2c14e; min-height: 15px; }
 </style>
 </head>
 <body>
@@ -38,9 +58,18 @@ body, #stage { background: var(--bg); }
 <audio id="score" preload="auto"></audio><audio id="voice" preload="auto"></audio>
 <script>
 window.EPISODE = {
-  data: ['explain/ep/ep5.json?v=1'],
+  data: ['explain/ep/ep5.json?v=2', 'explain/ep/ep5_why.json?v=1'],
   cues: [],
-  build([W], B, K) {
+  ready(K) {   /* Videotext, loaded once behind the stage, opened on the curtains line */
+    const f = document.createElement('iframe'); f.id = 'vt'; f.style.display = 'none'; f.src = 'videotext.html'; document.getElementById('stage').appendChild(f); window.__vt = f;
+    let tries = 0; const find = () => { try { const V = f.contentWindow.VT, w = V && V.S.words; if (!w || !w.length) throw 0;
+        const a = w.findIndex((x, i) => x.key === 'curtains' && w[i + 1] && w[i + 1].key === 'pulled'), b = w.findIndex((x, i) => i > a && x.key === 'down');
+        if (a >= 0 && b > a) { window.__vtsel = { a, b }; f.contentWindow.setSel({ a, b }); } }
+      catch (e) { if (++tries < 60) setTimeout(find, 500); } };
+    f.addEventListener('load', () => setTimeout(find, 800));
+  },
+  build([W, WHY0], B, K) {
+    window.__why = WHY0;
     const { esc, fmt, line, later, raf, typeIn, startVideos } = K, $ = K.$, NAMES = ['suite', 'scenes', 'cineosis', 'drift'];
     const RULE = { suite: 'what the treatment asks for each beat', scenes: 'each line from one film, in that film\'s own order', cineosis: 'the signs each beat is meant to carry', drift: 'each shot follows the one before' };
     const ask = q => `<div class="ask">${q}</div>`;
@@ -51,16 +80,33 @@ window.EPISODE = {
     /* 1 · the poem, first */
     B('The poem', 25, () => `${film('suite', 29.6, true)}<div class="poemsub"></div>`, el => { startVideos(el); subs(el); });
     B('The poem', 10, () => `${film('suite', 54.6, true)}<div class="poemsub"></div><div class="ttl"><b>Where You Go When You Leave</b><span>a poem by Mark Anthony Thomas</span></div>`, el => { startVideos(el); subs(el); });
-    /* 2 · what am I watching */
-    B('What am I watching?', 13, () => `${ask('What am I watching?')}<div class="parts">${W.parts.map((p, i) => `<figure style="animation-delay:${i * .15}s">${film('suite', p.t + 8, false, '', '')}<figcaption><b>${p.n}</b>${esc(p.title)}</figcaption></figure>`).join('')}</div>
-        ${line([`A poem suite in ${W.parts.length} parts, twenty-four minutes long.`, 'Every picture is a shot from the public archive. None was filmed for the poem.'])}`, el => startVideos(el));
-    /* 3 · how did a poem find its pictures */
-    const S = W.search;
-    B('Where do the pictures come from?', 14, () => `${ask('Where do the pictures come from?')}<div style="--c:var(--lime)"><div class="big2" style="top:100px;font:400 30px var(--serif);color:var(--ink)">The treatment, beat 1: <i style="color:var(--lime)">${esc(S.beat)}</i></div><div class="sbar" style="top:170px"><i></i><span id="q"></span></div>
-        <div class="sheet" style="top:270px">${S.hits.map((h, i) => `<figure style="animation-delay:${3 + i * .2}s"><img src="${esc(h.thumb)}"><figcaption>${esc(h.title)} ${esc(h.year || '')}</figcaption></figure>`).join('')}</div></div>`, el => later(1200, () => typeIn($('#q', el), S.q)));
-    B('Where do the pictures come from?', 8, () => line([`Each of the poem's ${W.beats.length} beats was asked for in words like these.`, `${fmt(W.scope.searches)} searches; ${fmt(W.scope.retrievedClips)} shots came back to choose from.`]).replace('class="line"', 'class="line" style="bottom:auto;top:360px"'));
+    /* 2 · the forage, as it happened */
+    const KC = k => `k-${k}`, hhmmss = t => { const x = 18 * 3600 + 3 * 60 + 46 + t; return `${String(Math.floor(x / 3600)).padStart(2, '0')}:${String(Math.floor(x / 60) % 60).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`; };
+    B('How the archive was searched', 9, () => `${ask('How were all those pictures found?')}${line(['On 24 September, the lab\'s editor CUTBASTARD sent the poem to the archive,', 'line by line, four ways of asking each.'])}`);
+    B('How the archive was searched', 30, () => `<div class="clock" id="ck">18:03:46</div><div class="feed" id="fd"></div><div class="pool" id="pl"></div>
+        ${line(['Thirty-two minutes of questions, here in thirty seconds.'], '<span class="k-literal">LITERAL</span> · <span class="k-oblique">OBLIQUE</span> · <span class="k-place">PLACE</span> · <span class="k-mood">MOOD</span>')}`,
+      el => { const L = W.laps, fd = $('#fd', el), pl = $('#pl', el), ck = $('#ck', el), T = L.at(-1).t; let k = 0, shots = 0;
+        raf(t => { const now = Math.min(T, t / 27 * T); while (k < L.length && L[k].t <= now) { const l = L[k++]; shots += l.n;
+            fd.insertAdjacentHTML('afterbegin', `<div><b class="${KC(l.kind)}">${l.kind} ${l.ch}</b><span>${esc(l.q)}</span></div>`); if (fd.children.length > 18) fd.lastElementChild.remove();
+            pl.insertAdjacentHTML('beforeend', l.th.map(u => `<i style="background-image:url('${esc(u)}')"></i>`).join('')); }
+          ck.innerHTML = `${hhmmss(Math.round(now))}<span>${k} questions · ${fmt(shots)} answers</span>`; return k < L.length; }); });
+    B('How the archive was searched', 14, () => `${ask('Then what?')}<div class="path">${W.chain.map(([t, b, d], i) => `<div style="animation-delay:${i * 1.2}s"><small>${esc(t)}</small><b>${esc(b)}</b><span>${esc(d)}</span></div>`).join('')}</div>`);
+    /* 3 · the archive opened on one line: Videotext itself */
+    const VIEWS = [['055', 'Radial Tree'], ['059', 'Constellation'], ['076', 'Funnel'], ['078', 'Sieve'], ['082', 'Keyword in context'], ['058', 'Spiral']];
+    VIEWS.forEach(([id, nm], k) => B('Opening the archive on a line', k ? 6 : 9, () => `${k ? '' : ask('What did the editor see when choosing?')}<div class="vtcap">Videotext · ${esc(nm)} · the archive opened on “Curtains pulled… on a road winding down.”</div>`,
+      el => { const f = window.__vt; if (!f) return; f.style.display = 'block'; K.leave(() => { f.style.display = 'none'; }); try { const cw = f.contentWindow; if (window.__vtsel && (!cw.VT.S.sel || cw.VT.S.sel.a !== window.__vtsel.a)) cw.setSel(window.__vtsel); cw.openWall(id); } catch (e) { } }));
+    /* 4 · why that shot: the rule, replayed */
+    const WHY = window.__why;
+    ['suite', 'cineosis', 'drift'].forEach((tk, k) => { const r = WHY && WHY.takes[tk] && WHY.takes[tk]['20']; if (!r) return;
+      B('Why that shot', 16, () => { const C = r.cands.slice(0, 11), ok = C.filter(c => !c.out), lo = Math.min(...C.map(c => c.total)), hi = Math.max(...C.map(c => c.total)), win = C.find(c => c.won), second = ok.filter(c => !c.won).sort((a, b) => b.total - a.total)[0];
+        const adj = c => [['pace', c.pace], ['stock', c.stock], ['sign', c.sign], ['reviewed', c.reviewed], ['follows', c.drift], ['used before', c.reuse]].filter(([, v]) => Math.abs(v) >= .005).map(([n, v]) => `${n} ${v > 0 ? '+' : ''}${v.toFixed(2)}`).join(' · ');
+        return `${k ? '' : ask('Why that shot, and not another?')}<div class="want"><b>${tk} asks for</b>“${esc(r.intent.join(' · '))}”</div>
+          <div class="cands">${C.map((c, i) => `<div class="cand ${c.won ? 'won' : ''} ${c.out ? 'out' : ''}" style="animation-delay:${.6 + i * .25}s"><div class="bar" data-h="${20 + (c.total - lo) / Math.max(.001, hi - lo) * 220}"><span class="sc">${c.total.toFixed(3)}</span></div>${c.out ? `<span class="why">${esc(c.out)}</span>` : ''}<img src="${esc(c.thumb)}"><div class="adj">${esc(adj(c))}</div><div class="nm">${esc(c.title)}</div></div>`).join('')}</div>
+          ${line([win && second ? `It won by ${(win.total - second.total).toFixed(3)}.` : '', k === 2 ? 'Its best matches were already used: the rule, not the match, decided.' : 'Every bar is the same question: how close is this picture to those words?'].filter(Boolean), 'bars stretched so differences of a thousandth can be seen · dark red: not allowed, and why')}`; },
+        el => later(500, () => el.querySelectorAll('.cand .bar').forEach(b => b.style.height = b.dataset.h + 'px'))); });
+    B('Why that shot', 9, () => line(['Scenes, the fourth take, asks differently:', 'it picks a whole run of one film\'s shots for the line, in that film\'s own order.']).replace('class="line"', 'class="line" style="bottom:auto;top:360px"'));
     /* 4 · why four films */
-    [20, 61].forEach((i, k) => B('Why four films?', k ? 12 : 17, () => { const ps = patch(i); return `${k ? '' : ask('Why is the same poem four different films?')}<div class="quad" style="inset:${k ? 40 : 90}px 50px 150px">${NAMES.map((n, j) => `<figure>${film(n, ps[j][0] + .3, n === 'suite', '', 'width:100%;height:100%;object-fit:cover').replace('<video', `<video data-end="${ps[j][1] - .2}"`)}<figcaption><b>${n}</b> · ${esc(ps[j][3])}<em>${RULE[n]}</em></figcaption></figure>`).join('')}</div><div class="poemsub" style="bottom:40px;font-size:24px"></div>`; },
+    [20].forEach((i, k) => B('Why four films?', k ? 12 : 17, () => { const ps = patch(i); return `${k ? '' : ask('So what did each take choose?')}<div class="quad" style="inset:${k ? 40 : 90}px 50px 150px">${NAMES.map((n, j) => `<figure>${film(n, ps[j][0] + .3, n === 'suite', '', 'width:100%;height:100%;object-fit:cover').replace('<video', `<video data-end="${ps[j][1] - .2}"`)}<figcaption><b>${n}</b> · ${esc(ps[j][3])}<em>${RULE[n]}</em></figcaption></figure>`).join('')}</div><div class="poemsub" style="bottom:40px;font-size:24px"></div>`; },
       el => { startVideos(el); subs(el); }));
     B('Why four films?', 7, () => line(['Same line, same sound, same moment.', 'Four rules for choosing the picture.']).replace('class="line"', 'class="line" style="bottom:auto;top:380px"'));
     /* 5 · the map of every shot */
@@ -73,7 +119,7 @@ window.EPISODE = {
     B('Which one is right?', 17, () => { const ps = patch(120); return `${ask('Which one is right?')}<div class="two" style="top:100px">${[['suite', 0], ['drift', 3]].map(([n, j]) => `<figure>${film(n, ps[j][0] + .3, n === 'suite', '', 'width:100%;height:100%;object-fit:cover')}<figcaption>${n}</figcaption></figure>`).join('')}</div>
         ${line(['None of them. Each rule makes a different film.', 'You choose by watching.'])}`; }, el => startVideos(el));
     /* 7 · what the archive could not give */
-    W.beats.filter(b => [1, 4, 5].includes(b.id)).forEach((b, k) => B('What the archive could not give', 10, () => `${k ? '' : ask('What could the archive not give?')}${film('suite', b.t0 + .5, true)}
+    W.beats.filter(b => [1, 4].includes(b.id)).forEach((b, k) => B('What the archive could not give', 10, () => `${k ? '' : ask('What could the archive not give?')}${film('suite', b.t0 + .5, true)}
         <div class="gapbox"><div style="animation-delay:.6s;border-left:4px solid var(--lime)"><small style="color:var(--lime)">THE TREATMENT ASKED FOR</small><p>${esc(b.title)}</p></div><div style="animation-delay:2.4s;border-left:4px solid var(--red)"><small style="color:var(--red)">THE ARCHIVE COULD NOT GIVE</small><p>${esc(b.gap)}</p></div></div>`, el => startVideos(el)));
     B('What the archive could not give', 8, () => line(['The poet is never in the picture.', 'Strangers from old films stand in for him, every time.']).replace('class="line"', 'class="line" style="bottom:auto;top:380px"'));
     /* 8 · next */
@@ -83,6 +129,6 @@ window.EPISODE = {
   }
 };
 </script>
-<script src="explain/player.js?v=4"></script>
+<script src="explain/player.js?v=5"></script>
 </body>
 </html>

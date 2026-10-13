@@ -27,11 +27,12 @@
       if (sub) { const L = subs.find(l => t >= l.at - .1 && t <= l.aend + .4); sub.innerHTML = !L ? '' : t < L.aat - .1 ? `<small>${esc(L.who || 'Homer')}</small><span>${esc(L.text)}</span>` : `<small class="arch">the archive answers · ${esc(L.src || '')}</small><span class="arch">${esc(L.ans)}</span>`; }
       if (t >= b) { voice.pause(); return false; } return true; });
   }
-  const K = { $, esc, fmt, line, later, raf, startVideos, typeIn, duck, scene, voice: () => voice, sound: () => sound };
+  const leaving = []; const leave = f => leaving.push(f);
+  const K = { leave, $, esc, fmt, line, later, raf, startVideos, typeIn, duck, scene, voice: () => voice, sound: () => sound };
   function cue(ci) { const C = window.EPISODE.cues || []; if (!C.length) return; const src = `score/cues/${C[ci % C.length]}.m4a`; if (score.dataset.src === src) return; score.dataset.src = src;
     const v0 = score.volume, t = performance.now(); const out = () => { const k = Math.min(1, (performance.now() - t) / 900); score.volume = v0 * (1 - k); if (k < 1) requestAnimationFrame(out); else { score.src = src; score.currentTime = 0; duck(false); if (!paused) score.play().catch(() => { }); } }; out(); }
   function show(i) {
-    if (i < 0 || i >= beats.length) return; clearTimeout(timer); tok++; cur = i; const b = beats[i]; voice.pause();
+    if (i < 0 || i >= beats.length) return; clearTimeout(timer); tok++; cur = i; const b = beats[i]; voice.pause(); while (leaving.length) { try { leaving.pop()(); } catch (e) { } }
     stage.querySelectorAll('.beat').forEach(o => { o.classList.remove('on'); o.querySelectorAll('video').forEach(v => { v.pause(); v.muted = true; }); setTimeout(() => { o.querySelectorAll('video').forEach(v => { v.removeAttribute('src'); v.load(); }); o.remove(); }, 1000); });
     const el = document.createElement('div'); el.className = 'beat'; el.innerHTML = b.html(); stage.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
     duck(false); if (b.after) b.after(el); cue(chapters.findIndex(c => c.name === b.ch));
@@ -53,7 +54,7 @@
   $('#bSnd').onclick = () => { sound = !sound; $('#bSnd').textContent = sound ? '♪ on' : '♪ off'; duck(false); voice.muted = !sound; stage.querySelectorAll('video').forEach(v => { if (!sound) v.muted = true; }); };
   (async function () {
     fit(); const EP = window.EPISODE, D = await Promise.all(EP.data.map(u => fetch(u).then(r => r.json())));
-    EP.build(D, (ch, secs, html, after, opt = {}) => beats.push({ ch, secs, html, after, ...opt }), K);
+    EP.build(D, (ch, secs, html, after, opt = {}) => beats.push({ ch, secs, html, after, ...opt }), K); if (EP.ready) EP.ready(K);
     beats.forEach(b => { let c = chapters.find(c => c.name === b.ch); if (!c) chapters.push(c = { name: b.ch, secs: 0 }); c.secs += b.secs; });
     $('#chs').innerHTML = chapters.map(c => `<div style="--w:${c.secs}"><i></i><span>${esc(c.name)}</span></div>`).join('');
     document.querySelectorAll('#chs div').forEach((d, ci) => d.onclick = () => show(beats.findIndex(b => b.ch === chapters[ci].name)));
