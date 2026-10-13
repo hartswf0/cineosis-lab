@@ -55,11 +55,27 @@
   const K = { room, leave, $, esc, fmt, line, later, raf, startVideos, typeIn, duck, scene, voice: () => voice, sound: () => sound };
   function cue(ci) { const C = window.EPISODE.cues || []; if (!C.length) return; const src = `score/cues/${C[ci % C.length]}.m4a`; if (score.dataset.src === src) return; score.dataset.src = src;
     const v0 = score.volume, t = performance.now(); const out = () => { const k = Math.min(1, (performance.now() - t) / 900); score.volume = v0 * (1 - k); if (k < 1) requestAnimationFrame(out); else { score.src = src; score.currentTime = 0; duck(false); if (!paused) score.play().catch(() => { }); } }; out(); }
+  /* THE LOG: every beat records, as it plays, the data it was built from and every picture and sound it loaded (with offsets),
+     so each film carries its own spine. Open it with L or the "log" button; copy it out as JSON. */
+  const LOG = [], logBox = document.createElement('div'); logBox.id = 'eplog';
+  logBox.style.cssText = 'position:fixed;right:12px;top:12px;bottom:76px;width:min(520px,92vw);overflow:auto;background:rgba(10,10,9,.94);border:1px solid #2e2a26;border-radius:6px;padding:14px 16px;font:12px/1.5 "IBM Plex Mono",monospace;color:#cfc8ba;z-index:50;display:none';
+  document.body.appendChild(logBox);
+  const short = u => { try { const x = new URL(u, location.href); return x.host === location.host ? x.pathname.split('/').slice(-2).join('/') : x.host.split('.')[0] + '…/' + x.pathname.split('/').slice(-1)[0]; } catch (e) { return String(u); } };
+  function logBeat(i, el) { const b = beats[i], rec = { beat: i + 1, chapter: b.ch, at: beats.slice(0, i).reduce((a, x) => a + x.secs, 0), secs: b.secs, data: (window.EPISODE.data || []).map(short), media: [] };
+    const seen = new Set(), grab = () => { el.querySelectorAll('video').forEach(v => { const u = v.currentSrc || v.src || v.dataset.src; if (u && !seen.has(u)) { seen.add(u); rec.media.push({ kind: 'picture', src: short(u), from: +(v.currentTime || 0).toFixed(2) }); } });
+      [voice, score].forEach((a, k) => { const u = a.currentSrc || a.src; if (u && !a.paused && !seen.has(u + k)) { seen.add(u + k); rec.media.push({ kind: k ? 'score' : 'sound', src: short(u), from: +(a.currentTime || 0).toFixed(2) }); } });
+      el.querySelectorAll('img').forEach(m => { if (m.src && !seen.has(m.src)) { seen.add(m.src); rec.media.push({ kind: 'still', src: short(m.src) }); } }); renderLog(); };
+    LOG[i] = rec; [1200, 4000, Math.max(5000, b.secs * 900)].forEach(ms => later(ms, grab)); }
+  function renderLog() { if (logBox.style.display === 'none') return;
+    logBox.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="color:#ece6da;letter-spacing:.12em">THE LOG · ${esc(document.title)}</b><button id="logCopy" style="font:inherit;color:#111;background:#c4f46a;border:0;border-radius:3px;padding:3px 10px;cursor:pointer">copy JSON</button></div>`
+      + LOG.filter(Boolean).map(r => `<div style="border-top:1px solid #2e2a26;padding:8px 0"><div style="color:#ece6da">${r.beat} · ${esc(r.chapter)} · ${Math.floor(r.at / 60)}:${String(Math.floor(r.at % 60)).padStart(2, '0')} · ${r.secs}s</div><div style="color:#8c867a">data: ${r.data.map(esc).join(', ')}</div>${r.media.map(m => `<div>${m.kind} · ${esc(m.src)}${m.from != null ? ' @ ' + m.from + 's' : ''}</div>`).join('')}</div>`).join('');
+    const c = logBox.querySelector('#logCopy'); if (c) c.onclick = () => { const t = JSON.stringify({ film: document.title, url: location.href, beats: LOG.filter(Boolean) }, null, 1); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => c.textContent = 'copied').catch(() => { const ta = document.createElement('textarea'); ta.value = t; logBox.appendChild(ta); ta.select(); }); }; }
+  const toggleLog = () => { logBox.style.display = logBox.style.display === 'none' ? 'block' : 'none'; renderLog(); };
   function show(i) {
     if (i < 0 || i >= beats.length) return; clearTimeout(timer); tok++; cur = i; const b = beats[i]; voice.pause(); while (leaving.length) { try { leaving.pop()(); } catch (e) { } }
     stage.querySelectorAll('.beat').forEach(o => { o.classList.remove('on'); o.querySelectorAll('video').forEach(v => { v.pause(); v.muted = true; }); setTimeout(() => { o.querySelectorAll('video').forEach(v => { v.removeAttribute('src'); v.load(); }); o.remove(); }, 1000); });
     const el = document.createElement('div'); el.className = 'beat'; el.innerHTML = b.html(); stage.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
-    duck(false); if (b.after) b.after(el); cue(chapters.findIndex(c => c.name === b.ch));
+    duck(false); if (b.after) b.after(el); cue(chapters.findIndex(c => c.name === b.ch)); logBeat(i, el);
     left = b.secs * 1000; t0 = performance.now(); if (!paused) timer = setTimeout(() => show(i + 1), left); ui();
   }
   function ui() {
@@ -73,8 +89,8 @@
     if (p) { clearTimeout(timer); left -= performance.now() - t0; } else { t0 = performance.now(); timer = setTimeout(() => show(cur + 1), Math.max(500, left)); } }
   function fit() { const W = innerWidth, H = innerHeight - 64, k = Math.min(W / 1600, H / 900); stage.style.transform = `translate(-50%, -50%) scale(${k})`; $('#wrap').style.height = H + 'px'; }
   addEventListener('resize', fit);
-  addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); pause(!paused); } if (e.key === 'ArrowRight') show(cur + 1); if (e.key === 'ArrowLeft') show(cur - 1); });
-  $('#bPlay').onclick = () => pause(!paused); $('#bNext').onclick = () => show(cur + 1); $('#bPrev').onclick = () => show(cur - 1);
+  addEventListener('keydown', e => { if (e.key === 'l' || e.key === 'L') toggleLog(); if (e.key === ' ') { e.preventDefault(); pause(!paused); } if (e.key === 'ArrowRight') show(cur + 1); if (e.key === 'ArrowLeft') show(cur - 1); });
+  $('#bPlay').onclick = () => pause(!paused); { const lb = document.createElement('button'); lb.id = 'bLog'; lb.title = 'the log: what each beat was made from (L)'; lb.textContent = 'log'; lb.onclick = toggleLog; $('#bSnd').before(lb); } $('#bNext').onclick = () => show(cur + 1); $('#bPrev').onclick = () => show(cur - 1);
   $('#bSnd').onclick = () => { sound = !sound; $('#bSnd').textContent = sound ? '♪ on' : '♪ off'; duck(false); voice.muted = !sound; stage.querySelectorAll('video').forEach(v => { if (!sound) v.muted = true; }); };
   (async function () {
     fit(); const EP = window.EPISODE, D = await Promise.all(EP.data.map(u => fetch(u).then(r => r.json())));
@@ -85,6 +101,6 @@
     const q = new URLSearchParams(location.search), at = q.get('ch');
     $('#start').onclick = () => { $('#start').remove(); score.volume = .28; show(at ? Math.max(0, beats.findIndex(b => b.ch.toLowerCase().startsWith(at.toLowerCase()))) : 0); };
     if (q.has('auto')) $('#start').onclick();
-    window.__ep = { beats, chapters, show, pause, get paused() { return paused; }, set paused(v) { paused = v; } };
+    window.__ep = { beats, chapters, show, pause, log: LOG, get paused() { return paused; }, set paused(v) { paused = v; } };
   })();
 })();
