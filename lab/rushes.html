@@ -119,6 +119,7 @@ textarea{min-height:64px;resize:none}
 
   <div class="reel">
     <button class="rp" id="play" aria-label="Play the reel" title="Play the reel"><svg viewBox="0 0 24 24" id="playi"><path d="M7 5v14l12-7z" fill="currentColor"/></svg></button>
+    <button class="rp" id="write" aria-label="Write the narration from the edit" title="Write the narration" style="background:var(--gold)"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/></svg></button>
     <div class="strip" id="strip"><span class="empty">Your reel is empty. Tap + to keep a clip.</span></div>
     <span class="count" id="count"></span>
   </div>
@@ -143,9 +144,9 @@ const IC={
  stop:'<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>'};
 const WAYS=[["long","KEEP WATCHING","var(--long)"],["ans","ANSWER","var(--ans)"],["echo","ECHO","var(--echo)"],["else","ELSEWHERE","var(--else)"]];
 /* narrators: Kokoro voices, read in the browser */
-const NARR=[["am_michael","Michael","US"],["bm_george","George","UK"],["am_fenrir","Fenrir","US"],["bm_fable","Fable","UK"],["af_heart","Heart","US"],["af_bella","Bella","US"],["am_onyx","Onyx","US"],["bf_isabella","Isabella","UK"]];
+const NARR=[["bm_george","George","UK"],["am_michael","Michael","US"],["am_fenrir","Fenrir","US"],["bm_fable","Fable","UK"],["af_heart","Heart","US"],["af_bella","Bella","US"],["am_onyx","Onyx","US"],["bf_isabella","Isabella","UK"]];
 let C=null,UT=null,PRE="",TYPES=[];
-let cur=null,hist=[],reel=[],sel=-1,alt={long:0,ans:0,echo:0,else:0},SOUND=true,started=false,PLAYING=0,lastVoice="am_michael";
+let cur=null,hist=[],reel=[],sel=-1,alt={long:0,ans:0,echo:0,else:0},SOUND=true,started=false,PLAYING=0,lastVoice="bm_george";
 const full=v=>/^https?:/.test(v)?v:PRE+v;
 const thumbOf=v=>{v=full(v);return /\/clips\/[0-9a-f-]{36}\.mp4$/.test(v)?v.replace(/\/clips\/([0-9a-f-]{36})\.mp4$/,"/thumbnails/$1.jpg"):null};
 const pv=(v,t=.6)=>{const th=thumbOf(v);return th?`<img loading="lazy" alt="" src="${esc(th)}" onerror="this.outerHTML='<video muted playsinline preload=metadata src=&quot;${esc(full(v))}#t=${t}&quot;></video>'">`:`<video muted playsinline preload="metadata" src="${esc(full(v))}#t=${t}"></video>`};
@@ -212,13 +213,65 @@ let TTS=null,ttsP=null;const AUD=new Map();
 function loadTTS(st){if(ttsP)return ttsP;ttsP=(async()=>{st&&st("loading the narrators (about 90 MB, once)");const m=await import("https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm");
   TTS=await m.KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX",{dtype:"q8",device:"wasm"});return TTS})().catch(e=>{ttsP=null;throw e});return ttsP}
 async function voiceOf(text,voice,st){const key=voice+"|"+text;if(AUD.has(key))return AUD.get(key);await loadTTS(st);st&&st("reading the line");
-  const a=await TTS.generate(text,{voice});const url=URL.createObjectURL(a.toBlob());AUD.set(key,url);return url}
-function drafts(it,i){const r=R(rowOf(it)),y=r[2],t=r[1],out=[];
-  out.push(["PLACE IT",`${y?`In ${y}, `:""}a film called ${t}.`]);
-  if(it.k==="u")out.push(["TURN",`But someone in ${t} answers.`]);
-  const prev=i>0?reel[i-1]:null;if(prev){const p=R(rowOf(prev));if(p[1]!==t)out.push(["CONNECT",`At the same time${y?`, in ${y}`:""}, another film was being made.`])}
+  const a=await TTS.generate(text,{voice,speed:.9});const url=URL.createObjectURL(a.toBlob());AUD.set(key,url);return url}
+/* ---------- the narrator: written from what the footage shows (its caption), what its people say, its film and year,
+   and where the edit goes (the same film running on, an answer, a jump in time). It never names what is not on screen. ---------- */
+const VERB={sitting:["sit","sits"],standing:["stand","stands"],holding:["hold","holds"],working:["work","works"],walking:["walk","walks"],talking:["talk","talks"],
+ speaking:["speak","speaks"],looking:["look","looks"],playing:["play","plays"],riding:["ride","rides"],driving:["drive","drives"],flying:["fly","flies"],running:["run","runs"],
+ wearing:["wear","wears"],dancing:["dance","dances"],smiling:["smile","smiles"],eating:["eat","eats"],using:["use","uses"],making:["make","makes"],reading:["read","reads"],
+ writing:["write","writes"],laying:["lie","lies"],lying:["lie","lies"],swimming:["swim","swims"],carrying:["carry","carries"],pointing:["point","points"],giving:["give","gives"],
+ cooking:["cook","cooks"],waiting:["wait","waits"],watching:["watch","watches"],singing:["sing","sings"],painting:["paint","paints"],cutting:["cut","cuts"],building:["build","builds"],
+ pushing:["push","pushes"],pulling:["pull","pulls"],climbing:["climb","climbs"],jumping:["jump","jumps"],kneeling:["kneel","kneels"],posing:["pose","poses"],taking:["take","takes"],
+ sleeping:["sleep","sleeps"],crossing:["cross","crosses"],performing:["perform","performs"],marching:["march","marches"],fixing:["fix","fixes"],hanging:["hang","hangs"],
+ leaning:["lean","leans"],floating:["float","floats"],moving:["move","moves"],coming:["come","comes"],going:["go","goes"],getting:["get","gets"],shaking:["shake","shakes"],
+ typing:["type","types"],teaching:["teach","teaches"],learning:["learn","learns"],laughing:["laugh","laughs"],sailing:["sail","sails"],landing:["land","lands"],
+ taking_off:["take off","takes off"],parked:["stand parked","stands parked"],covered:["lie covered","lies covered"],surrounded:["stand surrounded","stands surrounded"]};
+const PLURAL=/\b(people|men|women|children|kids|boys|girls|group|couple|crowd|family|soldiers|workers|students|two|three|four|several|many|bunch|flock|herd|team|cars|planes|birds)\b/;
+function sentence(c){if(!c)return"";c=c.replace(/\s+/g," ").trim().replace(/^(there is|there are)\s+/,"");
+  const m=c.match(/^(.*?)\s+(\w+ing|parked|covered|surrounded)\b(.*)$/);
+  if(m&&m[1].split(" ").length<=7){const v=VERB[m[2]];if(v){const pl=PLURAL.test(m[1]);c=`${m[1]} ${pl?v[0]:v[1]}${m[3]}`}}
+  c=c.replace(/\bin front of\b/g,"before").replace(/\s+,/g,",");return c.charAt(0).toUpperCase()+c.slice(1)+"."}
+const showsOf=it=>{const r=R(rowOf(it));return r[11]||""};
+const seenOf=it=>sentence(showsOf(it))||`${TYPES[R(rowOf(it))[4]].replace(/^./,x=>x.toUpperCase()).replace(/ \/ .*/,"")}.`;
+const lower=s=>s?s.charAt(0).toLowerCase()+s.slice(1):s;
+const NUMW=["no","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen","twenty"];
+const yearsWord=n=>n<=20?NUMW[n]:n<30?"twenty-odd":n<40?"thirty-odd":n<50?"forty-odd":n<60?"fifty-odd":"more than sixty";
+const sameFilm=(a,b)=>a&&b&&R(rowOf(a))[1]===R(rowOf(b))[1];
+function moveOf(it,i,list){const prev=i?list[i-1]:null;
+  if(!prev)return"locate";if(sameFilm(prev,it))return"stay";if(it.k==="u")return"turn";
+  const y0=R(rowOf(prev))[2],y1=R(rowOf(it))[2];if(y0&&y1&&Math.abs(y1-y0)>=8)return"connect";return"explain"}
+function linesFor(it,i,list){const r=R(rowOf(it)),t=r[1],y=r[2],seen=seenOf(it),said=saysOf(it),prev=i?list[i-1]:null,mv=moveOf(it,i,list),out=[];
+  const y0=prev?R(rowOf(prev))[2]:null,d=y&&y0?y-y0:null;
+  if(mv==="locate"){out.push(`${y?`This is ${y}. `:""}${seen}`);out.push(`${seen} It was filmed${y?` in ${y}`:""} for a film called ${t}.`);out.push(`${y?`In ${y}, `:""}someone pointed a camera at this. ${seen}`)}
+  if(mv==="stay"){out.push("");out.push("The camera keeps running.");out.push(`And then: ${lower(seen)}`)}
+  if(mv==="turn"){out.push(`But in another film${d?`, made ${yearsWord(Math.abs(d))} years ${d>0?"later":"earlier"}`:""}, someone answers.`);out.push(`But listen to what someone says in ${t}.`);out.push("But that is not how everyone saw it.")}
+  if(mv==="connect"){out.push(`${yearsWord(Math.abs(d)).replace(/^./,x=>x.toUpperCase())} years ${d>0?"later":"earlier"}, in another film: ${lower(seen)}`);out.push(`${d>0?"Later":"Earlier"}, in ${y}, someone filmed this. ${seen}`);out.push(`Meanwhile, ${y?`in ${y}, `:""}${lower(seen)}`)}
+  if(mv==="explain"){out.push(`At the same time${y?`, in ${y}`:""}, ${lower(seen)}`);out.push(`${seen} The film was called ${t}.`);out.push(`And ${lower(seen)}`)}
+  if(said&&mv!=="turn")out.push("");   // let the people in it speak for themselves
+  return {move:mv,opts:[...new Set(out)]}}
+function drafts(it,i){const L=linesFor(it,i,reel),names={locate:"PLACE IT",stay:"KEEP WATCHING",turn:"TURN",connect:"CONNECT",explain:"EXPLAIN"};
+  const out=L.opts.filter(Boolean).map(t=>[names[L.move],t]);
+  out.push(["WHAT IT SHOWS",seenOf(it)]);
   if(saysOf(it))out.push(["LET IT SPEAK","(no line: the people in the footage say it)"]);
   return out}
+/* the edit writes the narration: every kept clip gets a line from what it shows and where the reel goes; where people speak, the narrator mostly keeps quiet */
+function writeAll(){if(!reel.length)return toast("Keep a few clips first");
+  let quiet=0;const plan=reel.map((it,i)=>{const L=linesFor(it,i,reel);let pick=0;
+    if(saysOf(it)&&!["locate","turn","connect"].includes(L.move)&&quiet<2){pick=L.opts.indexOf("");quiet++}else quiet=0;
+    if(L.move==="stay")pick=0;return {...L,pick:Math.max(0,pick)}});
+  const NAMES={locate:"PLACE IT",stay:"KEEP WATCHING",turn:"TURN",connect:"CONNECT",explain:"EXPLAIN"};
+  const draw=()=>{$("wl").innerHTML=plan.map((p,i)=>`<div class="draft" style="display:flex;gap:8px;align-items:flex-start"><div style="flex:1"><small>${i+1} · ${NAMES[p.move]}${saysOf(reel[i])?" · SPEAKS":""}</small>${p.opts[p.pick]?esc(p.opts[p.pick]):'<span style="color:var(--dim)">(silence: the footage carries it)</span>'}</div><button class="ib" data-cy="${i}" aria-label="Another line for ${i+1}" style="width:34px;height:34px"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg></button></div>`).join("")};
+  let voice=lastVoice==="am_michael"?"bm_george":lastVoice;
+  sheet(`<h3><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/></svg> THE EDIT WRITES THE NARRATION<button class="ib x" data-close aria-label="Close">${IC.x}</button></h3>
+   <p style="color:var(--dim);font-size:12px">Written from what each clip shows and says, and where your reel goes: the same film running on, an answer, a jump in years. Where people speak, the narrator keeps out of the way. Tap ↻ for another line.</p>
+   <div class="scroll" id="wl"></div>
+   <div class="voices">${NARR.map(([id,n,a])=>`<button class="vo${id===voice?" on":""}" data-v="${id}">${IC.mic}<span>${n}</span><small>${a}</small></button>`).join("")}</div>
+   <div class="row"><button class="btn pri" data-a="use">USE THESE LINES</button><span class="status" id="wst"></span></div>`,
+   a=>{if(a==="use"){plan.forEach((p,i)=>{const t=p.opts[p.pick]||"";reel[i].line=t||null;reel[i].voice=voice});lastVoice=voice;drawReel();closeSheet();toast("Narration written · rendering voices");
+     (async()=>{for(const it of reel)if(it.line)try{await voiceOf(it.line,it.voice)}catch(e){break}})()}});
+  draw();
+  $("sheet").onclick=e=>{const c=e.target.closest("[data-cy]");if(c){const p=plan[+c.dataset.cy];p.pick=(p.pick+1)%p.opts.length;draw()}
+    const v=e.target.closest("[data-v]");if(v){voice=v.dataset.v;document.querySelectorAll(".vo").forEach(x=>x.classList.toggle("on",x===v))}}}
 function sayFor(i){if(i==null){if(!cur)return;reel.push({...cur});i=reel.length-1;sel=i;drawReel()}
   const it=reel[i];let voice=it.voice||lastVoice;
   sheet(`<h3>${IC.mic} A LINE OVER ${i+1}<button class="ib x" data-close aria-label="Close">${IC.x}</button></h3>
@@ -243,7 +296,7 @@ $("sheet").addEventListener("click",e=>{if(e.target.closest("[data-close]"))retu
 $("info").onclick=()=>sheet(`<h3>HOW RUSHES WORKS<button class="ib x" data-close aria-label="Close">${IC.x}</button></h3><div class="scroll" style="color:var(--dim);font-size:12.5px;line-height:1.5">
   <p>The film starts from footage, not a script. Every clip in the archive (19,821 of them) offers four ways on, worked out from the clip itself:</p>
   <p><b style="color:var(--long)">KEEP WATCHING</b> the clip that follows it in its own film, past the useful moment.<br><b style="color:var(--ans)">ANSWER</b> a voice from another film that answers what this clip says (or shows), preferring one that doubts, refuses or asks.<br><b style="color:var(--echo)">ECHO</b> the nearest picture from another film: what most of the lab's films do.<br><b style="color:var(--else)">ELSEWHERE</b> the nearest picture among the image types the lab's films leave out, from clips none of them has used.</p>
-  <p>Tap + to keep a clip. Tap the microphone to say a line over it, in one of eight narrator voices, or let the footage speak. When the line and the picture disagree, change the line. Then play the reel, and share it as a link.</p>
+  <p>Tap + to keep a clip. Tap the pen and the edit writes the narration: a line for each clip from what it shows and says and where the reel goes (the same film running on, an answer, a jump in years), in a documentary voice, keeping quiet where people speak. Or tap the microphone to say a line over one clip, in one of eight narrator voices, or let the footage speak. When the line and the picture disagree, change the line. Then play the reel, and share it as a link.</p>
   <p>Built from the lab's archive: <a style="color:var(--gold)" href="recurring-cast.html">the Recurring Cast</a> counts what the films use; <a style="color:var(--gold)" href="talk-back.html">the Talk-Back Desk</a> starts from an essay instead. <a style="color:var(--gold)" href="index.html">The lab</a>.</p></div>`);
 $("find").onclick=()=>{sheet(`<h3>FIND FOOTAGE<button class="ib x" data-close aria-label="Close">${IC.x}</button></h3><input type="search" id="q" placeholder="what it's called, or what someone says in it" autocomplete="off"><div class="scroll" id="hits"></div>`);
   const q=$("q");q.focus();q.oninput=()=>{const s=q.value.trim().toLowerCase();if(s.length<3){$("hits").innerHTML="";return}
@@ -303,7 +356,7 @@ async function playReel(){if(!reel.length)return toast("Keep a clip first");if(P
       if(t>=clipEnd||v.ended||stall>25||(performance.now()-t0)/1000>Math.max(clipEnd-start,floor)+6)return r();setTimeout(tick,80)};tick()});
     if(sp)duck(BED,1.2)}
   if(PLAYING===run){await wait(1200,run);stopReel();toast("The end")}}
-$("play").onclick=playReel;$("scoreb").onclick=scoreSheet;
+$("play").onclick=playReel;$("scoreb").onclick=scoreSheet;$("write").onclick=writeAll;
 
 /* ---------- share: the reel travels in the link ---------- */
 const enc=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");

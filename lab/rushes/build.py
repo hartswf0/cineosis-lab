@@ -117,14 +117,16 @@ need = sorted({int(g) for g in ANS.flatten() if g >= 0} | set(says.values()))
 ui = {g: n for n, g in enumerate(need)}
 short = lambda v: v[len(PRE):] if v.startswith(PRE) else v
 utts = [[ui and short(meta[keys[GCLIP[g]]]["video"]), U[good[g]][1], U[good[g]][2], U[good[g]][3]] + [int(GCLIP[g])] for g in need]
+CAPF = os.path.join(H, "captions.json"); CAP = json.load(open(CAPF)) if os.path.exists(CAPF) else {}
 rows = []
 for i, k in enumerate(keys):
     m = meta[k]
     rows.append([short(m["video"]), (m["title"] or "")[:72], m["year"], round(m["dur"], 1), int(TY[i]), int(USED[i]), int(NEXT[i]),
-                 ui[says[i]] if i in says else -1, [int(x) for x in ECHO[i] if x >= 0], [int(x) for x in ELSE[i] if x >= 0], [ui[int(x)] for x in ANS[i] if x >= 0]])
+                 ui[says[i]] if i in says else -1, [int(x) for x in ECHO[i] if x >= 0], [int(x) for x in ELSE[i] if x >= 0], [ui[int(x)] for x in ANS[i] if x >= 0], CAP.get(k, "")])
 starts = [i for i, r in enumerate(rows) if r[7] >= 0 and r[6] >= 0 and len(r[10]) == 3 and len(r[9]) and not END[i] and r[3] >= 4]
-json.dump({"pre": PRE, "types": names, "cols": ["video", "title", "year", "dur", "type", "used", "next", "says", "echo", "else", "ans"], "rows": rows, "starts": starts},
+json.dump({"pre": PRE, "types": names, "cols": ["video", "title", "year", "dur", "type", "used", "next", "says", "echo", "else", "ans", "shows"], "rows": rows, "starts": starts},
           open(os.path.join(H, "clips.json"), "w"), ensure_ascii=False, separators=(",", ":"))
+json.dump({"keys": keys, "starts": starts}, open(os.path.join(H, "keys.json"), "w"))   # clip ids, in row order (for caption.py; not published)
 json.dump({"pre": PRE, "cols": ["video", "t0", "t1", "s", "clip"], "utts": utts}, open(os.path.join(H, "utts.json"), "w"), ensure_ascii=False, separators=(",", ":"))
 print(N, "clips ·", len(utts), "voices ·", len(starts), "good starts ·", os.path.getsize(os.path.join(H, "clips.json")) // 1024, "KB +", os.path.getsize(os.path.join(H, "utts.json")) // 1024, "KB")
 for i in starts[:3]:
