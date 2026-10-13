@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How the Image Becomes Operative</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="explain/film.css?v=1">
+<!-- HOW THE IMAGE BECOMES OPERATIVE — Part II of the lab's film about itself. Part I (how-it-sees.html) showed how the models learned.
+     This part follows the image into operations: how a colour becomes a number, how 45 questions are asked of a shot, what a segment
+     is, how the Odyssey, the Norse house, the Republic and WYGWYL decide what to show and say, what no model sees, how few words they
+     have, what the archive is made of, what is brittle, what it all costs, and what has not been tried. Every number is the lab's own
+     (explain/build2.py, build3.py → explain/film2.json; costs measured on this machine → explain/costs.json). -->
+<style>
+.wheel { position: absolute; }
+.wheel line, .wheel path { transition: all 1.4s cubic-bezier(.2,.7,.2,1); }
+.readout { position: absolute; font: 600 96px var(--serif); color: var(--gold); }
+.readout small { display: block; font: 16px var(--mono); color: var(--dim); letter-spacing: .12em; }
+.swatches { position: absolute; display: flex; gap: 14px; }
+.swatches div { width: 120px; opacity: 0; animation: up .8s ease forwards; } .swatches i { display: block; height: 90px; border-radius: 4px; } .swatches span { font: 15px var(--mono); color: var(--dim); display: block; margin-top: 6px; }
+.strip { position: absolute; left: 60px; right: 60px; display: flex; gap: 2px; } .strip i { flex: 1; aspect-ratio: 3/4; background-size: cover; background-position: center; opacity: 0; animation: fade .4s ease forwards; }
+.ladder { position: absolute; left: 140px; right: 140px; top: 170px; display: flex; flex-direction: column; gap: 22px; }
+.ladder div { display: grid; grid-template-columns: 260px 1fr 150px; align-items: center; gap: 20px; opacity: 0; animation: up .9s ease forwards; font: 26px var(--serif); }
+.ladder i { height: 34px; background: #1a1916; border-radius: 4px; position: relative; } .ladder i b { position: absolute; inset: 0 auto 0 0; border-radius: 4px; width: 0; transition: width 2s cubic-bezier(.2,.7,.2,1); }
+.ladder em { font: 600 30px var(--mono); font-style: normal; text-align: right; }
+.phr { position: absolute; left: 140px; right: 140px; top: 150px; display: flex; flex-direction: column; gap: 14px; }
+.phr p { margin: 0; font: 30px/1.25 var(--serif); color: var(--word); opacity: 0; animation: up .8s ease forwards; } .phr p.hit { color: var(--gold); }
+.chain { position: absolute; left: 50px; right: 50px; top: 120px; display: flex; gap: 12px; align-items: stretch; }
+.chain > div { flex: 1; border: 1px solid #2a2722; background: #0c0b09; padding: 12px; opacity: 0; animation: up .9s ease forwards; position: relative; min-width: 0; }
+.chain > div::after { content: '→'; position: absolute; right: -14px; top: 40%; color: var(--gold); font-size: 22px; }
+.chain > div:last-child::after { content: ''; }
+.chain small { display: block; font: 600 12px var(--mono); letter-spacing: .14em; color: var(--gold); margin-bottom: 8px; } .chain p { margin: 0; font: 19px/1.3 var(--serif); } .chain img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; margin-top: 6px; }
+.formula { position: absolute; left: 120px; right: 120px; top: 150px; display: flex; flex-direction: column; gap: 16px; }
+.formula div { display: grid; grid-template-columns: 120px 1fr; gap: 20px; align-items: baseline; opacity: 0; animation: up .8s ease forwards; } .formula b { font: 600 34px var(--mono); color: var(--gold); text-align: right; } .formula span { font: 27px/1.3 var(--serif); }
+.quad { position: absolute; inset: 40px 60px 150px; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 12px; }
+.quad figure { margin: 0; position: relative; background: #050505; overflow: hidden; border: 1px solid #222; } .quad video, .quad img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.quad figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 12px; background: linear-gradient(transparent, rgba(0,0,0,.9)); font: 15px/1.3 var(--mono); } .quad figcaption b { color: var(--gold); letter-spacing: .12em; text-transform: uppercase; } .quad figcaption em { display: block; color: var(--dim); font-style: normal; font-size: 13px; }
+.poem { position: absolute; left: 80px; right: 80px; bottom: 40px; font: italic 28px/1.3 var(--serif); color: #e6dfd2; text-align: center; }
+.cloud { position: absolute; inset: 120px 120px 170px; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 10px 26px; }
+.cloud span { font-family: var(--serif); opacity: 0; animation: up .8s ease forwards; color: #e6dfd2; }
+.count4 { position: absolute; left: 120px; right: 120px; top: 230px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; text-align: center; }
+.count4 div { opacity: 0; animation: up .9s ease forwards; } .count4 b { display: block; font: 600 140px/1 var(--serif); color: var(--gold); } .count4 span { font: 22px var(--mono); color: var(--dim); }
+.hbars { position: absolute; display: flex; flex-direction: column; gap: 12px; }
+.hbars div { display: grid; grid-template-columns: 300px 1fr 160px; gap: 16px; align-items: center; font: 22px var(--serif); opacity: 0; animation: up .7s ease forwards; }
+.hbars i { height: 22px; background: #15130f; border-radius: 3px; position: relative; } .hbars i b { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 3px; background: var(--pic); transition: width 1.8s cubic-bezier(.2,.7,.2,1); }
+.hbars em { font: 18px var(--mono); color: var(--ink); font-style: normal; text-align: right; }
+.links { position: absolute; left: 120px; right: 120px; top: 150px; display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; }
+.links i { height: 80px; border: 2px solid #3a352d; border-radius: 40px; opacity: 0; animation: fade .5s ease forwards; } .links i.crack { border-color: #ff5a4e; transform: rotate(12deg); transition: transform .6s; }
+.fails { position: absolute; inset: 120px 90px 170px; display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+.fails div { border: 1px solid #3a2a26; background: #0d0908; padding: 18px 22px; opacity: 0; animation: up .8s ease forwards; } .fails small { display: block; font: 600 13px var(--mono); letter-spacing: .14em; color: #ff8a7e; margin-bottom: 8px; } .fails p { margin: 0; font: 26px/1.3 var(--serif); } .fails em { display: block; margin-top: 8px; font: 15px var(--mono); color: var(--dim); font-style: normal; }
+.todo { position: absolute; inset: 100px 90px 150px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 40px; align-content: start; }
+.todo div { opacity: 0; animation: up .7s ease forwards; border-left: 3px solid var(--c, var(--ours)); padding: 4px 14px; } .todo b { display: block; font: 600 22px var(--serif); } .todo span { font: 17px/1.35 var(--serif); color: #d8d0c2; } .todo em { font: 12px var(--mono); color: var(--ours); font-style: normal; letter-spacing: .08em; }
+.subline { position: absolute; left: 140px; right: 140px; bottom: 70px; text-align: center; font: 36px/1.3 var(--serif); text-shadow: 0 2px 10px #000; }
+.subline span { background: rgba(0,0,0,.55); padding: 2px 12px; } .subline small { display: block; font: 15px var(--mono); color: var(--dim); margin-bottom: 6px; letter-spacing: .1em; }
+.score { position: absolute; right: 50px; top: 40px; background: rgba(0,0,0,.82); border: 1px solid #333; padding: 12px 16px; font: 16px var(--mono); color: var(--dim); text-align: right; } .score b { display: block; font: 600 44px var(--serif); color: var(--gold); }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage"></div></div>
+<div id="bar"><button id="bPrev" title="previous (←)">‹</button><button id="bPlay" title="play / pause (space)">❚❚</button><button id="bNext" title="next (→)">›</button><div id="chs"></div><span id="time"></span><button id="bSnd" title="sound">♪ on</button></div>
+<div id="start"><div><h1>How the Image Becomes Operative</h1><p>Part II. What the lab does to a moving image: how a colour becomes a number, how a shot is asked its questions, how our films decide what to show and say, what no machine sees, what is brittle, and what it all costs. About eight minutes, with sound.</p><b>▶ Watch</b></div></div>
+<audio id="score" preload="auto"></audio><audio id="voice" preload="auto"></audio>
+<script>
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const esc = t => String(t ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+const DOMC = { perception: '#e9d9a8', affect: '#f0b9a4', action: '#e7a37c', reflection: '#b9cfa0', mental: '#a9c9c9', break: '#d9d3c7', time: '#b8b3d8', read: '#d9b8d2' };
+const fmt = n => Number(n).toLocaleString('en-US');
+let F, P1, S, beats = [], cur = -1, timer = 0, paused = false, sound = true, tok = 0, t0 = 0, left = 0;
+const stage = $('#stage'), score = $('#score'), voice = $('#voice');
+const say = (lines, cls = '') => `<div class="say ${cls}">${lines.map((l, i) => `<span style="animation-delay:${.25 + i * 1.1}s">${l}</span>`).join('')}</div>`;
+const chip = (n, size = '') => { const s = S[n]; return s ? `<span class="chip" style="background:${DOMC[s.dom]};${size}">${esc(s.symbol)}</span>` : ''; };
+const vid = (src, t, cls = 'full', muted = true, style = '') => `<video class="${cls}" style="${style}" data-src="${esc(src)}" data-t="${t || 0}" ${muted ? 'muted' : 'data-snd="1"'} playsinline loop></video>`;
+function startVideos(el) { el.querySelectorAll('video[data-src]').forEach(v => { v.src = v.dataset.src; if (v.dataset.end) v.addEventListener('timeupdate', () => { if (v.currentTime > +v.dataset.end) v.currentTime = +v.dataset.t; }); v.addEventListener('loadedmetadata', () => { try { v.currentTime = +v.dataset.t || 0; } catch (e) { } if (v.dataset.snd && sound) { v.muted = false; v.volume = 1; } v.play().catch(() => { v.muted = true; v.play().catch(() => { }); }); }, { once: true }); }); }
+const later = (ms, f) => { const my = tok; setTimeout(() => { if (my === tok) f(); }, ms); };
+const raf = f => { const my = tok, t = performance.now(); const go = () => { if (my !== tok) return; if (f((performance.now() - t) / 1000) !== false) requestAnimationFrame(go); }; go(); };
+const typeIn = (el, text, cps = 30) => { const my = tok; let i = 0; el.classList.add('typed'); const step = () => { if (my !== tok) return; el.textContent = text.slice(0, ++i); if (i < text.length) setTimeout(step, 1000 / cps); else el.classList.remove('typed'); }; step(); };
+const duck = on => { score.volume = sound ? (on ? .06 : .3) : 0; };
+const grow = el => later(400, () => el.querySelectorAll('[data-w]').forEach(b => b.style.width = b.dataset.w + '%'));
+const hms = s => s < 90 ? `${Math.round(s)} s` : s < 5400 ? `${Math.round(s / 60)} min` : `${(s / 3600).toFixed(1)} h`;
+
+function build() {
+  const B = (ch, secs, html, after, opt = {}) => beats.push({ ch, secs, html, after, ...opt });
+  const Hc = F.hue[0], Hs = F.hue[1], seed = P1.seed, rd = seed.reading, T = F.total;
+  /* 1 · A COLOUR IS A NUMBER */
+  B('A colour is a number', 7, () => `${vid(F.colour_card.video, F.colour_card.t, 'full ken')}${say(['Colour, as the lab counts it.'], 'small')}<div class="credit">${esc(Hc.title)} ${esc(Hc.year || '')}</div>`, el => startVideos(el));
+  const pixCanvas = (mode) => `<canvas id="px" width="1600" height="900" style="position:absolute;inset:0"></canvas>`;
+  const drawPix = (el, phase) => { const g = $('#px', el).getContext('2d'), px = Hc.px, lab = Hc.lab, N = lab.length, cell = 10, gx = 120, gy = 190;
+    const cnt = [0, 0, 0, 0, 0], slot = lab.map(k => cnt[k]++), per = 28;
+    raf(t => { const k = phase === 0 ? 1 : Math.min(1, Math.max(0, (t - .8) / 3.2)), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; g.fillStyle = '#000'; g.fillRect(0, 0, 1600, 900);
+      for (let i = 0; i < N; i++) { const x0 = gx + (i % 64) * cell, y0 = gy + Math.floor(i / 64) * cell, c = lab[i], s = slot[i], x1 = 840 + c * 148 + (s % per) * 5, y1 = 190 + Math.floor(s / per) * 5;
+        const x = x0 + (x1 - x0) * e, y = y0 + (y1 - y0) * e, sz = cell - 1 - (cell - 5.5) * e; g.fillStyle = `rgb(${px[i * 3]},${px[i * 3 + 1]},${px[i * 3 + 2]})`; g.fillRect(x, y, sz, sz); }
+      if (phase && k >= 1) { Hc.cols.forEach((c, j) => { g.fillStyle = c; g.fillRect(840 + j * 148, 720, 130, 60); g.fillStyle = '#cfc8ba'; g.font = '16px IBM Plex Mono'; g.fillText(`${Math.round(Hc.share[j] * 100)}%`, 840 + j * 148, 805); }); return false; }
+      return phase ? true : false; }); };
+  B('A colour is a number', 8, () => `${pixCanvas()}<div class="label" style="position:absolute;left:120px;top:150px">the frame at 64 × 48: 3,072 pixels</div>${say(['First the frame is shrunk:', '64 by 48 squares. 3,072 pixels.'], 'small')}`, el => drawPix(el, 0));
+  B('A colour is a number', 11, () => `${pixCanvas()}<div class="label" style="position:absolute;left:840px;top:150px">k-means: five colours</div>${say(['A sorting rule, k-means,', 'gathers them into five colours.'], 'corner')}`, el => drawPix(el, 1));
+  const wheel = (h, chain, show) => { const cx = 520, cy = 470, R = 300, sc = R / Math.max(.05, h.chroma) * .9; let ring = ''; for (let a = 0; a < 360; a += 6) ring += `<path d="M${cx + Math.cos(a * Math.PI / 180) * (R + 10)},${cy + Math.sin(a * Math.PI / 180) * (R + 10)} A${R + 10},${R + 10} 0 0 1 ${cx + Math.cos((a + 6) * Math.PI / 180) * (R + 10)},${cy + Math.sin((a + 6) * Math.PI / 180) * (R + 10)}" stroke="hsl(${a},70%,55%)" stroke-width="14" fill="none"/>`;
+    let x = cx, y = cy, arrows = '';
+    h.ang.forEach((a, j) => { const L = h.weight[j] * sc, dx = Math.cos(a * Math.PI / 180) * L, dy = Math.sin(a * Math.PI / 180) * L, sx = chain ? x : cx, sy = chain ? y : cy;
+      arrows += `<line class="ar" x1="${sx}" y1="${sy}" x2="${sx + dx}" y2="${sy + dy}" stroke="${h.cols[j]}" stroke-width="9" stroke-linecap="round"/>`; x += dx; y += dy; });
+    const res = show ? `<line x1="${cx}" y1="${cy}" x2="${cx + h.vec[0] * sc}" y2="${cy + h.vec[1] * sc}" stroke="#f2c14e" stroke-width="5" stroke-dasharray="10 6"/><circle cx="${cx + h.vec[0] * sc}" cy="${cy + h.vec[1] * sc}" r="12" fill="#f2c14e"/>` : '';
+    const thr = `<circle cx="${cx}" cy="${cy}" r="${.03 * sc}" fill="none" stroke="#ff8a7e" stroke-dasharray="4 6" stroke-width="2"/>`;
+    return `<svg class="wheel" width="1600" height="900" style="left:0;top:0">${ring}${chain === 'thr' ? thr : ''}${arrows}${res}<circle cx="${cx}" cy="${cy}" r="5" fill="#fff"/></svg>`; };
+  B('A colour is a number', 13, () => `<div id="wh">${wheel(Hc, false, false)}</div><img src="${esc(Hc.thumb)}" style="position:absolute;right:120px;top:110px;width:420px">
+      <div class="swatches" style="right:120px;top:450px">${Hc.cols.map((c, j) => `<div style="width:76px;animation-delay:${j * .2}s"><i style="background:${c};height:50px"></i><span>${Math.round(Hc.ang[j])}°</span></div>`).join('')}</div>
+      ${say(['Each colour pulls toward its hue on the wheel,', 'as hard as it is saturated, bright and large.'], 'corner')}`,
+    el => later(4500, () => { $('#wh', el).innerHTML = wheel(Hc, true, false); later(2500, () => { $('#wh', el).innerHTML = wheel(Hc, true, true); el.insertAdjacentHTML('beforeend', `<div class="readout fadein" style="right:200px;top:640px">${Hc.hue.toFixed(1)}°<small>the shot's hue: where the pulls add up</small></div>`); }); }));
+  B('A colour is a number', 11, () => `${wheel(Hs, 'thr', true)}<img src="${esc(Hs.thumb)}" style="position:absolute;right:120px;top:110px;width:420px">
+      <div class="readout fadein" style="right:150px;top:470px;font-size:72px;animation-delay:2s">no hue<small>the pulls add to ${Hs.chroma.toFixed(3)}; the line is 0.03 (red circle)</small></div>
+      ${say(['Black and white: the pulls add to almost nothing.', 'Below the line, the machine says: no colour.'], 'corner')}`);
+  B('A colour is a number', 10, () => `<div class="strip" style="top:150px">${F.hue_strip.map((h, i) => `<i style="background-image:url('${esc(h.thumb)}');animation-delay:${i * .04}s"></i>`).join('')}</div>
+      <div class="strip" style="top:330px;height:24px">${F.hue_strip.map(h => `<i style="aspect-ratio:auto;height:24px;background:hsl(${h.hue},65%,50%);animation-delay:1.5s"></i>`).join('')}</div>
+      <div class="panel fadein" style="left:60px;top:420px;animation-delay:2.5s;font:30px/1.3 var(--serif)"><b style="color:var(--gold);font-size:54px">${fmt(F.hue_stats.none)}</b> of ${fmt(T)} shots have <b>no hue at all</b>.</div>
+      ${say(['Hue orders the colour map and the colour filter.', 'Half the archive is invisible to it.'], 'small')}`);
+  B('A colour is a number', 8, () => say([`Run it again on the same frame: <b>${Hc.hue.toFixed(1)}°</b>.`, `The lab stored <b>${Hc.stored}°</b>.`, 'k-means starts from chance.'], 'mid'));
+  /* 2 · FORTY-FIVE QUESTIONS */
+  const aff = Object.fromEntries(P1.seed_aff), amax = Math.max(...P1.seed_aff.map(x => x[1]));
+  const table = (val, lit = []) => { const cols = Math.max(...P1.signs.map(s => s.col)) + 1; return `<div class="table" style="left:640px;top:110px;grid-template-columns:repeat(${cols},58px);gap:4px">${P1.signs.map(s => { const v = val ? val(s) : 1; return `<div class="t${lit.includes(s.n) ? ' lit' : ''}" style="width:58px;height:58px;font-size:20px;padding:4px;grid-column:${s.col + 1};grid-row:${s.row + 1};background:${DOMC[s.dom]};filter:brightness(${.25 + .9 * v}) saturate(${.3 + v});animation-delay:${s.col * .1}s">${esc(s.symbol)}</div>`; }).join('')}</div>`; };
+  B('Forty-five questions', 11, () => `<img src="${esc(seed.thumb)}" style="position:absolute;left:60px;top:120px;width:540px">${table(s => (aff[s.n] || 0) / amax)}${say(['The lab asks every shot 45 questions.', 'Brighter: closer, by CLIP.'], 'small')}`);
+  const ask = ['1', '4', '9', '14', '22', '32', '42', '5'];
+  B('Forty-five questions', 14, () => `<img src="${esc(seed.thumb)}" style="position:absolute;left:60px;top:120px;width:540px">${table(s => (aff[s.n] || 0) / amax)}<div class="panel" id="qq" style="left:60px;right:60px;bottom:50px;font:34px/1.3 var(--serif)"></div>`,
+    el => ask.forEach((n, i) => later(i * 1650, () => { el.querySelectorAll('.t').forEach(t => t.classList.toggle('lit', t.textContent.trim() === S[n].symbol)); $('#qq', el).innerHTML = `${chip(n, 'font-size:28px')} <b style="color:var(--gold)">${esc(S[n].question)}</b> <span style="color:var(--dim);font:24px var(--mono)">${(aff[n] || 0).toFixed(1)}%</span>`; })));
+  const sk = F.skew;
+  B('Forty-five questions', 12, () => `<div class="ladder">
+      <div style="animation-delay:.3s"><span>a machine pointer</span><i><b data-w="100" style="background:var(--word)"></b></i><em>${fmt(T)}</em></div>
+      <div style="animation-delay:1.6s"><span>found by a sign's search</span><i><b data-w="${sk.found / T * 100}" style="background:var(--pic)"></b></i><em>${fmt(sk.found)}</em></div>
+      <div style="animation-delay:2.9s"><span>read by the editor</span><i><b data-w="${Math.max(.6, sk.read / T * 100)}" style="background:var(--gold)"></b></i><em>${fmt(sk.read)}</em></div></div>
+      ${say(['Which sign a shot carries:', 'its reading if it has one; else the sign whose search found it;', 'else only a pointer.'], 'small')}`, grow);
+  B('Forty-five questions', 13, () => `<div class="label" style="position:absolute;left:140px;top:96px">Demark, asked as scenes the archive can search for · 8 of the ${F.nphrases} phrases</div><div class="phr">${F.phrases.map((p, i) => `<p class="${/sheep/.test(p) ? 'hit' : ''}" style="animation-delay:${.3 + i * .8}s">“${esc(p)}”</p>`).join('')}</div>`);
+  const rbs = Object.fromEntries(sk.read_by_sign);
+  B('Forty-five questions', 10, () => `${table(s => Math.min(1, (rbs[s.n] || 0) / 7))}<div class="panel fadein" style="left:60px;top:140px;width:520px;font:28px/1.35 var(--serif);animation-delay:1.5s">Each sign was read <b style="color:var(--gold)">five or six times</b>: as many as one contact sheet would keep.</div>`);
+  B('Forty-five questions', 11, () => say(['All 257 readings were written on one afternoon,', '24 September, within about forty minutes.', '<b>The files record when, not who. A first pass, not a last word.</b>'], 'mid small'));
+  /* 3 · WHAT COUNTS AS A THING */
+  const sam = P1.sam;
+  B('What counts as a thing', 12, () => `<img class="full" src="${esc(sam.frame)}" style="object-fit:contain;filter:brightness(.3)">${sam.objects.filter(o => o.png && o.bbox).map((o, i) => `<figure class="fadein" style="position:absolute;margin:0;left:${100 + i * 480}px;top:120px;width:440px;animation-delay:${i * 1.2}s"><img src="${esc(o.png)}" style="width:100%;height:300px;object-fit:contain;filter:drop-shadow(0 0 14px rgba(111,140,255,.8))"><figcaption style="font:30px var(--serif);color:var(--pic);text-align:center">“${esc(o.label)}”</figcaption></figure>`).join('')}
+      ${say(['SAM cut out three things. CLIP named them.', 'The flock became <b>“cloud”</b>. Something became <b>“weapon”</b>.'], 'small')}`);
+  B('What counts as a thing', 8, () => `${vid(seed.video, seed.t, 'full dimmed')}${say(['The reading was about a stray.', 'Nothing ever cut the stray out.'], 'mid')}`, el => startVideos(el));
+  /* 4 · INTO THE FILMS */
+  B('Into the films', 15, () => `<div class="chain">
+      <div style="animation-delay:.2s"><small>SOURCE</small><p>Amateur Film Northwest</p><img src="${esc(seed.thumb)}"></div>
+      <div style="animation-delay:1.4s"><small>READ</small>${chip(String(rd.n), 'font-size:22px')}<p style="margin-top:8px">${esc(rd.note)}</p></div>
+      <div style="animation-delay:2.8s"><small>CUT OUT</small><img src="${esc((sam.objects[0] || {}).png || seed.thumb)}" style="object-fit:contain;background:#111"></div>
+      <div style="animation-delay:4.4s"><small>ODYSSEY · BOOK 9</small><p>${esc(F.sheep[0].job.replace(/^\w+:\s*/, ''))}</p><p style="color:var(--dim);font-size:15px;margin-top:6px">the Cyclops' cave</p></div>
+      <div style="animation-delay:6s"><small>ODYSSEY · BOOK 11</small><p>${esc((F.sheep[1] || F.sheep[0]).job.replace(/^\w+:\s*/, ''))}</p><p style="color:var(--dim);font-size:15px;margin-top:6px">the sacrifice for the dead</p></div></div>
+      ${say(['One shot, two jobs in the Odyssey:', 'Polyphemus\'s flock, and the sheep at the edge of the dead.'], 'small')}`);
+  B('Into the films', 8, () => `${vid(seed.video, seed.t, 'full dimmed')}${say(['The scene asked for men in the wool.', 'There are no men. CLIP found the nearest flock.'], 'mid')}`, el => startVideos(el));
+  const O = F.odyssey, Ol = O.line;
+  B('Into the films', (Ol.aend - Ol.at) + 3.5, () => `${vid(O.pic.video, O.pic.in || 0, 'full')}<div class="score fadein" style="animation-delay:${Ol.aat - Ol.at + .5}s">match<b>${Ol.sc.toFixed(2)}</b>${esc(Ol.src)}</div><div class="subline" id="sl"></div><div class="credit">The Odyssey · ${esc(O.scene)}</div>`,
+    el => { startVideos(el); duck(true); voice.src = O.audio; voice.currentTime = 0; voice.addEventListener('loadedmetadata', () => { voice.currentTime = Ol.at; if (sound) voice.play().catch(() => { }); }, { once: true });
+      const sl = $('#sl', el); raf(() => { const t = voice.currentTime; sl.innerHTML = t < Ol.aat - .1 ? `<small>HOMER · ${esc(Ol.who)}</small><span>${esc(Ol.text)}</span>` : `<small style="color:var(--gold)">THE ARCHIVE ANSWERS</small><span style="color:#ffe39a">${esc(Ol.ans)}</span>`; }); }, { voice: true });
+  B('Into the films', 14, () => `<div class="formula">
+      <div style="animation-delay:.3s"><b>.72 ×</b><span>how close the archive's sentence is in meaning to Homer's (a sentence model)</span></div>
+      <div style="animation-delay:1.8s"><b>.34 ×</b><span>how many of the line's own words it says, and their kin</span></div>
+      <div style="animation-delay:3.3s"><b>± .05</b><span>whether the voice fits the part (CLAP hears man or woman)</span></div>
+      <div style="animation-delay:4.8s"><b>+ .12 ×</b><span>how well its sound follows the clip before (CLAP)</span></div>
+      <div style="animation-delay:6.3s"><b>− .15</b><span>if the sentence was already used</span></div></div>
+      ${say(['How a line of Homer chooses what the archive says back.'], 'small')}`);
+  const Cp = F.captain;
+  B('Into the films', 15, () => `<div class="panel" style="left:120px;right:120px;top:90px;font:30px/1.35 var(--serif)"><span class="label">the scene asks</span><br>${esc(Cp.asks)}</div>
+      <div style="position:absolute;left:120px;right:120px;top:330px;display:flex;flex-direction:column;gap:16px">${Cp.diagnosis.map((d, i) => `<p class="fadein" style="margin:0;font:27px/1.35 var(--serif);color:#ff9f8e;animation-delay:${1.5 + i * 2.2}s">— ${esc(d)}</p>`).join('')}</div>
+      ${say(['A critic pass watches the cut and writes down what is missing.'], 'small')}`);
+  const No = F.norse, Nl = No.line;
+  B('Into the films', (Nl.aend - Nl.at) + 3.5, () => `${vid(No.pic.video, No.pic.in || 0, 'full')}<div class="score fadein" style="animation-delay:${Nl.aat - Nl.at + .5}s">match<b>${Nl.sc.toFixed(2)}</b>${esc(Nl.src)}</div><div class="subline" id="sl"></div><div class="credit">Norse Half Moon · ${esc(No.scene)} · picture: ${esc((No.pic.video.match(/clips\/(\w{8})/) || [])[1] || '')}</div>`,
+    el => { startVideos(el); duck(true); voice.src = No.audio; voice.addEventListener('loadedmetadata', () => { voice.currentTime = Nl.at; if (sound) voice.play().catch(() => { }); }, { once: true });
+      const sl = $('#sl', el); raf(() => { const t = voice.currentTime; sl.innerHTML = t < Nl.aat - .1 ? `<small>THE VOICE MEMO</small><span>${esc(Nl.text)}</span>` : `<small style="color:var(--gold)">THE ARCHIVE ANSWERS</small><span style="color:#ffe39a">${esc(Nl.ans)}</span>`; }); }, { voice: true });
+  const Rp = F.republic;
+  B('Into the films', 6, () => `<div class="qbig" style="top:260px"><p class="label">The Republic · ${esc(Rp.episode)} · the script says</p><h2 style="color:var(--ink)">${esc(Rp.line.who)}: “${esc(Rp.line.text)}”</h2></div>`);
+  B('Into the films', (Rp.answer.t1 - Rp.answer.t0) + 4, () => `${vid(Rp.answer.v, Rp.answer.t0, 'full', false)}<div class="subline"><small style="color:var(--gold)">THE ARCHIVE SAYS IT INSTEAD · ${esc(Rp.answer.ti)} ${Rp.answer.y}</small><span style="color:#ffe39a">${esc(Rp.answer.s)}</span></div><div class="score">fit<b>${Rp.answer.fit.toFixed(2)}</b></div>`, el => { startVideos(el); duck(true); }, { sound: true });
+  const Tk = F.takes, NAMES = ['suite', 'scenes', 'cineosis', 'drift'];
+  Tk.moments.slice(0, 2).forEach((m, mi) => B('Into the films', mi ? 11 : 15, () => `<div class="quad">${NAMES.map((n, i) => `<figure>${vid(Tk.films[n], m.t0 + .3, '', !(i === 0), 'width:100%;height:100%;object-fit:cover').replace('<video', `<video data-end="${m.t1 - .2}"`)}<figcaption><b>${n}</b> · ${esc(m.takes[n].title)} ${esc(m.takes[n].year || '')}<em>${esc(m.takes[n].why)}</em></figcaption></figure>`).join('')}</div>
+      <div class="poem">“${esc(m.line)}”</div>${mi ? '' : `<div class="say corner" style="top:auto;bottom:120px;left:auto;right:70px;width:auto;font-size:22px;opacity:.9"><span>Where You Go When You Leave · one line, four takes</span></div>`}`, el => { startVideos(el); duck(true); }, { sound: true }));
+  B('Into the films', 13, () => `<div class="hbars" style="left:120px;top:110px;right:120px">${Object.entries(Tk.shared).map(([k, v], i) => `<div style="animation-delay:${i * .3}s"><span>${esc(k.replace('+', ' and '))}</span><i><b data-w="${v / 169 * 100 * 5}" style="background:var(--gold)"></b></i><em>${v} of 169</em></div>`).join('')}</div>
+      <div class="panel fadein" style="left:120px;right:120px;top:430px;font:25px/1.4 var(--serif);animation-delay:2s">${NAMES.map(n => `<b style="color:var(--gold);text-transform:uppercase;font:600 16px var(--mono)">${n}</b> ${esc(Tk.ideas[n])}`).join('<br>')}</div>
+      ${say(['The takes share almost nothing, by design:', 'a different rule for each, and a cost for reusing what an earlier take used.'], 'small')}`, grow);
+  /* 5 · WHAT NONE OF THEM SEES */
+  const motion = (m, i) => B('What none of them sees', i ? 9 : 15, () => `${vid(m.video, m.frames[0].t - 1 / m.fps, 'full')}<canvas id="fl" width="1600" height="900" style="position:absolute;inset:0"></canvas><canvas id="cv" width="1400" height="120" style="position:absolute;left:100px;bottom:30px;width:1400px;height:120px;background:rgba(0,0,0,.6)"></canvas>
+      ${i ? '' : say(['Nothing in the lab sees movement. Here is what moves:', 'every arrow points one way. It is the camera panning, not the sheep.'], 'top small')}`,
+    el => { startVideos(el); const v = el.querySelector('video'), g = $('#fl', el).getContext('2d'), c = $('#cv', el).getContext('2d'), fr = m.frames, mx = Math.max(...fr.map(f => f.m)), t0f = fr[0].t, t1f = fr.at(-1).t;
+      raf(() => { const t = v.currentTime; let k = fr.findIndex(f => f.t >= t); if (k < 0) k = fr.length - 1; const f = fr[k]; g.clearRect(0, 0, 1600, 900); g.strokeStyle = '#f2c14e'; g.lineWidth = 3;
+        for (let y = 0; y < m.gh; y++) for (let x = 0; x < m.gw; x++) { const j = (y * m.gw + x) * 2, dx = f.v[j], dy = f.v[j + 1], cx = (x + .5) * 1600 / m.gw, cy = (y + .5) * 900 / m.gh, s = 12; if (Math.hypot(dx, dy) < .15) continue;
+          g.globalAlpha = Math.min(1, .3 + Math.hypot(dx, dy) / 3); g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + dx * s, cy + dy * s); g.stroke(); g.beginPath(); g.arc(cx + dx * s, cy + dy * s, 3, 0, 7); g.fill && (g.fillStyle = '#f2c14e', g.fill()); }
+        g.globalAlpha = 1; c.clearRect(0, 0, 1400, 120); c.strokeStyle = '#f2c14e'; c.lineWidth = 2; c.beginPath(); fr.forEach((q, j) => { const x = (q.t - t0f) / (t1f - t0f) * 1400, y = 110 - q.m / mx * 100; j ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke();
+        const xn = (t - t0f) / (t1f - t0f) * 1400; c.fillStyle = '#fff'; c.fillRect(xn, 0, 2, 120); c.fillStyle = '#a8a196'; c.font = '14px IBM Plex Mono'; c.fillText('how much moves, frame by frame (optical flow)', 8, 18); }); });
+  F.motion.forEach(motion);
+  B('What none of them sees', 8, () => say([`A motion pass costs <b>${F.costs['motion / optical flow (per clip, 48 frames)'].toFixed(1)} seconds</b> a shot on this laptop:`, `about ${hms(F.costs['motion / optical flow (per clip, 48 frames)'] * T)} for the archive.`, 'It has not been run.'], 'mid small'));
+  /* 6 · FEW WORDS */
+  const V = F.vocab;
+  B('Few words', 10, () => `<div class="count4">${[[V.subjects, 'subjects'], [V.scales, 'shot scales'], [V.sounds, 'sounds'], [V.signs, 'signs']].map(([n, l], i) => `<div style="animation-delay:${i * .6}s"><b>${n}</b><span>${l}</span></div>`).join('')}</div>${say(['The machines answer only in the words we hand them.'], 'small')}`);
+  B('Few words', 11, () => { const mx = V.top[0][1]; return `<div class="cloud">${V.top.map(([w, n], i) => `<span style="font-size:${18 + 70 * Math.sqrt(n / mx)}px;animation-delay:${i * .12}s">${esc(w)}</span>`).join('')}</div>${say([`BLIP's own words: ${fmt(V.unique)} different ones across ${fmt(V.captions)} captions,`, `about ${Math.round(V.mean_len)} words a sentence.`], 'small')}`; });
+  B('Few words', 11, () => `<div class="hbars" style="left:140px;right:140px;top:140px">${[['man', V.gender.man], ['woman', V.gender.woman], ['men', V.gender.men], ['women', V.gender.women], ['“an old photo”', (V.phrases.find(p => p[0] === 'an old photo') || [0, V.old])[1]]].map(([w, n], i) => `<div style="animation-delay:${i * .4}s"><span>${esc(w)}</span><i><b data-w="${n / V.gender.man * 100}" style="background:${i === 4 ? 'var(--word)' : 'var(--pic)'}"></b></i><em>${fmt(n)}</em></div>`).join('')}</div>
+      ${say(['It sees men about three times as often as women,', 'and calls the past “an old photo”.'], 'small')}`, grow);
+  /* 7 · WHAT THE ARCHIVE IS */
+  B('What the archive is', 13, () => { const kt = sk.kinds.reduce((a, b) => a + b[1], 0); return `<div class="hbars" style="left:120px;right:820px;top:120px"><div class="label" style="display:block;opacity:1;animation:none">who paid for the films</div>${sk.kinds.slice(0, 6).map(([k, n], i) => `<div style="animation-delay:${i * .25}s;grid-template-columns:160px 1fr 70px"><span>${esc(k)}</span><i><b data-w="${n / kt * 100 * 2}"></b></i><em>${Math.round(n / kt * 100)}%</em></div>`).join('')}</div>
+      <div class="hbars" style="left:860px;right:120px;top:120px"><div class="label" style="display:block;opacity:1;animation:none">what they were made to do</div>${sk.acts.slice(0, 6).map(([k, n], i) => `<div style="animation-delay:${1.5 + i * .25}s;grid-template-columns:170px 1fr 70px"><span>${esc(k.toLowerCase())}</span><i><b data-w="${n / kt * 100 * 2}" style="background:var(--gold)"></b></i><em>${Math.round(n / kt * 100)}%</em></div>`).join('')}</div>
+      ${say(['Governments paid for more of it than anyone else,', 'and the commonest purpose is to promise something.'], 'small')}`; }, grow);
+  B('What the archive is', 11, () => say([`${fmt(F.hue_stats.none)} shots have no colour to the machine.`, `${fmt(sk.unheard)} make no sound it has heard.`, `${fmt(sk.unspoken)} say nothing it has written down; it only hears English.`], 'mid small'));
+  /* 8 · WHAT IS BRITTLE */
+  B('What is brittle', 10, () => `<div class="links">${Array.from({ length: 12 }, (_, i) => `<i style="animation-delay:${i * .12}s" data-i="${i}"></i>`).join('')}</div>${say(['Every step trusts the one before.', 'One wrong cut, one black thumbnail,', 'and every model after it reads the wrong frame.'], 'small')}`,
+    el => later(2600, () => { const l = el.querySelectorAll('.links i'); l[3].classList.add('crack'); for (let i = 4; i < 12; i++) later(2800 + (i - 4) * 120, () => l[i].style.borderColor = '#5a2a26'); }));
+  B('What is brittle', 13, () => `<div class="fails">
+      <div style="animation-delay:.3s"><small>COLOUR</small><p>The same frame: ${Hc.stored}° stored, ${Hc.hue.toFixed(1)}° today.</p><em>k-means starts from chance</em></div>
+      <div style="animation-delay:1.6s"><small>NAMES</small><p>A cut-out of the flock called “cloud”. Another called “weapon”.</p><em>CLIP chooses from a short list</em></div>
+      <div style="animation-delay:2.9s"><small>WORDS</small><p>“I stand on the floor to your proof.”</p><em>Whisper, on Start Up (1987)</em></div>
+      <div style="animation-delay:4.2s"><small>SOUND</small><p>Every silent clip once came out as “typing”.</p><em>silence copied into one identical CLAP vector; caught and dropped</em></div></div>`);
+  /* 9 · WHAT IT COSTS */
+  const C = F.costs, rows = [['CLIP', C['CLIP (per frame)']], ['DINO', C['DINOv2 (per frame)']], ['hue', C['hue (k-means, per frame)']], ['BLIP caption', C['BLIP caption (per frame)']], ['CLAP', C['CLAP (per clip, 10 s)']], ['motion', C['motion / optical flow (per clip, 48 frames)']], ['Whisper', C['Whisper base.en (per clip)']], ['SAM 2 tracking', C['SAM 2 track (per read shot, from file times)']]];
+  const lmax = Math.log10(rows.at(-1)[1] * T);
+  B('What it costs', 14, () => `<div class="hbars" style="left:120px;right:120px;top:110px">${rows.map(([n, s], i) => `<div style="animation-delay:${i * .35}s"><span>${n} <span style="color:var(--dim);font-size:15px">${s < 1 ? s.toFixed(3) : s.toFixed(1)} s a shot</span></span><i><b data-w="${Math.max(2, Math.log10(s * T) / lmax * 100)}" style="background:${i > 5 ? '#ff8a7e' : 'var(--pic)'}"></b></i><em>${hms(s * T)}</em></div>`).join('')}</div>
+      <div class="label" style="position:absolute;left:120px;top:560px">bars on a log scale: each step right is ten times longer</div>${say([`Each pass over all ${fmt(T)} shots, on one laptop.`], 'small')}`, grow);
+  B('What it costs', 11, () => `<div class="count4" style="grid-template-columns:1fr 1fr"><div><b>5 min</b><span>a careful reading of one shot (our estimate)</span></div><div style="animation-delay:1.2s"><b>${fmt(Math.round(T * 5 / 60))} h</b><span>to read the whole archive that way</span></div></div>
+      ${say(['About seven months of full-time work.', 'So we read 253, and let machines point at the rest.'], 'small')}`);
+  /* 10 · WHAT WE COULD DO */
+  const todo = [['Motion', 'optical flow: what moves, how fast, which way · the pass shown above', 'ready to run'], ['DINO', 'pictures without words: shape and texture neighbours', 'run for Part I · not a layer yet'], ['Any word, not 20', 'open-vocabulary detection (Grounding DINO, OWL-ViT)', 'models on this machine'], ['Cut out the stray', 'SAM 3 finds things from a phrase: “the one dark sheep”', 'model on this machine'],
+    ['Near and far', 'depth from one frame (Depth Anything)', 'model on this machine'], ['Voice apart from music', 'source separation (HTDemucs) before CLAP and Whisper listen', 'model on this machine'], ['Every language', 'Whisper large-v3-turbo instead of base.en', 'model on this machine'], ['Titles and intertitles', 'read the words on screen (OCR)', 'not yet'],
+    ['Rhythm', 'shot lengths across each whole source film: its cutting tempo', 'from data we have'], ['A second reader', 'two readings per shot, and where they disagree', 'a person']];
+  B('What we could do', 16, () => `<div class="todo">${todo.map(([b, s, e], i) => `<div style="animation-delay:${i * .45}s"><b>${esc(b)}</b><span>${esc(s)}</span><br><em>${esc(e)}</em></div>`).join('')}</div>`);
+  B('What we could do', 12, () => `<div class="todo" style="grid-template-columns:1fr;top:150px">
+      <div style="animation-delay:.3s;--c:var(--gold)"><b>Montage</b><span>nine recipes that cut by sign: mark into demark, binomial, peaks of present…</span><br><em>the explorer, key 7</em></div>
+      <div style="animation-delay:1.3s;--c:var(--gold)"><b>Syntagma</b><span>the WYGWYL cuts parsed into Christian Metz's eight kinds of sequence</span><br><em>syntagma.html</em></div>
+      <div style="animation-delay:2.3s;--c:var(--gold)"><b>Narrative chemistry</b><span>the 45 signs as atoms, cuts as bonds, each poem a compound</span><br><em>chemistry.html</em></div></div>
+      ${say(['The lab already cuts with its signs.', 'These are the operations to film next.'], 'small')}`);
+  B('What we could do', 30, () => `<div class="end"><h1>An image becomes operative<br>when a question is asked of it,<br><span style="color:var(--gold)">and someone checks the answer.</span></h1>
+      <nav><a href="how-it-sees.html">Part I · How the lab sees</a><a class="ghost" href="./#wall">Open the lab ↗</a><a class="ghost" href="chemistry.html">Chemistry ↗</a><a class="ghost" href="syntagma.html">Syntagma ↗</a></nav></div>
+      <div class="credit">Cineosis Lab · every number here is the lab's own, measured ${esc('13 October 2026')} · score: D-A-E</div>`);
+}
+/* ---------- the player (as Part I) ---------- */
+const CUES = ['dae-slide-carousel-at-blue-hour', 'dae-preparation-drift', 'dae-salvaged-room-traveling-light', 'republic-ordinary-magic', 'dae-snowbound-umea-cabin', 'dae-compass-spin-in-heavy-fog', 'dae-cold-current-paddle', 'dae-cedar-and-cassette', 'dae-salvaged-timber', 'dae-odin-above-the-breakers'];
+let chapters = [];
+function cue(ci) { const src = `score/cues/${CUES[ci % CUES.length]}.m4a`; if (score.dataset.src === src) return; score.dataset.src = src;
+  const v0 = score.volume, t = performance.now(); const out = () => { const k = Math.min(1, (performance.now() - t) / 900); score.volume = v0 * (1 - k); if (k < 1) requestAnimationFrame(out); else { score.src = src; score.currentTime = 0; duck(false); if (!paused) score.play().catch(() => { }); } }; out(); }
+function show(i) {
+  if (i < 0 || i >= beats.length) return; clearTimeout(timer); tok++; cur = i; const b = beats[i]; voice.pause();
+  stage.querySelectorAll('.beat').forEach(o => { o.classList.remove('on'); o.querySelectorAll('video').forEach(v => { v.pause(); v.muted = true; }); setTimeout(() => o.remove(), 1000); });
+  const el = document.createElement('div'); el.className = 'beat'; el.innerHTML = b.html(); stage.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
+  duck(false); if (b.after) b.after(el); cue(chapters.findIndex(c => c.name === b.ch));
+  left = b.secs * 1000; t0 = performance.now(); if (!paused) timer = setTimeout(() => show(i + 1), left); ui();
+}
+function ui() {
+  const done = beats.slice(0, cur).reduce((a, b) => a + b.secs, 0), tot = beats.reduce((a, b) => a + b.secs, 0);
+  document.querySelectorAll('#chs div').forEach((d, ci) => { const c = chapters[ci], cb = beats.filter(b => b.ch === c.name), first = beats.indexOf(cb[0]), passed = beats.slice(first, cur).reduce((a, b) => a + b.secs, 0);
+    d.classList.toggle('on', beats[cur] && beats[cur].ch === c.name); d.querySelector('i').style.width = Math.min(100, (cur > first + cb.length - 1 ? 1 : cur < first ? 0 : passed / c.secs) * 100) + '%'; });
+  const m = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`; $('#time').textContent = `${m(done)} / ${m(tot)}`;
+}
+function pause(p) { paused = p; $('#bPlay').textContent = p ? '▶' : '❚❚';
+  stage.querySelectorAll('.beat.on video').forEach(v => p ? v.pause() : v.play().catch(() => { })); p ? (score.pause(), voice.pause()) : (score.play().catch(() => { }), beats[cur] && beats[cur].voice && voice.play().catch(() => { }));
+  if (p) { clearTimeout(timer); left -= performance.now() - t0; } else { t0 = performance.now(); timer = setTimeout(() => show(cur + 1), Math.max(500, left)); } }
+function fit() { const W = innerWidth, H = innerHeight - 64, k = Math.min(W / 1600, H / 900); stage.style.transform = `translate(-50%, -50%) scale(${k})`; $('#wrap').style.height = H + 'px'; }
+addEventListener('resize', fit);
+addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); pause(!paused); } if (e.key === 'ArrowRight') show(cur + 1); if (e.key === 'ArrowLeft') show(cur - 1); });
+$('#bPlay').onclick = () => pause(!paused); $('#bNext').onclick = () => show(cur + 1); $('#bPrev').onclick = () => show(cur - 1);
+$('#bSnd').onclick = () => { sound = !sound; $('#bSnd').textContent = sound ? '♪ on' : '♪ off'; duck(false); voice.muted = !sound; stage.querySelectorAll('video').forEach(v => { if (!sound) v.muted = true; }); };
+(async function () {
+  fit(); [F, P1] = await Promise.all([fetch('explain/film2.json?v=1').then(r => r.json()), fetch('explain/film.json?v=1').then(r => r.json())]); S = Object.fromEntries(P1.signs.map(s => [s.n, s]));
+  build();
+  beats.forEach(b => { let c = chapters.find(c => c.name === b.ch); if (!c) chapters.push(c = { name: b.ch, secs: 0 }); c.secs += b.secs; });
+  $('#chs').innerHTML = chapters.map(c => `<div style="--w:${c.secs}"><i></i><span>${esc(c.name)}</span></div>`).join('');
+  document.querySelectorAll('#chs div').forEach((d, ci) => d.onclick = () => show(beats.findIndex(b => b.ch === chapters[ci].name)));
+  const q = new URLSearchParams(location.search), at = q.get('ch');
+  $('#start').onclick = () => { $('#start').remove(); score.volume = .3; show(at ? Math.max(0, beats.findIndex(b => b.ch.toLowerCase().startsWith(at.toLowerCase()))) : 0); };
+  if (q.has('auto')) $('#start').onclick();
+})();
+</script>
+</body>
+</html>
