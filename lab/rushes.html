@@ -84,6 +84,8 @@ textarea{min-height:64px;resize:none}
 .hit .th{width:72px;flex:none;aspect-ratio:16/10;border-radius:4px;overflow:hidden;background:#000}
 .hit .th img,.hit .th video{width:100%;height:100%;object-fit:cover}
 .hit span{font-size:12px}.hit em{display:block;font:italic 12.5px Georgia,serif;color:var(--dim)}
+.card{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;font:clamp(26px,8vw,54px)/1 'Arial Black',Impact,sans-serif;letter-spacing:.02em;color:#fff;background:rgba(0,0,0,.55);opacity:0;transition:opacity .8s;pointer-events:none}
+.card.on{opacity:1}
 .toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:var(--ink);color:#0b0a09;padding:8px 14px;border-radius:16px;font-size:12px;z-index:40;pointer-events:none}
 .status{font-size:11px;color:var(--gold)}
 .veil{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:29}
@@ -102,7 +104,7 @@ textarea{min-height:64px;resize:none}
   <div class="stage" id="stage">
     <video id="va" playsinline preload="auto"></video><video id="vb" playsinline preload="auto"></video>
     <div class="chip" id="chip"></div>
-    <div class="says" id="says"></div>
+    <div class="says" id="says"></div><div class="card" id="actcard"></div>
     <button class="fab keep" id="keep" aria-label="Keep this in the reel" title="Keep"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
     <button class="fab say" id="sayb" aria-label="Say a line over this" title="Say a line"><svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
     <button class="fab snd" id="snd" aria-label="Sound on or off" title="Sound"><svg viewBox="0 0 24 24" id="sndi"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg></button>
@@ -168,7 +170,7 @@ const IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="Mac
 function ramp(el,to,secs=.8){clearInterval(el._r);const from=el.volume,t0=performance.now();if(IOS){el.volume=1;el.muted=to<=.02||!SOUND||!started;return}
   el._r=setInterval(()=>{const k=Math.min(1,(performance.now()-t0)/(secs*1000));el.volume=Math.max(0,Math.min(1,from+(to-from)*k*k*(3-2*k)));if(k>=1)clearInterval(el._r)},40)}
 /* cut to a new picture: the new one fades up while the old one's sound fades away under it */
-function show(it,{vol=1,at=null,fade=.9}={}){const back=front===VA?VB:VA;back.muted=!SOUND||!started;back.volume=IOS?1:0;back.loop=false;
+function show(it,{vol=1,at=null,fade=.9}={}){const back=front===VA?VB:VA;setTimeout(()=>{if(back.paused&&back.classList.contains("on"))back.play().catch(()=>{back.muted=true;back.play().catch(()=>{})})},1200);back.muted=!SOUND||!started;back.volume=IOS?1:0;back.loop=false;
   return new Promise(res=>{let done=false;const go=()=>{if(done)return;done=true;try{back.currentTime=at!=null?at:inOf(it)}catch(e){}back.play().catch(()=>{});
       back.classList.add("on");front.classList.remove("on");const old=front;ramp(old,0,fade);setTimeout(()=>{old.pause()},fade*1000+150);ramp(back,vol,fade*.8);front=back;res(back)};
     back.src=full(vidOf(it));back.addEventListener("loadeddata",go,{once:true});setTimeout(go,3500)})}
@@ -212,7 +214,7 @@ function itemSheet(i){const it=reel[i];sheet(`<h3>${i+1} · ${esc(label(it))}<bu
 let TTS=null,ttsP=null;const AUD=new Map();
 function loadTTS(st){if(ttsP)return ttsP;ttsP=(async()=>{st&&st("loading the narrators (about 90 MB, once)");const m=await import("https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm");
   TTS=await m.KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX",{dtype:"q8",device:"wasm"});return TTS})().catch(e=>{ttsP=null;throw e});return ttsP}
-async function voiceOf(text,voice,st){const key=voice+"|"+text;if(AUD.has(key))return AUD.get(key);await loadTTS(st);st&&st("reading the line");
+async function voiceOf(text,voice,st,pre){const key=voice+"|"+text;if(AUD.has(key))return AUD.get(key);if(pre){AUD.set(key,pre);return pre}await loadTTS(st);st&&st("reading the line");
   const a=await TTS.generate(text,{voice,speed:.9});const url=URL.createObjectURL(a.toBlob());AUD.set(key,url);return url}
 /* ---------- the narrator: written from what the footage shows (its caption), what its people say, its film and year,
    and where the edit goes (the same film running on, an answer, a jump in time). It never names what is not on screen. ---------- */
@@ -242,6 +244,10 @@ function moveOf(it,i,list){const prev=i?list[i-1]:null;
   const y0=R(rowOf(prev))[2],y1=R(rowOf(it))[2];if(y0&&y1&&Math.abs(y1-y0)>=8)return"connect";return"explain"}
 function linesFor(it,i,list){const r=R(rowOf(it)),t=r[1],y=r[2],seen=seenOf(it),said=saysOf(it),prev=i?list[i-1]:null,mv=moveOf(it,i,list),out=[];
   const y0=prev?R(rowOf(prev))[2]:null,d=y&&y0?y-y0:null;
+  const S=r[12]>=0&&C.sources?C.sources[r[12]]:null,sp=S&&S[0]?(/^(U\.S\.|United States|Department|Office|Bureau|National|Federal)/.test(S[0])?"the "+S[0]:S[0]):S&&S[1]==="government"?"the United States government":null;
+  const pur=S&&S[2]?S[2].replace(/^This (\d{4} )?((U\.S\. government|archival|black-and-white|color|short|educational|promotional) )*(film|documentary|newsreel|short)\s+(presents|documents|depicts|shows|surveys|follows|explains|describes|records|is about)\b/,"It $5"):null;
+  if(sp&&(mv==="locate"||mv==="connect"||mv==="explain"))out.push(`${y?`In ${y}, `:""}${sp} made a film called ${t}.${pur?" "+pur:""}`);
+  if(pur&&mv!=="stay"&&mv!=="turn")out.push(pur);
   if(mv==="locate"){out.push(`${y?`This is ${y}. `:""}${seen}`);out.push(`${seen} It was filmed${y?` in ${y}`:""} for a film called ${t}.`);out.push(`${y?`In ${y}, `:""}someone pointed a camera at this. ${seen}`)}
   if(mv==="stay"){out.push("");out.push("The camera keeps running.");out.push(`And then: ${lower(seen)}`)}
   if(mv==="turn"){out.push(`But in another film${d?`, made ${yearsWord(Math.abs(d))} years ${d>0?"later":"earlier"}`:""}, someone answers.`);out.push(`But listen to what someone says in ${t}.`);out.push("But that is not how everyone saw it.")}
@@ -331,11 +337,13 @@ function stopReel(){PLAYING=0;$("playi").outerHTML=IC.play.replace("<svg",'<svg 
 const wait=(ms,run)=>new Promise(r=>{const t0=performance.now();const tick=()=>{if(PLAYING!==run||performance.now()-t0>=ms)return r();setTimeout(tick,60)};tick()});
 async function playReel(){if(!reel.length)return toast("Keep a clip first");if(PLAYING){stopReel();return}
   started=true;$("cover").hidden=true;const run=PLAYING=Date.now();$("playi").outerHTML=IC.stop.replace("<svg",'<svg id="playi"');
-  const need=reel.filter(it=>it.line);if(need.length){toast("Preparing the narrators…");try{for(const it of need)await voiceOf(it.line,it.voice||lastVoice)}catch(e){toast("Narrators unavailable here; playing without them")}}
+  const need=reel.filter(it=>it.line);if(need.length){if(need.some(it=>!it.a))toast("Preparing the narrators…");try{for(const it of need)await voiceOf(it.line,it.voice||lastVoice,null,it.a)}catch(e){toast("Narrators unavailable here; playing without them")}}
   if(PLAYING!==run)return;
   if(SCORES[SCORE][0]){const e=scoreEl();e.currentTime=0;e.play().catch(()=>{});duck(BED,2.5)}
   await wait(900,run);
   for(let i=0;i<reel.length;i++){if(PLAYING!==run)return;const it=reel[i];sel=i;drawReel();chip(it);
+    $("says").textContent="";
+    if(it.card){$("actcard").textContent=it.card;$("actcard").classList.add("on");setTimeout(()=>$("actcard").classList.remove("on"),2600)}
     const key=(it.voice||lastVoice)+"|"+(it.line||""),sp=speechOf(it),said=saysOf(it);
     let nd=0,au=null;
     if(it.line&&AUD.has(key)){au=$("nar")||Object.assign(document.body.appendChild(document.createElement("audio")),{id:"nar"});au.src=AUD.get(key);
@@ -344,7 +352,10 @@ async function playReel(){if(!reel.length)return toast("Keep a clip first");if(P
     const speakAt=sp?sp[0]:null,start=Math.max(0,(speakAt!=null?speakAt-RUNIN:0)-(nd?nd+.6:0));
     const v=await show(it,{vol:au?(IOS?0:.16):1,at:start,fade:i?1.1:.6});v.loop=false;
     if(au){if(IOS)v.muted=true;$("says").className="says narr";$("says").textContent=it.line;duck(UNDER,.4);await wait(250,run);
-      await new Promise(r=>{au.onended=r;au.play().catch(r);setTimeout(r,(nd+2)*1000)});if(PLAYING!==run)return;
+      const nx=R(rowOf(it))[6];let runOn=false;
+      const keep=setInterval(()=>{if(v.paused&&!v.ended)v.play().catch(()=>{});   // a picture never freezes under the narrator:
+        if(v.ended||(v.duration&&v.currentTime>=v.duration-.15)){if(nx>=0&&!runOn&&it.k==="c"){runOn=true;v.src=full(R(nx)[0]);v.play().catch(()=>{})}else{v.currentTime=0;v.play().catch(()=>{})}}},200);   // it runs on into its own film, or loops
+      await new Promise(r=>{au.onended=r;au.play().catch(r);setTimeout(r,(nd+2)*1000)});clearInterval(keep);if(PLAYING!==run)return;
       v.muted=!SOUND;ramp(v,1,1.2);duck(sp?BED*.8:BED,1.2);await wait(400,run)}
     $("says").className="says";$("says").textContent=said?`“${said}”`:"";
     // to the end: through the speech and its tail, or for a clip without words, long enough to be seen
@@ -369,6 +380,10 @@ $("share").onclick=async()=>{if(!reel.length)return toast("Keep a clip first");c
   if(navigator.share){try{await navigator.share({title:"Rushes",text:`A reel of ${reel.length} archive clips`,url});return}catch(e){}}
   try{await navigator.clipboard.writeText(url);toast("Link copied")}catch(e){toast("Copy the address bar to share")}};
 
+/* ---------- the myth: one narrative from every lab film, a reel like any other, so it can be re-cut ---------- */
+let MYTHR=null;
+function loadMyth(play){if(!MYTHR)return;reel=MYTHR.reel.map(x=>({...x}));sel=-1;drawReel();history.replaceState(null,"","#myth");
+  if(play){started=true;$("cover").hidden=true;cur=reel[0];playReel()}else{$("startl").textContent="PLAY THE MYTH";$("start").onclick=()=>{started=true;$("cover").hidden=true;cur=reel[0];playReel()}}}
 /* ---------- start ---------- */
 function start(fresh){const s=C.starts;started=true;$("cover").hidden=true;front.muted=!SOUND;go({k:"c",r:s[Math.floor(Math.random()*s.length)]},!fresh?false:true)}
 Promise.all([fetch("rushes/clips.json").then(r=>r.json()),fetch("rushes/utts.json").then(r=>r.json())]).then(([c,u])=>{C=c;UT=u.utts;PRE=c.pre;TYPES=c.types;
@@ -377,6 +392,8 @@ Promise.all([fetch("rushes/clips.json").then(r=>r.json()),fetch("rushes/utts.jso
   if(!shared){try{const s=JSON.parse(localStorage.getItem("rushes-v1")||"null");if(s&&s.length)reel=unpack(s)}catch(e){}}
   if(shared){reel=shared;$("startl").textContent=`PLAY THIS REEL · ${reel.length} CLIPS`;$("start").onclick=()=>{started=true;playReel()}}
   else $("start").onclick=()=>start(false);
+  fetch("myth/myth.json").then(r=>r.json()).then(M=>{MYTHR=M;const b=document.createElement("button");b.className="go";b.style.background="var(--ink)";
+    b.innerHTML=`${IC.play}<span>PLAY THE MYTH</span>`;b.onclick=()=>loadMyth(true);$("start").after(b);if(/^#myth/.test(location.hash))loadMyth(false)}).catch(()=>{});
   drawReel()}).catch(()=>$("loading").textContent="The archive could not load. Reload to try again.");
 document.addEventListener("keydown",e=>{if(e.target.matches("input,textarea"))return;const k={ArrowRight:"long","1":"long","2":"ans","3":"echo","4":"else"}[e.key];
   if(k&&cur){const b=document.querySelector(`[data-w="${k}"]`);b&&b.click()}if(e.key===" "&&cur){e.preventDefault();$("keep").click()}if(e.key==="Backspace")$("back").click()});
