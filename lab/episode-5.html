@@ -58,23 +58,8 @@ body, #stage { background: var(--bg); }
 <audio id="score" preload="auto"></audio><audio id="voice" preload="auto"></audio>
 <script>
 window.EPISODE = {
-  data: ['explain/ep/ep5.json?v=2', 'explain/ep/ep5_why.json?v=1'],
+  data: ['explain/ep/ep5.json?v=3', 'explain/ep/ep5_why.json?v=1'],
   cues: [],
-  ready(K) {   /* Videotext, loaded once behind the stage, opened on the curtains line */
-    const snap = {}; try { Object.keys(localStorage).filter(k => k.startsWith('videotext')).forEach(k => snap[k] = localStorage.getItem(k)); } catch (e) { }
-    window.__vtrestore = () => { try { const cw = window.__vt && window.__vt.contentWindow; if (cw && cw.VT) cw.VT.S.binds.length = 0; Object.keys(localStorage).filter(k => k.startsWith('videotext')).forEach(k => localStorage.removeItem(k)); Object.entries(snap).forEach(([k, v]) => localStorage.setItem(k, v)); } catch (e) { } };
-    addEventListener('pagehide', () => window.__vtrestore());
-    const f = document.createElement('iframe'); f.id = 'vt'; f.style.display = 'none'; f.src = 'videotext.html'; document.getElementById('stage').appendChild(f); window.__vt = f;
-    f.addEventListener('load', () => { try { const d = f.contentWindow.document, st = d.createElement('style');   /* the view alone, large: no rail, no menus, no dock */
-        st.textContent = '.wrail,.wbar,.whold,.wdock{display:none!important}.wall{grid-template-columns:1fr!important;inset:0!important}.wmain{padding:6px 10px!important}#wCanvas{font-size:15px!important}#wCanvas .vcap{font-size:13px!important}';
-        d.head.appendChild(st); } catch (e) { }
-      try { const P = f.contentWindow.Storage.prototype, set = P.setItem; P.setItem = function (k, v) { if (String(k).startsWith('videotext')) return; return set.call(this, k, v); }; } catch (e) { } window.__vtrestore(); });
-    let tries = 0; const find = () => { try { const V = f.contentWindow.VT, w = V && V.S.words; if (!w || !w.length) throw 0;
-        const a = w.findIndex((x, i) => x.key === 'curtains' && w[i + 1] && w[i + 1].key === 'pulled'), b = w.findIndex((x, i) => i > a && x.key === 'down');
-        if (a >= 0 && b > a) { window.__vtsel = { a, b }; f.contentWindow.setSel({ a, b }); } }
-      catch (e) { if (++tries < 60) setTimeout(find, 500); } };
-    f.addEventListener('load', () => setTimeout(find, 800));
-  },
   build([W, WHY0], B, K) {
     window.__why = WHY0;
     const { esc, fmt, line, later, raf, typeIn, startVideos } = K, $ = K.$, NAMES = ['suite', 'scenes', 'cineosis', 'drift'];
@@ -98,21 +83,37 @@ window.EPISODE = {
             pl.insertAdjacentHTML('beforeend', l.th.map(u => `<i style="background-image:url('${esc(u)}')"></i>`).join('')); }
           ck.innerHTML = `${hhmmss(Math.round(now))}<span>${k} questions · ${fmt(shots)} answers</span>`; return k < L.length; }); });
     B('How the archive was searched', 14, () => `${ask('Then what?')}<div class="path">${W.chain.map(([t, b, d], i) => `<div style="animation-delay:${i * 1.2}s"><small>${esc(t)}</small><b>${esc(b)}</b><span>${esc(d)}</span></div>`).join('')}</div>`);
-    /* 3 · making one line, in Videotext itself: open the archive, couple word and shot, turn text into time, assemble */
-    const ACTS = [['1 · OPEN THE ARCHIVE', [['069', 7], ['052', 7], ['078', 9, 'sieve'], ['076', 7]]], ['2 · COUPLE WORD AND SHOT', [['085', 9, 'couple'], ['175', 7], ['182', 7]]],
-                  ['3 · TURN TEXT INTO TIME', [['201', 7], ['231', 7], ['212', 8]]], ['4 · ASSEMBLE', [['270', 7], ['283', 7], ['273', 8]]]];
-    B('Making one line', 8, () => `${ask('How does an editor make one line?')}<div class="big2" style="top:240px;font:italic 400 46px/1.3 var(--serif);color:var(--ink)">“Curtains pulled, and blinds up as far and as wise as possible — to see flashing lights, and the whispering screams of two souls on a road winding down.”</div>
-        ${line(['Watch it made, in Videotext, the lab\'s editor for the poem: four steps, one line.'])}`);
-    ACTS.forEach(([act, views]) => views.forEach(([id, secs, op], k) => B('Making one line', secs, () => `<div class="vtcap" id="vc"><b style="color:var(--red);margin-right:14px">${act}</b><span id="vn"></span></div>`,
-      el => { const f = window.__vt; if (!f) return; f.style.display = 'block'; K.leave(() => { f.style.display = 'none'; });
-        try { const cw = f.contentWindow, d = cw.document; if (window.__vtsel && (!cw.VT.S.sel || cw.VT.S.sel.a !== window.__vtsel.a)) cw.setSel(window.__vtsel); cw.openWall(id);
-          later(150, () => { const n = d.querySelector('#wName'), ds = d.querySelector('#wDesc'); $('#vn', el).innerHTML = `<span style="color:var(--lime)">${n ? n.textContent.replace(/^\d+/, '').trim() : ''}</span> · ${ds ? ds.textContent : ''}`; });
-          const C = () => d.querySelector('#wCanvas');
-          if (op === 'sieve') { later(2200, () => { const b = C().querySelector('.vbtn[data-t="flashing"]'); if (b) b.click(); }); later(5000, () => { const b = C().querySelector('.vbtn[data-t="lights"]') || C().querySelector('.vbtn[data-t="road"]'); if (b) b.click(); }); }
-          if (op === 'couple') later(3500, () => { const b = C().querySelector('.vx[data-line]'); if (b) b.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); });
-        } catch (e) { } })));
-    B('Making one line', 7, () => line(['The coupled shot now sits above the four takes, as one more way to answer the line.', 'Every view is a different way of asking the same archive.']).replace('class="line"', 'class="line" style="bottom:auto;top:360px"'),
-      el => { if (window.__vtrestore) window.__vtrestore(); });
+    /* 4 · four ways to cut one line: the whole line, full screen, take by take */
+    const LN = W.line, LD = LN.t1 - LN.t0, cut = (LN.takes.suite[1] || {}).t0;
+    const PLAIN = { suite: r => `follows the treatment, the director's notes for this moment: “${(WHY0 && WHY0.takes.suite['20'] ? WHY0.takes.suite['20'].intent[0] : '')}”`,
+      scenes: r => `plays one old film's own shots, in their own order: ${r[0] ? r[0].title : ''}`, cineosis: r => 'takes the shot that best carries the signs this moment is meant to have', drift: r => 'takes the shot that looks most like the one before it' };
+    B('Four ways to cut one line', 9, () => `${ask('So what is a take?')}<div class="big2" style="top:200px;font:italic 400 40px/1.35 var(--serif);color:var(--ink)">“${esc(LN.text)}”</div>
+        ${line([`Every take gets the same line, the same ${Math.round(LD)} seconds, and a cut at the same moment.`, 'Only the pictures differ. Here is the line four times.'])}`);
+    NAMES.forEach(n => { const rows = LN.takes[n];
+      B('Four ways to cut one line', LD + .8, () => `${film(n, LN.t0, true)}<div class="poemsub" style="font-size:26px"></div>
+          <div style="position:absolute;left:60px;top:44px;right:60px;z-index:3;text-shadow:0 2px 10px #000"><b style="font:600 30px var(--mono);color:var(--lime);letter-spacing:.12em;text-transform:uppercase">${n}</b><span style="display:block;font:26px/1.3 var(--serif);color:var(--ink);margin-top:6px;max-width:1100px">${esc(PLAIN[n](rows))}</span></div>
+          <div id="shot" style="position:absolute;right:60px;top:150px;z-index:3;font:18px var(--mono);color:#e8e4da;text-align:right;text-shadow:0 1px 8px #000"></div>`,
+        el => { startVideos(el); subs(el); const v = el.querySelector('video'), sh = $('#shot', el); raf(() => { const t = v.currentTime, r = rows.find(x => t >= x.t0 && t < x.t1) || rows[0]; const tx = `${r.title} ${r.year || ''}`; if (sh.dataset.t !== tx) { sh.dataset.t = tx; sh.innerHTML = `now: <b>${esc(r.title)}</b> ${r.year || ''}`; } }); }); });
+    B('Four ways to cut one line', 9, () => `<video class="full" data-src="https://pub-075ff01374c04555b51c9bc50f258b42.r2.dev/sources/5ecaea55-0235-5d7c-afbc-7626429f8f4e/v3-ffmpeg-openclip-1/clips/391c6fea-8b60-5f47-8deb-5a570ff8ff8f.mp4" muted playsinline loop></video><div class="fog"></div>
+        ${line(['And “mine”: in Videotext, the lab\'s editing tool, anyone can put their own shot under a line.', 'This eye, from Small Steps… Giant Strides (1973), is one choice. That is a fifth take.'])}`, el => startVideos(el));
+    /* 5 · the problems of time */
+    const R0 = LN.takes.suite;
+    B('The problems of time', LD + .8, () => `${film('suite', LN.t0, true)}<div class="poemsub" style="bottom:170px;font-size:24px"></div>
+        <div style="position:absolute;left:60px;right:60px;bottom:60px;height:56px;background:rgba(0,0,0,.6);border:1px solid #2e2a26" id="tl">${R0.map(r => `<div style="position:absolute;top:0;bottom:0;left:${(Math.max(r.t0, LN.t0) - LN.t0) / LD * 100}%;width:${(Math.min(r.t1, LN.t1) - Math.max(r.t0, LN.t0)) / LD * 100}%;border-right:3px solid var(--red);font:15px var(--mono);color:var(--ink);padding:6px 10px;overflow:hidden">${esc(r.title)} · ${(r.t1 - r.t0).toFixed(1)} s</div>`).join('')}<div id="ph" style="position:absolute;top:-8px;bottom:-8px;width:3px;background:var(--lime)"></div></div>
+        <div id="tn" style="position:absolute;left:60px;top:50px;right:60px;z-index:3;font:30px/1.3 var(--serif);color:var(--ink);text-shadow:0 2px 10px #000"></div>`,
+      el => { startVideos(el); subs(el); const v = el.querySelector('video'), ph = $('#ph', el), tn = $('#tn', el);
+        const notes = [[0, `The line is ${LD.toFixed(1)} seconds long. The music decides where it is cut: here, at ${(cut - LN.t0).toFixed(1)} s.`], [3.5, 'A shot must last its whole moment: no slowing down, no looping.'], [8, 'Each starts at its liveliest few seconds, not at its beginning.'], [12, 'And the cut never waits for the end of a sentence.']];
+        raf(() => { const t = v.currentTime - LN.t0; ph.style.left = Math.max(0, Math.min(100, t / LD * 100)) + '%'; const n = notes.filter(x => t >= x[0]).at(-1); if (n && tn.dataset.k != n[0]) { tn.dataset.k = n[0]; tn.textContent = n[1]; } }); });
+    /* 6 · what the signs ask */
+    const C0 = LN.takes.cineosis[0], SG = LN.signs, s0 = SG.find(x => x.n === C0.codes[1]) || SG[0];
+    B('What the signs ask', 10, () => `${ask('What does the Cineosis take look for?')}<div class="roles" style="top:200px;grid-template-columns:1fr 1fr">${SG.filter(x => C0.codes.includes(x.n)).map((x, i) => `<div style="animation-delay:${i * 1.2}s;--c:var(--lime)"><b>${esc(x.symbol)} · ${esc(x.name)}</b><p style="font-size:34px">${esc(x.question)}</p></div>`).join('')}</div>
+        ${line(['The poem\'s treatment gives each moment one or two signs.', 'Each sign is a question the picture should answer.'])}`);
+    B('What the signs ask', 13, () => { const others = NAMES.map(n => ({ n, r: LN.takes[n][0] })); const mx = Math.max(...others.map(o => o.r.aff[s0.n] || 0));
+      return `${film('cineosis', LN.t0 + .5, false)}<div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.85),rgba(0,0,0,.2) 60%)"></div>
+        <div style="position:absolute;left:60px;top:60px;width:760px;z-index:3"><b style="font:600 16px var(--mono);color:var(--lime);letter-spacing:.12em">“${esc(s0.question)}”</b><p style="font:22px var(--serif);color:var(--dim);margin:8px 0 22px">how strongly the machine finds it in each take's shot for this moment</p>
+        <div style="display:flex;flex-direction:column;gap:16px">${others.map((o, i) => `<div class="${o.n === 'cineosis' ? 'won' : ''}" style="display:grid;grid-template-columns:150px 1fr 90px;gap:16px;align-items:center;font:22px var(--serif);animation-delay:${.5 + i * .4}s;opacity:0;animation:up .6s ease forwards ${.5 + i * .4}s"><span style="font:600 15px var(--mono);color:var(--lime);text-transform:uppercase">${o.n}</span><i style="height:22px;background:#1e1a14;position:relative;border-radius:3px"><b data-w="${(o.r.aff[s0.n] || 0) / mx * 100}" style="position:absolute;inset:0 auto 0 0;width:0;background:${o.n === 'cineosis' ? 'var(--lime)' : '#5a544a'};transition:width 1.6s;border-radius:3px"></b></i><em style="font:18px var(--mono);color:var(--ink);font-style:normal;text-align:right">${(o.r.aff[s0.n] || 0).toFixed(1)}%</em></div>`).join('')}</div>
+        <p style="font:18px var(--mono);color:var(--dim);margin-top:24px">${esc(C0.title)} ${C0.year || ''} · a machine pointer, not a reading: ${C0.read.length ? 'it was also read' : 'no person has read this shot'}</p></div>`; },
+      el => { startVideos(el); later(600, () => el.querySelectorAll('[data-w]').forEach(b => b.style.width = b.dataset.w + '%')); });
     /* 4 · why that shot: the rule, replayed */
     const WHY = window.__why;
     ['suite', 'cineosis', 'drift'].forEach((tk, k) => { const r = WHY && WHY.takes[tk] && WHY.takes[tk]['20']; if (!r) return;
@@ -123,16 +124,11 @@ window.EPISODE = {
           ${line([win && second ? `It won by ${(win.total - second.total).toFixed(3)}.` : '', k === 2 ? 'Its best matches were already used: the rule, not the match, decided.' : 'Every bar is the same question: how close is this picture to those words?'].filter(Boolean), 'bars stretched so differences of a thousandth can be seen · dark red: not allowed, and why')}`; },
         el => later(500, () => el.querySelectorAll('.cand .bar').forEach(b => b.style.height = b.dataset.h + 'px'))); });
     B('Why that shot', 9, () => line(['Scenes, the fourth take, asks differently:', 'it picks a whole run of one film\'s shots for the line, in that film\'s own order.']).replace('class="line"', 'class="line" style="bottom:auto;top:360px"'));
-    /* 4 · why four films */
-    [20].forEach((i, k) => B('Why four films?', k ? 12 : 17, () => { const ps = patch(i); return `${k ? '' : ask('So what did each take choose?')}<div class="quad" style="inset:${k ? 40 : 90}px 50px 150px">${NAMES.map((n, j) => `<figure>${film(n, ps[j][0] + .3, n === 'suite', '', 'width:100%;height:100%;object-fit:cover').replace('<video', `<video data-end="${ps[j][1] - .2}"`)}<figcaption><b>${n}</b> · ${esc(ps[j][3])}<em>${RULE[n]}</em></figcaption></figure>`).join('')}</div><div class="poemsub" style="bottom:40px;font-size:24px"></div>`; },
-      el => { startVideos(el); subs(el); }));
-    B('Why four films?', 7, () => line(['Same line, same sound, same moment.', 'Four rules for choosing the picture.']).replace('class="line"', 'class="line" style="bottom:auto;top:380px"'));
     /* 5 · the map of every shot */
     const lanes = rule => `<div class="lanes">${NAMES.map((n, j) => `<div class="lane" data-n="${n}"><span class="lanelab">${n}</span>${P[n].map((p, i) => `<i class="${W.agree.includes(i) ? 'agree' : ''}" style="width:${(p[1] - p[0]) / W.dur * 1400}px;background-image:url('${esc(p[2])}');animation-delay:${j * .5 + i * .006}s"></i>`).join('')}${rule ? `<div class="lanerule" style="transition-delay:${j * .8}s">${RULE[n]}</div>` : ''}</div>`).join('')}</div>`;
     B('How different are they?', 15, () => `${ask('How different are they, really?')}${lanes(false)}<div class="playhead" id="ph" style="left:150px"></div>
         ${line([`Every shot of all four takes, along the poem's twenty-four minutes.`, `Any two share at most ${Math.max(...Object.values(W.shared))} of their ${P.suite.length}. All four agree only ${W.agree.length} times.`], 'the lime frames: the few moments all four chose the same')}`,
       el => raf(t => { $('#ph', el).style.left = (150 + Math.min(1, t / 14) * 1400) + 'px'; return t < 14; }));
-    B('How different are they?', 13, () => `${ask('Why so different?')}${lanes(true)}${line(['A different question for each take,', 'and a rule against reusing what an earlier take already used.'])}`, el => later(300, () => el.querySelectorAll('.lanerule').forEach(r => r.style.opacity = 1)));
     /* 6 · which one is right */
     B('Which one is right?', 17, () => { const ps = patch(120); return `${ask('Which one is right?')}<div class="two" style="top:100px">${[['suite', 0], ['drift', 3]].map(([n, j]) => `<figure>${film(n, ps[j][0] + .3, n === 'suite', '', 'width:100%;height:100%;object-fit:cover')}<figcaption>${n}</figcaption></figure>`).join('')}</div>
         ${line(['None of them. Each rule makes a different film.', 'You choose by watching.'])}`; }, el => startVideos(el));
