@@ -58,10 +58,10 @@ body, #stage { background: var(--bg); }
 <audio id="score" preload="auto"></audio><audio id="voice" preload="auto"></audio>
 <script>
 window.EPISODE = {
-  data: ['explain/ep/ep5.json?v=3', 'explain/ep/ep5_why.json?v=1'],
+  data: ['explain/ep/ep5.json?v=4', 'explain/ep/ep5_why.json?v=1'],
   cues: [],
   build([W, WHY0], B, K) {
-    window.__why = WHY0;
+    window.__why = WHY0; const PART = new URLSearchParams(location.search).get('part') === 'compare' ? 'compare' : 'search';
     const { esc, fmt, line, later, raf, typeIn, startVideos } = K, $ = K.$, NAMES = ['suite', 'scenes', 'cineosis', 'drift'];
     const RULE = { suite: 'what the treatment asks for each beat', scenes: 'each line from one film, in that film\'s own order', cineosis: 'the signs each beat is meant to carry', drift: 'each shot follows the one before' };
     const ask = q => `<div class="ask">${q}</div>`;
@@ -72,6 +72,22 @@ window.EPISODE = {
     /* 1 · the poem, first */
     B('The poem', 25, () => `${film('suite', 29.6, true)}<div class="poemsub"></div>`, el => { startVideos(el); subs(el); });
     B('The poem', 10, () => `${film('suite', 54.6, true)}<div class="poemsub"></div><div class="ttl"><b>Where You Go When You Leave</b><span>a poem by Mark Anthony Thomas</span></div>`, el => { startVideos(el); subs(el); });
+    if (PART !== 'compare') {
+    /* what am I watching */
+    B('What am I watching?', 13, () => `${ask('What am I watching?')}<div class="parts">${W.parts.map((p, i) => `<figure style="animation-delay:${i * .15}s">${film('suite', p.t + 8, false, '', '')}<figcaption><b>${p.n}</b>${esc(p.title)}</figcaption></figure>`).join('')}</div>
+        ${line([`A poem suite by Mark Anthony Thomas, in ${W.parts.length} parts, twenty-four minutes long.`, 'Every picture is a shot from the public archive. None was filmed for the poem.'])}`, el => startVideos(el));
+    /* who is CUTBASTARD */
+    const PT = W.patches, DUR = W.dur;
+    B('Who is CUTBASTARD?', 12, () => `${ask('Who cut it?')}<div class="big2" style="top:160px;font:600 50px/1.25 var(--serif)" id="cb"></div>${line(['CUTBASTARD-1: a role written for a language model, then built into the lab as code.'], 'from its own instructions')}`,
+      el => later(500, () => typeIn($('#cb', el), 'You are CUTBASTARD-1. You are not a critic. You are not a poet. You are a hostile extraction machine.', 22)));
+    B('Who is CUTBASTARD?', 14, () => `<div class="big2" style="top:80px;font:400 30px/1.35 var(--serif);color:var(--ink)">Its law: cut moving pictures into <b style="color:var(--lime)">patches</b> of six to twelve seconds. Start a new one when the place, the motion, the camera, the light or the sound changes.</div>
+        <div id="pb" style="position:absolute;left:60px;right:60px;top:330px;height:120px;display:flex;gap:2px"></div><div style="position:absolute;left:60px;right:60px;top:470px;display:flex;justify-content:space-between;font:15px var(--mono);color:var(--dim)"><span>0:00</span><span>the poem's 24 minutes</span><span>24:00</span></div>
+        ${line([`On the poem it made ${PT.length} patches: ${PT.filter(p => p[2] === 'cue').length} start where a line of the poem starts, ${PT.filter(p => p[2] === 'onset').length} where the music turns.`], '<span style="color:var(--lime)">LIME</span> a line begins · <span style="color:#8ea6ff">BLUE</span> the music turns')}`,
+      el => { const pb = $('#pb', el); PT.forEach((p, i) => later(300 + i * 30, () => pb.insertAdjacentHTML('beforeend', `<i style="flex:${p[1] - p[0]};background:${p[2] === 'cue' ? 'var(--lime)' : '#8ea6ff'};opacity:.85;animation:fade .3s ease"></i>`))); });
+    B('Who is CUTBASTARD?', 16, () => `${film('suite', 179.3, true).replace('class="full"', 'class="full" style="left:0;width:56%;object-fit:cover"')}
+        <pre style="position:absolute;left:58%;right:40px;top:60px;height:420px;margin:0;white-space:pre-wrap;font:17px/1.55 var(--mono);color:var(--ink);background:#12100e;border:1px solid #2e2a26;padding:20px;overflow:hidden">${esc(W.storymap)}</pre>
+        <div class="fadein" style="position:absolute;left:58%;right:40px;top:500px;font:22px/1.4 var(--serif);color:#ff9f8e;animation-delay:7s">But watch the picture. The notebook describes the clip's one thumbnail: the couple in the car. The take plays the clip from its start, so you see a dance hall first; the car arrives only in the last two seconds.</div>
+        <div style="position:absolute;left:40px;top:30px;font:600 15px var(--mono);color:var(--lime);letter-spacing:.12em;z-index:3">CUTBASTARD'S NOTEBOOK FOR THIS PATCH</div>`, el => startVideos(el));
     /* 2 · the forage, as it happened */
     const KC = k => `k-${k}`, hhmmss = t => { const x = 18 * 3600 + 3 * 60 + 46 + t; return `${String(Math.floor(x / 3600)).padStart(2, '0')}:${String(Math.floor(x / 60) % 60).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`; };
     B('How the archive was searched', 9, () => `${ask('How were all those pictures found?')}${line(['On 24 September, the lab\'s editor CUTBASTARD sent the poem to the archive,', 'line by line, four ways of asking each.'])}`);
@@ -83,6 +99,18 @@ window.EPISODE = {
             pl.insertAdjacentHTML('beforeend', l.th.map(u => `<i style="background-image:url('${esc(u)}')"></i>`).join('')); }
           ck.innerHTML = `${hhmmss(Math.round(now))}<span>${k} questions · ${fmt(shots)} answers</span>`; return k < L.length; }); });
     B('How the archive was searched', 14, () => `${ask('Then what?')}<div class="path">${W.chain.map(([t, b, d], i) => `<div style="animation-delay:${i * 1.2}s"><small>${esc(t)}</small><b>${esc(b)}</b><span>${esc(d)}</span></div>`).join('')}</div>`);
+    /* where the questions came from */
+    const OR = W.origin, OKC = { literal: '#c4f46a', oblique: '#8ea6ff', place: '#f2c14e', mood: '#ff9f8e', 'suite forage': '#ece6da', 'sign search': '#d9b8d2', 'whole film': '#6f685d' };
+    const KN = { literal: 'a line asked plainly', oblique: 'a line asked sideways', place: "a line's place", mood: "a chapter's mood", 'suite forage': "the forager's searches", 'sign search': 'the Cineosis sign searches', 'whole film': 'fetched with its whole film' };
+    B('Where the questions came from', 16, () => `${ask('Where did each take\'s shots come from?')}<div style="position:absolute;left:60px;right:60px;top:120px;display:flex;flex-direction:column;gap:26px">${NAMES.map((n, i) => { const m = OR.mix[n], tot = Object.values(m).reduce((a, b) => a + b, 0);
+        return `<div style="opacity:0;animation:up .7s ease forwards ${i * .6}s"><div style="font:600 18px var(--mono);color:var(--lime);letter-spacing:.12em;margin-bottom:6px">${n.toUpperCase()}</div><div style="display:flex;height:48px;border-radius:4px;overflow:hidden">${OR.kinds.map(k => m[k] ? `<i title="${k}" style="flex:${m[k]};background:${OKC[k]};display:flex;align-items:center;justify-content:center;font:600 15px var(--mono);color:#0b0a09">${m[k]}</i>` : '').join('')}</div></div>`; }).join('')}</div>
+        <div style="position:absolute;left:60px;right:60px;top:600px;display:flex;flex-wrap:wrap;gap:10px 26px;font:17px var(--serif)">${OR.kinds.map(k => `<span><i style="display:inline-block;width:14px;height:14px;background:${OKC[k]};margin-right:8px;vertical-align:-1px"></i>${KN[k]}</span>`).join('')}</div>
+        ${line(['Every take is a mix. Scenes leans on whole films; Drift borrowed most from the sign searches.'], 'each number: how many of the take\'s 169 shots came that way')}`);
+    B('Where the questions came from', 16, () => `${ask('Which questions brought back the most?')}<div style="position:absolute;left:60px;right:60px;top:110px;display:flex;flex-direction:column;gap:16px">${OR.top.slice(0, 5).map((x, i) => `<div style="display:grid;grid-template-columns:420px 1fr;gap:20px;align-items:center;opacity:0;animation:up .7s ease forwards ${i * .7}s"><div><div style="font:600 13px var(--mono);color:${OKC[x.kind]};letter-spacing:.12em;text-transform:uppercase">${esc(KN[x.kind])} · ${x.n} shots used</div><div style="font:24px/1.3 var(--serif);margin-top:4px">“${esc(x.q)}”</div></div><div style="display:flex;gap:6px">${x.thumbs.map(u => `<img src="${esc(u)}" style="height:100px;aspect-ratio:4/3;object-fit:cover">`).join('')}</div></div>`).join('')}</div>`);
+    B('Where the questions came from', 14, () => `${ask('Which shots did more than one take choose?')}<div style="position:absolute;left:60px;right:60px;top:110px;display:grid;grid-template-columns:repeat(6,1fr);gap:14px">${OR.cross.slice(0, 12).map((c, i) => `<figure style="margin:0;opacity:0;animation:up .6s ease forwards ${i * .25}s"><img src="${esc(c.thumb)}" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block;${c.n > 2 ? 'outline:4px solid var(--lime);outline-offset:-4px' : ''}"><figcaption style="font:13px var(--mono);color:var(--dim);margin-top:4px">${esc(c.title)}<br><b style="color:var(--lime)">${c.in.join(' · ')}</b></figcaption></figure>`).join('')}</div>
+        ${line([`Only ${OR.n_cross} shots appear in more than one take, and one in three.`])}`);
+    }
+    if (PART === 'compare') {
     /* 4 · four ways to cut one line: the whole line, full screen, take by take */
     const LN = W.line, LD = LN.t1 - LN.t0, cut = (LN.takes.suite[1] || {}).t0;
     const PLAIN = { suite: r => `follows the treatment, the director's notes for this moment: “${(WHY0 && WHY0.takes.suite['20'] ? WHY0.takes.suite['20'].intent[0] : '')}”`,
@@ -136,10 +164,10 @@ window.EPISODE = {
     W.beats.filter(b => [1, 4].includes(b.id)).forEach((b, k) => B('What the archive could not give', 10, () => `${k ? '' : ask('What could the archive not give?')}${film('suite', b.t0 + .5, true)}
         <div class="gapbox"><div style="animation-delay:.6s;border-left:4px solid var(--lime)"><small style="color:var(--lime)">THE TREATMENT ASKED FOR</small><p>${esc(b.title)}</p></div><div style="animation-delay:2.4s;border-left:4px solid var(--red)"><small style="color:var(--red)">THE ARCHIVE COULD NOT GIVE</small><p>${esc(b.gap)}</p></div></div>`, el => startVideos(el)));
     B('What the archive could not give', 8, () => line(['The poet is never in the picture.', 'Strangers from old films stand in for him, every time.']).replace('class="line"', 'class="line" style="bottom:auto;top:380px"'));
+    }
     /* 8 · next */
-    B('What next', 14, () => `${film('cineosis', 600, true)}<div class="fog"></div>${line(['The cineosis take chose by sign.', 'Next: what happens if signs are atoms and cuts are bonds?'])}`, el => startVideos(el));
-    B('What next', 40, () => `<div class="next"><small>WATCH ALL FOUR TAKES · OR CUT YOUR OWN</small><h1 style="color:var(--lime);font-style:italic;font-weight:400">Where You Go When You Leave</h1>
-        <nav><a href="wygwyl.html" style="background:var(--lime)">The four takes</a><a class="ghost" href="videotext.html" style="color:var(--lime);border-color:var(--lime)">Videotext: cut your own</a><a class="ghost" href="series.html" style="color:var(--lime);border-color:var(--lime)">All episodes</a></nav></div>`);
+    if (PART !== 'compare') B('What next', 40, () => `<div class="next"><small>NEXT · THE FOUR TAKES, ONE AT A TIME</small><h1 style="color:var(--lime);font-style:italic;font-weight:400">Suite</h1><p style="font:28px/1.35 var(--serif);color:#d8d0c2;margin:0">What happens when the director's notes become search words?</p><nav><a href="wygwyl-take.html?t=suite" style="background:var(--lime)">Watch Suite</a><a class="ghost" href="wygwyl-take.html?t=scenes" style="color:var(--lime);border-color:var(--lime)">Scenes</a><a class="ghost" href="wygwyl-take.html?t=cineosis" style="color:var(--lime);border-color:var(--lime)">Cineosis</a><a class="ghost" href="wygwyl-take.html?t=drift" style="color:var(--lime);border-color:var(--lime)">Drift</a></nav></div>`);
+    else B('What next', 40, () => `<div class="next"><small>WATCH ALL FOUR TAKES · OR CUT YOUR OWN</small><h1 style="color:var(--lime);font-style:italic;font-weight:400">Where You Go When You Leave</h1><nav><a href="wygwyl.html" style="background:var(--lime)">The four takes</a><a class="ghost" href="videotext.html" style="color:var(--lime);border-color:var(--lime)">Videotext: cut your own</a><a class="ghost" href="series.html" style="color:var(--lime);border-color:var(--lime)">All episodes</a></nav></div>`);
   }
 };
 </script>

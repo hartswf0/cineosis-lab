@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WYGWYL · One Take</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="explain/film.css?v=1"><link rel="stylesheet" href="explain/episode.css?v=2">
+<!-- CINEOSIS · WHERE YOU GO WHEN YOU LEAVE, ONE TAKE AT A TIME (?t=suite|scenes|cineosis|drift). Each take of Mark Anthony Thomas's poem
+     suite gets its own episode and its own question. Watch a whole chapter of it first; learn its rule; see what it looked at; watch the
+     chapter again with that evidence beside the picture (never over it); see where it strains; and what it teaches.
+     Data: explain/ep5_takes.py → explain/ep/takes.json; the poem's timed lines from explain/ep/ep5.json. -->
+<style>
+:root { --bg: #0b0a09; --ink: #ece6da; --red: #e0483a; --lime: #c4f46a; --dim: #b3ab9e; }
+body, #stage { background: var(--bg); }
+.wv { position: absolute; left: 40px; top: 36px; width: 1110px; height: 624px; background: #000; } .wv video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.band { position: absolute; left: 40px; top: 676px; width: 1110px; font: italic 25px/1.35 var(--serif); color: var(--ink); min-height: 70px; }
+.band small { display: block; font: 600 13px var(--mono); font-style: normal; letter-spacing: .14em; color: var(--dim); margin-bottom: 4px; }
+.side { position: absolute; left: 1180px; top: 36px; right: 40px; bottom: 30px; display: flex; flex-direction: column; gap: 16px; font: 19px/1.4 var(--serif); color: var(--ink); }
+.side .tk { font: 600 26px var(--mono); color: var(--lime); letter-spacing: .12em; text-transform: uppercase; } .side .tk small { display: block; font: 13px var(--mono); color: var(--dim); letter-spacing: .1em; margin-top: 4px; }
+.side .lb { font: 600 12px var(--mono); letter-spacing: .14em; color: var(--dim); text-transform: uppercase; margin-bottom: 3px; }
+.side .shot b { display: block; font: 600 22px var(--serif); } .side .gap { color: #ff9f8e; } .side .q { color: var(--lime); font: 600 21px/1.3 var(--serif); }
+.meter { height: 10px; background: #221f1a; border-radius: 5px; overflow: hidden; } .meter b { display: block; height: 100%; background: var(--lime); transition: width .8s; }
+.big { position: absolute; left: 90px; right: 90px; top: 150px; } .big h2 { margin: 0 0 30px; font: 600 64px/1.1 var(--serif); color: var(--ink); } .big p { font: 30px/1.4 var(--serif); color: var(--dim); max-width: 1300px; margin: 0; }
+.big small { font: 600 18px var(--mono); color: var(--lime); letter-spacing: .16em; text-transform: uppercase; display: block; margin-bottom: 14px; }
+.recipe { position: absolute; left: 90px; right: 90px; top: 340px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.recipe span { font: 24px/1.3 var(--serif); padding: 12px 18px; border: 1px solid #3a352d; border-radius: 6px; opacity: 0; animation: up .7s ease forwards; } .recipe i { font: 30px var(--mono); color: var(--lime); font-style: normal; opacity: 0; animation: fade .5s ease forwards; }
+.strip { position: absolute; left: 40px; right: 40px; top: 120px; display: grid; gap: 4px; } .strip i { aspect-ratio: 4/3; background-size: cover; background-position: center; opacity: .3; animation: fade .5s ease forwards; } .strip i.run { opacity: 1; outline: 4px solid var(--lime); outline-offset: -4px; }
+.chain { position: absolute; left: 40px; right: 40px; top: 160px; display: flex; align-items: center; gap: 0; }
+.chain figure { margin: 0; flex: 1; opacity: 0; animation: up .6s ease forwards; } .chain img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; } .chain em { flex: none; width: 54px; text-align: center; font: 15px var(--mono); color: var(--lime); font-style: normal; opacity: 0; animation: fade .5s ease forwards; }
+.nums { position: absolute; left: 90px; right: 90px; top: 200px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; }
+.nums div { opacity: 0; animation: up .8s ease forwards; } .nums b { display: block; font: 600 96px/1 var(--serif); color: var(--lime); } .nums span { font: 20px/1.3 var(--serif); color: var(--dim); }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage"></div></div>
+<div id="bar"><button id="bPrev" title="previous (←)">‹</button><button id="bPlay" title="play / pause (space)">❚❚</button><button id="bNext" title="next (→)">›</button><div id="chs"></div><span id="time"></span><button id="bSnd" title="sound">♪ on</button></div>
+<div id="start"><div><p id="sk" style="font:600 16px var(--mono);letter-spacing:.2em;color:#b3ab9e;margin:0 0 14px">WHERE YOU GO WHEN YOU LEAVE</p><h1 id="sh" style="color:#c4f46a"></h1><p id="sq"></p><b style="background:#c4f46a">▶ Watch</b></div></div>
+<audio id="score" preload="auto"></audio><audio id="voice" preload="auto"></audio>
+<script>
+const T = (new URLSearchParams(location.search).get('t') || 'suite').toLowerCase();
+const FILMS = { suite: 'wygwyl-suite', scenes: 'wygwyl-scenes', cineosis: 'wygwyl-cineosis', drift: 'wygwyl-drift' };
+const CFG = {
+  suite: { n: 2, q: 'What happens when the director\'s notes become search words?', rule: 'For every moment, Suite reads the treatment, the stage directions the poem was cut from, and asks the archive for what they describe.',
+    recipe: ['the treatment\'s note for this moment', 'the forager\'s search for it', 'the line, said plainly', 'the line\'s place'], strain: 'The notes ask for what the archive never filmed: the poet, his rooms, his city. The note says so, and the take must stand something in.',
+    lesson: 'Suite is the most faithful take and the most literal: it matches the words best, and it rarely surprises.' },
+  scenes: { n: 3, q: 'What if one old film answered each line?', rule: 'For every line, Scenes finds one old film whose shots, in that film\'s own order, best follow the line, and plays them one after another.',
+    recipe: ['the line, said plainly', 'the line, said sideways', 'the line\'s place', '→ a run of one film\'s own shots'], strain: 'One film has to carry a whole line, even after it has stopped fitting.',
+    lesson: 'Scenes keeps the archive\'s own continuity. Its cuts belong to someone else\'s film.' },
+  cineosis: { n: 4, q: 'What if every moment had to answer a sign\'s question?', rule: 'Each beat of the treatment is given one or two cineosis signs. Cineosis takes the shot the machine reads as carrying them, seen through the line.',
+    recipe: ['the line, said plainly', 'the beat\'s title', '+ how strongly the shot carries the beat\'s signs'], strain: 'The sign pulls harder than the look: some of its shots barely resemble the words at all.',
+    lesson: 'Cineosis is the most theoretical take. It trades resemblance for function.' },
+  drift: { n: 5, q: 'What if each shot only followed the one before?', rule: 'Drift asks for the chapter\'s mood and the line said sideways, then leans hard toward whatever looks most like the shot it just showed.',
+    recipe: ['one of the chapter\'s moods', 'the line, said sideways', '+ how alike it is to the shot before'], strain: 'The chain wanders. Its best matches were often already taken, and the poem becomes a faint pull.',
+    lesson: 'Drift makes the smoothest film and the loosest reading of the poem.' } };
+const C = CFG[T], NAME = T[0].toUpperCase() + T.slice(1);
+document.title = `${NAME} · Where You Go When You Leave`; document.getElementById('sh').textContent = NAME; document.getElementById('sq').textContent = C.q + ' About five minutes, with sound.';
+window.EPISODE = {
+  data: ['explain/ep/takes.json?v=1', 'explain/ep/ep5.json?v=3'],
+  cues: [],
+  build([TK, W], B, K) {
+    const { esc, fmt, line, later, raf, startVideos } = K, $ = K.$, X = TK[T], ch = TK.parts.find(p => p.n === X.watch), rows = X.rows.filter(r => r.ch === X.watch);
+    const src = `https://github.com/hartswf0/cineosis-lab/releases/download/wygwyl-v1/${FILMS[T]}.mp4`;
+    const poemAt = t => { const c = W.poem.filter(p => p.text).find(p => t >= p.t && t < p.t + p.d); return c ? c.text : ''; };
+    const rowAt = t => X.rows.find(r => t >= r.t0 && t < r.t1) || X.rows[0];
+    const film = (t, snd = true) => `<div class="wv"><video data-src="${src}" data-t="${t}" ${snd ? 'data-snd="1"' : 'muted'} playsinline></video></div><div class="band" id="bd"></div>`;
+    const evidence = r => {
+      let h = `<div><div class="lb">on screen</div><div class="shot"><b>${esc(r.title)}</b>${esc(r.year || '')}</div></div><div><div class="lb">how well it matches what was asked</div><div class="meter"><b style="width:${Math.min(100, r.match / .45 * 100)}%"></b></div></div>`;
+      if (T === 'suite') h += `<div><div class="lb">the treatment asks</div><div class="q">${esc(r.beat.title || '')}</div><div style="margin-top:6px">${esc(r.beat.operation || '')}</div></div>${r.beat.gap ? `<div><div class="lb">what the archive cannot give</div><div class="gap">${esc(r.beat.gap)}</div></div>` : ''}${r.review ? `<div><div class="lb">a forager watched it</div>${esc(r.review.observed || '')}</div>` : ''}`;
+      if (T === 'scenes') h += r.pos ? `<div><div class="lb">from one film, in its own order</div><div class="q">shot ${r.pos[0]} of ${r.pos[1]}</div></div>` : `<div><div class="lb">no run of one film fitted</div>the best single shot instead</div>`;
+      if (T === 'cineosis') h += (r.signs || []).map(s => `<div><div class="lb">${esc(s.sym)} · ${esc(s.name)}</div><div class="q">${esc(s.q)}</div><div class="meter" style="margin-top:6px"><b style="width:${Math.min(100, s.aff * 6)}%"></b></div><small style="font:13px var(--mono);color:var(--dim)">${s.aff}% · the machine's pointer</small></div>`).join('');
+      if (T === 'drift') h += `<div><div class="lb">alike the shot before</div><div class="meter"><b style="width:${r.follow != null ? r.follow * 100 : 0}%"></b></div><small style="font:13px var(--mono);color:var(--dim)">${r.follow != null ? r.follow.toFixed(2) : 'first shot'}</small></div>${r.mood ? `<div><div class="lb">the chapter's mood it leaned toward</div><div class="q">${esc(r.mood)}</div></div>` : ''}`;
+      return h; };
+    const live = (el, side) => { startVideos(el); const v = el.querySelector('video'), bd = $('#bd', el), sd = side && $('#sd', el);
+      raf(() => { const t = v.currentTime, tx = poemAt(t); if (bd.dataset.t !== tx) { bd.dataset.t = tx; bd.innerHTML = tx ? `<small>THE POEM</small>${esc(tx)}` : ''; }
+        if (sd) { const r = rowAt(t); if (sd.dataset.id !== r.id) { sd.dataset.id = r.id; sd.innerHTML = `<div class="tk">${NAME}<small>${esc(ch.title)} · ${r.id}</small></div>${evidence(r)}`; } } }); };
+    const LEN = Math.min(100, ch.t1 - ch.t0);
+    /* 1 · watch first */
+    B('Watch', LEN, () => `${film(ch.t0)}<div class="side"><div class="tk">${NAME}<small>part ${ch.n} · ${esc(ch.title)}</small></div><div style="color:var(--dim)">Watch first. Everything that follows is about how these pictures were chosen.</div></div>`, el => live(el, false));
+    /* 2 · the question */
+    B('The question', 10, () => `<div class="big"><small>${NAME} asks</small><h2>${esc(C.q)}</h2><p>${esc(C.rule)}</p></div>`);
+    B('The question', 12, () => `<div class="big" style="top:120px"><small>for every moment, ${NAME} asks the archive for</small></div><div class="recipe" style="top:220px">${C.recipe.map((x, i) => `${i ? `<i style="animation-delay:${i * 1.4 - .3}s">+</i>` : ''}<span style="animation-delay:${i * 1.4}s">${esc(x)}</span>`).join('')}</div>
+        ${line(['CUTBASTARD, the lab\'s editing machine, turns those words into numbers and scores every watched shot against them.', 'The highest score that the rules allow is the shot.'])}`);
+    /* 3 · what it looks at */
+    if (T === 'scenes') (X.strips || []).slice(0, 2).forEach((s, k) => { const r0 = rows.find(r => r.src === s.src); B('What it looks at', 13, () => `<div class="big" style="top:40px"><small>${k ? '' : 'one film, in its own order'}</small><h2 style="font-size:40px">${esc(r0 ? r0.title : s.src)}</h2></div>
+        <div class="strip" style="grid-template-columns:repeat(7,1fr);top:150px;gap:8px">${s.thumbs.map((u, i) => `<i class="${s.a + i >= s.k0 && s.a + i <= s.k1 ? 'run' : ''}" style="background-image:url('${esc(u)}');animation-delay:${i * .12}s"></i>`).join('')}</div>
+        ${line([`Shots ${s.k0} to ${s.k1} of the film's ${s.n}, played in their own order under one line.`, 'The lime frames are the ones the take used; the others sit on either side in the original film.'])}`); });
+    else if (T === 'drift') { const ck = rows.slice(0, 10); B('What it looks at', 15, () => `<div class="big" style="top:40px"><small>a chain: each shot chosen for looking like the last</small></div>
+        <div style="position:absolute;left:40px;right:40px;top:110px;display:grid;grid-template-columns:repeat(5,1fr);gap:14px">${ck.map((r, i) => `<figure style="margin:0;position:relative;opacity:0;animation:up .6s ease forwards ${i * .7}s"><img src="${esc(r.thumb)}" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block">${i ? `<span style="position:absolute;left:8px;top:8px;background:rgba(11,10,9,.85);padding:2px 8px;font:600 18px var(--mono);color:var(--lime)">← ${r.follow != null ? r.follow.toFixed(2) : ''}</span>` : `<span style="position:absolute;left:8px;top:8px;background:rgba(11,10,9,.85);padding:2px 8px;font:600 15px var(--mono);color:var(--ink)">start</span>`}<figcaption style="font:13px var(--mono);color:var(--dim);margin-top:4px">${esc(r.title)}</figcaption></figure>`).join('')}</div>
+        ${line(['Each number: how alike that shot looks to the one before it, to the machine.', 'Drift keeps that number high, whatever the poem is saying.'])}`); }
+    else rows.slice(0, 3).forEach((r, k) => B('What it looks at', Math.min(11, r.t1 - r.t0 + 2), () => `${film(r.t0, true)}<div class="side" id="sd"></div>`, el => live(el, true)));
+    /* 4 · watch again, knowing */
+    B('Watch again, knowing', LEN, () => `${film(ch.t0)}<div class="side" id="sd"></div>`, el => live(el, true));
+    /* 5 · where it strains */
+    X.weak.map(id => X.rows.find(r => r.id === id)).filter(Boolean).forEach((r, k) => B('Where it strains', Math.min(10, r.t1 - r.t0 + 2), () => `${film(r.t0, true)}<div class="side" id="sd"></div>`, el => live(el, true)));
+    B('Where it strains', 9, () => `<div class="big"><small>where ${NAME} strains</small><h2 style="font-size:46px">${esc(C.strain)}</h2></div>`);
+    /* 6 · what it teaches */
+    const reviewed = X.rows.filter(r => r.review).length, runs = X.rows.filter(r => r.pos).length;
+    const NUMS = [[X.films, 'films it drew from'], [X.flips, 'switches between black-and-white and colour'], [X.mean.toFixed(2), 'average match to what it asked'],
+      T === 'suite' ? [reviewed, 'shots a forager had watched and reviewed'] : T === 'scenes' ? [runs, 'shots played in their own film\'s order'] : T === 'cineosis' ? [X.rows.filter(r => (r.signs || []).some(s => s.aff >= 5)).length, 'shots that carry a beat\'s sign strongly (5% or more)'] : [X.rows.filter(r => (r.follow || 0) >= .8).length, 'shots very like the one before (0.80 or more)']];
+    B('What it teaches', 12, () => `<div class="nums">${NUMS.map(([n, l], i) => `<div style="animation-delay:${i * .6}s"><b>${n}</b><span>${esc(l)}</span></div>`).join('')}</div>${line([esc(C.lesson)])}`);
+    const NEXT = { suite: 'scenes', scenes: 'cineosis', cineosis: 'drift', drift: null };
+    B('What it teaches', 40, () => `<div class="next"><small>WHERE YOU GO WHEN YOU LEAVE · TAKE ${C.n - 1} OF 4</small><h1 style="color:var(--lime);font-style:italic;font-weight:400">${NAME}</h1><nav>${NEXT[T] ? `<a href="wygwyl-take.html?t=${NEXT[T]}" style="background:var(--lime)">Next take: ${NEXT[T][0].toUpperCase() + NEXT[T].slice(1)}</a>` : `<a href="episode-5.html" style="background:var(--lime)">Compare all four</a>`}<a class="ghost" href="series.html" style="color:var(--lime);border-color:var(--lime)">All episodes</a></nav></div>`);
+  }
+};
+</script>
+<script src="explain/player.js?v=5"></script>
+</body>
+</html>
