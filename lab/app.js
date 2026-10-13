@@ -716,16 +716,17 @@ const DIMS = {
   read: { name: 'read or not', cats: () => ['read', 'surfaced'], of: s => s._read.length ? 'read' : 'surfaced', label: c => c },
 };
 const MapMode = {
-  host: null, cv: null, g: null, P: [], cam: { x: .5, y: .5, z: 600 }, kind: null, hover: null, dirty: true, live: [], ax: ['scale', 'decade'],
+  host: null, cv: null, g: null, P: [], cam: { x: .5, y: .5, z: 600 }, kind: null, hover: null, dirty: true, live: [], ax: ['scale', 'decade'], hideFiltered: false,
   mount(host) {
     if (this.cv) return;
     this.host = host;
     host.innerHTML = `<canvas class="mapcv"></canvas>
       <div class="hud hud-tl"><div class="hud-title" id="mapTitle"></div><div class="seg" id="mapKind">
         <button data-v="xy">picture</button><button data-v="sound">sound</button><button data-v="hue">colour × decade</button><button data-v="sign">sign × decade</button><button data-v="axes">axes</button></div>
-        <div class="axpick" id="axPick">x <select id="axX"></select> y <select id="axY"></select></div>
+        <div class="axpick" id="axPick">x <select id="axX"></select> y <select id="axY"></select>
+          <label><input type="checkbox" id="axHideFiltered"> Hide filtered-out shots</label></div>
         <div class="hud-note" id="mapNote"></div></div>
-      <div class="hud hud-br"><button class="ghost" data-z="in">+</button><button class="ghost" data-z="out">−</button><button class="ghost" data-z="fit">fit</button></div>`;
+      <div class="hud hud-br"><button class="ghost" data-z="leave" hidden>Leave close-up</button><button class="ghost" data-z="in">+</button><button class="ghost" data-z="out">−</button><button class="ghost" data-z="fit">fit</button></div>`;
     this.cv = $('canvas', host); this.g = this.cv.getContext('2d');
     IMG.onload = rafThrottle(() => { if (Shell.mode === 'map') this.draw(); });
     $('#mapKind', host).addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; this.morph(b.dataset.v); });
@@ -733,9 +734,13 @@ const MapMode = {
     $('#axX', host).innerHTML = opts; $('#axY', host).innerHTML = opts; $('#axX', host).value = this.ax[0]; $('#axY', host).value = this.ax[1];
     const pick = () => { this.ax = [$('#axX', host).value, $('#axY', host).value]; this.morph('axes'); };
     $('#axX', host).onchange = pick; $('#axY', host).onchange = pick;
+    $('#axHideFiltered', host).checked = this.hideFiltered;
+    $('#axHideFiltered', host).onchange = e => {
+      this.hideFiltered = e.target.checked; this.unfocus(); this.build(); this.req();
+    };
     $('.hud-br', host).addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return; const z = b.dataset.z;
-      if (z === 'fit') this.fit(); else this.zoomAt(this.W / 2, this.H / 2, z === 'in' ? 1.6 : 1 / 1.6);
+      if (z === 'leave') { this.unfocus(); this.fit(); } else if (z === 'fit') this.fit(); else this.zoomAt(this.W / 2, this.H / 2, z === 'in' ? 1.6 : 1 / 1.6);
     });
     const ptrs = new Map(); let drag = null, pinch = null;
     const cv = this.cv;
@@ -782,18 +787,20 @@ const MapMode = {
     this.cv.width = Math.max(1, Math.round(r.width * dpr)); this.cv.height = Math.max(1, Math.round(r.height * dpr));
   },
   show() { this.size(); if (!this.kind || (this.kind === 'xy' && !L.has.xy) || (this.kind === 'hue' && !L.has.hue)) this.kind = L.has.xy ? 'xy' : L.has.hue ? 'hue' : 'sign'; this.build(); this.fit(); },
-  update() { this.buildLive(); this.req(); this.hud(); },
+  update() { if (this.kind === 'axes' && this.hideFiltered) { this.unfocus(); this.build(); } else this.buildLive(); this.req(); this.hud(); },
   hud() {
     const H = this.host;
     $$('#mapKind button', H).forEach(b => { const v = b.dataset.v; b.disabled = (v === 'xy' && !L.has.xy) || (v === 'hue' && !L.has.hue); b.classList.toggle('on', v === this.kind); }); H.dataset.kind = this.kind;
-    const t = { xy: 'SIMILARITY MAP · CLIP embedding, t-SNE', hue: 'FALLBACK · hue band × decade', sign: 'FALLBACK · sign × decade' }[this.kind];
+    const t = { xy: 'SIMILARITY MAP · CLIP embedding, t-SNE', sound: 'SOUND MAP · audio similarity', axes: 'AXES · ' + DIMS[this.ax[0]].name + ' × ' + DIMS[this.ax[1]].name, hue: 'FALLBACK · hue band × decade', sign: 'FALLBACK · sign × decade' }[this.kind];
     $('#mapTitle', H).textContent = t;
     const shown = this.P.filter(p => p.s._in).length;
-    $('#mapNote', H).innerHTML = `${fmt(shown)} lit · ${fmt(this.P.length - shown)} dimmed` +
+    const hidden = this.kind === 'axes' && this.hideFiltered ? L.shots.filter(s => !s._in).length : 0;
+    $('#mapNote', H).innerHTML = `${fmt(shown)} matching · ${fmt(this.P.length - shown)} dimmed` + (this.kind === 'axes' && this.hideFiltered ? ` · ${fmt(hidden)} hidden` : '') +
       (this.kind !== 'xy' && !L.has.xy ? ' · similarity map appears when xy is computed' : '') + ' · wheel/pinch to zoom · drag to pan';
   },
   build() {
-    const P = [], shots = L.shots;
+    const P = [], shots = this.kind === 'axes' && this.hideFiltered ? L.shots.filter(s => s._in) : L.shots;
+    this.layoutVersion = (this.layoutVersion || 0) + 1;
     this.axes = null;
     const decs = [1900, 1910, 1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020, -1];
     if (this.kind === 'sound' && SND.d && SND.d.xy) {   // laid out by what each shot sounds like (UMAP of CLAP); the unheard wait in a band below
@@ -832,7 +839,7 @@ const MapMode = {
     this.base = P; this.buildLive(); this.hud();
   },
   buildLive() {
-    const lv = liveView().filter(s => !s._liveHit || !this.base.find(p => p.s === s));
+    const lv = liveView().filter(s => !(this.kind === 'axes' && this.hideFiltered) || s._in || s._liveOnly).filter(s => !s._liveHit || !this.base.find(p => p.s === s));
     this.P = this.base.slice();
     if (lv.length) { const band = []; packCell(lv, this.bounds[0], this.bounds[1] - 0.14, this.bounds[2] - this.bounds[0], 0.11, band); this.P.push(...band); }
     this.liveRow = lv.length ? this.bounds[1] - 0.15 : null;
@@ -842,11 +849,12 @@ const MapMode = {
     const old = new Map(this.P.map(p => [p.s, p])), c0 = { ...this.cam };
     this.kind = kind; this.build(); this.fit(); const c1 = { ...this.cam };
     const from = this.P.map(p => old.get(p.s) || { x: p.x, y: p.y + .3, w: p.w }), to = this.P.map(p => ({ x: p.x, y: p.y, w: p.w }));
-    const t0 = performance.now();
-    await new Promise(r => { const step = () => { const k = Math.min(1, (performance.now() - t0) / ms), e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+    const t0 = performance.now(), version = this.layoutVersion;
+    await new Promise(r => { const step = () => { if (version !== this.layoutVersion) { r(); return; } const k = Math.min(1, (performance.now() - t0) / ms), e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
       this.P.forEach((p, i) => { p.x = from[i].x + (to[i].x - from[i].x) * e; p.y = from[i].y + (to[i].y - from[i].y) * e; p.w = from[i].w + (to[i].w - from[i].w) * e; });
       this.cam.x = c0.x + (c1.x - c0.x) * e; this.cam.y = c0.y + (c1.y - c0.y) * e; this.cam.z = c0.z * Math.pow(c1.z / c0.z, e); this.draw();
       if (k < 1) requestAnimationFrame(step); else r(); }; step(); });
+    if (version !== this.layoutVersion) return;
     $$('#mapKind button', this.host).forEach(b => b.classList.toggle('on', b.dataset.v === kind)); this.host.dataset.kind = kind;
     if (this.focus) { const byId = new Map(this.P.map(q => [q.s.id, q])); this.edges = (this.edges || []).map(([a, b]) => [byId.get(a.s.id), byId.get(b.s.id)]); this.placeIn(); this.draw(); }
   },
@@ -881,19 +889,21 @@ const MapMode = {
   stopIn() { (this.live || []).forEach(L1 => { L1.v.pause(); L1.box.remove(); }); this.live = []; const sv = this.host && $('svg.mp-lines', this.host); if (sv) sv.innerHTML = ''; },
   hide() { this.stopIn(); },
   focusOn(s, k = 10) {
+    const run = this.focusRun = (this.focusRun || 0) + 1;
     const p = this.P.find(q => q.s === s || q.s.id === s.id); if (!p) return;
     const near = this.P.filter(q => q !== p && q.s.video).map(q => [q, (q.x - p.x) ** 2 + (q.y - p.y) ** 2]).sort((a, b) => a[1] - b[1]).slice(0, k).map(x => x[0]);
     this.focus = new Set([p, ...near].map(q => q.s.id));
+    $('[data-z="leave"]', this.host).hidden = false;
     this.edges = near.map(q => [p, q]);
     near.forEach(q => { const n2 = near.filter(r => r !== q).map(r => [r, (r.x - q.x) ** 2 + (r.y - q.y) ** 2]).sort((a, b) => a[1] - b[1]).slice(0, 2); n2.forEach(([r]) => this.edges.push([q, r])); });
     const xs = [p, ...near].map(q => q.x), ys = [p, ...near].map(q => q.y), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
     const c = this.cam, from = { ...c }, z = Math.min((this.W - 320) / Math.max(.003, x1 - x0), (this.H - 260) / Math.max(.003, y1 - y0), 90 / Math.max(1e-5, p.w)), to = { x: (x0 + x1) / 2, y: (y0 + y1) / 2, z };
-    const t0 = performance.now(), step = () => { const e = Math.min(1, (performance.now() - t0) / 1600), k2 = e * e * (3 - 2 * e);
+    const t0 = performance.now(), step = () => { if (run !== this.focusRun) return; const e = Math.min(1, (performance.now() - t0) / 1600), k2 = e * e * (3 - 2 * e);
       c.x = from.x + (to.x - from.x) * k2; c.y = from.y + (to.y - from.y) * k2; c.z = from.z * Math.pow(to.z / from.z, k2); this.draw(); if (e < 1) requestAnimationFrame(step);
       else this.playIn([{ id: p.s.id, cls: 'seed', px: Math.max(150, p.w * this.cam.z * 1.2), label: 'THIS · ' + esc((CAPS.map && CAPS.map[p.s.id]) || p.s.title) }, ...near.slice(0, 6).map(q => ({ id: q.s.id, px: Math.max(110, q.w * this.cam.z), label: esc((CAPS.map && CAPS.map[q.s.id]) || q.s.title) }))]); };
     step();
   },
-  unfocus() { this.focus = null; this.edges = null; this.stopIn(); this.req(); },
+  unfocus() { this.focusRun = (this.focusRun || 0) + 1; this.focus = null; this.edges = null; this.stopIn(); const leave = this.host && $('[data-z="leave"]', this.host); if (leave) leave.hidden = true; this.req(); },
   fit() {
     const [x0, y0, x1, y1] = this.bounds, top = this.liveRow != null ? this.liveRow : y0;
     const cells = this.axes && this.axes.cols, small = this.W < 640;
@@ -1782,6 +1792,7 @@ const Inspector = {
       const n = String(e.n), sg = L.S[n], alt = e.alt != null ? String(e.alt) : null;
       return `<div class="rd"><div class="rd-h">${chip(n, 'big')}<div><b>${esc(sg ? sg.name : n)}</b><span>${e.conf != null ? e.conf + '% in context' : ''}${e.shot != null ? ` · ${e.shot}% from the shot alone` : ''}</span></div></div>
         ${readingBar(n, e)}
+        ${sg && sg.question ? `<p class="rd-n"><b>Test this sign:</b> ${esc(sg.question)}</p>` : ''}
         <p class="rd-n">${esc(e.note || '')}</p>
         ${alt && L.S[alt] ? `<p class="rd-f">else ${chip(alt, 'sm')} ${esc(L.S[alt].name)} ${e.alt_conf ?? ''}% — <i>${esc(e.flip || '')}</i></p>` : ''}</div>`;
     }).join('');
@@ -1800,7 +1811,17 @@ const Inspector = {
     const seenB = `${cap ? `<p class="fl-t">${esc(cap)}</p>` : ''}${s.subjects && s.subjects.length ? `<div class="subs">${s.subjects.slice(0, 3).map(x => `<span style="--p:${Math.round((x.p || 0) * 100)}%">${esc(x.label)} <em>${Math.round((x.p || 0) * 100)}</em></span>`).join('')}</div>` : ''}`;
     const heardB = hd || s.audio ? `<div class="tags">${(hd || []).map(([t, z]) => `<span class="tag" style="--a:${Math.min(1, .35 + z / 4)}">${esc(t)}</span>`).join('')}${s.audio ? `<span class="mini">${esc(s.audio.kind || '')}${s.audio.rms_db != null && s.audio.rms_db > -100 ? ` · ${s.audio.rms_db.toFixed(0)} dB` : ''}</span>` : ''}</div>` : '';
     const usedB = used.length ? used.map(([n, w, r, j, href]) => `<a class="use" href="${esc(href)}" target="_blank" rel="noopener" style="--c:${(Object.values(ours).find(o => o[0] === n) || [, '#f2c14e'])[1]}"><b>${esc(n)}</b><span>${esc(w)} · ${esc(r)}</span>${j ? `<i>${esc(j)}</i>` : ''}</a>`).join('') : '<p class="fl-m">not yet used by any of our films</p>';
-    R.querySelector('#insLeft').innerHTML = `<div class="anchor">${reads || pend('not read yet')}</div><div class="flow">
+    const proposed = s._aff3[0] && L.S[s._aff3[0]];
+    const unread = `<p class="fl-t"><b>No editorial reading recorded.</b></p>${proposed ? `<p class="fl-m">Machine candidate: ${chip(proposed.n)} ${esc(proposed.name)}. This is not an assignment.</p>${proposed.question ? `<p class="fl-q"><b>Test this candidate:</b> ${esc(proposed.question)}</p>` : ''}` : '<p class="fl-m">No machine candidate recorded.</p>'}`;
+    const trace = `<details class="sd-block"><summary>How this clip was made and read</summary><ol>
+      <li><b>Locate:</b> ${esc(s.title)} · ${tc(s.start || 0)}–${tc(s.end || 0)}. ${s.clip ? 'Local clip path recorded.' : 'No local clip path recorded.'} Original cutting method is not recorded here.</li>
+      <li><b>Retrieve:</b> ${(s.found || []).length} search records. Search words and ranks appear below.</li>
+      <li><b>Place:</b> ${s.xy ? 'Picture map coordinates recorded.' : 'No picture map coordinates recorded.'} ${s.affinity ? 'Machine sign affinities recorded.' : 'No machine sign affinities recorded.'} Coordinates do not record a model run or date.</li>
+      <li><b>Read:</b> ${s._read.length} editorial readings. ${s.read_t != null ? 'Read frame: ' + tc((s.start || 0) + s.read_t) + '.' : 'No read-frame time recorded.'} Test the sign question against the clip and its context.</li>
+      <li><b>Save:</b> ${L.assignments.filter(a => a.id === s.id).length} saved sub-shot assignments. Set A/B, choose a sign, write evidence, then save.</li>
+      <li><b>Use:</b> ${used.length} downstream-use records. Follow a recorded film link below.</li>
+    </ol><p class="fl-m">Run IDs, model versions, prompts, and processing dates are not recorded in this view. No processing history is inferred.</p></details>`;
+    R.querySelector('#insLeft').innerHTML = `<div class="anchor">${reads || unread}</div>${trace}<div class="flow">
       ${node('f0', 'from', fromB, 'the source film')}
       ${foundB ? node('f1', 'found', foundB, 'by these words') : ''}
       ${node('f2', 'seen', seenB || pend('not seen yet'), 'BLIP · CLIP')}
@@ -2008,7 +2029,8 @@ function affinityBlock(s) {
       <i></i><span>${esc(sg.symbol)}</span>${r && r.conf != null ? `<em>${r.conf}</em>` : ''}${found.has(n) ? '<u></u>' : ''}</button>`;
   }).join('');
   const top = (s.aff_top || []).slice(0, 3).map(([n, v], i) => { const sg = L.S[String(n)]; if (!sg) return ''; return `<span class="sugc" title="${esc(sg.difference || sg.gloss || '')}">${chip(sg.n)}<b>${esc(sg.name)}</b><em>${(+v).toFixed(0)}%</em></span>`; }).join('');
-  const def = '';
+  const primary = s._read[0] || s._aff3[0] || s._found[0];
+  const def = primary && L.S[primary] ? affReadout(s, primary) : 'No sign reading or candidate recorded.';
   return `<div class="sd-block affblock"><h4>the 45 signs</h4>
     <div class="aff">${cells}</div>
     <div class="aff-key"><span><i class="k-rd"></i>editor’s reading + conf %</span><span><i class="k-alt"></i>rival</span><span><i class="k-dot"></i>found by its search</span><span><i class="k-heat"></i>machine affinity</span></div>
@@ -2021,7 +2043,8 @@ function affReadout(s, n) {
   const r = (s.signs || []).find(e => String(e.n) === n);
   const alt = (s.signs || []).find(e => String(e.alt) === n);
   return `${chip(n)} <b>${esc(sg.name)}</b> · ${a != null ? `affinity <b>${a.toFixed(1)}%</b> (rank ${rank}/45)` : 'no affinity'}` +
-    (r ? ` · editor <b>${r.conf ?? '—'}%</b>` : '') + (alt ? ` · rival ${alt.alt_conf ?? ''}%` : '') + (s._found.includes(n) ? ' · found by its search' : '');
+    (r ? ` · editor <b>${r.conf ?? '—'}%</b>` : '') + (alt ? ` · rival ${alt.alt_conf ?? ''}%` : '') + (s._found.includes(n) ? ' · found by its search' : '') +
+    (sg.question ? `<p class="fl-q"><b>Test this sign:</b> ${esc(sg.question)}</p>` : '');
 }
 function cutSprite(c) { return sprHTML({ sprite: c.sprite, sw: c.sw, sh: c.sh, boxes: c.boxes, png: c.png }, { frames: c.frames, fps: c.fps }); }
 /** sprite cell HTML for a tracked object (animated by Sprites) */
@@ -2984,6 +3007,7 @@ const Shell = {
     if (Inspector.root && !Inspector.root.hidden) { if (Inspector.key(e)) return; return; }
     if (!$('#about').hidden && e.key === 'Escape') { $('#about').hidden = true; return; }
     if (Guide.open() && e.key === 'Escape') { Guide.close(); return; }
+    if (this.mode === 'map' && e.key === 'Escape' && MapMode.focus) { MapMode.unfocus(); MapMode.fit(); return; }
     if (this.mode === 'reel' && Reel.key(e)) return;
     if (this.mode === 'wyg' && Wyg.key(e)) return;
     if (e.key === '/') { e.preventDefault(); $('#q').focus(); return; }
