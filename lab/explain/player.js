@@ -71,8 +71,32 @@
       + LOG.filter(Boolean).map(r => `<div style="border-top:1px solid #2e2a26;padding:8px 0"><div style="color:#ece6da">${r.beat} · ${esc(r.chapter)} · ${Math.floor(r.at / 60)}:${String(Math.floor(r.at % 60)).padStart(2, '0')} · ${r.secs}s</div><div style="color:#8c867a">data: ${r.data.map(esc).join(', ')}</div>${r.media.map(m => `<div>${m.kind} · ${esc(m.src)}${m.from != null ? ' @ ' + m.from + 's' : ''}</div>`).join('')}</div>`).join('');
     const c = logBox.querySelector('#logCopy'); if (c) c.onclick = () => { const t = JSON.stringify({ film: document.title, url: location.href, beats: LOG.filter(Boolean) }, null, 1); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => c.textContent = 'copied').catch(() => { const ta = document.createElement('textarea'); ta.value = t; logBox.appendChild(ta); ta.select(); }); }; }
   const toggleLog = () => { logBox.style.display = logBox.style.display === 'none' ? 'block' : 'none'; renderLog(); };
+
+  /* THE FILMS: one list (explain/films.js) for the whole series. A "films" menu on every film, the line under each title saying
+     what it makes visible, and a card at the end that leads to the next film. Keys: F opens the menu. */
+  const films = () => window.FILMS || [];
+  function here() { const F = films(), q = new URLSearchParams(location.search), base = location.pathname.split('/').pop() || 'index.html';
+    return F.findIndex(f => { const [p, qs] = f.href.split('?'); if (p !== base) return false; const fq = new URLSearchParams(qs || '');
+      if (!qs) return !q.get('part') && !q.get('t'); return [...fq].every(([k, v]) => q.get(k) === v); }); }
+  const navBox = document.createElement('div'); navBox.id = 'epfilms';
+  navBox.style.cssText = 'position:fixed;inset:0 0 64px 0;background:rgba(8,8,7,.97);z-index:60;display:none;overflow:auto;padding:40px 16px';
+  document.body.appendChild(navBox);
+  function drawNav() { const F = films(), h = here(); let unit = '';
+    const link = (f, i) => `<a href="${f.href}" style="display:grid;grid-template-columns:64px minmax(0,1fr);gap:4px 16px;padding:12px 14px;border-radius:6px;text-decoration:none;${i === h ? 'background:#1f1d19;outline:2px solid #c4f46a;' : ''}"><span style="font:600 15px 'IBM Plex Mono',monospace;color:#a29d90;padding-top:4px">${esc(f.n)}</span><span><b style="display:block;font:600 22px Fraunces,Georgia,serif;color:#ece6da">${esc(f.t)}${i === h ? ' <small style="font:600 12px IBM Plex Mono,monospace;color:#c4f46a;letter-spacing:.12em">YOU ARE HERE</small>' : ''}</b><span style="font:italic 17px Fraunces,Georgia,serif;color:#a29d90">makes visible ${esc(f.v)}</span></span></a>`;
+    navBox.innerHTML = `<div style="max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px"><b style="font:600 14px 'IBM Plex Mono',monospace;letter-spacing:.2em;color:#a29d90">CINEOSIS · THE FILMS, IN ORDER</b><span style="display:flex;gap:10px">${h > 0 ? `<a href="${F[h - 1].href}" style="${btn}">‹ previous</a>` : ''}${h >= 0 && h < F.length - 1 ? `<a href="${F[h + 1].href}" style="${btn};background:#c4f46a;color:#111">next ›</a>` : ''}<a href="series.html" style="${btn}">series page</a><a href="papers.html" style="${btn}">papers</a><button id="navX" style="${btn}">close</button></span></div>`
+      + F.map((f, i) => { const u = f.unit !== unit ? `<div style="font:600 12px 'IBM Plex Mono',monospace;letter-spacing:.18em;color:#6d675d;text-transform:uppercase;margin:18px 0 4px">${esc(unit = f.unit)}</div>` : ''; return u + link(f, i); }).join('') + '</div>';
+    navBox.querySelector('#navX').onclick = toggleNav; }
+  const btn = "font:600 14px 'IBM Plex Mono',monospace;color:#ece6da;background:none;border:1px solid #3a362f;border-radius:4px;padding:6px 12px;text-decoration:none;cursor:pointer";
+  function toggleNav() { const on = navBox.style.display === 'none'; navBox.style.display = on ? 'block' : 'none'; if (on) { drawNav(); if (!paused && cur >= 0) pause(true); } }
+  function endCard() { const F = films(), h = here(), nx = F[h + 1]; clearTimeout(timer); tok++;
+    stage.querySelectorAll('.beat').forEach(o => { o.classList.remove('on'); o.querySelectorAll('video').forEach(v => { v.pause(); v.removeAttribute('src'); v.load(); }); setTimeout(() => o.remove(), 1000); });
+    const el = document.createElement('div'); el.className = 'beat'; stage.appendChild(el);
+    el.innerHTML = `<div style="position:absolute;left:140px;right:140px;top:200px;display:flex;flex-direction:column;gap:26px"><small style="font:600 18px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:#a29d90">${nx ? 'NEXT FILM · ' + esc(nx.n) : 'THE END OF THE SERIES'}</small>
+      <h1 style="margin:0;font:600 96px/1.05 Fraunces,Georgia,serif;color:#ece6da">${nx ? esc(nx.t) : 'Cineosis'}</h1>${nx ? `<p style="margin:0;font:italic 36px/1.3 Fraunces,Georgia,serif;color:#a29d90">It makes visible ${esc(nx.v)}.</p>` : ''}
+      <div style="display:flex;gap:18px;margin-top:20px">${nx ? `<a href="${nx.href}" style="pointer-events:auto;font:600 24px 'IBM Plex Mono',monospace;color:#111;background:#c4f46a;padding:16px 28px;border-radius:5px;text-decoration:none">▶ watch it</a>` : ''}<a href="#" id="endAll" style="pointer-events:auto;font:600 24px 'IBM Plex Mono',monospace;color:#c4f46a;border:2px solid #c4f46a;padding:14px 26px;border-radius:5px;text-decoration:none">all films</a></div></div>`;
+    el.querySelector('#endAll').onclick = e => { e.preventDefault(); toggleNav(); }; requestAnimationFrame(() => el.classList.add('on')); duck(false); }
   function show(i) {
-    if (i < 0 || i >= beats.length) return; clearTimeout(timer); tok++; cur = i; const b = beats[i]; voice.pause(); while (leaving.length) { try { leaving.pop()(); } catch (e) { } }
+    if (i >= beats.length && beats.length) { endCard(); return; } if (i < 0 || i >= beats.length) return; clearTimeout(timer); tok++; cur = i; const b = beats[i]; voice.pause(); while (leaving.length) { try { leaving.pop()(); } catch (e) { } }
     stage.querySelectorAll('.beat').forEach(o => { o.classList.remove('on'); o.querySelectorAll('video').forEach(v => { v.pause(); v.muted = true; }); setTimeout(() => { o.querySelectorAll('video').forEach(v => { v.removeAttribute('src'); v.load(); }); o.remove(); }, 1000); });
     const el = document.createElement('div'); el.className = 'beat'; el.innerHTML = b.html(); stage.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
     duck(false); if (b.after) b.after(el); cue(chapters.findIndex(c => c.name === b.ch)); logBeat(i, el);
@@ -89,16 +113,22 @@
     if (p) { clearTimeout(timer); left -= performance.now() - t0; } else { t0 = performance.now(); timer = setTimeout(() => show(cur + 1), Math.max(500, left)); } }
   function fit() { const W = innerWidth, H = innerHeight - 64, k = Math.min(W / 1600, H / 900); stage.style.transform = `translate(-50%, -50%) scale(${k})`; $('#wrap').style.height = H + 'px'; }
   addEventListener('resize', fit);
-  addEventListener('keydown', e => { if (e.key === 'l' || e.key === 'L') toggleLog(); if (e.key === ' ') { e.preventDefault(); pause(!paused); } if (e.key === 'ArrowRight') show(cur + 1); if (e.key === 'ArrowLeft') show(cur - 1); });
-  $('#bPlay').onclick = () => pause(!paused); { const lb = document.createElement('button'); lb.id = 'bLog'; lb.title = 'the log: what each beat was made from (L)'; lb.textContent = 'log'; lb.onclick = toggleLog; $('#bSnd').before(lb); } $('#bNext').onclick = () => show(cur + 1); $('#bPrev').onclick = () => show(cur - 1);
+  addEventListener('keydown', e => { if (e.key === 'l' || e.key === 'L') toggleLog(); if (e.key === 'f' || e.key === 'F') toggleNav(); if (e.key === ' ') { e.preventDefault(); pause(!paused); } if (e.key === 'ArrowRight') show(cur + 1); if (e.key === 'ArrowLeft') show(cur - 1); });
+  $('#bPlay').onclick = () => pause(!paused); { const lb = document.createElement('button'); lb.id = 'bLog'; lb.title = 'the log: what each beat was made from (L)'; lb.textContent = 'log'; lb.onclick = toggleLog; $('#bSnd').before(lb); const fb = document.createElement('button'); fb.id = 'bFilms'; fb.title = 'all the films, in order (F)'; fb.textContent = '☰ films'; fb.onclick = toggleNav; $('#bPrev').before(fb); } $('#bNext').onclick = () => show(cur + 1); $('#bPrev').onclick = () => show(cur - 1);
   $('#bSnd').onclick = () => { sound = !sound; $('#bSnd').textContent = sound ? '♪ on' : '♪ off'; duck(false); voice.muted = !sound; stage.querySelectorAll('video').forEach(v => { if (!sound) v.muted = true; }); };
   (async function () {
+    if (!window.FILMS) await new Promise(r => { const sc = document.createElement('script'); sc.src = 'explain/films.js?v=1'; sc.onload = r; sc.onerror = r; document.head.appendChild(sc); });
     fit(); const EP = window.EPISODE, D = await Promise.all(EP.data.map(u => fetch(u).then(r => r.json())));
     EP.build(D, (ch, secs, html, after, opt = {}) => beats.push({ ch, secs, html, after, ...opt }), K); if (EP.ready) EP.ready(K);
     beats.forEach(b => { let c = chapters.find(c => c.name === b.ch); if (!c) chapters.push(c = { name: b.ch, secs: 0 }); c.secs += b.secs; });
     $('#chs').innerHTML = chapters.map(c => `<div style="--w:${c.secs}"><i></i><span>${esc(c.name)}</span></div>`).join('');
     document.querySelectorAll('#chs div').forEach((d, ci) => d.onclick = () => show(beats.findIndex(b => b.ch === chapters[ci].name)));
     const q = new URLSearchParams(location.search), at = q.get('ch');
+    const F = films(), h = here(), st = $('#start > div');
+    if (st && h >= 0) { const add = document.createElement('div'); add.style.cssText = 'margin-top:22px;display:flex;flex-direction:column;gap:14px';
+      add.innerHTML = `<p style="margin:0;font:italic 22px/1.35 Fraunces,Georgia,serif;color:#cfc8ba">Makes visible ${esc(F[h].v)}.</p><span style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;font-size:14px">${h > 0 ? `<a href="${F[h - 1].href}" style="${btn}">‹ ${esc(F[h - 1].t)}</a>` : ''}<a href="#" class="allf" style="${btn}">☰ all films</a>${h < F.length - 1 ? `<a href="${F[h + 1].href}" style="${btn}">${esc(F[h + 1].t)} ›</a>` : ''}</span>`;
+      add.querySelectorAll('a').forEach(a => a.addEventListener('click', e => { e.stopPropagation(); if (a.classList.contains('allf')) { e.preventDefault(); toggleNav(); } }));
+      const go = st.querySelector('b'); st.insertBefore(add, go ? go.nextSibling : null); }
     $('#start').onclick = () => { $('#start').remove(); score.volume = .28; show(at ? Math.max(0, beats.findIndex(b => b.ch.toLowerCase().startsWith(at.toLowerCase()))) : 0); };
     if (q.has('auto')) $('#start').onclick();
     window.__ep = { beats, chapters, show, pause, log: LOG, get paused() { return paused; }, set paused(v) { paused = v; } };
