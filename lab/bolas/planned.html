@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planned Films</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<!-- PLANNED FILMS · the films still to make, each with the anomaly it opens on, the lab data it is built from, a chapter sketch,
+     and a screen test: the candidate Bolas sets for it, live from the set's own pages, scored on five criteria. Scores stay in this
+     browser only (localStorage) and can be copied out. -->
+<style>
+:root{--bg:#f4efe6;--card:#fbf8f2;--ink:#17140f;--mute:#6e675c;--line:#d6cebf;--red:#c73a2d;--lime:#5f7a12;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#141210;--card:#1d1b18;--ink:#ece6da;--mute:#a59d90;--line:#36322b;--red:#ef6a5c;--lime:#b5d65a;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:19px/1.45 "Cormorant Garamond",Georgia,serif}
+.top{display:flex;gap:18px;align-items:center;padding:10px 20px;font:13px "IBM Plex Mono",ui-monospace,monospace;border-bottom:1px solid var(--line)}
+.top a{color:inherit;text-decoration:none;border-bottom:1px solid transparent}.top a:hover,.top a:focus-visible{border-bottom-color:var(--red);outline:none}
+.top span{color:var(--mute)}
+main{display:grid;grid-template-columns:300px minmax(0,1fr);min-height:calc(100vh - 42px)}
+@media (max-width:900px){main{grid-template-columns:minmax(0,1fr)}}
+nav{border-right:1px solid var(--line);padding:22px 0}
+@media (max-width:900px){nav{border-right:0;border-bottom:1px solid var(--line)}}
+nav h1{font-weight:400;font-size:34px;margin:0 20px 4px;line-height:1}
+nav p{margin:0 20px 18px;color:var(--mute);font-size:16px}
+nav ol{list-style:none;margin:0;padding:0}
+nav button{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:10px 20px;color:inherit;font:inherit;cursor:pointer;align-items:baseline}
+nav button:hover .t,nav button:focus-visible .t{text-decoration:underline;text-decoration-color:var(--red);text-underline-offset:4px}
+nav button:focus-visible{outline:2px solid var(--red);outline-offset:-2px}
+nav button[aria-current="true"]{background:var(--card)}
+nav .n{font:12px "IBM Plex Mono",monospace;color:var(--mute)}
+nav .t{font-size:19px;line-height:1.2}
+nav .sc{font:12px "IBM Plex Mono",monospace;color:var(--mute)}
+section{padding:26px 28px 80px;min-width:0}
+.eb{font:12px "IBM Plex Mono",monospace;letter-spacing:.12em;color:var(--mute);text-transform:uppercase}
+h2{font-weight:400;font-size:44px;line-height:1.05;margin:4px 0 10px}
+.open{font-style:italic;font-size:24px;max-width:56ch;margin:0 0 6px}
+.vis{color:var(--mute);margin:0 0 18px;max-width:60ch}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px 28px;margin-bottom:26px}
+.facts div{min-width:0}
+.facts b{display:block;font:500 11px "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;margin-bottom:3px}
+.facts ul{margin:0;padding-left:18px;font-size:17px}
+.facts code{font:13px "IBM Plex Mono",monospace;color:var(--mute)}
+h3{font-weight:400;font-size:26px;margin:8px 0 4px}
+.how{color:var(--mute);font-size:16px;margin:0 0 12px;max-width:72ch}
+.bench{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px}
+.cand{background:var(--card);border:1px solid var(--line);min-width:0;display:flex;flex-direction:column}
+.cand.pick{outline:2px solid var(--ink);outline-offset:-2px}
+.frame{position:relative;width:100%;aspect-ratio:16/10;overflow:hidden;background:#111}
+.frame iframe{position:absolute;left:0;top:0;width:1280px;height:800px;border:0;transform-origin:0 0}
+.frame button{position:absolute;inset:0;width:100%;background:rgba(0,0,0,.35);color:#fff;border:0;font:14px "IBM Plex Mono",monospace;cursor:pointer}
+.cand .m{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
+.cand h4{margin:0;font-weight:500;font-size:20px;line-height:1.15}
+.cand .why{font-size:15.5px;color:var(--mute);line-height:1.3;margin:0}
+.cand .pk{font:11px "IBM Plex Mono",monospace;letter-spacing:.1em;color:var(--red)}
+.crit{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;margin-top:4px;font-size:15px;align-items:center}
+.crit button{font:12px "IBM Plex Mono",monospace;min-width:54px;background:none;border:1px solid var(--line);color:var(--ink);padding:2px 6px;cursor:pointer}
+.crit button[data-v="2"]{border-color:var(--ink)}
+.tot{font:13px "IBM Plex Mono",monospace;margin-top:auto;padding-top:6px;border-top:1px solid var(--line)}
+.cand a{font:12px "IBM Plex Mono",monospace;color:inherit}
+.copy{margin-top:20px;font:13px "IBM Plex Mono",monospace;background:none;border:1px solid var(--ink);color:inherit;padding:6px 12px;cursor:pointer}
+.status{font:13px "IBM Plex Mono",monospace;color:var(--mute);margin-left:10px}
+</style>
+</head>
+<body>
+<div class="top"><a href="index.html">Bolas set</a><span>Planned films · screen tests</span><a href="../series.html" style="margin-left:auto">Series</a></div>
+<main>
+<nav aria-label="Planned films"><h1>Planned films</h1><p>Choose a film to see its plan and test the Bolas sets against it.</p><ol id="list"></ol></nav>
+<section id="film" aria-live="polite"></section>
+</main>
+<script>
+/* each candidate: a page in this set, the section it is scrolled to, and why it might fit */
+const SETS = {
+  studio: ['Wink Blink Studio', 'wink-blink-studio.html'], wink: ['Wink, Not Blink', 'wink-blink.html'], lcd: ['Line, Circle, Dot', 'line-circle-dot.html'],
+  idents: ['Idents', '../idents.html'], work: ['Bolas at Work', 'at-work.html'], pixel: ['Bolas Pixel', 'pixel.html'],
+  wtm: ['Webs That Matter', 'webs-that-matter.html'], woc: ['The Web of Cineosis', 'web-of-cineosis.html'], wos: ['Webs of Significance', 'webs-of-significance.html'],
+  screen: ['Screen Test', 'screen-test.html'], marks: ['Sign Marks', 'sign-marks.html'] };
+const FILMS = [
+ { id: 'l1', n: 'L1', t: 'What the Machine Read', unit: 'Seeing',
+   open: 'You would think the machine watches the shot. It reads three still frames, and the film plays something else.',
+   vis: 'the frames a score is computed from, against the stretch the film actually plays',
+   data: ['<code>cache/watch/*.json</code>: three judged frames and motion per shot', '<code>explain/lesson/l8.json</code> strip: the Suite winner judged on frames the viewer barely sees', 'frame-by-frame CLIP to the description, eight moments per shot'],
+   ch: ['Cold open: a shot plays, three frames freeze', 'Eight moments: how far each drifts from what was judged', 'Across the film: how often the judged frames miss the played window', 'Now you can read'],
+   cands: [['studio', '#contact', 'Under the Loupe: a contact sheet with one frame chosen under glass. The operation of this lesson.'], ['studio', '#shutter', 'The projector blinks: frames between frames.'], ['wos', '#one', 'Real frames as nodes, threaded to what used them.']], pick: 0 },
+ { id: 'l2', n: 'L2', t: 'The Match Meter', unit: 'Seeing',
+   open: 'You would think a high score means the picture shows the words. Asked for “a cat”, CLIP brought back the word cat on a title card.',
+   vis: 'how close a picture is to some words, and what close means to the machine',
+   data: ['<code>explain/machines/machines.json</code>: CLIP’s 12 questions, best hits, medians (0.09 to 0.18)', '<code>explain/lesson/l8.json</code> pool histogram'],
+   ch: ['Cold open: the cat that is a word', 'The bar: one picture, many words', 'Twelve questions: how little the scores spread', 'What CLIP is never given: sound, time', 'Now you can read'],
+   cands: [['wtm', '#films', 'CLIP’s twelve questions as spokes, each as long as its score.'], ['woc', '#mradars', 'What each machine is given: CLIP never hears and never writes.'], ['wink', '#states', 'Eye states as a meter.']], pick: 0 },
+ { id: 'l3', n: 'L3', t: 'The Neighbourhood', unit: 'Seeing',
+   open: 'You would think a shot’s nearest neighbours are about the same thing. To be checked in the data: they may share light, framing or grain before meaning.',
+   vis: 'what “near” means inside the machine',
+   data: ['<code>cache/emb.npy</code> and <code>cache/dino.npy</code>: CLIP and DINO vectors for every shot', 'thumbnails in <code>thumbs/</code>', 'Videotext sheet 02 views: Cluster Map, Radial Fan'],
+   ch: ['Cold open: one shot and its eight nearest', 'Two machines, two neighbourhoods (CLIP against DINO)', 'Walking: neighbour of a neighbour', 'Now you can read'],
+   cands: [['wos', '#one', 'Real frames in Os around a hub: an orb web whose spiral is distance.'], ['woc', '#types', 'The orb web as similarity search.'], ['pixel', '#spin', 'A web spun while you watch.']], pick: 0 },
+ { id: 'l5', n: 'L5', t: 'The Table of Signs', unit: 'Making a cut',
+   open: 'You would think a sign is a label you stick on a shot. Each sign is recorded with the three it gets mistaken for.',
+   vis: 'the difference that tells one sign from its neighbours',
+   data: ['<code>lab-data.json</code> signs: difference, question, confusions', '<code>cache/affinity.json</code>: the machine’s guess per shot', '<code>explain/ep/takes.json</code>: the Cineosis take’s signs'],
+   ch: ['Cold open: two shots, two signs, one picture', 'The table: 45 signs in eight families', 'The confusions: a web across the table', 'A sign chip on a shot', 'Now you can read'],
+   cands: [['wtm', '#table', 'The confusion web and each sign drawn as its own difference.'], ['pixel', '#signs', 'Signs as 32-pixel Os with family colour.'], ['marks', '#fams', 'The first sign marks, by family.']], pick: 0 },
+ { id: 'l9', n: 'L9', t: 'Versions on One Clock', unit: 'One poem, four cuts',
+   open: 'You would think four cuts of one poem would share their shots. Suite and Scenes share 6 of 169.',
+   vis: 'four rules running on one clock, and how far apart they land',
+   data: ['<code>explain/ep/takes.json</code>: 169 patches per take', '<code>explain/lesson/syz.json</code> lanes', 'Videotext sheet 05: Parallel Channels'],
+   ch: ['Cold open: one line, four shots', 'The loom: four threads through the same lines', 'Where they agree, and where they never do', 'Now you can read'],
+   cands: [['wos', '#loom', 'Four recipes as four threads through real frames.'], ['lcd', '#time', 'One line read as a timeline.'], ['studio', '#morse', 'Cuts as blinks along a line.']], pick: 0 },
+ { id: 'crf', n: 'C1', t: 'The Cutting Room Floor', unit: 'The rooms',
+   open: 'You would think the shots left out are the bad ones. Most were never looked at, and many lost by less than 0.005.',
+   vis: 'what was never chosen, and why',
+   data: ['<code>explain/lesson/l6.json</code>: 15,149 found, 1,731 measured, 1,342 usable', '<code>explain/lesson/l8.json</code>: margins and runners-up', '<code>cutting-room-floor.html</code>, <code>rushes.html</code>'],
+   ch: ['Cold open: the runner-up, by a thousandth', 'Never fetched', 'Fetched and never chosen', 'Nearly chosen', 'Now you can read'],
+   cands: [['wink', '#line', 'Cuts blink, chosen shots wink: the floor is everything that only blinked.'], ['studio', '#contact', 'The contact sheet and the one under the loupe.'], ['wos', '#sieve', 'The sieve, dot by dot.']], pick: 0 },
+ { id: 'mcts', n: 'C2', t: 'The Grand Editing Machine', unit: 'The rooms',
+   open: 'You would think a machine making a film tries every cut. To be checked in the data: how few branches it actually explores.',
+   vis: 'search as a tree of possible films',
+   data: ['<code>mcts.html</code> (The Grand Editing Machine)', '<code>monte/</code> and the Monte Carlo pages'],
+   ch: ['Cold open: one film, many unmade versions', 'The tree: what was tried', 'Rollouts: guessing the end of a film', 'Now you can read'],
+   cands: [['work', '#pipe', 'A team passing one shot along the thread, step by step.'], ['woc', '#build', 'A film built in phases, like an orb weaver.'], ['studio', '#descent', 'Descending through the stacks to one can.']], pick: 0 },
+ { id: 'ludens', n: 'C3', t: 'Homo Ludens', unit: 'The rooms',
+   open: 'You would think a map of shots is for looking at. Here it is a playing field, scored live the way the lab scores a cut.',
+   vis: 'a cut as a game, with the lab’s own score as the rules',
+   data: ['<code>ludens/corpus.json</code>: the field, playable media, CLIP vectors', 'the putt and tennis pages'],
+   ch: ['Cold open: a shot hit across the field', 'The rules are the score', 'A good game, a bad film', 'Now you can read'],
+   cands: [['pixel', '#films', 'Pixel icons: game-native, legible small.'], ['work', '#wall', 'Many small scenes at once.'], ['studio', '#moon', 'A body moved across a field by forces it does not control.']], pick: 0 },
+ { id: 'patch', n: 'O1', t: 'The Film Stopped Answering', unit: 'Other films',
+   open: 'You would think a film made from the archive could answer any line. Here it stopped.',
+   vis: 'the moment a found film runs out of answers',
+   data: ['<code>found-odyssey-museum.html</code>, <code>patch.html</code>', '<code>explain/ep/ep4.json</code>: 152 scenes, 4,537 questions'],
+   ch: ['Cold open: a question with no shot', 'The patch', 'What the archive could not hold', 'Now you can read'],
+   cands: [['studio', '#pop', 'The two-pop: one frame, then black, then a wink.'], ['screen', '#count', 'The countdown in the O.'], ['idents', '#film-16', 'The Odyssey ident.']], pick: 0 },
+ { id: 'wes', n: 'O2', t: 'Measuring a Style', unit: 'Other films',
+   open: 'You would think a director’s style is taste. Every one of 36,538 shots was measured for it. To be checked in the data: how few come close.',
+   vis: 'style as numbers, and how rarely the archive holds it',
+   data: ['<code>wes/</code> and <code>wes.html</code>: 36,538 shots measured', '<code>aspect/aspect.json</code>: aspect measures'],
+   ch: ['Cold open: two shots, one of them “his”', 'The measures', 'The few films that hold it', 'Now you can read'],
+   cands: [['woc', '#mradars', 'Radars: a style as a shape across its measures.'], ['lcd', '#marks', 'The eternal elements, line, circle, dot, as composition.'], ['wtm', '#films', 'A web spun from the measures.']], pick: 0 },
+ { id: 'sound', n: 'O3', t: 'What the Machines Hear', unit: 'Seeing',
+   open: 'You would think a machine that hears could tell speech from music. CLAP called narration music in 31 of 62 clips; Whisper wrote “you” on 16 silent ones.',
+   vis: 'what listening machines are given, and what they invent',
+   data: ['<code>explain/machines/audio.json</code>: CLAP and Whisper outputs', '<code>sound-cineosis.html</code>, <code>sound-table.html</code>'],
+   ch: ['Cold open: silence, transcribed', 'Music or a voice', 'What sound the signs need (sonsign)', 'Now you can read'],
+   cands: [['woc', '#mradars', 'CLAP and Whisper radars: sound in, words out.'], ['studio', '#pop', 'The two-pop is a sound: one frame of beep.'], ['wink', '#states', 'Eyes shut, ears open.']], pick: 0 },
+ { id: 'unshown', n: '—', t: 'What We Haven’t Shown', unit: 'Index page',
+   open: 'Not a film: a plain list of the lab’s rooms that no film covers yet, each with one line and a link.',
+   vis: 'the gaps, honestly',
+   data: ['the lab pages no film or menu reaches (about seventy), minus the ones kept out by the lab’s rules'],
+   ch: ['One list, one line each'],
+   cands: [['lcd', '#marks', 'Line, circle, dot as the only marks a list needs.'], ['wink', '#small', 'The 16-pixel mark beside each entry.']], pick: 0 },
+];
+const CRIT = ['Shows the operation', 'True to the data', 'Legible small and at 2×', 'Keeps the brand rules', 'Memorable'];
+const KEY = 'cineosis.screentests';
+let S = {}; try { S = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } };
+const score = (f, i) => (S[f.id + ':' + i] || []).reduce((a, b) => a + (b || 0), 0);
+const scored = f => f.cands.some((c, i) => (S[f.id + ':' + i] || []).length);
+const list = document.getElementById('list'), panel = document.getElementById('film');
+function drawList(cur) {
+  list.innerHTML = FILMS.map(f => `<li><button data-id="${f.id}" ${f.id === cur ? 'aria-current="true"' : ''}><span class="n">${f.n}</span><span class="t">${f.t}</span><span class="sc">${scored(f) ? 'tested' : ''}</span></button></li>`).join('');
+  list.querySelectorAll('button').forEach(b => b.onclick = () => show(b.dataset.id, true));
+}
+function fit(fr) { const ifr = fr.querySelector('iframe'); if (ifr) ifr.style.transform = `scale(${fr.clientWidth / 1280})`; }
+function show(id, focus) {
+  const f = FILMS.find(x => x.id === id) || FILMS[0]; drawList(f.id); try { history.replaceState(null, '', '#' + f.id); } catch (e) { }
+  panel.innerHTML = `<div class="eb">${f.n} · ${f.unit}</div><h2>${f.t}</h2><p class="open">${f.open}</p><p class="vis">Makes visible ${f.vis}.</p>
+  <div class="facts"><div><b>Built from</b><ul>${f.data.map(d => `<li>${d}</li>`).join('')}</ul></div><div><b>Chapters</b><ul>${f.ch.map(d => `<li>${d}</li>`).join('')}</ul></div></div>
+  <h3>Screen test</h3><p class="how">Each candidate is the live page from the Bolas set, scrolled to the part that would carry this film. Load it, watch it, then score it 0, 1 or 2 on each line. The outlined one is the current recommendation, not a decision.</p>
+  <div class="bench">${f.cands.map(([k, anchor, why], i) => { const [name, href] = SETS[k], v = S[f.id + ':' + i] || [];
+    return `<div class="cand ${i === f.pick ? 'pick' : ''}"><div class="frame" data-src="${href}${anchor}"><button type="button">Load ${name}</button></div><div class="m">${i === f.pick ? '<span class="pk">CURRENT PICK</span>' : ''}<h4>${name}</h4><p class="why">${why}</p>
+      <div class="crit" data-k="${i}">${CRIT.map((c, j) => `<span>${c}</span><button type="button" data-j="${j}" data-v="${v[j] ?? ''}" aria-label="${c}: ${v[j] ?? 'not scored'}">${v[j] ?? '–'}</button>`).join('')}</div>
+      <div class="tot">${score(f, i)} / 10 · <a href="${href}${anchor}">open the page</a></div></div></div>`; }).join('')}</div>
+  <button class="copy" type="button">Copy all scores</button><span class="status" role="status"></span>`;
+  panel.querySelectorAll('.frame').forEach(fr => fr.querySelector('button').onclick = () => { fr.innerHTML = `<iframe src="${fr.dataset.src}" title="candidate" loading="lazy"></iframe>`; fit(fr); });
+  panel.querySelectorAll('.crit').forEach(cr => cr.querySelectorAll('button').forEach(b => b.onclick = () => {
+    const k = f.id + ':' + cr.dataset.k, j = +b.dataset.j, a = S[k] || []; a[j] = ((a[j] ?? -1) + 1) % 3; S[k] = a; save();
+    b.textContent = a[j]; b.dataset.v = a[j]; b.setAttribute('aria-label', `${CRIT[j]}: ${a[j]}`);
+    cr.parentElement.querySelector('.tot').firstChild.textContent = `${score(f, +cr.dataset.k)} / 10 · `; drawList(f.id); }));
+  panel.querySelector('.copy').onclick = () => { const out = FILMS.map(x => ({ film: x.t, candidates: x.cands.map(([k, a], i) => ({ set: SETS[k][0], section: a, scores: Object.fromEntries(CRIT.map((c, j) => [c, (S[x.id + ':' + i] || [])[j] ?? null])), total: score(x, i) })) }));
+    const t = JSON.stringify(out, null, 1), st = panel.querySelector('.status');
+    (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => st.textContent = 'copied').catch(() => { const ta = document.createElement('textarea'); ta.value = t; ta.rows = 6; ta.style.width = '100%'; panel.appendChild(ta); ta.select(); st.textContent = 'select and copy the text below'; }); };
+  if (focus) panel.querySelector('h2').scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+addEventListener('resize', () => document.querySelectorAll('.frame').forEach(fit));
+show((location.hash || '').slice(1));
+</script>
+</body>
+</html>
