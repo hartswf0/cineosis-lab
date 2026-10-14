@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What the Machines See</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="explain/film.css?v=1"><link rel="stylesheet" href="explain/episode.css?v=3"><link rel="stylesheet" href="explain/lesson.css?v=3">
+<!-- CINEOSIS · WHAT THE MACHINES SEE. Nine machines, one chapter each, every one in its own voice: what it is given, what it gives
+     back, and the thing it does that you would not expect, shown on fresh footage computed for this film:
+     CLIP asked for a ghost (explain/machines_eyes.py), BLIP's invented word, DINO's lookalikes (machines_dino.py), SAM's cuts and
+     depth's guesses (machines_vision.py), V-JEPA's motion twins (vjepa.py), CLAP and Whisper on 300 clips (machines_audio.py),
+     and Opus 5.5 reading eight frames and being checked against the film. Each chapter opens on what a viewer would assume and
+     breaks it. Data: explain/machines/machines.json and explain/machines/vision, opus. -->
+<style>
+:root { --bg: #070707; --ink: #ece6da; }
+body, #stage { background: var(--bg); }
+.who { position: absolute; left: 80px; top: 70px; font: 600 15px var(--mono); letter-spacing: .2em; color: var(--mc, var(--lime)); }
+.me { position: absolute; left: 80px; right: 80px; top: 230px; font: 600 92px/1.05 var(--serif); color: var(--ink); opacity: 0; animation: up 1s ease forwards .4s; } .me em { font-style: italic; color: var(--mc, var(--lime)); }
+.mesub { position: absolute; left: 84px; right: 200px; top: 480px; font: italic 32px/1.35 var(--serif); color: var(--dim); opacity: 0; animation: up 1s ease forwards 1.6s; }
+.gives { position: absolute; left: 80px; right: 80px; top: 620px; display: flex; gap: 40px; font: 18px var(--mono); color: var(--dim); opacity: 0; animation: fade 1s ease forwards 3s; } .gives b { color: var(--mc, var(--lime)); font-weight: 600; letter-spacing: .1em; margin-right: 10px; }
+.ask { position: absolute; left: 40px; right: 40px; top: 40px; height: 710px; display: grid; grid-template-columns: 1fr 1.25fr; gap: 30px; align-items: center; }
+.ask .q { font: italic 64px/1.1 var(--serif); color: var(--ink); } .ask .q small { display: block; font: 600 15px var(--mono); font-style: normal; letter-spacing: .16em; color: var(--dim); margin-bottom: 18px; }
+.ask .q .sc { display: block; margin-top: 28px; font: 600 26px var(--mono); font-style: normal; color: var(--lime); opacity: 0; transition: opacity .6s; }
+.ask figure { margin: 0; position: relative; height: 560px; background: #111; overflow: hidden; } .ask figure img, .ask figure video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .6s; }
+.ask figure::before { content: '?'; position: absolute; inset: 0; display: grid; place-items: center; font: 600 140px var(--serif); color: #2a2723; animation: breathe 1.4s ease-in-out infinite; }
+.ask figure.in::before { display: none; } .ask figure.in img, .ask figure.in video { opacity: 1; } .ask figure img.kb { animation: kb 9s ease-out forwards; }
+.ask figcaption { position: absolute; left: 0; right: 0; top: 572px; font: 16px var(--mono); color: var(--dim); }
+@keyframes kb { from { transform: scale(1.12); } to { transform: scale(1); } }
+.caps { position: absolute; left: 40px; right: 40px; top: 30px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 18px; }
+.caps figure { margin: 0; opacity: 0; animation: fade .6s ease forwards; } .caps img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; height: 250px; }
+.caps figcaption { font: 19px/1.3 var(--mono); color: var(--ink); padding-top: 8px; min-height: 54px; } .caps figcaption b { color: var(--red); font-weight: 600; background: rgba(224,72,58,.15); padding: 0 4px; }
+.wall6 { position: absolute; left: 40px; right: 40px; top: 30px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 14px; }
+.wall6 div { font: 17px/1.3 var(--mono); color: var(--ink); opacity: 0; animation: fade .4s ease forwards; } .wall6 img { width: 100%; height: 150px; object-fit: cover; display: block; margin-bottom: 6px; } .wall6 b { color: var(--red); font-weight: 600; }
+.pair { position: absolute; left: 40px; right: 40px; top: 30px; height: 640px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.pair figure { margin: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; } .pair img, .pair video { width: 100%; height: 100%; object-fit: cover; background: #000; min-height: 0; } .pair figcaption { padding-top: 8px; font: 15px var(--mono); color: var(--dim); }
+.meter2 { position: absolute; left: 40px; right: 40px; top: 690px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; font: 600 17px var(--mono); }
+.meter2 div { display: grid; grid-template-columns: 130px 1fr 70px; gap: 12px; align-items: center; color: var(--mc); } .meter2 i { height: 14px; background: #1e1c19; position: relative; } .meter2 i::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: var(--w, 0); background: var(--mc); transition: width 1.4s; }
+.big1 { position: absolute; left: 160px; right: 160px; top: 30px; height: 720px; }
+.big1 img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transition: opacity 1.2s; }
+.cuts { position: absolute; inset: 0; } .cuts img { position: absolute; height: 250px; width: auto; max-width: 340px; object-fit: contain; image-rendering: auto; filter: drop-shadow(0 8px 20px rgba(0,0,0,.8)); transition: all 1.6s cubic-bezier(.45,.05,.25,1); }
+.planes { position: absolute; left: 260px; top: 40px; width: 1080px; height: 700px; perspective: 1400px; } .planes { overflow: hidden; } .planes img { position: absolute; inset: -4%; width: 108%; height: 108%; object-fit: cover; }
+.three { position: absolute; left: 40px; right: 40px; top: 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; } .three figure { margin: 0; } .three img { width: 100%; height: 300px; object-fit: cover; display: block; } .three figcaption { font: 17px/1.3 var(--serif); color: var(--ink); padding-top: 8px; } .three .d { margin-top: 10px; opacity: 0; transition: opacity 1s; }
+.bars { position: absolute; left: 1010px; right: 60px; top: 70px; display: flex; flex-direction: column; gap: 14px; }
+.bars div { display: grid; grid-template-columns: 220px 1fr 64px; gap: 12px; align-items: center; font: 18px var(--mono); color: var(--ink); } .bars i { height: 20px; background: #1e1c19; position: relative; } .bars i::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: var(--w, 0); background: var(--mc); transition: width 1.2s; }
+.tx { position: absolute; left: 1010px; right: 60px; top: 420px; font: italic 30px/1.35 var(--serif); color: var(--ink); min-height: 120px; } .tx small { display: block; font: 600 13px var(--mono); font-style: normal; letter-spacing: .16em; color: var(--gold); margin-bottom: 8px; }
+.strip { position: absolute; left: 40px; right: 40px; top: 40px; display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; } .strip div { height: 150px; background-size: 800% 100%; opacity: 0; transition: opacity .5s; } .strip div.on { opacity: 1; }
+.reads { position: absolute; left: 60px; right: 60px; top: 230px; display: flex; flex-direction: column; gap: 14px; } .reads p { margin: 0; font: 30px/1.3 var(--serif); color: var(--ink); opacity: 0; transition: opacity .7s; } .reads p.on { opacity: 1; } .reads p small { font: 600 14px var(--mono); color: var(--mc); letter-spacing: .12em; margin-right: 14px; } .reads p.wrong { color: #ffb3a6; } .reads p.right { color: var(--lime); }
+.nine { position: absolute; left: 80px; right: 80px; top: 120px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 40px; } .nine div { border-top: 3px solid var(--c); padding-top: 10px; opacity: 0; animation: up .7s ease forwards; } .nine b { display: block; font: 600 16px var(--mono); letter-spacing: .14em; color: var(--c); } .nine span { font: 22px/1.3 var(--serif); color: var(--ink); } .nine em { display: block; font: 17px/1.3 var(--serif); color: #ffb3a6; margin-top: 4px; font-style: italic; }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage"></div></div>
+<div id="bar"><button id="bPrev" title="previous (←)">‹</button><button id="bPlay" title="play / pause (space)">❚❚</button><button id="bNext" title="next (→)">›</button><div id="chs"></div><span id="time"></span><button id="bSnd" title="sound">♪ on</button></div>
+<div id="start"><div><p style="font:600 16px var(--mono);letter-spacing:.2em;color:#b3ab9e;margin:0 0 14px">CINEOSIS · EPISODE 2</p><h1 style="font-weight:600;color:#ece6da">What the Machines See</h1><p>Nine machines watch the same archive. None of them sees what you see. About twelve minutes, with sound.</p><b style="background:#c4f46a">▶ Watch</b></div></div>
+<audio id="score" preload="auto"></audio><audio id="voice" preload="auto"></audio>
+<script src="explain/lesson.js?v=3"></script>
+<script>
+window.EPISODE = {
+  data: ['explain/machines/machines.json?v=1'],
+  cues: ['dae-compass-spin-in-heavy-fog', 'dae-the-geezer-s-stride', 'dae-slide-carousel-at-blue-hour', 'dae-feather-rustle-dub', 'dae-cold-current-paddle', 'dae-preparation-drift', 'dae-salvaged-timber', 'dae-snowbound-umea-cabin', 'dae-cedar-and-cassette', 'dae-rusty-carnivals-barnacled-porch-stride', 'dae-salvaged-room-traveling-light'],
+  build(D, B, K) {
+    const M = D[0], esc = LX.esc, V = 'explain/machines/vision/', O = 'explain/machines/opus/';
+    const vid = (src, t = .5, snd = false) => `<video muted ${snd ? 'data-snd="1"' : ''} loop playsinline data-src="${esc(src)}" data-t="${t}"></video>`;
+    const go = (el, f) => { K.startVideos(el); LX.runBand(el, K); if (f) f(); };
+    /* a machine introduces itself: who it is, what it is given, what it gives back */
+    const intro = (c, name, line, sub, gets, gives) => `<div style="--mc:${c}"><div class="who">${esc(name)}</div><div class="me">${line}</div><div class="mesub">${sub}</div><div class="gives"><span><b>GIVEN</b>${gets}</span><span><b>GIVES BACK</b>${gives}</span></div></div>`;
+    const MC = { clip: '#c4f46a', blip: '#ff9f8e', dino: '#8ea6ff', sam: '#f2c14e', depth: '#c9a4ff', vjepa: '#7fd6e8', clap: '#ffb86b', whisper: '#7fd6a4', opus: '#e8d4b0' };
+    const CL = '#c4f46a';
+
+    /* COLD OPEN · you watched it; they did not */
+    const opener = M.dino[0].a.clip || 'clips/02734ac3-f214-53eb-8671-b33491234927.mp4';
+    B('Cold open', 10, () => `<div class="pic">${vid('clips/880356b0-0fa9-5ede-9f97-014d8fcbb27e.mp4', 2)}</div>` + LX.band([[.6, 'You just watched a field of birds lift into the sky.'], [5, 'A computer given this shot did not watch it. Not one of them.']]), el => go(el));
+    B('Cold open', 12, () => `<div class="strip">${Array.from({ length: 8 }, (_, k) => `<div style="background-image:url('${O}880356b0_strip.jpg');background-position:${k / 7 * 100}% 0"></div>`).join('')}</div>`
+      + `<div class="reads" style="--mc:#a29d90;top:260px"><p><small>CLIP</small>gets three photographs of it.</p><p><small>V-JEPA</small>gets a stack of frames, and keeps only how they change.</p><p><small>CLAP</small>gets ten seconds of its sound, and no picture at all.</p><p><small>A LANGUAGE MODEL</small>gets eight frames in a row, like this strip, and writes.</p></div>`
+      + LX.band([[.3, 'Each machine gets a different piece of the shot, and none gets the whole thing.'], [8, 'This episode meets nine of them, one at a time, and catches each one doing something you would not expect.']]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.strip div').forEach((d, i) => K.later(300 + i * 200, () => d.classList.add('on'))); el.querySelectorAll('.reads p').forEach((p, i) => K.later(1500 + i * 1500, () => p.classList.add('on'))); });
+    B('Cold open', 7, () => `<div class="tc"><small>CINEOSIS · EPISODE 2</small><h1>What the Machines See</h1><p>Nine machines watch the same archive. None of them sees what you see.</p></div>`, el => LX.ping());
+
+    /* 1 · CLIP */
+    B('CLIP', 11, () => intro(MC.clip, 'CLIP · 2021', 'I match pictures to <em>words</em>.', 'Give me a sentence and a photograph and I say how close they are. I learned from two billion pictures and their captions, taken from the web.', 'one still frame and a sentence', 'a closeness score'), el => LX.ping());
+    const asks = ['a ghost', 'the smell of bread', 'a broken heart', 'a dog driving a car', 'the year 3000', 'a cat'];
+    const AK = asks.map(a => M.clip.find(c => c.ask === a)).filter(Boolean);
+    const SAYC = { 'a ghost': 'There are no ghosts in fifteen thousand educational films. It found one anyway: a cartoon figure from <em>Principles of Electricity</em>.', 'the smell of bread': 'A smell has no picture. It found a block shaped like a loaf, from a film about explosives.', 'a broken heart': 'It found a pattern of cracks, from a film about heat-treating aluminium.', 'a dog driving a car': 'A cartoon from a car-care film. No dog. Close enough, it says.', 'the year 3000': 'A number on a black screen. It reads digits and thinks in numbers.', 'a cat': 'Look closely. It did not find a cat. It found the <b>word</b> cat, on a title card. It can read.' };
+    AK.forEach((c, i) => B('CLIP', i === 0 ? 12 : 10, () => `<div class="ask"><div class="q"><small>ASK IT FOR</small>${esc(c.ask)}<span class="sc">${c.best.score.toFixed(2)} close</span></div><figure><img class="kb" src="${esc(c.best.thumb)}" alt=""><figcaption>${esc(c.best.title)}${c.best.year ? ' · ' + c.best.year : ''}</figcaption></figure></div>`
+      + LX.band(i === 0 ? [[.3, 'Ask it for something the archive cannot possibly hold. A search engine should say: nothing found.'], [4.2, 'Guess what comes back.'], [6.4, SAYC[c.ask]]] : [[.3, 'What would you expect?'], [3.4, SAYC[c.ask]]]),
+      el => { LX.runBand(el, K); K.later((i === 0 ? 6200 : 3200), () => { el.querySelector('figure').classList.add('in'); el.querySelector('.sc').style.opacity = 1; LX.ping(); }); }));
+    B('CLIP', 12, () => intro(MC.clip, 'CLIP · WHAT IT CANNOT DO', 'I never say <em>no</em>.', `Ask me for nothing and I still bring the closest thing I have. And I see one frame: I cannot tell you what happens next.`, 'still frames', 'always an answer'), el => { });
+
+    /* 2 · BLIP */
+    const BL = M.blip;
+    B('BLIP', 11, () => intro(MC.blip, 'BLIP · 2022', 'I write a <em>caption</em>.', 'Show me a frame and I describe it in one sentence, the way people describe photos online.', 'one still frame', 'one sentence'), el => LX.ping());
+    B('BLIP', 14, () => `<div class="caps">${BL.plain.slice(0, 6).map((c, i) => `<figure style="animation-delay:${i * .5}s"><img src="${esc(c.thumb)}" alt=""><figcaption data-c="${esc(c.cap)}"></figcaption></figure>`).join('')}</div>`
+      + LX.band([[.3, 'Here it is, captioning shots from the archive.'], [7, 'Plain. Often right. A man, a crowd, a tractor.']]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.caps figcaption').forEach((f, i) => K.later(800 + i * 900, () => { const t = f.dataset.c; let k = 0; const st = () => { f.textContent = t.slice(0, ++k); if (k % 3 === 0) LX.tick(); if (k < t.length) K.later(28, st); }; st(); })); });
+    const mark = s => esc(s).replace(/\b(araf\w*|araff\w*)\b/g, '<b>$1</b>');
+    B('BLIP', 15, () => `<div class="caps">${BL.arafed.slice(0, 6).map((c, i) => `<figure style="animation-delay:${i * .4}s"><img src="${esc(c.thumb)}" alt=""><figcaption>${mark(c.cap)}</figcaption></figure>`).join('')}</div>`
+      + LX.band([[.3, 'Now read these.'], [4.5, '<em>Arafed.</em> It is not a word. Not in English, not anywhere.'], [9, `It wrote it in <b>${BL.n_arafed}</b> of ${BL.n} captions: one in three. Nobody is sure where it learned it.`]]),
+      el => go(el));
+    B('BLIP', 11, () => intro(MC.blip, 'BLIP · WHAT IT CANNOT DO', 'I describe; I do not <em>notice</em>.', `Most of my sentences start the same way: “there is a…”, “a close up of…”, “a black and white photo of…”. A coal miner and a smoker are both “arafed man”.`, 'still frames', 'sentences that sound sure'), el => { });
+
+    /* 3 · DINO */
+    B('DINO', 11, () => intro(MC.dino, 'DINO · 2023', 'I see <em>shape</em>, not meaning.', 'Nobody told me what anything is. I learned by looking at pictures until I could tell how they are built: where the mass sits, where the edges run.', 'one still frame', 'how alike its shapes are to others'), el => LX.ping());
+    M.dino.slice(0, 3).forEach((p, i) => B('DINO', 11, () => `<div class="pair" style="--mc:${MC.dino}"><figure><img src="${esc(p.a.thumb)}" alt=""><figcaption>${esc(p.a.title || '')} ${p.a.year || ''}</figcaption></figure><figure><img src="${esc(p.b.thumb)}" alt=""><figcaption>${esc(p.b.title || '')} ${p.b.year || ''}</figcaption></figure></div>
+        <div class="meter2"><div style="--mc:${MC.dino}">DINO alike<i style="--w:0" data-w="${p.dino * 100}%"></i>${p.dino.toFixed(2)}</div><div style="--mc:${CL}">CLIP alike<i style="--w:0" data-w="${p.clip * 100}%"></i>${p.clip.toFixed(2)}</div></div>`
+      + LX.band(i === 0 ? [[.3, 'Two shots from different films and different decades.'], [4.5, 'To DINO they are twins: the same bowed head, the same weight in the frame. To CLIP, the one that reads meaning, they are strangers.']] : [[.3, i === 1 ? 'Same pose, same light, a century apart.' : 'A man talking in a chair, a couple at a table: the same layout.']]),
+      el => { LX.runBand(el, K); K.later(1800, () => el.querySelectorAll('.meter2 i').forEach(x => x.style.setProperty('--w', x.dataset.w))); }));
+    B('DINO', 11, () => `<div class="wall6">${M.dino_cards.slice(0, 8).flatMap(p => [p.a, p.b]).slice(0, 8).map((c, i) => `<div style="animation-delay:${i * .25}s"><img src="${esc(c.thumb)}" alt=""></div>`).join('')}</div>`
+      + LX.band([[.3, 'And to DINO, every title card is the same picture: white marks on black.'], [5.5, 'What the words say is invisible to it.']]), el => LX.runBand(el, K));
+
+    /* 4 · SAM */
+    const S0 = M.sam[0];
+    B('SAM', 10, () => intro(MC.sam, 'SAM · SEGMENT ANYTHING · 2023', 'I <em>cut</em>. I do not name.', 'Point anywhere in a frame and I trace the edge of whatever is there. Ask me what it is, and I have nothing to say.', 'one still frame', 'outlines'), el => LX.ping());
+    B('SAM', 15, () => `<div class="big1"><img src="${V + S0.frame}" alt=""><img class="ov" src="${V + S0.sam}" alt="" style="opacity:0"></div>` + LX.band([[.3, 'A market street in colour.'], [4, `SAM cuts it into <b>${S0.n}</b> pieces: awnings, heads, bundles, stalls.`], [9.5, 'Names given: none. It does not know an awning from a hat.']]),
+      el => { LX.runBand(el, K); K.later(3800, () => el.querySelector('.ov').style.opacity = 1); });
+    const S1 = M.sam[1];
+    B('SAM', 14, () => `<div class="big1"><img src="${V + S1.frame}" alt=""><img class="ov" src="${V + S1.sam}" alt="" style="opacity:0"></div><div class="cuts">${S1.cuts.slice(0, 6).map((c, i) => `<img src="${V + c.src}" data-i="${i}" style="left:${300 + (i % 3) * 360}px;top:${120 + Math.floor(i / 3) * 300}px;opacity:0;transform:scale(.6)" alt="">`).join('')}</div>`
+      + LX.band([[.3, 'A room full of people. Watch what it lifts out.'], [6, 'A face without its body. A jacket without its man. A window, pane by pane.'], [10.5, 'In the lab this is how figures were cut out of one film and set into another.']]),
+      el => { LX.runBand(el, K); K.later(2500, () => el.querySelector('.ov').style.opacity = 1); el.querySelectorAll('.cuts img').forEach((c, i) => K.later(5200 + i * 500, () => { el.querySelector('.big1').style.opacity = .25; c.style.opacity = 1; c.style.transform = 'none'; LX.tick(900 + i * 100, .1, .03); })); });
+
+    /* 5 · DEPTH */
+    const DP = M.depth, street = DP.find(d => d.id.startsWith('4cee2a4a')), mp = DP.find(d => d.id.startsWith('360aebd8')), tv = DP.find(d => d.id.startsWith('949ddb76')), pa = DP.find(d => d.id.startsWith('7a714af0'));
+    B('Depth', 10, () => intro(MC.depth, 'DEPTH ANYTHING · 2024', 'I guess how <em>far</em> everything is.', 'From one flat picture I say what is near and what is far. Bright is near. Dark is far.', 'one still frame', 'a map of distance'), el => LX.ping());
+    B('Depth', 15, () => `<div class="planes">${street.planes.slice().reverse().map((p, i) => `<img src="${V + p}" data-k="${2 - i}" alt="">`).join('')}</div>` + LX.band([[.3, 'A city street. The machine splits it into near, middle and far.'], [6, 'Move them by different amounts and the photograph becomes a stage set, near things sliding past far ones. The lab built whole scenes this way.']]),
+      el => { LX.runBand(el, K); const ims = [...el.querySelectorAll('.planes img')]; K.raf(t => { const a = Math.min(1, Math.max(0, (t - 4.5) / 2)), w = Math.sin((t - 4.5) * .9) * a; ims.forEach(im => { const k = +im.dataset.k; im.style.transform = `translateX(${w * k * 18}px) scale(${1 + a * k * .015})`; }); return t < 15; }); });
+    B('Depth', 17, () => `<div class="three">${[pa, mp, tv].map((d, i) => `<figure><img src="${V + d.frame}" alt=""><img class="d" src="${V + d.depth}" alt=""><figcaption>${['A painting', 'A map pinned to a wall', 'A television'][i]}</figcaption></figure>`).join('')}</div>`
+      + LX.band([[.3, 'Now three flat things: a painting, a map, a television screen.'], [5.5, 'The painting it gets right: a flat board.'], [9.5, 'The map it turns into a valley, sloping away. The television becomes a window, with depth behind the glass.']]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.three .d').forEach((d, i) => K.later(4500 + i * 2200, () => { d.style.opacity = 1; LX.tick(600, .2, .04); })); });
+
+    /* 6 · V-JEPA */
+    const VJ = M.vjepa;
+    B('V-JEPA', 10, () => intro(MC.vjepa, 'V-JEPA 2 · 2025', 'I watch things <em>move</em>.', 'I was trained on a million hours of video, guessing what the hidden parts of each clip were doing. I do not care what things are. I care how they change.', 'thirty-two frames', 'how alike their movement is'), el => LX.ping());
+    VJ.pairs.forEach((p, i) => B('V-JEPA', 12, () => `<div class="pair"><figure>${vid(p.a.clip, 1)}<figcaption>${esc(p.a.title || '')}</figcaption></figure><figure>${vid(p.b.clip, 1)}<figcaption>${esc(p.b.title || '')}</figcaption></figure></div>
+        <div class="meter2"><div style="--mc:${MC.vjepa}">V-JEPA alike<i style="--w:0" data-w="${p.vjepa * 100}%"></i>${p.vjepa.toFixed(2)}</div><div style="--mc:${CL}">CLIP alike<i style="--w:0" data-w="${p.clip * 100}%"></i>${p.clip.toFixed(2)}</div></div>`
+      + LX.band(i === 0 ? [[.3, 'Glass lenses on a table. A cartoon.'], [4.2, 'To V-JEPA they are near twins. Why? Neither one moves.']] : [[.3, 'A machine rolling across a field. A camera gliding down a corridor.'], [4.6, 'The same steady glide. Nothing else in common.']]),
+      el => go(el, () => K.later(2600, () => el.querySelectorAll('.meter2 i').forEach(x => x.style.setProperty('--w', x.dataset.w))))));
+    B('V-JEPA', 11, () => `<div class="ch2" style="position:absolute;left:120px;right:120px;top:170px;display:flex;flex-direction:column;gap:50px">${[['V-JEPA', VJ.camera_match.vjepa, MC.vjepa], ['CLIP', VJ.camera_match.clip, CL], ['chance', VJ.camera_match.chance, '#6d675d']].map(([n, v, c]) => `<div style="display:grid;grid-template-columns:160px 1fr 90px;gap:16px;align-items:center;font:600 22px var(--mono);color:${c}">${n}<i style="display:block;height:44px;background:${c};width:0;transition:width 1.4s" data-w="${v * 100}%"></i>${Math.round(v * 100)}%</div>`).join('')}</div>`
+      + LX.band([[.3, 'Ask each machine for a shot\'s nearest neighbour. How often does the neighbour move its camera the same way?'], [7, 'The one that watches motion wins. CLIP, reading still frames, lands in between.']]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.ch2 i').forEach((i, k) => K.later(1200 + k * 600, () => i.style.width = i.dataset.w)); });
+
+    /* 7 · CLAP */
+    const AU = M.audio, sp = AU.talk.find(r => /Spider/.test(r.title)) || AU.talk[0];
+    B('CLAP', 10, () => intro(MC.clap, 'CLAP · 2023', 'I <em>listen</em>.', 'I am CLIP for sound. Give me ten seconds of audio and a list of sounds, and I say which it is.', 'ten seconds of sound, no picture', 'which sound it is'), el => LX.ping());
+    const bars = r => `<div class="bars" style="--mc:${MC.clap}">${r.clap.map(([l, p]) => `<div><span>${esc(l)}</span><i style="--w:0" data-w="${(p * 100).toFixed(1)}%"></i>${Math.round(p * 100)}%</div>`).join('')}</div>`;
+    B('CLAP', 17, () => `<div class="pic left">${vid(sp.clip, 0, true)}</div>` + bars(sp) + `<div class="tx"><small>WHAT WHISPER WROTE DOWN</small><span></span></div>`
+      + LX.band([[.3, 'Listen to this one. Sound on.'], [5.5, 'CLAP is certain: orchestral music.'], [10, 'There is music. There is also a man talking over it. CLAP missed him.']]),
+      el => go(el, () => { K.later(5200, () => el.querySelectorAll('.bars i').forEach(i => i.style.setProperty('--w', i.dataset.w))); K.later(9000, () => LX.typeBar ? (el.querySelector('.tx span').textContent = '“' + sp.whisper.split('.').slice(0, 2).join('.') + '.”') : 0); }));
+    B('CLAP', 12, () => `<div class="tot" style="position:absolute;left:120px;right:120px;top:150px;display:flex;flex-direction:column;gap:60px">${[['clips CLAP called music', AU.n_music, '#ffb86b'], ['of those, with a narrator speaking', AU.n_talk, 'var(--red)']].map(([l, n, c]) => `<div><b style="display:block;font:600 16px var(--mono);letter-spacing:.12em;color:var(--ink);text-transform:uppercase;margin-bottom:10px">${l}</b><div style="display:flex;gap:4px">${Array.from({ length: n }, () => `<i style="width:16px;height:40px;background:${c};border-radius:3px"></i>`).join('')}</div></div>`).join('')}</div>`
+      + LX.band([[.3, `Of ${AU.n_music} clips it called music, ${AU.n_talk} had a narrator talking over the music.`], [6.5, `And when it did hear a voice: ${AU.tops['a man speaking']} times a man, ${AU.tops['a woman speaking']} times a woman. That is the archive, not the machine.`]]), el => LX.runBand(el, K));
+
+    /* 8 · WHISPER */
+    const dz = AU.dead[1] || AU.dead[0];
+    B('Whisper', 10, () => intro(MC.whisper, 'WHISPER · 2022', 'I write down what people <em>say</em>.', 'I learned from 680,000 hours of speech and its transcripts. The lab used me to write down what the archive\'s films say.', 'thirty seconds of sound', 'words, with times'), el => LX.ping());
+    B('Whisper', 15, () => `<div class="pic left">${vid(dz.clip, .5, true)}</div><div class="tx" style="top:200px"><small>THIS CLIP'S SOUND</small><span style="font-style:normal;font-family:var(--mono);font-size:24px">no sound at all: every sample is zero</span></div><div class="tx" style="top:420px"><small>WHAT WHISPER WROTE</small><span id="wy"></span></div>`
+      + LX.band([[.3, 'This clip has no sound. Not quiet: none. The track is empty.'], [6, 'Whisper is asked what is being said.'], [9.5, `It writes one word: <em>you</em>. It did the same on all ${AU.n_dead} silent clips.`]]),
+      el => go(el, () => K.later(8800, () => { el.querySelector('#wy').innerHTML = '<span style="font-size:90px;font-style:normal">“you”</span>'; LX.ping(); })));
+    B('Whisper', 10, () => intro(MC.whisper, 'WHISPER · WHAT IT CANNOT DO', 'Given nothing, I write <em>something</em>.', 'I was trained to turn sound into words, so I always do. Whatever I write has to be checked against the sound.', 'silence', 'a word anyway'), el => { });
+
+    /* 9 · OPUS 5.5 */
+    const strip = id => `<div class="strip">${Array.from({ length: 8 }, (_, k) => `<div class="on" style="background-image:url('${O}${id}_strip.jpg');background-position:${k / 7 * 100}% 0"></div>`).join('')}</div>`;
+    B('Opus 5.5', 12, () => intro(MC.opus, 'OPUS 5.5 · THE ONE MAKING THIS FILM', 'I read eight frames and tell you a <em>story</em>.', 'I am the language model that built this episode. Show me a strip of frames and I describe it in plain sentences, and I bring everything I know about the world.', 'eight still frames', 'a reading, in words'), el => LX.ping());
+    B('Opus 5.5', 18, () => strip('02734ac3') + `<div class="reads" style="--mc:${MC.opus}"><p><small>MY READING</small>A clean room. People in white caps and gowns at a table.</p><p><small>MY READING</small>A white garment threaded with tubes, a mesh layer: the inside of a spacesuit.</p><p><small>MY READING</small>Two men help someone into the suit, on the floor.</p><p><small>MY READING</small>At least five shots in these eight frames. I cannot tell where the cuts fall.</p></div>`
+      + LX.band([[.3, 'A strip from <em>Moonwalk One</em>, 1970, which I had never seen. My reading, as I wrote it.']]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.reads p').forEach((p, i) => K.later(1500 + i * 3200, () => p.classList.add('on'))); });
+    B('Opus 5.5', 16, () => strip('adfad259') + `<div class="reads" style="--mc:${MC.opus}"><p><small>MY READING</small>A clock face, eight times. The hands do not move.</p><p><small>MY READING</small>So the clock has stopped, at about twenty to six. It hangs on a wall.</p><p><small>MY GUESS</small>The film is <em>Alaskan Earthquake</em>. The 1964 earthquake struck at 5:36 in the evening.</p></div>`
+      + LX.band([[.3, 'Another strip. Read it with me.'], [11, 'That last line is not in the picture. It is something I know. That is my strength, and it is how I get things wrong.']]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.reads p').forEach((p, i) => K.later(1200 + i * 3200, () => p.classList.add('on'))); });
+    B('Opus 5.5', 16, () => `<div class="pic left">${vid('clips/adfad259-0558-53eb-82f8-350609a70480.mp4', 0)}</div><div class="reads" style="--mc:${MC.opus};left:1010px;right:50px;top:80px"><p class="right"><small>RIGHT</small>The hands never move.</p><p class="wrong"><small>WRONG</small>It is not on a wall. It has fallen, and lies on the ground.</p><p class="wrong"><small>MISSED</small>The picture changes all the time: the camera slowly pulls back. Eight frames hid the movement.</p><p><small>UNCHECKED</small>The earthquake: true in the world, but nothing on screen says it.</p></div>`
+      + LX.band([[.3, 'Now the film itself, checked frame by frame.'], [8, 'Eight frames are not a film. I read stills very well. I do not watch.']]),
+      el => go(el, () => el.querySelectorAll('.reads p').forEach((p, i) => K.later(2000 + i * 2400, () => { p.classList.add('on'); LX.tick(p.classList.contains('wrong') ? 300 : 1000, .2, .04); }))));
+    B('Opus 5.5', 14, () => strip('5e4a9521') + `<div class="reads" style="--mc:${MC.opus}"><p><small>MY READING</small>Tweezers lift tiny jewels. A stone held up to a lamp. A watch movement, round, engraved.</p><p><small>I CANNOT TELL</small>Then a square watch grows smaller frame by frame. The camera pulling away, or a trick of animation? From eight frames, either.</p></div>`
+      + LX.band([[.3, '<small>Your turn</small>What would you need to see to know?']]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.reads p').forEach((p, i) => K.later(1200 + i * 4000, () => p.classList.add('on'))); });
+
+    /* CLOSE · nine machines, one shot */
+    const NINE = [['CLIP', MC.clip, 'matches a frame to words', 'never says no'], ['BLIP', MC.blip, 'writes a caption', 'invents a word'], ['DINO', MC.dino, 'sees shape and layout', 'cannot read meaning'], ['SAM', MC.sam, 'cuts out every region', 'names nothing'], ['DEPTH', MC.depth, 'guesses near and far', 'makes maps into valleys'], ['V-JEPA', MC.vjepa, 'feels how things move', 'ignores what they are'], ['CLAP', MC.clap, 'names a sound', 'hears music over a man talking'], ['WHISPER', MC.whisper, 'writes down speech', 'writes words into silence'], ['OPUS 5.5', MC.opus, 'reads strips and tells a story', 'brings in what is not there']];
+    B('Together', 18, () => `<div class="nine">${NINE.map(([n, c, a, b], i) => `<div style="--c:${c};animation-delay:${i * .5}s"><b>${n}</b><span>${a}</span><em>${b}</em></div>`).join('')}</div>`
+      + LX.band([[.3, 'Nine machines. Each sees one thing well, and each fails in its own way.'], [8, 'The lab uses all of them together, so that one can catch another.']]), el => LX.runBand(el, K));
+    B('Together', 12, () => `<div class="pic">${vid('clips/880356b0-0fa9-5ede-9f97-014d8fcbb27e.mp4', 2)}</div>` + LX.band([[.3, 'And the geese again.'], [4.5, 'None of the nine saw what you saw: a whole field taking off at once. That part is still yours.']]), el => go(el));
+    B('Together', 8, () => `<div class="tc"><small>NEXT</small><h1 style="font-size:96px">Asking</h1><p>Lesson 7: how a line of a poem becomes a question these machines can answer.</p></div>`, el => LX.ping());
+  }
+};
+</script>
+<script src="explain/player.js?v=7"></script>
+</body>
+</html>
