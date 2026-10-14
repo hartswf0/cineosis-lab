@@ -5,6 +5,7 @@ window.FILMS = [
   { unit: 'Seeing', n: '2', t: 'What the Machines See', href: 'machines.html', v: 'what each machine is actually given, and what it does with it' },
   { unit: 'Seeing', n: '1', t: 'Where the Archive Came From', href: 'episode-1.html', v: 'the searches behind every shot the lab holds' },
   { unit: 'Seeing', n: 'L4', t: 'The Voice Is the Clock', href: 'lesson-4.html', v: 'the timing hidden inside a spoken line' },
+  { unit: 'Making a cut', n: 'L6', t: 'The Sieve', href: 'lesson-6.html', v: 'the rules that remove shots before any shot is chosen' },
   { unit: 'Making a cut', n: 'L7', t: 'Asking', href: 'lesson-7.html', v: 'the questions behind every shot in a film' },
   { unit: 'Making a cut', n: 'L8', t: 'Choosing', href: 'lesson-8.html', v: 'the scores, and how small the margins are' },
   { unit: 'Making a cut', n: '5.7', t: 'How a Film Joins Its Shots', href: 'room-syntagma.html', v: 'the structure of the joins between shots' },

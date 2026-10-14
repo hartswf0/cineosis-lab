@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Sieve · Lesson 6</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="explain/film.css?v=2"><link rel="stylesheet" href="explain/episode.css?v=3"><link rel="stylesheet" href="explain/lesson.css?v=3">
+<!-- CINEOSIS · LESSON 6 · THE SIEVE. Unit B, before Asking and Choosing: what is allowed to be chosen at all. Replays the shared law
+     of CUTBASTARD's planner (cutbastard/plan.py) one rule at a time: the standing rules that make the pool (15,149 shots brought home,
+     1,342 usable), the rules of the moment for one line (P020), the same rules across all 169 lines of the Suite, and then the words
+     switched on one at a time. Data: explain/l6.py -> explain/lesson/l6.json. Devices: explain/lesson.js. -->
+<style>
+:root { --bg: #0b0a09; --ink: #ece6da; }
+body, #stage { background: var(--bg); }
+.field { position: absolute; left: 40px; top: 50px; width: 1060px; height: 560px; }
+.count { position: absolute; left: 1140px; right: 60px; top: 230px; }
+.count b { display: block; font: 600 88px/1 var(--mono); color: var(--ink); font-variant-numeric: tabular-nums; }
+.count small { display: block; margin-top: 12px; font: 600 15px var(--mono); letter-spacing: .16em; color: var(--gold); }
+.rules { position: absolute; left: 60px; top: 60px; width: 900px; display: flex; flex-direction: column; gap: 14px; }
+.rules div { font: 30px/1.2 var(--serif); color: #4d4840; transition: color .6s; display: flex; gap: 18px; align-items: baseline; }
+.rules div i { font: 600 15px var(--mono); color: #4d4840; width: 110px; text-align: right; font-style: normal; transition: color .6s; flex: none; }
+.rules div.on { color: var(--ink); } .rules div.on i { color: var(--gold); }
+.rej { position: absolute; left: 60px; right: 60px; top: 380px; display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; }
+.rej figure { margin: 0; opacity: 0; animation: up .6s ease forwards; }
+.rej img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; filter: grayscale(.2); outline: 3px solid var(--red); outline-offset: -3px; }
+.rej figcaption { font: 13px/1.3 var(--mono); color: var(--dim); margin-top: 6px; } .rej figcaption b { color: #ff8a7a; font-weight: 600; }
+.pline { position: absolute; left: 140px; right: 140px; top: 210px; font: italic 54px/1.3 var(--serif); color: var(--ink); }
+.pline span { opacity: .12; transition: opacity .35s; } .pline span.on { opacity: 1; }
+.lines { position: absolute; left: 80px; right: 80px; top: 90px; height: 500px; }
+.lines i { position: absolute; bottom: 0; width: 6px; background: #8b8478; transform: translateX(-3px); height: 0; transition: height .5s; }
+.lines i.lo { background: var(--gold); }
+.lines .ref { position: absolute; left: 0; right: 0; border-top: 1px dashed #5a544b; } .lines .ref span { position: absolute; right: 0; top: -22px; font: 13px var(--mono); color: var(--dim); }
+.lax { position: absolute; left: 80px; right: 80px; top: 600px; display: flex; justify-content: space-between; font: 14px var(--mono); color: var(--dim); }
+.wrow { position: absolute; left: 60px; right: 60px; display: grid; grid-template-columns: 300px repeat(8, 1fr) 120px; gap: 8px; align-items: center; opacity: 0; transition: opacity .8s; }
+.wrow.on { opacity: 1; }
+.wrow .w { font: 600 14px var(--mono); letter-spacing: .1em; color: var(--lime); text-transform: uppercase; } .wrow .w span { display: block; font: italic 17px/1.25 var(--serif); color: var(--ink); letter-spacing: 0; text-transform: none; margin-top: 4px; }
+.wrow img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
+.wrow img.f { outline: 3px solid var(--lime); outline-offset: -3px; }
+.wrow .k { font: 600 30px var(--mono); color: var(--gold); text-align: right; } .wrow .k small { display: block; font: 12px var(--mono); color: var(--dim); }
+.funnel { position: absolute; left: 120px; right: 120px; top: 70px; display: flex; flex-direction: column; gap: 10px; }
+.funnel div { display: grid; grid-template-columns: 380px 1fr 120px; gap: 18px; align-items: center; font: 24px var(--serif); color: var(--ink); opacity: 0; animation: up .6s ease forwards; }
+.funnel div i { display: block; height: 30px; background: #8b8478; } .funnel div.w i { background: var(--lime); } .funnel div b { font: 600 22px var(--mono); text-align: right; color: var(--gold); }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage"></div></div>
+<audio id="score" preload="auto"></audio><audio id="voice" preload="auto"></audio>
+<div id="bar"><button id="bPrev" title="previous (←)">‹</button><button id="bPlay" title="play / pause (space)">❚❚</button><button id="bNext" title="next (→)">›</button><div id="chs"></div><span id="time"></span><button id="bSnd" title="sound">♪ on</button></div>
+<div id="start"><div><p style="font:600 16px var(--mono);letter-spacing:.2em;color:#b3ab9e;margin:0 0 14px">CINEOSIS · LESSON 6</p><h1 style="font-weight:600;color:#ece6da">The Sieve</h1><p>What is allowed to be chosen at all, before any shot is chosen. About five minutes, with sound.</p><b style="background:#c4f46a">▶ Watch</b></div></div>
+<script src="explain/lesson.js?v=3"></script>
+<script>
+window.EPISODE = {
+  data: ['explain/lesson/l6.json?v=1'],
+  cues: ['dae-preparation-drift', 'dae-salvaged-room-traveling-light', 'dae-cold-current-paddle', 'dae-cedar-and-cassette', 'dae-feather-rustle-dub', 'dae-snowbound-umea-cabin'],
+  build(D, B, K) {
+    const L = D[0], esc = LX.esc, AU = 'wygwyl/WYGWYL_Suite_Audio.mp3', A = L.archive, M = L.moment, X = L.across, Wd = L.words, F = L.focus;
+    const fmt = K.fmt, N0 = A[0].n;
+
+    /* a field of dots, one per shot; each rule switched on greys out the shots it removes */
+    function field(el, steps, from) {
+      const cv = el.querySelector('canvas.fd'), c = cv.getContext('2d'), W = cv.width, H = cv.height, n = N0;
+      const cols = Math.ceil(Math.sqrt(n * W / H)), rows = Math.ceil(n / cols), sx = W / cols, sy = H / rows, r = Math.max(1.4, Math.min(sx, sy) * .36);
+      // a fixed shuffled order, so the shots that survive are scattered, as they are in the archive
+      const ord = [...Array(n).keys()]; let s = 7; for (let i = n - 1; i > 0; i--) { s = (s * 16807) % 2147483647; const j = s % (i + 1); [ord[i], ord[j]] = [ord[j], ord[i]]; }
+      let alive = from, target = from;
+      const draw = () => { c.clearRect(0, 0, W, H); for (let k = 0; k < n; k++) { const p = ord[k], x = (p % cols + .5) * sx, y = (Math.floor(p / cols) + .5) * sy;
+          c.fillStyle = k < alive ? '#d8d0c0' : '#2a2622'; c.fillRect(x - r, y - r, r * 2, r * 2); } };
+      draw(); const box = el.querySelector('.count b');
+      steps.forEach(([at, v]) => K.later(at * 1000, () => { target = v; const a0 = alive, t0 = performance.now(); K.raf(t => { const k = Math.min(1, t / 1.6); alive = Math.round(a0 + (target - a0) * (1 - Math.pow(1 - k, 3))); draw(); if (box) box.textContent = fmt(alive); return k < 1; }); LX.tick(700, .5, .03); }));
+    }
+    const fieldHTML = (n, label, short) => `<canvas class="fd field" width="1060" height="${short ? 290 : 560}" style="height:${short ? 290 : 560}px"></canvas><div class="count" style="top:${short ? 110 : 230}px"><b>${fmt(n)}</b><small>${label}</small></div>`;
+    const rejHTML = (xs, unit) => `<div class="rej">${xs.map((x, i) => `<figure style="animation-delay:${.6 + i * .15}s"><img src="${esc(x.thumb)}" alt=""><figcaption>${esc((x.title || '').slice(0, 34))}${x.v != null ? `<br><b>${unit(x.v)}</b>` : ''}</figcaption></figure>`).join('')}</div>`;
+    const pline = line => `<div class="pline">${line.split(/\s+/).map(w => `<span>${esc(w)}</span>`).join(' ')}</div>`;
+    const speak = (el, secs) => { const ws = [...el.querySelectorAll('.pline span')]; ws.forEach((w, i) => K.later((.4 + i * (secs - 1.2) / ws.length) * 1000, () => w.classList.add('on'))); };
+
+    /* COLD OPEN · the archive is not what gets searched */
+    B('Cold open', 14, () => fieldHTML(N0, 'SHOTS BROUGHT HOME') + LX.band([[.4, 'You would think that when a film needs a shot, the machine looks through everything the searches found.'], [7, `Here is everything: <b>${fmt(N0)}</b> shots, one dot each.`]]), el => { LX.runBand(el, K); field(el, [], N0); });
+    B('Cold open', 12, () => fieldHTML(N0, 'SHOTS THAT CAN BE CHOSEN') + LX.band([[.3, `Before a single line of the poem is read, almost all of them are gone.`], [5.5, `Only <b>${fmt(A[A.length - 1].n)}</b> can ever be chosen. This lesson is about who decided that.`]]), el => { LX.runBand(el, K); field(el, [[1.5, A[A.length - 1].n]], N0); });
+    B('Cold open', 8, () => `<div class="tc"><small>CINEOSIS · LESSON 6</small><h1>The Sieve</h1><p>Rules that remove shots before anyone chooses one.</p></div>`, el => LX.ping());
+
+    /* THE STANDING RULES · one at a time */
+    const rulesHTML = upto => `<div class="rules">${A.slice(1).map((r, i) => `<div class="${i < upto ? 'on' : ''}"><i>${i < upto ? fmt(r.n) : ''}</i>${esc(r.rule)}</div>`).join('')}</div>`;
+    B('The standing rules', 12, () => rulesHTML(0) + LX.band([[.3, 'The planner has rules that hold for every film it makes. They are written in its code, before any line is read.'], [7, 'Switch them on one at a time.']]), el => LX.runBand(el, K));
+    const units = { 'dead frames under 15%': v => `${Math.round(v * 100)}% dead`, 'title cards under 35%': v => `${Math.round(v * 100)}% title card` };
+    A.slice(1).forEach((r, i) => {
+      const prev = A[i].n, cut = prev - r.n, xs = r.out || [];
+      const lines = cut === 0 ? [[.3, `<b>${esc(r.rule)}</b>: ${esc(r.law || '')}.`], [5, 'This rule removed nothing. Every shot that was measured played.']]
+        : i === 0 ? [[.3, `<b>${esc(r.rule)}</b>. ${esc(r.law)}.`], [5.5, `Only <b>${fmt(r.n)}</b> of ${fmt(prev)} were ever downloaded and watched. The rest were found, and never looked at.`], [12, 'The biggest cut in the whole sieve is not a rule about pictures. It is which shots someone fetched.']]
+        : [[.3, `<b>${esc(r.rule)}</b>. ${esc(r.law)}.`], [5.5, `It removes <b>${fmt(cut)}</b>. These are some of them, with what was measured.`]];
+      B('The standing rules', cut === 0 ? 9 : i === 0 ? 17 : 14, () => fieldHTML(prev, 'SHOTS LEFT', xs.length > 0) + (xs.length ? rejHTML(xs, units[r.rule] || (() => '')) : '') + LX.band(lines),
+        el => { LX.runBand(el, K); field(el, [[3, r.n]], prev); });
+    });
+    B('The standing rules', 12, () => rulesHTML(A.length - 1) + LX.band([[.3, `What is left is the pool: <b>${fmt(A[A.length - 1].n)}</b> shots.`], [6, 'Every choice in every take is made from inside it.']]), el => { LX.runBand(el, K); LX.ping(); });
+
+    /* THE MOMENT · rules that depend on where we are */
+    B('The moment', Math.ceil(F.dur) + 4, () => pline(F.line) + LX.band([[.3, `One line, ${Math.floor(179 / 60)}:59 into the poem. The Suite needs a shot for ${F.dur.toFixed(1)} seconds.`]], 'Where You Go When You Leave'), el => { LX.runBand(el, K); LX.poem(K, AU, 179.24, 179.24 + F.dur); speak(el, F.dur); });
+    const mu = { 0: v => `${v.toFixed(2)} s · needs ${F.dur.toFixed(2)}` };
+    M.slice(1).forEach((r, i) => { const prev = M[i].n, xs = r.out || [];
+      B('The moment', 13, () => fieldHTML(prev, 'IN THE POOL', xs.length > 0) + (xs.length ? rejHTML(xs, mu[i] || (() => '')) : '') + LX.band([[.3, `<b>${esc(r.rule)}</b>. ${esc(r.law)}.`], [6, `It removes <b>${fmt(prev - r.n)}</b>. ${fmt(r.n)} are left.`]]),
+        el => { LX.runBand(el, K); field(el, [[3, r.n]], prev); }); });
+
+    /* ACROSS THE FILM · the same rules at every line */
+    const mxL = X.max[0];
+    B('Across the film', 16, () => `<div class="lines">${[X.median[3], X.min[3]].map((v, k) => `<div class="ref" style="bottom:${v / mxL * 100}%"><span>${k ? 'fewest' : 'typical'} · ${fmt(v)}</span></div>`).join('')}${X.per_line.map((v, k) => `<i class="${v < 900 ? 'lo' : ''}" style="left:${(k / (X.per_line.length - 1) * 100).toFixed(2)}%" data-h="${(v / mxL * 100).toFixed(1)}"></i>`).join('')}</div><div class="lax"><span>line 1</span><span>shots still allowed at each of the 169 lines</span><span>line 169</span></div>`
+      + LX.band([[.3, 'Now the same rules at every line of the Suite.'], [5.5, `They never leave fewer than <b>${fmt(X.min[3])}</b>. Usually about ${fmt(X.median[3])}.`], [11, 'The rules keep the film honest. They do not choose it.']]),
+      el => { LX.runBand(el, K); el.querySelectorAll('.lines i').forEach((i, k) => K.later(300 + k * 22, () => i.style.height = i.dataset.h + '%')); });
+
+    /* THE WORDS · switched on one at a time */
+    const finalTop = new Set((Wd[Wd.length - 1].top || []).map(t => t.id));
+    const wrows = upto => Wd.map((w, i) => `<div class="wrow ${i < upto ? 'on' : ''}" style="top:${40 + i * 150}px"><div class="w">${esc(w.on)}<span>${esc(w.text.length > 70 ? w.text.slice(0, 68) + '…' : w.text)}</span></div>${w.top.map(t => `<img class="${finalTop.has(t.id) ? 'f' : ''}" src="${esc(t.thumb)}" alt="">`).join('')}<div class="k">${w.kept}<small>of the final 50</small></div></div>`).join('');
+    B('The words', 12, () => wrows(0) + LX.band([[.3, 'Words are the sieve that does the choosing. The Suite has four descriptions for this line.'], [6.5, 'Switch them on one at a time and watch the top of the pool change.']]), el => LX.runBand(el, K));
+    Wd.forEach((w, i) => B('The words', i === 0 ? 13 : 11, () => wrows(i + 1) + LX.band(i === 0 ? [[.3, `<b>${esc(w.on)}</b> alone. The best eight shots for it.`], [5.5, `Only <b>${w.kept}</b> of the final top fifty are already here.`]]
+        : i === Wd.length - 1 ? [[.3, `<b>${esc(w.on)}</b>. The last description. Lime marks shots that stay in the top.`], [5.5, 'Each word moved the top of the pool. None of them removed a shot.']]
+        : [[.3, `<b>+ ${esc(w.on)}</b>.`], [3.5, `${w.kept} of the final fifty now.`]]), el => { LX.runBand(el, K); LX.tick(900, .5, .03); }));
+
+    /* NOW YOU CAN READ */
+    const rows = [['brought home by the searches', N0], ...A.slice(1).map(r => [r.rule, r.n]), ...M.slice(1).map(r => [r.rule, r.n])];
+    B('Now you can read', 16, () => `<div class="funnel">${rows.map(([t, v], i) => `<div class="${i === rows.length - 1 ? 'w' : ''}" style="animation-delay:${.3 + i * .35}s"><span>${esc(t)}</span><i style="width:${Math.max(.3, v / N0 * 100)}%"></i><b>${fmt(v)}</b></div>`).join('')}</div>`
+      + LX.band([[.3, 'The whole sieve for one line. Most of the archive was never in the running.'], [7.5, 'What is left is ranked by words. Lesson 7 asks where those words come from.']]), el => LX.runBand(el, K));
+    B('Now you can read', 9, () => `<div class="tc"><small>NEXT · LESSON 7</small><h1>Asking</h1><p>The words that rank the pool: who wrote them, and what they keep reaching for.</p></div>`, el => LX.ping());
+  }
+};
+</script>
+<script src="explain/player.js?v=9"></script>
+</body>
+</html>

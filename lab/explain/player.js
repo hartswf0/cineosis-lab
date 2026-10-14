@@ -1,20 +1,26 @@
 /* CINEOSIS EPISODES · the shared player. An episode page defines EPISODE = { data: [urls], cues: [score cue names], build(D, B, K) }
    and loads explain/film.css + this file. B(chapter, seconds, html(), after(el), {voice}) adds a scene; K is the kit below.
    One line of type at a time (K.line), moving pictures first, the project's own sound when it carries meaning (K.scene plays a
-   scene's audio with its pictures cut by time; the score ducks under it). Keys: space pause, ← → scenes; chapters on the bar. */
+   scene's audio with its pictures cut by time; the score ducks under it). Keys: space pause, ← → scenes, [ ] chapters,
+   < > speed (1×, 1.5×, 2×), N / P next or previous film, F films, L log, Esc closes a panel or leaves the film. */
 (function () {
   'use strict';
   const $ = (s, r = document) => r.querySelector(s);
   const esc = t => String(t ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
   const fmt = n => Number(n).toLocaleString('en-US');
   let beats = [], chapters = [], cur = -1, timer = 0, paused = false, sound = true, tok = 0, t0 = 0, left = 0;
+  const SPEEDS = [1, 1.5, 2]; let speed = 1; try { const sv = +new URLSearchParams(location.search).get('speed') || +localStorage.getItem('cineosis.speed'); if (SPEEDS.includes(sv)) speed = sv; } catch (e) { }
   const stage = $('#stage'), score = $('#score'), voice = $('#voice');
   const duck = on => { score.volume = sound ? (on ? .05 : .28) : 0; };
-  const later = (ms, f) => { const my = tok; setTimeout(() => { if (my === tok) f(); }, ms); };
-  const raf = f => { const my = tok, t = performance.now(); const go = () => { if (my !== tok) return; if (f((performance.now() - t) / 1000) !== false) requestAnimationFrame(go); }; go(); };
+  const later = (ms, f) => { const my = tok; setTimeout(() => { if (my === tok) f(); }, ms / speed); };
+  const raf = f => { const my = tok; let last = performance.now(), el = 0; const go = () => { if (my !== tok) return; const now = performance.now(); el += (now - last) / 1000 * (paused ? 0 : speed); last = now; if (f(el) !== false) requestAnimationFrame(go); }; go(); };
   const line = (ls, sm = '', gap = 2.2) => `<div class="line">${ls.map((l, i) => `<span style="animation-delay:${.4 + i * gap}s">${l}</span>`).join('')}${sm ? `<small style="animation-delay:${.6 + ls.length * gap}s">${sm}</small>` : ''}</div>`;
   function startVideos(el) { el.querySelectorAll('video[data-src]').forEach(v => { v.src = v.dataset.src; if (v.dataset.end) v.addEventListener('timeupdate', () => { if (v.currentTime > +v.dataset.end) v.currentTime = +v.dataset.t; }); v.addEventListener('loadedmetadata', () => { try { v.currentTime = +v.dataset.t || 0; } catch (e) { } if (v.dataset.snd && sound) { v.muted = false; v.volume = 1; } v.play().catch(() => { v.muted = true; v.play().catch(() => { }); }); }, { once: true }); }); }
-  function typeIn(el, text, cps = 26) { const my = tok; let i = 0; const step = () => { if (my !== tok || !el) return; el.textContent = text.slice(0, ++i); if (i < text.length) setTimeout(step, 1000 / cps); }; step(); }
+  function typeIn(el, text, cps = 26) { const my = tok; let i = 0; const step = () => { if (my !== tok || !el) return; el.textContent = text.slice(0, ++i); if (i < text.length) setTimeout(step, 1000 / cps / speed); }; step(); }
+  /* speed: every clock the film keeps runs at the chosen rate (CSS animations, videos, the voice, the scene timer) */
+  function rates() { try { document.getAnimations().forEach(a => { if (a.playbackRate !== speed) a.playbackRate = speed; }); } catch (e) { }
+    document.querySelectorAll('video').forEach(v => { if (v.playbackRate !== speed) v.playbackRate = speed; }); if (voice.playbackRate !== speed) voice.playbackRate = speed; }
+  setInterval(rates, 400);
   /* a scene of one of our films: its audio from a to b, its pictures switched by the scene's own cut list, subtitles from its lines */
   function scene(el, sc, a, b, subs) {
     const box = el.querySelector('.scn'), vs = [0, 1].map(() => { const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.className = 'full'; v.style.opacity = 0; box.appendChild(v); return v; });
@@ -83,7 +89,7 @@
   document.body.appendChild(navBox);
   function drawNav() { const F = films(), h = here(); let unit = '';
     const link = (f, i) => `<a href="${f.href}" style="display:grid;grid-template-columns:64px minmax(0,1fr);gap:4px 16px;padding:12px 14px;border-radius:6px;text-decoration:none;${i === h ? 'background:#1f1d19;outline:2px solid #c4f46a;' : ''}"><span style="font:600 15px 'IBM Plex Mono',monospace;color:#a29d90;padding-top:4px">${esc(f.n)}</span><span><b style="display:block;font:600 22px Fraunces,Georgia,serif;color:#ece6da">${esc(f.t)}${i === h ? ' <small style="font:600 12px IBM Plex Mono,monospace;color:#c4f46a;letter-spacing:.12em">YOU ARE HERE</small>' : ''}</b><span style="font:italic 17px Fraunces,Georgia,serif;color:#a29d90">makes visible ${esc(f.v)}</span></span></a>`;
-    navBox.innerHTML = `<div style="max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px"><b style="font:600 14px 'IBM Plex Mono',monospace;letter-spacing:.2em;color:#a29d90">CINEOSIS · THE FILMS, IN ORDER</b><span style="display:flex;gap:10px">${h > 0 ? `<a href="${F[h - 1].href}" style="${btn}">‹ previous</a>` : ''}${h >= 0 && h < F.length - 1 ? `<a href="${F[h + 1].href}" style="${btn};background:#c4f46a;color:#111">next ›</a>` : ''}<a href="series.html" style="${btn}">series page</a><a href="papers.html" style="${btn}">papers</a><button id="navX" style="${btn}">close</button></span></div>`
+    navBox.innerHTML = `<div style="max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px"><b style="font:600 14px 'IBM Plex Mono',monospace;letter-spacing:.2em;color:#a29d90">CINEOSIS · THE FILMS, IN ORDER</b><span style="display:flex;gap:10px">${h > 0 ? `<a href="${F[h - 1].href}" style="${btn}">‹ previous</a>` : ''}${h >= 0 && h < F.length - 1 ? `<a href="${F[h + 1].href}" style="${btn};background:#c4f46a;color:#111">next ›</a>` : ''}<a href="series.html" style="${btn}">series page</a><a href="papers.html" style="${btn}">papers</a><button id="navX" style="${btn}">close</button></span></div><p style="margin:0 0 10px;font:13px/1.6 'IBM Plex Mono',monospace;color:#8c867a">space pause · ← → scene · [ ] chapter · &lt; &gt; speed · N P film · F films · L log · Esc leave</p>`
       + F.map((f, i) => { const u = f.unit !== unit ? `<div style="font:600 12px 'IBM Plex Mono',monospace;letter-spacing:.18em;color:#6d675d;text-transform:uppercase;margin:18px 0 4px">${esc(unit = f.unit)}</div>` : ''; return u + link(f, i); }).join('') + '</div>';
     navBox.querySelector('#navX').onclick = toggleNav; }
   const btn = "font:600 14px 'IBM Plex Mono',monospace;color:#ece6da;background:none;border:1px solid #3a362f;border-radius:4px;padding:6px 12px;text-decoration:none;cursor:pointer";
@@ -100,24 +106,37 @@
     stage.querySelectorAll('.beat').forEach(o => { o.classList.remove('on'); o.querySelectorAll('video').forEach(v => { v.pause(); v.muted = true; }); setTimeout(() => { o.querySelectorAll('video').forEach(v => { v.removeAttribute('src'); v.load(); }); o.remove(); }, 1000); });
     const el = document.createElement('div'); el.className = 'beat'; el.innerHTML = b.html(); stage.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
     duck(false); if (b.after) b.after(el); cue(chapters.findIndex(c => c.name === b.ch)); logBeat(i, el);
-    left = b.secs * 1000; t0 = performance.now(); if (!paused) timer = setTimeout(() => show(i + 1), left); ui();
+    left = b.secs * 1000; t0 = performance.now(); if (!paused) timer = setTimeout(() => show(i + 1), left / speed); requestAnimationFrame(rates); ui();
   }
   function ui() {
     const done = beats.slice(0, cur).reduce((a, b) => a + b.secs, 0), tot = beats.reduce((a, b) => a + b.secs, 0);
     document.querySelectorAll('#chs div').forEach((d, ci) => { const c = chapters[ci], cb = beats.filter(b => b.ch === c.name), first = beats.indexOf(cb[0]), passed = beats.slice(first, cur).reduce((a, b) => a + b.secs, 0);
       d.classList.toggle('on', beats[cur] && beats[cur].ch === c.name); d.querySelector('i').style.width = Math.min(100, (cur > first + cb.length - 1 ? 1 : cur < first ? 0 : passed / c.secs) * 100) + '%'; });
-    const m = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`; $('#time').textContent = `${m(done)} / ${m(tot)}`;
+    const m = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`; const t = $('#time'); t.textContent = `${m(done)} / ${m(tot)} · ${m((tot - done) / speed)} left`; t.title = `scene ${cur + 1} of ${beats.length} · ${m((tot - done) / speed)} left at ${speed}×`;
   }
   function pause(p) { paused = p; $('#bPlay').textContent = p ? '▶' : '❚❚';
     stage.querySelectorAll('.beat.on video').forEach(v => p ? v.pause() : (v.style.opacity !== '0' && v.play().catch(() => { }))); p ? (score.pause(), voice.pause()) : (score.play().catch(() => { }), beats[cur] && beats[cur].voice && voice.play().catch(() => { }));
-    if (p) { clearTimeout(timer); left -= performance.now() - t0; } else { t0 = performance.now(); timer = setTimeout(() => show(cur + 1), Math.max(500, left)); } }
+    if (p) { clearTimeout(timer); left -= (performance.now() - t0) * speed; } else { t0 = performance.now(); timer = setTimeout(() => show(cur + 1), Math.max(500, left) / speed); } }
+  function setSpeed(v) { if (!SPEEDS.includes(v) || v === speed) return; if (!paused && cur >= 0) { clearTimeout(timer); left -= (performance.now() - t0) * speed; t0 = performance.now(); timer = setTimeout(() => show(cur + 1), Math.max(300, left) / v); }
+    speed = v; try { localStorage.setItem('cineosis.speed', v); } catch (e) { } rates(); const b = $('#bSpeed'); if (b) b.textContent = v + '×'; ui(); }
+  const faster = d => setSpeed(SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, SPEEDS.indexOf(speed) + d))]);
+  const chapterJump = d => { if (!chapters.length) return; const ci = Math.max(0, chapters.findIndex(c => beats[cur] && c.name === beats[cur].ch)); const t = chapters[ci + d]; if (t) show(beats.findIndex(b => b.ch === t.name)); else if (d > 0) endCard(); else show(0); };
+  const filmJump = d => { const F = films(), h = here(); const f = F[h + d]; if (h >= 0 && f) location.href = f.href; };
+  const exitFilm = () => { location.href = 'series.html'; };
   function fit() { const W = innerWidth, H = innerHeight - 64, k = Math.min(W / 1600, H / 900); stage.style.transform = `translate(-50%, -50%) scale(${k})`; $('#wrap').style.height = H + 'px'; }
   addEventListener('resize', fit);
-  addEventListener('keydown', e => { if (e.key === 'l' || e.key === 'L') toggleLog(); if (e.key === 'f' || e.key === 'F') toggleNav(); if (e.key === ' ') { e.preventDefault(); pause(!paused); } if (e.key === 'ArrowRight') show(cur + 1); if (e.key === 'ArrowLeft') show(cur - 1); });
+  addEventListener('keydown', e => { if (e.metaKey || e.ctrlKey || e.altKey) return; const k = e.key;
+    if (k === 'Escape') { if (navBox.style.display !== 'none') toggleNav(); else if (logBox.style.display !== 'none') toggleLog(); else exitFilm(); return; }
+    if (k === 'l' || k === 'L') toggleLog(); if (k === 'f' || k === 'F') toggleNav(); if (k === ' ') { e.preventDefault(); pause(!paused); }
+    if (k === 'ArrowRight') show(cur + 1); if (k === 'ArrowLeft') show(cur - 1); if (k === ']') chapterJump(1); if (k === '[') chapterJump(-1);
+    if (k === '>' || k === '.') faster(1); if (k === '<' || k === ',') faster(-1); if (k === 'n' || k === 'N') filmJump(1); if (k === 'p' || k === 'P') filmJump(-1); });
   $('#bPlay').onclick = () => pause(!paused); { const lb = document.createElement('button'); lb.id = 'bLog'; lb.title = 'the log: what each beat was made from (L)'; lb.textContent = 'log'; lb.onclick = toggleLog; $('#bSnd').before(lb); const fb = document.createElement('button'); fb.id = 'bFilms'; fb.title = 'all the films, in order (F)'; fb.textContent = '☰ films'; fb.onclick = toggleNav; $('#bPrev').before(fb); } $('#bNext').onclick = () => show(cur + 1); $('#bPrev').onclick = () => show(cur - 1);
+  { const sb = document.createElement('button'); sb.id = 'bSpeed'; sb.title = 'speed: 1×, 1.5×, 2× (< >)'; sb.textContent = speed + '×'; sb.onclick = () => setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]); $('#bSnd').before(sb);
+    const xb = document.createElement('button'); xb.id = 'bExit'; xb.title = 'leave the film, back to the series page (Esc)'; xb.setAttribute('aria-label', 'leave the film'); xb.textContent = '✕'; xb.onclick = exitFilm; $('#bar').appendChild(xb);
+    $('#bPrev').title = 'previous scene (←) · previous chapter ([)'; $('#bNext').title = 'next scene (→) · next chapter (])'; }
   $('#bSnd').onclick = () => { sound = !sound; $('#bSnd').textContent = sound ? '♪ on' : '♪ off'; duck(false); voice.muted = !sound; stage.querySelectorAll('video').forEach(v => { if (!sound) v.muted = true; }); };
   (async function () {
-    if (!window.FILMS) await new Promise(r => { const sc = document.createElement('script'); sc.src = 'explain/films.js?v=1'; sc.onload = r; sc.onerror = r; document.head.appendChild(sc); });
+    if (!window.FILMS) await new Promise(r => { const sc = document.createElement('script'); sc.src = 'explain/films.js?v=2'; sc.onload = r; sc.onerror = r; document.head.appendChild(sc); });
     fit(); const EP = window.EPISODE, D = await Promise.all(EP.data.map(u => fetch(u).then(r => r.json())));
     EP.build(D, (ch, secs, html, after, opt = {}) => beats.push({ ch, secs, html, after, ...opt }), K); if (EP.ready) EP.ready(K);
     beats.forEach(b => { let c = chapters.find(c => c.name === b.ch); if (!c) chapters.push(c = { name: b.ch, secs: 0 }); c.secs += b.secs; });
