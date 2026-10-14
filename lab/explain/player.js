@@ -136,7 +136,7 @@
     $('#bPrev').title = 'previous scene (←) · previous chapter ([)'; $('#bNext').title = 'next scene (→) · next chapter (])'; }
   $('#bSnd').onclick = () => { sound = !sound; $('#bSnd').textContent = sound ? '♪ on' : '♪ off'; duck(false); voice.muted = !sound; stage.querySelectorAll('video').forEach(v => { if (!sound) v.muted = true; }); };
   (async function () {
-    if (!window.FILMS) await new Promise(r => { const sc = document.createElement('script'); sc.src = 'explain/films.js?v=2'; sc.onload = r; sc.onerror = r; document.head.appendChild(sc); });
+    if (!window.FILMS) await new Promise(r => { const sc = document.createElement('script'); sc.src = 'explain/films.js?v=3'; sc.onload = r; sc.onerror = r; document.head.appendChild(sc); });
     fit(); const EP = window.EPISODE, D = await Promise.all(EP.data.map(u => fetch(u).then(r => r.json())));
     EP.build(D, (ch, secs, html, after, opt = {}) => beats.push({ ch, secs, html, after, ...opt }), K); if (EP.ready) EP.ready(K);
     beats.forEach(b => { let c = chapters.find(c => c.name === b.ch); if (!c) chapters.push(c = { name: b.ch, secs: 0 }); c.secs += b.secs; });
