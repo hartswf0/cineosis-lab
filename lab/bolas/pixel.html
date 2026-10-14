@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<title>Bolas Pixel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{--bg:#ece7dd;--card:#f8f4ed;--ink:#17140f;--mute:#857e72;--line:#d8d0c2;--red:#e0483a;--tab:#dcd5c8;--tabon:#f8f4ed;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121110;--card:#1f1d19;--ink:#ece6da;--mute:#8d867a;--line:#36322b;--red:#ea5444;--tab:#26231f;--tabon:#34302a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121110;--card:#1f1d19;--ink:#ece6da;--mute:#8d867a;--line:#36322b;--red:#ea5444;--tab:#26231f;--tabon:#34302a;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:19px/1.5 "Cormorant Garamond",Georgia,serif;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:52px 110px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+h1{font-weight:400;font-size:clamp(44px,7.5vw,84px);line-height:.95;margin:12px 0 14px}
+h2{font-weight:400;font-size:36px;margin:72px 0 4px;text-wrap:balance}
+h3{font-weight:400;font-size:23px;margin:30px 0 4px;padding-top:10px;border-top:1px solid var(--line)}
+p{margin:0 0 10px;max-width:66ch}
+.lede{font-size:22px}
+canvas{image-rendering:pixelated;image-rendering:crisp-edges;display:block}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 26px;margin-top:22px;font-size:17px}
+.rules div{min-width:0}.rules b{display:block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:500}
+.tabs{margin-top:24px;background:var(--tab);border:1px solid var(--line);padding:6px 6px 0;display:flex;gap:2px;overflow-x:auto}
+.tab{display:flex;align-items:center;gap:7px;padding:7px 10px;background:var(--tab);min-width:150px;max-width:190px;font:12.5px/1.2 system-ui,sans-serif;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:7px 7px 0 0;flex:none}
+.tab.on{background:var(--tabon)}
+.tab canvas{width:16px;height:16px;flex:none}
+.tab span{overflow:hidden;text-overflow:ellipsis}
+.strip{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;padding:14px;background:var(--card);border:1px solid var(--line);align-items:center}
+.strip canvas{width:32px;height:32px}
+.strip.s16 canvas{width:16px;height:16px}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:16px 0 4px;font-family:"IBM Plex Mono",monospace;font-size:12px}
+.tools button{font:inherit;background:none;color:var(--mute);border:1px solid var(--line);padding:5px 11px;cursor:pointer}
+.tools button.on{color:var(--ink);border-color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:12px;margin-top:12px}
+.card{background:var(--card);border:1px solid var(--line);padding:12px;display:grid;grid-template-columns:128px minmax(0,1fr);gap:12px;align-items:start;min-width:0}
+.card .big{width:128px;height:128px}
+.card .sizes{display:flex;gap:8px;align-items:flex-end;margin-top:8px}
+.card .sizes canvas:nth-child(1){width:64px;height:64px}
+.card .sizes canvas:nth-child(2){width:32px;height:32px}
+.card .sizes canvas:nth-child(3){width:16px;height:16px}
+.card .n{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--mute)}
+.card h4{margin:0 0 3px;font-weight:500;font-size:19px;line-height:1.1}
+.card p{font-size:14.5px;line-height:1.3;color:var(--mute);margin:0}
+.kind{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--ink);padding:0 5px;margin:4px 0 6px}
+.kind.web{border-color:var(--red);color:var(--red)}
+.spin{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin-top:12px;padding:12px;background:var(--card);border:1px solid var(--line)}
+.spin canvas{width:64px;height:64px}
+.spin figcaption{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--mute);text-align:center}
+.spin figure{margin:0}
+.anat{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:16px}
+.anat figure{margin:0;background:var(--card);border:1px solid var(--line);padding:12px}
+.anat canvas{width:192px;height:192px;margin:0 auto}
+.anat figcaption{font-size:16px;margin-top:6px}
+.foot{margin-top:64px;padding-top:14px;border-top:1px solid var(--line);font-size:16px;color:var(--mute)}
+</style>
+</head>
+<body>
+<style>
+.bset{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:10px 20px;font:13px/1.3 "IBM Plex Mono",ui-monospace,Menlo,monospace;border-bottom:1px solid rgba(128,120,108,.35);background:inherit}
+.bset a{color:inherit;text-decoration:none;padding:4px 0;border-bottom:1px solid transparent}
+.bset a:hover,.bset a:focus-visible{border-bottom-color:#e0483a;outline:none}
+.bset .here{opacity:.6;margin-right:auto}
+.bset [aria-disabled]{opacity:.3}
+</style><nav class="bset" aria-label="Bolas set"><a href="index.html">Bolas set</a><span class="here">11 / 14</span><a href="at-work.html" rel="prev">← Bolas at Work</a><a href="webs-that-matter.html" rel="next">Webs That Matter →</a></nav>
+
+<div class="wrap">
+  <div class="mono">Cineosis Lab · Bolas · 32 × 32</div>
+  <h1>Bolas Pixel</h1>
+  <p class="lede">Each film and sign as one pixel icon that moves: designed on a 32-pixel grid, so it holds up as a favicon and can be read from across a room. Bolas has four limbs now, two arms and two legs. Either its body makes the symbol, or it spins the symbol out of its web while you watch.</p>
+  <div class="rules">
+    <div><b>Body symbols</b>The body and the arms form the sign: scissors, scales, a reel, a clock, a boat.</div>
+    <div><b>Web symbols</b>Bolas spins the sign strand by strand: a question mark, an eye, a tree, a stave, a hexagon. A web is thread, so it is red.</div>
+    <div><b>Four limbs</b>Eight legs read as noise at this size. Two arms that do things and two legs that stand.</div>
+    <div><b>One idea</b>Each icon has a single silhouette you could draw from memory after seeing it once.</div>
+  </div>
+
+  <div class="tabs" id="tabs"></div>
+
+  <h2>Spinning</h2>
+  <p>The web doing work: the same symbols, frame by frame, as Bolas lays each strand.</p>
+  <div class="spin" id="spin"></div>
+
+  <h2>The body</h2>
+  <div class="anat" id="anat"></div>
+
+  <h2>All sixty-two, at real size</h2>
+  <div class="tools" id="tools"><button class="on" data-g="paper">paper</button><button data-g="night">night</button></div>
+  <div class="strip" id="s32"></div>
+  <div class="strip s16" id="s16"></div>
+
+  <h2>The films</h2>
+  <div class="grid" id="films"></div>
+
+  <h2>The signs</h2>
+  <p>A sign is an O on its thread, holding its symbol in its family's colour, with the head below. Around it, the family's web: sight lines, ripples, a dash, a mirror, a net, an orbit, a break, lines of text.</p>
+  <div id="signs"></div>
+
+  <div class="foot">Every icon is drawn pixel by pixel in the page, twenty frames at ten frames a second. The 16-pixel version keeps a pixel wherever any of the four it replaces was drawn, so thin lines survive. Sign symbols are shown in capitals in the pixel font.</div>
+</div>
+
+<script>
+const SIGN_ROWS=[["1", "So", "Solid perception", "perception", "all images revolve around a central and privileged image"], ["2", "Lq", "Liquid perception", "perception", "the flow from character/event to character/event"], ["3", "Ga", "Gaseous perception", "perception", "all images resonate with one another as an acentred system"], ["4", "Ic", "Icon", "affect", "the face expressing unfilmable internal intensities"], ["5", "Dv", "Dividual", "affect", "the conjunction of collective and individual affects"], ["6", "As", "Any-space-whatever", "affect", "the expression of non-human affects"], ["7", "Sy", "Symptom", "action", "characters overwhelmed by primal forces"], ["8", "Fe", "Fetish", "action", "a special object charged with primal energies, awaiting a grounding"], ["9", "Or", "Originary world", "action", "a universe of primal forces"], ["10", "Il", "Index of lack", "action", "the situation is an ellipsis which is unequivocally revealed"], ["11", "Ie", "Index of equivocity", "action", "the situation is revealed as ambiguous"], ["12", "Ve", "Vector", "action", "multiple situations within the homogeneous universe"], ["13", "Mi", "Milieu", "action", "the situation explicated through character actions"], ["14", "Bi", "Binomial", "action", "a whole world of duels"], ["15", "Im", "Imprint", "action", "an indelible impression of the world upon a character"], ["16", "Pl", "Plastic figure", "reflection", "small form transformed by the large form, an implied situation"], ["17", "Th", "Theatrical figure", "reflection", "a sequence of images as precursor of the real action"], ["18", "Ma", "Mise en abyme", "reflection", "a recurrence of plastic and theatrical figures"], ["19", "Su", "Figure of the sublime", "reflection", "actions surpass the determinates of an enfeebled situation"], ["20", "En", "Figure of enfeeblement", "reflection", "weak characters reveal the sublime nature of the world"], ["21", "Qu", "Quotidian", "reflection", "everyday situations, everyday actions – sublime ↔ futile"], ["22", "Ll", "Limit of the large form action-image", "reflection", "action explores a hidden problem"], ["23", "Ls", "Limit of the small form action-image", "reflection", "the situation revealed as a problem"], ["24", "Xl", "Limit of the action-image (extreme limit)", "reflection", "a whole world of problems"], ["25", "Rd", "Rich dream", "mental", "radically distinct real world and dream world"], ["26", "Rs", "Restrained dream", "mental", "an ambiguity between real world and dream world"], ["27", "Mw", "Movement of world", "mental", "the dream world is the real world"], ["28", "Sd", "Strong destiny", "mental", "a flashback to the past determines the future"], ["29", "Wd", "Weak destiny", "mental", "the content of the flashback permeates affects"], ["30", "Fp", "Forking paths", "mental", "a matrix of irresolvable flashbacks"], ["31", "Mk", "Mark", "mental", "the relation between a habitual series of images"], ["32", "Dm", "Demark", "mental", "an aberration in the series of habitual images"], ["33", "Sb", "Symbol", "mental", "an object expressing ideas, beliefs, concepts"], ["34a", "Op", "Opsign", "break", "the zeroness of the time-image: a pure optical situation"], ["34b", "Sn", "Sonsign", "break", "the zeroness of the time-image: a pure sound situation"], ["35", "Mf", "Mirrors face to face", "time", "fragments, duplicates and distortions"], ["36", "Lo", "Limpid and opaque", "time", "the exchange of the actual and virtual"], ["37", "Se", "Seed and environment", "time", "(virtual/actual) seed ↔ (actual/virtual) environment"], ["38", "Pp", "Peaks of the present", "time", "the heterogeneous present"], ["39", "Sp", "Sheets of the past", "time", "the non-chronological nature of the past"], ["40", "Pf", "Powers of the false", "time", "serialism, the ongoing ungrounding of the image"], ["41", "Ba", "Bodies of attitude", "time", "a dispersed individuation of the body"], ["42", "Bg", "Bodies of gest", "time", "the linkage of attitudes creating differentiation"], ["43", "Br", "Cinema of the brain", "time", "the screen as a cerebral space"], ["44", "Le", "Lectosigns", "read", "the infinite of the time-image"]];
+const S=32,NF=20,FPS=10;
+const PAL_PAPER={0:[246,241,232],1:[23,20,15],2:[224,72,58],4:[176,168,154]};
+const PAL_NIGHT={0:[15,14,12],1:[239,233,220],2:[234,84,68],4:[90,84,74]};
+let PAL=PAL_PAPER;
+function hex(h){h=h.replace('#','');return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]}
+const ease=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t)};
+const lerp=(a,b,t)=>a+(b-a)*t;
+
+/* ---------------- pixel kit ---------------- */
+class G{constructor(){this.b=new Uint8Array(S*S)}
+  px(x,y,c){x=Math.round(x);y=Math.round(y);if(x>=0&&y>=0&&x<S&&y<S)this.b[y*S+x]=c}
+  line(x0,y0,x1,y1,c){x0=Math.round(x0);y0=Math.round(y0);x1=Math.round(x1);y1=Math.round(y1);const dx=Math.abs(x1-x0),dy=-Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;let e=dx+dy;for(;;){this.px(x0,y0,c);if(x0===x1&&y0===y1)break;const e2=2*e;if(e2>=dy){e+=dy;x0+=sx}if(e2<=dx){e+=dx;y0+=sy}}}
+  ring(cx,cy,r,c){for(let a=0;a<360;a+=2){const t=a*Math.PI/180;this.px(cx+Math.cos(t)*r,cy+Math.sin(t)*r,c)}}
+  disc(cx,cy,r,c){for(let y=-r;y<=r;y++)for(let x=-r;x<=r;x++)if(x*x+y*y<=r*r+r*.6)this.px(cx+x,cy+y,c)}
+  rect(x,y,w,h,c){this.line(x,y,x+w,y,c);this.line(x,y+h,x+w,y+h,c);this.line(x,y,x,y+h,c);this.line(x+w,y,x+w,y+h,c)}
+  frect(x,y,w,h,c){for(let j=0;j<=h;j++)for(let i=0;i<=w;i++)this.px(x+i,y+j,c)}
+  path(pts,c,k=1){let all=[];for(let i=0;i<pts.length-1;i++){const[a,b]=[pts[i],pts[i+1]];const n=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])));for(let j=0;j<n;j++)all.push([lerp(a[0],b[0],j/n),lerp(a[1],b[1],j/n)])}all.push(pts[pts.length-1]);
+    const m=Math.floor(all.length*Math.max(0,Math.min(1,k)));for(let i=0;i<m;i++)this.px(all[i][0],all[i][1],c);return all[Math.max(0,m-1)]}
+  text(str,x,y,c){for(const ch of str.toUpperCase()){const g=FONT[ch];if(g)g.forEach((row,j)=>[...row].forEach((v,i)=>v==='1'&&this.px(x+i,y+j,c)));x+=4}}
+}
+const FONT={A:['010','101','111','101','101'],B:['110','101','110','101','110'],C:['011','100','100','100','011'],D:['110','101','101','101','110'],E:['111','100','110','100','111'],F:['111','100','110','100','100'],G:['011','100','101','101','011'],H:['101','101','111','101','101'],I:['111','010','010','010','111'],J:['001','001','001','101','010'],K:['101','110','100','110','101'],L:['100','100','100','100','111'],M:['101','111','111','101','101'],N:['101','111','111','111','101'],O:['010','101','101','101','010'],P:['110','101','110','100','100'],Q:['010','101','101','110','011'],R:['110','101','110','101','101'],S:['011','100','010','001','110'],T:['111','010','010','010','010'],U:['101','101','101','101','111'],V:['101','101','101','101','010'],W:['101','101','111','111','101'],X:['101','101','010','101','101'],Y:['101','101','010','010','010'],Z:['111','001','010','100','111'],'0':['111','101','101','101','111'],'1':['010','110','010','010','111'],'2':['110','001','010','100','111'],'3':['110','001','010','001','110'],'4':['101','101','111','001','001'],'5':['111','100','110','001','110'],'7':['111','001','010','010','010'],'?':['110','001','010','000','010']};
+const PAPER=0,INK=1,RED=2,ACC=3,MUTE=4;
+
+/* Bolas, four limbs. eyes: 'open' | 'blink' | 'wink' ; body: function drawing inside the body */
+function bolas(g,x,y,o={}){
+  const r=o.r??5,thread=o.thread??true;
+  if(thread)g.line(x,0,x,y-r,RED);
+  const sh=o.arms||[[-r-4,-3],[r+4,-3]],ft=o.legs||[[-r-2,r+6],[r+2,r+6]];
+  // arms: shoulder -> elbow -> hand ; legs: hip -> knee -> foot
+  sh.forEach(([hx,hy],i)=>{const s=i?1:-1;const ex=x+s*(r+2),ey=y-1;g.line(x+s*r,y,ex,ey-1,INK);g.line(ex,ey-1,x+hx,y+hy,INK)});
+  ft.forEach(([fx,fy],i)=>{const s=i?1:-1;const kx=x+s*(r+2),ky=y+r-1;g.line(x+s*(r-1),y+r-2,kx,ky,INK);g.line(kx,ky,x+fx,y+fy,INK)});
+  g.disc(x,y,r,PAPER);if(o.fill!=null)g.disc(x,y,r-1,o.fill);g.ring(x,y,r,INK);
+  if(o.body)o.body(g,x,y,r);
+  const hy=y+r+3;g.disc(x,hy,2,INK);
+  const e=o.eyes||'open';if(e!=='blink'){g.px(x-1,hy,PAPER);if(e!=='wink')g.px(x+1,hy,PAPER);else g.px(x+1,hy+1,PAPER)}
+}
+function mini(g,x,y,wink){g.frect(x-1,y-1,2,2,INK);g.px(x-2,y-2,INK);g.px(x+2,y-2,INK);g.px(x-2,y+2,INK);g.px(x+2,y+2,INK);if(wink)g.px(x,y,PAPER)}
+const eyesAt=(f,wf=16)=>f===wf||f===wf+1?'wink':(f===6?'blink':'open');
+
+/* ---------------- the seventeen films ---------------- */
+const F=[];
+const film=(n,t,kind,acc,meaning,draw)=>F.push({n,t,kind,acc,meaning,draw});
+film('2','What the Machines See','web','#6a4fa0','the web spins an eye; Bolas is its pupil, looking',(g,f)=>{
+  const up=[],lo=[];for(let i=0;i<=24;i++){const x=4+i,yy=Math.sin(i/24*Math.PI)*8;up.push([x,16-yy]);lo.push([28-i,16+yy])}
+  const k=ease(f/12);g.path(up.concat(lo),RED,k);
+  if(f>=12){g.ring(16,16,4,INK);g.disc(16,16,2,ACC);mini(g,16,16,f>=16&&f<=17);if(f===14)g.line(5,16,27,16,INK);}
+  else{const p=g.path(up.concat(lo),RED,k);mini(g,p[0],p[1])}});
+film('1','Where the Archive Came From','web','#4f8a2a','a tree of searches spun up out of the archive box',(g,f)=>{
+  g.rect(8,25,16,5,INK);g.line(10,27,22,27,MUTE);
+  const B=[[[16,25],[16,16]],[[16,16],[9,9]],[[16,16],[23,9]],[[9,9],[6,4]],[[9,9],[12,4]],[[23,9],[20,4]],[[23,9],[26,4]],[[16,16],[16,7]]];
+  const k=f/14*B.length;B.forEach((s,i)=>{if(k>i){const p=g.path(s,RED,Math.min(1,k-i));if(k<i+1)mini(g,p[0],p[1]);else if(i>=3)g.disc(s[1][0],s[1][1],1,ACC)}});
+  if(f>=15)mini(g,16,7,f>=16&&f<=17)});
+film('L4','The Voice Is the Clock','body','#1f8aa6','its body is a clock; the arms beat out the line',(g,f)=>{
+  const beat=[0,3,4,9,11,15];const up=i=>beat.includes((f+i*5)%NF)?-4:0;
+  bolas(g,16,12,{r:7,arms:[[-12,2+up(0)],[12,2+up(1)]],eyes:eyesAt(f),body:(g,x,y)=>{const a=f/NF*2*Math.PI-Math.PI/2;g.line(x,y,x+Math.cos(a)*5,y+Math.sin(a)*5,INK);g.line(x,y,x+Math.cos(a/12-Math.PI/2*0)*3,y-3,INK);g.px(x,y-6,INK)}});
+  g.line(2,29,29,29,MUTE);for(let i=0;i<6;i++)g.px(4+i*5,28,MUTE)});
+film('L7','Asking','web','#b07a1a','Bolas spins a question mark and becomes its dot',(g,f)=>{
+  const q=[];for(let a=200;a<=360+60;a+=10){const t=a*Math.PI/180;q.push([16+Math.cos(t)*7,11+Math.sin(t)*6])}q.push([16,20]);
+  const k=ease(f/13);const p=g.path(q,RED,k);
+  if(f<13)mini(g,p[0],p[1]);else bolas(g,16,26,{r:2,thread:false,arms:[[-4,0],[4,0]],legs:[[-3,4],[3,4]],eyes:eyesAt(f)})});
+film('L8','Choosing','body','#7d9a14','its arms are scales; it weighs two shots and takes the worse',(g,f)=>{
+  const tilt=f<12?Math.round(Math.sin(f*.8)*2):3;
+  bolas(g,16,9,{r:5,arms:[[-12,4-tilt],[12,4+tilt]],legs:[[-4,11],[4,11]],eyes:eyesAt(f)});
+  g.rect(1,14-tilt,7,6,INK);g.rect(24,14+tilt,7,6,INK);if(f>=12)g.frect(25,15+tilt,5,4,ACC)});
+film('5.7','How a Film Joins Its Shots','body','#7a5a44','its arms are scissors; the thread is cut and knotted again',(g,f)=>{
+  const open=f%10<5?3:0;
+  g.line(0,25,31,25,RED);if(f%10>=5&&f%10<8){g.px(15,25,PAPER);g.px(16,25,PAPER)}if(f%10>=8){g.disc(16,25,1,INK)}
+  bolas(g,16,9,{r:5,arms:[[4+open,16],[-4-open,16]],legs:[[-10,6],[10,6]],eyes:f%10===6?'blink':eyesAt(f)});
+  g.ring(16+4+open-1,25,1,INK);g.ring(16-4-open+1,25,1,INK)});
+film('5.1','The Poem and the Search','web','#a8456c','lines of a poem spun out and gathered into one frame',(g,f)=>{
+  const L=[[3,6,15],[3,10,12],[3,14,16],[3,18,10],[3,22,13]];const k=f/12*L.length;
+  L.forEach(([x,y,w],i)=>{if(k>i){g.path([[x,y],[x+w,y]],RED,Math.min(1,k-i))}});
+  if(f>=12){g.rect(20,9,9,9,INK);g.disc(24,13,2,ACC);L.forEach(([x,y,w],i)=>{if(i%2===0)g.line(x+w+1,y,20,13,MUTE)})}
+  mini(g,f<12?3+L[Math.min(4,Math.floor(k))][2]*((k%1)):24,f<12?L[Math.min(4,Math.floor(k))][1]:24,f>=16&&f<=17)});
+film('5.2','Suite','web','#3d6fb0','a stave spun across the frame; Bolas hops along it as a note',(g,f)=>{
+  for(let i=0;i<5;i++)g.path([[1,9+i*4],[30,9+i*4]],RED,ease(f/8-i*.1));
+  const notes=[[5,21],[10,17],[15,13],[20,17],[25,9]];notes.forEach(([x,y],i)=>{if(f>8+i*2){g.disc(x,y,1,INK);g.line(x+1,y,x+1,y-5,INK)}});
+  const j=Math.min(4,Math.max(0,Math.floor((f-8)/2)));if(f>8){const[x,y]=notes[j];mini(g,x,y-8,f>=17)}});
+film('5.3','Scenes','body','#94702a','its body is a reel; one old film answering every line',(g,f)=>{
+  bolas(g,16,11,{r:7,arms:[[-11,10],[11,10]],legs:[[-5,13],[5,13]],eyes:eyesAt(f),body:(g,x,y)=>{for(let i=0;i<4;i++){const a=i/4*2*Math.PI+f/NF*2*Math.PI;g.disc(x+Math.cos(a)*3.5,y+Math.sin(a)*3.5,1,INK)}g.px(x,y,INK)}});
+  g.rect(9,25,13,5,INK);g.line(10+(f%12),26,10+(f%12),29,ACC)});
+film('5.4','Cineosis','web','#5d6b8a','a table spun as a web; one cell lights for each moment',(g,f)=>{
+  for(let i=0;i<5;i++){g.path([[4,4+i*6],[28,4+i*6]],RED,ease(f/8-i*.08));g.path([[4+i*6,4],[4+i*6,28]],RED,ease(f/8-i*.08))}
+  if(f>8){const c=(f*7)%16,x=4+(c%4)*6,y=4+Math.floor(c/4)*6;g.frect(x+1,y+1,4,4,ACC);mini(g,x+3,y-1,f>=16&&f<=17)}});
+film('5.5','Drift','web','#3f8f7a','a trail of steps, each one only following the last',(g,f)=>{
+  const pts=[];let x=3,y=27;for(let i=0;i<=f;i++){x+=1.3;y-=1+Math.sin(i*1.3)*1.4;pts.push([x,y])}
+  pts.forEach(([x,y],i)=>{if(i%2===0&&i<pts.length-1)g.px(x,y,RED)});const[lx,ly]=pts[pts.length-1];mini(g,lx,ly,f>=17)});
+film('5.6','Four Takes Compared','body','#3d6fb0','two of the same, side by side: one blinks, one winks',(g,f)=>{
+  bolas(g,9,11,{r:4,arms:[[-6,4],[6,4]],legs:[[-3,10],[3,10]],eyes:f%8<1?'blink':'open',fill:ACC});
+  bolas(g,23,11,{r:4,arms:[[-6,4],[6,4]],legs:[[-3,10],[3,10]],eyes:f>=10&&f<=13?'wink':'open'});
+  for(let y=4;y<30;y+=3)g.px(16,y,MUTE)});
+film('R1','When the Tracks Agree','web','#b8860b','three threads swing apart, then fall into one line',(g,f)=>{
+  const al=ease((f-8)/8);[[6,7],[16,15],[26,23]].forEach(([x0,y],i)=>{const sw=Math.round(Math.sin(f*.9+i*2)*3*(1-al));const x=lerp(x0,16,al)+sw;g.line(lerp(x0,16,al),0,x,y-2,RED);g.ring(x,y,2,INK);if(al>.99)g.disc(x,y,1,ACC)});
+  if(al>.99)g.line(16,0,16,31,RED)});
+film('R2','The Recurring Cast','web','#a0522d','a loop spun round and round; the same shot comes back',(g,f)=>{
+  const ring=[];for(let a=0;a<=330;a+=8){const t=a*Math.PI/180-Math.PI/2;ring.push([16+Math.cos(t)*11,16+Math.sin(t)*11])}
+  g.path(ring,RED,ease(f/8));if(f>=8){g.line(16,5,19,3,RED);g.line(16,5,19,7,RED)}
+  const a=f/NF*2*Math.PI-Math.PI/2;g.rect(16+Math.cos(a)*11-2,16+Math.sin(a)*11-2,4,4,INK);
+  bolas(g,16,15,{r:3,thread:false,arms:[[-5,-1],[5,-1]],legs:[[-3,6],[3,6]],eyes:eyesAt(f)})});
+film('R3','Narrative Chemistry, on Trial','web','#8a3f8f','a molecule spun bond by bond; one pair lights',(g,f)=>{
+  const V=[];for(let i=0;i<=6;i++){const t=i/6*2*Math.PI-Math.PI/2;V.push([16+Math.cos(t)*10,16+Math.sin(t)*10])}
+  const p=g.path(V,RED,ease(f/10));V.slice(0,6).forEach(([x,y],i)=>{if(f>i*1.6)g.disc(x,y,1,INK)});
+  if(f>10){const i=Math.floor(f/2)%6,j=(i+2)%6;g.line(V[i][0],V[i][1],V[j][0],V[j][1],MUTE);g.disc(V[i][0],V[i][1],2,ACC);g.disc(V[j][0],V[j][1],2,ACC)}
+  if(f<=10)mini(g,p[0],p[1])});
+film('4','The Odyssey','body','#3b55c4','Bolas in a boat; its web is the sail',(g,f)=>{
+  const rk=Math.round(Math.sin(f*.6));
+  for(let x=0;x<32;x++){g.px(x,27+((x+f)%6<3?0:1),INK);g.px(x,30+((x+f+3)%6<3?0:1),MUTE)}
+  g.line(6,22+rk,26,22-rk,INK);g.line(8,25,24,25,INK);g.line(6,22+rk,8,25,INK);g.line(26,22-rk,24,25,INK);
+  g.line(19,2,19,21,RED);g.path([[19,3],[28,17],[19,17]],RED,ease(f/10));
+  bolas(g,12,15,{r:3,thread:false,arms:[[-5,0],[6,-3]],legs:[[-3,6],[3,6]],eyes:eyesAt(f)})});
+film('7','The Republic','body','#b36a1c','Bolas before the fire; a larger shadow moves on the wall',(g,f)=>{
+  for(let a=180;a<=360;a+=3){const t=a*Math.PI/180;g.px(16+Math.cos(t)*15,31+Math.sin(t)*25,MUTE)}
+  const b=Math.round(Math.sin(f*.5)*1);g.disc(22+b,13,6,MUTE);g.line(15+b,15,10+b,20,MUTE);g.line(29+b,15,31,20,MUTE);
+  bolas(g,9,14,{r:4,arms:[[-6,4],[7,-2-(f%10<5?2:0)]],legs:[[-3,11],[3,11]],eyes:eyesAt(f)});
+  g.line(2,29,14,29,RED)});
+
+/* ---------------- the forty-five signs ---------------- */
+const DOMC={perception:'#b0952f',affect:'#c0674a',action:'#c06a32',reflection:'#6e9445',mental:'#4f8f8f',time:'#6b63b0',break:'#8a8274',read:'#a0648f'};
+const SIGNS=[];
+function signDraw(dom,sym,v){return(g,f)=>{
+  const cx=16,cy=13,R=9;let ox=0;
+  const wk=eyesAt(f);
+  if(dom==='perception'){const tx=v===1?28:4,ty=v===2?28:3;g.path([[tx,ty],[cx+(tx<16?-7:7),cy-4]],RED,ease(f/8));if(v===0)g.path([[28,3],[cx+7,cy-4]],RED,ease(f/8-.3));if(f>=8)g.disc(tx,ty,1,INK)}
+  if(dom==='affect'){const r2=R+2+(f%10)/3;if(v!==2)g.ring(cx,cy,Math.round(r2),MUTE);if(v===1){g.ring(5,25,3,INK);g.ring(27,25,3,INK)}}
+  if(dom==='action'){ox=Math.round(Math.sin(f/NF*2*Math.PI)*3);for(let i=0;i<3;i++)g.px(cx-R-2-i*2-ox,cy+i*3-3,MUTE);if(v===1){g.line(30,4,30,24,INK)}}
+  if(dom==='reflection'){g.line(31,0,31,31,MUTE);for(let y=2;y<26;y+=2)g.px(29,y,MUTE)}
+  if(dom==='mental'){const N=[[3,4],[28,5],[2,27],[29,27],[16,30]];const k=f/12*N.length;N.forEach(([x,y],i)=>{g.ring(x,y,1,INK);if(k>i)g.path([[x,y],[cx+(x<16?-6:6),cy+(y<16?-5:5)]],RED,Math.min(1,k-i))})}
+  if(dom==='time'){const a=f/NF*2*Math.PI;for(let t=0;t<6.28;t+=.1)g.px(cx+Math.cos(t)*13,cy+Math.sin(t)*11,MUTE);g.disc(cx+Math.cos(a)*13,cy+Math.sin(a)*11,1,RED)}
+  if(dom==='read'){for(let i=0;i<3;i++)g.path([[4,26+i*2],[28-i*5,26+i*2]],RED,ease(f/10-i*.2))}
+  const brk=dom==='break'&&(f%10)>=4;
+  if(!brk)g.line(cx+ox,0,cx+ox,cy-R,RED);else{g.line(cx,0,cx,2,RED);g.line(cx,4+(f%10),cx,cy-R,RED)}
+  g.disc(cx+ox,cy,R,PAPER);g.disc(cx+ox,cy,R-1,ACC);g.ring(cx+ox,cy,R,INK);
+  if(dom==='break'&&brk){g.px(cx+ox+6,cy-6,PAPER);g.px(cx+ox+7,cy-5,PAPER);g.px(cx+ox+5,cy-7,PAPER)}
+  const s=sym.toUpperCase().slice(0,2);g.text(s,cx+ox-(s.length*4-1)/2,cy-2,INK);
+  const hy=cy+R+3;g.disc(cx+ox,hy,2,INK);if(wk!=='blink'){g.px(cx+ox-1,hy,PAPER);if(wk!=='wink')g.px(cx+ox+1,hy,PAPER);else g.px(cx+ox+1,hy+1,PAPER)}
+  if(dom==='reflection'){const mx=26;g.ring(mx,cy,v===1?4:5,MUTE);if(v===2)g.line(mx-4,cy+6,mx+4,cy+6,MUTE)}
+};}
+
+/* ---------------- render ---------------- */
+function paint(cv,item,f){
+  const g=new G();item.draw(g,f);
+  const acc=hex(item.acc),c=cv.getContext('2d');
+  const n=cv.width;const img=c.createImageData(n,n);
+  if(n===S){for(let i=0;i<S*S;i++){const v=g.b[i],col=v===ACC?acc:PAL[v];img.data.set([col[0],col[1],col[2],255],i*4)}}
+  else{for(let y=0;y<16;y++)for(let x=0;x<16;x++){let best=0;for(const[dx,dy]of[[0,0],[1,0],[0,1],[1,1]]){const v=g.b[(y*2+dy)*S+x*2+dx];const rank={0:0,4:1,3:2,1:3,2:4}[v];if(rank>({0:0,4:1,3:2,1:3,2:4}[best]))best=v}const col=best===ACC?acc:PAL[best];img.data.set([col[0],col[1],col[2],255],(y*16+x)*4)}}
+  c.putImageData(img,0,0);
+}
+const views=[];
+function cv(n,item){const c=document.createElement('canvas');c.width=c.height=n;views.push({c,item});return c}
+
+const ALL=[];
+F.forEach((x,i)=>ALL.push({...x,id:'film-'+(i+1)}));
+fetchSigns();
+function fetchSigns(){
+  const rows=SIGN_ROWS;const fam={};
+  rows.forEach(([n,sym,t,dom,gl])=>{fam[dom]=(fam[dom]??-1)+1;ALL.push({n,t,sym,dom,kind:'sign',acc:DOMC[dom],meaning:gl,draw:signDraw(dom,sym,fam[dom]%3),id:'sign-'+n})});
+}
+
+/* tabs: a browser window full of Cineosis */
+const tabs=document.getElementById('tabs');
+ALL.slice(0,10).forEach((x,i)=>{const d=document.createElement('div');d.className='tab'+(i===3?' on':'');d.appendChild(cv(16,x));const s=document.createElement('span');s.textContent=x.t;d.appendChild(s);tabs.appendChild(d)});
+
+/* spinning sequences */
+const spin=document.getElementById('spin');
+const spinSet=[F[3],F[0],F[1],F[13],F[8]];
+spinSet.forEach(x=>{for(const f of[2,5,8,11,14,17]){const fig=document.createElement('figure');const c=document.createElement('canvas');c.width=c.height=S;fig.appendChild(c);const cap=document.createElement('figcaption');cap.textContent=x.n+' · '+f;fig.appendChild(cap);spin.appendChild(fig);paint(c,x,f);views.push({c,item:x,still:f})}});
+
+/* anatomy */
+const anat=document.getElementById('anat');
+[{t:'Four limbs',d:'Two arms that work, two legs that stand. The red thread above, the head and eyes below.',draw:(g,f)=>bolas(g,16,12,{r:6,arms:[[-11,-4+(f%10<5?0:3)],[11,-4+(f%10<5?3:0)]],eyes:eyesAt(f)}),acc:'#6a4fa0'},
+ {t:'Body symbol',d:'The body and arms are the sign. Here: scissors.',draw:F[5].draw,acc:F[5].acc},
+ {t:'Web symbol',d:'The sign is spun while you watch. Here: a question.',draw:F[3].draw,acc:F[3].acc},
+ {t:'Sign',d:'An O holding the symbol in its family colour, with the family web around it.',draw:signDraw('mental','Rd',0),acc:DOMC.mental}].forEach(x=>{const fig=document.createElement('figure');fig.appendChild(cv(S,x));const cap=document.createElement('figcaption');cap.innerHTML=`<b>${x.t}</b> — ${x.d}`;fig.appendChild(cap);anat.appendChild(fig)});
+document.querySelectorAll('#anat canvas').forEach((c,i)=>{views.find(v=>v.c===c)||0});
+
+/* strips */
+const s32=document.getElementById('s32'),s16=document.getElementById('s16');
+ALL.forEach(x=>{const a=cv(S,x);a.title=x.t;s32.appendChild(a);const b=cv(16,x);b.title=x.t;s16.appendChild(b)});
+
+/* film cards */
+const films=document.getElementById('films');
+function card(x){const d=document.createElement('div');d.className='card';
+  const left=document.createElement('div');const big=cv(S,x);big.className='big';left.appendChild(big);
+  const right=document.createElement('div');right.innerHTML=`<div class="n">${x.kind==='sign'?'SIGN '+x.n+' · '+x.sym:'FILM '+x.n}</div><h4>${x.t}</h4><span class="kind ${x.kind==='web'?'web':''}">${x.kind==='sign'?x.dom:x.kind+' symbol'}</span><p>${x.meaning}</p>`;
+  const sz=document.createElement('div');sz.className='sizes';sz.appendChild(cv(S,x));sz.appendChild(cv(S,x));sz.appendChild(cv(16,x));right.appendChild(sz);
+  d.appendChild(left);d.appendChild(right);return d}
+ALL.filter(x=>x.kind!=='sign').forEach(x=>films.appendChild(card(x)));
+const signs=document.getElementById('signs');
+['perception','affect','action','reflection','mental','time','break','read'].forEach(dom=>{const h=document.createElement('h3');h.textContent={perception:'Perception · sight lines',affect:'Affection · ripples from a face',action:'Action · the O dashes',reflection:'Reflection · a mirror',mental:'Mental · a net of relations',time:'Time · an orbit',break:'Break · the thread snaps',read:'Readable · lines of text'}[dom];signs.appendChild(h);
+  const gr=document.createElement('div');gr.className='grid';ALL.filter(x=>x.dom===dom).forEach(x=>gr.appendChild(card(x)));signs.appendChild(gr)});
+
+/* ground */
+document.querySelectorAll('#tools button').forEach(b=>b.onclick=()=>{PAL=b.dataset.g==='night'?PAL_NIGHT:PAL_PAPER;document.querySelectorAll('#tools button').forEach(x=>x.classList.toggle('on',x===b))});
+
+/* loop: only paint what is on screen */
+const vis=new Set();const io=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting?vis.add(e.target):vis.delete(e.target)),{rootMargin:'80px'});
+views.forEach(v=>io.observe(v.c));
+let last=-1;
+function tick(ms){const f=Math.floor(ms/1000*FPS)%NF;if(f!==last){last=f;for(const v of views){if(v.still!=null){if(vis.has(v.c))paint(v.c,v.item,v.still);continue}if(vis.has(v.c))paint(v.c,v.item,f)}}requestAnimationFrame(tick)}
+requestAnimationFrame(tick);
+</script>
+
+</body>
+</html>

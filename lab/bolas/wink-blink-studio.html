@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<title>Wink Blink Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{--bg:#ece7dd;--paper:#f7f3ec;--card:#faf7f1;--ink:#17140f;--mute:#8b8478;--line:#d9d2c5;--red:#e0483a;--chip:#e4ded2;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121110;--paper:#1c1a17;--card:#201e1a;--ink:#ece6da;--mute:#8d867a;--line:#36322b;--red:#ea5444;--chip:#2a2722;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121110;--paper:#1c1a17;--card:#201e1a;--ink:#ece6da;--mute:#8d867a;--line:#36322b;--red:#ea5444;--chip:#2a2722;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:19px/1.5 "Cormorant Garamond",Georgia,serif}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:20px;padding-block:56px 110px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+h1{font-weight:400;font-size:clamp(40px,7vw,72px);line-height:1;margin:14px 0 18px;text-wrap:balance}
+h2{font-weight:400;font-size:34px;margin:84px 0 6px;text-wrap:balance}
+h3{font-weight:500;font-size:28px;margin:0;line-height:1.1;text-wrap:balance}
+p{max-width:64ch;margin:0 0 12px}
+.lede{font-size:22px}
+.how{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 28px;margin-top:26px;padding-top:18px;border-top:1px solid var(--line)}
+.how div{font-size:16px;min-width:0}
+.how b{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:500;display:block;margin-bottom:2px}
+.short{margin-top:56px;background:var(--card);border:1px solid var(--line);padding:26px clamp(14px,3vw,30px) 28px}
+.head{display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
+.num{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--mute)}
+.action{font-style:italic;font-size:21px;margin:8px 0 4px;max-width:70ch}
+.cv{display:block;width:100%;max-width:100%;aspect-ratio:16/9;height:auto;margin-top:14px;background:var(--paper)}
+.beats{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.beats span{font-family:"IBM Plex Mono",monospace;font-size:11px;padding:3px 8px;background:var(--chip);color:var(--mute);cursor:pointer;transition:background .15s,color .15s}
+.beats span.on{background:var(--ink);color:var(--paper)}
+.ctl{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin-top:12px;font-family:"IBM Plex Mono",monospace;font-size:12px}
+.ctl button{font:inherit;background:var(--ink);color:var(--paper);border:0;padding:6px 12px;cursor:pointer;min-width:74px}
+.ctl label{display:flex;gap:6px;align-items:center;cursor:pointer;color:var(--mute)}
+.ctl input[type=range]{flex:1 1 200px;min-width:0;accent-color:var(--ink)}
+.ctl .fc{color:var(--mute);font-variant-numeric:tabular-nums;min-width:96px}
+.cols{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px;margin-top:20px}
+@media (max-width:760px){.cols{grid-template-columns:minmax(0,1fr)}}
+.keys{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+.keys figure{margin:0;cursor:pointer}
+.keys canvas{width:100%;aspect-ratio:16/9;display:block;border:1px solid var(--line);background:var(--paper)}
+.keys figcaption{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--mute);line-height:1.35;margin-top:3px}
+.keys figcaption b{color:var(--ink);font-weight:500}
+.xs{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-family:"IBM Plex Mono",monospace;font-size:11px;font-variant-numeric:tabular-nums}
+th{font-weight:500;text-align:left;color:var(--mute);border-bottom:1px solid var(--ink);padding:4px 6px;letter-spacing:.08em}
+td{border-bottom:1px solid var(--line);padding:4px 6px;vertical-align:top}
+td:first-child,td:nth-child(3){white-space:nowrap}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px 28px;margin-top:18px;font-size:17px}
+.notes div{min-width:0}
+.notes b{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;color:var(--mute);display:block}
+.lids{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px}
+.lids div{min-width:0}
+.lids svg{width:100%;height:auto;display:block;border-bottom:1px solid var(--line)}
+.lids span{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--mute)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:22px}
+.tile{background:var(--card);border:1px solid var(--line);padding:10px 10px 12px;min-width:0}
+.tile canvas{width:100%;aspect-ratio:9/10;display:block}
+.tile h4{margin:6px 0 0;font-weight:500;font-size:18px}
+.tile p{font-size:14.5px;line-height:1.3;color:var(--mute);margin:2px 0 0}
+.tile .mono{font-size:9.5px}
+.foot{margin-top:70px;padding-top:16px;border-top:1px solid var(--line);font-size:16px;color:var(--mute)}
+</style>
+</head>
+<body>
+<style>
+.bset{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:10px 20px;font:13px/1.3 "IBM Plex Mono",ui-monospace,Menlo,monospace;border-bottom:1px solid rgba(128,120,108,.35);background:inherit}
+.bset a{color:inherit;text-decoration:none;padding:4px 0;border-bottom:1px solid transparent}
+.bset a:hover,.bset a:focus-visible{border-bottom-color:#e0483a;outline:none}
+.bset .here{opacity:.6;margin-right:auto}
+.bset [aria-disabled]{opacity:.3}
+</style><nav class="bset" aria-label="Bolas set"><a href="index.html">Bolas set</a><span class="here">08 / 14</span><a href="wink-blink.html" rel="prev">← Wink, Not Blink</a><a href="../idents.html" rel="next">Idents →</a></nav>
+
+<div class="wrap">
+  <div class="mono">Cineosis Lab · Studio sheets · Bolas</div>
+  <h1>Wink Blink Studio</h1>
+  <p class="lede">The same two eyes and the same red thread, in ten situations. In every one, a blink and a wink look nearly alike. A blink happens to the mark: a machine pass, a cut, a pull on the thread. A wink is something the mark does to someone.</p>
+  <p>Each short was built the way a hand-drawn studio works. It starts as one sentence of action, then numbered key drawings, then breakdowns and an exposure sheet. The scene is split into planes at different depths, and the camera moves only when the move shows something new.</p>
+  <div class="how">
+    <div><b>Keys only</b>Plays just the key drawings, each held until the next. If the story still reads, the keys work.</div>
+    <div><b>Onion skin</b>Ghosts the drawings four frames either side, the way an animator flips paper to check arcs and volume.</div>
+    <div><b>Flat camera</b>Puts every plane at the same depth. What disappears is what the parallax was doing.</div>
+    <div><b>Beats and keys</b>Click any beat or key drawing to jump to it. The exposure sheet lists every key's frame and how long it holds.</div>
+  </div>
+
+  <h2>Ten shorts</h2>
+  <p class="mono" style="letter-spacing:.1em">24 frames a second · 16:9 · red is only ever the thread</p>
+  <div id="shorts"></div>
+
+  <h2>Twenty-four constructions</h2>
+  <p>The same mark built twenty-four ways, each one blinking and then winking. They range from engraving weight to poster weight, from film perforations to an archive stamp, from a 16-pixel grid to a hand-cut woodblock. The idea should survive every one.</p>
+  <div class="tiles" id="tiles"></div>
+
+  <div class="foot">The four boys in short 03 come from Gilbert Ryle's example of the twitch and the wink, as retold by Clifford Geertz in “Thick Description” (1973). The wording here is a paraphrase, not a quotation. Every drawing on this page is generated live in the browser, frame by frame.</div>
+</div>
+
+<script>
+const W=960,H=540,TAU=Math.PI*2;
+const tok={};
+function readTok(){const s=getComputedStyle(document.documentElement);for(const k of['paper','ink','mute','line','red','card'])tok[k]=s.getPropertyValue('--'+k).trim();}
+readTok();
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{readTok();dirtyAll()});}catch(e){}
+new MutationObserver(()=>{readTok();dirtyAll()}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+/* ---------- timing ---------- */
+const EZ={lin:t=>t,in:t=>t*t,out:t=>1-(1-t)*(1-t),io:t=>t<.5?2*t*t:1-2*(1-t)*(1-t)};
+function kv(f,ks){
+  if(f<=ks[0][0])return ks[0][1];
+  for(let i=0;i<ks.length-1;i++){const[a,va,e]=ks[i],[b,vb]=ks[i+1];
+    if(f<=b){const t=EZ[e||'io']((f-a)/(b-a||1));return Array.isArray(va)?va.map((v,j)=>v+(vb[j]-v)*t):va+(vb-va)*t;}}
+  return ks[ks.length-1][1];
+}
+function blinkC(f,at){const k=f-at;return k===0?.55:k===1?1:k===2?.45:0;}
+function winkC(f,at,c=6,h=14,o=8){const k=f-at;if(k<0)return 0;if(k<c)return EZ.io(k/c);if(k<c+h)return 1;if(k<c+h+o)return 1-EZ.io((k-c-h)/o);return 0;}
+const cl=v=>Math.max(0,Math.min(1,v));
+function rng(s){return()=>{s=(s*16807)%2147483647;return(s-1)/2147483646}}
+
+/* ---------- the mark ---------- */
+function eye(c,x,y,R,cl,cv,ink){
+  const rx=R*.17;c.fillStyle=c.strokeStyle=ink;
+  if(cl<.8){c.beginPath();c.ellipse(x,y,rx,Math.max(.6,rx*(1-cl)),0,0,TAU);c.fill();}
+  else{c.lineWidth=Math.max(1.2,R*.075);c.lineCap='round';c.beginPath();c.moveTo(x-rx*1.1,y);c.quadraticCurveTo(x,y+rx*1.3*cv,x+rx*1.1,y);c.stroke();}
+}
+function mark(c,x,y,R,e={}){
+  const ink=e.ink||tok.ink,sy=e.sy??1,sx=e.sx??(1+(1-sy)*.9);
+  c.save();c.translate(x,y);
+  const line=e.line??R*1.4;
+  if(line>0){c.strokeStyle=tok.red;c.lineWidth=Math.max(1,R*.045);c.lineCap='butt';c.beginPath();c.moveTo(0,-R*sy);
+    if(e.sag){c.quadraticCurveTo(e.sag,-R*sy-line*.5,(e.tx||0),-R*sy-line);}else c.lineTo(e.tx||0,-R*sy-line);c.stroke();}
+  if(e.rot)c.rotate(e.rot*Math.PI/180);
+  c.scale(sx,sy);
+  c.globalAlpha*=e.ringA??1;c.lineWidth=R*.14;c.strokeStyle=ink;c.beginPath();c.arc(0,0,R,0,TAU);c.stroke();c.globalAlpha/= (e.ringA??1);
+  if(!e.empty){const lk=e.look||[0,0],dx=lk[0]*R*.18,dy=lk[1]*R*.18;
+    eye(c,-R*.34+dx,dy,R,cl(e.l||0),e.lc??0,ink);eye(c,R*.34+dx,dy,R,cl(e.r||0),e.rc??0,ink);}
+  c.restore();
+}
+function circ(c,x,y,r,fill,stroke,w){c.beginPath();c.arc(x,y,r,0,TAU);if(fill){c.fillStyle=fill;c.fill()}if(stroke){c.strokeStyle=stroke;c.lineWidth=w||1;c.stroke()}}
+function ln(c,a,b,x,y,w,col){c.strokeStyle=col;c.lineWidth=w;c.beginPath();c.moveTo(a,b);c.lineTo(x,y);c.stroke();}
+
+/* ---------- the shorts ---------- */
+const S=[];
+
+/* 01 MIRROR */
+S.push({id:'mirror',title:'The Mirror Can Only Blink',len:216,
+action:'A mark tries to wink at its reflection. The reflection can copy a blink but not a wink, so the mark gives up and winks at us.',
+beats:[[0,'looks at itself'],[24,'blinks; the mirror copies'],[52,'leans in'],[70,'winks'],[73,'mirror blinks instead'],[100,'puzzled'],[116,'tries slower'],[120,'mirror blinks twice'],[156,'gives up'],[172,'winks at us']],
+keys:[[0,'K01','watching itself','truck begins'],[25,'K02','blink, copied',''],[60,'K03','anticipation: leans',''],[78,'K04','wink held; mirror blinks',''],[106,'K05','puzzled tilt','hold'],[128,'K06','slow wink',''],[162,'K07','turns to camera',''],[184,'K08','wink to us','hold']],
+planes:'P6 wallpaper · P3 floorboards · P2 mark · P1.6 mirror · P0.7 door edge',
+cam:'A slow truck toward the mirror. The door edge in the foreground slides out of shot, opening the room.',
+read:'The mirror copies everything except the wink. A copy can reproduce the motion but not the aim.',
+draw(c,f,cam){
+  const P=d=>cam.flat?.5:1/d,camX=-kv(f,[[0,0,'lin'],[215,80]]);
+  c.strokeStyle=tok.line;c.lineWidth=1;const wx=((camX*P(6))%30+30)%30;
+  for(let x=-30;x<W+30;x+=30){c.beginPath();c.moveTo(x+wx,0);c.lineTo(x+wx,430);c.stroke();}
+  ln(c,0,430,W,430,1.5,tok.ink);
+  c.lineWidth=1;c.strokeStyle=tok.line;
+  for(let i=-6;i<20;i++){const x0=i*80+camX*P(3),x1=(i*80-480)*1.7+480+camX*P(1);c.beginPath();c.moveTo(x0,430);c.lineTo(x1,540);c.stroke();}
+  const lean=kv(f,[[52,0],[60,-6],[68,14],[150,14],[160,0]]),sy=kv(f,[[52,1],[60,.93],[66,1.04],[72,1]]);
+  const look=kv(f,[[0,[1,0]],[150,[1,0]],[166,[0,.15]],[215,[0,.15]]]);
+  const rot=kv(f,[[96,0],[104,-9],[112,-9],[116,0],[164,0],[172,-6],[204,-6],[215,0]]);
+  const bl=blinkC(f,24)+blinkC(f,40);
+  const mx=600+camX*P(1.6);
+  c.fillStyle=tok.card;c.fillRect(mx,100,230,330);
+  c.save();c.beginPath();c.rect(mx,100,230,330);c.clip();
+  const rx=mx+118-lean*.6;c.translate(rx,0);c.scale(-1,1);c.translate(-rx,0);
+  const rb=bl+blinkC(f,73)+blinkC(f,120)+blinkC(f,128)+blinkC(f,190);
+  mark(c,rx,290,58,{ink:tok.mute,l:rb,r:rb,look,rot,sy,line:260});
+  c.restore();
+  c.strokeStyle=tok.line;c.lineWidth=2;
+  for(const o of[40,70]){c.beginPath();c.moveTo(mx+o,110);c.lineTo(mx+o-60,220);c.stroke();}
+  c.strokeStyle=tok.ink;c.lineWidth=7;c.strokeRect(mx,100,230,330);
+  ln(c,mx+20,430,mx+8,452,4,tok.ink);ln(c,mx+210,430,mx+222,452,4,tok.ink);
+  const L=bl+winkC(f,70,6,16,8)+winkC(f,116,10,20,10),Rr=bl+winkC(f,172,6,20,8);
+  c.fillStyle=tok.ink;c.globalAlpha=.1;c.beginPath();c.ellipse(330+camX*P(2)+lean,436,52,7,0,0,TAU);c.fill();c.globalAlpha=1;
+  mark(c,330+camX*P(2)+lean,290,64,{l:L,r:Rr,rc:f>160?.9:0,look,rot,sy,line:240});
+  c.fillStyle=tok.ink;c.fillRect(-60+camX*P(.7),0,110,H);
+  ln(c,38+camX*P(.7),250,38+camX*P(.7),300,5,tok.paper);
+}});
+
+/* 02 THREAD */
+S.push({id:'thread',title:'The Thread Cannot Pull a Wink',len:200,
+action:'Someone above pulls the thread three times and the mark blinks each time it is yanked. The thread goes slack. The mark looks up, looks at us, and winks on its own.',
+beats:[[0,'resting'],[12,'yanked, blinks'],[40,'yanked, blinks'],[68,'yanked, blinks'],[96,'thread goes slack'],[110,'looks up'],[134,'looks at us'],[142,'winks'],[176,'one more yank']],
+keys:[[0,'K01','rest on floor','lock-off'],[17,'K02','top of lift: stretched',''],[26,'K03','landing: squash',''],[104,'K04','slack thread',''],[118,'K05','looks up','hold'],[136,'K06','looks at us','hold'],[152,'K07','wink held',''],[182,'K08','yanked again, blinks','']],
+planes:'P0 control bar · P2 mark · P4 floor',
+cam:'Locked off. The joke needs stillness, so the only things that move are the bar and the mark.',
+read:'The thread can make the mark jump, and the jump makes it blink. It cannot make it wink. The wink comes only when nobody is pulling.',
+draw(c,f,cam){
+  const ground=448,R=58,mx=480,tugs=[[12,1],[40,1],[68,1],[176,.55]];
+  let y=0,sy=1,bl=0;
+  for(const[t,s]of tugs){const k=f-t;if(k>=0&&k<30){
+    y=kv(k,[[0,0,'out'],[5,-78*s],[8,-78*s,'in'],[14,0],[16,0,'out'],[20,-12*s,'in'],[24,0]]);
+    sy=kv(k,[[0,1],[3,1.14],[8,1.06],[13,1],[14,.8],[16,.86],[19,1.05],[23,1]]);bl+=blinkC(k,1);}}
+  const slack=kv(f,[[92,0],[104,1,'out'],[170,1],[175,0]]);
+  const barY=34+y+slack*46;
+  ln(c,0,ground,W,ground,1.5,tok.ink);
+  c.fillStyle=tok.ink;c.globalAlpha=.12*(1+y/120);c.beginPath();c.ellipse(mx,ground+4,R*(1+y/260),7,0,0,TAU);c.fill();c.globalAlpha=1;
+  const cy=ground-R*sy+y;
+  const look=kv(f,[[0,[0,0]],[104,[0,0]],[112,[0,-1]],[128,[0,-1]],[134,[0,.12]],[196,[0,.12]]]);
+  const rot=kv(f,[[136,0],[142,-6],[168,-6],[174,0]]);
+  mark(c,mx,cy,R,{l:bl,r:bl+winkC(f,142,6,18,8),rc:.9,sy,look,rot,line:cy-R*sy-barY,sag:slack*70});
+  c.fillStyle=tok.ink;c.fillRect(mx-110,barY-10,220,12);c.fillRect(mx-8,barY-34,16,30);
+}});
+
+/* 03 FOUR BOYS */
+const LID=k=>winkC(k,0,4,6,4);
+S.push({id:'four',title:'Twitch, Wink, Parody, Rehearsal',len:264,
+action:'Four marks make the same eyelid movement: one by accident, one at us, one mocking the second, one practising in a mirror. The camera trucks past each as it acts.',
+beats:[[0,'four on a stage'],[30,'A twitches'],[44,'A is startled'],[80,'B winks at us'],[112,'C parodies B'],[116,'A and B watch C'],[170,'D rehearses'],[224,'D nods'],[236,'all face us']],
+keys:[[0,'K01','line-up','truck starts'],[32,'K02','A: twitch',''],[40,'K03','A: startled hop',''],[84,'K04','B: wink at camera',''],[114,'K05','C: parody, tilted',''],[150,'K06','B blinks, unimpressed',''],[194,'K07','D: rehearsal 2 of 3',''],[240,'K08','all face us','hold']],
+planes:'P0.7 curtains · P2 four marks · P2.2 hand mirror · P4 floor · P6 backdrop',
+cam:'A truck from left to right that reaches each mark as it acts. The curtains slide fastest because they are nearest.',
+read:'The eyelid curve is identical in all four (see the graphs below). What differs is who it is aimed at.',
+extra:'lids',
+draw(c,f,cam){
+  const P=d=>cam.flat?.5:1/d,camX=-kv(f,[[0,0],[20,0],[232,460]]);
+  ln(c,0,118,W,118,1,tok.line);
+  for(let i=0;i<14;i++){const x=i*120+camX*P(6);circ(c,x,104,5,null,tok.line,1)}
+  ln(c,0,382,W,382,1.5,tok.ink);
+  c.strokeStyle=tok.line;c.lineWidth=1;for(let i=-4;i<22;i++){c.beginPath();c.moveTo(i*90+camX*P(4),382);c.lineTo((i*90-480)*1.5+480+camX*P(1.2),540);c.stroke();}
+  const xs=[170,470,770,1070].map(x=>x+camX*P(2)),Y=296,R=46;
+  // A
+  const aL=LID(f-30),aY=kv(f,[[34,0],[38,-16,'in'],[44,0]]),aS=kv(f,[[33,1],[35,.9],[38,1.08],[44,.92],[48,1]]);
+  const aLook=kv(f,[[0,[0,0]],[44,[0,0]],[48,[-1,0]],[58,[-1,0]],[62,[1,0]],[72,[1,0]],[76,[0,0]],[112,[0,0]],[118,[1,0]],[230,[1,0]],[240,[0,.1]]]);
+  mark(c,xs[0],Y+aY,R,{l:aL,look:aLook,sy:aS,line:300});
+  // B
+  const bLook=kv(f,[[0,[0,0]],[62,[0,0]],[68,[0,.15]],[108,[0,.15]],[114,[1,0]],[230,[1,0]],[240,[0,.1]]]);
+  mark(c,xs[1],Y,R,{r:LID(f-80)+blinkC(f,150),l:blinkC(f,150),rc:.9,look:bLook,rot:kv(f,[[74,0],[80,-6],[96,-6],[102,0]]),line:300});
+  // C
+  const cLook=kv(f,[[0,[0,0]],[86,[0,0]],[92,[-1,0]],[104,[-1,0]],[108,[-.6,.1]],[230,[-.6,.1]],[240,[0,.1]]]);
+  const cR=LID(f-112)+LID(f-126)+LID(f-140);
+  const hop=[112,126,140].reduce((a,t)=>a+kv(f,[[t-2,0],[t+2,-8,'in'],[t+6,0]]),0);
+  mark(c,xs[2],Y+hop,R,{r:cR,rc:.9,look:cLook,rot:kv(f,[[106,0],[112,-16],[150,-16],[156,0]]),sy:kv(f,[[106,1],[110,.86],[114,1.06],[150,1.06],[156,1]]),line:300});
+  // D + hand mirror
+  const mxD=1120+camX*P(2.2);c.fillStyle=tok.card;c.fillRect(mxD,236,38,74);c.strokeStyle=tok.ink;c.lineWidth=3;c.strokeRect(mxD,236,38,74);ln(c,mxD+19,310,mxD+19,382,3,tok.ink);
+  const dLook=kv(f,[[0,[1,0]],[232,[1,0]],[240,[0,.1]]]);
+  mark(c,xs[3],Y+kv(f,[[224,0],[228,7],[232,0]]),R,{r:LID(f-170)+LID(f-190)+LID(f-210),look:dLook,line:300});
+  const cx=camX*P(.7);
+  for(const[x0,w]of[[-260,330],[1680,330]]){c.fillStyle=tok.ink;c.fillRect(x0+cx,0,w,H);c.strokeStyle=tok.mute;c.lineWidth=1;for(let i=1;i<6;i++){const x=x0+cx+i*w/6;ln(c,x,0,x,H,1,tok.mute)}}
+}});
+
+/* 04 SHUTTER */
+S.push({id:'shutter',title:'The Projector Blinks for You',len:240,dark:true,
+action:'A mark hangs in a projector beam, blinking in time with the shutter and growing drowsy. The film stops on one frame, the flicker steadies, it looks, and it winks.',
+beats:[[0,'beam flickers'],[40,'drowsy blinking'],[96,'shutter slows'],[110,'eyes open'],[112,'a still holds on screen'],[176,'turns to us'],[186,'winks']],
+keys:[[0,'K01','in the beam','lock-off'],[60,'K02','lids heavy',''],[100,'K03','shutter slowing',''],[110,'K04','wakes: stretch','truck in begins'],[140,'K05','looks at the still','hold'],[192,'K06','wink','']],
+planes:'P0.6 audience heads · P2 mark and dust · P3 projector · P5 screen',
+cam:'Locked off while the projector runs. A slow truck in starts only when the picture holds, because that is when the reading begins.',
+read:'A two-blade shutter flashes each frame twice, 48 times a second, so the eye sees motion. The mark winks only once the picture stops.',
+draw(c,f,cam){
+  const BG='#15120f',LI='#efe8da',DIM='#3d362d';
+  c.fillStyle=BG;c.fillRect(0,0,W,H);
+  const P=d=>cam.flat?.5:1/d,camX=kv(f,[[0,0],[112,0,'lin'],[239,-60]]);
+  const sx=70+camX*P(5),px=800+camX*P(3);
+  const a=f<96?(Math.floor(f/2)%2?.2:.05):f<112?(f%4<2?.17:.11):.14;
+  c.fillStyle='#211d18';c.fillRect(sx,80,300,190);
+  c.fillStyle=`rgba(239,232,218,${a*.9})`;c.fillRect(sx,80,300,190);
+  const im=kv(f,[[112,0],[126,1]]);
+  if(im>0){c.save();c.globalAlpha=im;c.strokeStyle=LI;c.lineWidth=2;c.beginPath();c.moveTo(sx,210);c.quadraticCurveTo(sx+120,170,sx+300,215);c.stroke();
+    c.strokeRect(sx+190,160,40,34);c.beginPath();c.moveTo(sx+184,162);c.lineTo(sx+210,140);c.lineTo(sx+236,162);c.stroke();c.restore();}
+  c.fillStyle=`rgba(239,232,218,${a})`;c.beginPath();c.moveTo(px,198);c.lineTo(sx+300,80);c.lineTo(sx+300,270);c.lineTo(px,212);c.fill();
+  for(let i=0;i<34;i++){const t=((i*0.137+f*(0.002+(i%4)*.0012))%1),x=px+(sx+300-px)*t,yT=198+(80-198)*t,yB=212+(270-212)*t,y=yT+(yB-yT)*((i*0.618)%1);
+    circ(c,x+camX*(P(2)-P(3))*.3,y,1.3,`rgba(239,232,218,${.35+a})`);}
+  c.fillStyle='#0a0908';c.fillRect(px,170,110,70);c.strokeStyle=DIM;c.lineWidth=2;c.strokeRect(px,170,110,70);circ(c,px,205,9,'#0a0908',DIM,2);
+  const ang=f<96?f*1.4:96*1.4+kv(f,[[96,0,'out'],[118,9]]);
+  c.save();c.translate(px+50,140);c.rotate(ang);c.fillStyle=DIM;for(const o of[0,Math.PI]){c.beginPath();c.moveTo(0,0);c.arc(0,0,32,o,o+1.3);c.fill();}c.restore();circ(c,px+50,140,32,null,DIM,1.5);
+  const base=kv(f,[[0,0],[92,.62],[106,.62],[110,0]]),b=f<96?blinkC(f%8,4):0;
+  const look=kv(f,[[0,[0,.3]],[96,[0,.45]],[110,[-1,-.3]],[168,[-1,-.3]],[176,[0,.1]],[240,[0,.1]]]);
+  const mx=560+camX*P(2);
+  mark(c,mx,190,42,{ink:LI,l:Math.max(base,b),r:Math.max(base,b)+winkC(f,186,6,20,8),rc:f>180?.9:0,look,sy:kv(f,[[106,1],[110,1.09],[116,1]]),rot:kv(f,[[180,0],[186,-6],[214,-6],[222,0]]),line:160});
+  for(const[x,r]of[[60,74],[250,82],[470,70],[690,86],[900,76]]){const X=x+camX*P(.6);c.fillStyle='#060504';c.beginPath();c.arc(X,548,r*.62,0,TAU);c.fill();c.beginPath();c.ellipse(X,650,r*1.7,120,0,0,TAU);c.fill();}
+}});
+
+/* 05 DESCENT */
+S.push({id:'descent',title:'Descent Through the Stacks',len:240,
+action:'The spider lowers itself on its thread through the archive shelves, blinking at every shelf it passes. It stops, scans a row of cans, swings to the one with a handwritten label, lands on it, and winks.',
+beats:[[0,'lowering'],[20,'blinks at each shelf'],[118,'stops, bounces'],[130,'scans left'],[156,'scans right'],[176,'finds the label'],[186,'winds up'],[192,'swings'],[204,'lands'],[214,'winks']],
+keys:[[0,'K01','top of the stacks','crane down'],[60,'K02','mid-descent blink',''],[120,'K03','arrival: stretch','crane lands'],[140,'K04','looks left','hold'],[176,'K05','sees the label','hold'],[190,'K06','anticipation',''],[198,'K07','swing breakdown',''],[218,'K08','wink on the can','']],
+planes:'P1 near shelf edges · P2 mark and target shelf · P4 stacks · P6 back wall',
+cam:'A crane down alongside the spider. Near shelf edges rush past while the far stacks crawl, which is what tells you how deep the archive is.',
+read:'The machine pass blinks at everything equally. The choice is the one can it lands on.',
+draw(c,f,cam){
+  const camY=kv(f,[[0,0],[120,700]]),K=d=>cam.flat?1:2/d;
+  c.strokeStyle=tok.line;c.lineWidth=1;for(let i=0;i<12;i++){const y=i*90-camY*K(6);if(y>-5&&y<H+5)ln(c,0,y,W,y,1,tok.line)}
+  for(let i=0;i<9;i++){const y=60+i*170-camY*K(4);if(y<-40||y>H+80)continue;
+    ln(c,110,y,850,y,2,tok.mute);for(let j=0;j<10;j++){const x=160+j*74;circ(c,x,y-31,30,tok.paper,tok.mute,2);circ(c,x,y-31,8,null,tok.mute,1.5)}}
+  const ty=1030-camY*K(2);
+  if(ty<H+80){ln(c,250,ty,750,ty,3,tok.ink);[300,380,460,540,620,700].forEach((x,j)=>{circ(c,x,ty-35,34,tok.paper,tok.ink,2.5);circ(c,x,ty-35,9,null,tok.ink,2);
+    if(j===4){c.strokeStyle=tok.ink;c.lineWidth=1.6;c.beginPath();for(let k=0;k<5;k++){c.moveTo(x-20+k*2,ty-52+k*0);}c.moveTo(x-18,ty-56);c.bezierCurveTo(x-10,ty-64,x-4,ty-48,x+4,ty-58);c.bezierCurveTo(x+10,ty-64,x+14,ty-52,x+20,ty-57);c.stroke();}})}
+  const mx=kv(f,[[0,480],[186,480],[192,468,'in'],[204,620,'out'],[240,620]]);
+  const my=kv(f,[[0,200],[118,200,'out'],[124,216],[130,192],[136,204],[142,200],[186,200],[192,186,'in'],[204,222,'out'],[240,222]]);
+  const sy=kv(f,[[116,1],[120,1.1],[124,.92],[130,1.04],[136,1],[202,1],[204,.86],[208,1.04],[212,1]]);
+  const look=kv(f,[[0,[0,.5]],[118,[0,.5]],[130,[-1,.7]],[150,[-1,.7]],[156,[1,.7]],[172,[1,.7]],[176,[.8,.9]],[200,[.8,.9]],[208,[0,.1]],[240,[0,.1]]]);
+  const bl=f<116?blinkC(f%14,7):0;
+  const top=my-40*sy;c.strokeStyle=tok.red;c.lineWidth=1.8;c.beginPath();c.moveTo(mx,top);c.lineTo(480,-10);c.stroke();
+  mark(c,mx,my,40,{l:bl,r:bl+winkC(f,214,6,18,8),rc:.9,sy,look,rot:kv(f,[[192,0],[198,-14],[204,6],[210,0]]),line:0});
+  for(let i=0;i<6;i++){const y=300+i*420-camY*K(1);if(y<-60||y>H+60)continue;
+    c.fillStyle=tok.ink;c.fillRect(0,y,96,26);c.fillRect(W-96,y,96,26);circ(c,10,y-70,80,null,tok.ink,6);circ(c,W-10,y-70,80,null,tok.ink,6);}
+  ln(c,96,0,96,H,3,tok.ink);ln(c,W-96,0,W-96,H,3,tok.ink);
+}});
+
+/* 06 MOON */
+S.push({id:'moon',title:'Moon on a String',len:264,
+action:'A moon hangs on a thread over the hills. Clouds pass in front and it blinks behind each one. A thin wisp stops over one eye just as a small figure on a hill waves.',
+beats:[[0,'night, truck right'],[90,'a cloud: blink'],[120,'a wisp drifts in'],[150,'wisp stops over one eye'],[156,'the figure waves'],[194,'wisp moves on'],[200,'another cloud: blink']],
+keys:[[0,'K01','moon, hills, figure','slow truck'],[100,'K02','cloud crossing: eyes shut',''],[150,'K03','wisp parks: wink',''],[170,'K04','figure waving',''],[210,'K05','second cloud',''],[250,'K06','clear sky','']],
+planes:'P1 grass · P3 figure hill · P4 near hills · P5 far hills, clouds · P6 sky, moon',
+cam:'A slow truck right. The moon barely moves because it is furthest away, and the grass slides fastest. Flat camera makes the moon slide like a sticker.',
+read:'Was it the cloud or the moon? You cannot tell from the eyelid. Only the wave from the hill tells you who it was meant for.',
+draw(c,f,cam){
+  const P=d=>cam.flat?.5:1/d,camX=-kv(f,[[0,0,'lin'],[263,110]]);
+  c.strokeStyle=tok.line;c.lineWidth=1;const hx=camX*P(6);
+  for(let i=-10;i<40;i++){const x=i*26+hx%26;c.beginPath();c.moveTo(x,0);c.lineTo(x+150,250);c.stroke();}
+  const hill=(base,amp,fr,ph,d,fill,stroke)=>{const o=camX*P(d);c.beginPath();c.moveTo(0,H);for(let x=0;x<=W;x+=12){c.lineTo(x,base+amp*Math.sin((x-o)/fr+ph))}c.lineTo(W,H);c.closePath();c.fillStyle=fill;c.fill();if(stroke){c.strokeStyle=stroke;c.lineWidth=1.5;c.stroke()}};
+  const moonX=640+camX*P(6),moonY=140,R=50;
+  mark(c,moonX,moonY,R,{l:0,r:0,line:0});
+  const ex=[moonX-R*.34,moonX+R*.34];
+  const wispX=ex[1]+kv(f,[[110,520,'out'],[150,0],[194,0,'in'],[240,-600]]);
+  const clouds=[{x:1180-f*5+camX*P(5),y:moonY+40,parts:[[-52,4,22],[-16,-6,30],[24,0,26],[56,6,18]],hw:70},
+    {x:1900-f*6+camX*P(5),y:moonY+44,parts:[[-40,4,20],[-6,-6,28],[30,4,22]],hw:58}];
+  let lid=[0,0];
+  clouds.forEach(cd=>ex.forEach((e,i)=>{lid[i]=Math.max(lid[i],cl((cd.hw-Math.abs(cd.x-e))/14))}));
+  lid[1]=Math.max(lid[1],cl((22-Math.abs(wispX-ex[1]))/12));
+  c.fillStyle=tok.paper;c.beginPath();c.arc(moonX,moonY,R*.92,0,TAU);c.fill();
+  mark(c,moonX,moonY,R,{l:lid[0],r:lid[1],lc:.4,rc:.9,line:moonY});
+  for(const cd of clouds){if(cd.x<-120||cd.x>W+120)continue;
+    c.strokeStyle=tok.ink;c.lineWidth=2.6;for(const[ox,oy,r]of cd.parts){c.beginPath();c.arc(cd.x+ox,cd.y+oy,r,0,TAU);c.stroke();}
+    c.fillStyle=tok.paper;for(const[ox,oy,r]of cd.parts){c.beginPath();c.arc(cd.x+ox,cd.y+oy,r-1.2,0,TAU);c.fill();}}
+  if(wispX>-60&&wispX<W+60){c.beginPath();c.ellipse(wispX,moonY-11,26,6,0,0,TAU);c.fillStyle=tok.paper;c.fill();c.strokeStyle=tok.ink;c.lineWidth=1.5;c.stroke();}
+  hill(330,26,150,0,5,tok.line,null);
+  hill(400,34,110,1.3,4,tok.paper,tok.ink);
+  const fx=300+camX*P(3);c.beginPath();c.ellipse(fx,470,170,46,0,Math.PI,TAU);c.fillStyle=tok.paper;c.fill();c.strokeStyle=tok.ink;c.lineWidth=1.5;c.stroke();
+  const fy=424;circ(c,fx,fy-36,7,tok.ink);ln(c,fx,fy-29,fx,fy-6,2,tok.ink);ln(c,fx,fy-6,fx-7,fy+2,2,tok.ink);ln(c,fx,fy-6,fx+7,fy+2,2,tok.ink);
+  ln(c,fx,fy-24,fx-12,fy-12,2,tok.ink);
+  const arm=f>=156&&f<192?-2.1+.5*Math.sin((f-156)*.6):kv(f,[[150,-.7],[156,-2.1],[192,-2.1],[198,-.7]]);
+  ln(c,fx,fy-24,fx+16*Math.cos(arm),fy-24+16*Math.sin(arm),2,tok.ink);
+  const go=((camX*P(1))%40+40)%40;c.fillStyle=tok.ink;c.beginPath();c.moveTo(0,H);for(let x=-40;x<=W+40;x+=20){c.lineTo(x+go,500+((x/20)%2?0:-26));}c.lineTo(W,H);c.fill();c.fillRect(0,512,W,30);
+}});
+
+/* 07 CONTACT SHEET */
+const CS={x0:120,y0:70,cw:120,ch:100};
+function sheet(c,f,tgt){
+  const bars=[[0,56],[64,120]].map(([a,b])=>f>=a&&f<=b?kv(f,[[a,80,'lin'],[b,880]]):null);
+  for(let r=0;r<4;r++)for(let k=0;k<6;k++){
+    const x=CS.x0+k*CS.cw,y=CS.y0+r*CS.ch,cx=x+60,cy=y+60;
+    c.strokeStyle=tok.line;c.lineWidth=1.5;c.strokeRect(x+6,y+6,108,88);
+    c.fillStyle=tok.mute;c.font='10px "IBM Plex Mono",monospace';c.textAlign='left';c.fillText(String(r*6+k+1).padStart(2,'0'),x+11,y+20);
+    let b=0;for(const bx of bars)if(bx!==null){const q=Math.floor((bx-cx)/10);b+=q===0?.55:q===1?1:q===2?.45:0;}
+    const isT=r===1&&k===4;
+    mark(c,cx,cy,20,{l:b,r:b+(isT?winkC(f,198,5,18,8):0),rc:.9,look:isT?kv(f,[[0,[0,0]],[184,[0,0]],[190,[0,-.8]],[240,[0,-.8]]]):[0,0],line:22});
+  }
+  for(const bx of bars)if(bx!==null)ln(c,bx,56,bx,486,1.2,tok.ink);
+}
+S.push({id:'contact',title:'Under the Loupe',len:240,
+action:'A scanner sweeps a contact sheet twice and every frame blinks as it passes. A loupe slides in, searches, and stops on one frame, which looks up into the glass and winks.',
+beats:[[0,'scan pass 1'],[64,'scan pass 2'],[124,'loupe slides in'],[150,'searches'],[174,'searches again'],[192,'stops on frame 11'],[198,'frame 11 winks']],
+keys:[[0,'K01','sheet, scanner enters','lock-off'],[30,'K02','blink wave',''],[146,'K03','loupe lands, overshoots',''],[178,'K04','second search','hold'],[194,'K05','frame 11 looks up',''],[206,'K06','wink, magnified','hold']],
+planes:'P0 loupe glass and its shadow · P4 contact sheet',
+cam:'The loupe is the camera. Flat camera takes away its magnification and its shadow, and with them the sense that it is lifted off the page.',
+read:'The scanner blinks every frame. The loupe is a person choosing one, and only the chosen frame can look back.',
+draw(c,f,cam){
+  sheet(c,f);
+  if(f<120)return;
+  const p=kv(f,[[120,[1120,640]],[144,[400,236],'out'],[148,[392,228]],[152,[400,236]],[166,[400,236]],[176,[300,140]],[184,[300,140]],[194,[660,228]],[240,[660,228]]]);
+  const mag=cam.flat?1:2.1,r=104;
+  if(!cam.flat){c.fillStyle=tok.ink;c.globalAlpha=.13;c.beginPath();c.arc(p[0]+16,p[1]+20,r+6,0,TAU);c.fill();c.globalAlpha=1;}
+  c.save();c.beginPath();c.arc(p[0],p[1],r,0,TAU);c.clip();c.fillStyle=tok.paper;c.fillRect(0,0,W,H);
+  c.translate(p[0],p[1]);c.scale(mag,mag);c.translate(-p[0],-p[1]);sheet(c,f);c.restore();
+  circ(c,p[0],p[1],r+6,null,tok.ink,12);circ(c,p[0],p[1],r-6,null,tok.mute,1.2);
+}});
+
+/* 08 MORSE */
+const MC={R:'.-.',E:'.',A:'.-',D:'-..'},SIG=[];let mt=62;
+for(const L of'READ'){const g=[];for(const s of MC[L]){SIG.push({t:mt,s,L});mt+=s==='.'?9:21;}SIG[SIG.length-1].end=L;mt+=14;}
+const MLEN=mt+56;
+S.push({id:'morse',title:'Blinks Are Dots, Winks Are Dashes',len:MLEN,
+action:'The mark rides the timeline, blinking at every cut it passes. It stops and spells a word in Morse: a blink for each dot, a held wink for each dash, while a tape below prints what it says.',
+beats:[[0,'rides the timeline'],[8,'blinks at each cut'],[56,'stops'],[62,'R'],[SIG.find(s=>s.L==='E').t,'E'],[SIG.find(s=>s.L==='A').t,'A'],[SIG.find(s=>s.L==='D').t,'D'],[mt,'looks at the tape'],[MLEN-22,'looks at us']],
+keys:[[0,'K01','travelling','follow'],[30,'K02','blink at a cut',''],[56,'K03','stops','camera stops'],[70,'K04','dash: wink held',''],[mt+6,'K05','reads the tape','hold'],[MLEN-14,'K06','looks at us','hold']],
+planes:'P2 thread, cuts and mark · P1 tape · P6 rules',
+cam:'Follows the mark along the line, then stops when the mark stops. The far rules drift at a quarter of the speed.',
+read:'The blinks at each cut carry no message. Only the aimed movements spell a word. The same pair of eyes can do both.',
+draw(c,f,cam){
+  const mxw=kv(f,[[0,170,'lin'],[44,700,'out'],[56,760]]),camX=380-mxw,P6=cam.flat?1:.25;
+  for(let i=-2;i<30;i++){const x=i*60+camX*P6;ln(c,x,40,x,120,1,tok.line)}
+  ln(c,0,150,W,150,2,tok.red);
+  for(let i=0;i<9;i++){const wx=120+i*92;circ(c,wx+camX,150,5,tok.ink);}
+  let b=0;for(let i=0;i<9;i++){const q=Math.floor((mxw-(120+i*92))/9);b+=q===0?.55:q===1?1:q===2?.45:0;}
+  let l=b,r=b;for(const s of SIG){if(s.s==='.'){const v=blinkC(f,s.t);l+=v;r+=v;}else r+=winkC(f,s.t,3,12,3);}
+  const look=kv(f,[[0,[1,0]],[52,[1,0]],[58,[0,0]],[mt,[0,0]],[mt+6,[0,1]],[MLEN-24,[0,1]],[MLEN-18,[0,.1]],[MLEN,[0,.1]]]);
+  const sy=kv(f,[[54,1],[57,.94],[61,1]]);
+  mark(c,mxw+camX,254,44,{l,r,look,sy,line:254-44*sy-150});
+  c.strokeStyle=tok.line;c.lineWidth=1.5;c.strokeRect(150,396,660,82);
+  let gx=176,lx=176;
+  for(const s of SIG){if(s.t>f)break;if(s.s==='.')circ(c,gx,428,4.5,tok.ink);else ln(c,gx-4,428,gx+18,428,5,tok.ink);
+    gx+=s.s==='.'?20:34;if(s.end){c.fillStyle=tok.mute;c.font='13px "IBM Plex Mono",monospace';c.textAlign='left';c.fillText(s.end,lx,464);gx+=26;lx=gx;}}
+}});
+
+/* 09 TWO-POP */
+S.push({id:'pop',title:'The Two-Pop',len:204,dark:true,
+action:'A countdown leader counts 5, 4, 3. At 2 the number is replaced by eyes. The single-frame beep is a blink. In the black that follows, the mark winks.',
+beats:[[0,'5'],[24,'4'],[48,'3'],[72,'2 becomes eyes'],[94,'the pop: blink'],[96,'black'],[118,'eyes find us'],[140,'wink']],
+keys:[[0,'K01','leader at 5','lock-off'],[48,'K02','leader at 3',''],[80,'K03','eyes in the 2',''],[95,'K04','the pop frame','1 frame'],[120,'K05','in the black',''],[150,'K06','wink in the dark','hold']],
+planes:'One plane on purpose: a leader is flat film, and the black is where depth begins.',
+cam:'Locked off on the leader. Nothing moves except the sweep and the eyes.',
+read:'The 2-pop is one frame of sound and picture used to line a print up, a pure machine blink. The wink comes in the black after it, before the film starts.',
+draw(c,f,cam){
+  const LI='#e7e0d2',cx=480,cy=270;
+  if(f<96){c.fillStyle=f===95?'#4a443b':'#1d1b18';c.fillRect(0,0,W,H);
+    c.save();c.beginPath();c.moveTo(cx,cy);c.arc(cx,cy,620,-Math.PI/2,-Math.PI/2+((f%24)/24)*TAU);c.closePath();c.fillStyle='rgba(231,224,210,.12)';c.fill();c.restore();
+    c.globalAlpha=.5;ln(c,0,cy,W,cy,1.5,LI);ln(c,cx,0,cx,H,1.5,LI);c.globalAlpha=1;
+    circ(c,cx,cy,196,null,LI,2);
+    const n=5-Math.floor(f/24);
+    if(n>2){circ(c,cx,cy,150,null,LI,2);c.fillStyle=LI;c.font='300 230px "Cormorant Garamond",Georgia,serif';c.textAlign='center';c.textBaseline='middle';c.fillText(n,cx,cy+12);c.textBaseline='alphabetic';
+      ln(c,cx,cy-150,cx,0,3,tok.red);}
+    else{const b=blinkC(f,94);mark(c,cx,cy,150,{ink:LI,l:b,r:b,look:kv(f,[[72,[0,0]],[78,[-1,0]],[84,[1,0]],[90,[0,0]]]),line:130});}
+  }else{c.fillStyle='#0a0908';c.fillRect(0,0,W,H);
+    const o=kv(f,[[96,1],[104,1],[110,0]]);
+    mark(c,cx,cy,150,{ink:'#e7e0d2',ringA:.14,l:o,r:o+winkC(f,140,6,22,8),rc:.9,look:kv(f,[[96,[0,0]],[118,[0,0]],[124,[0,.1]],[204,[0,.1]]]),rot:kv(f,[[134,0],[140,-5],[170,-5],[178,0]]),line:130});}
+}});
+
+/* 10 WAKING */
+const ZS=[8,6.6,5.4,4.4,3.6,2.9,2.2,1.6,1.1],ZON={8:14,6.6:22,5.4:30,4.4:38,3.6:46,2.9:54,2.2:62,1.6:70,1.1:78};
+S.push({id:'wake',title:'Lights On in the Archive',len:264,
+action:'Asleep on its thread in a dark corridor, the mark is reached by lights switching on from far to near. It blinks itself awake, looks around, sees us, takes a moment to realise, and winks.',
+beats:[[0,'asleep, breathing'],[14,'lights come on, far to near'],[72,'half wakes'],[92,'blinks'],[100,'slow blink'],[112,'looks left'],[132,'looks right'],[152,'sees us'],[166,'realises'],[182,'winks']],
+keys:[[0,'K01','asleep in the dark','push in begins'],[50,'K02','lights halfway',''],[78,'K03','half awake',''],[118,'K04','looks left','hold'],[156,'K05','sees us','hold'],[168,'K06','realisation stretch',''],[192,'K07','wink','hold']],
+planes:'Nine arches at depths 1.1 to 8 · mark at 2.6',
+cam:'A push in down the corridor. Near arches grow quickly and far ones barely change. Flat camera turns it into a plain zoom, and the corridor stops feeling deep.',
+read:'The lights wake it, and waking up is a series of blinks. It only winks once it has seen someone to wink at.',
+draw(c,f,cam){
+  const camZ=kv(f,[[0,0],[263,.75]]),z0=2.6,s0=1/(z0-camZ);
+  const s=z=>cam.flat?(1/z)*s0*z0:1/(z-camZ);
+  const VX=480,VY=250;let lit=0;
+  for(const z of ZS)if(f>=ZON[z]){lit++;const k=s(z),hw=470*k,hh=300*k;c.fillStyle=tok.line;c.globalAlpha=.55;c.beginPath();c.moveTo(VX,VY-hh+22*k);c.lineTo(VX-hw*.55,VY+hh);c.lineTo(VX+hw*.55,VY+hh);c.fill();c.globalAlpha=1;}
+  let drawn=false;
+  const drawMark=()=>{const R=156*(cam.flat?s0:s0),y=VY+26*s0*z0;
+    const lk=kv(f,[[0,[0,.3]],[106,[0,.3]],[112,[-1,0]],[126,[-1,0]],[132,[1,0]],[146,[1,0]],[152,[0,.1]],[264,[0,.1]]]);
+    const sl=kv(f,[[0,1],[72,1],[76,.6],[82,.6],[86,.3],[90,0]]);
+    const L=sl+blinkC(f,92)+winkC(f,100,4,6,6),Rr=L+winkC(f,182,6,24,8);
+    const br=f<72?1+.025*Math.sin(f/9):kv(f,[[164,1],[168,1.07],[172,1]]);
+    mark(c,VX,y,R,{l:L,r:Rr,lc:f<90?.4:0,rc:f<90?.4:.9,look:lk,sy:br,rot:kv(f,[[176,0],[182,-6],[214,-6],[222,0]]),tx:f<72?8*Math.sin(f/20):0,line:y});};
+  for(const z of ZS){
+    if(!drawn&&z<z0){drawMark();drawn=true;}
+    const k=s(z),hw=470*k,hh=300*k;c.globalAlpha=Math.min(1,1.8/z);
+    c.strokeStyle=tok.ink;c.lineWidth=Math.max(1,3.2*k*2);c.beginPath();c.moveTo(VX-hw,VY+hh);c.lineTo(VX-hw,VY-hh);c.lineTo(VX+hw,VY-hh);c.lineTo(VX+hw,VY+hh);c.stroke();
+    for(let j=0;j<4;j++){const yy=VY-hh*.6+j*hh*.42;circ(c,VX-hw*.9,yy,16*k,null,tok.mute,1.4);circ(c,VX+hw*.9,yy,16*k,null,tok.mute,1.4);}
+    const on=f>=ZON[z];circ(c,VX,VY-hh+22*k,8*k+1,on?tok.ink:null,tok.ink,1.5);
+    c.globalAlpha=1;}
+  ln(c,0,VY+300*s(1.1),W,VY+300*s(1.1),1.5,tok.ink);
+  const dark=.82*(1-lit/ZS.length);if(dark>0){c.fillStyle=`rgba(10,9,8,${dark})`;c.fillRect(0,0,W,H);}
+}});
+
+/* ---------- card UI ---------- */
+const cards=[];
+function dirtyAll(){cards.forEach(k=>k.dirty=true);tiles.forEach(t=>t.dirty=true);}
+function render(card,c,f){
+  c.setTransform(1,0,0,1,0,0);
+  c.fillStyle=tok.paper;c.fillRect(0,0,W,H);
+  card.s.draw(c,f,{flat:card.flat});
+}
+function lidSVG(){
+  const pts=[];for(let k=-2;k<18;k++)pts.push(`${(k+2)*10},${50-LID(k)*40}`);
+  return `<svg viewBox="0 0 200 60"><polyline points="${pts.join(' ')}" fill="none" stroke="currentColor" stroke-width="2"/><line x1="0" y1="50" x2="200" y2="50" stroke="currentColor" stroke-opacity=".25"/></svg>`;
+}
+S.forEach((s,i)=>{
+  const el=document.createElement('section');el.className='short';el.id=s.id;
+  const exp=s.keys.map((k,j)=>{const nx=j<s.keys.length-1?s.keys[j+1][0]:s.len;return `<tr><td>${String(k[0]).padStart(3,'0')}</td><td>${k[1]}</td><td>${nx-k[0]}</td><td>${k[2]}</td><td>${k[3]||''}</td></tr>`}).join('');
+  el.innerHTML=`<div class="head"><span class="num">${String(i+1).padStart(2,'0')}</span><h3>${s.title}</h3></div>
+  <p class="action">${s.action}</p>
+  <div class="mono">${s.len} frames · ${(s.len/24).toFixed(1)} s · ${s.planes}</div>
+  <canvas class="cv" width="${W}" height="${H}"></canvas>
+  <div class="beats">${s.beats.map(b=>`<span data-f="${b[0]}">${b[1]}</span>`).join('')}</div>
+  <div class="ctl"><button class="pp">pause</button><input type="range" min="0" max="${s.len-1}" value="0"><span class="fc"></span>
+  <label><input type="checkbox" class="ko"> keys only</label><label><input type="checkbox" class="on"> onion skin</label><label><input type="checkbox" class="fl"> flat camera</label></div>
+  ${s.extra==='lids'?`<div class="lids">${['A · twitch','B · wink','C · parody','D · rehearsal'].map(t=>`<div>${lidSVG()}<span>${t}: lid closure over 20 frames</span></div>`).join('')}</div>`:''}
+  <div class="notes"><div><b>Camera</b>${s.cam}</div><div><b>What it shows</b>${s.read}</div></div>
+  <div class="cols"><div><div class="mono" style="margin-bottom:8px">Key drawings</div><div class="keys">${s.keys.map(k=>`<figure data-f="${k[0]}"><canvas width="240" height="135"></canvas><figcaption><b>${k[1]}</b> f${k[0]} · ${k[2]}</figcaption></figure>`).join('')}</div></div>
+  <div class="xs"><div class="mono" style="margin-bottom:8px">Exposure sheet</div><table><thead><tr><th>FRAME</th><th>DWG</th><th>EXP</th><th>ACTION</th><th>CAMERA</th></tr></thead><tbody>${exp}</tbody></table></div></div>`;
+  document.getElementById('shorts').appendChild(el);
+  const cv=el.querySelector('.cv'),card={s,el,c:cv.getContext('2d'),t:0,playing:true,keysOnly:false,onion:false,flat:false,vis:false,dirty:true,last:-1};
+  const off=document.createElement('canvas');off.width=W;off.height=H;card.off=off.getContext('2d');
+  card.range=el.querySelector('input[type=range]');card.fc=el.querySelector('.fc');card.pp=el.querySelector('.pp');card.chips=[...el.querySelectorAll('.beats span')];
+  card.pp.onclick=()=>{card.playing=!card.playing;card.pp.textContent=card.playing?'pause':'play';};
+  card.range.oninput=()=>{card.t=+card.range.value;card.playing=false;card.pp.textContent='play';card.dirty=true;};
+  const seek=f=>{card.t=f;card.playing=false;card.pp.textContent='play';card.dirty=true;};
+  card.chips.forEach(ch=>ch.onclick=()=>seek(+ch.dataset.f));
+  el.querySelectorAll('.keys figure').forEach(fg=>fg.onclick=()=>seek(+fg.dataset.f));
+  el.querySelector('.ko').onchange=e=>{card.keysOnly=e.target.checked;card.dirty=true};
+  el.querySelector('.on').onchange=e=>{card.onion=e.target.checked;card.dirty=true};
+  el.querySelector('.fl').onchange=e=>{card.flat=e.target.checked;card.dirty=true;card.keysDirty=true};
+  card.keyCanvases=[...el.querySelectorAll('.keys canvas')];card.keysDirty=true;
+  cards.push(card);
+});
+function drawKeys(card){
+  card.keyCanvases.forEach((kc,j)=>{const c=kc.getContext('2d');c.setTransform(240/W,0,0,240/W,0,0);c.fillStyle=tok.paper;c.fillRect(0,0,W,H);card.s.draw(c,card.s.keys[j][0],{flat:card.flat});});
+  card.keysDirty=false;
+}
+function frameOf(card){
+  let f=Math.floor(card.t)%card.s.len;
+  if(card.keysOnly){let k=card.s.keys[0][0];for(const kk of card.s.keys)if(kk[0]<=f)k=kk[0];f=k;}
+  return f;
+}
+function show(card){
+  const f=frameOf(card);
+  if(f===card.last&&!card.dirty)return;
+  card.last=f;card.dirty=false;
+  const c=card.c;render(card,c,f);
+  if(card.onion){for(const d of[-4,4]){const g=(f+d+card.s.len)%card.s.len;render(card,card.off,g);c.globalAlpha=.24;c.drawImage(card.off.canvas,0,0);c.globalAlpha=1;}
+    c.globalAlpha=.6;render(card,card.off,f);c.drawImage(card.off.canvas,0,0);c.globalAlpha=1;}
+  card.range.value=f;card.fc.textContent=`f ${String(f).padStart(3,'0')} / ${card.s.len}`;
+  let a=0;card.chips.forEach((ch,i)=>{if(+ch.dataset.f<=f)a=i});card.chips.forEach((ch,i)=>ch.classList.toggle('on',i===a));
+  if(card.keysDirty)drawKeys(card);
+}
+
+/* ---------- 24 constructions ---------- */
+function ring(c,R,w){c.strokeStyle=tok.ink;c.lineWidth=w;c.beginPath();c.arc(0,0,R,0,TAU);c.stroke();}
+function eyes(c,R,s,o={}){
+  const sp=(o.sp??.34)*R,rx=(o.rx??.17)*R,y=(o.y||0)*R,kind=o.kind||'dot';
+  [[-sp,s.l,s.lc],[sp,s.r,s.rc]].forEach(([x,q,cv])=>{
+    c.fillStyle=c.strokeStyle=tok.ink;
+    if(q>=.8){c.lineWidth=Math.max(1.3,R*(o.lw??.075));c.lineCap='round';c.beginPath();c.moveTo(x-rx*1.1,y);c.quadraticCurveTo(x,y+rx*1.3*(cv||0),x+rx*1.1,y);c.stroke();return;}
+    if(kind==='dot'){c.beginPath();c.ellipse(x,y,rx,Math.max(.6,rx*(1-q)),0,0,TAU);c.fill();if(o.hl&&q<.4){circ(c,x+rx*.35,y-rx*.35,rx*.28,tok.paper)}}
+    else if(kind==='rect'){const w=rx*1.3,h=Math.max(1.2,rx*2*(1-q));c.beginPath();c.roundRect(x-w/2,y-h/2,w,h,Math.min(rx*.35,h/2));c.fill();}
+    else if(kind==='stroke'){c.lineWidth=R*.08;c.lineCap='round';const h=Math.max(.5,rx*1.3*(1-q));c.beginPath();c.moveTo(x,y-h);c.lineTo(x,y+h);c.stroke();}
+    else if(kind==='lid'){const er=rx*1.3;c.lineWidth=R*.045;c.beginPath();c.arc(x,y,er,0,TAU);c.stroke();circ(c,x,y+er*.15,rx*.55,tok.ink);
+      const lid=Math.max(.3,q);c.save();c.beginPath();c.arc(x,y,er,0,TAU);c.clip();c.fillStyle=tok.ink;c.fillRect(x-er,y-er,er*2,er*2*lid);c.restore();}
+  });
+}
+const thr=(c,top,len)=>{c.strokeStyle=tok.red;c.lineWidth=1.6;c.beginPath();c.moveTo(0,top);c.lineTo(0,top-len);c.stroke();};
+const V=[
+['Canon','Ring, two dots, thread. Every other version is this one redrawn.',(c,R,s)=>{thr(c,-R,99);ring(c,R,R*.14);eyes(c,R,s);}],
+['Hairline','Engraving weight, like a catalogue plate.',(c,R,s)=>{thr(c,-R,99);ring(c,R,R*.035);eyes(c,R,s,{rx:.1,lw:.04});}],
+['Slab','Poster weight; reads across a street.',(c,R,s)=>{thr(c,-R*1.15,99);ring(c,R,R*.32);eyes(c,R,s,{rx:.2,sp:.3});}],
+['Sprocket','The eyes are perforations, so the film looks back.',(c,R,s)=>{thr(c,-R,99);ring(c,R,R*.12);eyes(c,R,s,{kind:'rect',sp:.36});}],
+['Reel','Six holes in a reel; two of them look.',(c,R,s)=>{thr(c,-R,99);ring(c,R,R*.12);for(let k=0;k<6;k++){const a=k*Math.PI/3;if(k%3)circ(c,Math.cos(a)*R*.55,Math.sin(a)*R*.55,R*.15,null,tok.mute,1.5);}circ(c,0,0,R*.06,tok.mute);eyes(c,R,s,{sp:.55,rx:.15});}],
+['Iris','A lens aperture. A shutter can only blink.',(c,R,s)=>{thr(c,-R,99);c.strokeStyle=tok.ink;c.lineWidth=R*.12;c.beginPath();for(let k=0;k<=6;k++){const a=k*Math.PI/3-Math.PI/2;c[k?'lineTo':'moveTo'](Math.cos(a)*R,Math.sin(a)*R)}c.closePath();c.stroke();c.lineWidth=1;c.strokeStyle=tok.mute;for(let k=0;k<6;k++){const a=k*Math.PI/3-Math.PI/2;c.beginPath();c.moveTo(Math.cos(a)*R,Math.sin(a)*R);c.lineTo(Math.cos(a+1.2)*R*.62,Math.sin(a+1.2)*R*.62);c.stroke();}eyes(c,R,s,{sp:.3,rx:.15});}],
+['Knot','The thread is tied into the O, with no gap between line and reader.',(c,R,s)=>{c.strokeStyle=tok.ink;c.lineWidth=R*.14;c.beginPath();c.arc(0,0,R,-Math.PI/2+.24,-Math.PI/2-.24+TAU);c.stroke();c.strokeStyle=tok.red;c.lineWidth=1.6;c.beginPath();c.moveTo(0,-R-99);c.lineTo(0,-R*.84);c.stroke();c.beginPath();c.arc(-R*.08,-R*.92,R*.09,0,TAU);c.stroke();eyes(c,R,s);}],
+['Bead','Threaded through; the O rides the line.',(c,R,s)=>{c.strokeStyle=tok.red;c.lineWidth=1.6;c.beginPath();c.moveTo(0,-R-99);c.lineTo(0,R+60);c.stroke();circ(c,0,0,R,tok.card);ring(c,R,R*.14);eyes(c,R,s);}],
+['On the line','Sits on the timeline like a cut.',(c,R,s)=>{c.strokeStyle=tok.red;c.lineWidth=1.6;c.beginPath();c.moveTo(-90,R+R*.07);c.lineTo(90,R+R*.07);c.stroke();circ(c,-74,R+R*.07,3,tok.ink);circ(c,74,R+R*.07,3,tok.ink);ring(c,R,R*.14);eyes(c,R,s);}],
+['Two readings','The same face, read twice.',(c,R,s)=>{thr(c,-R,99);c.save();c.translate(-R*.09,R*.06);c.globalAlpha=.45;ring(c,R,R*.1);c.restore();ring(c,R,R*.12);eyes(c,R,s);}],
+['Hatched','Partly certain.',(c,R,s)=>{thr(c,-R,99);c.setLineDash([R*.2,R*.13]);ring(c,R,R*.13);c.setLineDash([]);eyes(c,R,s);}],
+['Dotted','Not yet read.',(c,R,s)=>{thr(c,-R,99);for(let k=0;k<22;k++){const a=k/22*TAU;circ(c,Math.cos(a)*R,Math.sin(a)*R,R*.055,tok.ink);}eyes(c,R,s);}],
+['Pixel','Sixteen pixels; a 1985 terminal.',(c,R,s)=>{const n=11,cs=2*R/n;c.fillStyle=tok.red;for(let k=1;k<5;k++)c.fillRect(-cs/2,-R-k*cs,cs,cs);c.fillStyle=tok.ink;
+  for(let i=0;i<n;i++)for(let j=0;j<n;j++){const x=-R+(i+.5)*cs,y=-R+(j+.5)*cs,d=Math.hypot(x,y);if(Math.abs(d-R*.86)<cs*.55)c.fillRect(x-cs/2,y-cs/2,cs,cs);}
+  for(const[ix,q]of[[3,s.l],[7,s.r]]){const x=-R+ix*cs,y=-R+5*cs;if(q>=.8)c.fillRect(x-cs*.5,y+cs*.25,cs*2,cs*.5);else if(q>.3)c.fillRect(x,y+cs*.2,cs,cs*.6);else c.fillRect(x,y,cs,cs);}}],
+['Letter','Set in type; works inside any word.',(c,R,s)=>{thr(c,-R*.92,99);c.fillStyle=tok.ink;c.font=`400 ${R*2.65}px "Cormorant Garamond",Georgia,serif`;c.textAlign='center';c.textBaseline='middle';c.fillText('O',0,R*.06);c.textBaseline='alphabetic';eyes(c,R,s,{sp:.22,rx:.11});}],
+['Screen','Television era: the O as a picture tube.',(c,R,s)=>{thr(c,-R*.88,99);c.strokeStyle=tok.ink;c.lineWidth=R*.13;c.beginPath();c.roundRect(-R*1.08,-R*.88,R*2.16,R*1.76,R*.42);c.stroke();eyes(c,R,s);}],
+['Leader','A countdown leader, counting toward a reading.',(c,R,s)=>{thr(c,-R*1.18,99);c.globalAlpha=.4;ln(c,-R*1.3,0,R*1.3,0,1,tok.ink);ln(c,0,-R*1.18,0,R*1.3,1,tok.ink);c.globalAlpha=1;circ(c,0,0,R*1.18,null,tok.ink,1);ring(c,R,R*.1);eyes(c,R,s);}],
+['Lidded','More acting range, at a cost to small sizes.',(c,R,s)=>{thr(c,-R,99);ring(c,R,R*.12);eyes(c,R,s,{kind:'lid',sp:.36,rx:.18});}],
+['Splices','The eyes are two cuts.',(c,R,s)=>{thr(c,-R,99);ring(c,R,R*.12);eyes(c,R,s,{kind:'stroke',sp:.3});}],
+['Rim beads','The eyes ride on the circle itself.',(c,R,s)=>{thr(c,-R,99);ring(c,R,R*.06);eyes(c,R,s,{sp:1,rx:.19});}],
+['Spider','Bolas, the ancestor: legs as hairlines.',(c,R,s)=>{thr(c,-R,99);c.strokeStyle=tok.ink;c.lineWidth=1.2;for(const sd of[-1,1])for(const a0 of[-.6,-.2,.2,.6]){const a=sd>0?a0:Math.PI-a0,k=Math.cos(a)*R*1.5,kk=Math.sin(a)*R*1.5-R*.3;c.beginPath();c.moveTo(Math.cos(a)*R,Math.sin(a)*R);c.lineTo(k,kk);c.lineTo(Math.cos(a)*R*1.85,Math.sin(a)*R*1.85+R*.35);c.stroke();}ring(c,R,R*.14);eyes(c,R,s);}],
+['Seal','An archive stamp, for boxes and paper.',(c,R,s)=>{thr(c,-R,99);ring(c,R,R*.08);circ(c,0,0,R*.74,null,tok.ink,1);const t='CINEOSIS · LAB · OPERATIVE ARCHIVE · ';c.fillStyle=tok.ink;c.font=`500 ${R*.14}px "IBM Plex Mono",monospace`;c.textAlign='center';for(let k=0;k<t.length;k++){const a=k/t.length*TAU-Math.PI/2;c.save();c.rotate(a+Math.PI/2);c.fillText(t[k],0,-R*.83);c.restore();}eyes(c,R,s,{sp:.28,rx:.12});}],
+['Woodcut','Cut by hand; the same idea, drawn by hand.',(c,R,s)=>{thr(c,-R,99);c.strokeStyle=tok.ink;for(let p=0;p<3;p++){const r=rng(11+p*7);c.lineWidth=R*.055;c.beginPath();for(let k=0;k<=40;k++){const a=k/40*TAU,rr=R*(1+(r()-.5)*.07);c[k?'lineTo':'moveTo'](Math.cos(a)*rr,Math.sin(a)*rr);}c.stroke();}eyes(c,R,s,{rx:.16});}],
+['Nursery','Big, low eyes for children’s programmes.',(c,R,s)=>{thr(c,-R,99);ring(c,R,R*.08);eyes(c,R,s,{rx:.24,y:.12,sp:.36,hl:true});}],
+['Loupe','The editor’s magnifier, looking back.',(c,R,s)=>{thr(c,-R*1.1,99);ring(c,R,R*.2);c.strokeStyle=tok.ink;c.lineWidth=R*.2;c.lineCap='round';c.beginPath();c.moveTo(R*.8,R*.8);c.lineTo(R*1.3,R*1.3);c.stroke();eyes(c,R,s);}],
+];
+const tiles=[];
+V.forEach((v,i)=>{const d=document.createElement('div');d.className='tile';d.innerHTML=`<canvas width="360" height="400"></canvas><div class="mono">${String(i+1).padStart(2,'0')}</div><h4>${v[0]}</h4><p>${v[1]}</p>`;document.getElementById('tiles').appendChild(d);
+  tiles.push({c:d.querySelector('canvas').getContext('2d'),v,off:i*9,el:d,vis:false,dirty:true,last:-1});});
+function drawTile(t,f){const k=(f+t.off)%120,c=t.c;c.setTransform(1,0,0,1,0,0);c.fillStyle=tok.card;c.fillRect(0,0,360,400);
+  const s={l:blinkC(k,20),r:blinkC(k,20)+winkC(k,60,5,18,7),lc:0,rc:.9};c.setTransform(2,0,0,2,0,0);c.translate(90,112);t.v[2](c,52,s);}
+
+/* ---------- loop ---------- */
+const io=new IntersectionObserver(es=>es.forEach(e=>{const o=cards.find(k=>k.el===e.target)||tiles.find(t=>t.el===e.target);if(o){o.vis=e.isIntersecting;o.dirty=true;}}),{rootMargin:'120px'});
+cards.forEach(k=>io.observe(k.el));tiles.forEach(t=>io.observe(t.el));
+let lastT=performance.now(),gf=0;
+function tick(now){const dt=Math.min(.1,(now-lastT)/1000);lastT=now;gf+=dt*24;
+  for(const k of cards){if(k.playing)k.t=(k.t+dt*24)%k.s.len;if(k.vis||k.keysDirty)show(k);}
+  for(const t of tiles){if(!t.vis&&!t.dirty)continue;const f=Math.floor(gf);if(f!==t.last||t.dirty){t.last=f;t.dirty=false;drawTile(t,f);}}
+  requestAnimationFrame(tick);}
+cards.forEach(show);tiles.forEach(t=>drawTile(t,0));
+document.fonts&&document.fonts.ready.then(dirtyAll);
+requestAnimationFrame(tick);
+window.__ws={seek(id,f){const k=cards.find(c=>c.s.id===id);k.t=f;k.playing=false;k.dirty=true;show(k);return frameOf(k)},cards};
+</script>
+
+</body>
+</html>

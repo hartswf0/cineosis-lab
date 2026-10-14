@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<title>Bolas at Work</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{--bg:#ece7dd;--paper:#f4efe6;--card:#f8f4ed;--ink:#17140f;--mute:#857e72;--line:#d8d0c2;--red:#e0483a;--cbg:#f6f1e8;--cink:#17140f;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121110;--paper:#1c1a17;--card:#1f1d19;--ink:#ece6da;--mute:#8d867a;--line:#36322b;--red:#ea5444;--cbg:#191714;--cink:#ece6da;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121110;--paper:#1c1a17;--card:#1f1d19;--ink:#ece6da;--mute:#8d867a;--line:#36322b;--red:#ea5444;--cbg:#191714;--cink:#ece6da;color-scheme:dark}
+body.night{--cbg:#0f0e0c;--cink:#efe9dc}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:19px/1.5 "Cormorant Garamond",Georgia,serif;margin:0}
+.wrap{max-width:1200px;margin:0 auto;padding-inline:20px;padding-block:52px 110px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+h1{font-weight:400;font-size:clamp(44px,7.5vw,84px);line-height:.95;margin:12px 0 14px}
+h2{font-weight:400;font-size:38px;margin:76px 0 4px;text-wrap:balance}
+h3{font-weight:400;font-size:24px;margin:36px 0 4px;padding-top:10px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+h3 i{width:13px;height:13px;border-radius:50%;background:var(--a);box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px var(--ink)}
+h3 span{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+p{margin:0 0 10px;max-width:66ch}
+.lede{font-size:22px}
+.anat{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:28px;margin-top:26px;align-items:center}
+@media (max-width:760px){.anat{grid-template-columns:minmax(0,1fr)}}
+.anat canvas{width:100%;aspect-ratio:3/2;display:block;background:var(--cbg);border:1px solid var(--line)}
+.anat dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:17px}
+.anat dt{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding-top:4px}
+.anat dd{margin:0}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:18px 0 10px;font-family:"IBM Plex Mono",monospace;font-size:12px}
+.tools button{font:inherit;background:none;color:var(--mute);border:1px solid var(--line);padding:5px 11px;cursor:pointer}
+.tools button.on{color:var(--ink);border-color:var(--ink)}
+.wall{display:block;width:100%;background:var(--cbg);border:1px solid var(--line)}
+.scale{display:flex;gap:22px;align-items:flex-end;flex-wrap:wrap;margin-top:14px;padding:16px;background:var(--cbg);border:1px solid var(--line)}
+.scale figure{margin:0;text-align:center}
+.scale canvas{display:block;margin:0 auto}
+.scale figcaption{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--mute);margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:12px;margin-top:12px}
+.card{background:var(--card);border:1px solid var(--line);min-width:0}
+.card canvas{display:block;width:100%;aspect-ratio:3/2;background:var(--cbg)}
+.card .m{padding:8px 11px 12px}
+.card .n{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--mute);letter-spacing:.06em}
+.card h4{margin:1px 0 3px;font-weight:500;font-size:20px;line-height:1.1}
+.card p{font-size:15px;color:var(--mute);line-height:1.3;margin:0}
+.card b{font-weight:500;color:var(--ink)}
+.team canvas{display:block;width:100%;background:var(--cbg);border:1px solid var(--line)}
+.team{margin-top:12px}
+.pairs{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,520px),1fr));gap:14px;margin-top:12px}
+.pair{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);background:var(--card);border:1px solid var(--line)}
+.pair video{display:block;width:100%;aspect-ratio:16/9;height:auto;background:#f4efe6}
+.pair canvas{display:block;width:100%;height:100%;min-height:0;aspect-ratio:auto;background:var(--cbg)}
+.pair .cap{grid-column:1/-1;padding:7px 11px 9px;font-size:16px;border-top:1px solid var(--line)}
+.pair .cap span{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--mute);margin-right:8px}
+.foot{margin-top:64px;padding-top:14px;border-top:1px solid var(--line);font-size:16px;color:var(--mute)}
+</style>
+</head>
+<body>
+<style>
+.bset{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:10px 20px;font:13px/1.3 "IBM Plex Mono",ui-monospace,Menlo,monospace;border-bottom:1px solid rgba(128,120,108,.35);background:inherit}
+.bset a{color:inherit;text-decoration:none;padding:4px 0;border-bottom:1px solid transparent}
+.bset a:hover,.bset a:focus-visible{border-bottom-color:#e0483a;outline:none}
+.bset .here{opacity:.6;margin-right:auto}
+.bset [aria-disabled]{opacity:.3}
+</style><nav class="bset" aria-label="Bolas set"><a href="index.html">Bolas set</a><span class="here">10 / 14</span><a href="../idents.html" rel="prev">← Idents</a><a href="pixel.html" rel="next">Bolas Pixel →</a></nav>
+
+<div class="wrap">
+  <div class="mono">Cineosis Lab · Bolas</div>
+  <h1>Bolas at Work</h1>
+  <p class="lede">The agent that performs each film. The body becomes the operation: a reel, a lens, a shutter, a countdown, a page. The head with its two eyes hangs beneath, and the eight legs make the work visible. One small looping scene for every film and every sign, legible from across a room.</p>
+
+  <div class="anat"><canvas id="anat" width="900" height="600"></canvas>
+    <dl>
+      <dt>Thread</dt><dd>Red, and only ever the thread. It is how Bolas arrives and what it pulls.</dd>
+      <dt>Body</dt><dd>An O that turns into the operation of the film: reel, iris, shutter, counter, waveform, grid, page. Colour lives only here.</dd>
+      <dt>Head</dt><dd>Below the body: a small O with two eyes. It blinks when something passes and winks when it has read something.</dd>
+      <dt>Legs</dt><dd>Eight jointed lines. They hold, pull, tap, weave, cut and carry, so you can see what the film does from far off.</dd>
+      <dt>Props</dt><dd>Line, circle, dot: frames, strips, lanes, beads, nodes. Nothing else.</dd>
+    </dl></div>
+
+  <h2>The wall</h2>
+  <p>All 62 scenes at once, as they would sit on a contact sheet or a lobby screen. If a scene cannot be told apart at this size, it does not work yet.</p>
+  <div class="tools" id="wallTools"><span class="mono">tile</span><button data-z="64">small</button><button data-z="96" class="on">medium</button><button data-z="140">large</button><span class="mono" style="margin-left:14px">ground</span><button id="gPaper" class="on">paper</button><button id="gNight">night</button></div>
+  <canvas class="wall" id="wall"></canvas>
+  <div class="scale" id="scale"></div>
+
+  <h2>The films</h2>
+  <p>Seventeen scenes, one per film, each showing what that film does.</p>
+  <div class="grid" id="films"></div>
+
+  <h2>The signs</h2>
+  <p>Forty-five scenes. The body is the sign's tile, holding its symbol, with the family's colour inside the O. The legs act out the family: sight lines for perception, a close face for affect, force for action, a twin for reflection, a web for the mental image, turning time, a snapped thread for the break, a page for the readable image.</p>
+  <div id="signs"></div>
+
+  <h2>Teams</h2>
+  <p>Bolas working together. In the line, a shot travels along the thread and each Bolas does one operation to it before passing it on. In the chorus, a blink runs down the row like a machine pass, and one of them winks.</p>
+  <div class="team"><canvas id="pipe" width="1200" height="300"></canvas></div>
+  <div class="team"><canvas id="chorus" width="1200" height="220"></canvas></div>
+  <div class="team"><canvas id="syz" width="1200" height="300"></canvas></div>
+
+  <h2>Beside the idents</h2>
+  <p>Each film and sign ident, next to the Bolas scene that does its work. The ident shows the archive; the scene shows the operation.</p>
+  <div class="pairs" id="pairs"></div>
+
+  <div class="foot">Everything on this page is drawn live from the same few parts. Red is the thread alone. Colour appears only inside an O. The sign glosses come from the lab's table of signs.</div>
+</div>
+
+<script>
+const TAU=Math.PI*2;
+let INK='#17140f',BG='#f6f1e8',RED='#e0483a',MUTE='#857e72';
+function readTok(){const s=getComputedStyle(document.body);INK=s.getPropertyValue('--cink').trim();BG=s.getPropertyValue('--cbg').trim();RED=s.getPropertyValue('--red').trim();MUTE=s.getPropertyValue('--mute').trim();}
+const DOMC={perception:'#b0952f',affect:'#c0674a',action:'#c06a32',reflection:'#6e9445',mental:'#4f8f8f',time:'#6b63b0',break:'#8a8274',read:'#a0648f'};
+const ease=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t)};
+const lerp=(a,b,t)=>a+(b-a)*t;
+function rgba(hex,a){const h=hex.replace('#','');const n=parseInt(h.length===3?h.split('').map(c=>c+c).join(''):h,16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`}
+
+/* ---------------- the body ---------------- */
+function bodyDraw(c,kind,arg,t,s){
+  c.save();c.beginPath();c.arc(0,0,s*.93,0,TAU);c.clip();
+  c.strokeStyle=INK;c.fillStyle=INK;c.lineWidth=Math.max(1,s*.07);c.lineCap='round';
+  if(kind==='reel'){c.rotate(t*1.4);for(let i=0;i<5;i++){const a=i/5*TAU;c.beginPath();c.arc(Math.cos(a)*s*.5,Math.sin(a)*s*.5,s*.2,0,TAU);c.fill();}c.beginPath();c.arc(0,0,s*.1,0,TAU);c.fill();}
+  else if(kind==='iris'){const o=arg??(.35+.3*Math.sin(t*2));for(let i=0;i<6;i++){c.save();c.rotate(i/6*TAU+t*.3);c.beginPath();c.moveTo(s*o,-s);c.lineTo(s*o,s*.2);c.stroke();c.restore();}c.beginPath();c.arc(0,0,s*o*.9,0,TAU);c.stroke();}
+  else if(kind==='shutter'){c.rotate(t*5);for(const o of[0,Math.PI]){c.beginPath();c.moveTo(0,0);c.arc(0,0,s,o,o+1.2);c.fill();}}
+  else if(kind==='count'){const n=arg??(5-Math.floor(t%5));c.globalAlpha=.18;c.beginPath();c.moveTo(0,0);c.arc(0,0,s,-Math.PI/2,-Math.PI/2+(t%1)*TAU);c.fill();c.globalAlpha=1;c.font=`500 ${s*1.2}px "Cormorant Garamond",Georgia,serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(n,0,s*.06);}
+  else if(kind==='counter'){const n=String(Math.floor(arg??t*24)%10000).padStart(4,'0');c.font=`500 ${s*.46}px "IBM Plex Mono",monospace`;c.textAlign='center';c.textBaseline='middle';c.fillText(n,0,s*.04);c.lineWidth=Math.max(1,s*.04);c.strokeRect(-s*.62,-s*.26,s*1.24,s*.52);}
+  else if(kind==='wave'){c.beginPath();for(let i=-20;i<=20;i++){const x=i/20*s,env=Math.cos(i/20*Math.PI/2);c.lineTo(x,Math.sin(i*.9+t*8)*s*.45*env*(.4+.6*Math.abs(Math.sin(t*1.7))));}c.stroke();}
+  else if(kind==='grid'){const cols=arg||['#b0952f','#c0674a','#6e9445','#4f8f8f','#6b63b0','#a0648f','#c06a32','#8a8274','#b0952f'];for(let i=0;i<9;i++){const x=(i%3-1)*s*.46,y=(Math.floor(i/3)-1)*s*.46,on=(Math.floor(t*3)+i*4)%9<3;c.fillStyle=on?cols[i]:rgba(INK,.12);c.fillRect(x-s*.19,y-s*.19,s*.38,s*.38);}}
+  else if(kind==='page'){for(let i=0;i<5;i++){const w=s*(.9-((i*37)%5)*.08);c.fillRect(-s*.55,-s*.5+i*s*.24,w*Math.min(1,(t*1.2-i*.15)%2),s*.07);}}
+  else if(kind==='loop'){c.lineWidth=Math.max(1,s*.05);c.beginPath();c.arc(0,0,s*.55,0,TAU);c.stroke();const a=t*2.4;c.beginPath();c.arc(Math.cos(a)*s*.55,Math.sin(a)*s*.55,s*.16,0,TAU);c.fill();}
+  else if(kind==='clock'){c.lineWidth=Math.max(1,s*.08);c.beginPath();c.moveTo(0,0);c.lineTo(Math.cos(t*.5-Math.PI/2)*s*.45,Math.sin(t*.5-Math.PI/2)*s*.45);c.stroke();c.beginPath();c.moveTo(0,0);c.lineTo(Math.cos(t*3-Math.PI/2)*s*.72,Math.sin(t*3-Math.PI/2)*s*.72);c.stroke();}
+  else if(kind==='mirror'){c.globalAlpha=.85;c.fillRect(0,-s,s,2*s);c.globalAlpha=1;}
+  else if(kind==='molecule'){const p=[[-.35,-.25],[.35,-.3],[0,.35]];c.lineWidth=Math.max(1,s*.06);c.beginPath();c.moveTo(p[0][0]*s,p[0][1]*s);c.lineTo(p[1][0]*s,p[1][1]*s);c.lineTo(p[2][0]*s,p[2][1]*s);c.closePath();c.stroke();p.forEach(([x,y],i)=>{c.beginPath();c.arc(x*s,y*s,s*(i===Math.floor(t*2)%3?.2:.14),0,TAU);c.fill();});}
+  else if(kind==='compass'){c.rotate(Math.sin(t*1.3)*.6);c.beginPath();c.moveTo(0,-s*.75);c.lineTo(s*.16,0);c.lineTo(0,s*.75);c.lineTo(-s*.16,0);c.closePath();c.fill();}
+  else if(kind==='shadow'){const g=c.createRadialGradient(s*.3,0,0,s*.3,0,s);g.addColorStop(0,rgba(INK,.85));g.addColorStop(1,rgba(INK,.2));c.fillStyle=g;c.fillRect(-s,-s,2*s,2*s);}
+  else if(kind==='q'){c.font=`500 ${s*1.35}px "Cormorant Garamond",Georgia,serif`;c.textAlign='center';c.textBaseline='middle';c.fillText('?',0,s*.08);}
+  else if(kind==='notes'){for(let i=0;i<5;i++){c.globalAlpha=.4;c.fillRect(-s,-s*.5+i*s*.25,2*s,Math.max(.6,s*.03));}c.globalAlpha=1;for(let i=0;i<3;i++){const x=((t*.5+i/3)%1)*2*s-s,y=-s*.5+((i*2+1)%5)*s*.25;c.beginPath();c.arc(x,y,s*.12,0,TAU);c.fill();}}
+  else if(kind==='eye'){c.beginPath();c.arc(Math.sin(t)*s*.25,0,s*.3,0,TAU);c.fill();}
+  else if(kind==='sym'){c.fillStyle=rgba(arg.col,.45);c.fillRect(-s,-s,2*s,2*s);c.fillStyle=INK;c.font=`500 ${s*.95}px "Cormorant Garamond",Georgia,serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(arg.sym,0,s*.06);}
+  c.restore();
+}
+
+/* ---------------- Bolas ---------------- */
+const HIPS=[-38,-10,18,46].map(d=>d*Math.PI/180);
+const DEF=[[1.75,-1.25],[2.55,.05],[2.6,1.35],[2.0,2.35]];
+function feetDefault(){return{R:DEF.map(p=>p.slice()),L:DEF.map(p=>[-p[0],p[1]])}}
+function leg(c,h,f,a,b){
+  const dx=f[0]-h[0],dy=f[1]-h[1];let d=Math.hypot(dx,dy);d=Math.min(d,a+b-.01);
+  const base=Math.atan2(dy,dx),al=Math.acos(Math.max(-1,Math.min(1,(a*a+d*d-b*b)/(2*a*d))));
+  const k1=[h[0]+Math.cos(base-al)*a,h[1]+Math.sin(base-al)*a],k2=[h[0]+Math.cos(base+al)*a,h[1]+Math.sin(base+al)*a];
+  const k=k1[1]<k2[1]?k1:k2;
+  c.beginPath();c.moveTo(h[0],h[1]);c.lineTo(k[0],k[1]);c.lineTo(f[0],f[1]);c.stroke();
+}
+function bolas(c,o){
+  const{x,y,s}=o,ft=o.feet||feetDefault();
+  c.save();c.translate(x,y);
+  if(o.thread!==false){c.strokeStyle=RED;c.lineWidth=Math.max(1,s*.07);c.beginPath();c.moveTo(o.tx??0,(o.ttop??-9999)-y);c.lineTo(0,-s);c.stroke();}
+  if(o.rot)c.rotate(o.rot);
+  if(o.alpha!=null)c.globalAlpha=o.alpha;
+  c.strokeStyle=INK;c.lineWidth=Math.max(1.6,s*.11);c.lineCap='round';c.lineJoin='round';
+  for(const side of[1,-1]){const F=side>0?ft.R:ft.L;HIPS.forEach((a,i)=>{const h=[side*Math.cos(a)*s*.93,Math.sin(a)*s*.93];leg(c,h,[F[i][0]*s,F[i][1]*s],s*1.2,s*1.45);});}
+  c.fillStyle=BG;c.beginPath();c.arc(0,0,s,0,TAU);c.fill();
+  bodyDraw(c,o.body||'eye',o.barg,o.t||0,s);
+  c.strokeStyle=INK;c.lineWidth=Math.max(2,s*.17);c.beginPath();c.arc(0,0,s,0,TAU);c.stroke();
+  const hy=s*1.36,hr=s*.44;
+  c.fillStyle=BG;c.beginPath();c.arc(0,hy,hr,0,TAU);c.fill();c.lineWidth=Math.max(1.5,s*.13);c.stroke();
+  const e=o.eyes||{},lk=e.look||[0,0];
+  for(const[sx,q,cv]of[[-1,e.l||0,0],[1,e.r||0,e.rc||0]]){
+    const ex=sx*hr*.4+lk[0]*hr*.22,ey=hy+lk[1]*hr*.2,er=hr*.2;c.fillStyle=INK;
+    if(q<.8){c.beginPath();c.ellipse(ex,ey,er,Math.max(.4,er*(1-q)),0,0,TAU);c.fill();}
+    else{c.lineWidth=Math.max(.9,s*.06);c.beginPath();c.moveTo(ex-er*1.2,ey);c.quadraticCurveTo(ex,ey+er*1.6*cv,ex+er*1.2,ey);c.stroke();}
+  }
+  c.restore();
+}
+function eyes(t,wink=.62,look){const p=(t%4)/4;const b=(t%3.1)<.09?1:0;const w=p>wink&&p<wink+.16;return{l:b,r:w?1:b,rc:w?.9:0,look:look||[0,0]};}
+
+/* ---------------- props ---------------- */
+function frame(c,x,y,w,h,a=1){c.save();c.globalAlpha*=a;c.strokeStyle=INK;c.lineWidth=1.6;c.strokeRect(x,y,w,h);c.restore();}
+function strip(c,x,y,w,h,off=0){c.save();c.strokeStyle=INK;c.fillStyle=INK;c.lineWidth=1.4;c.strokeRect(x,y,w,h);const n=Math.floor(w/9);for(let i=0;i<n;i++){const xx=x+((i*9+off)%w+w)%w;c.fillRect(xx+2,y+2,3,2.4);c.fillRect(xx+2,y+h-4.4,3,2.4);}c.restore();}
+function ln(c,pts,w=1.3,a=1,dash){c.save();c.globalAlpha*=a;c.strokeStyle=INK;c.lineWidth=w;if(dash)c.setLineDash(dash);c.beginPath();pts.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));c.stroke();c.restore();}
+function dot(c,x,y,r,fill=true,a=1){c.save();c.globalAlpha*=a;c.fillStyle=INK;c.strokeStyle=INK;c.lineWidth=1.3;c.beginPath();c.arc(x,y,r,0,TAU);fill?c.fill():c.stroke();c.restore();}
+function thread(c,pts){c.save();c.strokeStyle=RED;c.lineWidth=1.8;c.beginPath();pts.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));c.stroke();c.restore();}
+
+/* ---------------- scenes: each draws into a 240x160 box ---------------- */
+const BX=120,BY=54,BS=20;
+const SC={};
+SC.machines=(c,t)=>{const f=feetDefault();f.R[0]=[1.5,2.5];f.L[0]=[-1.5,2.5];
+  frame(c,94,104,52,36);ln(c,[[102,122],[138,122]],1,.5);
+  for(let i=0;i<9;i++){const a=-Math.PI*.95+i/8*Math.PI*.9,x=BX+Math.cos(a)*92,y=BY+28+Math.sin(a)*70*.6;const hot=Math.floor(t*2.2)%9===i;dot(c,x,y,hot?4:2.6,hot);if(hot)ln(c,[[BX,BY],[x,y]],1,.35,[3,3]);}
+  bolas(c,{x:BX,y:BY,s:BS,t,body:'iris',feet:f,eyes:eyes(t,.7,[0,.6]),ttop:0});};
+SC.archive=(c,t)=>{const f=feetDefault();const pull=Math.sin(t*3)*.25;f.R[0]=[2.3,1.0+pull];f.L[0]=[-2.3,1.0-pull];
+  frame(c,30,112,60,34);frame(c,150,112,60,34);
+  const off=t*30;strip(c,52,64,16,48,off);strip(c,172,64,16,48,-off);
+  bolas(c,{x:BX,y:BY,s:BS,t,body:'reel',feet:f,eyes:eyes(t),ttop:0});};
+SC.voice=(c,t)=>{const f=feetDefault();const beat=[0,.3,.42,.8];const k=(t%1.2)/1.2;
+  ln(c,[[20,140],[220,140]],1.2);for(let i=0;i<9;i++)ln(c,[[28+i*23,136],[28+i*23,144]],1.2,.5);
+  const up=b=>Math.max(0,1-Math.abs(k-b)*10);f.R[0]=[2.0,2.9-up(beat[1])*1.0];f.L[0]=[-2.0,2.9-up(beat[3])*1.0];f.R[1]=[2.7,2.9-up(beat[0])*.6];f.L[1]=[-2.7,2.9-up(beat[2])*.6];
+  bolas(c,{x:BX,y:BY+6,s:BS,t,body:'wave',feet:f,eyes:eyes(t),ttop:0});};
+SC.asking=(c,t)=>{const f=feetDefault();const i=Math.floor(t*2)%4;f.R[i]=[DEF[i][0]+.4,DEF[i][1]-1.1];
+  for(let j=0;j<3;j++){const a=ease(((t*.8+j*.33)%1)*3);frame(c,170+j*0,26+j*38,40,26,a*.9);}
+  thread(c,[[0,10],[40,10],[60,30]]);
+  bolas(c,{x:BX-20,y:BY+4,s:BS,t,body:'q',feet:f,eyes:eyes(t,.6,[.8,-.3]),ttop:0});};
+SC.choosing=(c,t)=>{const f=feetDefault();const tilt=Math.sin(t*1.6)*.18+(((t%4)/4)>.6?.12:0);
+  f.R[0]=[2.6,1.2+tilt*6];f.L[0]=[-2.6,1.2-tilt*6];
+  const ly=BY+20-tilt*100,ry=BY+20+tilt*100;
+  frame(c,30,ly+8,44,30);frame(c,166,ry+8,44,30);ln(c,[[52,ly+8],[BX-36,BY+20]],1,.4);ln(c,[[188,ry+8],[BX+36,BY+20]],1,.4);
+  bolas(c,{x:BX,y:BY,s:BS,t,body:'counter',barg:Math.floor(t*7)*13,feet:f,eyes:eyes(t,.65,[-.8,.3]),ttop:0,rot:tilt*.4});};
+SC.syntagma=(c,t)=>{const f=feetDefault();const sn=(t%2)/2;const g=sn<.5?ease(sn*2)*8:ease((1-sn)*2)*8;
+  f.R[0]=[1.0,3.6];f.L[0]=[-1.0,3.6];
+  strip(c,16,124,100-g,20,t*10);strip(c,124+g,124,100-g,20,t*10);
+  ln(c,[[BX,118],[BX,150]],1,.5,[2,3]);
+  bolas(c,{x:BX,y:BY,s:BS,t,body:'shutter',feet:f,eyes:eyes(t,.5,[0,.8]),ttop:0});};
+SC.poem=(c,t)=>{const f=feetDefault();f.R[0]=[2.8,-.6];f.L[0]=[-2.8,-.6];
+  for(let i=0;i<4;i++){const x=184,y=24+i*32,k=ease(((t*.7+i*.25)%1)*2);frame(c,x,y,40,24,.25+.75*k);ln(c,[[BX+44,BY+2],[lerp(BX+44,x,k),lerp(BY+2,y+12,k)]],1,.45,[3,3]);}
+  for(let i=0;i<5;i++)c.fillStyle=INK,c.fillRect(16,30+i*22,48-(i*13)%24,4);
+  bolas(c,{x:BX,y:BY,s:BS,t,body:'page',feet:f,eyes:eyes(t,.6,[.7,-.2]),ttop:0});};
+SC.suite=(c,t)=>{const f=feetDefault();const a=Math.sin(t*3.2);f.R[0]=[2.2+a*.5,-1.6+a*.9];f.L[0]=[-2.2+a*.5,-1.6-a*.9];
+  for(let i=0;i<5;i++)ln(c,[[10,112+i*8],[230,112+i*8]],1,.45);
+  for(let i=0;i<7;i++){const x=((t*28+i*36)%240),y=112+((i*3)%5)*8;dot(c,x,y,3.4);}
+  bolas(c,{x:BX,y:BY-6,s:BS,t,body:'notes',feet:f,eyes:eyes(t),ttop:0});};
+SC.scenes=(c,t)=>{const f=feetDefault();f.R[0]=[1.9,3.2];f.L[0]=[-1.9,3.2];
+  const k=(t%1.5)/1.5;frame(c,82,108,76,44);c.save();c.beginPath();c.rect(82,108,76,44);c.clip();ln(c,[[82+k*76,108],[82+k*76,152]],2,.7);ln(c,[[90,140],[110,128],[130,136],[150,124]],1.2,.6);c.restore();
+  bolas(c,{x:BX,y:BY-6,s:BS,t,body:'reel',feet:f,eyes:eyes(t,.55,[0,.8]),ttop:0});};
+SC.cineosis=(c,t)=>{const f=feetDefault();const k=Math.floor(t*2)%2;f.R[0]=[2.6,.4-k*.8];f.L[0]=[-2.6,.4-(1-k)*.8];
+  for(let i=0;i<9;i++)for(let j=0;j<3;j++){const x=i<4?16+i*14:168+(i-4)*14,y=116+j*14;c.fillStyle=rgba(INK,.15);c.fillRect(x,y,10,10);}
+  bolas(c,{x:BX,y:BY,s:BS+2,t,body:'grid',feet:f,eyes:eyes(t),ttop:0});};
+SC.drift=(c,t)=>{const p=(t%5)/5,x=lerp(30,210,p),y=BY+8+Math.sin(p*9)*8;const f=feetDefault();const w=Math.sin(t*10);
+  f.R.forEach((q,i)=>q[1]+=(i%2?w:-w)*.3);f.L.forEach((q,i)=>q[1]+=(i%2?-w:w)*.3);
+  ln(c,[[0,150],[240,150]],1,.4);for(let i=0;i<10;i++){const xx=30+i*18;if(xx<x-10)dot(c,xx,BY+8+Math.sin((xx-30)/180*9)*8+30,2.6,i===Math.floor((x-30)/18)-1);}
+  bolas(c,{x,y,s:BS-2,t,body:'eye',feet:f,eyes:eyes(t,.8,[1,0]),ttop:0,tx:-20});};
+SC.compare=(c,t)=>{const f=feetDefault();f.R[0]=[2.9,.3];f.L[0]=[-2.9,.3];const lk=Math.sin(t*1.8)>0?1:-1;
+  frame(c,18,60,46,34);frame(c,176,60,46,34);ln(c,[[24,84],[40,72],[58,80]],1.2,.7);ln(c,[[182,70],[198,86],[216,74]],1.2,.7);
+  bolas(c,{x:BX,y:BY,s:BS,t,body:'mirror',feet:f,eyes:{...eyes(t),look:[lk,0]},ttop:0});};
+SC.syzygy=(c,t)=>{const p=(t%5)/5,sync=ease((p-.5)*4);
+  [60,120,180].forEach((x,i)=>{const ph=lerp(i*2.1,0,sync),a=Math.sin(t*2.2+ph)*.35;const bx=x+Math.sin(a)*70,by=10+Math.cos(a)*70;thread(c,[[x,0],[bx,by-10]]);bolas(c,{x:bx,y:by,s:10,t,body:'eye',thread:false,eyes:eyes(t+i)});});
+  if(sync>.95)ln(c,[[0,150],[240,150]],2,1);else ln(c,[[0,150],[240,150]],1,.3);};
+SC.cast=(c,t)=>{const f=feetDefault();f.R[0]=[2.4,-1.4];f.L[0]=[-2.4,-1.4];
+  c.save();c.globalAlpha=.25;c.strokeStyle=INK;c.beginPath();c.ellipse(BX,BY+12,96,54,0,0,TAU);c.stroke();c.restore();
+  for(let j=0;j<4;j++){const a=t*1.2+j*TAU/4,x=BX+Math.cos(a)*96,y=BY+12+Math.sin(a)*54;frame(c,x-10,y-7,20,14);ln(c,[[x-6,y+3],[x,y-3],[x+6,y+2]],1,.7);}
+  bolas(c,{x:BX,y:BY,s:BS,t,body:'loop',feet:f,eyes:eyes(t),ttop:0});};
+SC.chemistry=(c,t)=>{const f=feetDefault();const N=[[30,40],[40,120],[90,140],[200,40],[210,120],[160,145]];const a=Math.floor(t*1.4)%6,b=(a*5+2)%6;
+  N.forEach(([x,y],i)=>dot(c,x,y,4.2,i===a||i===b));ln(c,[N[a],N[b]],2,1);ln(c,[N[(a+1)%6],N[(b+3)%6]],1,.25,[3,3]);
+  f.R[0]=[(N[a][0]-BX)/BS*.5,(N[a][1]-BY)/BS*.5];f.L[0]=[(N[b][0]-BX)/BS*.5,(N[b][1]-BY)/BS*.5];
+  bolas(c,{x:BX,y:BY,s:BS,t,body:'molecule',feet:f,eyes:eyes(t),ttop:0});};
+SC.odyssey=(c,t)=>{for(let k=0;k<4;k++)ln(c,[...Array(25)].map((_,i)=>[i*10,118+k*10+Math.sin(i*.6+t*2+k)*3]),1.1,.55-k*.1);
+  const r=Math.sin(t*1.6)*.18;const f=feetDefault();f.R[3]=[1.9,2.1];f.L[3]=[-1.9,2.1];
+  thread(c,[[0,30],[40,20],[80,40],[100,30]]);
+  bolas(c,{x:BX+10,y:BY+20,s:BS-2,t,body:'compass',feet:f,eyes:eyes(t,.6,[.8,-.4]),thread:false,rot:r});
+  thread(c,[[100,30],[BX+10+Math.sin(r)*15,BY+20-15]]);};
+SC.republic=(c,t)=>{c.save();c.strokeStyle=INK;c.lineWidth=1.4;c.globalAlpha=.6;c.beginPath();c.arc(120,190,150,Math.PI*1.08,Math.PI*1.92);c.stroke();c.restore();
+  c.save();c.globalAlpha=.16;c.fillStyle=INK;c.beginPath();c.arc(178+Math.sin(t)*4,62,32,0,TAU);c.fill();for(let i=0;i<4;i++){c.fillRect(150+i*14,92,4,40);}c.restore();
+  for(let i=0;i<3;i++){const on=Math.floor(t*1.5)%2===i%2;ln(c,i%2?[[150,120+i*10],[190,120+i*10]]:[[30,120+i*10],[80,120+i*10]],2.4,on?1:.25);}
+  bolas(c,{x:90,y:BY,s:BS,t,body:'shadow',eyes:eyes(t,.6,[1,0]),ttop:0});};
+
+/* ---- the sign families: body is the sign's tile ---- */
+function signScene(dom,sym,seed,v){const col=DOMC[dom];const sp=.8+((seed*37)%10)/20,dir=seed%2?1:-1;
+  return(c,t)=>{t*=sp;const f=feetDefault();const B={sym,col};
+    if(VAR(c,t,dom,v,B,f,dir))return;
+    if(dom==='perception'){const tx=BX+dir*Math.sin(t*.9)*80,ty=26+Math.cos(t*1.3)*10;dot(c,tx,ty,4);ln(c,[[BX-6,BY+24],[tx,ty]],1,.45,[3,3]);ln(c,[[BX+6,BY+24],[tx,ty]],1,.45,[3,3]);
+      f.R[0]=[1.2,-1.8];bolas(c,{x:BX,y:BY+10,s:BS,t,body:'sym',barg:B,feet:f,eyes:eyes(t,.6,[(tx-BX)/80,-.8]),ttop:0});}
+    else if(dom==='affect'){const br=1+Math.sin(t*1.4)*.03;bolas(c,{x:BX,y:58,s:31*br,t,body:'sym',barg:B,eyes:eyes(t,.55),ttop:0});}
+    else if(dom==='action'){const p=(t%3)/3,x=p<.6?lerp(40,200,ease(p/.6)):200,sq=p>.6&&p<.68?1:0;const w=Math.sin(t*14);
+      f.R.forEach((q,i)=>q[0]+=(i%2?w:-w)*.25*(p<.6));f.L.forEach((q,i)=>q[0]+=(i%2?-w:w)*.25*(p<.6));
+      for(let i=0;i<3;i++)if(p<.6)ln(c,[[x-50-i*8,BY+10+i*12],[x-30-i*8,BY+10+i*12]],1.2,.5);
+      ln(c,[[210,30],[210,150]],1.4,.6);
+      bolas(c,{x:Math.min(x,200)*(dir>0?1:1),y:BY+12+sq*3,s:BS,t,body:'sym',barg:B,feet:f,eyes:eyes(t,.75,[1,0]),ttop:0,tx:-(x-40)*.5});}
+    else if(dom==='reflection'){ln(c,[[BX,10],[BX,150]],1.2,.4);const a=Math.sin(t*1.2)*.6;f.R[0]=[2.2,-.2+a];
+      bolas(c,{x:BX-52,y:BY+6,s:BS-2,t,body:'sym',barg:B,feet:f,eyes:eyes(t,.6,[1,0]),ttop:0});
+      c.save();c.translate(2*BX,0);c.scale(-1,1);bolas(c,{x:BX-52,y:BY+6,s:BS-2,t,body:'sym',barg:{sym:'',col},feet:f,eyes:eyes(t+.5,.9,[1,0]),ttop:0,alpha:.4});c.restore();}
+    else if(dom==='mental'){const N=[[24,30],[40,130],[216,34],[200,132],[120,148],[70,90],[175,88]];const k=(t*.6)%N.length;
+      for(let i=0;i<N.length;i++){dot(c,N[i][0],N[i][1],3.6,false);if(i<k)ln(c,[N[i],N[(i+3)%N.length]],1.2,.6);}
+      const cur=N[Math.floor(k)];f.R[0]=[(cur[0]-BX)/BS*.45,(cur[1]-BY)/BS*.45];
+      bolas(c,{x:BX,y:BY,s:BS,t,body:'sym',barg:B,feet:f,eyes:eyes(t,.6,[(cur[0]-BX)/100,(cur[1]-BY)/100]),ttop:0});}
+    else if(dom==='time'){for(let i=0;i<3;i++){const r=((t*14+i*30)%90)+30;c.save();c.globalAlpha=Math.max(0,1-r/120)*.5;c.strokeStyle=INK;c.beginPath();c.arc(BX,BY,r,0,TAU);c.stroke();c.restore();}
+      bolas(c,{x:BX,y:BY,s:BS,t,body:'sym',barg:B,eyes:eyes(t,.6),ttop:0});
+      c.save();c.translate(BX,BY);c.strokeStyle=INK;c.lineWidth=1.6;c.beginPath();c.moveTo(0,0);c.lineTo(Math.cos(t*dir-Math.PI/2)*BS*1.4,Math.sin(t*dir-Math.PI/2)*BS*1.4);c.stroke();c.restore();}
+    else if(dom==='break'){const p=(t%3)/3,snapped=p>.35,y=snapped?Math.min(BY+46,BY+ease((p-.35)/.25)*46):BY,bounce=p>.6&&p<.7?Math.sin((p-.6)*30)*4:0;
+      thread(c,[[BX,0],[BX,snapped?32:BY-BS]]);if(snapped)thread(c,[[BX,y-BS+bounce-14],[BX,y-BS+bounce]]);
+      ln(c,[[20,150],[220,150]],1.2,.5);if(snapped){f.R[3]=[2.4,1.7];f.L[3]=[-2.4,1.7];}
+      bolas(c,{x:BX,y:y+bounce,s:BS,t,body:'sym',barg:B,feet:f,eyes:snapped?{l:1,r:p>.75?0:1,rc:.4}:eyes(t),thread:false});}
+    else if(dom==='read'){f.R[0]=[1.7,3.0];f.L[0]=[-1.7,3.0];frame(c,78,106,84,46);
+      for(let i=0;i<4;i++){const w=Math.min(1,((t*.8)%2)*1.6-i*.3);if(w>0)c.fillStyle=INK,c.fillRect(86,114+i*9,66*w*(.7+((i*13+seed)%5)/15),3.2);}
+      bolas(c,{x:BX,y:BY-6,s:BS,t,body:'sym',barg:B,feet:f,eyes:eyes(t,.62,[0,.9]),ttop:0});}
+  };}
+
+
+/* second and third scenes per family, so neighbours in a family differ at a glance */
+function VAR(c,t,dom,v,B,f,dir){
+  if(v===0)return false;
+  const K=(o)=>bolas(c,Object.assign({x:BX,y:BY,s:BS,t,body:'sym',barg:B,eyes:eyes(t),ttop:0},o));
+  if(dom==='perception'&&v===1){for(let k=0;k<4;k++)ln(c,[...Array(25)].map((_,i)=>[i*10,30+k*34+Math.sin(i*.5+t*2.4+k)*5]),1.3,.45);K({});return true;}
+  if(dom==='perception'&&v===2){for(let i=0;i<40;i++){const x=(i*53+t*20*(1+i%3))%240,y=(i*37+Math.sin(t+i)*10)%160;dot(c,x,y,1.6,true,.55);}K({eyes:eyes(t,.6,[Math.sin(t),-.5])});return true;}
+  if(dom==='affect'&&v===1){[[70,70,22],[170,70,22],[120,100,24]].forEach(([x,y,s],i)=>bolas(c,{x,y,s,t:t+i,body:'sym',barg:i===2?B:{sym:'',col:B.col},eyes:eyes(t+i*.8,.6),ttop:0}));return true;}
+  if(dom==='affect'&&v===2){for(let k=0;k<6;k++)ln(c,[[0,20+k*24+Math.sin(t+k)*4],[240,24+k*24+Math.cos(t+k)*4]],6,.06);K({s:11,x:70,y:96,eyes:eyes(t,.7,[1,0])});return true;}
+  if(dom==='action'&&v===1){const p=(t%3)/3,g=p<.5?ease(p*2):1-ease((p-.5)*2);const fa=feetDefault(),fb=feetDefault();fa.R[0]=[2.8,.2];fb.L[0]=[-2.8,.2];
+    K({x:40+g*38,s:17,feet:fa,eyes:eyes(t,.7,[1,0])});K({x:200-g*38,s:17,barg:{sym:'',col:B.col},feet:fb,eyes:eyes(t+1,.9,[-1,0])});return true;}
+  if(dom==='action'&&v===2){const p=(t%2.4)/2.4,x=lerp(40,200,p),y=120-Math.sin(p*Math.PI)*70;ln(c,[[0,150],[240,150]],1.4,.5);
+    ln(c,[...Array(20)].map((_,i)=>{const q=i/19*p;return[lerp(40,200,q),120-Math.sin(q*Math.PI)*70+20]}),1,.35,[2,4]);K({x,y,s:16,rot:(p-.5)*1.4,thread:false});return true;}
+  if(dom==='reflection'&&v===1){ln(c,[[0,80],[240,80]],1.2,.4);c.save();K({x:BX,y:38,s:14});c.translate(0,160);c.scale(1,-1);bolas(c,{x:BX,y:38,s:14,t,body:'sym',barg:{sym:'',col:B.col},eyes:eyes(t+.4),thread:false,alpha:.4});c.restore();return true;}
+  if(dom==='reflection'&&v===2){ln(c,[[30,140],[210,140]],2.4,.9);for(const x of[24,216])ln(c,[[x,10],[x,140]],3,.6);for(let i=0;i<3;i++)ln(c,[[30+i*6,10],[30+i*6,40+Math.sin(t+i)*8]],1,.4);K({y:BY+14,eyes:eyes(t,.55)});return true;}
+  if(dom==='mental'&&v===1){for(let i=0;i<6;i++){const x=24+i*38,on=Math.floor(t*2)%6===i;c.save();c.strokeStyle=INK;c.lineWidth=on?2.4:1.2;c.globalAlpha=on?1:.45;c.beginPath();c.arc(x,140,9,0,TAU);c.stroke();c.restore();if(i)ln(c,[[x-29,140],[x-9,140]],1.2,.45);}K({y:BY-4});return true;}
+  if(dom==='mental'&&v===2){[[150,34,8],[172,20,11],[200,10,15]].forEach(([x,y,r],i)=>{c.save();c.globalAlpha=.4+.6*((Math.floor(t*2)+i)%3===0);c.strokeStyle=INK;c.lineWidth=1.4;c.beginPath();c.arc(x,y+r,r,0,TAU);c.stroke();c.restore();});K({x:100,eyes:eyes(t,.6,[.8,-.6])});return true;}
+  if(dom==='time'&&v===1){c.save();c.translate(BX,BY);c.rotate(t*.2);c.strokeStyle=INK;c.lineWidth=1.4;for(const r of[48,62]){c.globalAlpha=r===48?.8:.35;c.beginPath();for(let i=0;i<=6;i++){const a=i/6*TAU;c.lineTo(Math.cos(a)*r,Math.sin(a)*r);}c.stroke();}c.restore();K({});bolas(c,{x:BX+Math.sin(t)*10,y:BY,s:BS,t,body:'sym',barg:{sym:'',col:B.col},eyes:eyes(t+.5),thread:false,alpha:.25});return true;}
+  if(dom==='time'&&v===2){for(let i=4;i>=0;i--){c.save();c.globalAlpha=.12+.1*(4-i);c.fillStyle=INK;c.fillRect(30+i*9,20+i*7,180-i*18,120-i*14);c.restore();c.fillStyle=BG;c.fillRect(32+i*9,22+i*7,176-i*18,116-i*14);}K({});return true;}
+  if(dom==='break'&&v===1){for(let i=0;i<3;i++){const r=((t*30+i*20)%60)+10;c.save();c.globalAlpha=Math.max(0,1-r/70);c.strokeStyle=INK;c.lineWidth=1.6;c.beginPath();c.arc(BX,BY+27,r,-.6,.6);c.stroke();c.beginPath();c.arc(BX,BY+27,r,Math.PI-.6,Math.PI+.6);c.stroke();c.restore();}K({eyes:{l:1,r:1,rc:.2}});return true;}
+  if(dom==='read'&&v===1){const k=Math.floor(t*1.2)%4;const fp=feetDefault();if(k===1){fp.R[0]=[1,-2.6];fp.L[0]=[-1,-2.6];}if(k===2){fp.R[0]=[2.9,1];fp.L[0]=[-.6,-2.4];}if(k===3){fp.R.forEach(q=>q[1]+=.5);fp.L.forEach(q=>q[1]+=.5);}K({feet:fp,rot:k===2?.15:0});return true;}
+  if(dom==='read'&&v===2){const N=[[-8,-6],[7,-8],[0,6],[-6,3],[8,5]];K({});c.save();c.translate(BX,BY);c.globalAlpha=.6;N.forEach((a,i)=>{const b=N[(i+2)%5];ln(c,[a,b],1,.8);});c.restore();return true;}
+  return false;}
+
+/* ---------------- data ---------------- */
+const FILMS=[
+ ['2','What the Machines See','machines','an iris scans a frame while nine machines take turns looking'],
+ ['1','Where the Archive Came From','archive','a reel pulls shots up out of two drawers'],
+ ['L4','The Voice Is the Clock','voice','a waveform body; the legs tap out the line\'s uneven beat'],
+ ['L7','Asking','asking','a question body raises one leg after another; frames come back'],
+ ['L8','Choosing','choosing','a score counter weighing two frames; it tips toward the worse match'],
+ ['5.7','How a Film Joins Its Shots','syntagma','a shutter body cuts a strip and joins it again'],
+ ['5.1','The Poem and the Search','poem','a page body casts lines from the poem out to pictures'],
+ ['5.2','Suite','suite','a stave body conducts notes across the score'],
+ ['5.3','Scenes','scenes','a reel holds one old film, frame after frame'],
+ ['5.4','Cineosis','cineosis','a grid body lights the signs each moment asks for'],
+ ['5.5','Drift','drift','walking on, each step only knowing the last'],
+ ['5.6','Four Takes Compared','compare','looking from one take to the other'],
+ ['R1','When the Tracks Agree','syzygy','three Bolas on their own threads, falling into step'],
+ ['R2','The Recurring Cast','cast','the same shot keeps coming round'],
+ ['R3','Narrative Chemistry, on Trial','chemistry','bonding one pair, then a random other'],
+ ['4','The Odyssey','odyssey','a compass body rocking over the sea'],
+ ['7','The Republic','republic','a figure and its shadow, and a dialogue in turns'],
+];
+const SIGNS=[["1", "So", "Solid perception", "perception", "all images revolve around a central and privileged image"], ["2", "Lq", "Liquid perception", "perception", "the flow from character/event to character/event"], ["3", "Ga", "Gaseous perception", "perception", "all images resonate with one another as an acentred system"], ["4", "Ic", "Icon", "affect", "the face expressing unfilmable internal intensities"], ["5", "Dv", "Dividual", "affect", "the conjunction of collective and individual affects"], ["6", "As", "Any-space-whatever", "affect", "the expression of non-human affects"], ["7", "Sy", "Symptom", "action", "characters overwhelmed by primal forces"], ["8", "Fe", "Fetish", "action", "a special object charged with primal energies, awaiting a grounding"], ["9", "Or", "Originary world", "action", "a universe of primal forces"], ["10", "Il", "Index of lack", "action", "the situation is an ellipsis which is unequivocally revealed"], ["11", "Ie", "Index of equivocity", "action", "the situation is revealed as ambiguous"], ["12", "Ve", "Vector", "action", "multiple situations within the homogeneous universe"], ["13", "Mi", "Milieu", "action", "the situation explicated through character actions"], ["14", "Bi", "Binomial", "action", "a whole world of duels"], ["15", "Im", "Imprint", "action", "an indelible impression of the world upon a character"], ["16", "Pl", "Plastic figure", "reflection", "small form transformed by the large form, an implied situation"], ["17", "Th", "Theatrical figure", "reflection", "a sequence of images as precursor of the real action"], ["18", "Ma", "Mise en abyme", "reflection", "a recurrence of plastic and theatrical figures"], ["19", "Su", "Figure of the sublime", "reflection", "actions surpass the determinates of an enfeebled situation"], ["20", "En", "Figure of enfeeblement", "reflection", "weak characters reveal the sublime nature of the world"], ["21", "Qu", "Quotidian", "reflection", "everyday situations, everyday actions – sublime ↔ futile"], ["22", "Ll", "Limit of the large form action-image", "reflection", "action explores a hidden problem"], ["23", "Ls", "Limit of the small form action-image", "reflection", "the situation revealed as a problem"], ["24", "Xl", "Limit of the action-image (extreme limit)", "reflection", "a whole world of problems"], ["25", "Rd", "Rich dream", "mental", "radically distinct real world and dream world"], ["26", "Rs", "Restrained dream", "mental", "an ambiguity between real world and dream world"], ["27", "Mw", "Movement of world", "mental", "the dream world is the real world"], ["28", "Sd", "Strong destiny", "mental", "a flashback to the past determines the future"], ["29", "Wd", "Weak destiny", "mental", "the content of the flashback permeates affects"], ["30", "Fp", "Forking paths", "mental", "a matrix of irresolvable flashbacks"], ["31", "Mk", "Mark", "mental", "the relation between a habitual series of images"], ["32", "Dm", "Demark", "mental", "an aberration in the series of habitual images"], ["33", "Sb", "Symbol", "mental", "an object expressing ideas, beliefs, concepts"], ["34a", "Op", "Opsign", "break", "the zeroness of the time-image: a pure optical situation"], ["34b", "Sn", "Sonsign", "break", "the zeroness of the time-image: a pure sound situation"], ["35", "Mf", "Mirrors face to face", "time", "fragments, duplicates and distortions"], ["36", "Lo", "Limpid and opaque", "time", "the exchange of the actual and virtual"], ["37", "Se", "Seed and environment", "time", "(virtual/actual) seed ↔ (actual/virtual) environment"], ["38", "Pp", "Peaks of the present", "time", "the heterogeneous present"], ["39", "Sp", "Sheets of the past", "time", "the non-chronological nature of the past"], ["40", "Pf", "Powers of the false", "time", "serialism, the ongoing ungrounding of the image"], ["41", "Ba", "Bodies of attitude", "time", "a dispersed individuation of the body"], ["42", "Bg", "Bodies of gest", "time", "the linkage of attitudes creating differentiation"], ["43", "Br", "Cinema of the brain", "time", "the screen as a cerebral space"], ["44", "Le", "Lectosigns", "read", "the infinite of the time-image"]];
+</script>
+<script>
+/* sign rows come from the lab's own table at build time */
+</script>
+<script>
+/* ---------------- build ---------------- */
+const SCENES=[];
+FILMS.forEach(([n,t,k,d],i)=>SCENES.push({id:'film-'+String(i+1).padStart(2,'0'),n,t,d,fn:SC[k],kind:'film'}));
+const famIx={};SIGNS.forEach(([n,sym,t,dom,g],i)=>{famIx[dom]=(famIx[dom]??-1)+1;SCENES.push({id:'sign-'+n,n,sym,t,d:g,dom,fn:signScene(dom,sym,i*7+3,famIx[dom]%3),kind:'sign'});});
+const views=[];
+function card(sc){const el=document.createElement('article');el.className='card';el.innerHTML=`<canvas width="480" height="320"></canvas><div class="m"><div class="n">${sc.kind==='film'?'FILM '+sc.n:'SIGN '+sc.n+' · '+sc.sym}</div><h4>${sc.t}</h4><p>${sc.d}</p></div>`;views.push({cv:el.querySelector('canvas'),fn:sc.fn,el,vis:false,s:2});return el;}
+const fg=document.getElementById('films');SCENES.filter(s=>s.kind==='film').forEach(s=>fg.appendChild(card(s)));
+const sw=document.getElementById('signs');
+['perception','affect','action','reflection','mental','time','break','read'].forEach(dom=>{
+  const h=document.createElement('h3');h.style.setProperty('--a',DOMC[dom]);h.innerHTML=`<i></i>${{perception:'Perception',affect:'Affection',action:'Action',reflection:'Reflection',mental:'Mental',time:'Time',break:'Break',read:'Readable'}[dom]}<span>${{perception:'sight lines to what is seen',affect:'a face, close',action:'force crossing the frame',reflection:'a figure and its twin',mental:'a web of relations',time:'turning time',break:'the thread snaps',read:'a page to be read'}[dom]}</span>`;sw.appendChild(h);
+  const g=document.createElement('div');g.className='grid';SCENES.filter(s=>s.dom===dom).forEach(s=>g.appendChild(card(s)));sw.appendChild(g);});
+
+/* anatomy */
+const anat={cv:document.getElementById('anat'),vis:true,s:3.75,fn:(c,t)=>{const k=Math.floor(t/2.4)%6;const bodies=['eye','reel','iris','shutter','count','wave'];
+  const f=feetDefault();f.R[0]=[2.4,-.4+Math.sin(t*2)*.5];bolas(c,{x:BX,y:BY+6,s:BS+3,t,body:bodies[k],barg:k===4?3:undefined,feet:f,eyes:eyes(t),ttop:0});
+  c.save();c.font='500 6px "IBM Plex Mono",monospace';c.fillStyle=MUTE;c.textAlign='left';
+  [['THREAD',BX+6,10],['BODY · '+bodies[k].toUpperCase(),BX+30,BY-22],['HEAD',BX+18,BY+38],['LEGS',BX+56,BY+40]].forEach(([s,x,y])=>c.fillText(s,x,y));c.restore();}};
+views.push(anat);
+
+/* wall: every scene on one canvas */
+const wall=document.getElementById('wall');let tile=96;
+function sizeWall(){const w=wall.clientWidth||1100,cols=Math.max(4,Math.floor(w/(tile*1.5))),rows=Math.ceil(SCENES.length/cols);wall.width=w*devicePixelRatio;wall.height=Math.round(rows*(w/cols)/1.5*devicePixelRatio);wall._cols=cols;}
+document.querySelectorAll('#wallTools button[data-z]').forEach(b=>b.onclick=()=>{tile=+b.dataset.z;document.querySelectorAll('#wallTools button[data-z]').forEach(x=>x.classList.toggle('on',x===b));sizeWall();});
+document.getElementById('gNight').onclick=e=>{document.body.classList.add('night');e.target.classList.add('on');document.getElementById('gPaper').classList.remove('on');readTok();};
+document.getElementById('gPaper').onclick=e=>{document.body.classList.remove('night');e.target.classList.add('on');document.getElementById('gNight').classList.remove('on');readTok();};
+addEventListener('resize',sizeWall);sizeWall();
+
+/* the same scene at five sizes */
+const scale=document.getElementById('scale');
+[24,48,96,160,300].forEach(w=>{const f=document.createElement('figure');f.innerHTML=`<canvas width="${w*2}" height="${Math.round(w*2/1.5)}" style="width:${w}px;height:${Math.round(w/1.5)}px"></canvas><figcaption>${w}px</figcaption>`;scale.appendChild(f);views.push({cv:f.querySelector('canvas'),fn:SC.machines,vis:true,s:w*2/240});});
+
+/* teams */
+const pipe={cv:document.getElementById("pipe"),vis:false,s:1,fn:(c,t)=>{
+  c.save();c.scale(2.5,2.5);const W=480,ly=40;thread(c,[[0,ly],[W,ly]]);
+  const ops=[['reel','SEARCH'],['iris','READ'],['shutter','CUT'],['molecule','JOIN'],['counter','STORE']];
+  const p=(t%7.5)/7.5,fx=lerp(-20,W+20,p),stage=Math.floor((fx-20)/96);
+  ops.forEach(([b,l],i)=>{const x=48+i*96,near=Math.abs(fx-x)<26;const f=feetDefault();if(near){f.R[0]=[1.6,2.6];f.L[0]=[-1.6,2.6];}
+    bolas(c,{x,y:ly+30,s:13,t,body:b,feet:f,eyes:near?{l:0,r:Math.abs(fx-x)<8?1:0,rc:.9,look:[0,.8]}:eyes(t+i),thread:false});thread(c,[[x,ly],[x,ly+17]]);
+    c.font='500 6px "IBM Plex Mono",monospace';c.fillStyle=MUTE;c.textAlign='center';c.fillText(l,x,ly+76);});
+  const cut=stage>=2,joined=stage>=3;c.save();c.translate(fx,ly+62);
+  if(cut&&!joined){frame(c,-14,-6,12,12);frame(c,2,-6,12,12);}else frame(c,-12,-6,24,12);if(stage>=1)ln(c,[[-8,2],[0,-3],[8,1]],1,.8);if(stage>=4)dot(c,0,-10,2);c.restore();c.restore();}};
+const chorus={cv:document.getElementById("chorus"),vis:false,s:1,fn:(c,t)=>{c.save();c.scale(2.5,2.5);
+  const n=12,p=(t%4)/4,wave=p*16-2,winker=7;
+  for(let i=0;i<n;i++){const x=20+i*40,b=Math.abs(wave-i)<.6?1:0,w=i===winker&&p>.62&&p<.85;
+    bolas(c,{x,y:44,s:10,t,body:i===winker?'iris':'eye',eyes:{l:w?0:b,r:w?1:b,rc:w?.9:0,look:w?[0,.6]:[0,0]},ttop:0});}
+  c.restore();}};
+const syz={cv:document.getElementById("syz"),vis:false,s:1,fn:(c,t)=>{c.save();c.scale(2.5,2.5);
+  const p=(t%8)/8,sync=ease((p-.45)*3.5);
+  [80,160,240,320,400].forEach((x,i)=>{const ph=lerp(i*1.7,0,sync),a=Math.sin(t*2+ph)*.38;const bx=x+Math.sin(a)*80,by=Math.cos(a)*80;thread(c,[[x,0],[bx,by-11]]);
+    bolas(c,{x:bx,y:by,s:11,t,body:['reel','iris','shutter','wave','counter'][i],thread:false,eyes:sync>.95?{l:0,r:p>.8&&p<.92?1:0,rc:.9}:eyes(t+i*.7)});});
+  c.restore();}};
+views.push(pipe,chorus,syz);
+
+/* beside the idents */
+const pairs=document.getElementById('pairs');
+SCENES.forEach(sc=>{const el=document.createElement('div');el.className='pair';
+  el.innerHTML=`<video src="../idents/${sc.id}.mp4" poster="../idents/${sc.id}.jpg" muted playsinline loop preload="none"></video><canvas width="360" height="290"></canvas><div class="cap"><span>${sc.kind==='film'?sc.n:sc.n+' '+sc.sym}</span>${sc.t}</div>`;
+  pairs.appendChild(el);views.push({cv:el.querySelector('canvas'),fn:sc.fn,el,vis:false,s:1.5,fit:true});});
+
+/* ---------------- loop ---------------- */
+const io=new IntersectionObserver(es=>es.forEach(e=>{const v=views.find(v=>v.cv===e.target||v.el===e.target);if(v)v.vis=e.isIntersecting;if(e.target.tagName==='VIDEO'){e.isIntersecting?(e.target.preload='auto',e.target.play().catch(()=>{})):e.target.pause();}}),{rootMargin:'100px'});
+views.forEach(v=>io.observe(v.cv));document.querySelectorAll('.pair video').forEach(v=>io.observe(v));
+let wallVis=false;new IntersectionObserver(es=>wallVis=es[0].isIntersecting).observe(wall);
+function paint(v,t){const c=v.cv.getContext('2d');c.setTransform(1,0,0,1,0,0);c.fillStyle=BG;c.fillRect(0,0,v.cv.width,v.cv.height);
+  if(v.fit){const s=Math.min(v.cv.width/240,v.cv.height/160);c.translate((v.cv.width-240*s)/2,(v.cv.height-160*s)/2);c.scale(s,s);}else c.scale(v.s??v.cv.width/240,v.s??v.cv.width/240);
+  v.fn(c,t);}
+readTok();
+function tick(ms){const t=ms/1000;
+  for(const v of views){if(v.vis)paint(v,t);}
+  if(wallVis){const c=wall.getContext('2d'),cols=wall._cols,cw=wall.width/cols,ch=cw/1.5;c.setTransform(1,0,0,1,0,0);c.fillStyle=BG;c.fillRect(0,0,wall.width,wall.height);
+    SCENES.forEach((sc,i)=>{c.save();c.translate((i%cols)*cw,Math.floor(i/cols)*ch);c.beginPath();c.rect(0,0,cw,ch);c.clip();c.scale(cw/240,cw/240);sc.fn(c,t+i*.37);c.restore();
+      c.save();c.strokeStyle=rgba(MUTE,.25);c.strokeRect((i%cols)*cw+.5,Math.floor(i/cols)*ch+.5,cw-1,ch-1);c.restore();});}
+  requestAnimationFrame(tick);}
+requestAnimationFrame(tick);
+document.fonts&&document.fonts.ready.then(readTok);
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',readTok);
+</script>
+
+</body>
+</html>
