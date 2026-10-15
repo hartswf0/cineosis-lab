@@ -7,152 +7,148 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="explain/film.css?v=3"><link rel="stylesheet" href="explain/episode.css?v=3"><link rel="stylesheet" href="explain/lesson.css?v=3">
-<!-- CINEOSIS · LESSON 5 · THE TABLE OF SIGNS, as a cartoon in grease pencil. Bolas acts the lesson out: a label that will not stick,
-     a question spun from the thread, the 45 signs set out like plates, a tangle of confusions, a projector that only blinks against
-     Bolas who winks, the tally of where they agree (88 of 169), the take's shape spun as a web, and three practice shots.
-     Data: explain/l5.py -> explain/lesson/l5.json. Drawing: explain/toon.js (on twos, grease style). -->
+<!-- CINEOSIS · LESSON 5 · THE TABLE OF SIGNS. Unit A: what a sign is. Taught by footage, never by symbols: a sign is a question asked
+     of a moving picture, shown by the reference shots that answer it yes (picks.json, six per sign), then named in plain words. The
+     guide is Bolas, the ring with two eyes on the red thread (explain/guide.js): it descends to a picture, winks at a reading and
+     blinks when the machine passes over. Beats: one chosen shot and its two questions, the 45 questions as a wall of loops, the eight
+     families, a sign beside the signs it is mistaken for, the Cineosis take as a running strip, the machine's guess against the take's
+     reading (88 of 169), and three shots to read. Data: explain/l5.py -> l5.json; media: explain/lesson_media.py -> l5m.json. -->
 <style>
-:root { --bg: #efe6d2; --ink: #1b1712; }
-body, #stage { background: #0b0a09; }
-canvas.toon { position: absolute; left: 0; top: 0; width: 1600px; height: 900px; }
-video.src { display: none; }
+:root { --bg: #0b0a09; --ink: #ece6da; }
+body, #stage { background: var(--bg); }
+.t { position: absolute; margin: 0; opacity: 0; transform: translateY(10px); animation: up .6s ease forwards; transition: opacity .6s; }
+.t .v { width: 100%; aspect-ratio: 4/3; background: #000; overflow: hidden; outline: 4px solid transparent; outline-offset: 5px; transition: outline-color .5s; }
+.t video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.t figcaption { font: 15px/1.3 var(--mono); color: var(--dim); margin-top: 9px; }
+.t figcaption b { display: block; font: 600 21px/1.2 var(--serif); color: var(--ink); margin-bottom: 3px; }
+.t.yes .v { outline-color: var(--lime); }
+.t.dim { opacity: .14 !important; }
+.t.contain video { object-fit: contain; }
+.q { position: absolute; font: italic 44px/1.2 var(--serif); color: var(--ink); opacity: 0; animation: fade .8s ease forwards; text-wrap: balance; }
+.q small { display: block; font: 600 14px var(--mono); letter-spacing: .16em; color: var(--gold); font-style: normal; margin-bottom: 12px; text-transform: uppercase; }
+.q.dim { opacity: .14 !important; animation: none; transition: opacity .6s; }
+.names { position: absolute; display: flex; flex-direction: column; gap: 22px; }
+.names div { font: 600 46px/1.1 var(--serif); color: var(--lime); opacity: 0; animation: up .7s ease forwards; }
+.names div small { display: block; font: italic 24px/1.3 var(--serif); color: var(--ink); font-weight: 400; margin-top: 6px; }
+.wl .t figcaption { font: 12.5px/1.2 var(--mono); margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 6px; align-items: center; }
+.o { flex: none; width: 13px; height: 13px; border-radius: 50%; border: 2px solid #ece6da; background: var(--c); display: inline-block; }
+.strip { position: absolute; left: 0; top: 130px; display: flex; gap: 26px; will-change: transform; }
+.strip figure { margin: 0; width: 340px; flex: none; }
+.strip .v { width: 340px; aspect-ratio: 4/3; background: #000; } .strip video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.strip figcaption { margin-top: 12px; font: 600 19px/1.3 var(--serif); color: var(--lime); } .strip figcaption small { display: block; font: 13px var(--mono); color: var(--dim); margin-top: 4px; }
+.tly { position: absolute; left: 40px; top: 90px; width: 1490px; display: grid; grid-template-columns: repeat(20, 1fr); gap: 4px; }
+.tly i { display: block; aspect-ratio: 4/3; background: #1d1a17 center/cover no-repeat; opacity: 0; transition: opacity .5s, filter .6s, outline-color .6s; outline: 3px solid transparent; outline-offset: 1px; }
+.tly i.in { opacity: 1; } .tly.judged i.no { opacity: .14; filter: grayscale(1); } .tly.judged i.ok { outline-color: var(--lime); }
 </style>
 </head>
 <body>
 <div id="wrap"><div id="stage"></div></div>
 <audio id="score" preload="auto"></audio><audio id="voice" preload="auto"></audio>
 <div id="bar"><button id="bPrev" title="previous (←)">‹</button><button id="bPlay" title="play / pause (space)">❚❚</button><button id="bNext" title="next (→)">›</button><div id="chs"></div><span id="time"></span><button id="bSnd" title="sound">♪ on</button></div>
-<div id="start"><div><p style="font:600 16px var(--mono);letter-spacing:.2em;color:#b3ab9e;margin:0 0 14px">CINEOSIS · LESSON 5</p><h1 style="font-weight:600;color:#ece6da">The Table of Signs</h1><p>A cartoon about what a sign is, and the signs each is mistaken for. About three minutes, with sound.</p><b style="background:#c4f46a">▶ Watch</b></div></div>
+<div id="start"><div><p style="font:600 16px var(--mono);letter-spacing:.2em;color:#b3ab9e;margin:0 0 14px">CINEOSIS · LESSON 5</p><h1 style="font-weight:600;color:#ece6da">The Table of Signs</h1><p>A sign is a question you can ask of a moving picture. About five minutes, with sound.</p><b style="background:#c4f46a">▶ Watch</b></div></div>
 <script src="explain/lesson.js?v=3"></script>
-<script src="explain/toon.js?v=2"></script>
+<script src="explain/marks.js?v=1"></script>
+<script src="explain/guide.js?v=1"></script>
 <script>
 window.EPISODE = {
-  data: ['explain/lesson/l5.json?v=2'],
+  data: ['explain/lesson/l5.json?v=2', 'explain/lesson/l5m.json?v=2'],
   cues: ['dae-cedar-and-cassette', 'dae-feather-rustle-dub', 'dae-slide-carousel-at-blue-hour', 'dae-preparation-drift', 'dae-snowbound-umea-cabin'],
   build(D, B, K) {
-    const L = D[0], esc = LX.esc, T = L.table, by = Object.fromEntries(T.map(s => [s.n, s])), OP = L.open, STYLE = 'grease';
-    const FAM = ['perception', 'affect', 'action', 'reflection', 'mental', 'time', 'break', 'read'];
-    const clip = p => `<video class="src" muted loop playsinline data-src="${esc(p.clip)}" data-t="${p.in || 0}" data-end="${((p.in || 0) + (p.t1 - p.t0)).toFixed(2)}"></video>`;
-    const scene = (ch, secs, fn, withClip) => B(ch, secs, () => `<canvas class="toon" width="1600" height="900"></canvas>${withClip ? clip(withClip) : ''}`,
-      el => { K.startVideos(el); const v = el.querySelector('video.src'); TOON.play(el.querySelector('canvas.toon'), (d, t) => fn(d, t, v), K, { style: STYLE }); });
-    const say = (d, s, t, at, y = 820, size = 46) => { if (t > at) d.text(s, 800, y, { size, a: Math.min(1, (t - at) * 2) }); };
-    const pos = s => [96 + s.col * 94, 250 + s.row * 170];
-    const sign = (d, s, x, y, r = 34, a = 1) => { if (a <= 0 || !s) return; d.c.save(); d.c.globalAlpha = Math.min(1, a); d.tint(x, y, r, d.DOMC[s.dom]); d.ring(x, y, r, { w: 4 }); d.text(s.sym, x, y + 2, { font: `600 ${r * .78}px Fraunces, Georgia, serif` }); d.c.restore(); };
-    let lastTick = -1; const tickAt = (t, at, f = 880) => { if (t >= at && lastTick < at) LX.tick(f, .4, .03); };
-    const s1 = by['1'], G = OP.guess, opSigns = OP.signs.map(s => by[String(s.n)]);
+    const L = D[0], M = D[1], esc = LX.esc, AU = 'wygwyl/WYGWYL_Suite_Audio.mp3', by = Object.fromEntries(L.table.map(s => [s.n, s])), OP = L.open, OPS = M.open;
+    const FAM = ['perception', 'affect', 'action', 'reflection', 'mental', 'break', 'time', 'read'];
+    const FAMSAY = { perception: 'whose eyes the picture sees with', affect: 'a feeling held in a face or a place, before anything happens', action: 'forces, situations, and the bodies that answer them',
+      reflection: 'one image standing in for another, or a world too large for its people', mental: 'dreams, destinies, marks and symbols: images joined by thought',
+      break: 'seeing and hearing that can no longer turn into action', time: 'past and present held in one picture', read: 'an image that has to be read as well as seen' };
+    const plain = c => esc(String(c || '').split(':')[0].replace(/\.$/, ''));   // the pick caption up to its colon: what is in the picture
+    const name = n => esc(((by[n] || {}).name || '').toLowerCase());
+    const v = src => `<div class="v"><video muted loop playsinline preload="auto" data-src="${esc(src)}" data-t="0"></video></div>`;
+    const tile = (x, y, w, src, cap = '', o = {}) => `<figure class="t ${o.cls || ''}" ${o.id ? `id="${o.id}"` : ''} style="left:${x}px;top:${y}px;width:${w}px;animation-delay:${o.d || 0}s">${v(src)}${cap ? `<figcaption>${cap}</figcaption>` : ''}</figure>`;
+    const at = (s, f) => K.later(s * 1000, f);
+    const wink = (g, s, secs) => at(s, () => { g.wink(secs); LX.tick(990, .35, .03); });
+    const go = (el, f) => { K.startVideos(el); LX.runBand(el, K); f && f(el); };
 
-    /* 1 · THE LABEL THAT WILL NOT STICK */
-    scene('A label?', 15, (d, t, v) => {
-      const y = d.kv(t, [[0, -200], [1.1, 300, 'in'], [1.25, 330], [1.5, 290, 'out'], [1.7, 300]]), sq = d.kv(t, [[0, 1.25], [1.1, 1.25], [1.2, .7], [1.45, 1.1], [1.7, 1]]);
-      const hold = d.kv(t, [[1.6, 0], [2.4, 1, 'back']]);
-      d.bolas({ x: 420, y, r: 92, sq, eyes: t > 7.2 && t < 8.4 ? 'shut' : t > 3.6 && t < 3.8 ? 'blink' : 'open', look: t > 4.2 ? [1, -.2] : [0, 0], arms: [[-130, 60], [160 + 140 * hold, 20 - 120 * hold]] });
-      const px = 420 + 160 + 140 * hold + 170, py = 300 - 120 * hold - 20; if (hold > .02) d.pic(v, px, py, 170 * hold, { w: 6 });
-      if (t > 4.4) { const lt = t - 4.4, lx = d.kv(lt, [[0, 1700], [.6, px + 30, 'out'], [3.2, px + 30], [5, px + 80, 'in']]), ly = d.kv(lt, [[0, 120], [.6, py - 40, 'out'], [3.2, py - 30], [5, 980, 'in']]), lr = d.kv(lt, [[0, .5], [.6, -.08], [3.2, -.05], [5, 1.8]]);
-        if (lt < 5) { d.c.save(); d.c.translate(lx, ly); d.c.rotate(lr); d.c.fillStyle = d.BG; d.c.fillRect(-80, -34, 160, 68); d.stroke([[-80, -34], [80, -34], [80, 34], [-80, 34], [-80, -34]], { w: 4 }); d.text('SAD', 0, 2, { font: '600 40px IBM Plex Mono, monospace' }); d.c.restore(); } }
-      say(d, 'You would think a sign is a label you stick on a shot.', t, 2.2, 820, 40);
-      if (t > 8.6) say(d, 'It will not stay on.', t, 8.6, 870, 32);
-    }, OP);
-    scene('A label?', 15, (d, t, v) => {
-      d.bolas({ x: 420, y: 300, r: 92, eyes: t > 9 && t < 10.3 ? 'wink' : 'open', look: [1, -.3], arms: [[-130, 60], [300, -100]] });
-      d.pic(v, 890, 180, 150, { w: 6 });
-      const q = [], k = Math.min(1, Math.max(0, (t - .6) / 3));
-      for (let a = 200; a <= 420; a += 8) q.push([890 + 60 * Math.cos(a * Math.PI / 180), 430 + 50 * Math.sin(a * Math.PI / 180)]);
-      q.push([890, 510]); const m = Math.max(2, Math.floor(q.length * k)); if (k > 0) d.stroke(q.slice(0, m), { col: d.RED, w: 5 }); if (k >= 1) d.dot(890, 550, 9, d.RED);
-      opSigns.forEach((s, i) => { const a = d.kv(t, [[4 + i * 1.6, 0], [4.6 + i * 1.6, 1, 'back']]); if (a > 0) { const x = 1270, y = 200 + i * 270; sign(d, s, x, y, 64 * a, a); if (a > .9) d.text(s.q, x, y + 100, { size: 25, a: Math.min(1, (t - 5 - i * 1.6) * 1.5) }); } });
-      say(d, 'A sign is a question you ask of the picture.', t, 2.5, 790, 44);
-      if (t > 11) say(d, 'This shot answers yes to two of them.', t, 11, 860, 34);
-    }, OP);
+    /* COLD OPEN · one chosen shot, one line of the poem */
+    B('Cold open', 16, () => tile(250, 40, 940, OPS.loop, '', { cls: 'contain' }) + LX.band([[.4, `<i>${esc(OP.line.split('. ').slice(0, 2).join('. '))}.</i>`], [8.5, 'The Cineosis take chose this shot for that line. What is it a sign of?']], 'The poem, 0:30'),
+      el => go(el, () => { LX.poem(K, AU, OP.t0, OP.t1); const g = GUIDE(el, K, { x: 1340, y: -100, r: 44 }); at(.6, () => g.to(1340, 330, 44, 1.6).look(-1, .1)); at(8.6, () => g.blink()); at(11, () => g.look(0, .4)); }));
 
-    /* 2 · SETTING THE TABLE */
-    const order = FAM.flatMap(f => T.filter(s => s.dom === f));
-    scene('The table', 16, (d, t) => {
-      for (let r = 0; r < 3; r++) d.line(50, 250 + r * 170 + 46, 1550, 250 + r * 170 + 46, { w: 3 });
-      const per = 12.5 / order.length, k = Math.min(order.length, Math.floor(t / per)), cur = order[Math.min(order.length - 1, k)];
-      order.forEach((s, i) => { if (i < k) { const [x, y] = pos(s); const a = Math.min(1, (t - i * per) * 3); sign(d, s, x, y - (1 - d.ease.back(a)) * 30, 34); } });
-      const [bx, by_] = pos(cur), step = Math.sin(t * 18) * 14;
-      if (k < order.length) d.bolas({ x: bx + 6, y: by_ - 120 + Math.abs(step) * .3, r: 46, eyes: 'open', look: [0, 1], arms: [[-40, 60 + step], [44, 66 - step]], legs: [[-50, 120 + step * .5], [50, 120 - step * .5]] });
-      else d.bolas({ x: 800, y: d.kv(t, [[12.5, 120], [13.2, 140]]), r: 46, eyes: t > 13.6 && t < 14.8 ? 'wink' : 'open', look: [0, 1] });
-      tickAt(t, k * per); lastTick = t;
-      if (t > 13) FAM.forEach((f, i) => d.text(f, 130 + i * 190, 760, { size: 26, font: 'italic 600 26px Fraunces, Georgia, serif', col: d.DOMC[f] }));
-      say(d, 'Forty-five signs. Eight families. One colour each, kept inside the O.', t, 1.2, 860, 34);
+    /* A SIGN IS A QUESTION · shown by shots that answer it yes, then named */
+    const ask = (n, q, lines) => {
+      const xs = M.ex[n].slice(0, 5);
+      B('A question', 19, () => tile(40, 40, 620, OPS.loop, '', { id: 'op', cls: 'contain' })
+        + `<div class="q" style="left:760px;top:52px;width:800px;animation-delay:.5s"><small>ask the picture</small>${esc(q)}</div>`
+        + xs.map((x, i) => tile(760 + (i % 3) * 270, 250 + Math.floor(i / 3) * 255, 250, x.loop, plain(x.cap), { d: 3 + i * .5 })).join('') + LX.band(lines),
+        el => go(el, () => { const g = GUIDE(el, K, { x: 705, y: -100, r: 28 }); at(.3, () => g.to(705, 120, 28, 1).look(1, 0));
+          xs.forEach((_, i) => at(3.2 + i * .55, () => g.to(705, 330 + Math.floor(i / 3) * 255, 28, .45).look(1, 0)));
+          [8.5, 10.5].forEach(s => wink(g, s)); at(15.4, () => g.to(705, 560, 28, .9).look(-1, 0));
+          at(16.4, () => { el.querySelector('#op').classList.add('yes'); wink(g, 0); LX.ping(); }); }));
+    };
+    ask('6', by['6'].q, [[.3, 'A sign is not a label stuck on a shot. It is a question you can ask of it.'], [6.3, 'Here is one, with shots where the answer is plainly yes.'],
+      [11, 'Dust, rubble, a road swallowed by light. The lab calls this an <b>any-space-whatever</b>.'], [15.6, 'Ask it of our shot. Yes.']]);
+    ask('34a', 'Can what is seen here still be acted on?', [[.3, 'A second question, of the same shot.'], [5.5, 'Here the answer is no. A figure small on a beach. Haze. A marsh where nothing happens.'],
+      [11, 'Seeing that has nowhere to go: the lab calls this an <b>opsign</b>.'], [15.6, 'Our shot too. Nothing in it can be acted on.']]);
+    B('A question', 11, () => tile(40, 40, 900, OPS.loop, '', { cls: 'contain yes' }) + `<div class="names" style="left:1030px;top:150px"><div style="animation-delay:.6s">any-space-whatever<small>a place that has stopped working as a place</small></div><div style="animation-delay:2s">opsign<small>a sight with nowhere to go</small></div></div>`
+      + LX.band([[.3, 'One shot, two questions answered yes.'], [5, 'Reading a shot through signs means asking, not labelling.']]),
+      el => go(el, () => { const g = GUIDE(el, K, { x: 985, y: -100, r: 28 }); at(.4, () => g.to(985, 620, 28, 1.2).look(-1, -.2)); wink(g, 5.4); }));
+    B('A question', 7, () => `<div class="tc"><small>CINEOSIS · LESSON 5</small><h1>The Table of Signs</h1><p>Forty-five questions, and the shots that answer them.</p></div>`, () => LX.ping());
+
+    /* FORTY-FIVE QUESTIONS · a wall of loops, one shot for each, grouped by family */
+    const order = [...L.table].sort((a, b) => FAM.indexOf(a.dom) - FAM.indexOf(b.dom));
+    const wall = (dl = .04) => `<div class="wl">${order.map((s, i) => tile(40 + (i % 9) * 170, 34 + Math.floor(i / 9) * 146, 160, M.table[s.n].loop,
+      `<i class="o" style="--c:${MK.DOMC[s.dom]}"></i>${esc(s.name)}`, { cls: 'f-' + s.dom, d: i * dl })).join('')}</div>`;
+    B('Forty-five', 17, () => wall() + LX.band([[.3, 'The lab keeps forty-five such questions.'], [5, 'Each comes with six shots that answer yes. Here is one for each, all moving at once.'], [11.5, 'Every shot in the archive can be asked all forty-five.']]),
+      el => go(el, () => order.forEach((_, i) => i % 5 || at(i * .04, () => LX.tick(1400 + i * 10, .05, .015)))));
+    B('Forty-five', 4 + FAM.length * 2.6, () => wall(0) + LX.band(FAM.map((f, i) => [.3 + i * 2.6, `<b>${MK.DOMN[f]}</b>: ${FAMSAY[f]}.`]), 'eight families'),
+      el => go(el, () => FAM.forEach((f, i) => at(.3 + i * 2.6, () => { el.querySelectorAll('.wl .t').forEach(t => t.classList.toggle('dim', !t.classList.contains('f-' + f))); LX.tick(700, .3, .03); }))));
+
+    /* MISTAKEN FOR · one question beside the ones it sounds like */
+    const S1 = M.ex['1'], rival = { '2': M.ex['2'][0], '4': M.ex['4'][0], '34a': M.ex['34a'][1] };
+    B('Mistaken for', 13, () => tile(40, 40, 600, S1[0].loop, `<b>Whose world is this?</b>${plain(S1[0].cap)}`) + S1.slice(1).map((x, i) => tile(720 + i * 430, 40, 400, x.loop, plain(x.cap), { d: 1.5 + i * .6 })).join('')
+      + LX.band([[.3, 'Some questions sound alike. This one asks whose world we are in.'], [6.5, 'In each of these, one eye owns the frame. The lab calls it <b>solid perception</b>.']]),
+      el => go(el, () => { const g = GUIDE(el, K, { x: 680, y: -100, r: 26 }); at(.4, () => g.to(680, 500, 26, 1.2).look(-1, 0)); at(6.6, () => g.look(1, -.3)); wink(g, 8.5); }));
+    [['2', 'If the centre travels with the camera, no single eye owns it.', 'That is <b>liquid perception</b>: the seeing moves.'],
+     ['4', 'If a face fills the frame and holds a feeling, it answers a different question.', 'That is an <b>icon</b>: where a feeling becomes a face.'],
+     ['34a', 'If no one is looking from inside, and the seeing goes nowhere,', 'it is the <b>opsign</b> again.']].forEach(([n, a, b]) => {
+      const r = rival[n];
+      B('Mistaken for', 12, () => tile(40, 40, 700, S1[0].loop, '<b>solid perception</b>one eye owns the world') + tile(860, 40, 700, r.loop, `<b>${name(n)}</b>${plain(r.cap)}`, { d: .8 }) + LX.band([[.3, a], [5.5, b]]),
+        el => go(el, () => { const g = GUIDE(el, K, { x: 800, y: -100, r: 28 }); at(.3, () => g.to(800, 300, 28, 1).look(-1, 0)); at(2.5, () => g.look(1, 0)); at(5.6, () => { el.querySelectorAll('.t')[1].classList.add('yes'); wink(g, 0); }); at(9, () => g.look(-1, 0)); }));
     });
 
-    /* 3 · TANGLED */
-    scene('Tangled', 16, (d, t) => {
-      T.forEach(s => { const [x, y] = pos(s); sign(d, s, x, y, 30, .35 + (s.n === '1' || s1.conf.includes(s.n) ? .65 : 0)); });
-      const [x0, y0] = pos(s1), targets = s1.conf.map(c => pos(by[c]));
-      const leg = Math.min(2.999, Math.max(0, (t - 1) / 2.2)), seg = Math.floor(leg), f = leg - seg;
-      targets.forEach(([x, y], i) => { if (i < seg || (i === seg && f > 0)) { const e = i < seg ? 1 : f, ex = x0 + (x - x0) * e, ey = y0 + (y - y0) * e; d.curve([[x0, y0 - 30], [(x0 + ex) / 2, Math.min(y0, ey) - 90], [ex, ey - 30]], { col: d.RED, w: 4 }); } });
-      const tgt = targets[Math.min(2, seg)], prev = seg ? targets[seg - 1] : [x0, y0];
-      const bx = t < 7.6 ? prev[0] + (tgt[0] - prev[0]) * (t < 7.6 ? f : 1) : d.kv(t, [[7.6, tgt[0]], [9.5, 800]]), byy = t < 7.6 ? y0 - 110 : d.kv(t, [[7.6, y0 - 110], [9.5, 470]]);
-      if (t > 7.6) T.forEach(s => s.conf.forEach(c => { if (!by[c]) return; const [a1, b1] = pos(s), [a2, b2] = pos(by[c]); d.curve([[a1, b1 - 30], [(a1 + a2) / 2, Math.min(b1, b2) - 60 - Math.abs(a1 - a2) * .08], [a2, b2 - 30]], { col: d.RED, w: 1.4, a: Math.min(.5, (t - 7.6) * .3) }); }));
-      const wrap = t > 9.5 ? Math.min(1, (t - 9.5) / 2) : 0, spin = t > 9.5 ? (t - 9.5) * 3 : 0;
-      d.bolas({ x: bx, y: byy, r: 50, lean: Math.sin(spin) * .5 * wrap, eyes: wrap > .5 ? 'shut' : 'open', look: [0, .6] });
-      if (wrap > 0) for (let k = 0; k < 7 * wrap; k++) d.ring(bx, byy + 20, 62 + k * 7, { col: d.RED, w: 2.4, sx: 1.25, sy: .45, rot: k });
-      say(d, `${s1.name} gets mistaken for ${s1.conf.map(c => by[c].name).join(', ')}.`, t, 1, 820, 32);
-      if (t > 8) say(d, 'Every sign has three threads like these. They cross every family.', t, 8, 866, 30);
+    /* THE TAKE · twelve lines in a row, each shot under the questions it answered */
+    const mt = M.montage, stripW = mt.length * 366;
+    B('The take', 20, () => `<div class="strip">${mt.map(x => `<figure>${v(x.loop)}<figcaption>${x.signs.map(name).join(' · ')}<small>${esc((x.title || '').slice(0, 40))}${x.year ? ', ' + x.year : ''}</small></figcaption></figure>`).join('')}</div>`
+      + LX.band([[.3, 'The Cineosis take reads each line of the poem for its signs, then finds a shot that answers them.'], [8, 'Twelve lines in a row. Under each shot, the questions it answers yes.'], [14.5, 'Each cut is a new line, and a new reading.']]),
+      el => go(el, () => { const s = el.querySelector('.strip'), g = GUIDE(el, K, { x: 800, y: -100, r: 28 }); at(.2, () => g.to(800, 72, 28, 1).look(0, 1)); let last = -1;
+        K.raf(t => { const x = 1600 - t * (stripW + 400) / 19; s.style.transform = `translateX(${x}px)`; const k = Math.floor((800 - x) / 366); if (k !== last && k >= 0 && k < mt.length) { last = k; g.blink(); LX.tick(500, .08, .03); } return t < 20; }); }));
+
+    /* A GUESS · the machine's nearest examples, against the take's reading */
+    const G = OP.guess, gx = M.ex[G.n].slice(0, 3);
+    B('A guess', 15, () => tile(40, 40, 620, OPS.loop, '', { cls: 'contain' }) + gx.map((x, i) => tile(740 + i * 280, 230, 260, x.loop, plain(x.cap), { d: 3 + i * .5 })).join('')
+      + `<div class="q" style="left:740px;top:60px;width:800px;animation-delay:2.4s"><small>the machine's guess, from the picture alone</small>closest to the ${name(G.n)} examples</div>`
+      + LX.band([[.3, 'A machine can guess too, from the picture alone: which sign\'s example shots and written description does it most resemble?'], [8, `For our shot it guessed <b>${name(G.n)}</b>, as the take read it. They agree.`]]),
+      el => go(el, () => { const g = GUIDE(el, K, { x: 700, y: -100, r: 26 }); at(.4, () => g.to(700, 420, 26, 1)); at(3, () => g.blink()); at(4.5, () => g.blink()); wink(g, 8.2, 1.6); }));
+    const ok = L.take.map(r => !!(r.guess && r.signs.some(s => s.n === r.guess.n)));
+    B('A guess', 19, () => `<div class="tly">${M.tally.map((f, i) => `<i class="${ok[i] ? 'ok' : 'no'}" style="${f.hide ? '' : `background-image:url(${esc(f.frame)})`}"></i>`).join('')}</div>`
+      + LX.band([[.3, 'Now every line of the poem: 169 shots.'], [5.5, `Lit where the machine's guess matches the take's reading: <b>${L.agree}</b> of ${L.n}. About half.`], [12, 'And that is generous. The take chose its shots by the same nearness, so some agreement is built in.']]),
+      el => go(el, () => { const is = [...el.querySelectorAll('.tly i')], g = GUIDE(el, K, { x: 1560, y: -100, r: 16 }); is.forEach((i, k) => at(.3 + k * .025, () => i.classList.add('in')));
+        at(5.4, () => { el.querySelector('.tly').classList.add('judged'); LX.ping(); g.to(1562, 50, 16, .8); wink(g, 1); }); }));
+
+    /* YOUR TURN · three shots; three questions each, every question shown by a shot that answers it */
+    M.practice.forEach((p, k) => {
+      const lp = L.practice[k], s = by[lp.signs[0].n], opts = [s.n, ...(s.conf || []).filter(n => M.ex[n]).slice(0, 2)];
+      const ord = k === 1 ? [opts[2], opts[1], opts[0]] : [opts[1], opts[0], opts[2]];
+      B('Your turn', 19, () => tile(40, 40, 640, p.loop, '', { cls: 'contain' })
+        + ord.map((n, i) => tile(740, 40 + i * 236, 260, M.ex[n][0].loop, '', { d: 1 + i * .6, id: 'c' + i }) + `<div class="q" id="q${i}" style="left:1030px;top:${56 + i * 236}px;width:520px;font-size:30px;animation-delay:${1.2 + i * .6}s">${esc(by[n].q)}<small style="margin:10px 0 0;color:var(--dim)">${name(n)}</small></div>`).join('')
+        + LX.band([[.3, `<i>${esc(lp.line.split(/[.:—]/)[0].trim())}.</i>`], [5, 'Which question does this shot answer yes? Each is shown by a shot that does.'], [12.5, `The take read it as <b>${name(s.n)}</b>. The other two are what it gets mistaken for.`]], `Your turn · ${k + 1} of 3`),
+        el => go(el, () => { LX.poem(K, AU, lp.t0, Math.min(lp.t1, lp.t0 + 9)); const g = GUIDE(el, K, { x: 712, y: -100, r: 22 }); at(.5, () => g.to(712, 260, 22, 1));
+          ord.forEach((_, i) => at(5 + i * 1.6, () => g.to(712, 140 + i * 236, 22, .7))); at(10.2, () => g.to(712, 380, 22, .7));
+          at(12.4, () => { const w = ord.indexOf(s.n); g.to(712, 140 + w * 236, 22, .6); ord.forEach((n, i) => { el.querySelector('#c' + i).classList.add(i === w ? 'yes' : 'dim'); if (i !== w) el.querySelector('#q' + i).classList.add('dim'); }); wink(g, .5); LX.ping(); }); }));
     });
 
-    /* 4 · WINK AGAINST BLINK */
-    scene('Wink and blink', 18, (d, t, v) => {
-      d.pic(v, 800, 330, 150, { w: 6 });
-      const wk = t > 3 && t < 4.8, bl = (t % 1.2) < .16;
-      d.bolas({ x: 260, y: 320, r: 84, eyes: wk ? 'wink' : (t > 12 && t < 13 ? 'wink' : 'open'), look: [1, 0], arms: [[-110, 60], [130, -40]] });
-      d.machine(1330, 340, 1.15, { blink: bl, spin: t * 4, look: -1 }); d.beam(1210, 340, 960, 330, 120, t > 6 ? .22 : .08);
-      opSigns.forEach((s, i) => { const a = d.kv(t, [[3.2 + i * .5, 0], [3.8 + i * .5, 1, 'back']]); if (a > 0) sign(d, s, 200 + i * 150, 120 - i * 10, 46 * a); });
-      const ga = d.kv(t, [[6, 0], [6.6, 1, 'back']]); if (ga > 0) { const gx = d.kv(t, [[6, 1180], [10, 1180], [12, 350]]), gy = d.kv(t, [[6, 140], [10, 140], [12, 112]]); sign(d, by[G.n], gx, gy, 46 * ga); }
-      if (t > 12 && t < 13.2) d.text('✶', 350, 40, { size: 60, col: d.RED });
-      d.text('wink · a reading', 260, 560, { size: 30 }); d.text('blink · a guess', 1330, 560, { size: 30 });
-      say(d, `Bolas reads it as ${opSigns.map(s => s.name).join(' and ')}. The machine only blinks, and guesses ${G.name}.`, t, 1.2, 760, 30);
-      if (t > 12.5) say(d, 'They agree on one of the two.', t, 12.5, 830, 44);
-    }, OP);
-
-    /* 5 · THE TALLY */
-    const TK = L.take, yes = TK.map(x => !!(x.guess && x.signs.some(s => String(s.n) === String(x.guess.n))));
-    scene('The tally', 18, (d, t) => {
-      const shown = Math.min(TK.length, Math.floor(d.kv(t, [[0, 0], [2, 1], [5, 6], [9, 30], [15, 169]])));
-      d.line(80, 520, 1520, 520, { col: d.RED, w: 4 });
-      d.bolas({ x: 560, y: 300, r: 70, eyes: shown && yes[shown - 1] ? 'wink' : 'open', look: [0, 1] });
-      d.machine(1060, 330, .9, { blink: (t * 3 % 1) < .2, spin: t * 6 });
-      for (let k = 0; k < 9; k++) { const i = shown - 1 - k; if (i < 0) break; const s = by[String(TK[i].signs[0].n)]; sign(d, s, 800 - k * 92, 520, 30, 1 - k * .09); if (k === 0) d.text(yes[i] ? '✓' : '×', 800, 584, { size: 40, col: yes[i] ? d.INK : d.RED }); }
-      const agreed = yes.slice(0, shown).filter(Boolean).length;
-      for (let k = 0; k < agreed; k++) { const g = Math.floor(k / 5), j = k % 5, gx = 110 + (g % 18) * 78, gy = 640 + Math.floor(g / 18) * 66; j < 4 ? d.line(gx + j * 12, gy, gx + j * 12, gy + 44, { w: 3 }) : d.line(gx - 6, gy + 38, gx + 50, gy + 6, { w: 3 }); }
-      d.text(`${agreed} of ${shown}`, 1400, 260, { font: '600 64px IBM Plex Mono, monospace' });
-      if (shown >= TK.length) say(d, 'About half. And the take chose these shots partly by the machine’s own guess.', t, 15.2, 860, 30);
-      else say(d, 'Every shot in the Cineosis take. Does the machine’s guess match the reading?', t, 1, 860, 30);
-    });
-
-    /* 6 · THE SHAPE, SPUN */
-    const fv = FAM.map(f => L.families[f] || 0), mx = Math.max(...fv);
-    scene('The shape', 15, (d, t) => {
-      const cx = 800, cy = 400, R = 260, sp = Math.min(1, t / 3), poly = Math.min(1, Math.max(0, (t - 3.5) / 4));
-      FAM.forEach((f, i) => { const a = -Math.PI / 2 + i / 8 * Math.PI * 2; if (sp * 8 > i) { d.line(cx, cy, cx + Math.cos(a) * R, cy + Math.sin(a) * R, { col: d.RED, w: 2 }); d.text(`${f} ${fv[i]}`, cx + Math.cos(a) * (R + 80), cy + Math.sin(a) * (R + 40), { size: 26, col: d.DOMC[f] }); } });
-      for (let k = 1; k <= 4; k++) if (t > 1.5 + k * .4) d.ring(cx, cy, R * k / 4, { w: 1.4, a: .45 });
-      if (poly > 0) { const pts = FAM.map((f, i) => { const a = -Math.PI / 2 + i / 8 * Math.PI * 2, v = fv[i] / mx * poly; return [cx + Math.cos(a) * R * v, cy + Math.sin(a) * R * v]; }); pts.push(pts[0]); d.stroke(pts, { col: d.RED, w: 5 }); }
-      const ang = t * 2.1; if (t < 3.2) d.bolas({ x: cx + Math.cos(ang) * (R + 20), y: cy + Math.sin(ang) * (R + 20), r: 34, thread: false, eyes: 'open', look: [0, 1] });
-      else d.bolas({ x: 1340, y: d.kv(t, [[3.2, -60], [4, 150, 'out']]), r: 46, eyes: t > 9 && t < 10.5 ? 'wink' : 'open', look: [-1, .4], arms: [[-60, 50], [-150, 90]] });
-      say(d, `Count the take's signs by family and the film has a shape: time ${L.families.time}, readable ${L.families.read}.`, t, 7.5, 860, 30);
-    });
-
-    /* 7 · PRACTICE */
-    scene('Your turn', 6, (d, t) => { d.bolas({ x: 800, y: d.kv(t, [[0, -100], [1, 360, 'in'], [1.2, 390], [1.5, 360]]), r: 90, eyes: t > 3 && t < 4.4 ? 'wink' : 'open', look: [0, .3] }); say(d, 'Your turn. Which question does each shot answer yes to?', t, 1.8, 780, 38); });
-    L.practice.forEach(p => { const S = by[String(p.signs[0].n)], opts = [S, ...S.conf.slice(0, 2).map(c => by[c])].sort((a, b) => a.n.localeCompare(b.n));
-      scene('Your turn', 15, (d, t, v) => {
-        d.pic(v, 420, 360, 230, { w: 7 });
-        const drop = t > 9;
-        opts.forEach((o, i) => { const ok = o === S, x = 1000 + i * 190, y0 = 230, y = drop && !ok ? d.kv(t, [[9, y0], [10.2, 980, 'in']]) : drop ? d.kv(t, [[9, y0], [9.8, 180, 'back']]) : y0 + Math.sin(t * 2 + i) * 6;
-          d.thread(x, -10, x, y - 58, { w: 2 }); sign(d, o, x, y, 58); if (!drop) d.text(`${o.sym} · ${o.q.length > 58 ? o.q.slice(0, 56) + '…' : o.q}`, 1190, 350 + i * 44, { size: 23 }); });
-        d.bolas({ x: 1190, y: 620, r: 54, thread: false, eyes: drop ? 'wink' : (t % 2.4 < .15 ? 'blink' : 'open'), look: drop ? [0, -1] : [-1, -.3] });
-        if (drop) say(d, `${S.name}. The other two are what it gets mistaken for.`, t, 9.3, 820, 34);
-        else say(d, p.title, t, .5, 820, 28);
-      }, p); });
-
-    /* 8 · END */
-    scene('End', 9, (d, t) => {
-      d.bolas({ x: 800, y: 330, r: 100, eyes: t > 2 && t < 3.6 ? 'wink' : 'open', look: [0, .2] });
-      d.text('A wink is someone reading.', 800, 610, { size: 44, a: Math.min(1, t) }); d.text('A blink is the machine passing over.', 800, 670, { size: 44, a: Math.min(1, Math.max(0, t - 1)) });
-      if (t > 4.5) d.text('Next · Lesson 6 · The Sieve', 800, 800, { font: '600 26px IBM Plex Mono, monospace', a: Math.min(1, t - 4.5) });
-    });
+    /* NOW YOU CAN READ */
+    B('Now you can read', 13, () => `<div class="wl">${mt.slice(0, 8).map((x, i) => tile(40 + (i % 4) * 385, 110 + Math.floor(i / 4) * 330, 365, x.loop, x.signs.map(name).join(' · '), { d: i * .15 })).join('')}</div>`
+      + LX.band([[.3, 'A sign is a question asked of a moving picture. A reading is the yes.'], [7, 'Lesson 6 asks what is allowed to be chosen at all.']]),
+      el => go(el, () => { const g = GUIDE(el, K, { x: 800, y: -100, r: 30 }); at(.5, () => g.to(800, 52, 30, 1.4).look(0, 1)); wink(g, 3.5); }));
+    B('Now you can read', 8, () => `<div class="tc"><small>NEXT · LESSON 6</small><h1>The Sieve</h1><p>Rules that remove shots before anyone chooses one.</p></div>`, () => LX.ping());
   }
 };
 </script>
