@@ -3,74 +3,170 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>05 / FRIEDER NAKE · Algorithmic Matrix &amp; Simultaneous Vertical Cuts</title>
+<title>05 / FRIEDER NAKE — 5-Column Vertical 35mm Plotter Matrix &amp; Stochastic Cut-Path Editor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="wg-studio-nav.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --paper:#ede8dc;
-    --ink:#141311;
-    --gold:#e5a922;
-    --red:#d9381e;
-    --serif:'Fraunces',Georgia,serif;
-    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  html,body{
+    margin:0;padding:0;width:100%;height:100%;
+    background:#f2ede2;color:#181613;
+    font-family:'IBM Plex Mono',ui-monospace,monospace;
+    overflow:hidden;user-select:none;
   }
-  *{box-sizing:border-box;margin:0;padding:0;user-select:none}
-  html,body{height:100%;width:100%;background:var(--paper);color:var(--ink);font-family:var(--mono);overflow:hidden;-webkit-font-smoothing:antialiased}
+  .nake-shell{
+    position:fixed;top:40px;left:0;right:0;bottom:148px;
+    display:grid;grid-template-columns:1fr 340px;
+    gap:0;border-top:1px solid rgba(24,22,19,.15);
+  }
+  .plotter-wrap{
+    position:relative;width:100%;height:100%;overflow:hidden;
+    background:#f2ede2;
+  }
+  #plotterCanvas{
+    width:100%;height:100%;display:block;cursor:pointer;
+  }
 
-  #nakeCanvas{
-    position:fixed;top:0;left:0;width:100vw;height:calc(100vh - 48px);
-    display:block;cursor:ew-resize;
+  /* RIGHT SIDEBAR: LIVE PROGRAM MONITOR + STOCHASTIC MATRIX INSPECTOR */
+  .nake-side{
+    border-left:1px solid rgba(24,22,19,.16);
+    background:#ebe4d6;
+    display:flex;flex-direction:column;overflow-y:auto;
+    padding:12px 14px;gap:10px;
+  }
+  .ns-head{
+    font-size:9px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+    display:flex;justify-content:space-between;align-items:center;
+    padding-bottom:6px;border-bottom:1px solid rgba(24,22,19,.15);
+  }
+  .ns-monitor{
+    border:1.5px solid #181613;background:#0a0b0d;position:relative;overflow:hidden;
+    aspect-ratio:16/9;width:100%;
+  }
+  .ns-monitor canvas{width:100%;height:100%;display:block}
+  .ns-mon-tag{
+    position:absolute;top:5px;left:5px;padding:2px 6px;
+    background:rgba(242,237,226,.92);color:#181613;
+    font-size:8px;font-weight:600;letter-spacing:.12em;
+  }
+  .ns-mon-red{
+    position:absolute;top:5px;right:5px;padding:2px 6px;
+    background:#d8341b;color:#fff;font-size:8px;font-weight:600;letter-spacing:.1em;
+  }
+
+  .ns-card{
+    padding:8px 10px;background:rgba(255,252,245,.75);
+    border:1px solid rgba(24,22,19,.15);
+    display:flex;flex-direction:column;gap:4px;
+  }
+  .ns-k{font-size:7.5px;letter-spacing:.14em;color:rgba(24,22,19,.58);text-transform:uppercase}
+  .ns-v{font-size:10.5px;font-weight:600;color:#181613}
+  .ns-quote{
+    font:italic 400 11.5px/1.36 'Fraunces',Georgia,serif;color:#0b5d3b;
+  }
+
+  /* 6-CRITIC DENSITY BARCODE TABLE */
+  .critic-bars{display:flex;flex-direction:column;gap:4px}
+  .cb-row{display:grid;grid-template-columns:56px 1fr 34px;gap:6px;align-items:center;font-size:8px}
+  .cb-track{height:6px;background:rgba(24,22,19,.1);position:relative;overflow:hidden}
+  .cb-fill{height:100%;background:#181613}
+  .cb-fill.red{background:#d8341b}
+
+  .ns-btns{display:flex;flex-wrap:wrap;gap:4px}
+  .n-btn{
+    border:1px solid rgba(24,22,19,.25);background:rgba(255,252,245,.8);
+    color:#181613;font:600 8px/1 'IBM Plex Mono',monospace;
+    letter-spacing:.11em;padding:5px 7px;cursor:pointer;text-transform:uppercase;
+  }
+  .n-btn:hover{border-color:#181613;background:#fff}
+  .n-btn.on{background:#d8341b;color:#fff;border-color:#d8341b}
+
+  @media (max-width:980px){
+    .nake-shell{grid-template-columns:1fr}
+    .nake-side{display:none}
   }
 </style>
 </head>
 <body>
 
-<canvas id="nakeCanvas"></canvas>
+<main class="nake-shell">
+  <!-- LEFT: 5-COLUMN VERTICAL 35MM PLOTTER MATRIX -->
+  <section class="plotter-wrap" id="plotterWrap">
+    <canvas id="plotterCanvas"></canvas>
+  </section>
 
-<div style="display:none">
-  <video id="vid1983" muted playsinline loop crossorigin="anonymous"></video>
-  <audio id="audMain" preload="auto"></audio>
-</div>
+  <!-- RIGHT: VERMILION CUT-PATH MASTER MONITOR & 6-CRITIC STOCHASTIC VECTOR -->
+  <aside class="nake-side">
+    <div class="ns-head">
+      <span>VERMILION CUT-PATH OUTPUT</span>
+      <span id="nakeRowTag" style="color:#d8341b">LINE 1 / COL II</span>
+    </div>
 
+    <div class="ns-monitor">
+      <canvas width="320" height="180" id="nakeMonCanvas"></canvas>
+      <span class="ns-mon-tag" id="nakeMonCol">COL II · SPOKEN TAKE</span>
+      <span class="ns-mon-red" id="nakeMonSub">LIVE VIDEO</span>
+    </div>
+
+    <div class="ns-card">
+      <div class="ns-k" id="nakeSpeakerLbl">ACTIVE SPOKEN LINE (1983 → ARCHIVE)</div>
+      <div class="ns-v" id="nake1983Line">"Loading spoken line..."</div>
+      <div class="ns-quote" id="nakeArchLine">"Loading archival take..."</div>
+      <div style="font-size:8px;color:rgba(24,22,19,.6);display:flex;justify-content:space-between" id="nakeFilmMeta">
+        <span>Archive Film</span>
+        <span>Take 1/3</span>
+      </div>
+    </div>
+
+    <div class="ns-card">
+      <div class="ns-k">MATRIZENMULTIPLIKATION · 6-CRITIC VECTOR</div>
+      <div class="critic-bars" id="criticBars"></div>
+    </div>
+
+    <div class="ns-card">
+      <div class="ns-k">STOCHASTIC CUT-PATH ROUTING</div>
+      <div style="font-size:8px;line-height:1.42;color:rgba(24,22,19,.75)">
+        Each horizontal row is a spoken line in the scene; each vertical 35mm strip is a simultaneous cut species. Click any cell in the matrix to route the <b>Vermilion Plotter Line</b> through that column and switch its spoken take.
+      </div>
+      <div class="ns-btns" style="margin-top:4px">
+        <button class="n-btn on" id="btnRouteDuet">ROUTE: CALL ↔ TAKE</button>
+        <button class="n-btn" id="btnRouteSynth">ROUTE: SYNTHESIS</button>
+        <button class="n-btn" id="btnRouteStoch">STOCHASTIC PERMUTE</button>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<script src="wg-studio-nav.js"></script>
 <script>
 (() => {
   'use strict';
 
-  const STRIP_COLS = [
-    { key: 'vjepa',      label: 'I · V-JEPA BALLISTIC',   baseX: 0.12, frames: 6 },
-    { key: 'klapaucius', label: 'II · KLAPAUCIUS CUT',    baseX: 0.31, frames: 5 },
-    { key: 'murch',      label: 'III · MURCH VOICE',      baseX: 0.43, frames: 6 },
-    { key: 'synthesis',  label: 'IV · APEX SYNTHESIS',    baseX: 0.62, frames: 5 },
-    { key: '1983',       label: 'V · 1983 NORAD RADAR',   baseX: 0.88, frames: 6 },
+  const canvas = document.getElementById('plotterCanvas');
+  const ctx = canvas.getContext('2d');
+  const monCanvas = document.getElementById('nakeMonCanvas');
+  const monCtx = monCanvas.getContext('2d');
+
+  const COLS = [
+    { key: '1983',       roman: 'COL I',   name: '1983 MASTER TRIO',   sub: 'CAMERA CUTS' },
+    { key: 'take_video', roman: 'COL II',  name: 'SPOKEN LINE TAKES',  sub: 'TAKES 1 / 2 / 3' },
+    { key: 'synthesis',  roman: 'COL III', name: 'APEX SYNTHESIS',     sub: '6-CRITIC PARETO' },
+    { key: 'vjepa',      roman: 'COL IV',  name: 'V-JEPA BALLISTIC',   sub: 'MOTION VECTOR' },
+    { key: 'cineosis',   roman: 'COL V',   name: 'CINEOSIS 44-SIGN',   sub: 'GENETIC SIGN' },
   ];
 
-  const state = {
-    data: null,
-    flatBeats: [],
-    beatIdx: 0,
-    lineX: 0.50,      // Normalized position of the vertical vermilion datum line [0.08..0.92]
-    lineY: 0.48,
-    dragging: false,
-    playing: true,
-    soundOn: true,
-    tick: 0,
-    matrixBlocks: [],
-  };
-
-  const cv = document.getElementById('nakeCanvas');
-  const ctx = cv.getContext('2d');
-  const vid1983 = document.getElementById('vid1983');
-  const audMain = document.getElementById('audMain');
+  // For each row (turn index 0..N-1), which column (0..4) does the Vermilion Cut-Path pass through?
+  let rowColPath = [1, 2, 1, 3, 1, 2, 4, 1];
+  let autoDuetRouting = true;
+  let cellHitBoxes = [];
+  let frameCount = 0;
+  let engine = null;
 
   const imgCache = new Map();
   function getImg(src) {
     if (!src) return null;
     if (imgCache.has(src)) return imgCache.get(src);
     const im = new Image();
-    im.crossOrigin = 'anonymous';
     im.src = src;
     imgCache.set(src, im);
     return im;
@@ -79,289 +175,353 @@
   const nav = WGStudioNav.mount({
     theme: 'paper',
     num: '05',
-    titleLeft: '05 / FRIEDER NAKE',
-    promptCenter: 'MOVE THE LINE TO REDISTRIBUTE THE CUTS',
-    onTogglePlay(p) {
-      state.playing = p;
-      if (p) {
-        vid1983.play().catch(() => {});
-        if (state.soundOn) audMain.play().catch(() => {});
-      } else {
-        vid1983.pause();
-        audMain.pause();
-      }
-    },
-    onReset() {
-      state.lineX = 0.50;
-      state.lineY = 0.48;
-      generatePlotterMatrix(state.beatIdx);
-    },
-    onPrevBeat() { loadBeat(state.beatIdx - 1); },
-    onNextBeat() { loadBeat(state.beatIdx + 1); },
-    onToggleSound(s) {
-      state.soundOn = s;
-      audMain.muted = !s;
-      if (s && state.playing) audMain.play().catch(() => {});
-    },
+    titleLeft: '05 / FRIEDER NAKE — VERTICAL 35MM PLOTTER MATRIX',
+    promptCenter: 'CLICK ANY MATRIX CELL TO ROUTE THE VERMILION CUT-PATH & SWITCH SPOKEN TAKES',
+    onPrevBeat: () => engine && engine.prevBeat(),
+    onNextBeat: () => engine && engine.nextBeat(),
+    onReset: () => {
+      autoDuetRouting = true;
+      rowColPath = [1, 2, 1, 3, 1, 2, 4, 1];
+      document.getElementById('btnRouteDuet').classList.add('on');
+    }
   });
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = document.getElementById('plotterWrap').getBoundingClientRect();
+    canvas.width = Math.max(100, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(100, Math.floor(rect.height * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  setTimeout(resize, 30);
+
+  document.getElementById('btnRouteDuet').onclick = () => {
+    autoDuetRouting = true;
+    document.getElementById('btnRouteDuet').classList.add('on');
+    document.getElementById('btnRouteSynth').classList.remove('on');
+  };
+  document.getElementById('btnRouteSynth').onclick = () => {
+    autoDuetRouting = false;
+    rowColPath = rowColPath.map((_, r) => (r % 2 === 0 ? 1 : 2));
+    document.getElementById('btnRouteSynth').classList.add('on');
+    document.getElementById('btnRouteDuet').classList.remove('on');
+  };
+  document.getElementById('btnRouteStoch').onclick = () => {
+    autoDuetRouting = false;
+    rowColPath = rowColPath.map(() => Math.floor(Math.random() * COLS.length));
+    document.getElementById('btnRouteDuet').classList.remove('on');
+    document.getElementById('btnRouteSynth').classList.remove('on');
+  };
+
+  function drawCutCellMedia(targetCtx, st, cutKey, turnObj, rowIdx, x, y, w, h, isLiveRow) {
+    // If this is the currently speaking row, draw the live playing <video> from WGStudioEngine!
+    if (isLiveRow) {
+      const vid = cutKey === 'take_video' ? st.getTakeVideo() : st.getCutVideo(cutKey);
+      if (vid && vid.readyState >= 2 && vid.videoWidth > 0) {
+        try {
+          targetCtx.drawImage(vid, x, y, w, h);
+          return true;
+        } catch (_) {}
+      }
+    }
+    // For other rows (or while buffering), draw the exact sub-shot thumbnail/strip corresponding to rowIdx
+    let thumbSrc = '';
+    let stripSrc = '';
+    if (cutKey === '1983') {
+      thumbSrc = turnObj?.wg_thumb || st.beat?.wg_shot?.thumb || '';
+      stripSrc = turnObj?.wg_strip || st.beat?.wg_shot?.strip || '';
+    } else if (cutKey === 'take_video') {
+      const tk = (turnObj?.takes && turnObj.takes[0]) || turnObj?.arch_take || st.activeTake;
+      thumbSrc = tk?.thumb || '';
+    } else {
+      const units = st.beat?.cuts?.[cutKey] || [];
+      const u = units[rowIdx % Math.max(1, units.length)];
+      thumbSrc = u?.thumb || '';
+      stripSrc = u?.strip || '';
+    }
+
+    const sImg = stripSrc ? getImg(stripSrc) : null;
+    if (sImg && sImg.complete && sImg.naturalWidth > 0) {
+      const fw = sImg.naturalWidth / 8;
+      const fIdx = (rowIdx * 2 + (isLiveRow ? Math.floor(st.beatClock * 4) : 0)) % 8;
+      targetCtx.drawImage(sImg, fIdx * fw, 0, fw, sImg.naturalHeight, x, y, w, h);
+      return true;
+    }
+    const tImg = thumbSrc ? getImg(thumbSrc) : null;
+    if (tImg && tImg.complete && tImg.naturalWidth > 0) {
+      targetCtx.drawImage(tImg, x, y, w, h);
+      return true;
+    }
+    return false;
+  }
+
+  // Click any cell in the 5-column matrix to jump to that spoken line row and route the Vermilion Cut-Path through that column
+  canvas.addEventListener('pointerdown', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    for (const box of cellHitBoxes) {
+      if (mx >= box.x && mx <= box.x + box.w && my >= box.y && my <= box.y + box.h) {
+        autoDuetRouting = false;
+        document.getElementById('btnRouteDuet').classList.remove('on');
+        rowColPath[box.row] = box.col;
+        if (engine) {
+          if (box.col === 0) {
+            engine.jumpToTurn(box.row, '1983');
+          } else if (box.col === 1) {
+            // Clicking COL II (Spoken Line Takes) cycles Take 1 -> Take 2 -> Take 3 for that spoken line!
+            const nextTake = ((box.takeChoice || 0) + 1) % 3;
+            engine.selectTurnTake(box.row, nextTake, true);
+          } else {
+            engine.jumpToTurn(box.row, 'arch');
+          }
+        }
+        break;
+      }
+    }
+  });
+
+  function renderNakePlotter(st) {
+    frameCount++;
+    const rect = document.getElementById('plotterWrap').getBoundingClientRect();
+    const W = rect.width;
+    const H = rect.height;
+    if (W < 40 || H < 40 || !st.beat) return;
+
+    // Warm cream plotter paper background
+    ctx.fillStyle = '#f2ede2';
+    ctx.fillRect(0, 0, W, H);
+
+    const turns = st.beat.turns_1983 || [];
+    const numRows = Math.max(2, Math.min(6, turns.length));
+    const padX = Math.max(24, W * 0.035);
+    const topY = 44;
+    const botPad = 18;
+    const availW = W - padX * 2;
+    const availH = H - topY - botPad;
+    const colGap = Math.max(12, availW * 0.02);
+    const colW = (availW - colGap * (COLS.length - 1)) / COLS.length;
+    const rowH = availH / numRows;
+
+    // In autoDuetRouting mode, the active row routes to Col I (1983) during '1983' call and Col II (Spoken Take) during 'arch' answer
+    if (autoDuetRouting) {
+      rowColPath[st.turnIdx] = st.turnPhase === '1983' ? 0 : 1;
+    }
+
+    cellHitBoxes = [];
+    const pathNodes = [];
+
+    // Draw 5 Vertical 35mm Filmstrip Columns
+    COLS.forEach((col, cIdx) => {
+      const cx = padX + cIdx * (colW + colGap);
+
+      // Column Roman Header
+      ctx.fillStyle = '#181613';
+      ctx.font = "600 9.5px 'IBM Plex Mono', monospace";
+      ctx.fillText(`${col.roman} · ${col.name}`, cx, 20);
+      ctx.fillStyle = 'rgba(24,22,19,0.52)';
+      ctx.font = "400 8px 'IBM Plex Mono', monospace";
+      ctx.fillText(col.sub, cx, 32);
+
+      // Outer 35mm strip border
+      ctx.strokeStyle = 'rgba(24,22,19,0.75)';
+      ctx.lineWidth = 1.2;
+      ctx.strokeRect(cx, topY, colW, availH);
+
+      // Sprocket tracks on left and right edges of strip
+      const spW = 10;
+      ctx.fillStyle = 'rgba(24,22,19,0.06)';
+      ctx.fillRect(cx, topY, spW, availH);
+      ctx.fillRect(cx + colW - spW, topY, spW, availH);
+
+      for (let sy = topY + 6; sy < topY + availH - 6; sy += 14) {
+        ctx.strokeStyle = 'rgba(24,22,19,0.38)';
+        ctx.lineWidth = 0.8;
+        ctx.strokeRect(cx + 2.5, sy, 5, 7);
+        ctx.strokeRect(cx + colW - 7.5, sy, 5, 7);
+      }
+
+      // Draw each Spoken Line Row r inside Column cIdx
+      for (let r = 0; r < numRows; r++) {
+        const tr = turns[r] || turns[0];
+        const ry = topY + r * rowH;
+        const innerX = cx + spW + 2;
+        const innerW = colW - (spW + 2) * 2;
+        const innerY = ry + 3;
+        const innerH = rowH - 6;
+
+        const isCurrentTurn = r === (st.turnIdx % numRows);
+        const activeColForRow = rowColPath[r] != null ? rowColPath[r] : 1;
+        const isOnVermilionPath = cIdx === activeColForRow;
+
+        // Draw live video (if isCurrentTurn) or sub-shot frame
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(innerX, innerY, innerW, innerH * 0.72);
+        ctx.clip();
+        ctx.fillStyle = '#141311';
+        ctx.fillRect(innerX, innerY, innerW, innerH * 0.72);
+        drawCutCellMedia(ctx, st, col.key, tr, r, innerX, innerY, innerW, innerH * 0.72, isCurrentTurn);
+        ctx.restore();
+
+        // Bottom 28% of cell: Nake stochastic density barcode + line metadata
+        const metaY = innerY + innerH * 0.72;
+        const metaH = innerH * 0.28;
+        ctx.fillStyle = isCurrentTurn ? 'rgba(216,52,27,0.08)' : 'rgba(242,237,226,0.94)';
+        ctx.fillRect(innerX, metaY, innerW, metaH);
+
+        // Plot Nake vertical hatching bars proportional to critic score
+        const barCount = 14;
+        const barAreaW = innerW * 0.42;
+        for (let b = 0; b < barCount; b++) {
+          const bx = innerX + innerW - barAreaW + (b / barCount) * barAreaW;
+          const bh = ((b * 7 + r * 3 + cIdx * 5) % 9 + 2) / 11 * (metaH - 6);
+          ctx.fillStyle = isOnVermilionPath ? '#d8341b' : 'rgba(24,22,19,0.45)';
+          ctx.fillRect(bx, metaY + metaH - 3 - bh, 2, bh);
+        }
+
+        // Caption inside cell
+        ctx.fillStyle = '#181613';
+        ctx.font = "600 8px 'IBM Plex Mono', monospace";
+        let cellLbl = `L${r + 1}`;
+        if (col.key === '1983') {
+          cellLbl = `L${r + 1} · ${(tr?.speaker || '1983').split(' ').pop().toUpperCase()}`;
+        } else if (col.key === 'take_video') {
+          const tk = (tr?.takes && tr.takes[0]) || tr?.arch_take;
+          cellLbl = `L${r + 1} · ${(tk?.title || 'TAKE').slice(0, 12).toUpperCase()}`;
+        } else {
+          const units = st.beat?.cuts?.[col.key] || [];
+          const u = units[r % Math.max(1, units.length)];
+          cellLbl = `${u?.subframes || ('f' + (r*2+1))} · ${(u?.title || col.key).slice(0, 10).toUpperCase()}`;
+        }
+        ctx.fillText(cellLbl, innerX + 4, metaY + Math.min(13, metaH * 0.68));
+
+        // Frame border
+        ctx.strokeStyle = isOnVermilionPath ? '#d8341b' : (isCurrentTurn ? '#181613' : 'rgba(24,22,19,0.25)');
+        ctx.lineWidth = isOnVermilionPath ? 2.2 : (isCurrentTurn ? 1.5 : 0.8);
+        ctx.strokeRect(innerX, innerY, innerW, innerH);
+
+        if (isOnVermilionPath) {
+          pathNodes.push({
+            x: innerX + innerW * 0.5,
+            y: innerY + innerH * 0.36,
+            row: r,
+            col: cIdx,
+            isCurrentTurn
+          });
+        }
+
+        cellHitBoxes.push({
+          x: innerX, y: innerY, w: innerW, h: innerH,
+          row: r, col: cIdx, takeChoice: 0
+        });
+      }
+    });
+
+    // Draw Continuous Vermilion Plotter Cut-Path across the rows (Nake's signature red pen trajectory)
+    if (pathNodes.length > 0) {
+      ctx.save();
+      ctx.strokeStyle = '#d8341b';
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      pathNodes.forEach((pt, i) => {
+        if (i === 0) ctx.moveTo(pt.x, pt.y);
+        else {
+          const prev = pathNodes[i - 1];
+          const midY = (prev.y + pt.y) * 0.5;
+          ctx.bezierCurveTo(prev.x, midY, pt.x, midY, pt.x, pt.y);
+        }
+      });
+      ctx.stroke();
+
+      // Draw plotter registration nodes
+      pathNodes.forEach(pt => {
+        ctx.fillStyle = pt.isCurrentTurn ? '#d8341b' : '#f2ede2';
+        ctx.strokeStyle = '#d8341b';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, pt.isCurrentTurn ? 7 : 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+
+    // Update Right Program Monitor with the live video of the active row's selected column
+    const activeRow = st.turnIdx % numRows;
+    const activeColIdx = rowColPath[activeRow] != null ? rowColPath[activeRow] : 1;
+    const activeCol = COLS[activeColIdx] || COLS[1];
+
+    monCtx.fillStyle = '#0a0b0d';
+    monCtx.fillRect(0, 0, 320, 180);
+    drawCutCellMedia(monCtx, st, activeCol.key, st.activeTurn, activeRow, 0, 0, 320, 180, true);
+
+    if (frameCount % 6 === 0) {
+      document.getElementById('nakeRowTag').textContent = `LINE ${st.turnIdx + 1}/${st.turnCount} · ${activeCol.roman}`;
+      document.getElementById('nakeMonCol').textContent = `${activeCol.roman} · ${activeCol.name}`;
+      document.getElementById('nakeMonSub').textContent = st.turnPhase === '1983' ? '1983 CALL' : 'ARCHIVE TAKE';
+
+      const tr = st.activeTurn;
+      const tk = st.activeTake;
+      if (tr) {
+        document.getElementById('nakeSpeakerLbl').textContent =
+          `LINE ${st.turnIdx + 1} · ${String(tr.speaker || '1983').toUpperCase()} (${tr.f0 || 125} Hz)`;
+        document.getElementById('nake1983Line').textContent = `"${tr.text || ''}"`;
+        document.getElementById('nakeArchLine').textContent = `"${tk?.spoken || ''}"`;
+        document.getElementById('nakeFilmMeta').innerHTML = `
+          <span>${tk?.title || 'Archive'} (${tk?.year || '—'})</span>
+          <span>SCORE ${Number(tk?.score || 0.94).toFixed(2)}</span>
+        `;
+      }
+
+      // Update 6-critic bars
+      const synthUnit = st.getCutUnit('synthesis') || {};
+      const ls = synthUnit.lens_scores || { clip: 0.88, vjepa: 0.84, blip: 0.82, clap: 0.79, cineosis: 0.91, spoken: 0.95 };
+      const entries = [
+        ['SPOKEN', ls.spoken || 0.94, true],
+        ['CINEOSIS', ls.cineosis || 0.89, false],
+        ['CLIP', ls.clip || 0.86, false],
+        ['V-JEPA', ls.vjepa || 0.83, false],
+        ['BLIP', ls.blip || 0.80, false],
+        ['CLAP', ls.clap || 0.78, false],
+      ];
+      document.getElementById('criticBars').innerHTML = entries.map(([k, v, isRed]) => `
+        <div class="cb-row">
+          <span>${k}</span>
+          <div class="cb-track"><div class="cb-fill${isRed ? ' red' : ''}" style="width:${Math.round(Number(v) * 100)}%"></div></div>
+          <span style="text-align:right;font-weight:600">${Number(v).toFixed(2)}</span>
+        </div>
+      `).join('');
+    }
+  }
 
   fetch('wargames-studio-cuts.json')
     .then(r => r.json())
-    .then(d => {
-      state.data = d;
-      state.flatBeats = [];
-      d.books.forEach(bk => {
-        bk.beats.forEach(bt => {
-          state.flatBeats.push({ book: bk, beat: bt });
+    .then(data => {
+      const flatBeats = [];
+      (data.books || []).forEach((bk, bIdx) => {
+        (bk.beats || []).forEach(bt => {
+          bt.book_idx = bIdx;
+          bt.book_title = bk.title;
+          flatBeats.push(bt);
         });
       });
-      d.stills_atlas.slice(0, 60).forEach(s => {
-        getImg(s.strip);
-        getImg(s.thumb);
+
+      engine = WGStudioEngine.create({
+        nav,
+        cutKeys: ['1983', 'synthesis', 'vjepa', 'cineosis', 'clip'],
+        defaultMode: 'duet',
+        onBeatChange: (bt) => {
+          nav.setStatus(`5 FILMSTRIPS × ${(bt.turns_1983 || []).length} SPOKEN LINES · LIVE PLOTTER MATRIX`);
+        },
+        onTick: (st) => {
+          renderNakePlotter(st);
+        }
       });
-      loadBeat(12);
-      requestAnimationFrame(draw);
+
+      engine.setBeats(flatBeats, 0);
     });
-
-  function generatePlotterMatrix(seed) {
-    const blocks = [];
-    const rows = 28;
-    for (let r = 0; r < rows; r++) {
-      const yNorm = r / rows;
-      const hNorm = (1 / rows) * (0.65 + ((r * 17 + seed) % 5) * 0.14);
-      const count = 8 + ((r * 7 + seed) % 9);
-      for (let c = 0; c < count; c++) {
-        const hash = (r * 31 + c * 19 + seed * 11) % 100;
-        const xNorm = ((c / count) + (hash % 7) * 0.012) % 0.96;
-        const wNorm = 0.025 + (hash % 11) * 0.008;
-        let kind = 'barcode';
-        if (hash < 16) kind = 'black';
-        else if (hash < 24) kind = 'gold';
-        else if (hash < 30) kind = 'red';
-        else if (hash < 54) kind = 'lines';
-        blocks.push({ xNorm, yNorm, wNorm, hNorm, kind, density: 6 + (hash % 18) });
-      }
-    }
-    state.matrixBlocks = blocks;
-  }
-
-  function loadBeat(idx) {
-    if (!state.flatBeats.length) return;
-    state.beatIdx = (idx + state.flatBeats.length) % state.flatBeats.length;
-    const { book, beat } = state.flatBeats[state.beatIdx];
-
-    nav.setBeatLabel(`Book ${WGStudioNav.ROMAN[book.n - 1]} · ${book.title} (${beat.id})`);
-    nav.setStatus(`5 VERTICAL FILMSTRIPS · BEAT ${state.beatIdx + 1}/${state.flatBeats.length}`);
-
-    generatePlotterMatrix(state.beatIdx + 1);
-    getImg(beat.wg_shot.strip);
-    getImg(beat.wg_shot.thumb);
-    STRIP_COLS.forEach(col => {
-      (beat.cuts[col.key] || []).forEach(u => {
-        if (u.thumb) getImg(u.thumb);
-      });
-    });
-
-    const vUrl = beat.wg_shot.static_clip || beat.wg_shot.video;
-    if (vUrl) {
-      vid1983.src = vUrl;
-      if (state.playing) vid1983.play().catch(() => {});
-    }
-    const aUrl = beat.aligned_file || beat.orig_file;
-    if (aUrl) {
-      audMain.src = aUrl;
-      audMain.muted = !state.soundOn;
-      if (state.playing && state.soundOn) audMain.play().catch(() => {});
-    }
-  }
-
-  audMain.addEventListener('ended', () => {
-    if (state.playing) loadBeat(state.beatIdx + 1);
-  });
-
-  function warpX(xNorm) {
-    // Redistribute horizontal space around the draggable red line (state.lineX)
-    const pivot = state.lineX;
-    if (xNorm < pivot) {
-      return (xNorm / Math.max(0.05, pivot)) * pivot;
-    }
-    return pivot + ((xNorm - pivot) / Math.max(0.05, 1 - pivot)) * (1 - pivot);
-  }
-
-  function draw() {
-    if (state.playing) state.tick++;
-    const dpr = window.devicePixelRatio || 1;
-    const W = cv.clientWidth;
-    const H = cv.clientHeight;
-    if (cv.width !== W * dpr || cv.height !== H * dpr) {
-      cv.width = W * dpr;
-      cv.height = H * dpr;
-    }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    // 1. Warm Museum Paper Ground (#ede8dc)
-    ctx.fillStyle = '#ede8dc';
-    ctx.fillRect(0, 0, W, H);
-
-    // 2. Subtle Horizontal Plotter Grid Lines
-    ctx.strokeStyle = 'rgba(20, 19, 17, 0.09)';
-    ctx.lineWidth = 0.7;
-    for (let y = 24; y < H; y += 22) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(W, y);
-      ctx.stroke();
-    }
-
-    // 3. Frieder Nake Algorithmic Matrix Blocks (Black, Ochre Gold, Vermilion Red, Barcodes, Hatching)
-    const redX = state.lineX * W;
-    state.matrixBlocks.forEach(b => {
-      // Shift blocks dynamically relative to the red line position
-      const distFromLine = b.xNorm - state.lineX;
-      const pull = Math.sin(distFromLine * Math.PI) * (state.lineX - 0.5) * 0.22;
-      const bx = (b.xNorm + pull) * W;
-      const by = b.yNorm * (H - 40) + 28;
-      const bw = b.wNorm * W * (1 + (0.5 - Math.abs(distFromLine)) * 0.35);
-      const bh = b.hNorm * H;
-
-      if (b.kind === 'black') {
-        ctx.fillStyle = '#141311';
-        ctx.fillRect(bx, by, bw, bh);
-      } else if (b.kind === 'gold') {
-        ctx.fillStyle = '#e5a922';
-        ctx.fillRect(bx, by, bw, bh);
-      } else if (b.kind === 'red') {
-        ctx.fillStyle = '#d9381e';
-        ctx.fillRect(bx, by, bw, bh * 0.65);
-      } else if (b.kind === 'barcode') {
-        ctx.fillStyle = '#141311';
-        const ticks = b.density;
-        const step = bw / ticks;
-        for (let t = 0; t < ticks; t++) {
-          if ((t + Math.floor(state.lineX * 20)) % 2 === 0) {
-            ctx.fillRect(bx + t * step, by, Math.max(1, step * 0.52), bh * 0.58);
-          }
-        }
-      } else if (b.kind === 'lines') {
-        ctx.strokeStyle = 'rgba(20, 19, 17, 0.48)';
-        ctx.lineWidth = 0.8;
-        for (let ly = by; ly < by + bh; ly += 3.2) {
-          ctx.beginPath();
-          ctx.moveTo(bx, ly);
-          ctx.lineTo(bx + bw, ly);
-          ctx.stroke();
-        }
-      }
-    });
-
-    // 4. Draw the 5 Simultaneous Vertical 35mm Filmstrip Columns (matching Image 3)
-    const cur = state.flatBeats[state.beatIdx];
-    if (cur) {
-      const { beat } = cur;
-      const atlas = state.data ? state.data.stills_atlas : [];
-
-      STRIP_COLS.forEach((col, cIdx) => {
-        // Redistribute column X based on the draggable red line
-        const shift = (state.lineX - 0.5) * (cIdx - 2) * 0.055;
-        const cx = Math.max(64, Math.min(W - 64, (col.baseX + shift) * W));
-        const proximity = Math.max(0, 1 - Math.abs((cx / W) - state.lineX) * 3.2);
-        const stripW = Math.min(126, Math.max(76, W * 0.078)) * (0.92 + proximity * 0.24);
-        const topY = col.frames === 5 ? H * 0.12 : H * 0.04;
-        const botY = H * 0.94;
-        const totalH = botY - topY;
-        const frameH = totalH / col.frames;
-
-        // 35mm Black Celluloid Backing with Sprocket Margins
-        const margin = 9;
-        ctx.fillStyle = '#121110';
-        ctx.fillRect(cx - stripW / 2 - margin, topY - 6, stripW + margin * 2, totalH + 12);
-
-        // Sprocket Perforations along left & right edges
-        ctx.fillStyle = '#ede8dc';
-        for (let py = topY; py < botY; py += 16) {
-          ctx.fillRect(cx - stripW / 2 - margin + 2, py, 4.5, 7);
-          ctx.fillRect(cx + stripW / 2 + margin - 6.5, py, 4.5, 7);
-        }
-
-        const units = beat.cuts[col.key] || [];
-        const wgStrip = getImg(beat.wg_shot.strip);
-        const fallbackAtlasItem = atlas[(state.beatIdx * 5 + cIdx * 17) % Math.max(1, atlas.length)];
-        const fallbackStrip = fallbackAtlasItem ? getImg(fallbackAtlasItem.strip) : null;
-
-        for (let f = 0; f < col.frames; f++) {
-          const fy = topY + f * frameH;
-          const fh = frameH - 3;
-          const fx = cx - stripW / 2;
-
-          const u = units[f % Math.max(1, units.length)];
-          const uImg = u && u.thumb ? getImg(u.thumb) : null;
-          const stepIdx = (f + Math.floor(state.tick / 28)) % 8;
-
-          if (col.key === '1983' && f === 2 && vid1983.readyState >= 2) {
-            ctx.drawImage(vid1983, fx, fy, stripW, fh);
-          } else if (col.key === '1983' && wgStrip && wgStrip.complete && wgStrip.naturalWidth > 0) {
-            const sw = wgStrip.naturalWidth / 8;
-            ctx.drawImage(wgStrip, stepIdx * sw, 0, sw, wgStrip.naturalHeight, fx, fy, stripW, fh);
-          } else if (uImg && uImg.complete && uImg.naturalWidth > 0) {
-            ctx.drawImage(uImg, fx, fy, stripW, fh);
-          } else if (fallbackStrip && fallbackStrip.complete && fallbackStrip.naturalWidth > 0) {
-            const sw = fallbackStrip.naturalWidth / 8;
-            ctx.drawImage(fallbackStrip, ((f + cIdx) % 8) * sw, 0, sw, fallbackStrip.naturalHeight, fx, fy, stripW, fh);
-          }
-
-          // Subtle monochrome / archival contrast frame border
-          ctx.strokeStyle = proximity > 0.55 ? '#e5a922' : 'rgba(237,232,220,0.35)';
-          ctx.lineWidth = proximity > 0.55 ? 1.5 : 0.8;
-          ctx.strokeRect(fx, fy, stripW, fh);
-        }
-
-        // Column Header Stamp
-        ctx.fillStyle = proximity > 0.55 ? '#d9381e' : '#141311';
-        ctx.font = '500 8.5px "IBM Plex Mono", monospace';
-        ctx.fillText(col.label, cx - stripW / 2 - margin, topY - 12);
-      });
-    }
-
-    // 5. Draw the Interactive Vertical Vermilion Red Datum Line & Handle (exact match to Image 3)
-    ctx.strokeStyle = '#d9381e';
-    ctx.lineWidth = 3.2;
-    ctx.beginPath();
-    ctx.moveTo(redX, 0);
-    ctx.lineTo(redX, H);
-    ctx.stroke();
-
-    const handleY = state.lineY * H;
-    ctx.fillStyle = '#ede8dc';
-    ctx.strokeStyle = '#d9381e';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(redX, handleY, 7.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    requestAnimationFrame(draw);
-  }
-
-  cv.addEventListener('pointerdown', e => {
-    state.dragging = true;
-    updateLineFromEvent(e);
-    cv.setPointerCapture(e.pointerId);
-  });
-
-  cv.addEventListener('pointermove', e => {
-    if (!state.dragging) return;
-    updateLineFromEvent(e);
-  });
-
-  cv.addEventListener('pointerup', () => {
-    state.dragging = false;
-  });
-
-  function updateLineFromEvent(e) {
-    const rect = cv.getBoundingClientRect();
-    state.lineX = Math.max(0.06, Math.min(0.94, (e.clientX - rect.left) / rect.width));
-    state.lineY = Math.max(0.12, Math.min(0.88, (e.clientY - rect.top) / rect.height));
-  }
 })();
 </script>
 </body>

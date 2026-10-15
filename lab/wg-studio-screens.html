@@ -3,750 +3,687 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>01 / SCREEN STATES · Examine All Screens to Infer a Program</title>
+<title>01 / SCREEN STATES — Reverse-Engineering the WOPR &amp; IMSAI Program from All 258 Screen States</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="wg-studio-nav.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#060606;
-    --panel:#0b0a09;
+    --bg:#050608;
+    --panel:#0a0d12;
+    --panel2:#0e131a;
     --ink:#efe9dd;
-    --dim:#8a8378;
-    --faint:#24211d;
-    --hi:#e8c070;
-    --phos:#4af6c3;
-    --red:#e0523c;
-    --serif:'Fraunces',Georgia,serif;
+    --muted:#8a94a2;
+    --dim:#495260;
+    --rule:rgba(239,233,221,.11);
+    --gold:#e8c070;
+    --cyan:#45b1ff;
+    --green:#41e096;
+    --red:#ff5548;
+    --amber:#f59e0b;
     --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --serif:'Fraunces',Georgia,serif;
+    --sans:'IBM Plex Sans',system-ui,sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--mono);overflow:hidden;-webkit-font-smoothing:antialiased}
-
-  #app{
-    position:fixed;
-    top:40px;bottom:48px;left:0;right:0;
+  html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--mono);overflow:hidden}
+  .shell{
+    position:fixed;top:40px;left:0;right:0;bottom:148px;
     display:grid;
-    grid-template-columns:1fr 450px;
-    border-top:1px solid var(--faint);
+    grid-template-columns:360px 1fr 410px;
+    border-top:1px solid var(--rule);
+    transition:bottom .24s cubic-bezier(.22,1,.36,1);
   }
+  body.lines-collapsed .shell{bottom:44px}
 
-  /* ─── LEFT: ALL-SCREENS STATE MATRIX & GRAPH ─── */
-  #leftPane{
-    display:grid;
-    grid-template-rows:auto auto 1fr;
-    min-width:0;min-height:0;
-    border-right:1px solid var(--faint);
-  }
-
-  /* Subsystem Filter Bar */
-  #subBar{
-    display:flex;align-items:center;gap:4px;overflow-x:auto;
-    padding:8px 16px;border-bottom:1px solid var(--faint);
-    background:#090807;scrollbar-width:none;
-  }
-  #subBar::-webkit-scrollbar{display:none}
-  .sub-btn{
-    flex:0 0 auto;background:#0e0d0b;border:1px solid var(--faint);
-    color:var(--dim);font:500 9.5px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;
-    padding:7px 10px;cursor:pointer;transition:all .15s;
-    display:inline-flex;align-items:center;gap:6px;
-  }
-  .sub-btn i{width:6px;height:6px;border-radius:50%;display:inline-block}
-  .sub-btn:hover{color:var(--ink);border-color:#443e36}
-  .sub-btn.on{color:#060606;background:var(--hi);border-color:var(--hi)}
-  .sub-btn.on i{background:#060606!important}
-
-  /* Control Toolbar */
-  #viewToolbar{
-    display:flex;align-items:center;justify-content:space-between;gap:12px;
-    padding:7px 16px;border-bottom:1px solid var(--faint);
-    background:#070706;font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--dim);
-  }
-  .t-group{display:inline-flex;align-items:center;gap:4px}
-  .t-chip{
-    background:none;border:1px solid var(--faint);color:var(--dim);
-    font:400 9px/1 var(--mono);letter-spacing:.15em;text-transform:uppercase;
-    padding:5px 9px;cursor:pointer;
-  }
-  .t-chip:hover{color:var(--ink)}
-  .t-chip.on{border-color:var(--hi);color:var(--hi);background:rgba(232,192,112,.08)}
-
-  /* Scrollable Screen States Container */
-  #matrixWrap{
-    position:relative;overflow-y:auto;overflow-x:hidden;
-    padding:16px;background:#050505;
-  }
-
-  .sub-section{margin-bottom:26px}
-  .sub-hdr{
-    display:flex;align-items:baseline;justify-content:space-between;
-    padding-bottom:8px;margin-bottom:10px;border-bottom:1px solid #1c1916;
-  }
-  .sub-hdr h3{
-    font:400 italic 18px/1.1 var(--serif);color:var(--ink);
-    display:inline-flex;align-items:baseline;gap:10px;
-  }
-  .sub-hdr h3 span.code{
-    font:500 10px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--hi);
-  }
-  .sub-hdr .inv{
-    font:400 9.5px/1 var(--mono);color:var(--phos);letter-spacing:.08em;
-  }
-
-  /* Contact Sheet Grid of Screen States */
-  .state-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(148px,1fr));
-    gap:8px;
-  }
-  body.crop-subframes .state-grid{
-    grid-template-columns:repeat(auto-fill,minmax(290px,1fr));
-  }
-
-  .st-card{
-    position:relative;background:#0c0b0a;border:1px solid #1f1c18;
-    cursor:pointer;transition:border-color .14s,transform .14s;
-    display:flex;flex-direction:column;overflow:hidden;
-  }
-  .st-card:hover{border-color:#6e6559;transform:translateY(-1px)}
-  .st-card.active{border-color:var(--hi);box-shadow:0 0 0 1px var(--hi)}
-  .st-card.code-linked{border-color:var(--phos);box-shadow:0 0 0 1px var(--phos)}
-
-  .st-img-wrap{
-    position:relative;width:100%;aspect-ratio:4/3;background:#000;overflow:hidden;
-  }
-  body.crop-subframes .st-img-wrap{aspect-ratio:16/3}
-  .st-img-wrap img{
-    width:100%;height:100%;object-fit:cover;display:block;
-    filter:contrast(1.06);
-  }
-  .st-badge{
-    position:absolute;top:5px;left:5px;
-    background:rgba(5,5,5,.82);color:var(--ink);
-    font:500 8.5px/1 var(--mono);letter-spacing:.12em;
-    padding:3px 5px;border:1px solid rgba(239,233,221,.18);
-  }
-  .st-time{
-    position:absolute;bottom:5px;right:5px;
-    background:rgba(5,5,5,.82);color:var(--hi);
-    font:400 8px/1 var(--mono);letter-spacing:.1em;padding:2px 5px;
-  }
-  .st-crop-pill{
-    position:absolute;top:5px;right:5px;
-    background:rgba(74,246,195,.16);color:var(--phos);
-    font:500 7.5px/1 var(--mono);letter-spacing:.1em;padding:2px 4px;
-    border:1px solid rgba(74,246,195,.35);
-  }
-  .st-meta{
-    padding:6px 7px;display:flex;flex-direction:column;gap:3px;
-    border-top:1px solid #161412;
-  }
-  .st-stmt{
-    font:500 8.5px/1.2 var(--mono);color:var(--phos);
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  }
-  .st-obs{
-    font:300 11px/1.25 var(--serif);color:#bfb7a8;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  }
-
-  /* FSM Graph Canvas Mode */
-  #fsmCanvasWrap{
-    display:none;width:100%;height:100%;position:relative;background:#050505;
-  }
-  body.view-fsm #matrixWrap{display:none}
-  body.view-fsm #fsmCanvasWrap{display:block}
-  #fsmCanvas{width:100%;height:100%;display:block;cursor:grab}
-
-  /* ─── RIGHT SPINE: PROGRAM INFERENCE & STATE EXECUTOR ─── */
-  #rightPane{
-    background:var(--panel);
-    display:grid;
-    grid-template-rows:auto auto 1fr auto;
-    min-height:0;overflow:hidden;
-  }
-
-  /* Active Screen State Monitor */
-  #inspectorTop{
-    padding:14px 16px;border-bottom:1px solid var(--faint);
-    display:flex;flex-direction:column;gap:8px;
-  }
-  .ins-kicker{
-    display:flex;align-items:center;justify-content:space-between;
-    font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--hi);
-  }
-  .ins-stage{
-    position:relative;width:100%;aspect-ratio:16/9;background:#000;
-    border:1px solid #26221d;overflow:hidden;
-  }
-  #insVideo,#insImg{
-    position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;
-  }
-  #insVideo{display:none}
-  #insVideo.on{display:block}
-  .ins-strip-bar{
-    display:grid;grid-template-columns:repeat(8,1fr);gap:2px;
-    height:34px;background:#050505;border:1px solid #1e1b17;padding:2px;
-  }
-  .ins-subcell{
-    position:relative;overflow:hidden;cursor:pointer;border:1px solid transparent;
-    background-repeat:no-repeat;background-size:800% 100%;
-  }
-  .ins-subcell.on{border-color:var(--hi)}
-  .ins-subcell span{
-    position:absolute;bottom:1px;right:2px;font-size:7px;color:#fff;
-    background:rgba(0,0,0,.7);padding:0 2px;
-  }
-
-  /* State Transition Rule Box */
-  #ruleBox{
-    padding:10px 16px;border-bottom:1px solid var(--faint);
-    background:#080807;display:flex;flex-direction:column;gap:5px;
-  }
-  #ruleBox .rule-eq{
-    font:500 10px/1.35 var(--mono);color:var(--phos);
-    padding:5px 8px;background:rgba(74,246,195,.06);border-left:2px solid var(--phos);
-  }
-  #ruleBox .rule-obs{
-    font:italic 300 13.5px/1.3 var(--serif);color:var(--ink);
-  }
-  #ruleBox .rule-io{
-    font:400 9px/1.35 var(--mono);color:var(--dim);
-  }
-
-  /* Reconstructed Executable Program Listing */
-  #codeWrap{
-    display:flex;flex-direction:column;min-height:0;overflow:hidden;
-  }
-  .code-hdr{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:8px 16px;border-bottom:1px solid var(--faint);
-    font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);
-    background:#0d0c0a;
-  }
-  .code-hdr b{color:var(--ink);font-weight:500}
-  #codeList{
-    overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;gap:4px;
-  }
-  .code-row{
-    display:grid;grid-template-columns:38px 1fr auto;align-items:baseline;gap:8px;
-    padding:7px 8px;border:1px solid transparent;background:#080706;
-    cursor:pointer;transition:all .14s;
-  }
-  .code-row:hover{border-color:#2c2822;background:#100e0c}
-  .code-row.on{
-    border-color:var(--phos);background:rgba(74,246,195,.08);
-  }
-  .code-row .ln{font-size:9px;color:var(--dim);letter-spacing:.1em}
-  .code-row .stmt{font:500 10.5px/1.3 var(--mono);color:var(--ink)}
-  .code-row.on .stmt{color:var(--phos)}
-  .code-row .comm{
-    grid-column:2 / 4;font:300 11.5px/1.25 var(--serif);color:#9c9488;margin-top:2px;
-  }
-  .code-row .cnt{
-    font-size:8.5px;color:var(--hi);letter-spacing:.1em;
-    border:1px solid rgba(232,192,112,.3);padding:2px 5px;
-  }
-
-  /* Bottom Executor Controls */
-  #execFoot{
-    padding:10px 16px;border-top:1px solid var(--faint);
+  .col{display:flex;flex-direction:column;height:100%;overflow:hidden;border-right:1px solid var(--rule)}
+  .col:last-child{border-right:0}
+  .col-head{
+    padding:9px 14px;border-bottom:1px solid var(--rule);
+    background:rgba(10,13,18,.94);
     display:flex;align-items:center;justify-content:space-between;gap:8px;
-    background:#090807;
+    font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);
+    flex-shrink:0;
   }
-  .exec-btn{
-    background:var(--hi);color:#060606;border:0;
-    font:500 9.5px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;
-    padding:9px 14px;cursor:pointer;flex:1;
+  .col-head b{color:var(--ink);font-weight:600}
+
+  /* LEFT: DUAL LIVE CRT EXECUTION + 8-SUBFRAME DELTA INSPECTOR + INFERRED PROGRAM */
+  .crt-pair{
+    display:grid;grid-template-columns:1fr 1fr;gap:6px;
+    padding:8px 10px;border-bottom:1px solid var(--rule);background:#030507;flex-shrink:0;
   }
-  .exec-btn.running{background:var(--phos)}
-  .exec-step{
-    background:none;border:1px solid var(--faint);color:var(--ink);
-    font:400 9.5px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;
-    padding:8px 11px;cursor:pointer;
+  .crt-box{
+    border:1px solid rgba(69,177,255,.24);background:#000;position:relative;
+    display:flex;flex-direction:column;
+  }
+  .crt-box.twin{border-color:rgba(232,192,112,.28)}
+  .crt-lbl{
+    padding:3px 6px;font-size:8px;letter-spacing:.12em;text-transform:uppercase;
+    display:flex;justify-content:space-between;background:rgba(10,14,20,.9);border-bottom:1px solid rgba(255,255,255,.07);
+  }
+  .crt-screen{
+    position:relative;aspect-ratio:16/9;width:100%;background:#000;overflow:hidden;
+  }
+  .crt-screen video,.crt-screen img{
+    width:100%;height:100%;object-fit:cover;display:block;
+  }
+  .crt-scan{
+    position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0px,rgba(0,0,0,0) 2px,rgba(0,0,0,.28) 3px);
+  }
+  .crt-meta{
+    padding:4px 6px;font-size:8px;line-height:1.35;color:var(--muted);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
 
-  @media (max-width:980px){
-    #app{grid-template-columns:1fr;grid-template-rows:1fr 390px}
-    #leftPane{border-right:0;border-bottom:1px solid var(--faint)}
+  /* 8-SUBFRAME DELTA STRIP */
+  .subframe-box{
+    padding:7px 10px;border-bottom:1px solid var(--rule);background:var(--panel);flex-shrink:0;
+  }
+  .sf-head{
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;
+  }
+  .sf-strip-wrap{
+    position:relative;height:44px;border:1px solid var(--rule);background:#000;overflow:hidden;
+    display:grid;grid-template-columns:repeat(8,1fr);
+  }
+  .sf-strip-bg{
+    position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.88;pointer-events:none;
+  }
+  .sf-cell{
+    position:relative;z-index:2;border-right:1px solid rgba(255,255,255,.15);
+    display:flex;flex-direction:column;justify-content:space-between;padding:2px 3px;
+    font-size:7.5px;cursor:pointer;transition:background .12s;
+  }
+  .sf-cell:hover,.sf-cell.on{background:rgba(232,192,112,.22);outline:1px solid var(--gold)}
+  .sf-cell span{background:rgba(0,0,0,.72);padding:1px 2px;width:max-content}
+  .sf-op-row{
+    display:grid;grid-template-columns:repeat(8,1fr);gap:2px;margin-top:4px;
+  }
+  .sf-op-tag{
+    font-size:7px;padding:2px 2px;text-align:center;border:1px solid var(--rule);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .sf-op-tag.VECTOR_SWEEP{border-color:rgba(255,85,72,.5);color:#ff857a;background:rgba(255,85,72,.1)}
+  .sf-op-tag.PAGE_FLIP{border-color:rgba(232,192,112,.5);color:var(--gold);background:rgba(232,192,112,.1)}
+  .sf-op-tag.TTY_CHAR_OUT{border-color:rgba(65,224,150,.45);color:var(--green);background:rgba(65,224,150,.08)}
+
+  /* CODE LISTING */
+  .code-scroll{
+    flex:1;overflow-y:auto;padding:10px 12px;font-size:10px;line-height:1.52;
+    background:linear-gradient(180deg,#06080c 0%,#080b10 100%);
+  }
+  .sub-block{
+    margin-bottom:12px;border:1px solid rgba(69,177,255,.15);background:rgba(12,17,24,.78);
+  }
+  .sub-block.active{border-color:var(--gold);box-shadow:0 0 18px rgba(232,192,112,.11)}
+  .sub-hdr{
+    padding:5px 9px;background:rgba(69,177,255,.08);border-bottom:1px solid rgba(69,177,255,.14);
+    display:flex;justify-content:space-between;align-items:center;
+    color:var(--cyan);font-weight:600;font-size:9px;letter-spacing:.08em;cursor:pointer;
+  }
+  .sub-block.active .sub-hdr{background:rgba(232,192,112,.15);color:var(--gold)}
+  .sub-meta{padding:5px 9px;color:var(--muted);font-size:8.5px;border-bottom:1px dashed rgba(239,233,221,.07)}
+  .code-lines{padding:6px 9px;color:#d6e4f0}
+  .code-ln{display:block;white-space:pre-wrap;padding:1px 3px;border-radius:2px}
+  .code-ln.op-hl{background:rgba(232,192,112,.18);color:var(--gold);font-weight:600}
+
+  /* CENTER: ALL 258 SCREEN STATES CONTACT SHEET & SUB-FRAME ATLAS */
+  .filter-bar{
+    padding:7px 12px;border-bottom:1px solid var(--rule);background:var(--panel);
+    display:flex;align-items:center;gap:5px;flex-wrap:wrap;flex-shrink:0;
+  }
+  .f-btn{
+    background:rgba(255,255,255,.03);border:1px solid var(--rule);color:var(--muted);
+    font:500 8.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;
+    padding:4px 7px;cursor:pointer;transition:all .14s;
+  }
+  .f-btn:hover{color:var(--ink);border-color:rgba(239,233,221,.35)}
+  .f-btn.on{color:#050608;background:var(--gold);border-color:var(--gold);font-weight:600}
+  .f-btn.sys-on{color:#050608;background:var(--cyan);border-color:var(--cyan);font-weight:600}
+
+  .grid-scroll{flex:1;overflow-y:auto;padding:10px;background:#040507}
+  .screen-grid{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:6px;
+  }
+  .screen-grid.strip-mode{
+    grid-template-columns:repeat(auto-fill,minmax(270px,1fr));
+  }
+  .sc-card{
+    border:1px solid rgba(239,233,221,.11);background:var(--panel);cursor:pointer;
+    position:relative;overflow:hidden;transition:transform .12s,border-color .12s;
+    display:flex;flex-direction:column;
+  }
+  .sc-card:hover{border-color:rgba(239,233,221,.48);transform:translateY(-1px);z-index:2}
+  .sc-card.active{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 16px rgba(232,192,112,.25);z-index:3}
+  .sc-img-wrap{position:relative;aspect-ratio:16/9;background:#000;overflow:hidden}
+  .screen-grid.strip-mode .sc-img-wrap{aspect-ratio:32/5}
+  .sc-img-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+  .sc-badge{
+    position:absolute;top:3px;left:3px;padding:2px 4px;
+    background:rgba(5,6,8,.84);border:1px solid rgba(255,255,255,.14);
+    font-size:7.5px;letter-spacing:.08em;color:var(--ink);
+  }
+  .sc-defcon{
+    position:absolute;top:3px;right:3px;padding:2px 4px;
+    font-size:7.5px;font-weight:600;letter-spacing:.08em;background:rgba(5,6,8,.84);
+  }
+  .sc-defcon.d1{color:var(--red);border:1px solid rgba(255,85,72,.5)}
+  .sc-defcon.d2,.sc-defcon.d3{color:var(--amber);border:1px solid rgba(245,158,11,.45)}
+  .sc-defcon.d4,.sc-defcon.d5{color:var(--green);border:1px solid rgba(65,224,150,.35)}
+  .sc-foot{
+    padding:4px 6px;font-size:8px;display:flex;flex-direction:column;gap:2px;
+  }
+  .sc-op{color:var(--gold);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sc-sub{color:var(--muted);display:flex;justify-content:space-between;font-size:7.5px}
+
+  /* RIGHT: STATE INSPECTOR, TRIGGER SPOKEN LINE & TRANSITION TRACE */
+  .insp-scroll{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:9px}
+  .reg-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+  .reg-cell{padding:6px 8px;border:1px solid var(--rule);background:var(--panel2)}
+  .reg-k{font-size:7.5px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-bottom:2px}
+  .reg-v{font-size:10.5px;color:var(--ink);font-weight:600;word-break:break-word}
+  .reg-v.gold{color:var(--gold)}
+  .reg-v.cyan{color:var(--cyan)}
+  .reg-v.green{color:var(--green)}
+
+  .term-box{
+    padding:8px 10px;border:1px solid rgba(65,224,150,.26);background:rgba(8,20,15,.55);
+  }
+  .term-k{font-size:8px;letter-spacing:.14em;color:var(--green);text-transform:uppercase;margin-bottom:4px;display:flex;justify-content:space-between}
+  .term-txt{font:400 11px/1.42 var(--mono);color:#d7fbe8}
+
+  .trigger-box{
+    padding:8px 10px;border:1px solid rgba(232,192,112,.3);background:rgba(232,192,112,.06);
+    display:flex;flex-direction:column;gap:5px;
+  }
+  .trig-top{display:flex;justify-content:space-between;align-items:center;font-size:8px;letter-spacing:.12em;color:var(--gold);text-transform:uppercase}
+  .trig-1983{font:400 11.5px/1.38 var(--sans);color:var(--ink)}
+  .trig-arch{font:italic 400 11.5px/1.38 var(--serif);color:var(--green)}
+
+  .trace-list{display:flex;flex-direction:column;gap:3px}
+  .trace-row{
+    display:grid;grid-template-columns:46px 52px 1fr 48px;gap:5px;align-items:center;
+    padding:4px 6px;border:1px solid var(--rule);background:var(--panel);
+    font-size:8px;cursor:pointer;
+  }
+  .trace-row:hover{border-color:rgba(239,233,221,.35)}
+  .trace-row.on{border-color:var(--gold);background:rgba(232,192,112,.1)}
+
+  @media (max-width:1120px){
+    .shell{grid-template-columns:310px 1fr 330px}
   }
 </style>
 </head>
-<body class="crop-screens">
+<body>
 
-<div id="app">
-  <!-- LEFT: ALL 258 SCREEN STATES + FSM GRAPH -->
-  <section id="leftPane">
-    <nav id="subBar" aria-label="10 Computer Subsystems"></nav>
-
-    <div id="viewToolbar">
-      <div class="t-group">
-        <span>VIEW:</span>
-        <button class="t-chip on" data-v="matrix">CONTACT MATRIX (258)</button>
-        <button class="t-chip" data-v="fsm">STATE MACHINE GRAPH (FSM)</button>
-      </div>
-      <div class="t-group">
-        <span>IMAGE STATE:</span>
-        <button class="t-chip on" data-c="screens">CROPPED SCREENS</button>
-        <button class="t-chip" data-c="full">FULL CAMERA FRAME</button>
-        <button class="t-chip" data-c="subframes">8-FRAME SUB-STATES (f1–f8)</button>
+<main class="shell">
+  <!-- COLUMN 1: LIVE CRT MONITORS + 8-SUBFRAME DELTA ANALYZER + INFERRED PROGRAM -->
+  <section class="col">
+    <div class="col-head">
+      <span><b>01 · LIVE CRT &amp; INFERRED PROGRAM</b></span>
+      <div style="display:flex;gap:4px">
+        <button class="f-btn on" id="btnTraceMode" title="Lock Screen Inspector to Live Spoken Line Playback">SYNC TO BEAT</button>
+        <button class="f-btn" id="btnStepState" title="Step Next Screen State (S)">STEP +1</button>
       </div>
     </div>
 
-    <div id="matrixWrap"></div>
-    <div id="fsmCanvasWrap">
-      <canvas id="fsmCanvas"></canvas>
+    <!-- DUAL LIVE VIDEO CRT MONITORS -->
+    <div class="crt-pair">
+      <div class="crt-box">
+        <div class="crt-lbl">
+          <span style="color:var(--cyan)" id="crtLeftId">STATE #001 · WG_001</span>
+          <span id="crtLeftSys">NORAD</span>
+        </div>
+        <div class="crt-screen">
+          <video id="crtVid1983" muted playsinline preload="auto"></video>
+          <div class="crt-scan"></div>
+        </div>
+        <div class="crt-meta" id="crtLeftMeta">OP: INIT_MISSILE_DRILL · DEFCON 5</div>
+      </div>
+
+      <div class="crt-box twin">
+        <div class="crt-lbl">
+          <span style="color:var(--gold)" id="crtRightId">ARCHIVAL MACHINE TWIN</span>
+          <span id="crtRightYear">ARCHIVE</span>
+        </div>
+        <div class="crt-screen">
+          <video id="crtVidTwin" muted playsinline preload="auto"></video>
+          <div class="crt-scan"></div>
+        </div>
+        <div class="crt-meta" id="crtRightMeta">Loading archival twin...</div>
+      </div>
+    </div>
+
+    <!-- 8-FRAME SUB-STATE STRIP & MEASURED PIXEL DELTAS -->
+    <div class="subframe-box">
+      <div class="sf-head">
+        <span>8-FRAME SUB-STATE STRIP (<b id="sfCountLbl" style="color:var(--gold)">f1–f8</b>)</span>
+        <span id="sfDeltaSummary">SUB-STATES: 4 · PEAK DELTA: 18.4</span>
+      </div>
+      <div class="sf-strip-wrap" id="sfStripWrap">
+        <img class="sf-strip-bg" id="sfStripImg" src="strips/wg_001.jpg" alt="8-Frame Strip">
+      </div>
+      <div class="sf-op-row" id="sfOpRow"></div>
+    </div>
+
+    <!-- INFERRED WOPR / IMSAI PROGRAM LISTING -->
+    <div class="code-scroll" id="codeScroll"></div>
+  </section>
+
+  <!-- COLUMN 2: ALL 258 SCREEN STATES CONTACT SHEET -->
+  <section class="col">
+    <div class="col-head">
+      <span><b>ALL 258 SCREEN STATES</b> (<span id="shownCount">258</span> STATES · <span id="subframeTotal">1,049</span> SUB-FRAMES)</span>
+      <div style="display:flex;gap:4px">
+        <button class="f-btn on" id="btnViewThumb">SCREEN THUMBS</button>
+        <button class="f-btn" id="btnViewStrip">8-FRAME STRIPS (2,064 FRAMES)</button>
+      </div>
+    </div>
+    <div class="filter-bar" id="sysFilterBar">
+      <button class="f-btn sys-on" data-sys="ALL">ALL (258)</button>
+      <button class="f-btn" data-sys="IMSAI_8080">IMSAI 8080</button>
+      <button class="f-btn" data-sys="WOPR_CORE">WOPR / JOSHUA</button>
+      <button class="f-btn" data-sys="NORAD_BIGBOARD">NORAD BIG BOARD</button>
+      <button class="f-btn" data-sys="DEFCON_LOGIC">DEFCON</button>
+      <button class="f-btn" data-sys="LAUNCH_SILO">SILO / CPE</button>
+      <button class="f-btn" data-sys="TICTACTOE_SOLVER">TIC-TAC-TOE</button>
+    </div>
+    <div class="grid-scroll">
+      <div class="screen-grid" id="screenGrid"></div>
     </div>
   </section>
 
-  <!-- RIGHT: ACTIVE SCREEN STATE INSPECTOR & INFERRED PROGRAM -->
-  <aside id="rightPane">
-    <div id="inspectorTop">
-      <div class="ins-kicker">
-        <span id="insStateId">SYS-01.S01 · ROM://ARCADE</span>
-        <span id="insHardware">NAMCO GALAGA PCB · 256×224 RGB</span>
+  <!-- COLUMN 3: STATE REGISTER INSPECTOR + SPOKEN TRIGGER LINE + EXECUTION TRACE -->
+  <section class="col">
+    <div class="col-head">
+      <span><b>STATE REGISTER &amp; SPOKEN TRIGGER</b></span>
+      <span id="inspClock">T+00:00.0</span>
+    </div>
+    <div class="insp-scroll">
+      <div class="reg-grid">
+        <div class="reg-cell">
+          <div class="reg-k">OPCODE / INSTRUCTION</div>
+          <div class="reg-v gold" id="regOpcode">INIT_MISSILE_DRILL</div>
+        </div>
+        <div class="reg-cell">
+          <div class="reg-k">SUBSYSTEM &amp; DEFCON</div>
+          <div class="reg-v cyan" id="regSysDef">LAUNCH_SILO · DEFCON 5</div>
+        </div>
+        <div class="reg-cell">
+          <div class="reg-k">SUBROUTINE ADDR</div>
+          <div class="reg-v green" id="regSubroutine">0x0010 SUB_SILO_LAUNCH</div>
+        </div>
+        <div class="reg-cell">
+          <div class="reg-k">PHOSPHOR CHROMATICITY</div>
+          <div class="reg-v" id="regPhosphor">RGB(34,42,38) · LUM 39</div>
+        </div>
       </div>
-      <div class="ins-stage" id="insStage" title="Click to toggle live video slice vs high-res screen capture">
-        <img id="insImg" src="" alt="Active screen state">
-        <video id="insVideo" playsinline muted loop></video>
+
+      <div class="term-box">
+        <div class="term-k">
+          <span>DECIPHERED CRT / TERMINAL BUFFER</span>
+          <span id="termShotSpan">0.0s–4.8s</span>
+        </div>
+        <div class="term-txt" id="termText">Loading screen buffer...</div>
       </div>
-      <div class="ins-strip-bar" id="insStripBar" title="8-Frame Sub-Shot Temporal Evolution (f1..f8)"></div>
-    </div>
 
-    <div id="ruleBox">
-      <div class="rule-eq" id="insRuleEq">δ(INIT, t=708.5s) → SYS-01.S01</div>
-      <div class="rule-obs" id="insObs">Observed Screen State</div>
-      <div class="rule-io" id="insIo">IN: Joystick · OUT: CRT Raster</div>
-    </div>
-
-    <div id="codeWrap">
-      <div class="code-hdr">
-        <b id="progTitle">INFERRED PROGRAM · Z80 ASM</b>
-        <span id="progCount">7 INSTRUCTIONS</span>
+      <!-- SPOKEN TRIGGER LINE & ARCHIVAL VOICE ANSWER -->
+      <div class="trigger-box">
+        <div class="trig-top">
+          <span id="trigSpeaker">SPOKEN TRIGGER LINE (1983)</span>
+          <div style="display:flex;gap:3px" id="trigTakeBtns"></div>
+        </div>
+        <div class="trig-1983" id="trig1983Text">—</div>
+        <div class="trig-arch" id="trigArchText">—</div>
+        <div style="font-size:8px;color:var(--muted);display:flex;justify-content:space-between" id="trigArchMeta">
+          <span>ARCHIVE TWIN</span>
+          <span>CLICK LINE BELOW TO AUDITION</span>
+        </div>
       </div>
-      <div id="codeList"></div>
-    </div>
 
-    <div id="execFoot">
-      <button class="exec-step" id="btnPrevState">PREV STATE</button>
-      <button class="exec-btn" id="btnExecProg">EXECUTE INFERRED PROGRAM</button>
-      <button class="exec-step" id="btnNextState">NEXT STATE</button>
+      <div style="font-size:8.5px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-top:2px">
+        PROGRAM EXECUTION TRACE (258 SCREEN STATES)
+      </div>
+      <div class="trace-list" id="traceList"></div>
     </div>
-  </aside>
-</div>
+  </section>
+</main>
 
+<script src="wg-studio-nav.js"></script>
 <script>
 (() => {
   'use strict';
 
-  const state = {
-    data: null,
-    subFilter: 'ALL',     // 'ALL' or subsystem.id
-    viewMode: 'matrix',   // 'matrix' | 'fsm'
-    cropMode: 'screens',  // 'screens' | 'full' | 'subframes'
-    activeState: null,
-    activeCodeLine: null, // { subId, lineIdx }
-    executing: true,
-    execTimer: null,
-    fsmZoom: 1,
-    fsmPanX: 0,
-    fsmPanY: 0,
-  };
-
-  const $ = id => document.getElementById(id);
+  let progData = null;
+  let allStates = [];
+  let filteredStates = [];
+  let activeStateIdx = 0;
+  let activeSubFrame = 0;
+  let stripMode = false;
+  let sysFilter = 'ALL';
+  let syncToBeat = true;
+  let engine = null;
+  let beatsById = {};
 
   const nav = WGStudioNav.mount({
     theme: 'dark',
     num: '01',
-    titleLeft: '01 / SCREEN STATES',
-    promptCenter: 'CLICK ANY SCREENSHOT OR INSTRUCTION TO INFER & TRACE THE PROGRAM',
-    onTogglePlay(playing) {
-      state.executing = playing;
-      updateExecButton();
-    },
-    onReset() {
-      state.subFilter = 'ALL';
-      state.activeCodeLine = null;
-      renderSubBar();
-      renderMatrix();
-      if (state.data && state.data.all_states.length) {
-        selectState(state.data.all_states[0]);
-      }
-    },
-    onPrevBeat() { stepState(-1); },
-    onNextBeat() { stepState(1); },
+    titleLeft: '01 / SCREEN STATES — INFERRED WOPR PROGRAM',
+    promptCenter: 'CLICK ANY SCREEN STATE OR SPOKEN LINE TO INSPECT & HEAR ITS EXECUTION',
+    onPrevBeat: () => engine && engine.prevBeat(),
+    onNextBeat: () => engine && engine.nextBeat(),
+    onReset: () => {
+      sysFilter = 'ALL';
+      document.querySelectorAll('#sysFilterBar .f-btn').forEach(b => b.classList.toggle('sys-on', b.dataset.sys === 'ALL'));
+      applyFilter();
+      selectScreenState(0, true);
+    }
   });
 
-  fetch('wargames-screens-program.json')
-    .then(r => r.json())
-    .then(d => {
-      state.data = d;
-      nav.setStatus(`${d.total_states} SCREENS · ${d.total_subframe_states} SUB-STATES`);
-      renderSubBar();
-      renderMatrix();
-      if (d.all_states.length) selectState(d.all_states[0]);
-      startAutoStep();
-    });
+  const crtVid1983 = document.getElementById('crtVid1983');
+  const crtVidTwin = document.getElementById('crtVidTwin');
 
-  function renderSubBar() {
-    const bar = $('subBar');
-    if (!bar || !state.data) return;
-    const allBtn = `<button class="sub-btn${state.subFilter === 'ALL' ? ' on' : ''}" data-sub="ALL">
-      <i style="background:#e8c070"></i>ALL 10 SUBSYSTEMS (${state.data.total_states})
-    </button>`;
-    const subBtns = state.data.subsystems.map(s => `
-      <button class="sub-btn${state.subFilter === s.id ? ' on' : ''}" data-sub="${s.id}">
-        <i style="background:${s.color || '#4af6c3'}"></i>${s.code} · ${s.short} (${s.states.length})
-      </button>
-    `).join('');
-    bar.innerHTML = allBtn + subBtns;
-
-    bar.querySelectorAll('.sub-btn').forEach(btn => {
-      btn.onclick = () => {
-        state.subFilter = btn.dataset.sub;
-        state.activeCodeLine = null;
-        renderSubBar();
-        renderMatrix();
-        const list = visibleStates();
-        if (list.length) selectState(list[0]);
-        if (state.viewMode === 'fsm') drawFSM();
-      };
-    });
+  function setVideoClip(vidEl, unitOrUrl, t0 = 0) {
+    if (!vidEl) return;
+    const url = WGStudioNav.resolveVideoUrl(unitOrUrl);
+    if (!url) return;
+    const key = `${url}@${Number(t0 || 0).toFixed(2)}`;
+    if (vidEl._scKey === key) return;
+    vidEl._scKey = key;
+    if (vidEl.getAttribute('src') !== url) {
+      vidEl.src = url;
+    }
+    const seek = () => {
+      try { vidEl.currentTime = Math.max(0, Number(t0 || 0)); } catch (_) {}
+      vidEl.play().catch(() => {});
+    };
+    if (vidEl.readyState >= 1) seek();
+    else vidEl.addEventListener('loadedmetadata', seek, { once: true });
   }
 
-  function visibleSubsystems() {
-    if (!state.data) return [];
-    if (state.subFilter === 'ALL') return state.data.subsystems;
-    return state.data.subsystems.filter(s => s.id === state.subFilter);
-  }
+  function renderSubroutines() {
+    const wrap = document.getElementById('codeScroll');
+    if (!progData || !progData.inferred_program) return;
+    const st = allStates[activeStateIdx];
+    const activeSubId = st ? st.subroutine : '';
 
-  function visibleStates() {
-    return visibleSubsystems().flatMap(s => s.states);
-  }
-
-  function imgForState(st) {
-    if (state.cropMode === 'subframes' && st.strip) return st.strip;
-    if (state.cropMode === 'full') return st.full_thumb;
-    return st.screen_thumb || st.full_thumb;
-  }
-
-  function renderMatrix() {
-    const wrap = $('matrixWrap');
-    if (!wrap || !state.data) return;
-    const subs = visibleSubsystems();
-
-    wrap.innerHTML = subs.map(sub => `
-      <div class="sub-section" data-sub-sec="${sub.id}">
-        <div class="sub-hdr">
-          <h3>
-            <span class="code">${sub.code} · ${sub.id}</span>
-            <span>${sub.title}</span>
-          </h3>
-          <span class="inv">${sub.entrypoint} :: ${sub.inferred_invariant}</span>
+    wrap.innerHTML = progData.inferred_program.subroutines.map(sub => {
+      const isAct = sub.id === activeSubId;
+      return `
+        <div class="sub-block${isAct ? ' active' : ''}" data-sub="${sub.id}">
+          <div class="sub-hdr">
+            <span>${sub.addr} · ${sub.id}</span>
+            <span>${sub.screen_count} SCREENS</span>
+          </div>
+          <div class="sub-meta">SYS: ${sub.subsystem} · ENTRY: ${sub.entry_shot ? sub.entry_shot.toUpperCase() : 'N/A'}</div>
+          <div class="code-lines">
+            ${sub.pseudo_code.map(ln => {
+              const hl = isAct && st && ln.includes(st.opcode.split('_')[0]);
+              return `<span class="code-ln${hl ? ' op-hl' : ''}">${ln}</span>`;
+            }).join('')}
+          </div>
         </div>
-        <div class="state-grid">
-          ${sub.states.map(st => {
-            const isAct = state.activeState && state.activeState.state_id === st.state_id;
-            const isLinked = state.activeCodeLine &&
-              state.activeCodeLine.subId === sub.id &&
-              state.activeCodeLine.lineIdx === st.code_line_idx;
-            return `
-              <div class="st-card${isAct ? ' active' : ''}${isLinked ? ' code-linked' : ''}" data-stid="${st.state_id}">
-                <div class="st-img-wrap">
-                  <img loading="lazy" src="${imgForState(st)}" alt="${st.state_id}">
-                  <span class="st-badge">${st.state_id}</span>
-                  ${st.is_verified_crop ? '<span class="st-crop-pill">CRT CROP</span>' : (st.strip ? '<span class="st-crop-pill">8× STRIP</span>' : '')}
-                  <span class="st-time">${fmtClock(st.start)}</span>
-                </div>
-                <div class="st-meta">
-                  <div class="st-stmt">${st.code_line_num} ${st.inferred_stmt}</div>
-                  <div class="st-obs">${st.observed_text}</div>
-                </div>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      </div>
-    `).join('');
-
-    wrap.querySelectorAll('.st-card').forEach(card => {
-      card.onclick = () => {
-        const st = findStateById(card.dataset.stid);
-        if (st) selectState(st, true);
-      };
-    });
-  }
-
-  function findStateById(stid) {
-    for (const sub of (state.data?.subsystems || [])) {
-      for (const st of sub.states) {
-        if (st.state_id === stid) return st;
-      }
-    }
-    return null;
-  }
-
-  function findSubById(subId) {
-    return (state.data?.subsystems || []).find(s => s.id === subId);
-  }
-
-  function selectState(st, manual = false) {
-    if (!st) return;
-    if (manual) {
-      state.executing = false;
-      nav.setPlaying(false);
-      updateExecButton();
-    }
-    state.activeState = st;
-    const sub = findSubById(st.subsystem_id);
-
-    nav.setBeatLabel(`${st.state_id} · ${sub ? sub.short : ''} (${fmtClock(st.start)})`);
-
-    // Highlight active card in matrix
-    document.querySelectorAll('.st-card').forEach(c => {
-      const isAct = c.dataset.stid === st.state_id;
-      const isLinked = state.activeCodeLine &&
-        c.dataset.stid.startsWith(sub?.code || '___') &&
-        findStateById(c.dataset.stid)?.code_line_idx === state.activeCodeLine.lineIdx;
-      c.classList.toggle('active', isAct);
-      c.classList.toggle('code-linked', Boolean(isLinked));
-    });
-
-    // Update Inspector Top
-    $('insStateId').textContent = `${st.state_id} · ${st.subsystem_id} (${st.shot_id})`;
-    $('insHardware').textContent = `${st.hardware} · ${st.baud}`;
-    $('insImg').src = st.screen_thumb || st.full_thumb;
-
-    const vid = $('insVideo');
-    const clipUrl = st.static_clip || st.clip;
-    if (clipUrl) {
-      vid.onerror = () => { vid.classList.remove('on'); };
-      vid.src = clipUrl;
-      vid.classList.add('on');
-      vid.play().catch(() => { vid.classList.remove('on'); });
-    } else {
-      vid.pause();
-      vid.classList.remove('on');
-    }
-
-    // 8-Frame Sub-Shot Strip Bar
-    const sb = $('insStripBar');
-    const stripSrc = st.strip || st.screen_thumb;
-    sb.innerHTML = Array.from({ length: 8 }, (_, i) => {
-      const pct = (i / 7) * 100;
-      const bgStyle = st.strip
-        ? `background-image:url('${stripSrc}');background-position:${pct.toFixed(1)}% 0%;background-size:800% 100%`
-        : `background-image:url('${stripSrc}');background-position:center;background-size:cover`;
-      return `<div class="ins-subcell${i === 0 ? ' on' : ''}" style="${bgStyle}" data-f="${i}"><span>f${i + 1}</span></div>`;
+      `;
     }).join('');
-    sb.querySelectorAll('.ins-subcell').forEach(cell => {
-      cell.onclick = () => {
-        sb.querySelectorAll('.ins-subcell').forEach(c => c.classList.remove('on'));
-        cell.classList.add('on');
-        vid.classList.remove('on');
-      };
-    });
 
-    // Rule & Telemetry Box
-    $('insRuleEq').textContent = st.transition_rule;
-    $('insObs').textContent = `\u201C${st.observed_text}\u201D`;
-    $('insIo').textContent = sub
-      ? `IN: ${sub.io_schema.input}  |  OUT: ${sub.io_schema.output}`
-      : '';
-
-    // Render Subsystem's Inferred Program Listing
-    renderProgramListing(sub, st.code_line_idx);
-
-    if (state.viewMode === 'fsm') drawFSM();
-  }
-
-  function renderProgramListing(sub, activeLineIdx) {
-    if (!sub) return;
-    $('progTitle').textContent = `${sub.code} INFERRED PROGRAM · ${sub.lang}`;
-    $('progCount').textContent = `${sub.program_lines.length} RULES · ${sub.states.length} STATES`;
-
-    const list = $('codeList');
-    list.innerHTML = sub.program_lines.map(pl => `
-      <div class="code-row${pl.line_idx === activeLineIdx ? ' on' : ''}" data-lidx="${pl.line_idx}">
-        <span class="ln">${pl.line_num}</span>
-        <span class="stmt">${pl.code}</span>
-        <span class="cnt">${pl.state_ids.length} SCREENS</span>
-        <div class="comm">// ${pl.comment}</div>
-      </div>
-    `).join('');
-
-    list.querySelectorAll('.code-row').forEach(row => {
-      row.onclick = () => {
-        const lidx = Number(row.dataset.lidx);
-        state.activeCodeLine = { subId: sub.id, lineIdx: lidx };
-        const matching = sub.states.filter(s => s.code_line_idx === lidx);
-        if (matching.length) selectState(matching[0], true);
-      };
-    });
-  }
-
-  function stepState(delta) {
-    const list = visibleStates();
-    if (!list.length) return;
-    const curIdx = list.findIndex(s => state.activeState && s.state_id === state.activeState.state_id);
-    const nextIdx = (Math.max(0, curIdx) + delta + list.length) % list.length;
-    selectState(list[nextIdx]);
-    const card = document.querySelector(`.st-card[data-stid="${list[nextIdx].state_id}"]`);
-    if (card && state.viewMode === 'matrix') {
-      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }
-
-  function startAutoStep() {
-    if (state.execTimer) clearInterval(state.execTimer);
-    state.execTimer = setInterval(() => {
-      if (!state.executing) return;
-      stepState(1);
-    }, 2800);
-  }
-
-  function updateExecButton() {
-    const btn = $('btnExecProg');
-    if (!btn) return;
-    btn.classList.toggle('running', state.executing);
-    btn.textContent = state.executing ? 'EXECUTING PROGRAM STATES (PAUSE)' : 'EXECUTE INFERRED PROGRAM';
-  }
-
-  $('btnExecProg').onclick = () => {
-    state.executing = !state.executing;
-    nav.setPlaying(state.executing);
-    updateExecButton();
-  };
-  $('btnPrevState').onclick = () => stepState(-1);
-  $('btnNextState').onclick = () => stepState(1);
-  $('insStage').onclick = () => {
-    const vid = $('insVideo');
-    vid.classList.toggle('on');
-  };
-
-  // Toolbar toggles
-  document.querySelectorAll('[data-v]').forEach(btn => {
-    btn.onclick = () => {
-      state.viewMode = btn.dataset.v;
-      document.querySelectorAll('[data-v]').forEach(b => b.classList.toggle('on', b === btn));
-      document.body.classList.toggle('view-fsm', state.viewMode === 'fsm');
-      if (state.viewMode === 'fsm') drawFSM();
-    };
-  });
-
-  document.querySelectorAll('[data-c]').forEach(btn => {
-    btn.onclick = () => {
-      state.cropMode = btn.dataset.c;
-      document.querySelectorAll('[data-c]').forEach(b => b.classList.toggle('on', b === btn));
-      document.body.classList.remove('crop-screens', 'crop-full', 'crop-subframes');
-      document.body.classList.add(`crop-${state.cropMode}`);
-      renderMatrix();
-    };
-  });
-
-  // ─── INTERACTIVE FSM GRAPH CANVAS ───
-  const imgCache = new Map();
-  function getThumbImg(src) {
-    if (imgCache.has(src)) return imgCache.get(src);
-    const im = new Image();
-    im.src = src;
-    im.onload = () => { if (state.viewMode === 'fsm') drawFSM(); };
-    imgCache.set(src, im);
-    return im;
-  }
-
-  let fsmNodes = [];
-  function drawFSM() {
-    const cv = $('fsmCanvas');
-    if (!cv || !state.data) return;
-    const dpr = window.devicePixelRatio || 1;
-    const w = cv.clientWidth * dpr;
-    const h = cv.clientHeight * dpr;
-    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
-    const ctx = cv.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const W = cv.clientWidth, H = cv.clientHeight;
-    ctx.fillStyle = '#050505';
-    ctx.fillRect(0, 0, W, H);
-
-    const subs = visibleSubsystems();
-    fsmNodes = [];
-    const rows = subs.length;
-    const rowH = Math.max(76, (H - 40) / Math.max(1, rows));
-
-    subs.forEach((sub, rIdx) => {
-      const y = 28 + rIdx * rowH + rowH * 0.45;
-      // Subsystem Lane Label
-      ctx.fillStyle = sub.color || '#e8c070';
-      ctx.font = '500 9.5px "IBM Plex Mono", monospace';
-      ctx.fillText(`${sub.code} ${sub.short}`, 16, y - 22);
-
-      const n = sub.states.length;
-      const startX = 140;
-      const availW = W - startX - 36;
-      const stepX = Math.max(46, availW / Math.max(1, n));
-
-      sub.states.forEach((st, cIdx) => {
-        const x = startX + cIdx * stepX;
-        const nw = Math.min(54, stepX - 6);
-        const nh = nw * 0.72;
-        fsmNodes.push({ x, y, w: nw, h: nh, st });
-
-        // Edge to next state
-        if (cIdx + 1 < n) {
-          ctx.strokeStyle = 'rgba(232,192,112,0.28)';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(x + nw / 2, y);
-          ctx.lineTo(x + stepX - nw / 2, y);
-          ctx.stroke();
-        }
-
-        // Draw screenshot thumbnail inside state node
-        const im = getThumbImg(st.screen_thumb);
-        if (im && im.complete && im.naturalWidth > 0) {
-          ctx.drawImage(im, x - nw / 2, y - nh / 2, nw, nh);
-        } else {
-          ctx.fillStyle = '#141210';
-          ctx.fillRect(x - nw / 2, y - nh / 2, nw, nh);
-        }
-
-        const isAct = state.activeState && state.activeState.state_id === st.state_id;
-        ctx.strokeStyle = isAct ? '#4af6c3' : (sub.color || '#554d42');
-        ctx.lineWidth = isAct ? 2.2 : 1;
-        ctx.strokeRect(x - nw / 2, y - nh / 2, nw, nh);
-
-        if (isAct || stepX > 68) {
-          ctx.fillStyle = isAct ? '#4af6c3' : '#9c9488';
-          ctx.font = '400 8px "IBM Plex Mono", monospace';
-          ctx.fillText(st.state_id.split('.')[1] || st.state_id, x - nw / 2, y + nh / 2 + 10);
-        }
+    wrap.querySelectorAll('.sub-block').forEach(el => {
+      el.addEventListener('click', () => {
+        const sid = el.getAttribute('data-sub');
+        const idx = allStates.findIndex(s => s.subroutine === sid);
+        if (idx >= 0) selectScreenState(idx, true);
       });
     });
   }
 
-  $('fsmCanvas').addEventListener('click', e => {
-    const rect = e.target.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    for (const nd of fsmNodes) {
-      if (mx >= nd.x - nd.w / 2 && mx <= nd.x + nd.w / 2 && my >= nd.y - nd.h / 2 && my <= nd.y + nd.h / 2) {
-        selectState(nd.st, true);
-        break;
-      }
+  function applyFilter() {
+    filteredStates = allStates.filter(s => sysFilter === 'ALL' || s.subsystem === sysFilter);
+    document.getElementById('shownCount').textContent = filteredStates.length;
+    renderGrid();
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById('screenGrid');
+    grid.classList.toggle('strip-mode', stripMode);
+    const activeShotId = allStates[activeStateIdx]?.shot_id;
+
+    grid.innerHTML = filteredStates.map(s => {
+      const isAct = s.shot_id === activeShotId;
+      const imgSrc = stripMode ? s.strip : s.thumb;
+      return `
+        <div class="sc-card${isAct ? ' active' : ''}" data-state-idx="${s.state_index - 1}">
+          <div class="sc-img-wrap">
+            <img src="${imgSrc}" loading="lazy" alt="${s.shot_id}">
+            <span class="sc-badge">#${String(s.state_index).padStart(3,'0')} · ${s.shot_id.toUpperCase()}</span>
+            <span class="sc-defcon d${s.defcon}">DEF ${s.defcon}</span>
+          </div>
+          <div class="sc-foot">
+            <div class="sc-op">${s.opcode}</div>
+            <div class="sc-sub">
+              <span>${s.subsystem.replace('_',' ')}</span>
+              <span>${s.subframe_states || 4} SUBS</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    grid.querySelectorAll('.sc-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const idx = parseInt(card.getAttribute('data-state-idx'), 10);
+        syncToBeat = false;
+        document.getElementById('btnTraceMode').classList.remove('on');
+        selectScreenState(idx, true);
+      });
+    });
+  }
+
+  function renderSubframeDeltas(st) {
+    const wrap = document.getElementById('sfStripWrap');
+    const opRow = document.getElementById('sfOpRow');
+    document.getElementById('sfStripImg').src = st.strip;
+    const deltas = st.subframe_deltas || [];
+    const peakD = deltas.reduce((m, d) => Math.max(m, Number(d.delta || 0)), 0);
+    document.getElementById('sfDeltaSummary').textContent =
+      `SUB-STATES: ${st.subframe_states || 1} · PEAK Δ: ${peakD.toFixed(1)}`;
+
+    // Keep the img and rebuild 8 cells
+    const cellsHtml = Array.from({ length: 8 }, (_, k) => {
+      const d = deltas[k] || { frame: k + 1, delta: 0, lum: st.lum || 32, op: 'STEADY_HOLD' };
+      return `
+        <div class="sf-cell${k === activeSubFrame ? ' on' : ''}" data-sf="${k}" title="Frame f${k + 1}: ${d.op} (Δ=${d.delta}, Lum=${d.lum})">
+          <span>f${k + 1}</span>
+          <span style="color:${d.delta > 12 ? '#e8c070' : '#9aa4b2'}">Δ${Number(d.delta || 0).toFixed(0)}</span>
+        </div>
+      `;
+    }).join('');
+    wrap.innerHTML = `<img class="sf-strip-bg" id="sfStripImg" src="${st.strip}" alt="8-Frame Strip">${cellsHtml}`;
+
+    opRow.innerHTML = Array.from({ length: 8 }, (_, k) => {
+      const d = deltas[k] || { op: 'HOLD' };
+      const shortOp = String(d.op || 'HOLD').replace('STEADY_', '').replace('INIT_', '');
+      return `<div class="sf-op-tag ${d.op || ''}" title="f${k + 1}: ${d.op}">${shortOp}</div>`;
+    }).join('');
+
+    wrap.querySelectorAll('.sf-cell').forEach(c => {
+      c.addEventListener('click', () => {
+        activeSubFrame = parseInt(c.getAttribute('data-sf'), 10);
+        document.getElementById('sfCountLbl').textContent = `f${activeSubFrame + 1} / 8`;
+        if (crtVid1983 && crtVid1983.duration) {
+          try { crtVid1983.currentTime = (activeSubFrame / 8) * crtVid1983.duration; } catch (_) {}
+        }
+        renderSubframeDeltas(st);
+      });
+    });
+  }
+
+  function renderTraceList() {
+    const list = document.getElementById('traceList');
+    const start = Math.max(0, activeStateIdx - 5);
+    const slice = allStates.slice(start, start + 14);
+    list.innerHTML = slice.map(s => {
+      const isAct = (s.state_index - 1) === activeStateIdx;
+      return `
+        <div class="trace-row${isAct ? ' on' : ''}" data-idx="${s.state_index - 1}">
+          <span style="color:var(--muted)">#${String(s.state_index).padStart(3,'0')}</span>
+          <span style="color:var(--cyan)">${s.shot_id.toUpperCase()}</span>
+          <span style="color:var(--gold);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.opcode}</span>
+          <span style="text-align:right;color:var(--green)">DEF ${s.defcon}</span>
+        </div>
+      `;
+    }).join('');
+    list.querySelectorAll('.trace-row').forEach(r => {
+      r.addEventListener('click', () => {
+        const idx = parseInt(r.getAttribute('data-idx'), 10);
+        selectScreenState(idx, true);
+      });
+    });
+  }
+
+  function selectScreenState(idx, jumpEngineBeat = false) {
+    if (!allStates.length) return;
+    activeStateIdx = (idx + allStates.length) % allStates.length;
+    const st = allStates[activeStateIdx];
+
+    // Update Left Dual Live CRTs
+    document.getElementById('crtLeftId').textContent = `STATE #${String(st.state_index).padStart(3,'0')} · ${st.shot_id.toUpperCase()}`;
+    document.getElementById('crtLeftSys').textContent = st.subsystem;
+    document.getElementById('crtLeftMeta').textContent = `OP: ${st.opcode} · SIGN #${st.sign}`;
+    setVideoClip(crtVid1983, st.clip || `clips/${st.shot_id}.mp4`, 0);
+
+    const twin = st.arch_twin || {};
+    document.getElementById('crtRightId').textContent = twin.title ? twin.title.slice(0, 22).toUpperCase() : 'ARCHIVAL TWIN';
+    document.getElementById('crtRightYear').textContent = twin.year || 'ARCHIVE';
+    document.getElementById('crtRightMeta').textContent = twin.why_picked || twin.regime || 'Dialectical Screen Twin';
+    if (twin.video || twin.media_url) {
+      setVideoClip(crtVidTwin, twin, twin.clip_t0 || twin.t0 || 0);
     }
+
+    // Update 8-Subframe Delta Analyzer
+    renderSubframeDeltas(st);
+
+    // Update Registers & Terminal Buffer
+    document.getElementById('inspClock').textContent = `T+${Number(st.start || 0).toFixed(1)}s`;
+    document.getElementById('regOpcode').textContent = st.opcode;
+    document.getElementById('regSysDef').textContent = `${st.subsystem} · DEFCON ${st.defcon}`;
+    document.getElementById('regSubroutine').textContent = st.subroutine;
+    const rgb = st.rgb || [32, 40, 36];
+    document.getElementById('regPhosphor').textContent = `RGB(${rgb.join(',')}) · LUM ${st.lum || 35}`;
+    document.getElementById('termShotSpan').textContent = `${Number(st.start || 0).toFixed(1)}s–${Number(st.end || 0).toFixed(1)}s`;
+    document.getElementById('termText').textContent = st.terminal_prompt || st.spoken_1983 || `[${st.subsystem}] STATE #${st.state_index} EXECUTING ${st.opcode}`;
+
+    // Update Spoken Trigger Line & Takes
+    const trig = st.trigger_line || {};
+    const trigTakes = trig.takes || (trig.arch_take ? [trig.arch_take] : []);
+    const tk0 = trigTakes[0] || twin || {};
+    document.getElementById('trigSpeaker').textContent = `TRIGGER LINE · ${String(trig.speaker || st.speaker || 'WOPR / OPERATOR').toUpperCase()}`;
+    document.getElementById('trig1983Text').textContent = `"${trig.text || st.spoken_1983 || st.terminal_prompt || ''}"`;
+    document.getElementById('trigArchText').textContent = tk0.spoken ? `"${tk0.spoken}"` : (twin.spoken ? `"${twin.spoken}"` : '—');
+    document.getElementById('trigArchMeta').innerHTML = `
+      <span>${tk0.title || twin.title || 'Archival Twin'} (${tk0.year || twin.year || '—'})</span>
+      <span>${trigTakes.length} TAKES READY</span>
+    `;
+
+    // Update active highlight on grid
+    document.querySelectorAll('#screenGrid .sc-card').forEach(c => {
+      c.classList.toggle('active', parseInt(c.getAttribute('data-state-idx'), 10) === activeStateIdx);
+    });
+
+    renderSubroutines();
+    renderTraceList();
+
+    nav.setStatus(`STATE #${String(st.state_index).padStart(3,'0')}/258 · ${st.opcode} · DEFCON ${st.defcon}`);
+
+    // If user clicked a screen state that belongs to a beat, jump WGStudioEngine to that beat!
+    if (jumpEngineBeat && st.beat_id && engine && beatsById[st.beat_id] != null) {
+      engine.loadBeat(beatsById[st.beat_id]);
+    }
+  }
+
+  // Controls
+  document.getElementById('btnViewThumb').onclick = () => {
+    stripMode = false;
+    document.getElementById('btnViewThumb').classList.add('on');
+    document.getElementById('btnViewStrip').classList.remove('on');
+    renderGrid();
+  };
+  document.getElementById('btnViewStrip').onclick = () => {
+    stripMode = true;
+    document.getElementById('btnViewStrip').classList.add('on');
+    document.getElementById('btnViewThumb').classList.remove('on');
+    renderGrid();
+  };
+  document.getElementById('btnStepState').onclick = () => {
+    selectScreenState(activeStateIdx + 1, true);
+  };
+  document.getElementById('btnTraceMode').onclick = e => {
+    syncToBeat = !syncToBeat;
+    e.currentTarget.classList.toggle('on', syncToBeat);
+  };
+
+  document.querySelectorAll('#sysFilterBar .f-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sysFilter = btn.getAttribute('data-sys') || 'ALL';
+      document.querySelectorAll('#sysFilterBar .f-btn').forEach(b => b.classList.toggle('sys-on', b === btn));
+      applyFilter();
+    });
   });
 
-  window.addEventListener('resize', () => { if (state.viewMode === 'fsm') drawFSM(); });
+  // Load both `wargames-screens-program.json` and `wargames-studio-cuts.json`
+  Promise.all([
+    fetch('wargames-screens-program.json').then(r => r.json()),
+    fetch('wargames-studio-cuts.json').then(r => r.json())
+  ]).then(([prog, studioCuts]) => {
+    progData = prog;
+    allStates = prog.screen_states || [];
+    document.getElementById('subframeTotal').textContent = (prog.total_subframe_states || 1049).toLocaleString();
 
-  function fmtClock(sec) {
-    sec = Math.max(0, Math.floor(sec || 0));
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  }
+    const flatBeats = [];
+    (studioCuts.books || []).forEach((bk, bIdx) => {
+      (bk.beats || []).forEach(bt => {
+        bt.book_idx = bIdx;
+        bt.book_title = bk.title;
+        beatsById[bt.id] = flatBeats.length;
+        flatBeats.push(bt);
+      });
+    });
+
+    applyFilter();
+    selectScreenState(0, false);
+
+    engine = WGStudioEngine.create({
+      nav,
+      cutKeys: ['1983', 'synthesis', 'trurl', 'cineosis'],
+      defaultMode: 'duet',
+      onBeatChange: (bt) => {
+        if (!syncToBeat) return;
+        const shotId = bt.wg_shot?.id;
+        const stIdx = allStates.findIndex(s => s.beat_id === bt.id || s.shot_id === shotId);
+        if (stIdx >= 0 && stIdx !== activeStateIdx) {
+          selectScreenState(stIdx, false);
+        }
+      },
+      onTurnChange: (st) => {
+        if (!st.activeTurn) return;
+        const tr = st.activeTurn;
+        const tk = st.activeTake || {};
+        document.getElementById('trigSpeaker').textContent =
+          `LINE ${st.turnIdx + 1}/${st.turnCount} · ${String(tr.speaker || '').toUpperCase()} (${st.turnPhase === '1983' ? '1983 CALL' : 'ARCHIVE ANSWER'})`;
+        document.getElementById('trig1983Text').textContent = `"${tr.text || ''}"`;
+        document.getElementById('trigArchText').textContent = tk.spoken ? `"${tk.spoken}"` : '—';
+        document.getElementById('trigArchMeta').innerHTML = `
+          <span>${tk.title || 'Archive'} (${tk.year || '—'})</span>
+          <span>F0: ${tr.f0 || 125}Hz → ${tk.f0 || 125}Hz</span>
+        `;
+        if (st.turnPhase === 'arch' && (tk.video || tk.media_url)) {
+          setVideoClip(crtVidTwin, tk, tk.clip_t0 || tk.t0 || 0);
+        }
+      }
+    });
+
+    engine.setBeats(flatBeats, 0);
+  });
 })();
 </script>
 </body>

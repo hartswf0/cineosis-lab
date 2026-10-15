@@ -1174,7 +1174,7 @@ function drawSpectrogramCanvas(canvas, mel16, harmEnv, percEnv, isArch = false) 
   }
 }
 
-/* ---------- DRAW 1983 MULTI-SPEAKER DIALOGUE SCRIPT (WHO SAID WHAT IN THE ORIGINAL) ---------- */
+/* ---------- DRAW 1983 MULTI-SPEAKER DIALOGUE SCRIPT (EACH SPOKEN LINE GETS ITS OWN 3 ARCHIVAL TAKES) ---------- */
 function drawTurns1983Script() {
   const l = L();
   const turns = l.turns_1983 || [];
@@ -1184,31 +1184,42 @@ function drawTurns1983Script() {
     box.style.display = 'none';
     return;
   }
+  S.turnTakeIdx ||= {};
   box.style.display = 'flex';
   const spList = l.scene_speakers || [...new Set(turns.map(t => t.speaker))];
   box.innerHTML = `
-    <div class="turns-script-hdr">
-      <span>Who Said What in the 1983 Original (${turns.length} Speaker Turn${turns.length > 1 ? 's' : ''} · ${spList.join(' ↔ ')})</span>
-      <span>Click ▶ 1983 Turn or ▶ Archive Answer on any character’s line</span>
+    <div class="turns-script-hdr" style="flex-wrap:wrap;gap:6px">
+      <span>Who Said What in the 1983 Original (${turns.length} Spoken Line${turns.length > 1 ? 's' : ''} · Each Line Has 3 Archival Takes · ${spList.join(' ↔ ')})</span>
+      <span style="display:inline-flex;gap:6px;align-items:center">
+        <button id="btnPlaySceneDuet" class="preset-btn on" style="font-size:9.5px;padding:2px 8px" title="Play every spoken line in this scene as 1983 Call followed by its chosen Archival Answer Take">▶ Play All Lines: Call &amp; Answer</button>
+        <button id="btnPlaySceneArchCast" class="preset-btn" style="font-size:9.5px;padding:2px 8px" title="Play every spoken line in this scene spoken back-to-back by its chosen Archival Speaker Take">▶ Play All Lines: Archive Cast</button>
+      </span>
     </div>
     ${turns.map((tr, ti) => {
-      const ak = tr.arch_take || {};
+      const tKey = `${l.id}:${ti}`;
+      const tkChoice = S.turnTakeIdx[tKey] ?? 0;
+      const lineTakes = (tr.takes && tr.takes.length) ? tr.takes : (tr.arch_take ? [tr.arch_take] : []);
+      const ak = lineTakes[Math.min(tkChoice, Math.max(0, lineTakes.length - 1))] || tr.arch_take || {};
       return `
         <div class="turn-row${tr.is_fulcrum ? ' fulcrum' : ''}" style="--sc:${tr.speaker_color || 'var(--voice)'}">
           <div class="turn-spk">
             <b>
               <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${tr.speaker_color || 'var(--voice)'}"></span>
-              ${esc(tr.speaker)}
+              L${ti + 1} · ${esc(tr.speaker)}
             </b>
             <small>${esc(tr.role)} · ${tr.s.toFixed(2)}–${tr.e.toFixed(2)}s · ${Math.round(tr.f0 || 120)} Hz (${esc(tr.reg || 'LOW')})</small>
           </div>
           <div class="turn-body">
             <div class="turn-1983-q">${tr.is_fulcrum ? '<span style="color:var(--voice);font-weight:800;margin-right:4px">★ THE LINE:</span>' : ''}“${esc(tr.text)}”</div>
-            ${ak.spoken ? `<div class="turn-arch-a"><b>→ Archive (${esc(ak.title || 'Archive')} ${esc(ak.year || '')} · ${Math.round(ak.f0 || 120)} Hz):</b> “${esc(ak.spoken)}”</div>` : ''}
+            ${ak.spoken ? `<div class="turn-arch-a"><b>→ Take ${tkChoice + 1} (${esc(ak.title || 'Archive')} ${esc(ak.year || '')} · ${Math.round(ak.f0 || 120)} Hz):</b> “${esc(ak.spoken)}”</div>` : ''}
           </div>
-          <div class="turn-btns">
-            <button data-play-1983="${ti}" title="Play ${esc(tr.speaker)}'s exact 1983 turn [${tr.s.toFixed(2)}–${tr.e.toFixed(2)}s]">▶ 1983 (${tr.dur}s)</button>
-            ${ak.audio_url ? `<button data-play-arch="${ti}" title="Play the unbroken archival sentence matched to ${esc(tr.speaker)}: &quot;${esc(ak.spoken)}&quot;">▶ Archive (${ak.dur}s)</button>` : ''}
+          <div class="turn-btns" style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
+            <button data-play-1983="${ti}" title="Play ${esc(tr.speaker)}'s exact 1983 spoken line [${tr.s.toFixed(2)}–${tr.e.toFixed(2)}s]">▶ 1983 (${tr.dur}s)</button>
+            ${lineTakes.map((tkItem, kIdx) => `
+              <button data-play-arch="${ti}" data-take-k="${kIdx}" style="${kIdx === tkChoice ? 'border-color:var(--voice);font-weight:700;color:var(--ink)' : ''}" title="${esc(tkItem.role || ('Take ' + (kIdx + 1)))}: &quot;${esc(tkItem.spoken)}&quot; — ${esc(tkItem.title)} (${tkItem.year})">
+                ▶ T${kIdx + 1} (${tkItem.dur}s)
+              </button>
+            `).join('')}
           </div>
         </div>
       `;
@@ -1227,18 +1238,67 @@ function drawTurns1983Script() {
 
   box.querySelectorAll('button[data-play-arch]').forEach(btn => {
     btn.onclick = () => {
-      const tr = turns[+btn.dataset.playArch];
-      if (!tr || !tr.arch_take) return;
+      const ti = +btn.dataset.playArch;
+      const kIdx = +(btn.dataset.takeK || 0);
+      const tr = turns[ti];
+      if (!tr) return;
+      S.turnTakeIdx[`${l.id}:${ti}`] = kIdx;
+      const lineTakes = (tr.takes && tr.takes.length) ? tr.takes : (tr.arch_take ? [tr.arch_take] : []);
+      const ak = lineTakes[Math.min(kIdx, Math.max(0, lineTakes.length - 1))] || tr.arch_take;
+      if (!ak) return;
       stopAudio();
-      if (tr.is_fulcrum) {
-        playStream('aligned');
-      } else {
-        const ak = tr.arch_take;
-        scheduleAudioSlice(ak.audio_url, ak.t0, ak.t1, 1.0, 0);
-        animatePlayheads(0, ak.dur, 'tight');
-      }
+      const a0 = ak.audio_t0 != null ? ak.audio_t0 : ak.t0;
+      const a1 = ak.audio_t1 != null ? ak.audio_t1 : ak.t1;
+      scheduleAudioSlice(ak.audio_url, a0, a1, 1.0, 0);
+      animatePlayheads(0, ak.dur, 'tight');
+      drawTurns1983Script();
     };
   });
+
+  const btnDuet = $('#btnPlaySceneDuet');
+  if (btnDuet) {
+    btnDuet.onclick = () => {
+      stopAudio();
+      let offset = 0;
+      turns.forEach((tr, ti) => {
+        const s = Math.max(0, tr.s - 0.03);
+        const e = Math.min(l.e, tr.e + 0.05);
+        const d83 = Math.max(0.5, e - s);
+        scheduleAudioSlice(l.orig_file, s, e, 1.0, offset);
+        offset += d83 + 0.12;
+        const tkChoice = S.turnTakeIdx[`${l.id}:${ti}`] ?? 0;
+        const lineTakes = (tr.takes && tr.takes.length) ? tr.takes : (tr.arch_take ? [tr.arch_take] : []);
+        const ak = lineTakes[Math.min(tkChoice, Math.max(0, lineTakes.length - 1))] || tr.arch_take;
+        if (ak && ak.audio_url) {
+          const a0 = ak.audio_t0 != null ? ak.audio_t0 : ak.t0;
+          const a1 = ak.audio_t1 != null ? ak.audio_t1 : ak.t1;
+          scheduleAudioSlice(ak.audio_url, a0, a1, 1.0, offset);
+          offset += Math.max(0.6, a1 - a0) + 0.16;
+        }
+      });
+      animatePlayheads(0, offset, 'orig');
+    };
+  }
+
+  const btnCast = $('#btnPlaySceneArchCast');
+  if (btnCast) {
+    btnCast.onclick = () => {
+      stopAudio();
+      let offset = 0;
+      turns.forEach((tr, ti) => {
+        const tkChoice = S.turnTakeIdx[`${l.id}:${ti}`] ?? 0;
+        const lineTakes = (tr.takes && tr.takes.length) ? tr.takes : (tr.arch_take ? [tr.arch_take] : []);
+        const ak = lineTakes[Math.min(tkChoice, Math.max(0, lineTakes.length - 1))] || tr.arch_take;
+        if (ak && ak.audio_url) {
+          const a0 = ak.audio_t0 != null ? ak.audio_t0 : ak.t0;
+          const a1 = ak.audio_t1 != null ? ak.audio_t1 : ak.t1;
+          scheduleAudioSlice(ak.audio_url, a0, a1, 1.0, offset);
+          offset += Math.max(0.6, a1 - a0) + 0.14;
+        }
+      });
+      animatePlayheads(0, offset, 'tight');
+    };
+  }
 }
 
 /* ---------- DRAW TARANTINO 5-PHASE CHECKLIST & 3 AUDITIONABLE TAKES ---------- */

@@ -3,446 +3,567 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>02 / JOHN WHITNEY · Harmonic Differential Slit-Scan</title>
+<title>02 / JOHN WHITNEY — Differential Harmonic Slit-Scan &amp; Fulcrum Convergence</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="wg-studio-nav.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#040404;
-    --ink:#efe9dd;
-    --dim:#8a8378;
-    --hi:#e8c070;
-    --cyan:#45e3ff;
-    --gold:#f5b841;
-    --mag:#ea4c89;
-    --serif:'Fraunces',Georgia,serif;
-    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  html,body{
+    margin:0;padding:0;width:100%;height:100%;
+    background:#040406;color:#efe9dd;
+    font-family:'IBM Plex Mono',ui-monospace,monospace;
+    overflow:hidden;user-select:none;
   }
-  *{box-sizing:border-box;margin:0;padding:0;user-select:none}
-  html,body{height:100%;width:100%;background:var(--bg);color:var(--ink);font-family:var(--mono);overflow:hidden;-webkit-font-smoothing:antialiased}
-
-  #stageCanvas{
-    position:fixed;inset:0;width:100vw;height:100vh;display:block;cursor:grab;
+  #stage{
+    position:fixed;inset:0;width:100vw;height:100vh;
+    display:block;cursor:grab;
   }
-  #stageCanvas:active{cursor:grabbing}
+  #stage:active{cursor:grabbing}
 
-  /* Subtle floating cut legend & slit-scan mode selector */
-  #hudLeft{
-    position:fixed;top:54px;left:24px;z-index:40;
+  /* LEFT HUD: HARMONIC DIFFERENTIAL & SLIT-SCAN CONTROLS */
+  .hud-left{
+    position:fixed;top:52px;left:22px;z-index:40;width:300px;
+    background:rgba(8,9,13,.84);border:1px solid rgba(232,192,112,.22);
+    backdrop-filter:blur(10px);padding:11px 13px;
+    display:flex;flex-direction:column;gap:8px;
+    font-size:9px;letter-spacing:.13em;text-transform:uppercase;
+  }
+  .hud-title{
+    color:#e8c070;font-weight:600;display:flex;justify-content:space-between;align-items:center;
+    border-bottom:1px solid rgba(239,233,221,.1);padding-bottom:6px;
+  }
+  .hud-metrics{
+    display:grid;grid-template-columns:1fr 1fr;gap:5px;
+  }
+  .hm-box{
+    padding:5px 7px;background:rgba(255,255,255,.03);border:1px solid rgba(239,233,221,.09);
+  }
+  .hm-k{font-size:7.5px;color:rgba(239,233,221,.5);margin-bottom:2px}
+  .hm-v{font-size:10.5px;color:#efe9dd;font-weight:600}
+  .hm-v.gold{color:#e8c070}
+  .hm-v.cyan{color:#45b1ff}
+
+  .hud-btns{display:flex;flex-wrap:wrap;gap:4px}
+  .h-btn{
+    background:rgba(255,255,255,.04);border:1px solid rgba(239,233,221,.16);
+    color:rgba(239,233,221,.75);font:500 8px/1 'IBM Plex Mono',monospace;
+    letter-spacing:.12em;padding:5px 7px;cursor:pointer;text-transform:uppercase;
+    transition:all .14s;
+  }
+  .h-btn:hover{color:#fff;border-color:rgba(239,233,221,.45)}
+  .h-btn.on{background:#e8c070;color:#050505;border-color:#e8c070;font-weight:600}
+
+  /* RIGHT HUD: 6 LIVE ORBITING CUT DECKS (MOVING VIDEO MONITORS) */
+  .hud-right{
+    position:fixed;top:52px;right:22px;z-index:40;width:290px;
     display:flex;flex-direction:column;gap:6px;
-    pointer-events:none;
   }
-  #hudLeft > *{pointer-events:auto}
-  .lobe-tag{
-    display:inline-flex;align-items:center;gap:8px;
-    background:rgba(8,8,8,.72);backdrop-filter:blur(6px);
-    border:1px solid rgba(239,233,221,.12);
-    padding:5px 10px;font-size:9px;letter-spacing:.16em;text-transform:uppercase;
-    color:var(--dim);cursor:pointer;transition:all .18s;
+  .deck-card{
+    display:grid;grid-template-columns:88px 1fr;gap:8px;align-items:center;
+    padding:5px 7px;background:rgba(8,9,13,.84);
+    border:1px solid rgba(239,233,221,.13);backdrop-filter:blur(8px);
+    cursor:pointer;transition:border-color .15s,transform .15s;
   }
-  .lobe-tag i{width:7px;height:7px;border-radius:50%;display:inline-block}
-  .lobe-tag:hover,.lobe-tag.on{color:var(--ink);border-color:rgba(239,233,221,.45)}
+  .deck-card:hover{border-color:rgba(232,192,112,.5);transform:translateX(-2px)}
+  .deck-card.active{border-color:#e8c070;background:rgba(232,192,112,.1);box-shadow:0 0 16px rgba(232,192,112,.16)}
+  .deck-vid-wrap{
+    position:relative;aspect-ratio:16/9;background:#000;overflow:hidden;border:1px solid rgba(255,255,255,.12);
+  }
+  .deck-vid-wrap canvas{width:100%;height:100%;display:block}
+  .deck-ratio{
+    position:absolute;bottom:2px;right:2px;padding:1px 3px;
+    background:rgba(0,0,0,.82);font-size:7px;color:#e8c070;letter-spacing:.06em;
+  }
+  .deck-info{display:flex;flex-direction:column;gap:2px;overflow:hidden}
+  .deck-name{font-size:8.5px;font-weight:600;letter-spacing:.12em;display:flex;justify-content:space-between}
+  .deck-film{font:italic 400 10px/1.2 'Fraunces',Georgia,serif;color:#d8d0c0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .deck-sub{font-size:7.5px;color:rgba(239,233,221,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-  #captionHud{
-    position:fixed;bottom:62px;left:50%;transform:translateX(-50%);z-index:40;
-    text-align:center;pointer-events:none;max-width:720px;width:92vw;
+  /* CALL & ANSWER DIALOGUE BANNER ABOVE LINE DOCK */
+  .duet-banner{
+    position:fixed;left:340px;right:330px;bottom:154px;z-index:35;
+    pointer-events:none;text-align:center;
+    display:flex;flex-direction:column;align-items:center;gap:4px;
   }
-  #captionHud .who{
-    font:500 9.5px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;
-    color:var(--gold);margin-bottom:4px;
+  .db-pill{
+    padding:3px 10px;background:rgba(5,6,8,.85);border:1px solid rgba(232,192,112,.35);
+    font-size:8.5px;letter-spacing:.18em;color:#e8c070;text-transform:uppercase;
   }
-  #captionHud .line{
-    font:italic 300 clamp(16px,1.9vw,23px)/1.28 var(--serif);
-    color:var(--ink);text-shadow:0 2px 16px #000,0 0 28px #000;
+  .db-line{
+    padding:6px 14px;background:rgba(5,6,8,.86);border:1px solid rgba(239,233,221,.14);
+    font:italic 300 15px/1.32 'Fraunces',Georgia,serif;color:#efe9dd;
+    max-width:680px;backdrop-filter:blur(8px);
+  }
+  @media (max-width:1100px){
+    .hud-right,.duet-banner{display:none}
   }
 </style>
 </head>
 <body>
 
-<canvas id="stageCanvas"></canvas>
+<canvas id="stage"></canvas>
 
-<aside id="hudLeft" aria-label="Simultaneous Slit-Scan Lobes"></aside>
+<!-- LEFT HUD: WHITNEY HARMONIC DIFFERENTIAL & SLIT-SCAN BUFFER -->
+<aside class="hud-left">
+  <div class="hud-title">
+    <span>JOHN WHITNEY · DIGITAL HARMONY</span>
+    <span id="whLockTag" style="color:#41e096">PHASE LOCK</span>
+  </div>
+  <div class="hud-metrics">
+    <div class="hm-box">
+      <div class="hm-k">DIFFERENTIAL Δφ</div>
+      <div class="hm-v gold" id="whDeltaPhi">0.42 RAD</div>
+    </div>
+    <div class="hm-box">
+      <div class="hm-k">HARMONIC RATIO</div>
+      <div class="hm-v cyan" id="whHarmRatio">3 : 2 COUNTERPOINT</div>
+    </div>
+    <div class="hm-box">
+      <div class="hm-k">SLIT-SCAN RING</div>
+      <div class="hm-v" id="whBufferDepth">48 LIVE SLICES</div>
+    </div>
+    <div class="hm-box">
+      <div class="hm-k">FULCRUM CONVERGE</div>
+      <div class="hm-v" id="whConvergeState">UNISON ON ANSWER</div>
+    </div>
+  </div>
+  <div style="font-size:8px;line-height:1.45;color:rgba(239,233,221,.68);text-transform:none;letter-spacing:.03em">
+    6 live preloaded video cuts feed a 48-frame polar slit-scan ring buffer. During setup speech, cuts orbit at differential phase (Δφ &gt; 0); when the Archival Take answers on the shared word stem, Δφ converges to 0.00 rad unison.
+  </div>
+  <div class="hud-btns">
+    <button class="h-btn on" id="btnAutoConverge" title="Automatically converge Δφ → 0 when the Archival Take answers or hits the Fulcrum Line">AUTO-CONVERGE: ON</button>
+    <button class="h-btn on" id="btnSlitMode" title="Toggle Radial Polar Slit-Scan Streaks vs Rose Lens Petals">POLAR SLIT-SCAN: ON</button>
+    <button class="h-btn" id="btnSnapUnison" title="Snap Phase Differential Δφ to 0.00 rad Unison">SNAP UNISON (Δφ=0)</button>
+  </div>
+</aside>
 
-<div id="captionHud">
-  <div class="who" id="capWho">02 / JOHN WHITNEY · DIFFERENTIAL HARMONIC SLIT-SCAN</div>
-  <div class="line" id="capLine">Loading simultaneous cuts…</div>
+<!-- RIGHT HUD: 6 LIVE PRELOADED VIDEO CUT DECKS -->
+<aside class="hud-right" id="deckList"></aside>
+
+<!-- FLOATING CALL & ANSWER LINE BANNER -->
+<div class="duet-banner">
+  <div class="db-pill" id="dbSpeakerPill">LINE 1 · CALL &amp; ANSWER</div>
+  <div class="db-line" id="dbLineText">Loading 1983 &amp; archival spoken lines...</div>
 </div>
 
-<!-- Hidden video/audio pools for live slit-scan frame sampling -->
-<div style="display:none">
-  <video id="vid1983" muted playsinline loop crossorigin="anonymous"></video>
-  <video id="vidArchA" muted playsinline loop crossorigin="anonymous"></video>
-  <video id="vidArchB" muted playsinline loop crossorigin="anonymous"></video>
-  <audio id="audMain" preload="auto"></audio>
-</div>
-
+<script src="wg-studio-nav.js"></script>
 <script>
 (() => {
   'use strict';
 
-  const LOBES = [
-    { key: '1983',       label: 'LOBE I · 1983 RADAR & SILO',      color: '#45e3ff', angle: Math.PI * 0.78 },
-    { key: 'murch',      label: 'LOBE II · SPOKEN FACE (MURCH)',   color: '#ea4c89', angle: Math.PI * 0.06 },
-    { key: 'vjepa',      label: 'LOBE III · V-JEPA BALLISTIC',     color: '#45e3ff', angle: Math.PI * 1.12 },
-    { key: 'synthesis',  label: 'LOBE IV · APEX SYNTHESIS (π*)',   color: '#f5b841', angle: Math.PI * 1.52 },
-    { key: 'klapaucius', label: 'LOBE V · CONTRAPUNTAL ACTION',    color: '#ea4c89', angle: Math.PI * 0.34 },
+  const canvas = document.getElementById('stage');
+  const ctx = canvas.getContext('2d');
+
+  const ORBIT_CUTS = [
+    { key: '1983',       label: '1983 MASTER',    ratio: '1:1', freq: 1, color: '#45b1ff' },
+    { key: 'take_video', label: 'SPOKEN TAKE',    ratio: '1:1', freq: 1, color: '#41e096' },
+    { key: 'synthesis',  label: 'APEX SYNTHESIS', ratio: '3:2', freq: 1.5, color: '#e8c070' },
+    { key: 'vjepa',      label: 'V-JEPA MOTION',  ratio: '4:3', freq: 1.33, color: '#ff6b57' },
+    { key: 'clip',       label: 'CLIP VISUAL',    ratio: '5:4', freq: 1.25, color: '#c084fc' },
+    { key: 'klapaucius', label: 'KLAPAUCIUS',     ratio: '2:1', freq: 2.0, color: '#38bdf8' },
   ];
 
-  const state = {
-    data: null,
-    flatBeats: [],
-    beatIdx: 0,
-    activeLobe: 0,
-    playing: true,
-    soundOn: true,
-    phase: 0.42,
-    orbitSpeed: 0.0038,
-    harmonicA: 2.0,
-    harmonicB: 3.0,
-    tiltX: 0.0,
-    tiltY: 0.0,
-    dragging: false,
-    dragStartAngle: 0,
-    dragStartPhase: 0,
-    sunScreenPos: { x: 0, y: 0 },
-  };
+  // 48-frame temporal slit-scan ring buffer (offscreen canvases)
+  const RING_SIZE = 48;
+  const slitRing = Array.from({ length: RING_SIZE }, () => {
+    const c = document.createElement('canvas');
+    c.width = 160;
+    c.height = 90;
+    return { canvas: c, ctx: c.getContext('2d'), filled: false };
+  });
+  let ringHead = 0;
+  let frameCounter = 0;
 
-  const cv = document.getElementById('stageCanvas');
-  const ctx = cv.getContext('2d');
-  const vid1983 = document.getElementById('vid1983');
-  const vidArchA = document.getElementById('vidArchA');
-  const vidArchB = document.getElementById('vidArchB');
-  const audMain = document.getElementById('audMain');
-
-  // Offscreen slit-scan history ring buffer (12 vertical temporal slices per cut)
-  const SLIT_SLICES = 10;
+  // Fallback image cache when a remote video is still seeking
   const imgCache = new Map();
-
-  function getImg(src) {
+  function getThumbImg(src) {
     if (!src) return null;
     if (imgCache.has(src)) return imgCache.get(src);
     const im = new Image();
-    im.crossOrigin = 'anonymous';
     im.src = src;
     imgCache.set(src, im);
     return im;
   }
 
+  let focusCutKey = 'take_video';
+  let autoConverge = true;
+  let polarSlitMode = true;
+  let userPhaseDelta = 0.52;
+  let targetPhaseDelta = 0.52;
+  let smoothPhaseDelta = 0.52;
+  let userEccentricity = 0.78;
+  let orbitAngle = 0;
+  let dragging = false;
+  let dragStartX = 0, dragStartY = 0, dragStartPhi = 0.52, dragStartEcc = 0.78;
+  let engine = null;
+
   const nav = WGStudioNav.mount({
     theme: 'dark',
     num: '02',
-    titleLeft: '02 / JOHN WHITNEY  |  DRAG THE ORBIT TO CHANGE PHASE',
-    promptCenter: 'SLIT-SCANNING 5 SIMULTANEOUS CUTS ACROSS LISSAJOUS HARMONICS',
-    onTogglePlay(p) {
-      state.playing = p;
-      if (p) {
-        vid1983.play().catch(() => {});
-        if (state.soundOn) audMain.play().catch(() => {});
-      } else {
-        vid1983.pause();
-        audMain.pause();
-      }
-    },
-    onReset() {
-      state.phase = 0.42;
-      state.tiltX = 0;
-      state.tiltY = 0;
-      state.harmonicA = 2.0;
-      state.harmonicB = 3.0;
-    },
-    onPrevBeat() { loadBeat(state.beatIdx - 1); },
-    onNextBeat() { loadBeat(state.beatIdx + 1); },
-    onToggleSound(s) {
-      state.soundOn = s;
-      audMain.muted = !s;
-      if (s && state.playing) audMain.play().catch(() => {});
-    },
+    titleLeft: '02 / JOHN WHITNEY — HARMONIC SLIT-SCAN',
+    promptCenter: 'DRAG HORIZONTALLY FOR PHASE Δφ · CLICK ANY RIGHT MONITOR OR SPOKEN LINE',
+    onPrevBeat: () => engine && engine.prevBeat(),
+    onNextBeat: () => engine && engine.nextBeat(),
+    onReset: () => {
+      autoConverge = true;
+      userPhaseDelta = 0.48;
+      userEccentricity = 0.78;
+      document.getElementById('btnAutoConverge').classList.add('on');
+    }
   });
 
-  function renderLobeLegend() {
-    const box = document.getElementById('hudLeft');
-    box.innerHTML = LOBES.map((lb, i) => `
-      <button class="lobe-tag${i === state.activeLobe ? ' on' : ''}" data-idx="${i}">
-        <i style="background:${lb.color};box-shadow:0 0 8px ${lb.color}"></i>
-        <span>${lb.label}</span>
-      </button>
-    `).join('');
-    box.querySelectorAll('.lobe-tag').forEach(btn => {
-      btn.onclick = () => {
-        state.activeLobe = Number(btn.dataset.idx);
-        renderLobeLegend();
-        updateCaption();
-      };
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Build Right HUD Deck Monitor Cards
+  const deckListEl = document.getElementById('deckList');
+  const deckCanvases = {};
+  deckListEl.innerHTML = ORBIT_CUTS.map(c => `
+    <div class="deck-card${c.key === focusCutKey ? ' active' : ''}" data-cut="${c.key}">
+      <div class="deck-vid-wrap">
+        <canvas width="160" height="90" id="deckCv_${c.key}"></canvas>
+        <span class="deck-ratio">${c.ratio}</span>
+      </div>
+      <div class="deck-info">
+        <div class="deck-name" style="color:${c.color}">
+          <span>${c.label}</span>
+          <span id="deckScore_${c.key}">1.00</span>
+        </div>
+        <div class="deck-film" id="deckFilm_${c.key}">Loading...</div>
+        <div class="deck-sub" id="deckSub_${c.key}">f1–f8</div>
+      </div>
+    </div>
+  `).join('');
+
+  ORBIT_CUTS.forEach(c => {
+    const cv = document.getElementById(`deckCv_${c.key}`);
+    if (cv) deckCanvases[c.key] = cv.getContext('2d');
+  });
+
+  deckListEl.querySelectorAll('.deck-card').forEach(card => {
+    card.addEventListener('click', () => {
+      focusCutKey = card.getAttribute('data-cut') || 'synthesis';
+      deckListEl.querySelectorAll('.deck-card').forEach(el => {
+        el.classList.toggle('active', el.getAttribute('data-cut') === focusCutKey);
+      });
     });
+  });
+
+  document.getElementById('btnAutoConverge').onclick = e => {
+    autoConverge = !autoConverge;
+    e.currentTarget.classList.toggle('on', autoConverge);
+    e.currentTarget.textContent = autoConverge ? 'AUTO-CONVERGE: ON' : 'AUTO-CONVERGE: MANUAL';
+  };
+  document.getElementById('btnSlitMode').onclick = e => {
+    polarSlitMode = !polarSlitMode;
+    e.currentTarget.classList.toggle('on', polarSlitMode);
+    e.currentTarget.textContent = polarSlitMode ? 'POLAR SLIT-SCAN: ON' : 'POLAR SLIT-SCAN: PETALS';
+  };
+  document.getElementById('btnSnapUnison').onclick = () => {
+    autoConverge = false;
+    document.getElementById('btnAutoConverge').classList.remove('on');
+    document.getElementById('btnAutoConverge').textContent = 'AUTO-CONVERGE: MANUAL';
+    userPhaseDelta = 0.0;
+    targetPhaseDelta = 0.0;
+  };
+
+  // Drag on canvas to modulate phase differential Δφ and eccentricity
+  canvas.addEventListener('pointerdown', e => {
+    dragging = true;
+    autoConverge = false;
+    document.getElementById('btnAutoConverge').classList.remove('on');
+    document.getElementById('btnAutoConverge').textContent = 'AUTO-CONVERGE: MANUAL';
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    dragStartPhi = userPhaseDelta;
+    dragStartEcc = userEccentricity;
+  });
+  window.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dx = (e.clientX - dragStartX) / window.innerWidth;
+    const dy = (e.clientY - dragStartY) / window.innerHeight;
+    userPhaseDelta = Math.max(0.0, Math.min(1.6, dragStartPhi + dx * 2.2));
+    userEccentricity = Math.max(0.25, Math.min(1.2, dragStartEcc - dy * 1.4));
+  });
+  window.addEventListener('pointerup', () => { dragging = false; });
+
+  // Draw a live video element (or its fallback strip/thumb) onto a target canvas context
+  function drawCutSource(targetCtx, st, cutKey, x, y, w, h, subFrameIdx = 0) {
+    const vid = cutKey === 'take_video' ? st.getTakeVideo() : st.getCutVideo(cutKey);
+    const unit = cutKey === 'take_video' ? st.activeTake : st.getCutUnit(cutKey);
+    if (vid && vid.readyState >= 2 && vid.videoWidth > 0) {
+      try {
+        targetCtx.drawImage(vid, x, y, w, h);
+        return true;
+      } catch (_) {}
+    }
+    // Fallback to 8-frame strip sub-frame or thumbnail while remote clip buffers
+    const stripImg = unit?.strip ? getThumbImg(unit.strip) : null;
+    if (stripImg && stripImg.complete && stripImg.naturalWidth > 0) {
+      const fw = stripImg.naturalWidth / 8;
+      const sx = (subFrameIdx % 8) * fw;
+      targetCtx.drawImage(stripImg, sx, 0, fw, stripImg.naturalHeight, x, y, w, h);
+      return true;
+    }
+    const thImg = unit?.thumb ? getThumbImg(unit.thumb) : (st.beat?.wg_shot?.thumb ? getThumbImg(st.beat.wg_shot.thumb) : null);
+    if (thImg && thImg.complete && thImg.naturalWidth > 0) {
+      targetCtx.drawImage(thImg, x, y, w, h);
+      return true;
+    }
+    return false;
+  }
+
+  function updateDeckMonitors(st) {
+    const subFrame = Math.floor((st.beatClock * 4) % 8);
+    ORBIT_CUTS.forEach(c => {
+      const dCtx = deckCanvases[c.key];
+      const unit = c.key === 'take_video' ? st.activeTake : st.getCutUnit(c.key);
+      if (dCtx) {
+        dCtx.fillStyle = '#050608';
+        dCtx.fillRect(0, 0, 160, 90);
+        drawCutSource(dCtx, st, c.key, 0, 0, 160, 90, subFrame);
+      }
+      if (unit && (frameCounter % 10 === 0)) {
+        const fEl = document.getElementById(`deckFilm_${c.key}`);
+        const sEl = document.getElementById(`deckSub_${c.key}`);
+        const scEl = document.getElementById(`deckScore_${c.key}`);
+        if (fEl) fEl.textContent = `${unit.title || 'Archive'} (${unit.year || '1983'})`;
+        if (sEl) sEl.textContent = unit.spoken ? `"${unit.spoken}"` : (unit.why_picked || unit.subframes || 'f1–f8');
+        if (scEl) scEl.textContent = Number(unit.score || 1.0).toFixed(2);
+      }
+    });
+  }
+
+  function renderWhitneyStage(st, dt) {
+    frameCounter++;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const cx = W * 0.5;
+    const cy = (H - 110) * 0.5 + 18;
+    const baseR = Math.min(W, H - 150) * 0.36;
+
+    // Determine target harmonic phase differential Δφ
+    if (autoConverge) {
+      const isFulcrum = Boolean(st.activeTurn?.is_fulcrum);
+      if (st.turnPhase === 'arch') {
+        // Converge toward unison (Δφ -> 0) as the archival speaker delivers the answer line!
+        targetPhaseDelta = isFulcrum ? 0.02 : 0.14;
+      } else {
+        // Expand into harmonic counterpoint during 1983 setup
+        targetPhaseDelta = isFulcrum ? 0.38 : 0.68;
+      }
+    } else {
+      targetPhaseDelta = userPhaseDelta;
+    }
+    smoothPhaseDelta += (targetPhaseDelta - smoothPhaseDelta) * Math.min(1, dt * 4.5);
+    orbitAngle += dt * (0.55 + smoothPhaseDelta * 0.65);
+
+    // Push current live video frame into the 48-slice slit-scan ring buffer
+    const slot = slitRing[ringHead];
+    slot.ctx.fillStyle = '#000';
+    slot.ctx.fillRect(0, 0, 160, 90);
+    // Left half of slit buffer = 1983 Master, Right half = Focused Cut / Active Spoken Take
+    drawCutSource(slot.ctx, st, '1983', 0, 0, 80, 90, frameCounter % 8);
+    drawCutSource(slot.ctx, st, focusCutKey, 80, 0, 80, 90, (frameCounter + 2) % 8);
+    slot.filled = true;
+    ringHead = (ringHead + 1) % RING_SIZE;
+
+    // Update live mini-monitors on Right HUD
+    updateDeckMonitors(st);
+
+    //Phosphor persistence trail clear
+    ctx.fillStyle = 'rgba(4, 4, 6, 0.28)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Draw outer Lissajous harmonic degree ring
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.strokeStyle = 'rgba(232, 192, 112, 0.16)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(0, 0, baseR * 1.06, 0, Math.PI * 2);
+    ctx.stroke();
+
+    for (let d = 0; d < 72; d++) {
+      const a = (d / 72) * Math.PI * 2 + orbitAngle * 0.15;
+      const r0 = baseR * 1.03;
+      const r1 = baseR * (d % 6 === 0 ? 1.09 : 1.055);
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * r0, Math.sin(a) * r0);
+      ctx.lineTo(Math.cos(a) * r1, Math.sin(a) * r1);
+      ctx.stroke();
+    }
+
+    // 1. POLAR SLIT-SCAN RING BUFFER SLICES (48 temporal wedges from live video buffer)
+    if (polarSlitMode) {
+      const numWedges = 36;
+      for (let w = 0; w < numWedges; w++) {
+        const ringIdx = (ringHead - 1 - w + RING_SIZE * 2) % RING_SIZE;
+        const rSlot = slitRing[ringIdx];
+        if (!rSlot.filled) continue;
+
+        const theta = (w / numWedges) * Math.PI * 2 + orbitAngle * 0.4;
+        const roseR = baseR * (0.42 + 0.54 * Math.abs(Math.cos(2 * theta + smoothPhaseDelta * 2.0)) * userEccentricity);
+        const px = Math.cos(theta) * roseR;
+        const py = Math.sin(theta) * roseR;
+        const sw = 44 + (1 - w / numWedges) * 38;
+        const sh = sw * (9 / 16);
+
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(theta + Math.PI * 0.5);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, sw * 0.5, sh * 0.5, 0, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.globalAlpha = 0.25 + 0.65 * (1 - w / numWedges);
+        ctx.drawImage(rSlot.canvas, -sw * 0.5, -sh * 0.5, sw, sh);
+        ctx.strokeStyle = w % 2 === 0 ? 'rgba(69,177,255,0.35)' : 'rgba(232,192,112,0.38)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // 2. SIX ORBITING LIVE VIDEO LENSES (1983, Spoken Take, Synthesis, V-JEPA, CLIP, Klapaucius)
+    ORBIT_CUTS.forEach((c, idx) => {
+      const kAngle = orbitAngle * c.freq + idx * (Math.PI * 2 / ORBIT_CUTS.length) * smoothPhaseDelta * 1.4;
+      const orbitDist = baseR * (0.22 + 0.62 * Math.min(1, smoothPhaseDelta * 1.25)) * userEccentricity;
+      const lx = Math.cos(kAngle) * orbitDist;
+      const ly = Math.sin(kAngle * 1.5) * orbitDist * 0.78;
+      const lensW = c.key === focusCutKey ? 148 : 116;
+      const lensH = lensW * (9 / 16);
+
+      // Harmonic vector filament from center to orbiting lens
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(lx * 0.5 - ly * 0.25, ly * 0.5 + lx * 0.25, lx, ly);
+      ctx.strokeStyle = c.color + '55';
+      ctx.lineWidth = c.key === focusCutKey ? 1.8 : 1.0;
+      ctx.stroke();
+
+      ctx.save();
+      ctx.translate(lx, ly);
+      ctx.beginPath();
+      ctx.roundRect(-lensW * 0.5, -lensH * 0.5, lensW, lensH, 6);
+      ctx.clip();
+      ctx.fillStyle = '#050608';
+      ctx.fillRect(-lensW * 0.5, -lensH * 0.5, lensW, lensH);
+      drawCutSource(ctx, st, c.key, -lensW * 0.5, -lensH * 0.5, lensW, lensH, (frameCounter + idx) % 8);
+      ctx.strokeStyle = c.color;
+      ctx.lineWidth = c.key === focusCutKey ? 2.2 : 1.2;
+      ctx.stroke();
+      ctx.restore();
+
+      // Label tag on orbiting lens
+      ctx.fillStyle = c.color;
+      ctx.font = "600 8px 'IBM Plex Mono', monospace";
+      ctx.textAlign = 'center';
+      ctx.fillText(`${c.label} (${c.ratio})`, lx, ly + lensH * 0.5 + 11);
+    });
+
+    // 3. CENTRAL SPLIT-APERTURE OCULUS: 1983 CALL (Left) ↔ ACTIVE SPOKEN TAKE / FOCUS CUT (Right)
+    const oculusR = baseR * (0.31 + (1 - Math.min(1, smoothPhaseDelta)) * 0.14);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(0, 0, oculusR, 0, Math.PI * 2);
+    ctx.clip();
+
+    // Left hemisphere: Live 1983 Speaker Video
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(-oculusR, -oculusR, oculusR, oculusR * 2);
+    ctx.clip();
+    drawCutSource(ctx, st, '1983', -oculusR * 1.35, -oculusR * 0.85, oculusR * 2.7, oculusR * 1.7, frameCounter % 8);
+    ctx.restore();
+
+    // Right hemisphere: Live Archival Spoken Take / Focus Cut Video
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, -oculusR, oculusR, oculusR * 2);
+    ctx.clip();
+    drawCutSource(ctx, st, focusCutKey, -oculusR * 1.35, -oculusR * 0.85, oculusR * 2.7, oculusR * 1.7, frameCounter % 8);
+    ctx.restore();
+
+    // Center dialectical seam line
+    ctx.beginPath();
+    ctx.moveTo(0, -oculusR);
+    ctx.lineTo(0, oculusR);
+    ctx.strokeStyle = st.turnPhase === 'arch' ? '#41e096' : '#45b1ff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(0, 0, oculusR - 1, 0, Math.PI * 2);
+    ctx.strokeStyle = st.turnPhase === 'arch' ? '#e8c070' : 'rgba(239,233,221,0.55)';
+    ctx.lineWidth = 2.2;
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.restore();
+
+    // Update HUD readouts
+    if (frameCounter % 5 === 0) {
+      document.getElementById('whDeltaPhi').textContent = `${smoothPhaseDelta.toFixed(2)} RAD`;
+      document.getElementById('whLockTag').textContent = smoothPhaseDelta < 0.18 ? 'UNISON LOCK' : 'COUNTERPOINT';
+      document.getElementById('whLockTag').style.color = smoothPhaseDelta < 0.18 ? '#41e096' : '#e8c070';
+      document.getElementById('whHarmRatio').textContent =
+        smoothPhaseDelta < 0.18 ? '1 : 1 PHASE UNISON' : `${ORBIT_CUTS.find(x => x.key === focusCutKey)?.ratio || '3:2'} ORBIT`;
+    }
+  }
+
+  function updateDuetBanner(st) {
+    const tr = st.activeTurn;
+    const tk = st.activeTake;
+    if (!tr) return;
+    const pill = document.getElementById('dbSpeakerPill');
+    const line = document.getElementById('dbLineText');
+    if (st.turnPhase === '1983') {
+      pill.textContent = `LINE ${st.turnIdx + 1}/${st.turnCount} · 1983 CALL · ${String(tr.speaker || '').toUpperCase()} (${tr.f0 || 125} Hz)`;
+      pill.style.color = '#45b1ff';
+      line.textContent = `"${tr.text || ''}"`;
+    } else {
+      pill.textContent = `LINE ${st.turnIdx + 1}/${st.turnCount} · ARCHIVE ANSWER · ${String(tk?.title || 'ARCHIVE').toUpperCase()} (${tk?.year || '—'})`;
+      pill.style.color = '#41e096';
+      line.textContent = `"${tk?.spoken || tr.text || ''}"`;
+    }
   }
 
   fetch('wargames-studio-cuts.json')
     .then(r => r.json())
-    .then(d => {
-      state.data = d;
-      state.flatBeats = [];
-      d.books.forEach(bk => {
-        bk.beats.forEach(bt => {
-          state.flatBeats.push({ book: bk, beat: bt });
+    .then(data => {
+      const flatBeats = [];
+      (data.books || []).forEach((bk, bIdx) => {
+        (bk.beats || []).forEach(bt => {
+          bt.book_idx = bIdx;
+          bt.book_title = bk.title;
+          flatBeats.push(bt);
         });
       });
-      // Preload first 40 local strips for ultra-smooth slit-scan
-      d.stills_atlas.slice(0, 45).forEach(s => {
-        getImg(s.strip);
-        getImg(s.thumb);
-      });
-      renderLobeLegend();
-      loadBeat(8); // Start on rich NORAD / WarGames scene
-      requestAnimationFrame(draw);
-    });
 
-  function loadBeat(idx) {
-    if (!state.flatBeats.length) return;
-    state.beatIdx = (idx + state.flatBeats.length) % state.flatBeats.length;
-    const { book, beat } = state.flatBeats[state.beatIdx];
-
-    nav.setBeatLabel(`Book ${WGStudioNav.ROMAN[book.n - 1]} · ${book.title} (${beat.id})`);
-    nav.setStatus(`BEAT ${state.beatIdx + 1}/${state.flatBeats.length} · 5 HARMONIC LOBES`);
-
-    // Preload 8-frame strip & thumbnails for all 5 lobes
-    getImg(beat.wg_shot.strip);
-    getImg(beat.wg_shot.thumb);
-    LOBES.forEach(lb => {
-      const units = beat.cuts[lb.key] || [];
-      units.forEach(u => {
-        if (u.thumb) getImg(u.thumb);
-        if (u.strip) getImg(u.strip);
-      });
-    });
-
-    // Video & Audio
-    const vUrl = beat.wg_shot.static_clip || beat.wg_shot.video;
-    if (vUrl) {
-      vid1983.src = vUrl;
-      if (state.playing) vid1983.play().catch(() => {});
-    }
-    const aUrl = beat.aligned_file || beat.orig_file;
-    if (aUrl) {
-      audMain.src = aUrl;
-      audMain.muted = !state.soundOn;
-      if (state.playing && state.soundOn) audMain.play().catch(() => {});
-    }
-
-    updateCaption();
-  }
-
-  audMain.addEventListener('ended', () => {
-    if (state.playing) loadBeat(state.beatIdx + 1);
-  });
-
-  function updateCaption() {
-    if (!state.flatBeats.length) return;
-    const { beat } = state.flatBeats[state.beatIdx];
-    const lb = LOBES[state.activeLobe];
-    const units = beat.cuts[lb.key] || [];
-    const u0 = units[0] || {};
-    document.getElementById('capWho').textContent = `${lb.label} · ${u0.title || beat.who} (${u0.year || 1983})`;
-    document.getElementById('capLine').textContent = `\u201C${u0.spoken || beat.text}\u201D`;
-  }
-
-  // ─── JOHN WHITNEY DIFFERENTIAL SLIT-SCAN RENDERER ───
-  function draw() {
-    const dpr = window.devicePixelRatio || 1;
-    const W = window.innerWidth;
-    const H = window.innerHeight;
-    if (cv.width !== W * dpr || cv.height !== H * dpr) {
-      cv.width = W * dpr;
-      cv.height = H * dpr;
-    }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    // Subtle motion-blur phosphor persistence trail
-    ctx.fillStyle = 'rgba(4, 4, 4, 0.34)';
-    ctx.fillRect(0, 0, W, H);
-
-    if (state.playing && !state.dragging) {
-      state.phase += state.orbitSpeed;
-    }
-
-    const cx = W * 0.50;
-    const cy = H * 0.49;
-    const rx = Math.min(W * 0.43, 620);
-    const ry = Math.min(H * 0.39, 390);
-
-    const cur = state.flatBeats[state.beatIdx];
-    const beat = cur ? cur.beat : null;
-
-    // 1. Draw the 5 Slit-Scanned Cut Ribbons along the 5 Rose/Lissajous Petals
-    if (beat) {
-      LOBES.forEach((lb, lIdx) => {
-        drawSlitScanPetal(ctx, cx, cy, rx, ry, lb, lIdx, beat);
-      });
-    }
-
-    // 2. Draw the 3 Dotted Harmonic Bead Orbits (Cyan, Gold, Magenta — exact match to Image 5)
-    drawDottedOrbit(ctx, cx, cy, rx * 1.02, ry * 0.62, -0.32 + state.tiltY * 0.3, '#45e3ff', 108, state.phase * 1.0);
-    drawDottedOrbit(ctx, cx, cy, rx * 0.52, ry * 1.04,  0.14 + state.tiltX * 0.3, '#f5b841', 96, -state.phase * 1.3);
-    drawDottedOrbit(ctx, cx, cy, rx * 1.04, ry * 0.64,  0.34 - state.tiltY * 0.25, '#ea4c89', 108, state.phase * 0.85);
-
-    // 3. Draw the Bright Glowing Draggable Phase Sun Node on the Gold Orbit
-    const sunTheta = -state.phase * 1.3 + 1.05;
-    const rot = 0.14 + state.tiltX * 0.3;
-    const ux = Math.cos(sunTheta) * (rx * 0.52);
-    const uy = Math.sin(sunTheta) * (ry * 1.04);
-    const sx = cx + ux * Math.cos(rot) - uy * Math.sin(rot);
-    const sy = cy + ux * Math.sin(rot) + uy * Math.cos(rot);
-    state.sunScreenPos = { x: sx, y: sy };
-
-    const grad = ctx.createRadialGradient(sx, sy, 2, sx, sy, 26);
-    grad.addColorStop(0, '#ffffff');
-    grad.addColorStop(0.35, '#ffe39f');
-    grad.addColorStop(1, 'rgba(245, 184, 65, 0)');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(sx, sy, 26, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#fffef8';
-    ctx.beginPath();
-    ctx.arc(sx, sy, 8.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    requestAnimationFrame(draw);
-  }
-
-  function drawSlitScanPetal(ctx, cx, cy, rx, ry, lb, lIdx, beat) {
-    const baseAngle = lb.angle + Math.sin(state.phase * 0.45 + lIdx) * 0.08 + state.tiltX * 0.4;
-    const units = beat.cuts[lb.key] || [];
-    const stripImg = getImg(beat.wg_shot.strip);
-    const atlas = state.data ? state.data.stills_atlas : [];
-
-    const numSlices = SLIT_SLICES;
-    const isFocused = lIdx === state.activeLobe;
-
-    for (let s = 0; s < numSlices; s++) {
-      // Normalized radial distance u from center (0.14 -> 0.96)
-      const u = 0.14 + (s / (numSlices - 1)) * 0.82;
-      // Temporal slit-scan phase offset along the ribbon
-      const waveOffset = Math.sin(u * 2.8 - state.phase * 2.4 + lIdx * 1.2) * 0.14;
-      const theta = baseAngle + waveOffset;
-
-      const dist = u * Math.min(rx, ry * 1.28);
-      const px = cx + Math.cos(theta) * (u * rx * 0.94);
-      const py = cy + Math.sin(theta) * (u * ry * 0.88);
-
-      // Frame scale grows nonlinearly toward the outer apogee of the petal (matching Image 5)
-      const w = (28 + Math.pow(u, 1.35) * 108) * (isFocused ? 1.08 : 0.94);
-      const h = w * 0.76;
-
-      ctx.save();
-      ctx.translate(px, py);
-      // Align frame tangent to the petal curve with slight temporal shear
-      const tangent = theta + (Math.cos(u * 2.8 - state.phase * 2.4) * 0.18);
-      ctx.rotate(tangent * 0.22);
-
-      // Pick the slit-scan source frame (either from the 8-frame strip f1..f8 or the cut's unit thumbnails)
-      const timeStep = Math.floor((s + state.phase * 6) % 8);
-      const unit = units[s % Math.max(1, units.length)];
-      const unitImg = unit && unit.thumb ? getImg(unit.thumb) : null;
-
-      ctx.globalAlpha = 0.28 + Math.pow(u, 0.85) * 0.68;
-
-      if (lIdx === 0 && vid1983.readyState >= 2 && s === numSlices - 1) {
-        // Outer apogee of Lobe I plays the live video frame
-        ctx.drawImage(vid1983, -w / 2, -h / 2, w, h);
-      } else if (lIdx === 0 && stripImg && stripImg.complete && stripImg.naturalWidth > 0) {
-        // Slit-scan across the 8 sub-shot frames of the 1983 strip
-        const fw = stripImg.naturalWidth / 8;
-        const fh = stripImg.naturalHeight;
-        ctx.drawImage(stripImg, timeStep * fw, 0, fw, fh, -w / 2, -h / 2, w, h);
-      } else if (unitImg && unitImg.complete && unitImg.naturalWidth > 0) {
-        ctx.drawImage(unitImg, -w / 2, -h / 2, w, h);
-      } else if (atlas.length) {
-        // Fallback to local 8-frame strip from stills_atlas so every slice is crisp and CORS-free
-        const fallbackItem = atlas[(state.beatIdx * 7 + lIdx * 13 + s) % atlas.length];
-        const fStrip = getImg(fallbackItem.strip || fallbackItem.thumb);
-        if (fStrip && fStrip.complete && fStrip.naturalWidth > 0) {
-          if (fallbackItem.strip && fStrip.naturalWidth > fStrip.naturalHeight * 3) {
-            const fw = fStrip.naturalWidth / 8;
-            ctx.drawImage(fStrip, timeStep * fw, 0, fw, fStrip.naturalHeight, -w / 2, -h / 2, w, h);
-          } else {
-            ctx.drawImage(fStrip, -w / 2, -h / 2, w, h);
-          }
+      engine = WGStudioEngine.create({
+        nav,
+        cutKeys: ['1983', 'synthesis', 'vjepa', 'clip', 'klapaucius', 'murch'],
+        defaultMode: 'duet',
+        onBeatChange: (bt, idx, st) => {
+          updateDuetBanner(st);
+          nav.setStatus(`Δφ=${smoothPhaseDelta.toFixed(2)} · ${(bt.turns_1983 || []).length} SPOKEN LINES · 6 LIVE CUTS`);
+        },
+        onTurnChange: (st) => {
+          updateDuetBanner(st);
+        },
+        onTick: (st, dt) => {
+          renderWhitneyStage(st, dt);
         }
-      }
+      });
 
-      // Film-frame border & subtle harmonic tint
-      ctx.strokeStyle = isFocused ? lb.color : 'rgba(239,233,221,0.22)';
-      ctx.lineWidth = isFocused && s === numSlices - 1 ? 1.6 : 0.75;
-      ctx.strokeRect(-w / 2, -h / 2, w, h);
-
-      ctx.restore();
-    }
-  }
-
-  function drawDottedOrbit(ctx, cx, cy, a, b, rot, color, count, phaseShift) {
-    ctx.save();
-    for (let i = 0; i < count; i++) {
-      const t = (i / count) * Math.PI * 2 + phaseShift;
-      const ux = Math.cos(t) * a;
-      const uy = Math.sin(t) * b;
-      const x = cx + ux * Math.cos(rot) - uy * Math.sin(rot);
-      const y = cy + ux * Math.sin(rot) + uy * Math.cos(rot);
-
-      const pulse = 0.45 + 0.55 * Math.sin(t * 2 - state.phase * 3);
-      const r = 1.6 + pulse * 1.5;
-
-      ctx.globalAlpha = 0.35 + pulse * 0.6;
-      ctx.fillStyle = color;
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 8;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-  }
-
-  // ─── POINTER INTERACTION: DRAG THE ORBIT TO CHANGE PHASE ───
-  cv.addEventListener('pointerdown', e => {
-    state.dragging = true;
-    const cx = window.innerWidth * 0.5;
-    const cy = window.innerHeight * 0.49;
-    state.dragStartAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
-    state.dragStartPhase = state.phase;
-    cv.setPointerCapture(e.pointerId);
-  });
-
-  cv.addEventListener('pointermove', e => {
-    if (!state.dragging) return;
-    const cx = window.innerWidth * 0.5;
-    const cy = window.innerHeight * 0.49;
-    const ang = Math.atan2(e.clientY - cy, e.clientX - cx);
-    let delta = ang - state.dragStartAngle;
-    if (delta > Math.PI) delta -= Math.PI * 2;
-    if (delta < -Math.PI) delta += Math.PI * 2;
-    state.phase = state.dragStartPhase - delta * 1.4;
-    state.tiltX = ((e.clientX / window.innerWidth) - 0.5) * 0.85;
-    state.tiltY = ((e.clientY / window.innerHeight) - 0.5) * 0.85;
-
-    // Activate nearest lobe by angle
-    let bestLobe = 0, bestDiff = 999;
-    LOBES.forEach((lb, idx) => {
-      const d = Math.abs(Math.atan2(Math.sin(ang - lb.angle), Math.cos(ang - lb.angle)));
-      if (d < bestDiff) { bestDiff = d; bestLobe = idx; }
+      engine.setBeats(flatBeats, 0);
     });
-    if (bestLobe !== state.activeLobe) {
-      state.activeLobe = bestLobe;
-      renderLobeLegend();
-      updateCaption();
-    }
-  });
-
-  cv.addEventListener('pointerup', () => {
-    state.dragging = false;
-  });
 })();
 </script>
 </body>

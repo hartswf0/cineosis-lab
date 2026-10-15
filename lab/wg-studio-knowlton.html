@@ -3,463 +3,505 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>03 / KEN KNOWLTON · A Film Made of Stills</title>
+<title>03 / KEN KNOWLTON — A Film Made of Stills &amp; 9-Cut Live Multi-Scale Quadtree</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="wg-studio-nav.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#050505;
-    --ink:#efe9dd;
-    --dim:#8a8378;
-    --hi:#e8c070;
-    --red:#c82822;
-    --serif:'Fraunces',Georgia,serif;
-    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  html,body{
+    margin:0;padding:0;width:100%;height:100%;
+    background:#050506;color:#efe9dd;
+    font-family:'IBM Plex Mono',ui-monospace,monospace;
+    overflow:hidden;user-select:none;
   }
-  *{box-sizing:border-box;margin:0;padding:0;user-select:none}
-  html,body{height:100%;width:100%;background:var(--bg);color:var(--ink);font-family:var(--mono);overflow:hidden;-webkit-font-smoothing:antialiased}
+  .knowlton-shell{
+    position:fixed;top:40px;left:0;right:0;bottom:148px;
+    display:grid;grid-template-columns:1.08fr 1fr;
+    gap:10px;padding:8px 16px;
+  }
+  .pane{
+    position:relative;border:1px solid rgba(239,233,221,.14);
+    background:#08090c;overflow:hidden;display:flex;flex-direction:column;
+  }
+  .pane-head{
+    height:34px;padding:0 12px;border-bottom:1px solid rgba(239,233,221,.12);
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:rgba(239,233,221,.75);
+    background:rgba(10,12,16,.95);flex-shrink:0;
+  }
+  .pane-head b{color:#e8c070;font-weight:600}
+  .k-btns{display:flex;align-items:center;gap:4px}
+  .k-btn{
+    background:rgba(255,255,255,.04);border:1px solid rgba(239,233,221,.16);
+    color:rgba(239,233,221,.72);font:500 8px/1 'IBM Plex Mono',monospace;
+    letter-spacing:.12em;padding:4px 6px;cursor:pointer;text-transform:uppercase;
+  }
+  .k-btn:hover{color:#fff;border-color:rgba(239,233,221,.45)}
+  .k-btn.on{background:#e8c070;color:#050505;border-color:#e8c070;font-weight:600}
 
-  #knowltonCanvas{
-    position:fixed;top:0;left:0;width:100vw;height:calc(100vh - 48px);
-    display:block;cursor:pointer;
+  .canvas-wrap{
+    position:relative;flex:1;background:#030406;overflow:hidden;
+  }
+  .canvas-wrap canvas{
+    width:100%;height:100%;display:block;cursor:crosshair;
   }
 
-  /* Floating status badge showing which cut is currently driving the mosaic of stills */
-  #activeCutHud{
-    position:fixed;top:52px;left:22px;z-index:50;
-    background:rgba(5,5,5,.82);backdrop-filter:blur(8px);
-    border:1px solid rgba(239,233,221,.18);
-    padding:8px 13px;pointer-events:none;
-    display:flex;flex-direction:column;gap:3px;
+  /* LOUPE INSPECTOR OVERLAY ON LEFT MOSAIC */
+  .mosaic-loupe{
+    position:absolute;bottom:10px;left:10px;right:10px;
+    padding:7px 10px;background:rgba(6,8,12,.9);
+    border:1px solid rgba(232,192,112,.32);backdrop-filter:blur(8px);
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    font-size:8.5px;letter-spacing:.11em;pointer-events:none;
   }
-  #activeCutHud .kicker{
-    font:500 9px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--hi);
+  .ml-left{display:flex;align-items:center;gap:8px}
+  .ml-thumb{width:56px;height:32px;object-fit:cover;border:1px solid rgba(232,192,112,.45);background:#000}
+  .ml-line{
+    font:italic 400 11.5px/1.25 'Fraunces',Georgia,serif;color:#77e4b6;
+    text-transform:none;letter-spacing:.01em;max-width:340px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
-  #activeCutHud .title{
-    font:italic 300 16px/1.2 var(--serif);color:var(--ink);
-  }
-  #activeCutHud .sub{
-    font:400 8.5px/1.2 var(--mono);letter-spacing:.12em;color:var(--dim);text-transform:uppercase;
+
+  @media (max-width:980px){
+    .knowlton-shell{grid-template-columns:1fr;grid-template-rows:1fr 1fr}
   }
 </style>
 </head>
 <body>
 
-<canvas id="knowltonCanvas"></canvas>
+<main class="knowlton-shell">
+  <!-- LEFT PANE: LIVE VIDEO RECONSTRUCTED ENTIRELY OUT OF FILM STILLS -->
+  <section class="pane">
+    <div class="pane-head">
+      <span><b>A FILM MADE OF STILLS</b> · SOURCE: <span id="mosaicSourceLabel" style="color:#41e096">ACTIVE SPOKEN TAKE</span></span>
+      <div class="k-btns">
+        <button class="k-btn" data-grid="20">20×12 STILLS</button>
+        <button class="k-btn on" data-grid="30">30×18 STILLS</button>
+        <button class="k-btn" data-grid="42">42×25 MICRO</button>
+        <button class="k-btn on" id="btnGlyphOverlay" title="Overlay Belk/Knowlton Typographic Density Sub-Characters">GLYPHS: ON</button>
+      </div>
+    </div>
+    <div class="canvas-wrap" id="leftWrap">
+      <canvas id="mosaicCanvas"></canvas>
+      <div class="mosaic-loupe">
+        <div class="ml-left">
+          <img class="ml-thumb" id="loupeThumb" src="thumbs/wg_001.jpg" alt="Tile Still">
+          <div>
+            <div style="color:#e8c070;font-weight:600" id="loupeTitle">TILE STILL: WG_001 · LUM 112</div>
+            <div style="color:rgba(239,233,221,.62);margin-top:2px" id="loupeSub">302 WARGAMES STILLS + 32 BEAT ARCHIVE STILLS</div>
+          </div>
+        </div>
+        <div class="ml-line" id="loupeSpoken">"Loading spoken line..."</div>
+      </div>
+    </div>
+  </section>
 
-<div id="activeCutHud">
-  <span class="kicker" id="hudKicker">MASTER MOSAIC FILM · 1983 WARGAMES</span>
-  <span class="title" id="hudTitle">Every pixel assembled in real time from 302 film stills</span>
-  <span class="sub" id="hudSub">HOVER &amp; PRESS ANY RIGHT-HAND CUT CELL TO ENTER ITS FILM</span>
-</div>
+  <!-- RIGHT PANE: 9 SIMULTANEOUS LIVE VIDEO CUTS IN KNOWLTON QUADTREE -->
+  <section class="pane">
+    <div class="pane-head">
+      <span><b>9 SIMULTANEOUS LIVE CUTS</b> · MULTI-SCALE QUADTREE &amp; 8-FRAME STRIPS</span>
+      <div class="k-btns">
+        <button class="k-btn on" id="btnAutoFollowVoice" title="Automatically switch Left Stills Mosaic between 1983 Call and Archival Answer Video">FOLLOW VOICE DUET: ON</button>
+      </div>
+    </div>
+    <div class="canvas-wrap" id="rightWrap">
+      <canvas id="quadCanvas"></canvas>
+    </div>
+  </section>
+</main>
 
-<!-- Offscreen video & sampling canvas for real-time still-frame photomosaic -->
-<div style="display:none">
-  <video id="masterVid" muted playsinline loop crossorigin="anonymous"></video>
-  <audio id="audMain" preload="auto"></audio>
-</div>
-
+<script src="wg-studio-nav.js"></script>
 <script>
 (() => {
   'use strict';
 
-  const CUT_DEFS = [
-    { key: 'klapaucius', label: 'KLAPAUCIUS CONTRAPUNTAL', sub: 'Kinetic Action Cut' },
-    { key: 'murch',      label: 'MURCH VOICE CUT',         sub: 'Speaking Archival Face' },
-    { key: 'vjepa',      label: 'V-JEPA BALLISTIC',        sub: 'Trajectory & Tunnel Cut' },
-    { key: '1983',       label: '1983 NORAD MASTER',       sub: 'Original 1983 Scene' },
-    { key: 'synthesis',  label: 'APEX SYNTHESIS (π*)',     sub: '6-Critic ASAL Equilibrium' },
-    { key: 'trurl',      label: 'TRURL NOCTURNE',          sub: 'Phosphor CRT Cut' },
-    { key: 'clip',       label: 'CLIP SUB-SHOTS',          sub: 'f1 → f4 → f8 Appearance' },
-    { key: 'cineosis',   label: 'CINEOSIS 44-SIGN',        sub: 'Deleuze Sign & Palette' },
+  const mosaicCanvas = document.getElementById('mosaicCanvas');
+  const mCtx = mosaicCanvas.getContext('2d');
+  const quadCanvas = document.getElementById('quadCanvas');
+  const qCtx = quadCanvas.getContext('2d');
+
+  // Offscreen sampler for reading the live playing video's RGB/luminance grid
+  const sampleCanvas = document.createElement('canvas');
+  const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+
+  const QUAD_CUTS = [
+    { key: '1983',       label: '1983 MASTER TRIO',   color: '#45b1ff' },
+    { key: 'take_video', label: 'SPOKEN LINE TAKE',   color: '#41e096' },
+    { key: 'synthesis',  label: 'APEX SYNTHESIS',     color: '#e8c070' },
+    { key: 'clip',       label: 'CLIP VISUAL',        color: '#c084fc' },
+    { key: 'vjepa',      label: 'V-JEPA MOTION',      color: '#ff6b57' },
+    { key: 'blip',       label: 'BLIP DIEGETIC',      color: '#38bdf8' },
+    { key: 'cineosis',   label: 'CINEOSIS 44-SIGN',   color: '#facc15' },
+    { key: 'trurl',      label: 'TRURL PHOSPHOR',     color: '#34d399' },
+    { key: 'murch',      label: 'MURCH SPOKEN FACE',  color: '#fb7185' },
   ];
 
-  const state = {
-    data: null,
-    flatBeats: [],
-    beatIdx: 0,
-    activeCutKey: '1983',
-    hoveredCell: null,
-    playing: true,
-    soundOn: true,
-    stillBuckets: [], // 32 luminance buckets of preloaded Image objects
-    interactiveCells: [],
-    frameTick: 0,
-    zoomTransition: 0,
-  };
+  const GLYPHS = [' ', '.', ':', '-', '=', '+', '*', '#', '%', '@'];
 
-  const cv = document.getElementById('knowltonCanvas');
-  const ctx = cv.getContext('2d');
-  const masterVid = document.getElementById('masterVid');
-  const audMain = document.getElementById('audMain');
-
-  // Offscreen low-res luminance sampler (64x44 grid)
-  const sampleCv = document.createElement('canvas');
-  sampleCv.width = 64;
-  sampleCv.height = 44;
-  const sampleCtx = sampleCv.getContext('2d', { willReadFrequently: true });
-
+  let stillsAtlas = [];
+  const lumBuckets = Array.from({ length: 32 }, () => []);
   const imgCache = new Map();
+
   function getImg(src) {
     if (!src) return null;
     if (imgCache.has(src)) return imgCache.get(src);
     const im = new Image();
-    im.crossOrigin = 'anonymous';
     im.src = src;
     imgCache.set(src, im);
     return im;
   }
 
+  let gridCols = 30;
+  let glyphOverlay = true;
+  let autoFollowVoice = true;
+  let selectedCutKey = 'take_video';
+  let hoverTileInfo = null;
+  let quadCellRects = [];
+  let frameTick = 0;
+  let engine = null;
+
   const nav = WGStudioNav.mount({
     theme: 'dark',
     num: '03',
-    titleLeft: '03 / KEN KNOWLTON',
-    promptCenter: 'PRESS A CELL TO ENTER ITS FILM',
-    onTogglePlay(p) {
-      state.playing = p;
-      if (p) {
-        masterVid.play().catch(() => {});
-        if (state.soundOn) audMain.play().catch(() => {});
-      } else {
-        masterVid.pause();
-        audMain.pause();
-      }
-    },
-    onReset() {
-      state.activeCutKey = '1983';
-      loadBeat(state.beatIdx);
-    },
-    onPrevBeat() { loadBeat(state.beatIdx - 1); },
-    onNextBeat() { loadBeat(state.beatIdx + 1); },
-    onToggleSound(s) {
-      state.soundOn = s;
-      audMain.muted = !s;
-      if (s && state.playing) audMain.play().catch(() => {});
-    },
+    titleLeft: '03 / KEN KNOWLTON — A FILM MADE OF STILLS',
+    promptCenter: 'CLICK ANY RIGHT QUADTREE CUT TO PROMOTE INTO THE STILLS MOSAIC · HOVER TILES TO INSPECT',
+    onPrevBeat: () => engine && engine.prevBeat(),
+    onNextBeat: () => engine && engine.nextBeat(),
+    onReset: () => {
+      gridCols = 30;
+      autoFollowVoice = true;
+      selectedCutKey = 'take_video';
+      document.getElementById('btnAutoFollowVoice').classList.add('on');
+      document.querySelectorAll('[data-grid]').forEach(b => b.classList.toggle('on', b.dataset.grid === '30'));
+    }
   });
 
-  fetch('wargames-studio-cuts.json')
-    .then(r => r.json())
-    .then(d => {
-      state.data = d;
-      state.flatBeats = [];
-      d.books.forEach(bk => {
-        bk.beats.forEach(bt => {
-          state.flatBeats.push({ book: bk, beat: bt });
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const lw = document.getElementById('leftWrap').getBoundingClientRect();
+    const rw = document.getElementById('rightWrap').getBoundingClientRect();
+    mosaicCanvas.width = Math.max(100, Math.floor(lw.width * dpr));
+    mosaicCanvas.height = Math.max(100, Math.floor(lw.height * dpr));
+    mCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    quadCanvas.width = Math.max(100, Math.floor(rw.width * dpr));
+    quadCanvas.height = Math.max(100, Math.floor(rw.height * dpr));
+    qCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  setTimeout(resize, 30);
+
+  // Controls
+  document.querySelectorAll('[data-grid]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      gridCols = parseInt(btn.getAttribute('data-grid'), 10) || 30;
+      document.querySelectorAll('[data-grid]').forEach(b => b.classList.toggle('on', b === btn));
+    });
+  });
+  document.getElementById('btnGlyphOverlay').onclick = e => {
+    glyphOverlay = !glyphOverlay;
+    e.currentTarget.classList.toggle('on', glyphOverlay);
+    e.currentTarget.textContent = glyphOverlay ? 'GLYPHS: ON' : 'GLYPHS: OFF';
+  };
+  document.getElementById('btnAutoFollowVoice').onclick = e => {
+    autoFollowVoice = !autoFollowVoice;
+    e.currentTarget.classList.toggle('on', autoFollowVoice);
+    e.currentTarget.textContent = autoFollowVoice ? 'FOLLOW VOICE DUET: ON' : 'FOLLOW VOICE DUET: LOCKED';
+  };
+
+  // Build Luminance Index of all 302 WarGames Stills + Beat Candidate Stills
+  function indexStillsAtlas(atlas, beat) {
+    for (let b = 0; b < 32; b++) lumBuckets[b] = [];
+    const combined = [...atlas];
+    if (beat && beat.cuts) {
+      Object.values(beat.cuts).forEach(units => {
+        (units || []).forEach(u => {
+          if (u.thumb) {
+            combined.push({ id: u.id, thumb: u.thumb, strip: u.strip, title: u.title, lum: 95 });
+          }
         });
       });
-
-      // Build 32 luminance buckets from the 302 local stills for instant O(1) photomosaic lookup
-      state.stillBuckets = Array.from({ length: 32 }, () => []);
-      d.stills_atlas.forEach(st => {
-        const im = getImg(st.thumb);
-        const bIdx = Math.min(31, Math.max(0, Math.floor((st.lum || 0.2) * 38)));
-        state.stillBuckets[bIdx].push({ ...st, img: im });
-      });
-      // Fill any empty bucket from nearest neighbor
-      for (let i = 0; i < 32; i++) {
-        if (!state.stillBuckets[i].length) {
-          const fallback = d.stills_atlas[Math.floor((i / 31) * (d.stills_atlas.length - 1))];
-          if (fallback) state.stillBuckets[i].push({ ...fallback, img: getImg(fallback.thumb) });
-        }
-      }
-
-      loadBeat(0);
-      requestAnimationFrame(render);
+    }
+    combined.forEach((st, idx) => {
+      getImg(st.thumb);
+      const lum = st.lum != null ? st.lum : ((idx * 19) % 210 + 18);
+      const bucket = Math.max(0, Math.min(31, Math.floor((lum / 255) * 31)));
+      lumBuckets[bucket].push(st);
     });
-
-  function loadBeat(idx) {
-    if (!state.flatBeats.length) return;
-    state.beatIdx = (idx + state.flatBeats.length) % state.flatBeats.length;
-    const { book, beat } = state.flatBeats[state.beatIdx];
-
-    nav.setBeatLabel(`Book ${WGStudioNav.ROMAN[book.n - 1]} · ${book.title} (${beat.id})`);
-    nav.setStatus(`302 STILLS · 8 SIMULTANEOUS CUTS`);
-
-    // Preload cut thumbnails & strips
-    getImg(beat.wg_shot.thumb);
-    getImg(beat.wg_shot.strip);
-    Object.values(beat.cuts).forEach(arr => {
-      arr.forEach(u => { if (u.thumb) getImg(u.thumb); });
-    });
-
-    setDrivingCut(state.activeCutKey, beat);
-
-    const aUrl = beat.aligned_file || beat.orig_file;
-    if (aUrl) {
-      audMain.src = aUrl;
-      audMain.muted = !state.soundOn;
-      if (state.playing && state.soundOn) audMain.play().catch(() => {});
+    // Ensure every bucket has candidates
+    let lastNonEmpty = combined.slice(0, 8);
+    for (let b = 0; b < 32; b++) {
+      if (lumBuckets[b].length) lastNonEmpty = lumBuckets[b];
+      else lumBuckets[b] = lastNonEmpty;
     }
   }
 
-  function setDrivingCut(cutKey, beat) {
-    state.activeCutKey = cutKey;
-    const units = beat.cuts[cutKey] || beat.cuts['1983'] || [];
-    const u0 = units[0] || {};
-    const def = CUT_DEFS.find(c => c.key === cutKey) || CUT_DEFS[3];
-
-    document.getElementById('hudKicker').textContent = `ACTIVE FILM OF STILLS · ${def.label}`;
-    document.getElementById('hudTitle').textContent = `\u201C${u0.spoken || beat.text}\u201D`;
-    document.getElementById('hudSub').textContent = `${u0.title || 'WarGames'} (${u0.year || 1983}) · PRESS ANY CELL ON THE RIGHT TO SWITCH CUT`;
-
-    // Drive masterVid with local clip (CORS-safe for getImageData photomosaic)
-    const vUrl = beat.wg_shot.static_clip || beat.wg_shot.video;
-    if (vUrl && masterVid.dataset.src !== vUrl) {
-      masterVid.dataset.src = vUrl;
-      masterVid.src = vUrl;
-      if (state.playing) masterVid.play().catch(() => {});
+  function drawCutVideoOrFallback(targetCtx, st, cutKey, x, y, w, h, subIdx = 0) {
+    const vid = cutKey === 'take_video' ? st.getTakeVideo() : st.getCutVideo(cutKey);
+    const unit = cutKey === 'take_video' ? st.activeTake : st.getCutUnit(cutKey);
+    if (vid && vid.readyState >= 2 && vid.videoWidth > 0) {
+      try {
+        targetCtx.drawImage(vid, x, y, w, h);
+        return true;
+      } catch (_) {}
     }
+    const stripImg = unit?.strip ? getImg(unit.strip) : null;
+    if (stripImg && stripImg.complete && stripImg.naturalWidth > 0) {
+      const fw = stripImg.naturalWidth / 8;
+      targetCtx.drawImage(stripImg, (subIdx % 8) * fw, 0, fw, stripImg.naturalHeight, x, y, w, h);
+      return true;
+    }
+    const thImg = unit?.thumb ? getImg(unit.thumb) : (st.beat?.wg_shot?.thumb ? getImg(st.beat.wg_shot.thumb) : null);
+    if (thImg && thImg.complete && thImg.naturalWidth > 0) {
+      targetCtx.drawImage(thImg, x, y, w, h);
+      return true;
+    }
+    return false;
   }
 
-  audMain.addEventListener('ended', () => {
-    if (state.playing) loadBeat(state.beatIdx + 1);
-  });
-
-  // ─── KEN KNOWLTON REAL-TIME STILL-FRAME PHOTOMOSAIC + MULTI-SCALE QUADTREE ───
-  function render() {
-    state.frameTick++;
-    const dpr = window.devicePixelRatio || 1;
-    const W = cv.clientWidth;
-    const H = cv.clientHeight;
-    if (cv.width !== W * dpr || cv.height !== H * dpr) {
-      cv.width = W * dpr;
-      cv.height = H * dpr;
-    }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = '#050505';
-    ctx.fillRect(0, 0, W, H);
-
-    const cur = state.flatBeats[state.beatIdx];
-    if (!cur) {
-      requestAnimationFrame(render);
-      return;
-    }
-    const { beat } = cur;
-
-    // Sample the driving video or thumbnail into the 64x44 luminance buffer
-    const activeUnits = beat.cuts[state.activeCutKey] || [];
-    const activeThumb = (activeUnits[0] && activeUnits[0].thumb) ? getImg(activeUnits[0].thumb) : getImg(beat.wg_shot.thumb);
-    const wgThumb = getImg(beat.wg_shot.thumb);
-
-    let sampled = false;
-    try {
-      if (state.activeCutKey === '1983' && masterVid.readyState >= 2) {
-        sampleCtx.drawImage(masterVid, 0, 0, 64, 44);
-        sampled = true;
-      } else if (wgThumb && wgThumb.complete && wgThumb.naturalWidth > 0) {
-        sampleCtx.drawImage(wgThumb, 0, 0, 64, 44);
-        sampled = true;
-      }
-    } catch (e) {}
-
-    const pxData = sampled ? sampleCtx.getImageData(0, 0, 64, 44).data : null;
-
-    // 1. LEFT & CENTER FIELD: "A FILM MADE OF STILLS" (Photomosaic of real still frames + BEFLIX glyphs on far left)
-    const cols = 48;
-    const rows = 32;
-    const cellW = (W * 0.64) / cols;
-    const cellH = H / rows;
-
-    // Draw ghostly underlying macro still at 28% opacity in upper-right mountain/context zone (matching Image 4)
-    if (wgThumb && wgThumb.complete && wgThumb.naturalWidth > 0) {
-      ctx.save();
-      ctx.globalAlpha = 0.34;
-      ctx.drawImage(wgThumb, W * 0.16, 0, W * 0.80, H * 0.56);
-      ctx.restore();
-    }
-
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const x = c * cellW;
-        const y = r * cellH;
-
-        const sx = Math.min(63, Math.floor((c / cols) * 64));
-        const sy = Math.min(43, Math.floor((r / rows) * 44));
-        let lum = 0.35;
-        if (pxData) {
-          const off = (sy * 64 + sx) * 4;
-          lum = (0.299 * pxData[off] + 0.587 * pxData[off + 1] + 0.114 * pxData[off + 2]) / 255;
-        }
-
-        // Far-left columns (c < 7): Ken Knowlton BEFLIX symbolic luminance glyphs
-        if (c < 7) {
-          drawBeflixGlyph(ctx, x, y, cellW, cellH, lum, (r + c) % 4);
-          continue;
-        }
-
-        // Lookup matching still frame from luminance bucket
-        const bIdx = Math.min(31, Math.max(0, Math.floor(lum * 31)));
-        const bucket = state.stillBuckets[bIdx];
-        if (bucket && bucket.length) {
-          const pick = bucket[(r * 13 + c * 7 + Math.floor(state.frameTick / 8)) % bucket.length];
-          if (pick.img && pick.img.complete && pick.img.naturalWidth > 0) {
-            ctx.drawImage(pick.img, x + 0.5, y + 0.5, cellW - 1, cellH - 1);
-            // Subtle luminance calibration veil so the macro moving picture reads with museum clarity
-            ctx.fillStyle = lum > 0.55
-              ? `rgba(239,233,221,${(lum - 0.5) * 0.35})`
-              : `rgba(5,5,5,${(0.55 - lum) * 0.55})`;
-            ctx.fillRect(x + 0.5, y + 0.5, cellW - 1, cellH - 1);
-          }
-        }
-      }
-    }
-
-    // 2. RIGHT-HAND MULTI-SCALE QUADTREE OF ALL SIMULTANEOUS CUTS (matching Image 4)
-    state.interactiveCells = [];
-    const rx0 = W * 0.56;
-    const rw = W - rx0 - 38; // Leave 38px on far right for vertical 35mm contact strip
-    const rh = H;
-
-    // Intermediate subdivision band (16 medium still cells bridging the mosaic to the large cut cells)
-    const midX = rx0 - W * 0.08;
-    const midW = W * 0.08;
-    const midRows = 10;
-    const midCellH = H * 0.62 / midRows;
-    const atlas = state.data ? state.data.stills_atlas : [];
-    for (let mr = 0; mr < midRows; mr++) {
-      for (let mc = 0; mc < 2; mc++) {
-        const mx = midX + mc * (midW / 2);
-        const my = H * 0.36 + mr * midCellH;
-        const stItem = atlas[(state.beatIdx * 5 + mr * 3 + mc) % Math.max(1, atlas.length)];
-        if (stItem) {
-          const im = getImg(stItem.thumb);
-          if (im && im.complete && im.naturalWidth > 0) {
-            ctx.drawImage(im, mx + 1, my + 1, midW / 2 - 2, midCellH - 2);
-          }
-        }
-      }
-    }
-
-    // 4 Primary Simultaneous Cut Cells + 4 Medium Sub-Cut Cells (exact layout of Image 4's right side)
-    const primaryBoxes = [
-      { cutIdx: 0, x: rx0,            y: H * 0.47, w: rw * 0.44, h: H * 0.25 }, // Klapaucius (highlighted red box in ref)
-      { cutIdx: 1, x: rx0 + rw * 0.45, y: H * 0.47, w: rw * 0.54, h: H * 0.25 }, // Murch Spoken Face
-      { cutIdx: 2, x: rx0,            y: H * 0.73, w: rw * 0.44, h: H * 0.25 }, // V-JEPA Tunnel/Train
-      { cutIdx: 3, x: rx0 + rw * 0.45, y: H * 0.73, w: rw * 0.54, h: H * 0.25 }, // 1983 NORAD Radar
-      { cutIdx: 4, x: rx0 + rw * 0.18, y: H * 0.34, w: rw * 0.25, h: H * 0.12 }, // Apex Synthesis
-      { cutIdx: 5, x: rx0 + rw * 0.45, y: H * 0.34, w: rw * 0.26, h: H * 0.12 }, // Trurl Nocturne
-      { cutIdx: 6, x: rx0 + rw * 0.72, y: H * 0.34, w: rw * 0.27, h: H * 0.12 }, // CLIP Sub-Shots
-      { cutIdx: 7, x: rx0 + rw * 0.72, y: H * 0.20, w: rw * 0.27, h: H * 0.13 }, // Cineosis Sign
-    ];
-
-    primaryBoxes.forEach((box, bIdx) => {
-      const def = CUT_DEFS[box.cutIdx];
-      const units = beat.cuts[def.key] || [];
-      const u = units[Math.floor(state.frameTick / 90) % Math.max(1, units.length)] || {};
-
-      ctx.fillStyle = '#080808';
-      ctx.fillRect(box.x, box.y, box.w, box.h);
-
-      const uImg = u.thumb ? getImg(u.thumb) : null;
-      const stripImg = getImg(beat.wg_shot.strip);
-
-      if (def.key === '1983' && masterVid.readyState >= 2) {
-        ctx.drawImage(masterVid, box.x + 2, box.y + 2, box.w - 4, box.h - 4);
-      } else if (uImg && uImg.complete && uImg.naturalWidth > 0) {
-        ctx.drawImage(uImg, box.x + 2, box.y + 2, box.w - 4, box.h - 4);
-      } else if (stripImg && stripImg.complete && stripImg.naturalWidth > 0) {
-        const fw = stripImg.naturalWidth / 8;
-        const fStep = (bIdx + Math.floor(state.frameTick / 25)) % 8;
-        ctx.drawImage(stripImg, fStep * fw, 0, fw, stripImg.naturalHeight, box.x + 2, box.y + 2, box.w - 4, box.h - 4);
-      }
-
-      const isHovered = state.hoveredCell === bIdx;
-      const isActive = state.activeCutKey === def.key;
-
-      // Red Knowlton selector frame (matching Image 4)
-      if (isHovered || isActive) {
-        ctx.strokeStyle = '#c82822';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(box.x + 1.5, box.y + 1.5, box.w - 3, box.h - 3);
-      } else {
-        ctx.strokeStyle = 'rgba(239,233,221,0.22)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1);
-      }
-
-      // Label bar inside cell
-      ctx.fillStyle = 'rgba(5,5,5,0.76)';
-      ctx.fillRect(box.x + 4, box.y + box.h - 22, Math.min(box.w - 8, 210), 18);
-      ctx.fillStyle = (isHovered || isActive) ? '#efe9dd' : '#a8a095';
-      ctx.font = '500 8.5px "IBM Plex Mono", monospace';
-      ctx.fillText(def.label, box.x + 9, box.y + box.h - 10);
-
-      state.interactiveCells.push({ ...box, idx: bIdx, key: def.key });
-    });
-
-    // 3. FAR-RIGHT VERTICAL 35MM CONTACT STRIP (f1..f8 of the current scene)
-    const stripX = W - 34;
-    const stripImg = getImg(beat.wg_shot.strip);
-    const fCount = 12;
-    const fh = H / fCount;
-    for (let f = 0; f < fCount; f++) {
-      const fy = f * fh;
-      if (stripImg && stripImg.complete && stripImg.naturalWidth > 0) {
-        const fw = stripImg.naturalWidth / 8;
-        ctx.drawImage(stripImg, (f % 8) * fw, 0, fw, stripImg.naturalHeight, stripX, fy + 1, 32, fh - 2);
-      }
-      ctx.strokeStyle = 'rgba(239,233,221,0.2)';
-      ctx.strokeRect(stripX, fy + 1, 32, fh - 2);
-    }
-
-    requestAnimationFrame(render);
-  }
-
-  function drawBeflixGlyph(ctx, x, y, w, h, lum, variant) {
-    ctx.fillStyle = '#070707';
-    ctx.fillRect(x, y, w, h);
-    const alpha = Math.min(0.95, Math.max(0.08, lum * 1.15));
-    ctx.fillStyle = `rgba(239,233,221,${alpha.toFixed(2)})`;
-    const pad = Math.max(1.5, w * 0.18);
-    if (lum < 0.22) {
-      ctx.fillRect(x + w * 0.4, y + h * 0.4, 2, 2);
-    } else if (lum < 0.45) {
-      ctx.strokeStyle = ctx.fillStyle;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x + pad, y + pad, w - pad * 2, h - pad * 2);
-    } else if (lum < 0.7) {
-      ctx.fillRect(x + pad, y + pad, w - pad * 2, h - pad * 2);
-      ctx.fillStyle = '#070707';
-      ctx.fillRect(x + w * 0.35, y + h * 0.35, w * 0.3, h * 0.3);
-    } else {
-      ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
-    }
-  }
-
-  cv.addEventListener('pointermove', e => {
-    const rect = cv.getBoundingClientRect();
+  // Hover on Left Mosaic to inspect which still forms that tile
+  mosaicCanvas.addEventListener('pointermove', e => {
+    const rect = mosaicCanvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    let hit = null;
-    for (const cell of state.interactiveCells) {
-      if (mx >= cell.x && mx <= cell.x + cell.w && my >= cell.y && my <= cell.y + cell.h) {
-        hit = cell.idx;
+    hoverTileInfo = { mx, my };
+  });
+
+  // Click on Right Quadtree to promote any of the 9 live cuts into the Left Stills Mosaic
+  quadCanvas.addEventListener('pointerdown', e => {
+    const rect = quadCanvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    for (const c of quadCellRects) {
+      if (x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h) {
+        selectedCutKey = c.key;
+        autoFollowVoice = false;
+        const btn = document.getElementById('btnAutoFollowVoice');
+        btn.classList.remove('on');
+        btn.textContent = 'FOLLOW VOICE DUET: LOCKED';
         break;
       }
     }
-    state.hoveredCell = hit;
   });
 
-  cv.addEventListener('click', e => {
-    const rect = cv.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const cur = state.flatBeats[state.beatIdx];
-    if (!cur) return;
-    for (const cell of state.interactiveCells) {
-      if (mx >= cell.x && mx <= cell.x + cell.w && my >= cell.y && my <= cell.y + cell.h) {
-        setDrivingCut(cell.key, cur.beat);
-        return;
+  function renderLeftMosaic(st) {
+    const rect = document.getElementById('leftWrap').getBoundingClientRect();
+    const W = rect.width;
+    const H = rect.height;
+    if (W < 20 || H < 20) return;
+
+    // In autoFollowVoice mode, show 1983 speaker during '1983' call and Archival Spoken Take during 'arch' answer!
+    const activeKey = autoFollowVoice ? (st.turnPhase === '1983' ? '1983' : 'take_video') : selectedCutKey;
+    const cutMeta = QUAD_CUTS.find(c => c.key === activeKey) || QUAD_CUTS[0];
+    document.getElementById('mosaicSourceLabel').textContent = cutMeta.label;
+    document.getElementById('mosaicSourceLabel').style.color = cutMeta.color;
+
+    const cols = gridCols;
+    const rows = Math.max(10, Math.round(cols * (H / W) * 1.15));
+    sampleCanvas.width = cols;
+    sampleCanvas.height = rows;
+
+    // Draw live moving video frame into tiny sampleCanvas
+    sampleCtx.fillStyle = '#141820';
+    sampleCtx.fillRect(0, 0, cols, rows);
+    const subIdx = Math.floor((st.beatClock * 4) % 8);
+    drawCutVideoOrFallback(sampleCtx, st, activeKey, 0, 0, cols, rows, subIdx);
+
+    let pxData = null;
+    try {
+      pxData = sampleCtx.getImageData(0, 0, cols, rows).data;
+    } catch (_) {}
+
+    mCtx.fillStyle = '#040507';
+    mCtx.fillRect(0, 0, W, H);
+
+    const cellW = W / cols;
+    const cellH = H / rows;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        let R = 40, G = 95, B = 85;
+        if (pxData) {
+          const off = (r * cols + c) * 4;
+          R = pxData[off];
+          G = pxData[off + 1];
+          B = pxData[off + 2];
+        } else {
+          // Procedural fallback gradient if tainted
+          const wave = Math.sin(c * 0.25 + frameTick * 0.06) * Math.cos(r * 0.25);
+          R = 45 + wave * 40; G = 110 + wave * 65; B = 95 + wave * 50;
+        }
+        // Boost contrast slightly so dark WarGames terminal shots pop clearly in the mosaic
+        const lum = Math.min(255, Math.max(0, (0.299 * R + 0.587 * G + 0.114 * B) * 1.35 + 14));
+        const bucketIdx = Math.max(0, Math.min(31, Math.floor((lum / 255) * 31)));
+        const bucket = lumBuckets[bucketIdx];
+        const stillItem = bucket.length ? bucket[(r * 7 + c * 3) % bucket.length] : null;
+
+        const x = c * cellW;
+        const y = r * cellH;
+
+        const im = stillItem ? getImg(stillItem.thumb) : null;
+        if (im && im.complete && im.naturalWidth > 0) {
+          mCtx.drawImage(im, x, y, cellW - 0.6, cellH - 0.6);
+          // Tint slightly with target video chromaticity so the macro-portrait is razor-legible
+          mCtx.fillStyle = `rgba(${R},${G},${B},0.34)`;
+          mCtx.fillRect(x, y, cellW - 0.6, cellH - 0.6);
+        } else {
+          mCtx.fillStyle = `rgb(${R},${G},${B})`;
+          mCtx.fillRect(x, y, cellW - 0.6, cellH - 0.6);
+        }
+
+        if (glyphOverlay && cellW >= 11) {
+          const gChar = GLYPHS[Math.min(GLYPHS.length - 1, Math.floor((lum / 255) * GLYPHS.length))];
+          if (gChar !== ' ') {
+            mCtx.fillStyle = `rgba(255,255,255,0.28)`;
+            mCtx.font = `600 ${Math.max(7, Math.floor(cellH * 0.55))}px 'IBM Plex Mono', monospace`;
+            mCtx.fillText(gChar, x + 2, y + cellH * 0.74);
+          }
+        }
+
+        // Check if mouse is hovering this tile
+        if (hoverTileInfo && hoverTileInfo.mx >= x && hoverTileInfo.mx < x + cellW && hoverTileInfo.my >= y && hoverTileInfo.my < y + cellH) {
+          mCtx.strokeStyle = '#e8c070';
+          mCtx.lineWidth = 1.6;
+          mCtx.strokeRect(x + 0.5, y + 0.5, cellW - 1, cellH - 1);
+          if (stillItem && frameTick % 4 === 0) {
+            document.getElementById('loupeThumb').src = stillItem.thumb;
+            document.getElementById('loupeTitle').textContent =
+              `TILE [${c},${r}] · ${(stillItem.id || 'STILL').toUpperCase()} · LUM ${Math.round(lum)}`;
+            document.getElementById('loupeSub').textContent =
+              stillItem.title || `WarGames 1983 8-Frame Atlas Still (${stillItem.id})`;
+          }
+        }
       }
     }
-    // Clicking the main mosaic steps to the next simultaneous cut
-    const curCutIdx = CUT_DEFS.findIndex(c => c.key === state.activeCutKey);
-    const nextCut = CUT_DEFS[(curCutIdx + 1) % CUT_DEFS.length];
-    setDrivingCut(nextCut.key, cur.beat);
-  });
+
+    // Update loupe spoken caption
+    if (frameTick % 8 === 0) {
+      const tr = st.activeTurn;
+      const tk = st.activeTake;
+      document.getElementById('loupeSpoken').textContent =
+        st.turnPhase === '1983'
+          ? `1983 (${tr?.speaker || 'Speaker'}): "${tr?.text || ''}"`
+          : `Archive (${tk?.title || 'Film'}): "${tk?.spoken || ''}"`;
+    }
+  }
+
+  function renderRightQuadtree(st) {
+    const rect = document.getElementById('rightWrap').getBoundingClientRect();
+    const W = rect.width;
+    const H = rect.height;
+    if (W < 20 || H < 20) return;
+
+    qCtx.fillStyle = '#040507';
+    qCtx.fillRect(0, 0, W, H);
+
+    // Multi-Scale Quadtree layout for all 9 simultaneous live cuts:
+    // Top-Left quadrant: 2 Hero Cells (1983 Master Trio + Active Spoken Line Take)
+    // Top-Right quadrant: 2 Critic Synthesis Cells (Apex Synthesis + V-JEPA Motion)
+    // Bottom half: 5 Simultaneous Cut Cells + their live 8-frame sub-shot strips
+    const pad = 4;
+    const topH = H * 0.54;
+    const botH = H - topH;
+
+    const cells = [
+      { ...QUAD_CUTS[0], x: pad,            y: pad,            w: W * 0.5 - pad * 1.5, h: topH * 0.5 - pad * 1.5 },
+      { ...QUAD_CUTS[1], x: pad,            y: topH * 0.5,     w: W * 0.5 - pad * 1.5, h: topH * 0.5 - pad },
+      { ...QUAD_CUTS[2], x: W * 0.5 + 2,    y: pad,            w: W * 0.5 - pad * 1.5, h: topH * 0.5 - pad * 1.5 },
+      { ...QUAD_CUTS[4], x: W * 0.5 + 2,    y: topH * 0.5,     w: W * 0.5 - pad * 1.5, h: topH * 0.5 - pad },
+      // Bottom row: 5 simultaneous critic/species cuts
+      { ...QUAD_CUTS[3], x: pad,                 y: topH + 2, w: (W - pad * 2) / 5 - 3, h: botH - pad - 2 },
+      { ...QUAD_CUTS[5], x: pad + (W - pad * 2) * 0.2, y: topH + 2, w: (W - pad * 2) / 5 - 3, h: botH - pad - 2 },
+      { ...QUAD_CUTS[6], x: pad + (W - pad * 2) * 0.4, y: topH + 2, w: (W - pad * 2) / 5 - 3, h: botH - pad - 2 },
+      { ...QUAD_CUTS[7], x: pad + (W - pad * 2) * 0.6, y: topH + 2, w: (W - pad * 2) / 5 - 3, h: botH - pad - 2 },
+      { ...QUAD_CUTS[8], x: pad + (W - pad * 2) * 0.8, y: topH + 2, w: (W - pad * 2) / 5 - 3, h: botH - pad - 2 },
+    ];
+    quadCellRects = cells;
+
+    const activeKey = autoFollowVoice ? (st.turnPhase === '1983' ? '1983' : 'take_video') : selectedCutKey;
+    const subIdx = Math.floor((st.beatClock * 4) % 8);
+
+    cells.forEach((c, idx) => {
+      const unit = c.key === 'take_video' ? st.activeTake : st.getCutUnit(c.key);
+      const isSelected = c.key === activeKey;
+
+      // Draw live video inside upper 76% of cell
+      const vidH = c.h * 0.76;
+      qCtx.save();
+      qCtx.beginPath();
+      qCtx.rect(c.x, c.y, c.w, vidH);
+      qCtx.clip();
+      drawCutVideoOrFallback(qCtx, st, c.key, c.x, c.y, c.w, vidH, (subIdx + idx) % 8);
+      qCtx.restore();
+
+      // Draw 8-frame strip sub-stills bar along bottom 24% of cell ("film made of stills")
+      const stripY = c.y + vidH;
+      const stripH = c.h - vidH;
+      const stripImg = unit?.strip ? getImg(unit.strip) : (st.beat?.wg_shot?.strip ? getImg(st.beat.wg_shot.strip) : null);
+      if (stripImg && stripImg.complete && stripImg.naturalWidth > 0) {
+        qCtx.drawImage(stripImg, c.x, stripY, c.w, stripH);
+      } else {
+        qCtx.fillStyle = '#0c0f15';
+        qCtx.fillRect(c.x, stripY, c.w, stripH);
+      }
+
+      // Highlight active sub-frame on the 8-frame strip
+      const sfX = c.x + (subIdx / 8) * c.w;
+      qCtx.strokeStyle = c.color;
+      qCtx.lineWidth = 1.5;
+      qCtx.strokeRect(sfX, stripY, c.w / 8, stripH);
+
+      // Cell header badge
+      qCtx.fillStyle = 'rgba(5, 6, 9, 0.84)';
+      qCtx.fillRect(c.x, c.y, c.w, 18);
+      qCtx.fillStyle = c.color;
+      qCtx.font = "600 8.5px 'IBM Plex Mono', monospace";
+      qCtx.fillText(`${c.label}`, c.x + 5, c.y + 12);
+
+      if (unit) {
+        qCtx.fillStyle = 'rgba(239, 233, 221, 0.78)';
+        qCtx.font = "400 8px 'IBM Plex Mono', monospace";
+        const filmTag = `${(unit.title || 'Archive').slice(0, 18)} (${unit.year || '83'})`;
+        qCtx.fillText(filmTag, c.x + 5, c.y + vidH - 5);
+      }
+
+      // Outer border
+      qCtx.strokeStyle = isSelected ? '#e8c070' : 'rgba(239,233,221,0.18)';
+      qCtx.lineWidth = isSelected ? 2.2 : 1.0;
+      qCtx.strokeRect(c.x, c.y, c.w, c.h);
+    });
+  }
+
+  fetch('wargames-studio-cuts.json')
+    .then(r => r.json())
+    .then(data => {
+      stillsAtlas = data.stills_atlas || [];
+      const flatBeats = [];
+      (data.books || []).forEach((bk, bIdx) => {
+        (bk.beats || []).forEach(bt => {
+          bt.book_idx = bIdx;
+          bt.book_title = bk.title;
+          flatBeats.push(bt);
+        });
+      });
+
+      engine = WGStudioEngine.create({
+        nav,
+        cutKeys: ['1983', 'synthesis', 'clip', 'vjepa', 'blip', 'cineosis', 'trurl', 'murch'],
+        defaultMode: 'duet',
+        onBeatChange: (bt) => {
+          indexStillsAtlas(stillsAtlas, bt);
+          nav.setStatus(`${stillsAtlas.length} STILLS ATLAS · 9 LIVE VIDEO CUTS · ${(bt.turns_1983 || []).length} SPOKEN LINES`);
+        },
+        onTick: (st) => {
+          frameTick++;
+          renderLeftMosaic(st);
+          renderRightQuadtree(st);
+        }
+      });
+
+      engine.setBeats(flatBeats, 0);
+    });
 })();
 </script>
 </body>
