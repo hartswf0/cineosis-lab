@@ -2,8 +2,10 @@
    "makes visible", and the card at the end that leads to the next film from it. Each film names the invisible thing it shows.
    Order follows the curriculum: how machines see, where the archive came from, then how a cut is made, the cuts, the rooms. */
 window.FILMS = [
-  { unit: 'Seeing', n: '2', t: 'What the Machines See', href: 'machines.html', v: 'what each machine is actually given, and what it does with it' },
   { unit: 'Seeing', n: '1', t: 'Where the Archive Came From', href: 'episode-1.html', v: 'the searches behind every shot the lab holds' },
+  { unit: 'Seeing', n: '2·', t: 'How the Lab Sees', href: 'how-it-sees.html', v: 'how the machines learned to look and listen' },
+  { unit: 'Seeing', n: '3', t: 'A Moving Image', href: 'operative.html?ch=A%20moving%20image', v: 'what changes when a shot is read whole, not as one frame' },
+  { unit: 'Seeing', n: '2', t: 'What the Machines See', href: 'machines.html', v: 'what each machine is actually given, and what it does with it' },
   { unit: 'Seeing', n: 'L3', t: 'The Neighbourhood', href: 'lesson-3.html', v: 'what "near" means inside the machine' },
   { unit: 'Seeing', n: 'L4', t: 'The Voice Is the Clock', href: 'lesson-4.html', v: 'the timing hidden inside a spoken line' },
   { unit: 'Making a cut', n: 'L5', t: 'The Table of Signs', href: 'lesson-5.html', v: 'what a sign is, and the signs each is mistaken for' },
