@@ -32,6 +32,12 @@ from decompose_wargames_sound import (
     stem,
 )
 from build_found_wargames import get_synonym_tokens
+from screenplay_dialogue_turns import (
+    CHARACTER_PROFILES,
+    SCREENPLAY_BEAT_TURNS,
+    classify_cadence,
+    classify_pause,
+)
 
 SUBSYSTEM_PROGRAMS = {
     "ROM://ARCADE": {
@@ -387,10 +393,13 @@ def build_all():
             sbl = sb_by_id.get(bid, {})
             wgs = bt.get("wg_shot", {})
             shot_id = wgs.get("id", "wg_001")
-            beat_dur = round(max(2.4, float(wgs.get("dur") or 5.0)), 2)
+            a0_sec = round(float(sbl.get("a0", wgs.get("start", 0))), 2)
+            a1_sec = round(float(sbl.get("a1", wgs.get("end", a0_sec + 5.0))), 2)
+            scene_dur = round(max(3.5, float(sbl.get("e") or (a1_sec - a0_sec) or wgs.get("dur") or 5.0)), 2)
+            beat_dur = scene_dur
             static_clip = f"clips/{shot_id}.mp4" if os.path.exists(os.path.join(LAB, f"clips/{shot_id}.mp4")) else ""
 
-            # Build 1983 Trio cut sequence (Entry Cut -> Primary Shot -> Exit Cut)
+            # Build 1983 Trio cut sequence (Entry Cut -> Primary Shot -> Exit Cut) paced across scene_dur
             trio_raw = bt.get("wg_trio") or []
             cut_1983 = []
             if trio_raw:
@@ -475,26 +484,65 @@ def build_all():
                 "novelty": pace_cut_units(sp_cuts.get("stanley_novelty", []), beat_dur, max_alts=0),
             }
 
-            # ENRICH EVERY SPOKEN LINE (`turns_1983`) WITH ITS OWN 3 ARCHIVAL SPOKEN TAKES + CLAUSES + EXACT VIDEO/AUDIO IN-POINTS!
-            raw_turns = sbl.get("turns_1983") or bt.get("turns_1983") or [{
-                "turn_num": 1,
-                "speaker": bt.get("who", "David Lightman"),
-                "speaker_color": "#45b1ff",
-                "role_tag": "CHARACTER",
-                "s": 0.15,
-                "e": round(beat_dur - 0.15, 2),
-                "dur": round(beat_dur - 0.3, 2),
-                "text": bt.get("text", ""),
-                "f0": 125.0,
-                "reg": "LOW",
-                "lufs": -21.0,
-                "is_fulcrum": True,
-                "role": "★ THE LINE (FULCRUM)",
-            }]
+            # BUILD VERIFIED SCREENPLAY DIALOGUE TURNS (`turns_1983`) WITH CHARACTER ATTRIBUTION & PACING TELEMETRY
+            sp_specs = SCREENPLAY_BEAT_TURNS.get(bid)
+            f0_contour = sbl.get("f0") or []
+            hop_sec = float(sbl.get("hop") or 0.05)
 
-            beat_takes_top = sbl.get("takes") or []
+            raw_turns = []
+            if sp_specs:
+                prev_e = 0.0
+                for t_idx, (t_s, t_e, sp_name, sp_text, is_fulc) in enumerate(sp_specs):
+                    prof = CHARACTER_PROFILES.get(sp_name, {"color": "#45b1ff", "role_tag": "CHARACTER", "base_f0": 125.0})
+                    t_s_clamped = round(max(0.0, min(scene_dur - 0.4, float(t_s))), 2)
+                    t_e_clamped = round(max(t_s_clamped + 0.5, min(scene_dur, float(t_e))), 2)
+                    t_dur = round(max(0.5, t_e_clamped - t_s_clamped), 2)
+                    pause_before = round(max(0.0, t_s_clamped - prev_e), 2)
+                    prev_e = t_e_clamped
+
+                    # Measure actual voiced f0 from the 20Hz contour if available, anchored to character profile
+                    i0 = max(0, int(t_s_clamped / hop_sec))
+                    i1 = min(len(f0_contour), max(i0 + 1, int(t_e_clamped / hop_sec)))
+                    voiced_slice = [float(v) for v in f0_contour[i0:i1] if 70.0 <= float(v) <= 320.0]
+                    base_f0 = float(prof["base_f0"])
+                    if voiced_slice:
+                        measured_f0 = float(np.median(voiced_slice))
+                        # Blend 55% character profile + 45% measured acoustic slice so pitch stays faithful
+                        turn_f0 = round(0.55 * base_f0 + 0.45 * measured_f0, 1)
+                    else:
+                        turn_f0 = round(base_f0, 1)
+
+                    clean_words = re.findall(r"[A-Za-z0-9']+", re.sub(r"^\[[^\]]+\]\s*", "", sp_text))
+                    w_cnt = max(1, len(clean_words))
+                    wpm = int(round((w_cnt / max(0.6, t_dur)) * 60.0))
+
+                    raw_turns.append({
+                        "turn_num": t_idx + 1,
+                        "speaker": sp_name,
+                        "speaker_color": prof["color"],
+                        "role_tag": prof["role_tag"],
+                        "role": "THE LINE (FULCRUM)" if is_fulc else ("OPENING SETUP" if t_idx == 0 else "COUNTER-TURN"),
+                        "is_fulcrum": bool(is_fulc),
+                        "s": t_s_clamped,
+                        "e": t_e_clamped,
+                        "dur": t_dur,
+                        "pause_before": pause_before,
+                        "pause_type": classify_pause(pause_before, t_idx == 0),
+                        "word_count": w_cnt,
+                        "wpm": wpm,
+                        "cadence_label": classify_cadence(wpm, sp_text),
+                        "text": sp_text,
+                        "f0": turn_f0,
+                        "reg": reg_of(turn_f0),
+                        "lufs": round(float(sbl.get("lufs", -21.0)), 1),
+                    })
+            else:
+                raw_turns = sbl.get("turns_1983") or bt.get("turns_1983") or []
+
             turns_enriched = []
             used_in_beat_spoken = set()
+            clean_beat_words = []
+            clean_beat_clauses = []
 
             for t_i, tr in enumerate(raw_turns):
                 total_turns_enriched += 1
@@ -505,8 +553,9 @@ def build_all():
                 tr_dur = round(max(0.5, tr_e - tr_s), 2)
 
                 # Score archival sentences specifically for THIS spoken line (`tr_text`, `tr_f0`)
-                q_vec = sentence_clip_vec(tr_text + " " + bt.get("text", ""), w2idx, clip_vecs, get_synonym_tokens)
-                tr_toks = {norm(w) for w in re.findall(r"[A-Za-z']+", tr_text) if norm(w) not in STOPWORDS and len(norm(w)) > 2}
+                clean_q_text = re.sub(r"^\[[^\]]+\]\s*", "", tr_text)
+                q_vec = sentence_clip_vec(clean_q_text, w2idx, clip_vecs, get_synonym_tokens)
+                tr_toks = {norm(w) for w in re.findall(r"[A-Za-z']+", clean_q_text) if norm(w) not in STOPWORDS and len(norm(w)) > 2}
                 tr_stems = {stem(t) for t in tr_toks}
                 syn_stems = set()
                 for t in list(tr_toks):
@@ -524,7 +573,7 @@ def build_all():
                     dur_diff = abs(s_entry["dur"] - max(1.8, min(4.5, tr_dur))) * 0.05
                     vid_bonus = 0.09 if s_entry["has_local_video"] else 0.0
                     reuse_pen = used_line_take1.get(s_entry["spoken"], 0) * 0.45
-                    sc = c_sim * 1.35 + ex_ov * 0.32 + sy_ov * 0.14 + vid_bonus - f0_pen * 0.22 - dur_diff - reuse_pen
+                    sc = c_sim * 1.35 + ex_ov * 0.38 + sy_ov * 0.16 + vid_bonus - f0_pen * 0.22 - dur_diff - reuse_pen
                     cand_list.append((sc, c_sim, s_entry))
 
                 cand_list.sort(key=lambda x: x[0], reverse=True)
@@ -536,7 +585,6 @@ def build_all():
                     for sc_v, c_v, s_cand in cand_list:
                         if s_cand["spoken"] in used_in_beat_spoken:
                             continue
-                        # Ensure Take 3 prefers a local MP4 clip so every single line has at least one 100% local MP4 take!
                         if take_k == 2 and not any(lt.get("has_local_video") for lt in line_takes):
                             if not s_cand.get("has_local_video"):
                                 continue
@@ -558,7 +606,7 @@ def build_all():
                             c_t1 = round(c_t0 + chosen_s["dur"], 2)
                         a_t0 = round(float(chosen_s.get("t0", 0.0)), 2)
                         a_t1 = round(float(chosen_s.get("t1", a_t0 + chosen_s["dur"])), 2)
-                        hl, ha = find_shared_word_indices(tr_text, chosen_s["spoken"])
+                        hl, ha = find_shared_word_indices(clean_q_text, chosen_s["spoken"])
 
                         role_names = [
                             "Take 1 · Direct Spoken Line",
@@ -609,6 +657,11 @@ def build_all():
                     "s": tr_s,
                     "e": tr_e,
                     "dur": tr_dur,
+                    "pause_before": tr.get("pause_before", 0.0),
+                    "pause_type": tr.get("pause_type", "OPENING BEAT"),
+                    "word_count": tr.get("word_count", len(tr_text.split())),
+                    "wpm": tr.get("wpm", 130),
+                    "cadence_label": tr.get("cadence_label", "CONVERSATIONAL"),
                     "text": tr_text,
                     "f0": tr_f0,
                     "reg": tr.get("reg", reg_of(tr_f0)),
@@ -623,21 +676,91 @@ def build_all():
                 }
                 turns_enriched.append(tr_out)
 
-            # Update sound-bench and found_wargames in-memory so all files share the 3-takes-per-line structure
-            if sbl:
-                sbl["turns_1983"] = turns_enriched
-            bt["turns_1983"] = turns_enriched
+                # Build clean word-by-word tokens for this turn so word pacing lanes also have clean screenplay text & true speaker
+                toks_for_turn = tr_text.split()
+                if toks_for_turn:
+                    w_step = tr_dur / len(toks_for_turn)
+                    for w_idx, w_str in enumerate(toks_for_turn):
+                        ws = round(tr_s + w_idx * w_step, 2)
+                        we = round(tr_s + (w_idx + 1) * w_step, 2)
+                        wn = norm(w_str)
+                        is_key = wn not in STOPWORDS and len(wn) > 2
+                        clean_beat_words.append({
+                            "w": w_str,
+                            "s": ws,
+                            "e": we,
+                            "dur": round(max(0.08, we - ws), 2),
+                            "turn_num": t_i + 1,
+                            "speaker": tr_out["speaker"],
+                            "speaker_color": tr_out["speaker_color"],
+                            "gr": "A" if (is_key and tr_out["is_fulcrum"]) else ("B" if is_key else "C"),
+                            "st": 1.25 if (is_key and tr_out["is_fulcrum"]) else (0.65 if is_key else -0.35),
+                            "f0": tr_f0,
+                            "lufs": tr_out["lufs"],
+                        })
+
+                if line_takes:
+                    tk0 = line_takes[0]
+                    clean_beat_clauses.append({
+                        "clause_idx": t_i + 1,
+                        "turn_num": t_i + 1,
+                        "speaker_1983": tr_out["speaker"],
+                        "speaker_color": tr_out["speaker_color"],
+                        "wg_text": tr_text,
+                        "wg_s": tr_s,
+                        "wg_e": tr_e,
+                        "wg_dur": tr_dur,
+                        "pause_before": tr_out["pause_before"],
+                        "pause_type": tr_out["pause_type"],
+                        "wpm": tr_out["wpm"],
+                        "is_fulcrum": tr_out["is_fulcrum"],
+                        "id": tk0["id"],
+                        "source_type": tk0["source_type"],
+                        "has_local_video": tk0["has_local_video"],
+                        "title": tk0["title"],
+                        "year": tk0["year"],
+                        "spoken": tk0["spoken"],
+                        "audio_url": tk0["audio_url"],
+                        "video": tk0["video"],
+                        "thumb": tk0["thumb"],
+                        "t0": tk0["t0"],
+                        "t1": tk0["t1"],
+                        "dur": tk0["dur"],
+                        "f0": tk0["f0"],
+                        "reg": tk0["reg"],
+                        "lufs": tk0["lufs"],
+                        "gain_db": tk0["gain_db"],
+                    })
 
             fulcrum_turn = next((x for x in turns_enriched if x["is_fulcrum"]), turns_enriched[0])
             top_takes = fulcrum_turn.get("takes") or []
+            ordered_speakers = []
+            for tr_item in turns_enriched:
+                if tr_item["speaker"] not in ordered_speakers:
+                    ordered_speakers.append(tr_item["speaker"])
+
+            # Update sound-bench and found_wargames in-memory so all files share the verified screenplay lines & speakers
+            if sbl:
+                sbl["who"] = fulcrum_turn["speaker"]
+                sbl["scene_speakers"] = ordered_speakers
+                sbl["text"] = fulcrum_turn["text"]
+                sbl["fulcrum_line"] = fulcrum_turn["text"]
+                sbl["turns_1983"] = turns_enriched
+                sbl["takes"] = top_takes
+                sbl["words"] = clean_beat_words
+                sbl["clauses"] = clean_beat_clauses
+            bt["who"] = fulcrum_turn["speaker"]
+            bt["scene_speakers"] = ordered_speakers
+            bt["text"] = fulcrum_turn["text"]
+            bt["turns_1983"] = turns_enriched
 
             beat_obj = {
                 "id": bid,
                 "index": bt.get("index", 0),
-                "who": bt.get("who", "1983"),
-                "scene_speakers": bt.get("scene_speakers") or sbl.get("scene_speakers") or [bt.get("who", "1983")],
-                "text": bt.get("text", ""),
-                "fulcrum_line": fulcrum_turn.get("text", bt.get("text", "")),
+                "who": fulcrum_turn["speaker"],
+                "scene_speakers": ordered_speakers,
+                "text": fulcrum_turn["text"],
+                "fulcrum_line": fulcrum_turn["text"],
                 "foley": bt.get("foley_label", ""),
                 "foley_cue": bt.get("foley_cue", ""),
                 "readings": bt.get("readings", {}),
@@ -654,8 +777,8 @@ def build_all():
                     "sign_note": wgs.get("sign_note", ""),
                     "palette": wgs.get("palette", ["#111", "#e8c070"]),
                 },
-                "a0": round(float(sbl.get("a0", wgs.get("start", 0))), 2),
-                "a1": round(float(sbl.get("a1", wgs.get("end", 5))), 2),
+                "a0": a0_sec,
+                "a1": a1_sec,
                 "orig_file": sbl.get("orig_file", f"cache/wg_sound/{bid}_orig.m4a"),
                 "aligned_file": sbl.get("aligned_file", f"cache/wg_sound/{bid}_aligned.m4a"),
                 "tight_file": sbl.get("tight_file", f"cache/wg_sound/{bid}_tight.m4a"),
@@ -694,10 +817,14 @@ def build_all():
         json.dump(cuts_out, f, separators=(",", ":"))
     print(f"Wrote {cuts_path} ({os.path.getsize(cuts_path)/(1024*1024):.2f} MB): {total_turns_enriched} spoken lines with 3 takes each.")
 
-    # Save enriched turns_1983 back to wargames-sound-bench.json so Sound Bench also has 3 takes per spoken turn
+    # Save enriched turns_1983 back to wargames-sound-bench.json and found_wargames.json
     with open(sb_path, "w") as f:
         json.dump(sb, f, separators=(",", ":"))
     print(f"Updated {sb_path} with 3 takes per spoken line across all {total_turns_enriched} turns.")
+
+    with open(fw_path, "w") as f:
+        json.dump(fw, f, separators=(",", ":"))
+    print(f"Updated {fw_path} with verified screenplay lines and speaker attribution.")
 
     # Now build 01 / SCREEN STATES (`wargames-screens-program.json`) linked to the beats, spoken lines, and 8-frame sub-frame deltas!
     build_screens_program(beat_by_shot_id, books_out)
