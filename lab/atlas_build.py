@@ -46,7 +46,7 @@ KINDS = {'explainer': ('Explainer film', 'films'), 'film': ('Film or player', 'f
          'template': ('Template', 'house'), 'pointer': ('Pointer or superseded', 'house'), 'game': ('Game', 'operations')}
 RULES = [(r'^lab/(lesson-\d|episode-\d|machines|how-it-sees|operative|myth|room-[a-z]+)\.html$', 'explainer'),
          (r'markov-republic-ep\d+|markov-republic-pilot', 'series'), (r'template', 'template'),
-         (r'^lab/bolas/|idents\.html$', 'mark'), (r'(^|/)index\.html$|series\.html$|papers\.html$|404\.html$|contact\.html$', 'index'),
+         (r'^lab/bolas/|idents\.html$', 'mark'), (r'^(lab/)?index\.html$|^lab/(bolas|bets)/index\.html$|series\.html$|papers\.html$|404\.html$|contact\.html$|atlas\.html$', 'index'),
          (r'(synthesis|wygwyl-spine|source-audit|program-theories|periodic-table|signs-in-motion|compounds|chemistry-trials|deleuze|metz|syntagma\.html)', 'reading'),
          (r'(rushes|takes|narrative|recurring-cast|aspect|talk-back|review)\.html$', 'browser'),
          (r'(sound-|syzygy|cascade-engine|how-it-sees|machines)', 'machine'),
@@ -66,7 +66,7 @@ OVERRIDE = {'lab/index.html': ('archive', 'index'), 'index.html': ('origin', 'in
             'lab/markov-poet.html': ('poet', 'bench'), 'lab/shannon-poet.html': ('poet', 'film'), 'lab/shannon-narrative.html': ('poet', 'film'), 'lab/markov-transcripts.html': ('poet', 'browser'),
             'lab/wargames-os.html': ('wargames', 'bench'), 'lab/wargames-web.html': ('wargames', 'reading'), 'lab/wargames.html': ('wargames', 'browser'), 'lab/vj-wargames.html': ('wargames', 'film'),
             'wargames-periodic-table.html': ('wargames', 'reading'), 'lab/tools/cut.html': ('archive', 'bench'), 'lab/tools/hand-butter.html': ('archive', 'bench'),
-            'lab/bets/index.html': ('bets', 'index'), 'lab/program-theories/index.html': ('bets', 'reading'), 'lab/spine.html': ('wygwyl', 'pointer'),
+            'lab/bets/index.html': ('bets', 'index'), 'lab/syzygy/index.html': ('syzygy', 'machine'), 'lab/ludens/index.html': ('play', 'game'), 'lab/abc-flix/index.html': ('play', 'game'), 'lab/atlas.html': ('archive', 'index'), 'lab/program-theories/index.html': ('bets', 'reading'), 'lab/spine.html': ('wygwyl', 'pointer'),
             'lab/markov-republic.html': ('republic', 'film'), 'lab/wes.html': ('wes', 'film'), 'lab/aspect.html': ('wes', 'browser'), 'lab/bumblebee-dilemma.html': ('wargames', 'machine')}
 POINTER = re.compile(r'now lives in|superseded by|has moved|moved to', re.I)
 
@@ -167,15 +167,121 @@ for s in scripts:
     S.append({'path': s, 'desc': clean(doc.group(1), 200) if doc else clean(' '.join(l.lstrip('# ') for l in t.split('\n')[:3] if l.startswith('#')), 200),
               'writes': wf[:20], 'reads': rf[:20], 'born': h[0][0][:10] if h else None, 'last': h[-1][0][:10] if h else None, 'commits': len(h), 'lines': t.count('\n')})
 for x in P.values(): x['madeBy'] = sorted({s for d in x['data'] for s in writes.get(d, ())})
+# ---------------- WORK, IMPORTANCE, LINEAGE, WHAT IT SERVES ----------------
+import time, zlib
+import numpy as np
+CODE = re.compile(r'\.(html|js|css|py|mjs)$')
+# estimated hours: a commit took the time since the one before it (at most 3 h; the first of a sitting counts an hour), shared
+# among the code files it touched by lines changed. A rough measure of attention, not a timesheet.
+cm = []
+for block in git('log', '--numstat', '--format=@@%h|%at', '--no-renames').split('@@')[1:]:
+    head, *rows = block.strip('\n').split('\n'); h, t = head.split('|'); ch = []
+    for r in rows:
+        f = r.split('\t')
+        if len(f) == 3 and f[0] != '-' and CODE.search(f[2]): ch.append((f[2], int(f[0]) + int(f[1])))
+    cm.append((int(t), ch))
+cm.sort(); hours = collections.Counter(); churn = collections.Counter(); active = collections.defaultdict(set)
+for i, (t, ch) in enumerate(cm):
+    gap = t - cm[i - 1][0] if i else 1e9; dur = gap / 3600 if gap < 3 * 3600 else 1.0; tot = sum(n for _, n in ch) or 1
+    for f, n in ch: hours[f] += dur * n / tot; churn[f] += n; active[f].add(time.strftime('%Y-%m-%d', time.localtime(t)))
+EMBED = re.compile(r'<script[^>]*type=["\']application/(?:json|ld\+json)["\'][^>]*>[\s\S]*?</script>|data:[\w/+.-]+;base64,[A-Za-z0-9+/=]{200,}', re.I)
+def vendored(m):
+    b = m.group(0); return b.count('\n') > 6000 or bool(re.search(r'@license|Copyright \(c\)|three\.js|REVISION\s*=|getIrradianceAt|webpackBootstrap', b[:20000]))
+def code_of(f):   # the page without the data pasted into it and without libraries pasted in whole
+    t = EMBED.sub(' ', read(f)); return re.sub(r'<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?</script>', lambda m: ' ' if vendored(m) else m.group(0), t)
+def nlines(f): return code_of(f).count('\n') + 1 if read(f) else 0
+def dlines(f): t = read(f); return t.count('\n') - code_of(f).count('\n')
+jsuse = collections.Counter(j for x in P.values() for j in x['js'])
+shours = {s['path']: hours[s['path']] for s in S}
+for s in S: s['hours'] = round(hours[s['path']], 2)
+for p, x in P.items():
+    own = [p] + [j for j in x['js'] if jsuse[j] == 1]
+    x['lines'] = sum(nlines(f) for f in own); x['dataLines'] = dlines(p); x['kb'] = round(len(read(p)) / 1024); x['hours'] = round(sum(hours[f] for f in own), 2); x['churn'] = sum(churn[f] for f in own)
+    x['days'] = len(set().union(*(active[f] for f in own))); x['sharedJs'] = [j for j in x['js'] if jsuse[j] > 1]
+    x['pipeHours'] = round(sum(shours.get(s, 0) for s in x['madeBy']), 2)
+    t = read(p); x['embeds'] = sorted({q for q in (resolve(p, r) for r in re.findall(r'<iframe[^>]*\ssrc=["\']([^"\'$]+)', t)) if q in P})
+for p, x in P.items(): x['embeddedBy'] = sorted(q for q, y in P.items() if p in y['embeds'])
+# importance: PageRank over the links (the generated root directory does not vote)
+nodes = list(P); ix = {p: i for i, p in enumerate(nodes)}; N = len(nodes); pr = np.ones(N) / N
+outs = [[ix[q] for q in set(P[p]['out']) if q in ix] if p != 'index.html' else [] for p in nodes]
+for _ in range(80):
+    nw = np.full(N, .15 / N)
+    for i, o in enumerate(outs):
+        if o: nw[o] += .85 * pr[i] / len(o)
+        else: nw += .85 * pr[i] / N
+    pr = nw
+order = np.argsort(-pr)
+for r, i in enumerate(order): P[nodes[i]]['importance'] = round(float(pr[i] * N), 3); P[nodes[i]]['rank'] = r + 1
+# traffic: how many pages are reached through this one on the roads from the front door
+kids = collections.defaultdict(list)
+for p, x in P.items():
+    if x['route']: kids[x['route'][-1]].append(p)
+def sub(p): return 1 + sum(sub(c) for c in kids[p])
+for p, x in P.items(): x['traffic'] = sub(p) - 1 if p in depth else 0
+# what a page serves: the work it is about, read from what it says and the data it reads, not from its file name
+# (Odyssey does not match a bare 'homer': the LEGO parts data in WAG has Homer Simpson in it)
+SUBJECTS = [('wygwyl', 'Where You Go When You Leave', '#9fd36a', [r'where you go when you leave', r'wygwyl', r'mark anthony thomas', r'\bthe suite\b', r'\bsuite clock']),
+            ('odyssey', 'The Odyssey', '#6f8cff', [r'odyssey', r'\bhomer(?:ic|\'s)\b']), ('republic', 'The Republic', '#e0572a', [r'republic', r'\bplato']),
+            ('wargames', 'WarGames', '#5fbf8f', [r'wargames', r'\bwopr']), ('slop', 'Slopfeeder', '#ff6b5b', [r'slopfeeder', r'two buttons']),
+            ('norse', 'Norse Half Moon', '#6cc4d6', [r'\bnorse', r'half moon']), ('wes', 'Wes Anderson', '#f4c7d0', [r'wes anderson', r'andersonian']),
+            ('tempest', 'The Tempest', '#c9a4ff', [r'\btempest']), ('monte', 'Monte Carlo cinema', '#e6a23c', [r'monte carlo']),
+            ('table', 'The table of signs', '#d9b44a', [r'periodic table'])]
+FAMSUBJ = {'wygwyl': 'wygwyl', 'odyssey': 'odyssey', 'republic': 'republic', 'wargames': 'wargames', 'slop': 'slop', 'norse': 'norse', 'wes': 'wes', 'monte': 'monte', 'origin': 'table'}
+SNAME = {s[0]: s[1] for s in SUBJECTS}
+for p, x in P.items():
+    t = (code_of(p) + ' '.join(read(j) for j in x['js'] if jsuse[j] == 1)).lower(); sc = {}
+    side = ' '.join(read(d)[:300000].lower() for d in x['data']) + ' '.join(read(s_)[:60000].lower() for s_ in x['madeBy'])
+    for sid, _, _, pats in SUBJECTS:
+        n = sum(len(re.findall(pt, t)) for pt in pats) + min(12, sum(len(re.findall(pt, side)) for pt in pats) / 4) + 6 * sum(1 for d in x['data'] + x['js'] if sid in d.lower() or (sid == 'wygwyl' and 'wygwyl' in d.lower()))
+        if n: sc[sid] = round(n, 1)
+    top = sorted(sc.items(), key=lambda kv: -kv[1]); x['subjects'] = dict(top[:3])
+    x['subject'] = top[0][0] if top and top[0][1] >= 3 and (len(top) < 2 or top[0][1] >= 1.5 * top[1][1]) else 'lab'
+    if x['kind'] == 'index': x['subject'] = 'lab'   # front doors belong to the whole city
+    fs = FAMSUBJ.get(x['family']); x['ia'] = ''
+    if x['subject'] != 'lab' and fs != x['subject'] and x['kind'] not in ('index', 'pointer', 'template'):
+        x['ia'] = f"made for {SNAME[x['subject']]}, but filed as {FAM[x['family']][1]}" + (" (a different project's name)" if fs else '')
+# versions and descent: pages whose code is largely the same (MinHash over 8-word shingles); the earlier one is the ancestor
+def shingles(t):
+    w = re.findall(r'[A-Za-z_]{2,}|\d+|[{}()<>=;:,.]', t); return np.array(sorted({zlib.crc32(' '.join(w[i:i + 8]).encode()) for i in range(max(1, len(w) - 8))}), dtype=np.uint64)
+rng = np.random.default_rng(3); A_ = rng.integers(1, 2 ** 31, 128, dtype=np.uint64); B_ = rng.integers(0, 2 ** 31, 128, dtype=np.uint64); PR = np.uint64(4294967311)
+SIG = np.zeros((N, 128), dtype=np.uint64); size = np.zeros(N)
+for i, p in enumerate(nodes):
+    sh = shingles(code_of(p)); size[i] = len(sh)
+    for k0 in range(0, len(sh), 4000): SIG[i] = np.minimum(SIG[i] if k0 else np.full(128, np.iinfo(np.uint64).max, dtype=np.uint64), ((sh[k0:k0 + 4000, None] * A_[None] + B_[None]) % PR).min(0))
+J = (SIG[:, None, :] == SIG[None, :, :]).mean(2); np.fill_diagonal(J, 0); J[size < 60] = 0; J[:, size < 60] = 0
+born_t = {p: (hist[p][0][0] if hist.get(p) else '9') for p in nodes}
+TH = .3
+for i, p in enumerate(nodes):
+    x = P[p]; sims = [(nodes[j], float(J[i, j])) for j in np.argsort(-J[i])[:8] if J[i, j] >= .3]
+    x['versions'] = [[q, round(s, 2)] for q, s in sims]
+    older = [(q, s) for q, s in sims if s >= TH and (born_t[q], q) < (born_t[p], p)]
+    x['parent'], x['parentSim'] = (older[0][0], round(older[0][1], 2)) if older else (None, 0)
+for p, x in P.items(): x['children'] = sorted(q for q, y in P.items() if y['parent'] == p)
+def desc(p): return sum(1 + desc(c) for c in P[p]['children'])
+for p, x in P.items(): x['descendants'] = desc(p)
+seen, clusters = set(), []
+for p in sorted(P, key=lambda p: born_t[p]):
+    if p in seen or (not P[p]['children'] and not P[p]['parent']): continue
+    root = p
+    while P[root]['parent']: root = P[root]['parent']
+    if root in seen: continue
+    mem = []; st = [root]
+    while st: a = st.pop(); mem.append(a); seen.add(a); st += P[a]['children']
+    clusters.append({'root': root, 'members': sorted(mem, key=lambda q: born_t[q])})
+clusters.sort(key=lambda c: -len(c['members']))
+for k, c in enumerate(clusters):
+    for m in c['members']: P[m]['lineage'] = k
 buried = [{'path': p, 'born': hist[p][0][0][:10], 'died': d[:10], 'msg': m, 'lastTitle': ''} for p, (d, m) in gone.items() if p.endswith('.html') and p not in P and ' ' not in p]
 fams = collections.Counter(x['family'] for x in P.values())
 out = {'built': subprocess.run(['date', '+%Y-%m-%d %H:%M'], capture_output=True, text=True).stdout.strip(), 'repo': os.path.basename(REPO),
        'kingdoms': [{'id': k, 'name': n, 'desc': d} for k, n, d in KINGDOMS], 'kinds': {k: v[0] for k, v in KINDS.items()},
        'families': [{'id': f[0], 'name': f[1], 'color': f[2], 'n': fams[f[0]]} for f in FAMILIES if fams[f[0]]],
+       'subjects': [{'id': s[0], 'name': s[1], 'color': s[2], 'n': sum(1 for x in P.values() if x['subject'] == s[0])} for s in SUBJECTS] + [{'id': 'lab', 'name': 'The lab in general', 'color': '#d8d0c0', 'n': sum(1 for x in P.values() if x['subject'] == 'lab')}],
+       'clusters': clusters, 'hoursTotal': round(sum(hours.values()), 1),
        'pages': sorted(P.values(), key=lambda x: (x['born'] or '9', x['path'])), 'buried': sorted(buried, key=lambda x: x['died']), 'scripts': S,
        'days': [{'date': d, 'commits': list(reversed(v))} for d, v in sorted(days.items())],
        'totals': {'pages': len(P), 'scripts': len(S), 'data': len(datas), 'commits': sum(len(v) for v in days.values()), 'buried': len(buried)}}
 dst = os.path.join(REPO, 'lab', 'atlas.json'); json.dump(out, open(dst, 'w'), ensure_ascii=False, separators=(',', ':'))
 st = collections.Counter(x['status'] for x in P.values()); print('pages', len(P), dict(st), 'scripts', len(S), 'buried', len(buried), 'commits', out['totals']['commits'], '->', dst, os.path.getsize(dst) // 1024, 'KB')
-print('families', dict(fams)); print('kinds', dict(collections.Counter(x['kind'] for x in P.values())))
+print('subjects', dict(collections.Counter(x['subject'] for x in P.values()))); print('misfiled', sum(1 for x in P.values() if x['ia'])); print('clusters', [(len(c['members']), c['root']) for c in clusters[:12]]); print('hours', round(sum(hours.values())), 'top', sorted(((x['hours'], p) for p, x in P.items()), reverse=True)[:6]); print('families', dict(fams)); print('kinds', dict(collections.Counter(x['kind'] for x in P.values())))
 print('orphans', [p for p, x in P.items() if x['status'] == 'orphan']); print('hidden', [p for p, x in P.items() if x['status'] in ('hidden', 'island')])
