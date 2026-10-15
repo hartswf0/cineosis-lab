@@ -104,6 +104,32 @@ def main():
             "segments": segs.get(cid),
             "collections": c.get("collections", ["cineosis"]), "wygwyl": wyg.get(cid),
         })
+    wg_path = os.path.join(ROOT, "WAR GAMES", "wargames_archive.json")
+    if os.path.exists(wg_path):
+        wga = json.load(open(wg_path))
+        for ws in wga.get("shots", []):
+            cid = ws["id"]
+            if cid in corpus:
+                continue
+            local_clip = os.path.join("clips", cid + ".mp4")
+            shots.append({
+                "id": cid, "title": f"WarGames · {ws.get('scene_title', '1983')}", "year": 1983, "decade": 1980,
+                "slug": "wargames-1983", "page": f"wargames.html?shot={cid}",
+                "video": "../WAR GAMES/WarGames_1983_H264.mp4",
+                "clip": local_clip if os.path.exists(os.path.join(LAB, local_clip)) else None,
+                "thumb": ws.get("thumb", f"thumbs/{cid}.jpg"),
+                "start": round(ws["start"], 3), "end": round(ws["end"], 3),
+                "match": round(ws.get("match", ws["start"]), 3),
+                "read_t": ws.get("read_t"), "bw": False,
+                "palette": ws.get("palette"), "hue": ws.get("hue"), "lum": ws.get("lum"), "sat": ws.get("sat"),
+                "subjects": ws.get("subjects"), "scale": ws.get("scale"), "xy": ws.get("xy"), "sim": ws.get("sim"),
+                "signs": ws.get("signs", []), "found": ws.get("found", []),
+                "strip": ws.get("strip", f"strips/{cid}.jpg"), "frames": ws.get("frames", 8),
+                "cutouts": [], "audio": ws.get("audio"),
+                "affinity": ws.get("affinity"), "aff_top": ws.get("aff_top"),
+                "segments": None,
+                "collections": ws.get("collections", ["wargames", "cineosis"]), "wygwyl": None,
+            })
     shots.sort(key=lambda s: (not s["signs"], s["sim"] if s["sim"] is not None else 1e9))
     out = {"signs": signs, "shots": shots, "assignments": load("assignments.json", []),
            "wygwyl": {"cut": wcut, "films": wfilms, "beats": wbeats} if wcut else None}

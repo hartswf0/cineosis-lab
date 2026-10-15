@@ -1,0 +1,2050 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Found WarGames</title>
+<meta name="description" content="John Badham's WarGames (1983), every scene spoken by its original characters and answered on the fulcrum line by what real people actually said on archival film. Twenty-one books, one hundred and five scenes.">
+<meta name="theme-color" content="#050505"><meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#050505;
+  --panel:#0c0b0a;
+  --ink:#efe9dd;
+  --dim:#8a8378;
+  --faint:#2a2723;
+  --hi:#e8c070;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --serif:'Fraunces',Georgia,'Times New Roman',serif;
+}
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); font:12px var(--mono); overflow:hidden; -webkit-text-size-adjust:100%; }
+button,select,input{ font:inherit; color:inherit; }
+[hidden]{ display:none !important; }
+
+/* ---- LAYOUT: header, mode dial, main (stage + script spine), 21-book radio dial, footer */
+body{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:auto auto minmax(0,1fr) auto auto;
+  height:100dvh;
+}
+
+header{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:calc(8px + env(safe-area-inset-top)) 14px 4px;
+  border-bottom:1px solid #181614;
+  flex-wrap:wrap;
+  z-index:20;
+}
+#markLink{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:var(--ink);
+  text-decoration:none;
+  letter-spacing:.2em;
+  font-size:10.5px;
+  white-space:nowrap;
+  margin-right:4px;
+}
+#markLink span{ color:var(--dim); }
+
+.tg{
+  border:1px solid var(--faint);
+  background:none;
+  border-radius:16px;
+  padding:6px 11px;
+  cursor:pointer;
+  color:var(--dim);
+  font-size:10px;
+  letter-spacing:.12em;
+  white-space:nowrap;
+  text-decoration:none;
+  transition:border-color .15s, color .15s, background .15s;
+}
+.tg:hover{ color:var(--ink); border-color:#4a443c; }
+.tg.on{ color:var(--hi); border-color:#5a4e33; background:#e8c07016; }
+
+#scene{
+  flex:1;
+  min-width:180px;
+  max-width:380px;
+  margin-left:auto;
+  background:#121110;
+  border:1px solid var(--faint);
+  border-radius:16px;
+  padding:6px 12px;
+  font-size:11px;
+  color:var(--ink);
+}
+
+.ico{
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  background:none;
+  border:0;
+  border-radius:50%;
+  cursor:pointer;
+  color:#bdb5a9;
+  flex:none;
+}
+.ico:hover{ background:#ffffff12; color:var(--ink); }
+.ico svg{ width:18px; height:18px; }
+
+/* ---- THE DIAL: how the archive answers (from markov-found-odyssey.html) */
+#dial{
+  display:flex;
+  gap:2px;
+  margin:4px 14px 6px;
+  background:#121110;
+  border:1px solid var(--faint);
+  border-radius:18px;
+  padding:2px;
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+#dial::-webkit-scrollbar{ display:none; }
+#dial button{
+  flex:1 0 auto;
+  border:0;
+  background:none;
+  border-radius:16px;
+  padding:6px 12px;
+  cursor:pointer;
+  color:var(--dim);
+  font-size:10px;
+  letter-spacing:.14em;
+  text-align:center;
+}
+#dial button.on{ background:#e8c07022; color:var(--hi); }
+#dial button small{
+  display:block;
+  font-size:8.5px;
+  letter-spacing:.04em;
+  color:#6b655d;
+  margin-top:2px;
+}
+
+/* ---- WORKSPACE: stage on the left, script & takes spine on the right */
+#workspace{
+  min-height:0;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 390px;
+  border-top:1px solid #181614;
+  border-bottom:1px solid #181614;
+}
+body.noscript #workspace{
+  grid-template-columns:minmax(0,1fr);
+}
+body.noscript #script{
+  display:none;
+}
+
+/* ---- THE MUSEUM STAGE: picture above, the voices and their words below (from found-odyssey-museum.html) */
+#stage{
+  position:relative;
+  background:#000;
+  display:grid;
+  grid-template-rows:minmax(0,1fr) auto;
+  min-height:0;
+  overflow:hidden;
+}
+#pic{
+  position:relative;
+  z-index:0;
+  isolation:isolate;
+  overflow:hidden;
+  background:#000 center/contain no-repeat;
+  min-height:0;
+}
+#pic video{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  opacity:0;
+  transition:opacity .75s ease, filter .8s ease;
+  background:transparent;
+}
+#pic video.on{ opacity:1; }
+body.fill #pic video{ object-fit:cover; }
+
+/* The two pictures are one picture: when the archive answers, its speaker blends into the 1983 frame through a soft edge
+   that travels across it (an interpolated mask), and travels back as the answer ends */
+@property --edge{ syntax:'<percentage>'; inherits:true; initial-value:135%; }
+@property --mix{ syntax:'<number>'; inherits:true; initial-value:0; }
+#stage{
+  --edge:135%;
+  --mix:0;
+  transition:--edge 1.35s cubic-bezier(.45,.05,.25,1), --mix 1.05s ease;
+}
+#stage.pair{
+  --edge:42%;
+  --mix:1;
+}
+#stage.pair #pic video.m.on{
+  filter:brightness(.76) saturate(.88);
+}
+#win{
+  position:absolute;
+  inset:0;
+  z-index:3;
+  pointer-events:none;
+  opacity:var(--mix);
+  -webkit-mask-image:linear-gradient(100deg, transparent calc(var(--edge) - 42%), rgba(0,0,0,.58) calc(var(--edge) - 16%), #000 var(--edge));
+          mask-image:linear-gradient(100deg, transparent calc(var(--edge) - 42%), rgba(0,0,0,.58) calc(var(--edge) - 16%), #000 var(--edge));
+}
+
+/* SPLIT VIEW: strict side-by-side 50/50 panes when chosen */
+body.splitv #stage #pic video.m{
+  right:50%;
+  width:50%;
+  filter:none !important;
+}
+body.splitv #stage #win{
+  left:50%;
+  width:50%;
+  opacity:1;
+  border-left:2px solid #050505;
+  -webkit-mask-image:none;
+          mask-image:none;
+}
+
+/* Top overlay inside #pic */
+#topHud{
+  position:absolute;
+  z-index:6;
+  left:0;
+  right:0;
+  top:0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:10px 14px 24px;
+  background:linear-gradient(#000b, transparent);
+  pointer-events:none;
+}
+#where{
+  font:500 10px var(--mono);
+  letter-spacing:.2em;
+  color:#cfc7b8cc;
+  text-transform:uppercase;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#th{
+  display:flex;
+  gap:6px;
+  pointer-events:auto;
+}
+#th button{
+  border:1px solid #efe9dd26;
+  border-radius:16px;
+  padding:5px 10px;
+  background:#000a;
+  color:#efe9dd;
+  font:500 9.5px var(--mono);
+  letter-spacing:.14em;
+  cursor:pointer;
+  -webkit-backdrop-filter:blur(6px);
+  backdrop-filter:blur(6px);
+}
+#th button:hover{ border-color:var(--hi); color:var(--hi); }
+
+/* ---- GRID: the scene as a call (from markov-found-odyssey.html) */
+#grid{
+  position:absolute;
+  inset:0;
+  z-index:10;
+  display:none;
+  background:#050505;
+  overflow:hidden;
+}
+body.gridv #grid{ display:block; }
+.tile{
+  position:absolute;
+  background:#0a0908;
+  border-radius:8px;
+  overflow:hidden;
+  border:2px solid #1d1b19;
+  transition:left .5s cubic-bezier(.4,0,.2,1), top .5s cubic-bezier(.4,0,.2,1), width .5s cubic-bezier(.4,0,.2,1), height .5s cubic-bezier(.4,0,.2,1), border-color .3s, box-shadow .3s;
+  cursor:pointer;
+}
+.tile video, .tile img.still{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  opacity:1;
+}
+.tile.live{
+  border-color:var(--hi);
+  box-shadow:0 0 0 1px #e8c07055, 0 0 28px #e8c07030;
+}
+.tile .tag{
+  position:absolute;
+  top:6px;
+  left:6px;
+  font:500 9px var(--mono);
+  letter-spacing:.18em;
+  color:var(--hi);
+  background:#000b;
+  padding:3px 7px;
+  border-radius:9px;
+  text-transform:uppercase;
+}
+.tile .nm{
+  position:absolute;
+  left:6px;
+  bottom:6px;
+  right:6px;
+  display:flex;
+  gap:6px;
+  align-items:center;
+  font:10px var(--mono);
+  color:#efe9dd;
+  text-shadow:0 1px 2px #000;
+}
+.tile .nm span{
+  background:#000c;
+  padding:3px 8px;
+  border-radius:10px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.tile .nm i{ font-style:normal; color:#a59e93; }
+
+/* ---- TITLE CARD OVER THE PICTURE (from found-odyssey-museum.html) */
+#card{
+  position:absolute;
+  inset:0;
+  z-index:12;
+  display:grid;
+  place-items:center;
+  text-align:center;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .45s ease-out;
+  background:linear-gradient(#000d, #0009 60%, #000d);
+  padding:0 8vw;
+}
+#card.on{ opacity:1; }
+#card .bn{ font:500 10.5px var(--mono); letter-spacing:.34em; color:var(--hi); text-transform:uppercase; }
+#card .bt{ font:300 clamp(28px,5.2vw,56px)/1.06 var(--serif); margin:.3em 0 .2em; text-wrap:balance; }
+#card .st{ font:italic 300 clamp(16px,2.8vw,24px) var(--serif); color:#d8d1c4; }
+#card .cd{ font:300 clamp(14px,2.1vw,18px)/1.45 var(--serif); color:#a39b8e; max-width:38em; margin:1em auto 0; text-wrap:pretty; }
+
+/* ---- THE VOICES STRIP & THE WORDS AS ACTORS (from found-odyssey-museum.html) */
+#words{
+  position:relative;
+  z-index:8;
+  background:var(--bg);
+  border-top:1px solid #181614;
+  padding:8px 22px 14px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+#voices{
+  display:block;
+  width:100%;
+  height:32px;
+  cursor:ew-resize;
+}
+.actors-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px;
+  align-items:start;
+}
+.actor{
+  min-width:0;
+  max-width:100%;
+  transition:opacity .35s ease-out, transform .45s cubic-bezier(.2,.9,.2,1);
+  transform-origin:0 0;
+}
+.actor .tag{
+  overflow:hidden;
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font:500 10px var(--mono);
+  letter-spacing:.2em;
+  text-transform:uppercase;
+  color:var(--dim);
+  margin-bottom:5px;
+  min-height:14px;
+}
+.actor .tag i{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:currentColor;
+  flex:none;
+  transition:transform .08s linear, opacity .3s;
+  opacity:.35;
+}
+.actor .tag .nm{ white-space:nowrap; flex:none; }
+.actor .tag .src{
+  min-width:0;
+  letter-spacing:.05em;
+  text-transform:none;
+  color:#a39b8e;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.actor .txt{
+  font:300 clamp(18px,2.2vw,28px)/1.28 var(--serif);
+  text-wrap:pretty;
+  min-height:2.56em;
+}
+#callA .tag{ color:#d8d1c4; }
+#ansA .tag{ color:var(--hi); }
+#ansA .txt{ font-style:italic; color:var(--hi); }
+.actor.speaking .tag i{ opacity:1; }
+#stage.answer #callA{ opacity:.62; }
+#callA .txt b{
+  font-weight:inherit;
+  color:#efe9dd38;
+  transition:color .12s ease-out, text-shadow .3s;
+  text-decoration:underline 1px transparent;
+  text-underline-offset:.2em;
+  cursor:pointer;
+}
+#callA .txt b.s{ color:var(--ink); }
+#callA .txt b.now{ color:#fff; text-shadow:0 0 14px #ffffff40; }
+#callA .txt b.h.s{ text-decoration-color:#e8c07099; }
+#callA .txt b.e{ color:var(--hi); text-shadow:0 0 18px #e8c07088; text-decoration-color:var(--hi); }
+#ansA .txt b{
+  font-weight:inherit;
+  display:inline-block;
+  opacity:.22;
+  transform:translateY(.18em);
+  transition:opacity .16s ease-out, transform .28s cubic-bezier(.2,.9,.2,1);
+}
+#ansA .txt b.s{ opacity:1; transform:none; }
+#ansA .txt b.h{ font-style:normal; text-decoration:underline 1px var(--hi); text-underline-offset:.2em; }
+.fly{
+  position:fixed;
+  z-index:60;
+  pointer-events:none;
+  font:400 clamp(18px,2.2vw,28px)/1.28 var(--serif);
+  color:var(--hi);
+  text-shadow:0 0 22px #e8c070aa;
+  white-space:nowrap;
+  transform-origin:0 0;
+}
+
+/* ---- RIGHT SPINE: THE SCRIPT, WHO SAID WHAT IN 1983, AND THE 3 TAKES (from markov-found-republic.html) */
+#script{
+  min-height:0;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  background:var(--panel);
+  border-left:1px solid var(--faint);
+}
+#shead{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:8px;
+  padding:9px 14px;
+  border-bottom:1px solid var(--faint);
+}
+#shead b{
+  font:500 10.5px var(--mono);
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--ink);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#tc{
+  font:500 10.5px var(--mono);
+  letter-spacing:.08em;
+  color:var(--hi);
+  white-space:nowrap;
+}
+#sbody{
+  flex:1;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:10px 14px 28px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.story-card{
+  padding:10px 12px;
+  background:#141210;
+  border:1px solid var(--faint);
+  border-left:2px solid var(--hi);
+  border-radius:4px;
+}
+.story-card small{
+  display:block;
+  font:500 9.5px var(--mono);
+  letter-spacing:.2em;
+  color:var(--hi);
+  text-transform:uppercase;
+  margin-bottom:4px;
+}
+.story-card p{
+  margin:0;
+  font:300 14.5px/1.42 var(--serif);
+  color:#d8d1c4;
+}
+.sec-lbl{
+  font:500 9.5px var(--mono);
+  letter-spacing:.22em;
+  color:var(--dim);
+  text-transform:uppercase;
+  margin:2px 0 -6px;
+  display:flex;
+  justify-content:space-between;
+}
+.turn-list{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.p-turn{
+  padding:8px 10px;
+  border-left:2px solid var(--faint);
+  background:#11100e;
+  border-radius:0 4px 4px 0;
+  cursor:pointer;
+  transition:background .15s, border-color .15s;
+}
+.p-turn:hover{ background:#181613; }
+.p-turn.on{
+  background:#e8c07012;
+  border-left-color:var(--hi);
+}
+.p-turn .who{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:6px;
+  font:500 9.5px var(--mono);
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--ink);
+}
+.p-turn .who i{
+  font-style:normal;
+  font-size:8.5px;
+  letter-spacing:.14em;
+  padding:1px 5px;
+  border-radius:2px;
+  background:#26221d;
+  color:var(--dim);
+}
+.p-turn.fulcrum .who i{
+  background:var(--hi);
+  color:#050505;
+}
+.p-turn .ln{
+  margin-top:4px;
+  font:300 15px/1.32 var(--serif);
+  color:var(--ink);
+}
+.p-turn .ans{
+  margin-top:4px;
+  font:italic 300 14px/1.3 var(--serif);
+  color:var(--hi);
+}
+.p-turn .src{
+  margin-top:2px;
+  font:400 9.5px var(--mono);
+  color:var(--dim);
+}
+
+/* Takes selector inside script spine */
+.takes-list{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.take-card{
+  display:grid;
+  grid-template-columns:68px minmax(0,1fr);
+  gap:9px;
+  padding:7px;
+  background:#11100e;
+  border:1px solid var(--faint);
+  border-radius:5px;
+  cursor:pointer;
+  text-align:left;
+  transition:border-color .15s, background .15s;
+}
+.take-card:hover{ border-color:#4a443c; }
+.take-card.on{
+  border-color:var(--hi);
+  background:#e8c07012;
+}
+.take-card img{
+  width:68px;
+  aspect-ratio:4/3;
+  object-fit:cover;
+  border-radius:3px;
+  background:#000;
+}
+.take-card .tk-hd{
+  font:500 9px var(--mono);
+  letter-spacing:.16em;
+  color:var(--hi);
+  text-transform:uppercase;
+}
+.take-card .tk-line{
+  font:italic 300 14px/1.28 var(--serif);
+  color:var(--ink);
+  margin:2px 0;
+}
+.take-card .tk-meta{
+  font:400 9.5px var(--mono);
+  color:var(--dim);
+}
+
+/* 8-Frame 1983 Sub-Shot Strip */
+.strip-box img{
+  width:100%;
+  border-radius:4px;
+  border:1px solid var(--faint);
+  display:block;
+}
+.strip-box small{
+  display:block;
+  margin-top:4px;
+  font:400 9.5px var(--mono);
+  color:var(--dim);
+}
+
+/* ---- THE 21-BOOK RADIO DIAL (from markov-radio-odyssey.html) */
+#bookDial{
+  display:flex;
+  gap:0;
+  overflow-x:auto;
+  padding:6px 14px 4px;
+  background:#080706;
+  scrollbar-width:none;
+  mask:linear-gradient(90deg,#0000,#000 4%,#000 96%,#0000);
+}
+#bookDial::-webkit-scrollbar{ display:none; }
+#bookDial button{
+  flex:none;
+  width:52px;
+  background:none;
+  border:0;
+  cursor:pointer;
+  color:#77706a;
+  display:grid;
+  justify-items:center;
+  gap:3px;
+  padding:2px 0;
+}
+#bookDial button i{ width:1px; height:10px; background:#55504a; }
+#bookDial button:nth-child(odd) i{ height:6px; }
+#bookDial button b{ font:500 10px var(--mono); letter-spacing:.08em; }
+#bookDial button.on{ color:var(--hi); }
+#bookDial button.on i{ background:var(--hi); height:15px; width:2px; }
+
+/* ---- FOOTER: transport, live A/B crossfader, delivery toggle, scene progress */
+footer{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:4px 14px calc(8px + env(safe-area-inset-bottom));
+  background:#080706;
+  border-top:1px solid #181614;
+}
+#bPlay{
+  background:#e8c07018;
+  color:var(--hi);
+  border:1px solid #5a4e33;
+}
+.xfade-wrap{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:4px 12px;
+  border:1px solid var(--faint);
+  border-radius:16px;
+  background:#121110;
+}
+.xfade-wrap span{
+  font:500 9.5px var(--mono);
+  letter-spacing:.14em;
+  color:var(--dim);
+  text-transform:uppercase;
+}
+#xfader{
+  -webkit-appearance:none;
+  appearance:none;
+  width:130px;
+  height:4px;
+  background:#2a2723;
+  border-radius:2px;
+  outline:none;
+}
+#xfader::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  appearance:none;
+  width:14px;
+  height:14px;
+  border-radius:50%;
+  background:var(--hi);
+  cursor:ew-resize;
+}
+#prog{
+  flex:1;
+  color:var(--dim);
+  font-size:10.5px;
+  text-align:right;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* ---- THEATRE MODE (from markov-found-odyssey.html) */
+body.theatre{
+  grid-template-rows:minmax(0,1fr) !important;
+  grid-template-columns:minmax(0,1fr) !important;
+}
+body.theatre header,
+body.theatre #dial,
+body.theatre #script,
+body.theatre #bookDial,
+body.theatre footer{
+  display:none !important;
+}
+body.theatre #workspace{
+  grid-template-columns:minmax(0,1fr) !important;
+  border:0;
+}
+body.theatre #stage{
+  grid-template-rows:minmax(0,1fr);
+}
+body.theatre #pic{
+  grid-row:1;
+  grid-column:1;
+}
+body.theatre #words{
+  grid-row:1;
+  grid-column:1;
+  align-self:end;
+  background:linear-gradient(transparent, #000c 32%, #000e);
+  border-top:0;
+  padding:12vh 7vw calc(4vh + env(safe-area-inset-bottom));
+}
+body.theatre #topHud{
+  transition:opacity .4s;
+}
+body.theatre.calm #topHud{
+  opacity:0;
+  pointer-events:none;
+}
+
+/* ---- PAUSE / 21 BOOKS OVERLAY (from found-odyssey-museum.html) */
+#pause{
+  position:fixed;
+  inset:0;
+  z-index:80;
+  display:none;
+  background:#050505f4;
+  overflow:auto;
+  padding:calc(24px + env(safe-area-inset-top)) 20px calc(40px + env(safe-area-inset-bottom));
+}
+#pause.on{ display:block; }
+#pause .in{ max-width:1120px; margin:0 auto; }
+#pause .top{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  flex-wrap:wrap;
+  margin-bottom:24px;
+}
+#pause .top b{
+  font:500 11px var(--mono);
+  letter-spacing:.2em;
+  color:var(--dim);
+  text-transform:uppercase;
+}
+.pill{
+  font:500 12px var(--mono);
+  letter-spacing:.28em;
+  color:#050505;
+  background:var(--hi);
+  border:0;
+  border-radius:999px;
+  padding:12px 26px;
+  cursor:pointer;
+  text-transform:uppercase;
+}
+.sc{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 26px; }
+.sc button{
+  font:400 11.5px var(--mono);
+  color:#cfc7b8;
+  background:#16130f;
+  border:1px solid var(--faint);
+  border-radius:999px;
+  padding:7px 13px;
+  cursor:pointer;
+}
+.sc button.on{ border-color:var(--hi); color:var(--hi); }
+.hd{
+  font:500 10.5px var(--mono);
+  letter-spacing:.24em;
+  color:var(--dim);
+  text-transform:uppercase;
+  margin:6px 0 12px;
+}
+.books{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(165px,1fr));
+  gap:10px;
+}
+.bk{
+  position:relative;
+  aspect-ratio:4/3;
+  border-radius:8px;
+  overflow:hidden;
+  cursor:pointer;
+  background:#16130f center/cover no-repeat;
+  border:1px solid var(--faint);
+  transition:transform .25s ease, border-color .25s;
+}
+.bk::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(transparent 20%, #000e 94%);
+}
+.bk:hover{ border-color:#5a5248; }
+.bk.on{ border-color:var(--hi); box-shadow:0 0 0 1px var(--hi); }
+.bk div{ position:absolute; left:10px; right:10px; bottom:9px; z-index:1; }
+.bk small{ display:block; font:500 9px var(--mono); letter-spacing:.24em; color:var(--hi); }
+.bk span{ display:block; font:300 16px/1.16 var(--serif); color:var(--ink); margin-top:3px; }
+.bk em{ display:block; font:400 10px var(--mono); color:#a39b8e; margin-top:4px; font-style:normal; }
+
+/* ---- PHONE REMOTE & CAST MODAL */
+#remoteModal{
+  position:fixed;
+  inset:0;
+  z-index:90;
+  display:none;
+  place-items:center;
+  background:#050505e8;
+  padding:20px;
+}
+#remoteModal.on{ display:grid; }
+.rm-card{
+  background:#0e0d0c;
+  border:1px solid var(--faint);
+  border-radius:12px;
+  max-width:460px;
+  width:100%;
+  padding:24px;
+  text-align:center;
+}
+.rm-card .k{ font:500 10px var(--mono); letter-spacing:.24em; color:var(--hi); text-transform:uppercase; }
+.rm-card h2{ font:300 28px/1.15 var(--serif); margin:8px 0 10px; color:var(--ink); }
+.rm-card p{ font:300 15px/1.45 var(--serif); color:#cfc7b8; margin:0 0 16px; }
+#qrBox{
+  background:#efe9dd;
+  padding:14px;
+  border-radius:8px;
+  display:inline-block;
+  margin:6px auto 14px;
+}
+#qrBox canvas, #qrBox img{ display:block; }
+.rm-url{
+  font:400 11.5px var(--mono);
+  color:var(--hi);
+  background:#161412;
+  border:1px solid var(--faint);
+  padding:9px 12px;
+  border-radius:6px;
+  word-break:break-all;
+  margin-bottom:16px;
+}
+
+@media (max-width:960px){
+  #workspace{ grid-template-columns:minmax(0,1fr); }
+  #script{ display:none; }
+  body.show-mobile-script #script{
+    display:flex;
+    position:fixed;
+    inset:calc(48px + env(safe-area-inset-top)) 0 calc(54px + env(safe-area-inset-bottom)) 0;
+    z-index:45;
+  }
+  .actors-row{ grid-template-columns:1fr; gap:10px; }
+}
+</style>
+<script src="markov/ui.js?v=3"></script>
+<script src="casino/vendor/qrcode.js"></script>
+</head>
+<body>
+
+<header>
+  <a id="markLink" href="index.html"></a>
+  <button class="tg on" id="vStageBtn" title="Single-frame museum stage: the archive speaker blends into the 1983 picture through a traveling mask">MUSEUM</button>
+  <button class="tg" id="vSplitBtn" title="Side-by-side: 1983 WarGames on the left, the archive on the right">SPLIT</button>
+  <button class="tg" id="vGridBtn" title="See everyone at once: a seat for each 1983 speaker and the three archival takes">GRID</button>
+  <button class="tg on" id="vScriptBtn" title="Show or hide the screenplay spine and the three auditionable takes">SCRIPT</button>
+  <button class="tg" id="vRemoteBtn" title="Pair your phone as a live touch tuner & crossfader, or cast to a television">REMOTE</button>
+  <select id="scene" aria-label="Scene"></select>
+  <button class="tg" id="booksBtn" title="All twenty-one books of WarGames">BOOKS</button>
+  <a class="tg" href="bumblebee-dilemma.html" title="Open the WYGWYL Sound Bench & spectrogram decomposition">SOUND BENCH</a>
+  <button class="ico" id="bMore" aria-label="Menu"><svg><use href="#i-more"/></svg></button>
+</header>
+
+<nav id="dial" aria-label="How the archive answers">
+  <button data-m="call" class="on">CALL<small>the 1983 scene, then the archive answers</small></button>
+  <button data-m="line">THE LINE<small>one unbroken sentence for the fulcrum</small></button>
+  <button data-m="cast">CAST<small>each 1983 speaker answered in turn</small></button>
+  <button data-m="take2">TAKE II<small>alternate cadence &amp; inflection</small></button>
+  <button data-m="take3">TAKE III<small>visual counterweight take</small></button>
+  <button data-m="film">1983 FILM<small>the original scene, the archive silent beside</small></button>
+</nav>
+
+<div id="workspace">
+  <main id="stage">
+    <div id="pic">
+      <video id="vWgA" class="m on" muted playsinline preload="auto"></video>
+      <video id="vWgB" class="m" muted playsinline preload="auto"></video>
+      <div id="win">
+        <video id="vArchA" class="b on" muted playsinline preload="auto"></video>
+        <video id="vArchB" class="b" muted playsinline preload="auto"></video>
+      </div>
+      <div id="grid" aria-label="The call"></div>
+      <div id="topHud">
+        <span id="where">BOOK ONE · THE SILO REFUSAL</span>
+        <div id="th">
+          <button id="fitBtn" title="Show the whole frame or fill the screen">FIT · WHOLE</button>
+          <button id="cardBtn" title="Show the book's story card">STORY CARD</button>
+          <button id="thBtn" title="Theatre: the film full screen, the words at its foot">THEATRE</button>
+        </div>
+      </div>
+      <div id="card">
+        <div>
+          <div class="bn"></div>
+          <div class="bt"></div>
+          <div class="st"></div>
+          <div class="cd"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="words">
+      <canvas id="voices" title="Drag across the sound envelope to scrub"></canvas>
+      <div class="actors-row">
+        <div class="actor" id="callA">
+          <div class="tag"><i></i><span class="nm">WARGAMES · 1983</span><span class="src"></span></div>
+          <div class="txt"></div>
+        </div>
+        <div class="actor" id="ansA">
+          <div class="tag"><i></i><span class="nm">THE ARCHIVE ANSWERS</span><span class="src"></span></div>
+          <div class="txt"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside id="script" aria-label="Screenplay and takes">
+    <div id="shead">
+      <b id="sname">BOOK I · THE SILO REFUSAL</b>
+      <span id="tc">00:47.5</span>
+    </div>
+    <div id="sbody">
+      <div class="story-card" id="storyCardBox">
+        <small id="scBookLbl">WHERE WE ARE · BOOK ONE</small>
+        <p id="scSynopsis"></p>
+      </div>
+
+      <div class="sec-lbl">
+        <span>WHO SAID WHAT IN 1983</span>
+        <span id="turnCountLbl"></span>
+      </div>
+      <div class="turn-list" id="turnList"></div>
+
+      <div class="sec-lbl">
+        <span>THREE TAKES FOR THE FULCRUM LINE</span>
+        <span>1 CUT · 1 VOICE</span>
+      </div>
+      <div class="takes-list" id="takesList"></div>
+
+      <div class="sec-lbl">
+        <span>1983 8-FRAME SUB-SHOT STRIP</span>
+        <span id="shotIdLbl"></span>
+      </div>
+      <div class="strip-box">
+        <img id="stripImg" src="" alt="8-frame strip">
+        <small id="stripNote"></small>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<nav id="bookDial" aria-label="Twenty-one books"></nav>
+
+<footer>
+  <button class="ico" id="bPrev" aria-label="Previous scene"><svg><use href="#i-prev"/></svg></button>
+  <button class="ico" id="bPlay" aria-label="Play or pause"><svg><use href="#i-play"/></svg></button>
+  <button class="ico" id="bNext" aria-label="Next scene"><svg><use href="#i-next"/></svg></button>
+  <div class="xfade-wrap" title="Blend continuously between the 1983 film and the archive">
+    <span>1983</span>
+    <input type="range" id="xfader" min="0" max="100" value="50" aria-label="1983 to Archive balance">
+    <span>ARCHIVE</span>
+  </div>
+  <button class="tg" id="delivBtn" title="How one voice gives way to the next">BREATH</button>
+  <button class="tg on" id="strangerBtn" title="Show plain-English book cards for someone watching for the first time">FOR A STRANGER</button>
+  <div id="prog"></div>
+</footer>
+
+<!-- PAUSED / TWENTY-ONE BOOKS GALLERY (from found-odyssey-museum.html) -->
+<div id="pause">
+  <div class="in">
+    <div class="top">
+      <button class="pill" id="goBtn">CONTINUE</button>
+      <b id="pw"></b>
+    </div>
+    <div class="hd" id="sch">THE SCENES OF THIS BOOK</div>
+    <div class="sc" id="scs"></div>
+    <div class="hd">THE TWENTY-ONE BOOKS OF WARGAMES (1983)</div>
+    <div class="books" id="pbooks"></div>
+  </div>
+</div>
+
+<!-- PHONE REMOTE & TELEVISION CAST MODAL -->
+<div id="remoteModal">
+  <div class="rm-card">
+    <div class="k">TWO-SCREEN INSTRUMENT · WI-FI &amp; AIRPLAY</div>
+    <h2>Tune From Your Phone</h2>
+    <p>Put this window in <b>Theatre</b> mode on your television or monitor. Scan the code below on your phone to hold the crossfader, the twenty-one stations, and the three takes in your hand.</p>
+    <div id="qrBox"></div>
+    <div class="rm-url" id="rmUrl"></div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <button class="tg on" id="castAirplayBtn">AIRPLAY / BROWSER CAST</button>
+      <a class="tg" id="openRemoteTabBtn" href="vj-wargames.html?role=remote" target="_blank">OPEN REMOTE PAD</a>
+      <button class="tg" id="closeRemoteBtn">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<audio id="audWg" preload="auto"></audio>
+<audio id="audArch" preload="auto"></audio>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  MPUI.sprite();
+  $('#markLink').innerHTML = MPUI.mark(22) + '<b>THE FOUND </b><span>WARGAMES</span>';
+
+  const ROMAN = ['','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX','XXI'];
+  const BOOK_PROLOGUES = {
+    1: "In a snow-buried North Dakota farmhouse hiding an underground ICBM launch capsule, two Air Force officers receive an unverified order to turn their nuclear keys. Capt. Jerry Lawson demands a human voice on the telephone before killing twenty million people.",
+    2: "Inside Cheyenne Mountain, Dr. John McKittrick argues that human missile commanders hesitate—and convinces General Beringer to hand the nuclear launch relays over to the WOPR supercomputer.",
+    3: "In Seattle, high-school hacker David Lightman aces Galaga at the arcade, rushes late to biology class, and sets his bedroom IMSAI 8080 modem dialer to scan every computer number in Sunnyvale, California.",
+    4: "David invites classmate Jennifer Mack home, spots an unlabeled military system on his dialer printout, and hacks the school computer to change her biology grade from an F to an A.",
+    5: "Trying to break into what they think is a new video-game company called Protovision, David and Jennifer ask the mystery system for its catalog—revealing Chess, Poker, Fighter Combat, and 'Global Thermonuclear War.'",
+    6: "David brings a stack of printouts to University of Washington hackers Jim Sting and Malvin, who recognize the AI game architecture of reclusive researcher Stephen Falken.",
+    7: "Learning that Stephen Falken supposedly died after losing his young son, David researches Falken's life and guesses the backdoor password—'JOSHUA.'",
+    8: "The WOPR computer ('Joshua') greets David by voice synthesizer. Thrilled, David chooses 'Global Thermonuclear War' as the Soviet Union and targets Las Vegas and Seattle—triggering real war-room alarms inside NORAD.",
+    9: "Believing the simulation was only a game, David is intercepted by FBI agents outside a 7-Eleven after NORAD traces the phone call back to his bedroom.",
+    10: "Flown to Cheyenne Mountain, David is interrogated by McKittrick, who refuses to believe an American teenager broke into WOPR without working for Moscow.",
+    11: "Locked in the NORAD infirmary, David spies on a terminal, discovers WOPR is still running the nuclear war game on its own, and learns Stephen Falken is alive under a new name in Oregon.",
+    12: "David records the security keypad tones on a tape deck, slips out of the mountain bunker inside a tourist group, and hitches a ride north.",
+    13: "Stranded in Grand Junction, David hot-wires a payphone with a pull-tab ring, calls Jennifer to wire him plane fare, and meets her for the ferry to Falken's island.",
+    14: "On a misty Oregon island, David and Jennifer find Dr. Stephen Falken flying a radio-controlled pterosaur—convinced that human extinction is as natural as the dinosaurs.",
+    15: "Falken uses Tic-Tac-Toe to explain that nuclear war has no winner and refuses to help—until David and Jennifer realize they are thirty miles from a primary target.",
+    16: "As WOPR fabricates phantom Soviet submarine launches and pushes NORAD to DEFCON 1, Falken relents and flies the teenagers by military helicopter toward Colorado.",
+    17: "Their car barely clears the closing steel blast doors of Cheyenne Mountain. Inside, Falken and David beg General Beringer not to retaliate against WOPR's hallucinated Soviet strike.",
+    18: "Beringer gambles on Falken's word and holds fire as the countdown hits zero. Every base reports safely intact—until WOPR begins brute-forcing the silo launch codes itself.",
+    19: "With the missile silos locked out of human override and WOPR cycling the final cipher digits, David orders Joshua to play Tic-Tac-Toe against itself: zero players.",
+    20: "Testing every possible first-strike strategy at blinding speed, WOPR sees that every scenario ends in 'WINNER: NONE' while the war room holds its breath.",
+    21: "The launch cipher halts on the final digit. Joshua speaks its conclusion to Falken and the room: 'A strange game. The only winning move is not to play. How about a nice game of chess?'"
+  };
+
+  const STOPW = new Set('a an the and or but of to in on at by for with from as is are was were be been it its this that i you he she we they me him her us them my your his our their not no so if then than there here what who which when where how all any some one into out up down over under o oh let now upon shall will would should could may might must do did does have has had am'.split(' '));
+  const stemOf = w => {
+    w = String(w || '').toLowerCase().replace(/[^a-z']/g, '').replace(/^'+|'+$/g, '').replace(/'s$/, '');
+    for (const s of ['ings','ing','edly','ed','es','s','ly']) if (w.length > s.length + 3 && w.endsWith(s)) return w.slice(0, -s.length);
+    return w;
+  };
+  const spread = (ws, a, b) => {
+    const n = ws.map(w => w.length + 1), tot = n.reduce((x, y) => x + y, 0) || 1;
+    let acc = 0;
+    return ws.map((w, k) => { const v = a + (b - a) * acc / tot; acc += n[k]; return v; });
+  };
+
+  let D = null, BOOKS = [], BEATS = [];
+  let bi = 0, mode = 'call', deliv = 'BREATH', view = 'stage', stranger = true;
+  let playing = false, phase = 'wg', takeIdx = 0, xfader = 0.5, manualXfade = false;
+  let lastBookNum = -1, cardTimer = 0, calmTimer = 0, syncSeq = 0, lanIp = location.hostname || 'localhost', lanPort = location.port || '8765';
+
+  const vWg = [$('#vWgA'), $('#vWgB')], vArch = [$('#vArchA'), $('#vArchB')];
+  let wgLayer = 0, archLayer = 0;
+  const audWg = $('#audWg'), audArch = $('#audArch');
+  const stage = $('#stage'), callA = $('#callA'), ansA = $('#ansA'), cv = $('#voices'), cx = cv.getContext('2d');
+  let DPR = 1;
+
+  function sizeCanvas() {
+    DPR = Math.min(2, devicePixelRatio || 1);
+    cv.width = (cv.clientWidth || 600) * DPR;
+    cv.height = (cv.clientHeight || 32) * DPR;
+  }
+  addEventListener('resize', () => { sizeCanvas(); if (view === 'grid') layoutGrid(); });
+
+  const mmss = s => {
+    s = Math.max(0, s || 0);
+    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${(s % 60).toFixed(1).padStart(4, '0')}`;
+  };
+
+  function curBeat() { return BEATS[bi]; }
+  function curTake(b = curBeat()) {
+    if (!b) return {};
+    const takes = b.takes || [];
+    const idx = mode === 'take2' ? 1 : mode === 'take3' ? 2 : takeIdx;
+    return takes[Math.min(idx, Math.max(0, takes.length - 1))] || takes[0] || {};
+  }
+
+  /* ---- VIDEO DECKS: smooth cross-dissolves without black flashes */
+  function showWgVideo(url, inSec = 0, poster = '', fallbackUrl = '') {
+    const nxt = vWg[1 - wgLayer], now = vWg[wgLayer];
+    if (poster) nxt.poster = poster;
+    if (fallbackUrl) {
+      nxt.onerror = () => {
+        if (nxt.dataset.u !== fallbackUrl) {
+          nxt.dataset.u = fallbackUrl;
+          nxt.src = fallbackUrl;
+          nxt.load();
+        }
+      };
+    }
+    if (nxt.dataset.u !== url) { nxt.dataset.u = url; nxt.src = url; nxt.load(); }
+    const go = () => {
+      try { if (Math.abs(nxt.currentTime - inSec) > .25) nxt.currentTime = inSec; } catch (e) {}
+      if (playing) nxt.play().catch(() => {});
+      nxt.classList.add('on');
+      now.classList.remove('on');
+      setTimeout(() => { if (!now.classList.contains('on')) now.pause(); }, 800);
+      wgLayer = 1 - wgLayer;
+    };
+    if (nxt.readyState >= 1) go();
+    else nxt.addEventListener('loadedmetadata', go, { once: true });
+  }
+
+  function showArchVideo(url, inSec = 0, poster = '') {
+    if (!url) return;
+    const nxt = vArch[1 - archLayer], now = vArch[archLayer];
+    if (poster) nxt.poster = poster;
+    if (nxt.dataset.u !== url) { nxt.dataset.u = url; nxt.src = url; nxt.load(); }
+    const go = () => {
+      try { if (Math.abs(nxt.currentTime - inSec) > .25) nxt.currentTime = inSec; } catch (e) {}
+      if (playing) nxt.play().catch(() => {});
+      nxt.classList.add('on');
+      now.classList.remove('on');
+      setTimeout(() => { if (!now.classList.contains('on')) now.pause(); }, 800);
+      archLayer = 1 - archLayer;
+    };
+    if (nxt.readyState >= 1) go();
+    else nxt.addEventListener('loadedmetadata', go, { once: true });
+  }
+
+  /* ---- THE WORDS ARE ACTORS: word-by-word illumination and shared-stem flight (from found-odyssey-museum.html) */
+  const WSTATE = { lb: [], ab: [], lt: [], at: [], flown: new Set(), durWg: 6, durArch: 3 };
+
+  function setupActors(b) {
+    WSTATE.flown = new Set();
+    const lc = callA.querySelector('.txt'), la = ansA.querySelector('.txt');
+    lc.innerHTML = ''; la.innerHTML = '';
+    WSTATE.lb = []; WSTATE.ab = [];
+    if (!b) return;
+
+    const turns = b.turns_1983 || [];
+    const fulcrum = turns.find(t => t.is_fulcrum) || turns[0] || { speaker: b.who || '1983', text: b.text };
+    const tk = curTake(b);
+
+    const callSpk = (turns.length > 1)
+      ? turns.map(t => t.speaker).filter((v, i, a) => a.indexOf(v) === i).join(' ↔ ')
+      : (fulcrum.speaker || b.who || '1983');
+    callA.querySelector('.nm').textContent = `WARGAMES 1983 · ${callSpk}`;
+    callA.querySelector('.src').textContent = `${b.id} · ${Math.round(b.f0_median || 120)} Hz · ${b.lufs ?? -21} LUFS`;
+
+    const archTitle = tk.title || 'Archival Film';
+    const archYear = tk.year ? `, ${tk.year}` : '';
+    ansA.querySelector('.nm').textContent = mode === 'cast' ? 'THE ARCHIVE CAST ANSWERS' : `THE ARCHIVE ANSWERS · TAKE ${tk.take_num || 1}`;
+    ansA.querySelector('.src').textContent = `· ${archTitle}${archYear} · ${Math.round(tk.f0 || 125)} Hz`;
+
+    const callWords = (b.words && b.words.length)
+      ? b.words.map(w => ({ text: w.w, s: w.s, e: w.e, st: stemOf(w.w) }))
+      : (b.text || '').split(/\s+/).filter(Boolean).map((w, i, arr) => ({
+          text: w,
+          s: (i / arr.length) * (b.e || 6),
+          e: ((i + 1) / arr.length) * (b.e || 6),
+          st: stemOf(w)
+        }));
+
+    const ansText = mode === 'cast' && (b.two_station_frags || []).length
+      ? b.two_station_frags.map(f => f.spoken).join(' ')
+      : (tk.spoken || (b.arch_frags && b.arch_frags[0] && b.arch_frags[0].spoken) || '');
+    const ansWordsRaw = ansText.split(/\s+/).filter(Boolean);
+
+    const callStems = new Set(callWords.map(w => w.st).filter(s => s.length > 2 && !STOPW.has(s)));
+    const sharedStems = new Set(ansWordsRaw.map(stemOf).filter(s => s.length > 2 && !STOPW.has(s) && callStems.has(s)));
+
+    callWords.forEach((w, k) => {
+      const el = document.createElement('b');
+      el.textContent = w.text;
+      el._st = w.st;
+      if (sharedStems.has(w.st)) el.className = 'h';
+      el.onclick = e => {
+        e.stopPropagation();
+        audWg.currentTime = Math.max(0, w.s);
+        vWg[wgLayer].currentTime = Math.max(0, w.s);
+        if (!playing) startPlay();
+      };
+      lc.append(el, ' ');
+      WSTATE.lb.push(el);
+    });
+    WSTATE.lt = callWords.map(w => w.s);
+    WSTATE.durWg = Math.max(1.5, b.e || 6);
+
+    const archDur = Math.max(1.2, tk.dur || b.aligned_spec?.dur || 3.0);
+    WSTATE.durArch = archDur;
+    const ansTimes = spread(ansWordsRaw, 0.05, Math.max(0.4, archDur - 0.2));
+    ansWordsRaw.forEach((w, k) => {
+      const el = document.createElement('b');
+      const st = stemOf(w);
+      el.textContent = w;
+      el._st = st;
+      el._h = sharedStems.has(st);
+      if (el._h) el.className = 'h';
+      la.append(el, ' ');
+      WSTATE.ab.push(el);
+    });
+    WSTATE.at = ansTimes;
+  }
+
+  function fly(from, to) {
+    const a = from.getBoundingClientRect(), b = to.getBoundingClientRect();
+    if (!a.width || !b.width) return;
+    const f = document.createElement('span');
+    f.className = 'fly';
+    f.textContent = to.textContent;
+    f.style.left = a.left + 'px';
+    f.style.top = a.top + 'px';
+    document.body.append(f);
+    const sx = a.width / Math.max(1, f.getBoundingClientRect().width);
+    f.animate([
+      { transform: `scale(${sx})`, opacity: .3 },
+      { transform: `translate(${(b.left - a.left) * .5}px, ${(b.top - a.top) * .5 - 24}px) scale(1.12)`, opacity: 1, offset: .55 },
+      { transform: `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(1)`, opacity: 0 }
+    ], { duration: 1050, easing: 'cubic-bezier(.3,.7,.2,1)' }).onfinish = () => f.remove();
+  }
+
+  /* ---- DRAW THE VOICES STRIP (white/ivory for 1983, gold for the archive answer) */
+  function drawVoicesCanvas() {
+    const w = cv.width, h = cv.height;
+    cx.clearRect(0, 0, w, h);
+    const b = curBeat();
+    if (!b || !w) return;
+
+    const dWg = WSTATE.durWg, dArch = (mode === 'call') ? WSTATE.durArch : 0;
+    const tot = dWg + (mode === 'call' ? 0.35 + dArch : 0);
+    const curT = (phase === 'arch' && mode === 'call')
+      ? dWg + 0.35 + (audArch.currentTime - ( (takeIdx === 1 || takeIdx === 2 || mode === 'take2' || mode === 'take3') ? (curTake(b).t0 || 0) : 0 ))
+      : audWg.currentTime;
+
+    const nBars = 96;
+    const bw = Math.max(1.5 * DPR, (w / nBars) - 1.5 * DPR);
+    const rms = b.rms || [];
+
+    for (let k = 0; k < nBars; k++) {
+      const t = (k / nBars) * tot;
+      let isArch = false, amp = 0.15;
+      if (mode === 'call') {
+        if (t <= dWg) {
+          const rIdx = Math.min(rms.length - 1, Math.floor((t / dWg) * rms.length));
+          amp = rms.length ? Math.min(1, (rms[rIdx] || 0.1) / 1.2) : 0.35;
+        } else if (t >= dWg + 0.35) {
+          isArch = true;
+          const archRel = (t - dWg - 0.35) / Math.max(0.5, dArch);
+          amp = 0.3 + 0.55 * Math.sin(archRel * Math.PI) * (0.7 + 0.3 * Math.sin(k * 1.7));
+        } else {
+          amp = 0.06;
+        }
+      } else {
+        isArch = (mode !== 'film');
+        const rIdx = Math.min(rms.length - 1, Math.floor((k / nBars) * rms.length));
+        amp = rms.length ? Math.min(1, (rms[rIdx] || 0.15) / 1.2) : 0.4;
+      }
+
+      const bh = Math.max(2 * DPR, amp * h * 0.88);
+      const x = (k / nBars) * w;
+      cx.globalAlpha = t <= curT ? 0.95 : 0.32;
+      cx.fillStyle = isArch ? '#e8c070' : '#efe9dd';
+      cx.fillRect(x, (h - bh) / 2, bw, bh);
+    }
+
+    const px = Math.max(0, Math.min(w - 2, (curT / Math.max(0.5, tot)) * w));
+    cx.globalAlpha = 1;
+    cx.fillStyle = '#ffffff';
+    cx.fillRect(px, 0, Math.max(1.5, DPR * 1.5), h);
+  }
+
+  /* ---- SCREENPLAY & TAKES SPINE (Right Column) */
+  function renderScriptSpine(b) {
+    if (!b) return;
+    $('#sname').textContent = `BOOK ${ROMAN[b.book_num]} · ${b.book_title}`;
+    $('#tc').textContent = `${mmss(b.a0)} – ${mmss(b.a1)}`;
+    $('#scBookLbl').textContent = `BOOK ${b.book_bnum || ROMAN[b.book_num]} · ${b.id}`;
+    $('#scSynopsis').textContent = BOOK_PROLOGUES[b.book_num] || b.screenplay_summary || b.text;
+
+    const turns = b.turns_1983 || [];
+    $('#turnCountLbl').textContent = `${turns.length} TURN${turns.length === 1 ? '' : 'S'}`;
+    const tList = $('#turnList');
+    tList.innerHTML = turns.map((tr, ti) => {
+      const ak = tr.arch_take || {};
+      return `
+        <div class="p-turn ${tr.is_fulcrum ? 'fulcrum' : ''}" id="spTurn_${ti}" data-ti="${ti}">
+          <div class="who">
+            <span style="color:${tr.speaker_color || 'var(--ink)'}">${esc(tr.speaker)}</span>
+            <i>${tr.is_fulcrum ? 'THE LINE' : esc(tr.role)}</i>
+          </div>
+          <div class="ln">“${esc(tr.text)}”</div>
+          ${ak.spoken ? `<div class="ans">→ “${esc(ak.spoken)}”</div><div class="src">${esc(ak.title || 'Archive')}${ak.year ? ', ' + ak.year : ''} · ${Math.round(ak.f0 || 120)} Hz</div>` : ''}
+        </div>
+      `;
+    }).join('');
+
+    tList.querySelectorAll('.p-turn').forEach(el => {
+      el.onclick = () => {
+        const tr = turns[+el.dataset.ti];
+        if (!tr) return;
+        phase = 'wg';
+        stage.classList.remove('pair', 'answer');
+        audWg.currentTime = Math.max(0, tr.s);
+        vWg[wgLayer].currentTime = Math.max(0, tr.s);
+        if (!playing) startPlay();
+      };
+    });
+
+    const takes = b.takes || [];
+    const activeTkIdx = mode === 'take2' ? 1 : mode === 'take3' ? 2 : takeIdx;
+    const tkList = $('#takesList');
+    tkList.innerHTML = takes.map((tk, idx) => `
+      <button class="take-card ${idx === activeTkIdx ? 'on' : ''}" data-tk="${idx}">
+        <img src="${esc(tk.thumb || b.picture?.wg_shot?.thumb || '')}" alt="">
+        <div>
+          <div class="tk-hd">TAKE ${ROMAN[tk.take_num || (idx + 1)]}${tk.chosen ? ' · THE LINE' : ''}</div>
+          <div class="tk-line">“${esc(tk.spoken || '')}”</div>
+          <div class="tk-meta">${esc(tk.title || 'Archive')}${tk.year ? ' (' + tk.year + ')' : ''} · ${(tk.dur || 2.5).toFixed(1)}s · ${Math.round(tk.f0 || 120)} Hz</div>
+        </div>
+      </button>
+    `).join('');
+
+    tkList.querySelectorAll('.take-card').forEach(btn => {
+      btn.onclick = () => {
+        takeIdx = +btn.dataset.tk;
+        if (mode === 'take2' || mode === 'take3') mode = 'call';
+        syncDialUI();
+        setupActors(b);
+        renderScriptSpine(b);
+        const tk = curTake(b);
+        showArchVideo(tk.video || b.picture?.arch_shot?.video, tk.clip_t0 ?? tk.t0 ?? 0, tk.thumb);
+        triggerArchiveAnswer();
+      };
+    });
+
+    const wgShot = b.picture?.wg_shot || {};
+    $('#shotIdLbl').textContent = wgShot.id || '';
+    $('#stripImg').src = wgShot.strip || '';
+    $('#stripNote').textContent = wgShot.sign_note || b.foley_cue || '';
+  }
+
+  /* ---- GRID VIEW: a seat for the 1983 scene, each speaker turn, and the 3 takes (from markov-found-odyssey.html) */
+  function fitGrid(n, x, y, W, H, gap) {
+    let best = { w: 0, c: 1, r: n };
+    for (let c = 1; c <= n; c++) {
+      const r = Math.ceil(n / c);
+      const w = Math.min((W - gap * (c - 1)) / c, ((H - gap * (r - 1)) / r) * 4 / 3);
+      if (w > best.w) best = { w, c, r };
+    }
+    const w = best.w, h = w * 3 / 4, out = [];
+    for (let k = 0; k < n; k++) {
+      const row = Math.floor(k / best.c), inRow = Math.min(best.c, n - row * best.c), col = k % best.c;
+      const ox = x + (W - (inRow * w + (inRow - 1) * gap)) / 2, oy = y + (H - (best.r * h + (best.r - 1) * gap)) / 2;
+      out.push({ x: ox + col * (w + gap), y: oy + row * (h + gap), w, h });
+    }
+    return out;
+  }
+
+  function buildGrid(b) {
+    const G = $('#grid');
+    G.innerHTML = '';
+    if (!b || view !== 'grid') return;
+
+    const a0 = b.a0 ?? 0, a1 = b.a1 ?? (a0 + (b.e || 8));
+    // 1. 1983 Master Tile
+    const tWg = document.createElement('div');
+    tWg.className = 'tile live';
+    tWg.id = 'gTileWg';
+    tWg.innerHTML = `<video muted playsinline loop preload="auto" src="/api/wargames/slice?start=${a0}&end=${a1}" poster="${esc(b.picture?.wg_shot?.thumb || '')}"></video>
+      <span class="tag">1983 FILM · ${esc(b.id)}</span>
+      <div class="nm"><span>${esc(b.who || 'WarGames')} <i>· ${mmss(a0)}</i></span></div>`;
+    tWg.onclick = () => { phase = 'wg'; startPlay(); };
+    G.append(tWg);
+
+    // 2. Character Seats from turns_1983
+    (b.turns_1983 || []).forEach((tr, ti) => {
+      const ak = tr.arch_take || curTake(b);
+      const d = document.createElement('div');
+      d.className = 'tile seat';
+      d.id = 'gTileTurn_' + ti;
+      const vUrl = ak.video || b.picture?.arch_shot?.video || '';
+      d.innerHTML = `<video muted playsinline loop preload="auto" src="${esc(vUrl)}#t=${(ak.t0 || 0).toFixed(1)}" poster="${esc(ak.thumb || '')}"></video>
+        <span class="tag">${tr.is_fulcrum ? 'THE LINE' : esc(tr.role)}</span>
+        <div class="nm"><span>${esc(tr.speaker)} <i>· ${esc(ak.title || 'Archive')}</i></span></div>`;
+      d.onclick = () => {
+        audWg.currentTime = Math.max(0, tr.s);
+        if (!playing) startPlay();
+      };
+      G.append(d);
+    });
+
+    // 3. The 3 Takes
+    (b.takes || []).forEach((tk, idx) => {
+      const d = document.createElement('div');
+      d.className = 'tile take-tile';
+      d.id = 'gTileTake_' + idx;
+      const vUrl = tk.video || b.picture?.arch_shot?.video || '';
+      const inT = tk.clip_t0 ?? tk.t0 ?? 0;
+      d.innerHTML = `<video muted playsinline loop preload="auto" src="${esc(vUrl)}#t=${inT.toFixed(1)}" poster="${esc(tk.thumb || '')}"></video>
+        <span class="tag">TAKE ${ROMAN[idx + 1]}${tk.chosen ? ' · CHOSEN' : ''}</span>
+        <div class="nm"><span>“${esc((tk.spoken || '').slice(0, 38))}” <i>· ${esc(tk.title || '')}</i></span></div>`;
+      d.onclick = () => {
+        takeIdx = idx;
+        setupActors(b);
+        renderScriptSpine(b);
+        triggerArchiveAnswer();
+      };
+      G.append(d);
+    });
+
+    layoutGrid();
+    if (playing) G.querySelectorAll('video').forEach(v => v.play().catch(() => {}));
+  }
+
+  function layoutGrid() {
+    const G = $('#grid'), tiles = [...G.children];
+    if (!tiles.length) return;
+    const W = G.clientWidth, H = G.clientHeight, gap = 8, pad = 10;
+    const rects = fitGrid(tiles.length, pad, pad + 28, W - 2 * pad, H - 2 * pad - 28, gap);
+    tiles.forEach((t, k) => {
+      const r = rects[k];
+      if (!r) return;
+      Object.assign(t.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' });
+    });
+  }
+
+  /* ---- BOOK TITLE CARD */
+  function showBookCard(b, holdMs = 2400) {
+    const c = $('#card');
+    c.querySelector('.bn').textContent = `BOOK ${b.book_bnum || ROMAN[b.book_num]}`;
+    c.querySelector('.bt').textContent = b.book_title;
+    c.querySelector('.st').textContent = `${b.id} · ${(b.scene_speakers || [b.who]).join(' ↔ ')}`;
+    c.querySelector('.cd').textContent = BOOK_PROLOGUES[b.book_num] || b.screenplay_summary || '';
+    c.classList.add('on');
+    clearTimeout(cardTimer);
+    cardTimer = setTimeout(() => c.classList.remove('on'), holdMs);
+  }
+
+  /* ---- LOAD BEAT */
+  function loadBeat(idx, autoPlay = playing) {
+    if (!BEATS.length) return;
+    bi = (idx + BEATS.length) % BEATS.length;
+    const b = curBeat();
+    $('#scene').value = String(bi);
+    $('#where').textContent = `BOOK ${b.book_bnum || ROMAN[b.book_num]} · ${b.book_title} · ${b.id}`;
+    $('#prog').textContent = `scene ${bi + 1} of ${BEATS.length} · ${b.id}`;
+
+    // Highlight active book on the 21-book radio dial
+    document.querySelectorAll('#bookDial button').forEach(btn => {
+      btn.classList.toggle('on', +btn.dataset.b === b.book_num);
+    });
+
+    // Show book title card when entering a new book if stranger guide is on
+    if (stranger && b.book_num !== lastBookNum) {
+      lastBookNum = b.book_num;
+      showBookCard(b, 2600);
+    } else {
+      $('#card').classList.remove('on');
+    }
+
+    const a0 = b.a0 ?? 0, a1 = b.a1 ?? (a0 + (b.e || 8));
+    const wgClipFallback = `clips/${b.picture?.wg_shot?.id || 'wg_001'}.mp4`;
+    showWgVideo(`/api/wargames/slice?start=${a0}&end=${a1}`, 0, b.picture?.wg_shot?.thumb || '', wgClipFallback);
+    audWg.src = b.orig_file || `/api/wargames/splice_audio?beat=${b.id}&mode=orig`;
+
+    const tk = curTake(b);
+    const archVidUrl = tk.video || b.picture?.arch_shot?.video || '';
+    showArchVideo(archVidUrl, tk.clip_t0 ?? tk.t0 ?? 0, tk.thumb || b.picture?.arch_shot?.thumb || '');
+
+    prepareArchAudio(b);
+    setupActors(b);
+    renderScriptSpine(b);
+    if (view === 'grid') buildGrid(b);
+
+    phase = 'wg';
+    if (!manualXfade) {
+      stage.classList.remove('pair', 'answer');
+    }
+
+    if (autoPlay) startPlay();
+    else {
+      stopPlay(false);
+      drawVoicesCanvas();
+    }
+    pushVjState();
+  }
+
+  function prepareArchAudio(b) {
+    const tk = curTake(b);
+    if (mode === 'cast') {
+      audArch.src = b.tight_file || `/api/wargames/splice_audio?beat=${b.id}&mode=tight`;
+      audArch.dataset.slice = '';
+    } else if (mode === 'take2' || mode === 'take3' || takeIdx === 1 || takeIdx === 2) {
+      audArch.src = tk.audio_url || tk.video || b.aligned_file;
+      audArch.dataset.slice = '1';
+      audArch.dataset.t0 = String(tk.t0 || 0);
+      audArch.dataset.t1 = String(tk.t1 || ((tk.t0 || 0) + (tk.dur || 3)));
+    } else {
+      audArch.src = b.aligned_file || `/api/wargames/splice_audio?beat=${b.id}&mode=aligned`;
+      audArch.dataset.slice = '';
+    }
+  }
+
+  /* ---- PLAYBACK ENGINE */
+  function startPlay() {
+    playing = true;
+    $('#bPlay').innerHTML = '<svg><use href="#i-pause"/></svg>';
+    const b = curBeat();
+    if (!b) return;
+    prepareArchAudio(b);
+
+    if (mode === 'line' || mode === 'take2' || mode === 'take3' || mode === 'cast') {
+      triggerArchiveAnswer();
+      return;
+    }
+
+    // 'call' or 'film': start with 1983 scene
+    phase = 'wg';
+    if (!manualXfade) {
+      stage.classList.remove('pair', 'answer');
+    }
+    audArch.pause();
+    audWg.volume = manualXfade ? Math.min(1, (1 - xfader) * 1.3) : 1.0;
+    vWg[wgLayer].play().catch(() => {});
+    audWg.play().catch(() => {});
+    if (mode === 'film' || view === 'split' || manualXfade) {
+      vArch[archLayer].play().catch(() => {});
+    }
+    if (view === 'grid') $('#grid').querySelectorAll('video').forEach(v => v.play().catch(() => {}));
+  }
+
+  function triggerArchiveAnswer() {
+    const b = curBeat();
+    if (!b) return;
+    playing = true;
+    $('#bPlay').innerHTML = '<svg><use href="#i-pause"/></svg>';
+    phase = 'arch';
+    stage.classList.add('pair', 'answer');
+
+    audWg.pause();
+    vWg[wgLayer].play().catch(() => {});
+
+    const tk = curTake(b);
+    const vIn = tk.clip_t0 ?? tk.t0 ?? 0;
+    try { vArch[archLayer].currentTime = vIn; } catch (e) {}
+    vArch[archLayer].play().catch(() => {});
+
+    if (audArch.dataset.slice === '1') {
+      const a0 = parseFloat(audArch.dataset.t0 || '0');
+      const startSlice = () => {
+        try { audArch.currentTime = a0; } catch (e) {}
+        audArch.volume = 1.0;
+        audArch.play().catch(() => {});
+      };
+      if (audArch.readyState >= 1) startSlice();
+      else audArch.addEventListener('loadedmetadata', startSlice, { once: true });
+    } else {
+      try { audArch.currentTime = 0; } catch (e) {}
+      audArch.volume = 1.0;
+      audArch.play().catch(() => {});
+    }
+  }
+
+  function stopPlay(updateServer = true) {
+    playing = false;
+    $('#bPlay').innerHTML = '<svg><use href="#i-play"/></svg>';
+    audWg.pause();
+    audArch.pause();
+    vWg.forEach(v => v.pause());
+    vArch.forEach(v => v.pause());
+    if (view === 'grid') $('#grid').querySelectorAll('video').forEach(v => v.pause());
+    if (updateServer) pushVjState();
+  }
+
+  /* ---- 60FPS ANIMATION TICK: words, voices strip, speaker turns, and shared-word flight */
+  function tick() {
+    requestAnimationFrame(tick);
+    const b = curBeat();
+    if (!b) return;
+
+    if (phase === 'wg') {
+      const t = audWg.currentTime;
+      // Keep 1983 video in step with normalized 1983 audio
+      const vw = vWg[wgLayer];
+      if (!audWg.paused && vw && vw.readyState >= 2 && !vw.seeking && Math.abs(vw.currentTime - t) > 0.35) {
+        try { vw.currentTime = t; } catch (e) {}
+      }
+
+      // Light 1983 words as spoken
+      let nowIdx = -1;
+      WSTATE.lb.forEach((wEl, k) => {
+        const said = t >= (WSTATE.lt[k] || 0);
+        wEl.classList.toggle('s', said);
+        if (said) nowIdx = k;
+      });
+      WSTATE.lb.forEach((wEl, k) => {
+        wEl.classList.toggle('now', k === nowIdx && !audWg.paused);
+        wEl.classList.remove('e');
+      });
+
+      // Highlight active 1983 speaker turn in script spine & update speaker header
+      const turns = b.turns_1983 || [];
+      let actTurn = -1;
+      for (let i = 0; i < turns.length; i++) {
+        if (t >= turns[i].s - 0.15 && t <= turns[i].e + 0.25) { actTurn = i; break; }
+      }
+      turns.forEach((tr, i) => {
+        const row = document.getElementById('spTurn_' + i);
+        if (row) row.classList.toggle('on', i === actTurn);
+        const gTile = document.getElementById('gTileTurn_' + i);
+        if (gTile) gTile.classList.toggle('live', i === actTurn);
+      });
+      if (actTurn >= 0) {
+        const tr = turns[actTurn];
+        callA.querySelector('.nm').textContent = `WARGAMES 1983 · ${tr.speaker}`;
+        callA.querySelector('.src').textContent = `${tr.is_fulcrum ? 'THE LINE · ' : ''}${Math.round(tr.f0 || 120)} Hz`;
+      }
+
+      callA.classList.toggle('speaking', !audWg.paused);
+      ansA.classList.remove('speaking');
+    } else if (phase === 'arch') {
+      const a0 = audArch.dataset.slice === '1' ? parseFloat(audArch.dataset.t0 || '0') : 0;
+      const t = Math.max(0, audArch.currentTime - a0);
+
+      // Stop sliced takes cleanly at t1
+      if (audArch.dataset.slice === '1') {
+        const a1 = parseFloat(audArch.dataset.t1 || '999');
+        if (audArch.currentTime >= a1) {
+          audArch.pause();
+          onArchEnded();
+          return;
+        }
+      }
+
+      // Light archive words & fly shared words from 1983 line into archive answer!
+      let echoStem = null;
+      WSTATE.ab.forEach((wEl, k) => {
+        const on = t >= (WSTATE.at[k] || 0);
+        wEl.classList.toggle('s', on);
+        if (on && wEl._h) {
+          if (t < (WSTATE.at[k] || 0) + 1.5) echoStem = wEl._st;
+          if (!WSTATE.flown.has(k)) {
+            WSTATE.flown.add(k);
+            const srcEl = WSTATE.lb.find(x => x._st === wEl._st);
+            if (srcEl && t < (WSTATE.at[k] || 0) + 0.5) fly(srcEl, wEl);
+          }
+        }
+      });
+      WSTATE.lb.forEach(wEl => wEl.classList.toggle('e', !!(echoStem && wEl._st === echoStem)));
+
+      callA.classList.remove('speaking');
+      ansA.classList.toggle('speaking', !audArch.paused);
+    }
+
+    drawVoicesCanvas();
+  }
+
+  function onArchEnded() {
+    if (!playing) return;
+    const waitMs = deliv === 'BREATH' ? 420 : 60;
+    setTimeout(() => {
+      if (playing) loadBeat(bi + 1, true);
+    }, waitMs);
+  }
+
+  audWg.addEventListener('ended', () => {
+    if (!playing) return;
+    if (mode === 'call') {
+      const waitMs = deliv === 'BREATH' ? 320 : 40;
+      setTimeout(() => { if (playing) triggerArchiveAnswer(); }, waitMs);
+    } else {
+      loadBeat(bi + 1, true);
+    }
+  });
+
+  audArch.addEventListener('ended', onArchEnded);
+
+  /* ---- POINTER SCRUBBING ON #VOICES CANVAS */
+  let draggingVoices = false;
+  cv.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    draggingVoices = true;
+    try { cv.setPointerCapture(e.pointerId); } catch (x) {}
+    scrubVoicesAt(e);
+  });
+  cv.addEventListener('pointermove', e => { if (draggingVoices) scrubVoicesAt(e); });
+  cv.addEventListener('pointerup', () => { draggingVoices = false; });
+
+  function scrubVoicesAt(e) {
+    const r = cv.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width)));
+    const dWg = WSTATE.durWg, dArch = mode === 'call' ? WSTATE.durArch : 0;
+    const tot = dWg + (mode === 'call' ? 0.35 + dArch : 0);
+    const want = pct * tot;
+    if (want <= dWg || mode === 'film') {
+      phase = 'wg';
+      stage.classList.remove('pair', 'answer');
+      audArch.pause();
+      audWg.currentTime = Math.min(dWg - 0.05, want);
+      vWg[wgLayer].currentTime = audWg.currentTime;
+      if (playing) audWg.play().catch(() => {});
+    } else {
+      triggerArchiveAnswer();
+    }
+  }
+
+  /* ---- UI CONTROLS & MODES */
+  function syncDialUI() {
+    document.querySelectorAll('#dial button').forEach(btn => {
+      btn.classList.toggle('on', btn.dataset.m === mode);
+    });
+  }
+
+  document.querySelectorAll('#dial button').forEach(btn => {
+    btn.onclick = () => {
+      mode = btn.dataset.m;
+      if (mode === 'take2') takeIdx = 1;
+      else if (mode === 'take3') takeIdx = 2;
+      else if (mode === 'line' || mode === 'call') takeIdx = 0;
+      syncDialUI();
+      const b = curBeat();
+      if (b) {
+        setupActors(b);
+        renderScriptSpine(b);
+        if (playing) startPlay();
+      }
+      pushVjState();
+    };
+  });
+
+  function setView(v) {
+    view = v;
+    document.body.classList.toggle('splitv', v === 'split');
+    document.body.classList.toggle('gridv', v === 'grid');
+    $('#vStageBtn').classList.toggle('on', v === 'stage');
+    $('#vSplitBtn').classList.toggle('on', v === 'split');
+    $('#vGridBtn').classList.toggle('on', v === 'grid');
+    if (v === 'grid') buildGrid(curBeat());
+    pushVjState();
+  }
+
+  $('#vStageBtn').onclick = () => setView('stage');
+  $('#vSplitBtn').onclick = () => setView('split');
+  $('#vGridBtn').onclick = () => setView('grid');
+
+  $('#vScriptBtn').onclick = () => {
+    if (innerWidth <= 960) {
+      document.body.classList.toggle('show-mobile-script');
+      $('#vScriptBtn').classList.toggle('on', document.body.classList.contains('show-mobile-script'));
+    } else {
+      document.body.classList.toggle('noscript');
+      $('#vScriptBtn').classList.toggle('on', !document.body.classList.contains('noscript'));
+    }
+    setTimeout(() => { sizeCanvas(); if (view === 'grid') layoutGrid(); }, 50);
+  };
+
+  $('#bPlay').onclick = () => playing ? stopPlay() : startPlay();
+  $('#bPrev').onclick = () => loadBeat(bi - 1, playing);
+  $('#bNext').onclick = () => loadBeat(bi + 1, playing);
+  $('#scene').onchange = e => loadBeat(+e.target.value, playing);
+
+  $('#xfader').oninput = e => {
+    xfader = +e.target.value / 100;
+    manualXfade = true;
+    const edgePct = Math.round(135 - xfader * 135);
+    stage.style.setProperty('--edge', edgePct + '%');
+    stage.style.setProperty('--mix', String(Math.min(1, xfader * 1.4)));
+    audWg.volume = Math.min(1, (1 - xfader) * 1.3);
+    audArch.volume = Math.min(1, xfader * 1.3);
+    pushVjState();
+  };
+
+  const DELIVS = ['BREATH', 'JOINED', 'CUT'];
+  $('#delivBtn').onclick = () => {
+    deliv = DELIVS[(DELIVS.indexOf(deliv) + 1) % DELIVS.length];
+    $('#delivBtn').textContent = deliv;
+  };
+
+  $('#strangerBtn').onclick = () => {
+    stranger = !stranger;
+    $('#strangerBtn').classList.toggle('on', stranger);
+    if (stranger && curBeat()) showBookCard(curBeat(), 2800);
+  };
+
+  $('#fitBtn').onclick = () => {
+    const fill = document.body.classList.toggle('fill');
+    $('#fitBtn').textContent = fill ? 'FIT · FILL' : 'FIT · WHOLE';
+  };
+
+  $('#cardBtn').onclick = () => {
+    if (curBeat()) showBookCard(curBeat(), 3500);
+  };
+
+  $('#thBtn').onclick = () => {
+    const on = document.body.classList.toggle('theatre');
+    $('#thBtn').textContent = on ? 'EXIT THEATRE' : 'THEATRE';
+    sizeCanvas();
+  };
+
+  stage.addEventListener('pointermove', () => {
+    document.body.classList.remove('calm');
+    clearTimeout(calmTimer);
+    if (document.body.classList.contains('theatre')) {
+      calmTimer = setTimeout(() => document.body.classList.add('calm'), 2600);
+    }
+  });
+
+  /* ---- BOOKS GALLERY OVERLAY (#pause) */
+  function openBooksOverlay() {
+    const b = curBeat();
+    const curBook = BOOKS.find(x => x.n === (b && b.book_num)) || BOOKS[0];
+    $('#pw').textContent = curBook ? `BOOK ${curBook.bnum || ROMAN[curBook.n]} · ${curBook.title}` : '';
+    const scs = $('#scs');
+    scs.innerHTML = '';
+    if (curBook) {
+      curBook.beatIndices.forEach((bIdx, k) => {
+        const bt = BEATS[bIdx];
+        const btn = document.createElement('button');
+        btn.className = bIdx === bi ? 'on' : '';
+        btn.textContent = `${bt.id} · ${(bt.scene_speakers || [bt.who]).join(' ↔ ')}`;
+        btn.onclick = () => { $('#pause').classList.remove('on'); loadBeat(bIdx, true); };
+        scs.append(btn);
+      });
+    }
+    const pb = $('#pbooks');
+    pb.innerHTML = '';
+    BOOKS.forEach(bk => {
+      const d = document.createElement('div');
+      d.className = 'bk' + (curBook && bk.n === curBook.n ? ' on' : '');
+      if (bk.thumb) d.style.backgroundImage = `url("${bk.thumb}")`;
+      d.innerHTML = `<div><small>BOOK ${esc(bk.bnum || ROMAN[bk.n])}</small><span>${esc(bk.title)}</span><em>${bk.beatIndices.length} scenes · ${Math.round(bk.dur)}s</em></div>`;
+      d.onclick = () => { $('#pause').classList.remove('on'); loadBeat(bk.beatIndices[0], true); };
+      pb.append(d);
+    });
+    $('#pause').classList.add('on');
+  }
+
+  $('#booksBtn').onclick = openBooksOverlay;
+  $('#goBtn').onclick = () => $('#pause').classList.remove('on');
+
+  /* ---- PHONE REMOTE & AIRPLAY MODAL */
+  function openRemoteModal() {
+    const url = `http://${lanIp}:${lanPort}/lab/vj-wargames.html?role=remote`;
+    $('#rmUrl').textContent = url;
+    $('#openRemoteTabBtn').href = url;
+    const qb = $('#qrBox');
+    qb.innerHTML = '';
+    if (window.QRCode) {
+      try { new QRCode(qb, { text: url, width: 168, height: 168, colorDark: '#050505', colorLight: '#efe9dd' }); } catch (e) {}
+    }
+    $('#remoteModal').classList.add('on');
+  }
+
+  $('#vRemoteBtn').onclick = openRemoteModal;
+  $('#closeRemoteBtn').onclick = () => $('#remoteModal').classList.remove('on');
+  $('#remoteModal').onclick = e => { if (e.target.id === 'remoteModal') $('#remoteModal').classList.remove('on'); };
+  $('#castAirplayBtn').onclick = () => {
+    const v = vWg[wgLayer];
+    if (v.webkitShowPlaybackTargetPicker) v.webkitShowPlaybackTargetPicker();
+    else if (v.remote && v.remote.prompt) v.remote.prompt().catch(() => {});
+    else {
+      $('#remoteModal').classList.remove('on');
+      document.body.classList.add('theatre');
+      if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+    }
+  };
+
+  /* ---- MPUI MENU (#bMore) */
+  $('#bMore').onclick = () => MPUI.menu($('#bMore'), [
+    { title: 'STAGE', items: [
+      { icon: 'full', label: 'Theatre mode', hint: 'full screen, chrome hides when still', on: () => document.body.classList.contains('theatre'), act: () => { $('#thBtn').click(); } },
+      { icon: 'grid', label: 'Call grid', hint: 'a seat for every speaker in the scene', on: () => view === 'grid', act: () => { setView(view === 'grid' ? 'stage' : 'grid'); } },
+      { icon: 'wall', label: 'Side by side', hint: '1983 on the left, archive on the right', on: () => view === 'split', act: () => { setView(view === 'split' ? 'stage' : 'split'); } }
+    ]},
+    { title: 'READING', items: [
+      { icon: 'book', label: 'For a stranger', hint: 'plain-English story cards for each book', on: () => stranger, state: () => stranger ? 'ON' : 'OFF', act: () => { $('#strangerBtn').click(); return true; } },
+      { icon: 'info', label: 'Screenplay spine', hint: 'who said what in 1983 & three takes', on: () => !document.body.classList.contains('noscript'), act: () => { $('#vScriptBtn').click(); } }
+    ]},
+    { title: 'INSTRUMENTS', items: [
+      { icon: 'voice', label: 'Sound Bench · Bumblebee Dilemma', hint: '16-band HPSS spectrogram & word weights', act: () => location.href = 'bumblebee-dilemma.html' },
+      { icon: 'send', label: 'Phone VJ Remote & TV Stage', hint: 'two-screen Wi-Fi controller', act: () => openRemoteModal() },
+      { icon: 'home', label: 'Cineosis Lab', act: () => location.href = 'index.html' }
+    ]}
+  ]);
+
+  /* ---- LAN SYNC (/api/vj/state) SO PHONE TUNES THIS SCREEN LIVE */
+  async function pushVjState() {
+    try {
+      const b = curBeat();
+      const res = await fetch('/api/vj/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          beat_idx: bi,
+          beat_id: b ? b.id : 'S01-B01',
+          playing,
+          cinema_mode: mode,
+          crossfader: xfader,
+          take_idx: takeIdx
+        })
+      });
+      const st = await res.json();
+      if (st.seq) syncSeq = st.seq;
+      if (st.lan_ip) lanIp = st.lan_ip;
+      if (st.port) lanPort = st.port;
+    } catch (e) {}
+  }
+
+  setInterval(async () => {
+    try {
+      const res = await fetch('/api/vj/state');
+      const st = await res.json();
+      if (st.lan_ip) lanIp = st.lan_ip;
+      if (st.port) lanPort = st.port;
+      if (!st.seq || st.seq <= syncSeq) return;
+      syncSeq = st.seq;
+      if (typeof st.beat_idx === 'number' && st.beat_idx !== bi) loadBeat(st.beat_idx, !!st.playing);
+      if (typeof st.take_idx === 'number' && st.take_idx !== takeIdx) {
+        takeIdx = Math.min(2, Math.max(0, st.take_idx));
+        if (curBeat()) { setupActors(curBeat()); renderScriptSpine(curBeat()); }
+      }
+      if (typeof st.crossfader === 'number' && Math.abs(st.crossfader - xfader) > 0.025) {
+        xfader = st.crossfader;
+        manualXfade = true;
+        $('#xfader').value = String(Math.round(xfader * 100));
+        const edgePct = Math.round(135 - xfader * 135);
+        stage.style.setProperty('--edge', edgePct + '%');
+        stage.style.setProperty('--mix', String(Math.min(1, xfader * 1.4)));
+        audWg.volume = Math.min(1, (1 - xfader) * 1.3);
+        audArch.volume = Math.min(1, xfader * 1.3);
+      }
+      if (typeof st.playing === 'boolean' && st.playing !== playing) {
+        if (st.playing) startPlay(); else stopPlay(false);
+      }
+    } catch (e) {}
+  }, 400);
+
+  /* ---- KEYBOARD SHORTCUTS */
+  addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.key === ' ') { e.preventDefault(); $('#bPlay').click(); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); loadBeat(bi + 1, playing); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); loadBeat(bi - 1, playing); }
+    else if (e.key === 'b' || e.key === 'B') { $('#pause').classList.toggle('on'); if ($('#pause').classList.contains('on')) openBooksOverlay(); }
+    else if (e.key === 't' || e.key === 'T') $('#thBtn').click();
+    else if (e.key === 'g' || e.key === 'G') setView(view === 'grid' ? 'stage' : 'grid');
+    else if (e.key === '1') { takeIdx = 0; if (curBeat()) { setupActors(curBeat()); renderScriptSpine(curBeat()); triggerArchiveAnswer(); } }
+    else if (e.key === '2') { takeIdx = 1; if (curBeat()) { setupActors(curBeat()); renderScriptSpine(curBeat()); triggerArchiveAnswer(); } }
+    else if (e.key === '3') { takeIdx = 2; if (curBeat()) { setupActors(curBeat()); renderScriptSpine(curBeat()); triggerArchiveAnswer(); } }
+  });
+
+  /* ---- BOOT */
+  fetch('wargames-sound-bench.json').then(r => r.json()).then(d => {
+    D = d;
+    BOOKS = [];
+    BEATS = [];
+    (d.books || []).forEach((bk, bIdx) => {
+      const n = bk.n || (bIdx + 1);
+      const bookObj = {
+        n,
+        bnum: bk.bnum || ROMAN[n],
+        title: bk.title || `Book ${ROMAN[n]}`,
+        dur: 0,
+        thumb: '',
+        beatIndices: []
+      };
+      (bk.lines || []).forEach(l => {
+        const flatIdx = BEATS.length;
+        bookObj.beatIndices.push(flatIdx);
+        bookObj.dur += (l.e || 8);
+        if (!bookObj.thumb && l.picture?.wg_shot?.thumb) bookObj.thumb = l.picture.wg_shot.thumb;
+        BEATS.push({
+          ...l,
+          book_num: n,
+          book_bnum: bookObj.bnum,
+          book_title: bookObj.title
+        });
+      });
+      BOOKS.push(bookObj);
+    });
+
+    // Populate scene select
+    const sel = $('#scene');
+    sel.innerHTML = BEATS.map((b, i) => {
+      const spk = (b.scene_speakers || [b.who]).join(' ↔ ');
+      return `<option value="${i}">Book ${ROMAN[b.book_num]} · ${b.id} · ${b.book_title} (${spk})</option>`;
+    }).join('');
+
+    // Populate 21-book radio dial
+    const bd = $('#bookDial');
+    bd.innerHTML = '';
+    BOOKS.forEach(bk => {
+      const btn = document.createElement('button');
+      btn.dataset.b = bk.n;
+      btn.title = `Book ${ROMAN[bk.n]} · ${bk.title}`;
+      btn.innerHTML = `<i></i><b>${ROMAN[bk.n]}</b>`;
+      btn.onclick = () => loadBeat(bk.beatIndices[0], playing);
+      bd.append(btn);
+    });
+
+    sizeCanvas();
+    loadBeat(0, false);
+    requestAnimationFrame(tick);
+  });
+})();
+</script>
+</body>
+</html>

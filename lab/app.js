@@ -112,7 +112,7 @@ async function loadData(silent) {
   // our films are collections too: every shot one of them uses (provenance.json), so a new film appears here by itself
   try { if (!PROV.d) PROV.d = await fetch('provenance.json').then(r => r.ok ? r.json() : {}); } catch (e) { PROV.d = {}; }
   const key = n => ({ 'The Odyssey': 'odyssey', 'The Republic': 'republic', 'Norse Half Moon': 'norse', 'Where You Go When You Leave': 'wygwyl' })[n] || n.toLowerCase().replace(/[^a-z]+/g, '');
-  L.colls = ['cineosis', 'wygwyl'];
+  L.colls = ['cineosis', 'wygwyl', 'wargames'];
   for (const [id, rows] of Object.entries((PROV.d && PROV.d.used) || {})) { const o = L.byId.get(id); if (!o) continue;
     for (const r of rows) { const k = key(r[0]); if (o._col === undefined) continue; if (!o._col.includes(k)) o._col = [...o._col, k]; if (!L.colls.includes(k)) L.colls.push(k); } }
   // re-attach live layer objects that are in the corpus
@@ -309,7 +309,7 @@ const Facets = {
     R.innerHTML = `
       <div class="fx-head"><span>FILTER</span><em>click to narrow the shots</em></div>
       <section class="fx" id="fx-col"><h3>Collection</h3><div class="seg fx-scope" id="fxCol">
-        <button data-v="both" title="every shot in the lab">both <i></i></button><button data-v="cineosis" title="the Cineosis 44 corpus: searched for the 45 signs">cineosis <i></i></button><button data-v="wygwyl" title="the WYGWYL Forage Suite: footage foraged for the film's 88 beats">wygwyl <i></i></button></div></section>
+        <button data-v="both" title="every shot in the lab">both <i></i></button><button data-v="cineosis" title="the Cineosis 44 corpus: searched for the 45 signs">cineosis <i></i></button><button data-v="wygwyl" title="the WYGWYL Forage Suite: footage foraged for the film's 88 beats">wygwyl <i></i></button><button data-v="wargames" title="WarGames (1983): 302 curated shots across 21 scenes and all 45 Peirce signs">wargames <i></i></button></div></section>
       <section class="fx" id="fx-signs">
         <h3>Sign</h3><div class="seg fx-scope" id="fxScope"><button data-v="corpus" title="read shots + everything each sign's searches surfaced">corpus</button><button data-v="read" title="only the shots the editor read">read only</button><button data-v="machine" title="machine-suggested: filter by the machine's top-3 sign affinity">machine top-3</button></div>
         <div class="ptable" id="ptable"></div>
@@ -3029,8 +3029,12 @@ const Shell = {
   Shell.init(); Shell.badge();
   Facets.build();
   parseQuery('');
+  const sp = new URLSearchParams(location.search);
+  if (sp.get('col') && L.colls.includes(sp.get('col'))) F.col = sp.get('col');
+  else if (sp.has('wargames')) F.col = 'wargames';
   compute(); Facets.update(); Shell.updateCount(); Shell.updateLiveBar();
-  const m = ({ wygwyl: 'wyg' })[location.hash.slice(1)] || location.hash.slice(1);
+  const h = sp.get('view') || location.hash.slice(1);
+  const m = ({ wygwyl: 'wyg' })[h] || h;
   Shell.setMode(MODES[m] ? m : 'wall');
   if (!Guide.seen()) Guide.show();
   // facet panel slides: re-layout grids once the transition ends

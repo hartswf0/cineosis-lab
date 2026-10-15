@@ -1,0 +1,1029 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>WOPR // SYSTEM-83 · Inferred Operating System of WarGames (1983)</title>
+<meta name="description" content="Every computer screen, terminal prompt, arcade ROM, acoustic wardialer, grade database, airline reservation terminal, radar projection, and launch-code lock in WarGames (1983), synthesized into an interactive operating system.">
+<meta name="theme-color" content="#040709">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #040709;
+  --panel: #080d12;
+  --panel-2: #0c141c;
+  --border: #182836;
+  --phos: #4af6c3;
+  --phos-dim: rgba(74, 246, 195, 0.16);
+  --amber: #f6c14a;
+  --red: #ff5c4d;
+  --cyan: #5ad2ff;
+  --ink: #dff7f0;
+  --dim: #73938a;
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font: 12px/1.45 var(--mono);
+  overflow: hidden;
+}
+button, input { font: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+
+/* CRT Scanline overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.14) 0px,
+    rgba(0, 0, 0, 0.14) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* TOP SYSTEM BUS BAR */
+#sysbar {
+  height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px;
+  background: #060a0e;
+  border-bottom: 1px solid var(--border);
+}
+.sys-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--phos);
+  text-shadow: 0 0 10px rgba(74, 246, 195, 0.45);
+  white-space: nowrap;
+}
+.sys-brand .led {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--phos);
+  box-shadow: 0 0 10px var(--phos);
+}
+.defcon-strip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: #0a1017;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.defcon-strip span {
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+  margin-right: 4px;
+}
+.def-pill {
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 10px;
+  border: 1px solid #1d2d3a;
+  color: #556c65;
+  background: transparent;
+  cursor: pointer;
+}
+.def-pill.on[data-d="5"] { background: #1c5e3c; color: #7fffb8; border-color: #4af6c3; }
+.def-pill.on[data-d="4"] { background: #1e4d6b; color: #8ad8ff; border-color: #5ad2ff; }
+.def-pill.on[data-d="3"] { background: #6b5314; color: #ffe07d; border-color: #f6c14a; }
+.def-pill.on[data-d="2"] { background: #6e3015; color: #ffb088; border-color: #ff884d; }
+.def-pill.on[data-d="1"] { background: #7a1616; color: #fff; border-color: #ff5c4d; box-shadow: 0 0 12px rgba(255,92,77,0.6); }
+
+.sys-telemetry {
+  flex: 1;
+  min-width: 0;
+  color: var(--dim);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sys-links {
+  display: flex;
+  gap: 6px;
+}
+.sys-btn {
+  padding: 5px 11px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: #0b1219;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+  cursor: pointer;
+}
+.sys-btn:hover { border-color: var(--phos); color: var(--phos); }
+.sys-btn.hi { border-color: rgba(246,193,74,0.45); color: var(--amber); }
+
+/* 3-COLUMN OS WORKSPACE */
+#desktop {
+  height: calc(100vh - 46px);
+  display: grid;
+  grid-template-columns: 295px minmax(0, 1fr) 360px;
+}
+@media (max-width: 1120px) {
+  #desktop { grid-template-columns: 250px minmax(0, 1fr); }
+  #rightConsole { display: none; }
+}
+
+/* LEFT DOCK: 10 SUBSYSTEMS + 16 WOPR GAMES */
+#leftDock {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.dock-hdr {
+  padding: 10px 12px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--phos);
+  border-bottom: 1px solid var(--border);
+  background: #060a0e;
+  display: flex;
+  justify-content: space-between;
+}
+.dock-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sub-item {
+  padding: 9px 10px;
+  border-radius: 5px;
+  background: #0b1219;
+  border: 1px solid #14222e;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.sub-item:hover { border-color: #28465c; }
+.sub-item.on {
+  border-color: var(--phos);
+  background: rgba(74, 246, 195, 0.08);
+  box-shadow: inset 3px 0 0 var(--phos);
+}
+.sub-item .row1 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+.sub-item .row1 code {
+  color: var(--phos);
+  font-weight: 600;
+}
+.sub-item .row1 span {
+  color: var(--dim);
+  font-size: 9.5px;
+}
+.sub-item .title {
+  font-weight: 500;
+  color: var(--ink);
+  margin-top: 3px;
+  font-size: 11.5px;
+}
+.sub-item .hw {
+  color: var(--dim);
+  font-size: 9.5px;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.games-box {
+  border-top: 1px solid var(--border);
+  padding: 8px;
+  max-height: 215px;
+  overflow-y: auto;
+  background: #060a0d;
+}
+.game-chip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 7px;
+  border-radius: 3px;
+  font-size: 10px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.game-chip:hover { background: rgba(74, 246, 195, 0.1); color: var(--phos); }
+.game-chip small { color: var(--dim); font-size: 9px; }
+
+/* CENTER STAGE: MONITOR + EMULATED SUBSYSTEM + SCREEN MATRIX */
+#centerStage {
+  display: grid;
+  grid-template-rows: minmax(290px, 48%) minmax(0, 52%);
+  background: #030608;
+  min-height: 0;
+}
+#topDeck {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  border-bottom: 1px solid var(--border);
+  min-height: 0;
+}
+#filmMonitor {
+  position: relative;
+  background: #000;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+#filmMonitor video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+.mon-overlay-top {
+  position: absolute;
+  top: 10px; left: 10px; right: 10px;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.mon-tag {
+  padding: 4px 9px;
+  border-radius: 3px;
+  background: rgba(4, 7, 9, 0.85);
+  border: 1px solid rgba(74, 246, 195, 0.35);
+  color: var(--phos);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+.mon-overlay-bot {
+  position: absolute;
+  bottom: 10px; left: 10px; right: 10px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: rgba(4, 7, 9, 0.86);
+  border: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10.5px;
+  color: var(--ink);
+}
+
+/* INTERACTIVE EMULATION WIDGET PANE */
+#emulatorPane {
+  background: radial-gradient(circle at 50% 20%, #0b1820, #05090d 75%);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow-y: auto;
+}
+.emu-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+.emu-hdr .code {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--phos);
+}
+.emu-hdr h2 {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+}
+.emu-screen {
+  flex: 1;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 5px;
+  background: #030608;
+  border: 1px solid #1d3542;
+  box-shadow: inset 0 0 24px rgba(74, 246, 195, 0.06);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--phos);
+  overflow-y: auto;
+}
+.emu-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.emu-btn {
+  padding: 6px 11px;
+  border-radius: 4px;
+  background: rgba(74, 246, 195, 0.1);
+  border: 1px solid var(--phos);
+  color: var(--phos);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.emu-btn:hover {
+  background: var(--phos);
+  color: #040709;
+  font-weight: 600;
+}
+.emu-btn.warn {
+  border-color: var(--red);
+  color: var(--red);
+  background: rgba(255, 92, 77, 0.1);
+}
+.emu-btn.warn:hover {
+  background: var(--red);
+  color: #fff;
+}
+
+/* CPE 10-digit lock box */
+.cpe-digits {
+  display: flex;
+  gap: 5px;
+  margin: 8px 0;
+}
+.cpe-cell {
+  flex: 1;
+  text-align: center;
+  padding: 7px 0;
+  background: #071015;
+  border: 1px solid #244252;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--red);
+}
+.cpe-cell.locked {
+  background: rgba(255, 92, 77, 0.2);
+  border-color: var(--red);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(255, 92, 77, 0.4);
+}
+
+/* BOTTOM DECK: SCREEN MATRIX (CURATED + SBD CUTS) */
+#bottomDeck {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #060a0e;
+}
+.matrix-bar {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.matrix-tabs {
+  display: flex;
+  gap: 6px;
+}
+.matrix-tabs button {
+  padding: 5px 11px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: #0b1219;
+  color: var(--dim);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.matrix-tabs button.on {
+  border-color: var(--phos);
+  color: var(--phos);
+  background: rgba(74, 246, 195, 0.1);
+}
+#screenGrid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+  gap: 10px;
+  align-content: start;
+}
+.scr-card {
+  border-radius: 5px;
+  overflow: hidden;
+  background: #0b1219;
+  border: 1px solid #162634;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.scr-card:hover { transform: translateY(-2px); border-color: var(--phos); }
+.scr-card.on { border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber); }
+.scr-card .thumb {
+  aspect-ratio: 16/9;
+  background: #000 center/cover no-repeat;
+  position: relative;
+}
+.scr-card .thumb span {
+  position: absolute;
+  top: 5px; left: 5px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(0,0,0,0.82);
+  font-size: 9.5px;
+  color: var(--phos);
+}
+.scr-card .thumb em {
+  position: absolute;
+  bottom: 5px; right: 5px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: rgba(0,0,0,0.82);
+  font-style: normal;
+  font-size: 9px;
+  color: var(--amber);
+}
+.scr-card .meta {
+  padding: 7px 8px;
+}
+.scr-card .meta .note {
+  font-size: 10.5px;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.scr-card .pal {
+  display: flex;
+  height: 4px;
+}
+.scr-card .pal i { flex: 1; }
+
+/* RIGHT CONSOLE: INTERACTIVE WOPR SHELL + IO SCHEMA */
+#rightConsole {
+  background: #05090d;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+#termLog {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--phos);
+}
+.t-line { margin-bottom: 6px; word-break: break-word; }
+.t-line.user { color: var(--amber); }
+.t-line.sys { color: var(--cyan); }
+.t-line.alert { color: var(--red); font-weight: 600; }
+.quick-cmds {
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  background: #070d13;
+}
+.q-cmd {
+  padding: 3px 7px;
+  border-radius: 3px;
+  background: #0e1822;
+  border: 1px solid #1d3142;
+  font-size: 9.5px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.q-cmd:hover { border-color: var(--phos); color: var(--phos); }
+#termForm {
+  display: flex;
+  border-top: 1px solid var(--border);
+  background: #030507;
+}
+#termForm span {
+  padding: 10px 8px 10px 12px;
+  color: var(--phos);
+  font-weight: 600;
+}
+#termInput {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  padding: 10px 10px 10px 0;
+  color: #fff;
+  text-transform: uppercase;
+}
+#termInput:focus { outline: none; }
+</style>
+</head>
+<body>
+
+<header id="sysbar">
+  <div class="sys-brand">
+    <span class="led"></span>
+    <span>WOPR // SYSTEM-83 OS</span>
+  </div>
+  <div class="defcon-strip" id="defconStrip">
+    <span>DEFCON</span>
+    <button class="def-pill" data-d="5">5</button>
+    <button class="def-pill" data-d="4">4</button>
+    <button class="def-pill" data-d="3">3</button>
+    <button class="def-pill" data-d="2">2</button>
+    <button class="def-pill" data-d="1">1</button>
+  </div>
+  <div class="sys-telemetry" id="sysTelemetry">
+    LOADING 10 INFERRED SUBSYSTEMS · 145 CURATED SCREEN SHOTS · 567 SBD SCREEN CUTS…
+  </div>
+  <div class="sys-links">
+    <button class="sys-btn hi" id="btnToggleCrop" title="Toggle between tightly cropped screen-only bezel view and full 16:9 camera frame">▣ Crop: JUST THE SCREEN</button>
+    <a class="sys-btn hi" href="wargames-web.html">Geertz Web &amp; Arcade</a>
+    <a class="sys-btn" href="found-wargames.html">Found WarGames</a>
+    <a class="sys-btn" href="wargames.html">Shot Archive</a>
+  </div>
+</header>
+
+<main id="desktop">
+  <!-- LEFT DOCK -->
+  <aside id="leftDock">
+    <div class="dock-hdr">
+      <span>10 Inferred OS Programs</span>
+      <span id="subCountLabel">10 NODES</span>
+    </div>
+    <div class="dock-scroll" id="subList"></div>
+    <div class="dock-hdr">
+      <span>WOPR `LIST GAMES` Registry</span>
+      <span>16 GAMES</span>
+    </div>
+    <div class="games-box" id="gamesList"></div>
+  </aside>
+
+  <!-- CENTER STAGE -->
+  <section id="centerStage">
+    <div id="topDeck">
+      <div id="filmMonitor">
+        <div class="mon-overlay-top">
+          <span class="mon-tag" id="monCode">SYS-07 · AI://JOSHUA-SHELL</span>
+          <span class="mon-tag" id="monShotId">WG_098 · 35:12</span>
+        </div>
+        <video id="osVideo" controls playsinline preload="auto"></video>
+        <div class="mon-overlay-bot">
+          <span id="monCaption">Select any screen shot below or run a command to inspect the film cut.</span>
+          <span id="monMetrics" style="color:var(--amber)">Screen Score: 0.82</span>
+        </div>
+      </div>
+
+      <div id="emulatorPane">
+        <div class="emu-hdr">
+          <div>
+            <div class="code" id="emuNode">CHEYENNE MOUNTAIN · 408-311-3990</div>
+            <h2 id="emuTitle">WOPR Backdoor Dialogue Shell</h2>
+          </div>
+          <span class="mon-tag" id="emuBaud">300 BAUD</span>
+        </div>
+        <div class="emu-screen" id="emuScreen"></div>
+        <div class="emu-controls" id="emuControls"></div>
+      </div>
+    </div>
+
+    <div id="bottomDeck">
+      <div class="matrix-bar">
+        <div class="matrix-tabs">
+          <button class="on" id="tabCurated">Curated Film Screens (<span id="cntCurated">0</span>)</button>
+          <button id="tabSbd">SBD Atomic Screen Cuts (<span id="cntSbd">0</span>)</button>
+          <button id="tabAllScreens">All 145 Film Screens</button>
+        </div>
+        <div style="font-size:10.5px;color:var(--dim)" id="ioSummary"></div>
+      </div>
+      <div id="screenGrid"></div>
+    </div>
+  </section>
+
+  <!-- RIGHT INTERACTIVE SHELL -->
+  <aside id="rightConsole">
+    <div class="dock-hdr">
+      <span>JOSHUA // INTERACTIVE KERNEL SHELL</span>
+      <span>TTY-01</span>
+    </div>
+    <div id="termLog"></div>
+    <div class="quick-cmds">
+      <button class="q-cmd" data-cmd="HELP GAMES">HELP GAMES</button>
+      <button class="q-cmd" data-cmd="LIST GAMES">LIST GAMES</button>
+      <button class="q-cmd" data-cmd="LOGON JOSHUA">LOGON JOSHUA</button>
+      <button class="q-cmd" data-cmd="DIAL 408-311">DIAL 408-311</button>
+      <button class="q-cmd" data-cmd="PASSWORD PENCIL">PASSWORD PENCIL</button>
+      <button class="q-cmd" data-cmd="BOOK PARIS 114">BOOK PARIS 114</button>
+      <button class="q-cmd" data-cmd="RUN GTW">RUN GTW</button>
+      <button class="q-cmd" data-cmd="CRACK CPE">CRACK CPE</button>
+      <button class="q-cmd" data-cmd="PLAY TICTACTOE 0">PLAY TICTACTOE 0</button>
+    </div>
+    <form id="termForm">
+      <span>WOPR&gt;</span>
+      <input id="termInput" type="text" placeholder="TYPE COMMAND (E.G. LIST GAMES)..." autocomplete="off">
+    </form>
+  </aside>
+</main>
+
+<script>
+const OS = {
+  data: null,
+  activeSubIdx: 6, // Default to AI://JOSHUA-SHELL
+  matrixMode: 'curated', // 'curated' | 'sbd' | 'all'
+  cropOnly: true, // Default to tightly cropped screen-only view ("just games, just screens")
+  currentShot: null,
+  defcon: 5,
+  emuTimer: null,
+};
+
+const el = id => document.getElementById(id);
+const vid = el('osVideo');
+
+function fmtTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = (sec % 60).toFixed(1).padStart(4, '0');
+  return `${String(m).padStart(2, '0')}:${s}`;
+}
+
+async function init() {
+  const res = await fetch('../WAR GAMES/wargames_os.json');
+  OS.data = await res.json();
+
+  const st = OS.data.stats;
+  el('sysTelemetry').textContent = `${OS.data.version} · ${st.verified_screen_shots || 109} CLIP-VERIFIED PURE SCREENS · ${st.wopr_games} GAMES · ZERO NON-SCREEN NOISE`;
+  el('tabAllScreens').textContent = `All ${st.verified_screen_shots || 109} Pure Screens`;
+
+  renderLeftDock();
+  setDefcon(5);
+  logTerm("WOPR // SYSTEM-83 INITIALIZED. 109 CLIP-VERIFIED PURE SCREENS LOADED (CROPPED BEZEL MODE ON).", "sys");
+
+  const params = new URLSearchParams(location.search);
+  const reqSub = params.get('sub');
+  if (reqSub) {
+    const foundIdx = OS.data.subsystems.findIndex(s => s.id.toLowerCase().includes(reqSub.toLowerCase()) || s.code.toLowerCase() === reqSub.toLowerCase());
+    if (foundIdx >= 0) OS.activeSubIdx = foundIdx;
+  }
+  selectSubsystem(OS.activeSubIdx);
+  bindEvents();
+}
+
+function setDefcon(level) {
+  OS.defcon = level;
+  document.querySelectorAll('.def-pill').forEach(b => {
+    b.classList.toggle('on', parseInt(b.dataset.d, 10) === level);
+  });
+}
+
+function renderLeftDock() {
+  el('subList').innerHTML = OS.data.subsystems.map((sub, idx) => `
+    <div class="sub-item ${idx === OS.activeSubIdx ? 'on' : ''}" data-idx="${idx}">
+      <div class="row1">
+        <code>${sub.id}</code>
+        <span>${sub.shots.length} pure screens</span>
+      </div>
+      <div class="title">${sub.title}</div>
+      <div class="hw">${sub.hardware}</div>
+    </div>
+  `).join('');
+
+  el('subList').querySelectorAll('.sub-item').forEach(node => {
+    node.addEventListener('click', () => selectSubsystem(parseInt(node.dataset.idx, 10)));
+  });
+
+  el('gamesList').innerHTML = OS.data.wopr_games.map(g => `
+    <div class="game-chip" data-cmd="${g.cmd}" data-name="${g.name}" title="${g.where || ''}">
+      <span>▸ ${g.name}</span>
+      <small>${g.status}</small>
+    </div>
+  `).join('');
+
+  el('gamesList').querySelectorAll('.game-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      runShellCommand(chip.dataset.cmd);
+    });
+  });
+}
+
+function selectSubsystem(idx) {
+  if (OS.emuTimer) { clearInterval(OS.emuTimer); OS.emuTimer = null; }
+  OS.activeSubIdx = idx;
+  const sub = OS.data.subsystems[idx];
+
+  document.querySelectorAll('.sub-item').forEach((n, i) => n.classList.toggle('on', i === idx));
+
+  const defMap = { 'SYS-01': 5, 'SYS-02': 5, 'SYS-03': 5, 'SYS-04': 5, 'SYS-05': 4, 'SYS-06': 4, 'SYS-07': 4, 'SYS-08': 3, 'SYS-09': 2, 'SYS-10': 1 };
+  setDefcon(defMap[sub.code] || 4);
+
+  el('emuNode').textContent = sub.node;
+  el('emuTitle').textContent = sub.title;
+  el('emuBaud').textContent = sub.baud;
+  el('cntCurated').textContent = sub.shots.length;
+  el('cntSbd').textContent = sub.sbd_screen_cuts.length;
+  el('ioSummary').textContent = `IN: ${sub.io_schema.input}  |  AUTH: ${sub.io_schema.auth}`;
+
+  renderEmulatorWidget(sub);
+  renderScreenMatrix();
+
+  if (sub.shots.length > 0) {
+    loadShotInMonitor(sub.shots[0], sub);
+  }
+}
+
+function applyVideoCrop(shot) {
+  if (OS.cropOnly && shot && shot.crop_box && shot.crop_box.length === 4) {
+    const [bx, by, bw, bh] = shot.crop_box;
+    const cx = (bx + bw * 0.5) * 100;
+    const cy = (by + bh * 0.5) * 100;
+    const scale = Math.min(1.65, Math.max(1.12, 1 / Math.max(bw, bh)));
+    vid.style.transformOrigin = `${cx.toFixed(1)}% ${cy.toFixed(1)}%`;
+    vid.style.transform = `scale(${scale.toFixed(2)})`;
+  } else {
+    vid.style.transform = 'none';
+  }
+}
+
+function loadShotInMonitor(shot, sub) {
+  OS.currentShot = shot;
+  el('monCode').textContent = `${sub ? sub.code : 'WOPR'} · ${sub ? sub.id : (shot.category || '')}`;
+  el('monShotId').textContent = `${shot.id.toUpperCase()} · ${fmtTime(shot.start)}–${fmtTime(shot.end)}`;
+  el('monCaption').textContent = shot.note || shot.whisper || '1983 Film Screen Cut';
+  el('monMetrics').textContent = `CLIP Purity: ${shot.purity ?? shot.screen_score ?? ''} ${shot.sign ? '· Sign #' + shot.sign : ''}`;
+
+  vid.src = shot.clip || shot.slice_url;
+  vid.currentTime = 0;
+  applyVideoCrop(shot);
+  vid.play().catch(() => {});
+
+  document.querySelectorAll('.scr-card').forEach(c => {
+    c.classList.toggle('on', c.dataset.id === shot.id);
+  });
+}
+
+function renderEmulatorWidget(sub) {
+  const scr = el('emuScreen');
+  const ctrls = el('emuControls');
+  const linesHtml = sub.terminal_lines.map(l => `<div>${l}</div>`).join('');
+
+  if (sub.id === 'NET://WARDIALER') {
+    scr.innerHTML = `${linesHtml}<hr style="border:0;border-top:1px dashed #1e3b48;margin:8px 0"><div id="dialLive">READY TO SWEEP SUNNYVALE (408) 311-XXXX...</div>`;
+    ctrls.innerHTML = `<button class="emu-btn" id="btnSweep">▶ START CARRIER SWEEP (408-311)</button>`;
+    el('btnSweep').onclick = () => {
+      const nums = [
+        "DIALING 408-311-0041 ... NO CARRIER",
+        "DIALING 408-311-0042 ... BUSY",
+        "DIALING 408-311-0318 ... CARRIER DETECTED [2400 BAUD BANK NODE]",
+        "DIALING 408-311-0764 ... CARRIER DETECTED [PAN AM RESERVATIONS]",
+        "DIALING 408-311-3990 ... CARRIER DETECTED! [UNIDENTIFIED DEFENSE HOST — LOGON PLEASE]"
+      ];
+      let step = 0;
+      const box = el('dialLive');
+      box.innerHTML = '';
+      if (OS.emuTimer) clearInterval(OS.emuTimer);
+      OS.emuTimer = setInterval(() => {
+        if (step >= nums.length) { clearInterval(OS.emuTimer); return; }
+        box.innerHTML += `<div style="color:${step === 4 ? '#f6c14a' : '#4af6c3'}">${nums[step++]}</div>`;
+      }, 450);
+    };
+  } else if (sub.id === 'EDU://SEATTLE-SCHOOLS') {
+    scr.innerHTML = `${linesHtml}<div id="gradeStatus" style="margin-top:8px;color:var(--amber)">CURRENT RECORD: LIGHTMAN, DAVID L. · BIO-204 · GRADE = [F]</div>`;
+    ctrls.innerHTML = `
+      <button class="emu-btn" id="btnPencil">1. AUTH PASSWORD: PENCIL</button>
+      <button class="emu-btn" id="btnMutateGrade">2. CHANGE GRADE F → A</button>
+    `;
+    el('btnPencil').onclick = () => {
+      el('gradeStatus').innerHTML = `AUTH ACCEPTED [PENCIL]. CURSOR POSITIONED ON FIELD: GRADE [F]`;
+    };
+    el('btnMutateGrade').onclick = () => {
+      el('gradeStatus').innerHTML = `UPDATED: LIGHTMAN, DAVID L. · BIO-204 · GRADE = [A] — SAVED TO DISK.`;
+      if (sub.shots[1]) loadShotInMonitor(sub.shots[1], sub);
+    };
+  } else if (sub.id === 'KEY://CPE-CRACKER') {
+    const codeChars = ['C','P','E','1','7','0','4','T','K','S'];
+    scr.innerHTML = `
+      <div>WOPR LAUNCH RELAY — MINUTEMAN III SILO PERMUTATION SEARCH</div>
+      <div class="cpe-digits" id="cpeDigits">
+        ${codeChars.map((c, i) => `<div class="cpe-cell" id="cpe-${i}">?</div>`).join('')}
+      </div>
+      <div id="tttStatus" style="color:var(--amber);margin-top:6px;">STATUS: BRUTE-FORCING 10-DIGIT LAUNCH CODE...</div>
+    `;
+    ctrls.innerHTML = `
+      <button class="emu-btn warn" id="btnCrackCpe">▶ LOCK CPE 1704 TKS</button>
+      <button class="emu-btn" id="btnZeroTtt">⚡ OVERRIDE: 0-PLAYER TIC-TAC-TOE</button>
+    `;
+    el('btnCrackCpe').onclick = () => {
+      let locked = 0;
+      if (OS.emuTimer) clearInterval(OS.emuTimer);
+      OS.emuTimer = setInterval(() => {
+        for (let i = locked; i < codeChars.length; i++) {
+          const cell = el(`cpe-${i}`);
+          if (cell) cell.textContent = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+        }
+        const lockCell = el(`cpe-${locked}`);
+        if (lockCell) {
+          lockCell.textContent = codeChars[locked];
+          lockCell.classList.add('locked');
+        }
+        locked++;
+        if (locked >= codeChars.length) {
+          clearInterval(OS.emuTimer);
+          el('tttStatus').textContent = "CRITICAL: LAUNCH CODE ACQUIRED — INITIATING Zero-Player Override!";
+        }
+      }, 320);
+    };
+    el('btnZeroTtt').onclick = () => {
+      if (OS.emuTimer) clearInterval(OS.emuTimer);
+      setDefcon(5);
+      el('tttStatus').innerHTML = `
+        <div style="color:#4af6c3">GAME SELECTED: TIC-TAC-TOE (0 PLAYERS) → STALEMATE × 1,400</div>
+        <div style="color:#fff;margin-top:4px">"A STRANGE GAME. THE ONLY WINNING MOVE IS NOT TO PLAY."</div>
+      `;
+      logTerm("A STRANGE GAME. THE ONLY WINNING MOVE IS NOT TO PLAY. HOW ABOUT A NICE GAME OF CHESS?", "sys");
+    };
+  } else {
+    scr.innerHTML = `
+      ${linesHtml}
+      <div style="margin-top:10px;padding-top:8px;border-top:1px dashed #1b323e;color:var(--dim)">
+        ${sub.summary}
+      </div>
+    `;
+    ctrls.innerHTML = sub.shots.slice(0, 4).map((sh, i) => `
+      <button class="emu-btn" data-sidx="${i}">▶ PLAY ${sh.id.toUpperCase()} (${fmtTime(sh.start)})</button>
+    `).join('');
+    ctrls.querySelectorAll('.emu-btn').forEach(b => {
+      b.onclick = () => loadShotInMonitor(sub.shots[parseInt(b.dataset.sidx, 10)], sub);
+    });
+  }
+}
+
+function renderScreenMatrix() {
+  const sub = OS.data.subsystems[OS.activeSubIdx];
+  const grid = el('screenGrid');
+
+  let items = [];
+  if (OS.matrixMode === 'curated') {
+    items = sub.shots.map(s => ({ ...s, _sub: sub }));
+  } else if (OS.matrixMode === 'sbd') {
+    items = (sub.sbd_screen_cuts.length ? sub.sbd_screen_cuts : sub.shots).map(s => ({ ...s, _sub: sub }));
+  } else {
+    items = (OS.data.all_verified_screens || []).map(s => ({ ...s, _sub: sub }));
+  }
+
+  grid.innerHTML = items.map((s, idx) => {
+    const thumbUrl = OS.cropOnly ? (s.screen_thumb || s.full_thumb || s.thumb) : (s.full_thumb || s.screen_thumb || s.thumb);
+    return `
+    <div class="scr-card ${idx === 0 ? 'on' : ''}" data-id="${s.id}" data-idx="${idx}">
+      <div class="thumb" style="background-image:url('${thumbUrl}')">
+        <span>${s.id.toUpperCase()} · ${fmtTime(s.start)}</span>
+        <em>CLIP ${s.clip_screen_sim ?? s.purity ?? ''}</em>
+      </div>
+      <div class="pal">
+        ${(s.palette || []).map(c => `<i style="background:${c}"></i>`).join('')}
+      </div>
+      <div class="meta">
+        <div class="note">${s.note || s.whisper || s._sub.title}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  grid.querySelectorAll('.scr-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const item = items[parseInt(card.dataset.idx, 10)];
+      loadShotInMonitor(item, item._sub);
+    });
+  });
+}
+
+function logTerm(text, cls = "") {
+  const box = el('termLog');
+  const div = document.createElement('div');
+  div.className = `t-line ${cls}`;
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function runShellCommand(raw) {
+  const cmd = (raw || '').trim().toUpperCase();
+  if (!cmd) return;
+  logTerm(`WOPR> ${cmd}`, "user");
+
+  if (cmd === 'HELP' || cmd === 'HELP GAMES') {
+    logTerm("'GAMES' REFERS TO MODELS, SIMULATIONS AND GAMES WHICH HAVE TACTICAL AND STRATEGIC APPLICATIONS.", "sys");
+    logTerm("COMMANDS: LIST GAMES | LOGON JOSHUA | DIAL 408-311 | PASSWORD PENCIL | BOOK PARIS 114 | RUN GTW | CRACK CPE | PLAY TICTACTOE 0");
+  } else if (cmd === 'LIST GAMES') {
+    logTerm("FALKEN'S MAZE, BLACK JACK, GIN RUMMY, HEARTS, BRIDGE, CHECKERS, CHESS, POKER, FIGHTER COMBAT, GUERRILLA ENGAGEMENT, DESERT WARFARE, AIR-TO-GROUND ACTIONS, THEATREWIDE TACTICAL WARFARE, THEATREWIDE BIOTOXIC AND CHEMICAL WARFARE, GLOBAL THERMONUCLEAR WAR.", "sys");
+    selectSubsystem(6);
+  } else if (cmd.includes('JOSHUA')) {
+    logTerm("GREETINGS PROFESSOR FALKEN. SHALL WE PLAY A GAME?", "sys");
+    selectSubsystem(6);
+  } else if (cmd.includes('DIAL') || cmd.includes('311')) {
+    logTerm("SCANNING SUNNYVALE EXCHANGE (408) 311-0001..9999 — CARRIER FOUND AT 408-311-3990.", "sys");
+    selectSubsystem(2);
+  } else if (cmd.includes('PENCIL') || cmd.includes('GRADE')) {
+    logTerm("SEATTLE PUBLIC SCHOOLS AUTHENTICATED [PENCIL]. BIOLOGY GRADE UPDATED: F -> A.", "sys");
+    selectSubsystem(3);
+  } else if (cmd.includes('PARIS') || cmd.includes('PAN AM') || cmd.includes('114')) {
+    logTerm("PANAMAC II: BOOKED 2 SEATS FLT 114 SEATTLE -> PARIS ORLY (LIGHTMAN/D, MACK/J).", "sys");
+    selectSubsystem(4);
+  } else if (cmd.includes('FALKEN') || cmd.includes('MICROFICHE')) {
+    logTerm("DOSSIER: STEPHEN W. FALKEN (1941-1973). SON: JOSHUA.", "sys");
+    selectSubsystem(5);
+  } else if (cmd.includes('GTW') || cmd.includes('THERMONUCLEAR')) {
+    logTerm("GLOBAL THERMONUCLEAR WAR SELECTED. SIDE: SOVIET UNION. PRIMARY TARGETS: LAS VEGAS, SEATTLE.", "alert");
+    selectSubsystem(7);
+  } else if (cmd.includes('DEFCON') || cmd.includes('NORAD')) {
+    logTerm("CHEYENNE MOUNTAIN COMMAND POST: DEFCON 1. 340 INBOUND TRACKS ON OVERHEAD BOARD.", "alert");
+    selectSubsystem(8);
+  } else if (cmd.includes('CPE') || cmd.includes('CRACK')) {
+    logTerm("LAUNCH RELAY OVERRIDE: BRUTE-FORCING 10-DIGIT CODE [CPE 1704 TKS]...", "alert");
+    selectSubsystem(9);
+  } else if (cmd.includes('TICTACTOE') || cmd.includes('CHESS')) {
+    logTerm("TIC-TAC-TOE (0 PLAYERS): STALEMATE. WINNER: NONE. A STRANGE GAME. THE ONLY WINNING MOVE IS NOT TO PLAY.", "sys");
+    selectSubsystem(9);
+  } else if (cmd.includes('GALAGA') || cmd.includes('ARCADE')) {
+    logTerm("LOADING NAMCO GALAGA ROM (HARBOR ARCADE, SEATTLE)...", "sys");
+    selectSubsystem(0);
+  } else if (cmd.includes('IMSAI')) {
+    logTerm("MOUNTING IMSAI 8080 S-100 BUS CP/M 2.2...", "sys");
+    selectSubsystem(1);
+  } else {
+    logTerm("WHAT'S THE DIFFERENCE? TRY: LIST GAMES, LOGON JOSHUA, RUN GTW, OR PLAY TICTACTOE 0.", "sys");
+  }
+}
+
+function bindEvents() {
+  el('btnToggleCrop').onclick = () => {
+    OS.cropOnly = !OS.cropOnly;
+    el('btnToggleCrop').textContent = OS.cropOnly ? '▣ Crop: JUST THE SCREEN' : '▭ Frame: FULL CAMERA';
+    applyVideoCrop(OS.currentShot);
+    renderScreenMatrix();
+  };
+  el('tabCurated').onclick = () => {
+    OS.matrixMode = 'curated';
+    el('tabCurated').classList.add('on');
+    el('tabSbd').classList.remove('on');
+    el('tabAllScreens').classList.remove('on');
+    renderScreenMatrix();
+  };
+  el('tabSbd').onclick = () => {
+    OS.matrixMode = 'sbd';
+    el('tabSbd').classList.add('on');
+    el('tabCurated').classList.remove('on');
+    el('tabAllScreens').classList.remove('on');
+    renderScreenMatrix();
+  };
+  el('tabAllScreens').onclick = () => {
+    OS.matrixMode = 'all';
+    el('tabAllScreens').classList.add('on');
+    el('tabCurated').classList.remove('on');
+    el('tabSbd').classList.remove('on');
+    renderScreenMatrix();
+  };
+
+  document.querySelectorAll('.def-pill').forEach(b => {
+    b.onclick = () => setDefcon(parseInt(b.dataset.d, 10));
+  });
+
+  document.querySelectorAll('.q-cmd').forEach(b => {
+    b.onclick = () => runShellCommand(b.dataset.cmd);
+  });
+
+  el('termForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const inp = el('termInput');
+    runShellCommand(inp.value);
+    inp.value = '';
+  });
+}
+
+init();
+</script>
+</body>
+</html>

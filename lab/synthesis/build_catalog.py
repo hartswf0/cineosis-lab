@@ -10,7 +10,8 @@ def one(x):
  except ValueError:return None
  if dur<.5:return None
  notes=' '.join(z.get('note','') for z in x.get('signs',[]))
- return dict(id=x['id'],title=x['title'],media=x['clip'],poster=x['thumb'],duration=dur,offset=0,sourceIn=x.get('start',0),source=x['page'],description=notes or ' · '.join(z['label'] for z in x.get('subjects',[])),subjects=[z['label'] for z in x.get('subjects',[])],scale=x.get('scale',''),signs=x.get('signs',[]),searchHints=[z.get('q','') for z in x.get('found',[])],reading='Existing editorial annotation' if notes else 'Metadata only; no editorial reading')
+ subs=[z['label'] if isinstance(z,dict) else z[0] for z in (x.get('subjects') or [])]
+ return dict(id=x['id'],title=x['title'],media=x['clip'],poster=x['thumb'],duration=dur,offset=0,sourceIn=x.get('start',0),source=x['page'],description=notes or ' · '.join(subs),subjects=subs,scale=x.get('scale',''),signs=x.get('signs',[]),searchHints=[z.get('q','') for z in x.get('found',[])],reading='Existing editorial annotation' if notes else 'Metadata only; no editorial reading')
 with ThreadPoolExecutor(max_workers=8) as ex: items=[x for x in ex.map(one,shots) if x]
 for e in s['examples']:
  for b in e['blocks']:
