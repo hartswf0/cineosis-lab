@@ -32,14 +32,14 @@ fetch('atlas.json?v=' + Date.now()).then(r => r.json()).then(d => {
   let v0 = 'city'; try { v0 = JSON.parse(localStorage.getItem('atlas.st') || '{}').view || 'city'; } catch (e) { }
   const h = decodeURIComponent(location.hash.slice(1)); if (byPath[h]) sel = h; setView(v0, true); ctl(); dot(); draw();
 });
-function setView(v, quiet) { view = v; document.querySelectorAll('nav.views button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); document.querySelectorAll('.view').forEach(e => e.classList.toggle('on', e.id === 'v-' + v)); save(); if (!quiet) { ctl(); draw(); } }
+function setView(v, quiet) { view = v; document.body.classList.toggle('paper', v === 'ledger'); document.querySelectorAll('nav.views button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); document.querySelectorAll('.view').forEach(e => e.classList.toggle('on', e.id === 'v-' + v)); save(); if (!quiet) { ctl(); draw(); } }
 document.querySelectorAll('nav.views button').forEach(b => b.onclick = () => setView(b.dataset.v));
 $('#q').oninput = e => { q = e.target.value.trim().toLowerCase(); ctl(); draw(); };
 $('#q').onkeydown = e => { if (e.key === 'Enter') { const hit = P.filter(visible).sort((a, b) => (b.title.toLowerCase().includes(q) - a.title.toLowerCase().includes(q)) || b.importance - a.importance)[0]; if (hit) select(hit.path); } };
 addEventListener('keydown', e => { if (e.key === '/' && document.activeElement !== $('#q')) { e.preventDefault(); $('#q').focus(); } if (e.key === 'Escape') { if (document.activeElement === $('#q')) { $('#q').value = ''; q = ''; $('#q').blur(); ctl(); draw(); } else select(null); } });
 addEventListener('hashchange', () => { const h = decodeURIComponent(location.hash.slice(1)); if (byPath[h] && h !== sel) select(h); });
 addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(draw, 160); });
-function draw() { if (A) ({ city, work, lineage, time, list, dig })[view](); }
+function draw() { if (A) ({ city, ledger, work, lineage, time, list, dig })[view](); }
 
 /* CONTROLS · big switches; each one redraws the map so you can see what it changes */
 function ctl() {
@@ -200,7 +200,7 @@ function dot() {
   const el = $('#dot');
   if (!sel) {
     el.innerHTML = `<svg width="60" height="86" viewBox="-30 0 60 86" style="display:block;margin:0 auto"><line x1="0" y1="0" x2="0" y2="46" stroke="#e0483a" stroke-width="2.4"/><circle cy="62" r="15" fill="#0b0a09" stroke="#ece6da" stroke-width="3.4"/><circle cx="5" cy="64" r="3.8" fill="#ece6da"/></svg>
-    <div class="empty"><h2 style="font-size:25px;margin:6px 0 10px">Read the city</h2>Each <b>district</b> is a work the pages serve. Each <b>building</b> is a page: its footprint is what you size by, its colour what you colour by, its height its commits. <b>Roads</b> run from the <b>gate</b>, the lab’s front door, along the clicks a visitor makes; the thicker the road, the more pages lie beyond it. A <b>dashed</b> building has no road. A <b>gold corner</b> means the page is filed under the wrong name. A small <b>ring</b> means it is a version of another page.<br><br>Click any building.</div>`;
+    <div class="empty"><h2 style="font-size:25px;margin:6px 0 10px">Read the city</h2>Each <b>district</b> is a work the pages serve. Each <b>building</b> is a page: its footprint is what you size by, its colour what you colour by, its height its commits. <b>Roads</b> run from the <b>gate</b>, the lab’s front door, along the clicks a visitor makes; the thicker the road, the more pages lie beyond it. A <b>dashed</b> building has no road. A <b>gold corner</b> means the page is filed under the wrong name. A small <b>ring</b> means it is a version of another page.<br><br>Click any building, or any row of the Ledger.</div>`;
     return;
   }
   const p = byPath[sel], all = k => Math.max(...P.map(x => x[k] || 0)), chip = x => byPath[x] ? `<button class="chip" data-p="${esc(x)}" data-tip="no"><i style="--c:${colourOf(byPath[x])}"></i><span>${esc(byPath[x].title)}</span></button>` : '';
@@ -223,4 +223,43 @@ function dot() {
     <div class="sh">Linked from · ${p.in.length}</div><div class="chips">${p.in.map(chip).join('') || '<span class="empty">nothing</span>'}</div>
     ${p.madeBy.length ? `<div class="sh">Its data is made by</div><div class="route">${p.madeBy.map(esc).join('<br>')}</div>` : ''}`;
   wire(el); el.scrollTop = 0;
+}
+
+
+/* LEDGER · after Tufte. Every page on one sheet, one row each, all on shared scales: a sparkline of its commits day by day, a bar of
+   the code written for it, its hours, commits, importance and links in, and a note in the margin when something is wrong. Works are
+   sections, read like a core sample: oldest layer first. Colour is kept for nothing; the ink is the data. */
+let LSORT = 'born';
+function spark(daily, w, h, mx, opt = {}) {
+  const n = daily.length, bw = w / n; let s = `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><line x1="0" y1="${h - .5}" x2="${w}" y2="${h - .5}" stroke="#ccc" stroke-width="1"/>`;
+  const first = daily.findIndex(v => v > 0), last = n - 1 - [...daily].reverse().findIndex(v => v > 0);
+  if (first >= 0 && opt.life !== false) s += `<line x1="${first * bw + bw / 2}" y1="${h - 1.5}" x2="${last * bw + bw / 2}" y2="${h - 1.5}" stroke="#bbb" stroke-width="1"/>`;
+  daily.forEach((v, i) => { if (!v) return; const bh = Math.max(1.5, Math.min(h - 1, Math.sqrt(v / mx) * (h - 1))); s += `<rect x="${i * bw + .5}" y="${h - 1 - bh}" width="${Math.max(1, bw - 1)}" height="${bh}" fill="${opt.c || '#222'}"/>`; });
+  if (opt.mark != null && opt.mark >= 0) s += `<circle cx="${opt.mark * bw + bw / 2}" cy="${h - 1}" r="1.8" fill="#8a3b12"/>`;
+  return s + '</svg>';
+}
+function ledger() {
+  const el = $('#v-ledger'), cal = A.calendar, vis = P.filter(visible), N = P.length;
+  const cap = 4000, mxDay = Math.max(...P.map(p => Math.max(...p.daily))), allDaily = cal.map((_, i) => P.reduce((s, p) => s + p.daily[i], 0));
+  const lines = P.reduce((s, p) => s + p.lines, 0), hrs = A.hoursTotal, peak = allDaily.indexOf(Math.max(...allDaily));
+  const fmtD = i => fmtDay(cal[i]);
+  const note = p => p.status === 'orphan' ? ['no road from the lab'] : p.status === 'hidden' ? ['reachable only through a lost page'] : p.versions[0] && p.versions[0][1] >= .9 ? [`copy of ${byPath[p.versions[0][0]]?.title || p.versions[0][0]}`]
+    : p.ia ? [p.ia.replace('made for ', 'for ').replace(', but filed as', '; filed as').replace(" (a different project's name)", '')] : p.parent ? [`from ${byPath[p.parent]?.title} (${Math.round(p.parentSim * 100)}%)`, 'q'] : p.status === 'pointer' ? ['only points elsewhere', 'q'] : ['', 'q'];
+  const sorter = { born: (a, b) => (a.born || '9').localeCompare(b.born || '9') || a.title.localeCompare(b.title), lines: (a, b) => b.lines - a.lines, hours: (a, b) => b.hours - a.hours, rank: (a, b) => a.rank - b.rank };
+  const secs = A.subjects.map(s => ({ s, ps: vis.filter(p => p.subject === s.id).sort(sorter[LSORT]) })).filter(x => x.ps.length).sort((a, b) => b.ps.reduce((t, p) => t + p.lines, 0) - a.ps.reduce((t, p) => t + p.lines, 0));
+  const row = p => { const [nt, cls] = note(p);
+    return `<div class="lg row ${sel === p.path ? 'sel' : ''}" data-p="${esc(p.path)}" data-tip="no"><span class="t">${esc(p.title.replace(/ · (lab\/)?[\w/.-]+\.html$/, ''))}<small>${esc(KIND[p.kind][0].split(/[ ,]/)[0].toLowerCase())}</small></span>
+      <span>${spark(p.daily, 150, 16, mxDay, { mark: cal.indexOf(p.born) })}</span>
+      <span><div class="bar ${p.lines > cap ? 'big' : ''}" style="width:${Math.max(.4, Math.min(1, p.lines / cap) * 100)}%"></div></span>
+      <span class="n">${p.lines.toLocaleString()}</span><span class="n">${p.hours >= .05 ? p.hours.toFixed(1) : '·'}</span><span class="n">${p.commits}</span><span class="n">${p.in.length}</span>
+      <span class="note ${cls || ''}" title="${esc(nt)}">${esc(nt)}</span></div>`; };
+  el.innerHTML = `<div class="ledger"><h2>The lab, page by page</h2>
+    <p class="lede">Over ${cal.length} days ${spark(allDaily, 132, 16, Math.max(...allDaily), { life: false })} the lab laid down ${A.totals.commits} commits and ${N} pages: ${lines.toLocaleString()} lines of code written for it, about ${Math.round(hrs)} hours of attention by the commit clock. The busiest day was ${fmtD(peak)}, with ${allDaily[peak]}. ${P.filter(p => p.status === 'reachable').length} pages are on a road from the front door; ${P.filter(p => p.ia).length} are made for one work and filed under another.</p>
+    <div class="ctl2"><span>Within each work, order by</span>${[['born', 'when it was laid down'], ['lines', 'code'], ['hours', 'hours'], ['rank', 'importance']].map(([k, t]) => `<button data-s="${k}" class="${LSORT === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+    <div class="lg head"><span>page, and what kind</span><span><div class="laxis"><span>${fmtD(0)}</span><span>${fmtD(cal.length - 1)}</span></div>commits each day</span><span>code written for it, to ${cap.toLocaleString()} lines</span><span>lines</span><span>hours</span><span>commits</span><span>linked from</span><span>note</span></div>
+    ${secs.map(({ s, ps }) => { const d = cal.map((_, i) => ps.reduce((t, p) => t + p.daily[i], 0));
+      return `<div class="lsec"><h3>${esc(s.name)}</h3><span>${spark(d, 150, 22, Math.max(...allDaily), { life: false })}</span><p>${ps.length} page${ps.length > 1 ? 's' : ''} · ${ps.reduce((t, p) => t + p.lines, 0).toLocaleString()} lines · ${ps.reduce((t, p) => t + p.hours, 0).toFixed(0)} hours · ${(n => n > 1 ? `filed under ${n} names` : 'filed under one name')(new Set(ps.map(p => p.family)).size)}</p></div>${ps.map(row).join('')}`; }).join('')}
+    <p style="font-size:14.5px;color:#666;font-style:italic;margin-top:30px;max-width:80ch">Every sparkline shares one scale: a full-height mark is the busiest single day any page had (${mxDay} commits); heights follow the square root so a single commit still shows. The thin grey line under a sparkline is the page’s life from first to last change; the small dot is the day it was born. Bars share one scale up to ${cap.toLocaleString()} lines; a broken bar runs past it. Hours are estimated from the gaps between commits. Notes in the margin: lost pages, copies, misfiled pages, and the page each one descends from.</p></div>`;
+  el.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { LSORT = b.dataset.s; ledger(); });
+  wire(el);
 }

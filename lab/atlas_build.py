@@ -189,6 +189,7 @@ def vendored(m):
     b = m.group(0); return b.count('\n') > 6000 or bool(re.search(r'@license|Copyright \(c\)|three\.js|REVISION\s*=|getIrradianceAt|webpackBootstrap', b[:20000]))
 def code_of(f):   # the page without the data pasted into it and without libraries pasted in whole
     t = EMBED.sub(' ', read(f)); return re.sub(r'<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?</script>', lambda m: ' ' if vendored(m) else m.group(0), t)
+DAYS = [d for d in (lambda a, b: [time.strftime('%Y-%m-%d', time.localtime(t)) for t in range(int(time.mktime(time.strptime(a, '%Y-%m-%d'))) + 43200, int(time.mktime(time.strptime(b, '%Y-%m-%d'))) + 86400, 86400)])(min(days), max(days))]
 def nlines(f): return code_of(f).count('\n') + 1 if read(f) else 0
 def dlines(f): t = read(f); return t.count('\n') - code_of(f).count('\n')
 jsuse = collections.Counter(j for x in P.values() for j in x['js'])
@@ -197,7 +198,7 @@ for s in S: s['hours'] = round(hours[s['path']], 2)
 for p, x in P.items():
     own = [p] + [j for j in x['js'] if jsuse[j] == 1]
     x['lines'] = sum(nlines(f) for f in own); x['dataLines'] = dlines(p); x['kb'] = round(len(read(p)) / 1024); x['hours'] = round(sum(hours[f] for f in own), 2); x['churn'] = sum(churn[f] for f in own)
-    x['days'] = len(set().union(*(active[f] for f in own))); x['sharedJs'] = [j for j in x['js'] if jsuse[j] > 1]
+    x['days'] = len(set().union(*(active[f] for f in own))); x['daily'] = [sum(1 for f in own for (d_, *_r) in hist.get(f, []) if d_[:10] == day) for day in DAYS]; x['sharedJs'] = [j for j in x['js'] if jsuse[j] > 1]
     x['pipeHours'] = round(sum(shours.get(s, 0) for s in x['madeBy']), 2)
     t = read(p); x['embeds'] = sorted({q for q in (resolve(p, r) for r in re.findall(r'<iframe[^>]*\ssrc=["\']([^"\'$]+)', t)) if q in P})
 for p, x in P.items(): x['embeddedBy'] = sorted(q for q, y in P.items() if p in y['embeds'])
@@ -277,7 +278,7 @@ out = {'built': subprocess.run(['date', '+%Y-%m-%d %H:%M'], capture_output=True,
        'kingdoms': [{'id': k, 'name': n, 'desc': d} for k, n, d in KINGDOMS], 'kinds': {k: v[0] for k, v in KINDS.items()},
        'families': [{'id': f[0], 'name': f[1], 'color': f[2], 'n': fams[f[0]]} for f in FAMILIES if fams[f[0]]],
        'subjects': [{'id': s[0], 'name': s[1], 'color': s[2], 'n': sum(1 for x in P.values() if x['subject'] == s[0])} for s in SUBJECTS] + [{'id': 'lab', 'name': 'The lab in general', 'color': '#d8d0c0', 'n': sum(1 for x in P.values() if x['subject'] == 'lab')}],
-       'clusters': clusters, 'hoursTotal': round(sum(hours.values()), 1),
+       'calendar': DAYS, 'clusters': clusters, 'hoursTotal': round(sum(hours.values()), 1),
        'pages': sorted(P.values(), key=lambda x: (x['born'] or '9', x['path'])), 'buried': sorted(buried, key=lambda x: x['died']), 'scripts': S,
        'days': [{'date': d, 'commits': list(reversed(v))} for d, v in sorted(days.items())],
        'totals': {'pages': len(P), 'scripts': len(S), 'data': len(datas), 'commits': sum(len(v) for v in days.values()), 'buried': len(buried)}}
