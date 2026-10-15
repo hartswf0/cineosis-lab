@@ -24,6 +24,14 @@ def loop(u, at=None, secs=3.5):
         subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', f'{at:.2f}', '-i', src, '-t', str(secs), '-an', '-vf', 'scale=320:-2,fps=24', '-c:v', 'libx264',
                         '-crf', '30', '-preset', 'slow', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', out])
     return 'explain/lesson/m/' + name
+def hero(u, at, secs):
+    # a sharp loop for a shot that fills the screen: 960 px, the length of its line (at most 9 s)
+    src = os.path.join(LAB, 'clips', u + '.mp4'); d = dur(src); secs = max(3.5, min(9, secs)); at = max(0, min(at, max(0, d - secs)))
+    name = f'h-{u[:8]}-{int(at * 10)}.mp4'; out = os.path.join(M, name)
+    if not os.path.exists(out):
+        subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', f'{at:.2f}', '-i', src, '-t', f'{secs:.2f}', '-an', '-vf', 'scale=960:-2,fps=24', '-c:v', 'libx264',
+                        '-crf', '27', '-preset', 'slow', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', out])
+    return 'explain/lesson/m/' + name
 def frame(u):
     out = os.path.join(F, u[:8] + '.jpg'); src = os.path.join(LAB, 'thumbs', u + '.jpg')
     if not os.path.exists(out) and os.path.exists(src): subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', src, '-vf', 'scale=120:-2', '-q:v', '6', out])
@@ -48,14 +56,17 @@ def take_shot(r): u = U.search(r['thumb']).group(0); return {'id': u, 'title': r
 rows = T['cineosis']['rows']
 op = rows[[r['id'] for r in rows].index(l5['open']['id'])]
 practice = [take_shot(rows[[r['id'] for r in rows].index(p['id'])]) for p in l5['practice']]
+for x, p in zip(practice, l5['practice']): x['hero'] = hero(x['id'], p.get('in') or 0, p['t1'] - p['t0'])
 start = 40; montage = [take_shot(r) for r in rows[start:start + 16] if not BAN.search(r['title'] or '')][:12]
 tally = [{'frame': frame(U.search(r['thumb']).group(0)), 'hide': bool(BAN.search(r['title'] or ''))} for r in rows]
 OPN = take_shot(op); OPN['loop'] = loop(OPN['id'], (op.get('in') or 0) + 1.6)   # past the fade-in, into the room
+OPN['hero'] = hero(OPN['id'], (op.get('in') or 0) + 1.6, op['t1'] - op['t0'])
 json.dump({'table': table, 'ex': ex, 'open': OPN, 'practice': practice, 'montage': montage, 'tally': tally},
           open(os.path.join(H, 'lesson', 'l5m.json'), 'w'), ensure_ascii=False)
 # Lesson 9
 l9 = json.load(open(os.path.join(H, 'lesson', 'l9.json'))); TK = l9['takes']; oi = l9['open']['i']
 open4 = {k: take_shot(T[k]['rows'][oi]) for k in TK}
+for k in TK: r = T[k]['rows'][oi]; open4[k]['hero'] = hero(open4[k]['id'], r.get('in') or 0, r['t1'] - r['t0']) if ok(open4[k]['id']) else None
 lanes = {k: [{'frame': frame(U.search(r['thumb']).group(0)), 'hide': bool(BAN.search(r['title'] or '')), 'src': r.get('src')} for r in T[k]['rows']] for k in TK}
 W0 = max(0, min(l9['n'] - 6, oi - 2)); loom = {k: [take_shot(T[k]['rows'][i]) for i in range(W0, W0 + 6)] for k in TK}
 scenes_run = next(i for i in range(len(T['scenes']['rows']) - 2) if T['scenes']['rows'][i]['src'] == T['scenes']['rows'][i + 1]['src'] == T['scenes']['rows'][i + 2]['src'] and not BAN.search(T['scenes']['rows'][i]['title'] or ''))

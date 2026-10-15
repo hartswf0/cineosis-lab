@@ -7,105 +7,131 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="explain/film.css?v=3"><link rel="stylesheet" href="explain/episode.css?v=3"><link rel="stylesheet" href="explain/lesson.css?v=3">
-<!-- CINEOSIS · LESSON 9 · VERSIONS ON ONE CLOCK. Four takes of the WYGWYL suite, shown as what they are: moving pictures cut to one
-     clock. One line and its four shots; the four takes as film strips running on the same clock until two of them land on the same
-     shot; the four times that happens (all Suite and Cineosis); the shots each pair shares anywhere in the film; the one take that
-     stays inside a film; and six lines as a loom of 24 loops. The guide is Bolas on the red thread (explain/guide.js): it blinks at
-     every cut and winks where two takes meet. Data: explain/l9.py -> l9.json; media: explain/lesson_media.py -> l9m.json. -->
+<!-- CINEOSIS · LESSON 9 · VERSIONS ON ONE CLOCK, played as a film. Bolas's ring opens into one line of the poem; the four takes cut
+     against each other and fall into a split screen; their film strips run on one clock until the camera pushes in where two land on
+     the same shot; the four meetings collide (all Suite and Cineosis); the shots each pair shares roll past; four panels cut in step
+     while only Scenes stays inside one film; and the camera glides along six lines of the loom. Motion: explain/reel.js. Bolas lives in
+     the right-hand gutter, blinks at every cut and winks where takes meet. Data: explain/l9.py -> l9.json; media: lesson_media.py. -->
 <style>
 :root { --bg: #0b0a09; --ink: #ece6da; }
 body, #stage { background: var(--bg); }
-.t { position: absolute; margin: 0; opacity: 0; transform: translateY(10px); animation: up .6s ease forwards; transition: opacity .6s; }
-.t .v { width: 100%; aspect-ratio: 4/3; background: #000; overflow: hidden; outline: 4px solid transparent; outline-offset: 5px; transition: outline-color .5s; }
-.t video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.t figcaption { font: 14px/1.3 var(--mono); color: var(--dim); margin-top: 9px; }
-.t figcaption b { display: block; font: 600 24px/1.2 var(--serif); color: var(--ink); margin-bottom: 4px; }
-.t.yes .v { outline-color: var(--lime); } .t.dim { opacity: .16 !important; }
-.lab { position: absolute; left: 40px; width: 170px; font: 600 24px/1.1 var(--serif); color: var(--ink); opacity: 0; animation: fade .6s ease forwards; }
+.view { position: absolute; inset: 0; clip-path: inset(30px 196px 136px 30px); }
+.world { position: absolute; left: 0; top: 0; width: 1600px; height: 900px; will-change: transform; }
+.bx { position: absolute; background: #000; outline: 4px solid transparent; outline-offset: 5px; transition: outline-color .5s, opacity .5s; }
+.bx video, .bx img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bx.contain video { object-fit: contain; }
+.bx .cap { position: absolute; left: 0; right: 0; top: 100%; margin-top: 7px; font: 13px/1.25 var(--mono); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bx .cap b { font: 600 22px/1.2 var(--serif); color: var(--ink); margin-right: 10px; }
+.bx.yes { outline-color: var(--lime); } .bx.dim { opacity: .13 !important; }
+.bd { right: 240px; }
+.lab { position: absolute; left: 40px; width: 170px; font: 600 24px/1.1 var(--serif); color: var(--ink); }
 .lab small { display: block; font: 13px/1.3 var(--mono); color: var(--dim); margin-top: 6px; font-weight: 400; }
-.lane { position: absolute; left: 230px; width: 1330px; height: 96px; overflow: hidden; }
+.lane { position: absolute; left: 230px; width: 1170px; height: 96px; overflow: hidden; }
 .lane div { position: absolute; left: 0; top: 0; display: flex; gap: 6px; will-change: transform; }
 .lane i { flex: none; width: 112px; height: 84px; background: #1d1a17 center/cover no-repeat; outline: 3px solid transparent; outline-offset: -3px; transition: outline-color .5s; }
 .lane i.meet { outline-color: var(--lime); }
-.pr { position: absolute; left: 40px; right: 40px; display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: center; opacity: 0; animation: up .6s ease forwards; }
+.tick { position: absolute; width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; }
+.pr { position: absolute; left: 40px; width: 1360px; display: grid; grid-template-columns: 260px 1fr; gap: 20px; align-items: center; }
 .pr .pw { font: 600 22px/1.2 var(--serif); color: var(--ink); } .pr .pw small { display: block; font: 600 30px var(--mono); color: var(--gold); margin-top: 4px; }
-.pr .pf { display: flex; gap: 6px; } .pr .pf i { flex: none; width: 96px; height: 72px; background: #1d1a17 center/cover no-repeat; opacity: 0; transition: opacity .4s; } .pr .pf i.in { opacity: 1; }
-.col { position: absolute; top: 62px; width: 205px; font: 600 13px var(--mono); letter-spacing: .12em; color: var(--dim); text-align: center; transition: color .4s; } .col.on { color: var(--gold); }
+.pr .pf { display: flex; gap: 6px; } .pr .pf i { flex: none; width: 96px; height: 72px; background: #1d1a17 center/cover no-repeat; transform: scale(0); transition: transform .4s cubic-bezier(.3,1.6,.5,1); } .pr .pf i.in { transform: none; }
+.col { position: absolute; top: 56px; width: 205px; font: 600 13px var(--mono); letter-spacing: .12em; color: var(--dim); text-align: center; transition: color .4s; } .col.on { color: var(--gold); }
 </style>
 </head>
 <body>
 <div id="wrap"><div id="stage"></div></div>
 <audio id="score" preload="auto"></audio><audio id="voice" preload="auto"></audio>
 <div id="bar"><button id="bPrev" title="previous (←)">‹</button><button id="bPlay" title="play / pause (space)">❚❚</button><button id="bNext" title="next (→)">›</button><div id="chs"></div><span id="time"></span><button id="bSnd" title="sound">♪ on</button></div>
-<div id="start"><div><p style="font:600 16px var(--mono);letter-spacing:.2em;color:#b3ab9e;margin:0 0 14px">CINEOSIS · LESSON 9</p><h1 style="font-weight:600;color:#ece6da">Versions on One Clock</h1><p>Four films of one poem, run side by side, and how rarely they meet. About two and a half minutes, with sound.</p><b style="background:#c4f46a">▶ Watch</b></div></div>
+<div id="start"><div><p style="font:600 16px var(--mono);letter-spacing:.2em;color:#b3ab9e;margin:0 0 14px">CINEOSIS · LESSON 9</p><h1 style="font-weight:600;color:#ece6da">Versions on One Clock</h1><p>Four films of one poem, run side by side, and how rarely they meet. About three minutes, with sound.</p><b style="background:#c4f46a">▶ Watch</b></div></div>
 <script src="explain/lesson.js?v=3"></script>
-<script src="explain/marks.js?v=1"></script>
-<script src="explain/guide.js?v=1"></script>
+<script src="explain/reel.js?v=2"></script>
 <script>
 window.EPISODE = {
-  data: ['explain/lesson/l9.json?v=2', 'explain/lesson/l9m.json?v=1'],
+  data: ['explain/lesson/l9.json?v=2', 'explain/lesson/l9m.json?v=2'],
   cues: ['dae-slide-carousel-at-blue-hour', 'dae-cold-current-paddle', 'dae-feather-rustle-dub', 'dae-salvaged-room-traveling-light'],
   build(D, B, K) {
-    const L = D[0], M = D[1], esc = LX.esc, AU = 'wygwyl/WYGWYL_Suite_Audio.mp3', TK = L.takes, OP = L.open;
+    const L = D[0], M = D[1], esc = LX.esc, AU = 'wygwyl/WYGWYL_Suite_Audio.mp3', TK = L.takes, OP = L.open, PA = REEL.PA, box = REEL.box, place = REEL.place;
     const NAME = { suite: 'Suite', scenes: 'Scenes', cineosis: 'Cineosis', drift: 'Drift' };
     const IDEA = { suite: 'what the treatment asks of each beat', scenes: 'one film, its own shots in order', cineosis: 'the signs each line is read for', drift: 'each shot follows the one before' };
-    const v = src => `<div class="v"><video muted loop playsinline preload="auto" data-src="${esc(src)}" data-t="0"></video></div>`;
-    const tile = (x, y, w, src, cap = '', o = {}) => `<figure class="t ${o.cls || ''}" ${o.id ? `id="${o.id}"` : ''} style="left:${x}px;top:${y}px;width:${w}px;animation-delay:${o.d || 0}s">${src ? v(src) : '<div class="v"></div>'}${cap ? `<figcaption>${cap}</figcaption>` : ''}</figure>`;
-    const at = (s, f) => K.later(s * 1000, f);
-    const go = (el, f) => { K.startVideos(el); LX.runBand(el, K); f && f(el); };
-    const bg = f => f.hide ? '' : `background-image:url(${esc(f.frame)})`;
-    const lineNo = i => i + 1;
+    const at = (s, f) => K.later(s * 1000, f), lineNo = i => i + 1, bg = f => f.hide ? '' : `background-image:url(${esc(f.frame)})`;
+    const scene = (ch, secs, world, band, run, o = {}) => B(ch, secs, () => `<div class="view"><div class="world">${world}</div></div>${band ? LX.band(band, o.label) : ''}`, el => {
+      K.startVideos(el); LX.runBand(el, K); const cam = REEL.cam(el.querySelector('.world'), K), g = REEL.bolas(el, K, o.g || {});
+      const $ = s => el.querySelector(s), $$ = s => [...el.querySelectorAll(s)]; if (!o.g) at(.2, () => g.park()); run({ el, cam, g, $, $$ });
+    });
+    const quad = [0, 1, 2, 3].map(i => ({ x: 40 + (1360 - 2 * 440 - 24) / 2 + (i % 2) * 464, y: 46 + Math.floor(i / 2) * 362, w: 440, h: 330 }));
+    const src = (x, hi) => x.hide ? null : (hi && x.hero) || x.loop;
 
-    /* COLD OPEN · one line, four shots */
-    B('Cold open', 16, () => TK.map((k, j) => tile(40 + j * 385, 120, 365, M.open[k].hide ? null : M.open[k].loop, `<b>${NAME[k]}</b>${esc(IDEA[k])}`, { d: 1 + j * 1.2, id: 'o' + j })).join('')
-      + LX.band([[.3, `<i>${esc(OP.line)}</i>`], [8, 'One line of the poem. Four takes, four different shots for it.']], `The poem, line ${lineNo(OP.i)}`),
-      el => go(el, () => { LX.poem(K, AU, OP.t0, OP.t1); const g = GUIDE(el, K, { x: 222, y: -100, r: 26 }); at(.4, () => g.to(222, 64, 26, 1).look(0, 1));
-        TK.forEach((_, j) => at(1 + j * 1.2, () => { g.to(222 + j * 385, 64, 26, .6); g.blink(); LX.tick(600, .08, .03); })); }));
-    B('Cold open', 7, () => `<div class="tc"><small>CINEOSIS · LESSON 9</small><h1>Versions on One Clock</h1><p>Four films of one poem, and how rarely they meet.</p></div>`, () => LX.ping());
+    /* COLD OPEN · into one line through the ring, then the four takes cut against each other and split the screen */
+    const C0 = 4.8, CUT = 1.7;
+    scene('Cold open', 19, TK.map((k, j) => box(PA, src(M.open[k], 1), { id: 'h' + j, cls: 'contain', hide: true, cap: `<b>${NAME[k]}</b>${esc(IDEA[k])}` })).join(''),
+      [[3.2, `<i>${esc(OP.line)}</i>`], ...TK.map((k, j) => [C0 + j * CUT, `<b>${NAME[k]}</b> ${esc(IDEA[k])}.`]), [C0 + 4 * CUT + .2, 'One line of the poem. Four takes, four different shots for it.']],
+      ({ g, $$ }) => { const hs = $$('.bx'); hs.forEach(h => h.querySelector('.cap').style.opacity = 0);
+        at(.3, () => g.drop(720, 380, 80)); at(1.3, () => g.look(320, 300)); at(1.9, () => g.look(1120, 300)); at(2.6, () => { g.look(null); g.wide(.5); });
+        at(3.1, () => { g.iris(hs[0], 1.4); LX.poem(K, AU, OP.t0, OP.t1); LX.tick(500, .6, .04); });
+        TK.forEach((_, j) => j && at(C0 + j * CUT, () => { hs.forEach((h, i) => { h.style.transition = 'none'; h.style.opacity = i === j ? 1 : 0; }); g.blink(); LX.tick(480, .06, .03); }));
+        at(C0 + 4 * CUT, () => { hs.forEach((h, i) => { h.style.opacity = 1; h.classList.remove('contain'); place(h, quad[i], 1.1); h.querySelector('.cap').style.opacity = 1; }); g.wide(1); });
+        at(C0 + 4 * CUT + 2.5, () => g.think(2.5)); }, { g: { x: 720, y: -200, r: 80 } });
+    scene('Cold open', 7, '<div class="tc" style="left:0;width:1440px"><small>CINEOSIS · LESSON 9</small><h1>Versions on One Clock</h1><p>Four films of one poem, and how rarely they meet.</p></div>', null,
+      ({ g }) => { g.to(720, 170, 50); LX.ping(); at(2.6, () => g.wink(1.2)); at(5, () => g.park()); }, { g: { x: -260, y: 170, r: 50 } });
 
-    /* ONE CLOCK · four strips of real frames, moving together, until two land on the same shot */
-    const M0 = M.meet[0], STEP = 118, PH = 800;
-    const lanesHTML = () => TK.map((k, j) => `<div class="lab" style="top:${150 + j * 140}px;animation-delay:${j * .2}s">${NAME[k]}<small>${esc(IDEA[k])}</small></div><div class="lane" style="top:${140 + j * 140}px"><div>${M.lanes[k].map((f, i) => `<i data-i="${i}" style="${bg(f)}"></i>`).join('')}</div></div>`).join('');
-    B('One clock', 21, () => lanesHTML() + LX.band([[.3, 'Every take is cut to the same clock: the same 169 lines, the same seconds.'], [6.5, 'Each frame is one line. Each step is a cut, in all four films at once.'], [15, `Line ${lineNo(M0.i)}. For once, two takes land on the same shot.`]]),
-      el => go(el, () => { const ss = [...el.querySelectorAll('.lane > div')], g = GUIDE(el, K, { x: PH, y: -100, r: 24 }); at(.3, () => g.to(PH, 90, 24, 1).look(0, 1)); let last = -1;
-        const place = p => ss.forEach(s => s.style.transform = `translateX(${PH - 230 - p * STEP - 56}px)`); place(-6);
-        K.raf(t => { const k = Math.min(1, Math.max(0, (t - 1.5) / 13)), p = -6 + (M0.i + 6) * (1 - Math.pow(1 - k, 2)); place(p); const c = Math.round(p);
+    /* ONE CLOCK · four strips of real frames move together; the camera pushes in where two land on the same shot */
+    const M0 = M.meet[0], STEP = 118, PH = 800, LY = j => 150 + j * 132;
+    const lanes = TK.map((k, j) => `<div class="lab" style="top:${LY(j) + 10}px">${NAME[k]}<small>${esc(IDEA[k])}</small></div><div class="lane" style="top:${LY(j)}px"><div>${M.lanes[k].map((f, i) => `<i data-i="${i}" style="${bg(f)}"></i>`).join('')}</div></div>`).join('')
+      + `<i class="tick" style="left:${PH - 9}px;top:${LY(0) - 22}px;border-top:14px solid var(--gold)"></i><i class="tick" style="left:${PH - 9}px;top:${LY(3) + 96}px;border-bottom:14px solid var(--gold)"></i>`;
+    scene('One clock', 22, lanes, [[.3, 'Every take is cut to the same clock: the same 169 lines, the same seconds.'], [6.5, 'Each frame is a line. Each step is a cut, in all four films at once.'], [15, `Line ${lineNo(M0.i)}. For once, two takes land on the same shot.`]],
+      ({ el, cam, g, $$ }) => { const ss = $$('.lane > div'); let last = -1; cam.set(PH, 395, 2.2); at(.4, () => cam.home(4, 'out')); g.look(PH, 395);
+        const put = p => ss.forEach(s => s.style.transform = `translateX(${PH - 230 - p * STEP - 56}px)`); put(0);
+        K.raf(t => { const k = Math.min(1, Math.max(0, (t - 1.5) / 12.5)), p = M0.i * (1 - Math.pow(1 - k, 2.2)); put(p); const c = Math.round(p);
           if (c !== last && c >= 0) { last = c; g.blink(); LX.tick(520, .06, .025); } return k < 1; });
-        at(15, () => { M0.takes.forEach(k => el.querySelectorAll('.lane')[TK.indexOf(k)].querySelector(`i[data-i="${M0.i}"]`).classList.add('meet')); g.wink(2); LX.ping(); }); }));
+        at(14.6, () => { M0.takes.forEach(k => $$('.lane')[TK.indexOf(k)].querySelector(`i[data-i="${M0.i}"]`).classList.add('meet')); g.wide(1.2); LX.ping(); cam.fit({ x: PH - 180, y: LY(0) - 30, w: 360, h: LY(3) + 130 - LY(0) }, 1.6); });
+        at(16.6, () => g.wink(1.8)); at(19.5, () => cam.home(1.6)); });
 
-    /* THE MEETINGS · the only four times two takes choose the same shot for the same line */
-    B('Meeting', 18, () => M.meet.map((m, j) => tile(40 + j * 385, 110, 365, m.shot.hide ? null : m.shot.loop, `<b>line ${lineNo(m.i)}</b>${m.takes.map(k => NAME[k]).join(' and ')}<br>${esc((m.shot.title || '').slice(0, 38))}`, { d: .8 + j * 1.6, cls: 'yes' })).join('')
-      + LX.band([[.3, `In ${L.n} lines, two takes choose the same shot for the same moment ${M.meet.length} times.`], [8, 'Every time it is Suite and Cineosis. Both work from the suite\'s notes for each beat.'], [13.5, 'Scenes and Drift never meet another take at the same moment.']]),
-      el => go(el, () => { const g = GUIDE(el, K, { x: 222, y: -100, r: 24 }); M.meet.forEach((_, j) => at(.8 + j * 1.6, () => { g.to(222 + j * 385, 56, 24, .6); g.wink(.9); LX.tick(990, .3, .03); })); }));
+    /* MEETINGS · the two takes come at the same moment from either side and collide into one shot */
+    const MT = 4.6, L2 = { x: 40, y: 150, w: 640, h: 480 }, R2 = { x: 760, y: 150, w: 640, h: 480 }, MID = { x: 270, y: 70, w: 900, h: 675 };
+    scene('Meeting', 3 + M.meet.length * MT + 4, M.meet.map((m, j) => box({ ...L2, x: -700 }, src(m.shot), { cls: 'a m' + j, cap: `<b>${NAME[m.takes[0]]}</b>line ${lineNo(m.i)}` }) + box({ ...R2, x: 1500 }, src(m.shot), { cls: 'b m' + j, cap: `<b>${NAME[m.takes[1]]}</b>${esc((m.shot.title || '').slice(0, 40))}` })).join(''),
+      [[.3, `In ${L.n} lines, two takes choose the same shot for the same moment only ${M.meet.length} times.`], ...M.meet.map((m, j) => [3 + j * MT, `Line ${lineNo(m.i)}: ${m.takes.map(k => NAME[k]).join(' and ')} arrive at the same shot.`]),
+        [3 + M.meet.length * MT, 'Every time it is Suite and Cineosis. Both work from the suite\'s notes for each beat. Scenes and Drift never meet another take.']],
+      ({ g, $$ }) => { M.meet.forEach((_, j) => { const a = $$('.m' + j)[0], b = $$('.m' + j)[1], t = 3 + j * MT;
+          at(t, () => { place(a, L2, .7); place(b, R2, .7); g.look(380, 380); }); at(t + .9, () => g.look(1080, 380));
+          at(t + 1.8, () => { place(a, MID, .45, 'cubic-bezier(.6,0,.9,.4)'); place(b, MID, .45, 'cubic-bezier(.6,0,.9,.4)'); });
+          at(t + 2.25, () => { b.style.opacity = 0; a.classList.add('yes'); a.querySelector('.cap').innerHTML = `<b>${M.meet[j].takes.map(k => NAME[k]).join(' + ')}</b>line ${lineNo(M.meet[j].i)} · ${esc((M.meet[j].shot.title || '').slice(0, 40))}`; g.hop(); g.wink(1.2); LX.ping(); });
+          at(t + MT - .3, () => { a.style.opacity = 0; }); });
+        at(3 + M.meet.length * MT, () => g.nod()); });
 
-    /* SHARED · the same shot used by two takes anywhere in the film */
+    /* SHARED · the camera travels down the pairs; frames pop in */
     const fs = Object.fromEntries(TK.map(k => [k, M.lanes[k].filter(f => !f.hide).map(f => f.frame)]));
-    const pairs = []; TK.forEach((a, i) => TK.slice(i + 1).forEach(b => { const s = [...new Set(fs[a])].filter(f => fs[b].includes(f)); pairs.push([a, b, s]); }));
-    pairs.sort((p, q) => q[2].length - p[2].length);
-    B('Shared', 17, () => pairs.map(([a, b, s], j) => `<div class="pr" style="top:${50 + j * 112}px;animation-delay:${.3 + j * .4}s"><div class="pw">${NAME[a]} and ${NAME[b]}<small>${L.shared[TK.indexOf(a)][TK.indexOf(b)]}</small></div><div class="pf">${s.slice(0, 12).map(f => `<i style="background-image:url(${esc(f)})"></i>`).join('')}</div></div>`).join('')
-      + LX.band([[.3, 'Anywhere in the film, at any moment, pairs of takes share a few more shots.'], [7, `Out of ${L.n} shots each, the most any two share is <b>${Math.max(...pairs.map(p => L.shared[TK.indexOf(p[0])][TK.indexOf(p[1])]))}</b>.`], [12, 'Four rules, four films that hardly touch.']]),
-      el => go(el, () => el.querySelectorAll('.pr').forEach((p, j) => p.querySelectorAll('.pf i').forEach((i, k) => at(.6 + j * .4 + k * .12, () => { i.classList.add('in'); if (k % 3 === 0) LX.tick(1300, .04, .015); })))));
+    const pairs = []; TK.forEach((a, i) => TK.slice(i + 1).forEach(b => pairs.push([a, b, [...new Set(fs[a])].filter(f => fs[b].includes(f)), L.shared[i][TK.indexOf(b)]]))); pairs.sort((p, q) => q[3] - p[3]);
+    const PY = j => 60 + j * 112, mx = Math.max(...pairs.map(p => p[3]));
+    scene('Shared', 18, pairs.map(([a, b, s, n], j) => `<div class="pr" style="top:${PY(j)}px"><div class="pw">${NAME[a]} and ${NAME[b]}<small>${n}</small></div><div class="pf">${s.slice(0, 11).map(f => `<i style="background-image:url(${esc(f)})"></i>`).join('')}</div></div>`).join(''),
+      [[.3, 'Anywhere in the film, at any moment, pairs of takes share a few more shots.'], [8, `Out of ${L.n} shots each, the most any two share is <b>${mx}</b>.`], [13, 'Four rules, four films that hardly touch.']],
+      ({ cam, g, $$ }) => { cam.set(440, PY(0) + 36, 1.7); $$('.pr').forEach((p, j) => { at(.4 + j * 1.15, () => { cam.to(440, PY(j) + 36, 1.7, 1); g.blink(); g.look(720, 395); });
+          p.querySelectorAll('.pf i').forEach((i, k) => at(.7 + j * 1.15 + k * .06, () => i.classList.add('in'))); });
+        at(.4 + pairs.length * 1.15 + .3, () => cam.home(1.6)); at(8.2, () => g.wide(1)); at(13.2, () => g.sad(3)); });
 
-    /* STAYING · the one take that keeps to one film */
-    const si = M.stay_i;
-    B('Staying', 17, () => TK.map((k, j) => `<div class="lab" style="top:${62 + j * 172}px">${NAME[k]}</div>` + M.stay[k].map((x, c) => tile(230 + c * 330, 40 + j * 172, 196, x.hide ? null : x.loop, '', { d: .3 + c * .5, cls: k === 'scenes' ? 'yes' : '' }) + `<div class="lab" style="left:${440 + c * 330}px;top:${62 + j * 172}px;width:110px;font:14px/1.3 var(--mono);color:var(--dim)">${esc((x.title || '').slice(0, 34))}</div>`).join('')).join('')
-      + LX.band([[.3, `Lines ${lineNo(si)} to ${lineNo(si + 2)}, in all four takes.`], [5, 'Scenes stays inside one film: three lines, three shots from the same reel, in its order.'], [11.5, 'The others jump to a new film at every cut. Scenes stays about two lines on average, never more than three.']]),
-      el => go(el, () => { const g = GUIDE(el, K, { x: 205, y: -100, r: 20 }); at(5, () => { g.to(205, 40 + 172 + 120, 20, 1); g.wink(2); LX.ping(); }); }));
+    /* STAYING · four panels cut in step; only one keeps to the same film */
+    const si = M.stay_i, SC = 2.1, ST = 3;
+    scene('Staying', 20, TK.map((k, j) => M.stay[k].map((x, c) => box(quad[j], src(x), { cls: `s s${j}`, hide: c > 0, cap: `<b>${NAME[k]}</b>${esc((x.title || '').slice(0, 44))}` })).join('')).join(''),
+      [[.3, `Lines ${lineNo(si)} to ${lineNo(si + 2)}, all four takes at once.`], [ST + .2, 'Watch the names of the films under each one as the cuts come.'], [ST + 3 * SC + .4, 'Scenes stays inside one film: three lines from the same reel, in its order.'], [ST + 3 * SC + 6, 'The others jump to a new film at every cut. Scenes stays about two lines on average, never more than three.']],
+      ({ g, $$ }) => { const ss = $$('.bx.s');
+        for (let rep = 0; rep < 2; rep++) [0, 1, 2].forEach(c => at(ST + rep * 3 * SC + c * SC, () => { TK.forEach((_, j) => { const ps = ss.filter(e => e.classList.contains('s' + j)); ps.forEach((e, i) => { e.style.transition = 'none'; e.style.opacity = i === c ? 1 : 0; }); }); g.blink(); LX.tick(480, .06, .03); }));
+        at(ST + 3 * SC + .3, () => { const j = TK.indexOf('scenes'); ss.filter(e => e.classList.contains('s' + j)).forEach(e => e.classList.add('yes')); g.look(quad[j].x + 220, quad[j].y + 160); g.wink(1.6); LX.ping(); }); });
 
-    /* THE LOOM · six lines across, four takes down, all moving */
+    /* THE LOOM · six lines across, four takes down; the camera glides from line to line with the poem */
     const W0 = M.W0, ln = L.lanes.suite, t0 = ln[W0].t0, t1 = ln[W0 + 5].t1, span = t1 - t0, dur = Math.ceil(Math.min(30, span) + 4);
-    B('The loom', dur, () => [...Array(6).keys()].map(c => `<div class="col" id="c${c}" style="left:${230 + c * 222}px">LINE ${lineNo(W0 + c)}</div>`).join('')
-      + TK.map((k, j) => `<div class="lab" style="top:${110 + j * 168}px">${NAME[k]}</div>` + M.loom[k].map((x, c) => tile(230 + c * 222, 90 + j * 168, 205, x.hide ? null : x.loop, '', { d: .2 + c * .15 + j * .1, cls: 'c' + c })).join('')).join('')
-      + LX.band([[.3, 'Six lines in a row, four takes: a loom.'], [Math.min(9, dur * .35), 'Down a column, one moment four ways. Across a row, one take\'s way of cutting.'], [Math.min(dur - 6, dur * .7), `Line ${lineNo(OP.i)} again. Suite and Drift reach the same film here, for different shots.`]]),
-      el => go(el, () => { LX.poem(K, AU, t0, t1); const g = GUIDE(el, K, { x: 332, y: -100, r: 20 });
-        [...Array(6).keys()].forEach(c => at(Math.max(0, ln[W0 + c].t0 - t0) + .3, () => { el.querySelectorAll('.t').forEach(t => t.classList.toggle('dim', !t.classList.contains('c' + c))); el.querySelectorAll('.col').forEach((e, i) => e.classList.toggle('on', i === c)); g.to(332 + c * 222, 34, 20, .6); g.blink(); }));
-        at(span + .6, () => { el.querySelectorAll('.t').forEach(t => t.classList.remove('dim')); el.querySelectorAll('.col').forEach(e => e.classList.remove('on')); g.wink(1.4); }); }));
+    const LR = (j, c) => ({ x: 230 + c * 196, y: 80 + j * 165, w: 186, h: 140 });
+    scene('The loom', dur, [...Array(6).keys()].map(c => `<div class="col" style="left:${230 + c * 196 - 10}px">LINE ${lineNo(W0 + c)}</div>`).join('')
+      + TK.map((k, j) => `<div class="lab" style="top:${LR(j, 0).y + 50}px">${NAME[k]}</div>` + M.loom[k].map((x, c) => box(LR(j, c), src(x), { cls: 'c' + c })).join('')).join(''),
+      [[.3, 'Six lines in a row, four takes: a loom.'], [Math.min(9, dur * .35), 'Down a column, one moment four ways. Across a row, one take\'s way of cutting.'], [Math.min(dur - 6, dur * .7), `At line ${lineNo(OP.i)}, Suite and Drift reach the same film, for different shots.`]],
+      ({ el, cam, g, $$ }) => { LX.poem(K, AU, t0, t1);
+        [...Array(6).keys()].forEach(c => at(Math.max(0, ln[W0 + c].t0 - t0) + .3, () => { $$('.bx').forEach(t => t.classList.toggle('dim', !t.classList.contains('c' + c))); $$('.col').forEach((e, i) => e.classList.toggle('on', i === c));
+          const r = LR(0, c); cam.to(r.x + r.w / 2, 395, 1.25, 1.1); g.blink(); LX.tick(600, .08, .03); }));
+        at(span + .6, () => { $$('.bx').forEach(t => t.classList.remove('dim')); $$('.col').forEach(e => e.classList.remove('on')); cam.home(1.4); g.spin(); }); at(span + 2, () => g.wink(1.4)); });
 
     /* END */
-    B('End', 9, () => TK.map((k, j) => tile(40 + j * 385, 110, 365, M.open[k].hide ? null : M.open[k].loop, `<b>${NAME[k]}</b>`, { d: j * .3 })).join('')
-      + LX.band([[.3, 'Four rules. Four films of one poem, on one clock, that hardly touch.'], [5, 'Watch them whole under <b>One poem, four cuts</b>.']]),
-      el => go(el, () => { const g = GUIDE(el, K, { x: 800, y: -100, r: 26 }); at(.5, () => g.to(800, 56, 26, 1.2)); at(3, () => g.wink(1.5)); }));
-    B('End', 8, () => `<div class="tc"><small>NEXT · ROOM 1</small><h1>When the Tracks Agree</h1><p>The rare moments separate rules line up.</p></div>`, () => LX.ping());
+    scene('End', 9, TK.map((k, j) => box(quad[j], src(M.open[k], 1), { cap: `<b>${NAME[k]}</b>` })).join(''),
+      [[.3, 'Four rules. Four films of one poem, on one clock, that hardly touch.'], [5, 'Watch them whole under <b>One poem, four cuts</b>.']],
+      ({ g }) => { at(.6, () => g.spin()); at(3, () => g.wink(1.5)); });
+    scene('End', 8, '<div class="tc" style="left:0;width:1440px"><small>NEXT · ROOM 1</small><h1>When the Tracks Agree</h1><p>The rare moments separate rules line up.</p></div>', null,
+      ({ g }) => { LX.ping(); g.to(720, 170, 50); at(4, () => g.wink(1)); at(5.6, () => g.to(720, -260, 50)); }, { g: { x: 720, y: -200, r: 50 } });
   }
 };
 </script>
