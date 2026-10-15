@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """THE CEL LAYER: the WYGWYL film redrawn as cartoon cels (butterfly-halfworld, wygwyl/world/districts/tools: story_carve.py →
 story_cels.py, through wygwyl-world-arch's drawing pipeline), brought onto this lab's suite clock so every tool can show it.
-  cels/cels.json   poems   per-poem map from the reading's own clock to the suite clock (fitted on her words: kernel-data.json)
+  cels/cels.json   poems   per-poem map from the reading's own clock to the suite clock (fitted on his words: kernel-data.json)
                    patches every patch of the film on the suite clock: scene, line, source, cel, poster, status
                    clips   for archive shots of this lab's corpus that the film drew: their cel and poster, by corpus id
                    celability  for every watched clip (cache/watch): could it become a cel? 0–100 and why
-  cels/posters/    a poster per patch (committed); cels/patches/<patch>.mp4 the moving cel (local, like every .mp4 here)
+  cels/posters/    a poster per patch (from the second way, cartoon_v2, where drawn) (committed); cels/patches/<patch>.mp4 the moving cel (local, like every .mp4 here)
   wygwyl/cuts/cels/patches.json + cut.mp4   a fifth cut for wygwyl.html, in the same schema as the other four
 Run from lab/:  python3 cels/build_cels.py   (paths to the film's working data are below)"""
 import os, re, json, glob, shutil, subprocess, numpy as np
@@ -42,8 +42,9 @@ patches, clips = [], {}
 for p, f in sorted(F.items()):
     for s in f['shots']:
         if not s.get('id'): continue
-        pid = s['id']; cel = f'{MIRROR}/shots/video/{pid}/cartoon.mp4'; cid = cid_of((s.get('clip') or {}).get('path')) or cid_of(s.get('path'))
-        drawn = os.path.exists(cel)
+        # the second way (cartoon_v2) where drawn, else the first
+        pid = s['id']; cel = next((x for x in (f'{MIRROR}/shots/video/{pid}/cartoon_v2.mp4', f'{MIRROR}/shots/video/{pid}/cartoon.mp4') if os.path.exists(x)), ''); cid = cid_of((s.get('clip') or {}).get('path')) or cid_of(s.get('path'))
+        drawn = bool(cel)
         if drawn:
             shutil.copy(cel, f'{OUT}/patches/{pid}.mp4')
             for at in (min(2.0, (s['t1'] - s['t0']) / 2), 0.0):                     # a held drawing's cel is short: fall back to its first frame
@@ -87,7 +88,7 @@ cut = [{'id': r['id'], 't0': r['t0'], 't1': r['t1'], 'chapter': r['poem'], 'film
        for r in patches]
 json.dump(cut, open(f'{CUT}/patches.json', 'w'), indent=1, ensure_ascii=False)
 idx = json.load(open(os.path.join(LAB, 'wygwyl', 'cuts', 'index.json'))); idx = [x for x in idx if x['slug'] != 'cels']
-idx.append({'slug': 'cels', 'title': 'Cels', 'idea': 'The film redrawn as cartoon cels: each poem carved into patches on her reading, each patch one moving shot redrawn in the angular multiplane style.',
+idx.append({'slug': 'cels', 'title': 'Cels', 'idea': 'The film redrawn as cartoon cels: each poem carved into patches on his reading, each patch one moving shot redrawn in the angular multiplane style.',
             'film': 'https://github.com/hartswf0/cineosis-lab/releases/download/wygwyl-v1/wygwyl-cels.mp4', 'duration': K['duration'], 'patches': 'wygwyl/cuts/cels/patches.json'})
 json.dump(idx, open(os.path.join(LAB, 'wygwyl', 'cuts', 'index.json'), 'w'), indent=1, ensure_ascii=False)
 import sys
