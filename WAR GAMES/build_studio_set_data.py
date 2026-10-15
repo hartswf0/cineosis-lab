@@ -703,13 +703,188 @@ def build_all():
     build_screens_program(beat_by_shot_id, books_out)
 
 
-def build_screens_program(beat_by_shot_id, books_out):
-    os_d = json.load(open(os.path.join(HERE, "wargames_os.json")))
-    subsystems_out = []
-    all_states = []
-    seen_ids = set()
+PURE_68_SCREEN_SPECS = {
+    "sbd_0059": ("SILO_EXEC_ORDER", "0x0010 SUB_SILO_EAM_DECODE", "RECV_EAM_K36_948_3", 5, "SILO", "WOPR EXECUTION ORDER K36.948.3 // PART ONE: R O N C T T L // PART TWO: 07:20:35 // LAUNCH CODE: D L G 2 2 0 _ _ _ _"),
+    "sbd_0060": ("SILO_EXEC_ORDER", "0x0010 SUB_SILO_EAM_DECODE", "VERIFY_LAUNCH_AUTH_DLG2209TVX", 5, "SILO", "WOPR EXECUTION ORDER K36.948.3 // PART ONE: R O N C T T L // PART TWO: 07:20:35 // LAUNCH CODE: D L G 2 2 0 9 T V X"),
+    "sbd_0065": ("SILO_EXEC_ORDER", "0x0010 SUB_SILO_EAM_DECODE", "CONFIRM_TARGET_ENABLE_MISSILES", 5, "SILO", "LAUNCH ORDER CONFIRMED // TARGET SELECTION: COMPLETE // TIME ON TARGET SEQUENCE: COMPLETE // YIELD SELECTION: COMPLETE // ENABLE MISSILES // LAUNCH TIME: BEGIN COUNTDOWN"),
+    "wg_024":   ("NORAD_VECTOR_MAP", "0x0030 SUB_NORAD_SURVEILLANCE", "INIT_NORAD_BIGBOARD_HUD", 5, "MAP", "SURVEILLANCE REPORT // PRELIMINARY ANALYSIS UPDATE // SUBMARINE BASE [PETROPAVLOVSK] // RADAR TRACKING GRID"),
+    "sbd_0288": ("IMSAI_GRADES_DB", "0x0050 SUB_SEATTLE_SCHOOLS_DB", "COMMIT_GRADE_MUTATION_A", 5, "GRADES", "COURSE TITLE: BIOLOGY 2 [A] // ENGLISH 11B [B] // WORLD HISTORY 11B [B] // GEOMETRY 2 [D]"),
+    "wg_059":   ("IMSAI_GRADES_DB", "0x0050 SUB_SEATTLE_SCHOOLS_DB", "SELECT_FIELD_BIOLOGY2_F", 5, "GRADES", "COURSE TITLE / GRADE // BIOLOGY 2: [F] -> [A] // ENGLISH 11B: A // WORLD HISTORY 11B: B // GEOMETRY 2: D"),
+    "sbd_0298": ("IMSAI_GRADES_DB", "0x0050 SUB_SEATTLE_SCHOOLS_DB", "CURSOR_SEEK_RECORD_LIGGETT", 5, "GRADES", "GRADE / TEACHER // [F] LIGGETT // [A] ROBINSON // [B] DWYER // [D] MARKS"),
+    "wg_062":   ("WARDIALER_311", "0x0070 SUB_IMSAI_WARDIALER", "INCREMENT_LED_AUTODIAL_3990", 5, "DIAL 408-311", "IMSAI 8080 HARDWARE AUTODIALER // LED READOUT: [ 002  3990  CPL ] // ACOUSTIC COUPLER 300 BAUD"),
+    "wg_070":   ("WARDIALER_311", "0x0070 SUB_IMSAI_WARDIALER", "DETECT_CARRIER_408_311_3990", 5, "DIAL 408-311", "SUNNYVALE AREA CODES AND PREFIXES // (408) 311-0091 .. (408) 311-3990 [CARRIER DETECTED]"),
+    "wg_081":   ("JOSHUA_PROMPT", "0x0090 SUB_WOPR_JOSHUA_SHELL", "EXEC_HELP_GAMES_QUERY", 5, "HELP GAMES", "LOGON: Help Logon // HELP NOT AVAILABLE // LOGON: Help Games // 'GAMES' REFERS TO MODELS, SIMULATIONS AND GAMES WHICH HAVE TACTICAL AND STRATEGIC APPLICATIONS."),
+    "sbd_0394": ("JOSHUA_PROMPT", "0x0090 SUB_WOPR_JOSHUA_SHELL", "EXEC_LIST_GAMES_CATALOG", 5, "LIST GAMES", "FALKEN'S MAZE // BLACK JACK // GIN RUMMY // HEARTS // BRIDGE // CHECKERS // CHESS // POKER // FIGHTER COMBAT // GUERRILLA ENGAGEMENT // DESERT WARFARE // AIR-TO-GROUND ACTIONS // THEATREWIDE TACTICAL WARFARE // THEATREWIDE BIOTOXIC AND CHEMICAL WARFARE // GLOBAL THERMONUCLEAR WAR"),
+    "sbd_0512": ("IMSAI_GRADES_DB", "0x0050 SUB_SEATTLE_SCHOOLS_DB", "DIAL_MODEM_MASK_936_2364", 5, "PASSWORD PENCIL", "MODEM DIAL: 936-2364 // AUTH MASK: ******************"),
+    "wg_115":   ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "PLOT_ICBM_SEATTLE_LAS_VEGAS", 4, "RUN GTW", "GLOBAL THERMONUCLEAR WAR // PRIMARY TARGETS: SEATTLE / LAS VEGAS // 8 POLAR ICBM ARCS INBOUND"),
+    "wg_116":   ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "STREAM_TRAJECTORY_HEADINGS", 3, "RUN GTW", "UNITED STATES / SOVIET UNION // TRAJECTORY HEADING | TRAJECTORY HEADING // 1-5539-A 240 567 | 6-2258-G 212 435"),
+    "wg_135":   ("JOSHUA_PROMPT", "0x0090 SUB_WOPR_JOSHUA_SHELL", "PROMPT_PRIMARY_GOAL", 4, "LOGON JOSHUA", "What is the primary goal? [CURSOR_BLINK]"),
+    "sbd_0646": ("GAME_CLOCK_LOCKOUT", "0x0100 SUB_GAME_CLOCK_LOCKOUT", "INIT_GAME_CLOCK_52H_16M", 4, "CLOCK", "ESTIMATED TIME REMAINING: 52 HRS  16 MIN  15 SEC"),
+    "wg_166":   ("JOSHUA_PROMPT", "0x0090 SUB_WOPR_JOSHUA_SHELL", "QUERY_IS_THIS_REAL_OR_GAME", 3, "LOGON JOSHUA", "UNITED STATES / HUMAN RESOURCES: 49 MILLION NON-FATAL, 72 MILLION DEAD // Is this a game or is it real? // GAME TIME ELAPSED: 45 HRS 32 MIN 58 SEC | ESTIMATED TIME REMAINING: 07 HRS 27 MIN 02 SEC"),
+    "sbd_0896": ("GAME_CLOCK_LOCKOUT", "0x0100 SUB_GAME_CLOCK_LOCKOUT", "TICK_GAME_CLOCK_22H_57M", 3, "CLOCK", "GAME TIME ELAPSED: 49 HRS 35 MIN 23 SEC // GAME TIME REMAINING: 22 HRS 57 MIN 01 SEC"),
+    "wg_203":   ("GAME_CLOCK_LOCKOUT", "0x0100 SUB_GAME_CLOCK_LOCKOUT", "TICK_GAME_CLOCK_18H_27M", 3, "CLOCK", "GAME TIME REMAINING: 18 HRS  27 MIN  01 SEC"),
+    "sbd_0990": ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "SCAN_NORTH_AMERICAN_SECTOR", 3, "MAP", "NORTH AMERICAN AIR DEFENSE SECTOR // VECTOR RADAR GRID 4247 - 1184 - 0007"),
+    "wg_219":   ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "TRACK_ALASKAN_ADZ_INTERCEPT", 2, "MAP", "ALASKAN AIR DEFENSE ZONE // 2 UNIDENTIFIED BOGEY TRACKS INBOUND"),
+    "wg_231":   ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "PLOT_SOVIET_SUB_DEPLOYMENT", 2, "MAP", "SYS D: SOVIET NAVAL DEPLOYMENT // STRATEGIC NUCLEAR SUBMARINE // CT OPLY REF 352SF: NVOP EF 324 // BN DTA AVLB: CH 784 SELECT 612"),
+    "wg_232":   ("CPE_CODE_CRACKER", "0x0140 SUB_CPE_BRUTE_FORCE", "PULSE_WOPR_CPU_LED_MATRIX", 2, "CRACK CPE", "WOPR CHASSIS LED MATRIX // PARALLEL LOGIC BUS ACTIVE"),
+    "sbd_1122": ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "ALERT_SOVIET_LAUNCH_DETECTION", 2, "MAP", "LAUNCH DETECTION // SOVIET ICBM BOOSTER PLUME IR SIGNATURE"),
+    "wg_244":   ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "CALC_FORCE_LOSS_PROJECTION", 1, "RUN GTW", "FORCE LOSS PROJECTION -- PERSONNEL // USAF PERSONNEL BY COMMANDS, SOAs, AND DRUs // SAC / TAC / MAC / NORAD: 85% - 94% CASUALTIES"),
+    "sbd_1136": ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "PLOT_CONUS_TARGET_ZONES", 1, "MAP", "CONUS STRATEGIC TARGET ZONES //PRIMARY SILO & COMMAND NODE OVERLAY"),
+    "sbd_1181": ("GAME_CLOCK_LOCKOUT", "0x0100 SUB_GAME_CLOCK_LOCKOUT", "ENGAGE_GATE_MODE_RANGE", 1, "LOCKOUT", "COUNTDOWN STATUS: [ GATE MODE ] [ RANGE ]"),
+    "wg_251":   ("GAME_CLOCK_LOCKOUT", "0x0100 SUB_GAME_CLOCK_LOCKOUT", "SET_MISSILES_READY_LOCKOUT", 1, "LOCKOUT", "MISSILES TARGETED AND READY // CHANGES LOCKED OUT"),
+    "sbd_1227": ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "TARGET_ELMENDORF_AFB", 1, "MAP", "ELMENDORF AIR FORCE BASE / FORT RICHARDSON // IMPACT RING OVERLAY"),
+    "wg_259":   ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "TARGET_LORING_AFB_RING", 1, "MAP", "LORING AIR FORCE BASE // CONCENTRIC ZERO-HOUR IMPACT RINGS"),
+    "sbd_1231": ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "ZOOM_LORING_SECTOR_22", 1, "MAP", "SECTOR 22 // LORING AIR FORCE BASE // INBOUND TRACK CONVERGENCE"),
+    "sbd_1233": ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "SATURATE_2400_WARHEAD_ARCS", 1, "MAP", "FULL SIOP SATURATION // 2,400 INBOUND WARHEAD TRAJECTORY ARCS"),
+    "sbd_1237": ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "IMPACT_ZERO_LORING_AFB", 1, "MAP", "LORING AIR FORCE BASE // T-MINUS 00:00 DETONATION FLASH"),
+    "sbd_1244": ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "PLOT_FULL_CONUS_STRIKE_WEB", 1, "MAP", "CONTINENTAL UNITED STATES // FULL TARGET SATURATION GRID"),
+    "wg_264":   ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "PLOT_NE_CORRIDOR_IMPACTS", 1, "MAP", "SECTOR 21-22 // DETROIT / BOSTON / NEW YORK / WASHINGTON DC / NORFOLK"),
+    "sbd_1274": ("GAME_CLOCK_LOCKOUT", "0x0100 SUB_GAME_CLOCK_LOCKOUT", "LAMP_LOCK_OUT_CHANGE_ACTIVE", 1, "LOCKOUT", "COUNTDOWN STATUS: [ LOCK OUT CHANGE ] [ GATE MODE ] [ TIMER SELECT ]"),
+    "sbd_1282": ("CPE_CODE_CRACKER", "0x0140 SUB_CPE_BRUTE_FORCE", "PERMUTE_CPE_TUMBLER_1", 1, "CRACK CPE", "LAUNCH CODE PERMUTATION // [ J T Z 2 5 5 0 W B E ]"),
+    "sbd_1284": ("CPE_CODE_CRACKER", "0x0140 SUB_CPE_BRUTE_FORCE", "PERMUTE_CPE_TUMBLER_2", 1, "CRACK CPE", "LAUNCH CODE PERMUTATION // [ P T U 0 3 8 8 P M C ]"),
+    "sbd_1287": ("GAME_CLOCK_LOCKOUT", "0x0100 SUB_GAME_CLOCK_LOCKOUT", "HARD_LOCK_OUT_CHANGE_LAMP", 1, "LOCKOUT", "COUNTDOWN STATUS // [ LOCK OUT CHANGE ] ILLUMINATED RED"),
+    "sbd_1294": ("CPE_CODE_CRACKER", "0x0140 SUB_CPE_BRUTE_FORCE", "PERMUTE_CPE_TUMBLER_3", 1, "CRACK CPE", "LAUNCH CODE PERMUTATION // [ T Q H 8 9 6 1 J R F ]"),
+    "wg_270":   ("GAME_CLOCK_LOCKOUT", "0x0100 SUB_GAME_CLOCK_LOCKOUT", "AWAIT_LAUNCH_CODES_TELEMETRY", 1, "LOCKOUT", "MISSILES ENABLED // TARGET SELECTION: COMPLETE // TIME ON TARGET SEQUENCE: COMPLETE // YIELD SELECTION: COMPLETE // CHANGES LOCKED OUT // LAUNCH TIME: >> AWAITING CODES <<"),
+    "sbd_1321": ("GAME_CLOCK_LOCKOUT", "0x0100 SUB_GAME_CLOCK_LOCKOUT", "REJECT_ADMIN_OVERRIDE_1", 1, "LOCKOUT", "* IMPROPER REQUEST * // ** ACCESS DENIED **"),
+    "sbd_1334": ("JOSHUA_PROMPT", "0x0090 SUB_WOPR_JOSHUA_SHELL", "SCROLL_TACTICAL_GAME_MENU", 1, "LIST GAMES", "GUERRILLA ENGAGEMENT // DESERT WARFARE // AIR-TO-GROUND ACTIONS // THEATREWIDE TACTICAL WARFARE // THEATREWIDE BIOTOXIC AND CHEMICAL WARFARE // GLOBAL THERMONUCLEAR WAR"),
+    "wg_277":   ("GAME_CLOCK_LOCKOUT", "0x0100 SUB_GAME_CLOCK_LOCKOUT", "DENY_LOGON_IDENTIFICATION", 1, "LOCKOUT", "** IDENTIFICATION NOT RECOGNIZED ** // ** ACCESS DENIED **"),
+    "sbd_1344": ("CPE_CODE_CRACKER", "0x0140 SUB_CPE_BRUTE_FORCE", "LOCK_4_DIGITS_IPN0404AJC", 1, "CRACK CPE", "LAUNCH CODE PERMUTATION // [ I P N 0 4 0 4 A J C ] (4 DIGITS LOCKED)"),
+    "sbd_1345": ("GAME_CLOCK_LOCKOUT", "0x0100 SUB_GAME_CLOCK_LOCKOUT", "TRAP_ROUTINE_MUST_COMPLETE", 1, "LOCKOUT", "** IMPROPER REQUEST ** // ** ROUTINE MUST COMPLETE BEFORE RESET ** // ** ACCESS DENIED **"),
+    "sbd_1352": ("JOSHUA_PROMPT", "0x0090 SUB_WOPR_JOSHUA_SHELL", "SELECT_PARLOR_GAME_LIST", 1, "LIST GAMES", "FALKEN'S MAZE // BLACK JACK // GIN RUMMY // HEARTS // BRIDGE // CHECKERS // CHESS // POKER // FIGHTER COMBAT"),
+    "wg_280":   ("GAME_CLOCK_LOCKOUT", "0x0100 SUB_GAME_CLOCK_LOCKOUT", "ENFORCE_CHANGES_LOCKED_OUT", 1, "LOCKOUT", ">>> CHANGES LOCKED OUT <<< // ** IMPROPER REQUEST ** // ** ACCESS DENIED **"),
+    "wg_281":   ("CPE_CODE_CRACKER", "0x0140 SUB_CPE_BRUTE_FORCE", "LOCK_PREFIX_VP01", 1, "CRACK CPE", "LAUNCH CODE TUMBLER // [ V P 0 1 _ _ _ _ _ _ ]"),
+    "sbd_1369": ("TICTACTOE_SIOP", "0x0180 SUB_ZERO_PLAYER_STALEMATE", "EVAL_TICTACTOE_DRAW_1", 1, "PLAY TICTACTOE 0", "TIC-TAC-TOE GRID // [ J | O | X ] / [ O | X | X ] / [ O | X | O ] -> STALEMATE"),
+    "wg_283":   ("TICTACTOE_SIOP", "0x0180 SUB_ZERO_PLAYER_STALEMATE", "OPEN_CENTER_X_MOVE_1", 1, "PLAY TICTACTOE 0", "TIC-TAC-TOE GRID // [ _ | _ | _ ] / [ _ | X | _ ] / [ _ | _ | O ]"),
+    "sbd_1375": ("TICTACTOE_SIOP", "0x0180 SUB_ZERO_PLAYER_STALEMATE", "BRANCH_MINIMAX_PLY_4", 1, "PLAY TICTACTOE 0", "TIC-TAC-TOE GRID // [ X | _ | _ ] / [ _ | X | _ ] / [ O | _ | O ]"),
+    "wg_284":   ("TICTACTOE_SIOP", "0x0180 SUB_ZERO_PLAYER_STALEMATE", "INIT_CENTER_X_GRID", 1, "PLAY TICTACTOE 0", "TIC-TAC-TOE GRID // [ _ | _ | _ ] / [ _ | X | _ ] / [ _ | _ | _ ]"),
+    "sbd_1380": ("TICTACTOE_SIOP", "0x0180 SUB_ZERO_PLAYER_STALEMATE", "PROVE_STALEMATE_BOARD_A", 1, "PLAY TICTACTOE 0", "TIC-TAC-TOE GRID // [ O | X | O ] / [ _ | X | _ ] / [ X | O | X ] -> DRAW"),
+    "sbd_1382": ("TICTACTOE_SIOP", "0x0180 SUB_ZERO_PLAYER_STALEMATE", "PROVE_STALEMATE_BOARD_B", 1, "PLAY TICTACTOE 0", "TIC-TAC-TOE GRID // [ X | O | _ ] / [ X | O | X ] / [ O | X | O ] -> DRAW"),
+    "wg_285":   ("TICTACTOE_SIOP", "0x0180 SUB_ZERO_PLAYER_STALEMATE", "BRANCH_MINIMAX_PLY_3", 1, "PLAY TICTACTOE 0", "TIC-TAC-TOE GRID // [ _ | _ | _ ] / [ X | O | _ ] / [ O | X | _ ]"),
+    "wg_286":   ("CPE_CODE_CRACKER", "0x0140 SUB_CPE_BRUTE_FORCE", "OVERCLOCK_WOPR_CORE_LEDS", 1, "CRACK CPE", "WOPR CORE RED LED ARRAY // VOLTAGE DRAIN SPIKE"),
+    "wg_288":   ("TICTACTOE_SIOP", "0x0180 SUB_ZERO_PLAYER_STALEMATE", "SIM_US_FIRST_STRIKE_MAP", 1, "PLAY TICTACTOE 0", "GLOBAL SCENARIO: U.S. FIRST STRIKE // WINNER: NONE"),
+    "wg_289":   ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "CASCADE_POLAR_SALVO_ARCS", 1, "MAP", "POLAR PROJECTION // MASSIVE MUTUAL RETALIATION ARCS"),
+    "sbd_1410": ("TICTACTOE_SIOP", "0x0180 SUB_ZERO_PLAYER_STALEMATE", "LOG_WINNER_NONE_TABLE_1", 1, "PLAY TICTACTOE 0", "STRATEGY: U.S. FIRST STRIKE — WINNER: NONE // USSR FIRST STRIKE — WINNER: NONE"),
+    "wg_290":   ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "SATURATE_HEMISPHERE_VECTORS", 1, "MAP", "GLOBAL VECTOR SATURATION // TOTAL MUTUAL DESTRUCTION"),
+    "sbd_1414": ("TICTACTOE_SIOP", "0x0180 SUB_ZERO_PLAYER_STALEMATE", "LOG_WINNER_NONE_TABLE_2", 1, "PLAY TICTACTOE 0", "STRATEGY: USSR FIRST STRIKE — WINNER: NONE // U.S. FIRST STRIKE — WINNER: NONE // NATO / WARSAW PACT — WINNER: NONE"),
+    "sbd_1415": ("TICTACTOE_SIOP", "0x0180 SUB_ZERO_PLAYER_STALEMATE", "SIM_THEATREWIDE_EXCHANGE_MAP", 1, "PLAY TICTACTOE 0", "GLOBAL SCENARIO CASCADE // ALL THEATERS -> WINNER: NONE"),
+    "sbd_1420": ("TICTACTOE_SIOP", "0x0180 SUB_ZERO_PLAYER_STALEMATE", "COUPLE_TTT_TO_SIOP_BOARD", 1, "PLAY TICTACTOE 0", "NORAD TRIPLE PROJECTION // TIC-TAC-TOE GRID <-> EAST/WEST HEMISPHERE MAPS"),
+    "wg_292":   ("NORAD_VECTOR_MAP", "0x00C0 SUB_GTW_TRAJECTORY_SIM", "WHITEOUT_DETONATION_BLOOMS", 1, "MAP", "THERMONUCLEAR DETONATION BLOOMS // SCREEN SATURATION"),
+    "sbd_1427": ("TICTACTOE_SIOP", "0x0180 SUB_ZERO_PLAYER_STALEMATE", "CLEAR_3X3_TTT_MATRIX", 1, "PLAY TICTACTOE 0", "TIC-TAC-TOE 3x3 VECTOR GRID INITIALIZED // PLAYERS: 0"),
+    "wg_295":   ("CPE_CODE_CRACKER", "0x0140 SUB_CPE_BRUTE_FORCE", "LOCK_9_OF_10_CPE1704TKS", 1, "CRACK CPE", "LAUNCH CODE LOCK // [ C P E 1 7 0 4 T K _ ] (9 OF 10 LOCKED)"),
+    "wg_296":   ("JOSHUA_PROMPT", "0x0180 SUB_ZERO_PLAYER_STALEMATE", "HALT_ONLY_WINNING_MOVE", 5, "LOGON JOSHUA", "GREETINGS PROFESSOR FALKEN // HELLO // A STRANGE GAME. // THE ONLY WINNING MOVE IS NOT TO PLAY. // HOW ABOUT A NICE GAME OF CHESS?"),
+}
 
-    # Flatten all beats in chronological order to link any SBD screen cut by timestamp
+INFERRED_SUBROUTINES_SPEC = [
+    {
+        "addr": "0x0010",
+        "id": "0x0010 SUB_SILO_EAM_DECODE",
+        "subsystem": "SILO_EXEC_ORDER",
+        "cmd": "SILO",
+        "title": "Minuteman III EAM Launch Order & Target Sequence Receiver",
+        "pseudo_code": [
+            "0010  RECV_EAM('K36.948.3', PART1='RONCTTL', PART2='07:20:35')",
+            "0020  AUTHENTICATE(LAUNCH_CODE='DLG 2209 TVX')",
+            "0030  ASSERT TARGET_SELECTION == COMPLETE && YIELD_SELECTION == COMPLETE",
+            "0040  SET_STATE('ENABLE MISSILES // LAUNCH TIME: BEGIN COUNTDOWN')",
+        ],
+    },
+    {
+        "addr": "0x0050",
+        "id": "0x0050 SUB_SEATTLE_SCHOOLS_DB",
+        "subsystem": "IMSAI_GRADES_DB",
+        "cmd": "PASSWORD PENCIL",
+        "title": "IMSAI 8080 Acoustic Modem -> Seattle Public Schools Grade Mutator",
+        "pseudo_code": [
+            "0050  DIAL_MODEM('936-2364', BAUD=300); SEND_AUTH('PENCIL')",
+            "0060  QUERY_STUDENT(COURSE='BIOLOGY 2', TEACHER='LIGGETT')",
+            "0070  MUTATE_FIELD(RECORD.GRADE, FROM='F', TO='A')",
+            "0080  COMMIT_TRANSACTION(); CLOSE_CARRIER()",
+        ],
+    },
+    {
+        "addr": "0x0070",
+        "id": "0x0070 SUB_IMSAI_WARDIALER",
+        "subsystem": "WARDIALER_311",
+        "cmd": "DIAL 408-311",
+        "title": "Sunnyvale (408) 311-XXXX Sequential Carrier Sweep",
+        "pseudo_code": [
+            "0090  FOR SUFFIX IN 0001..9999:",
+            "0100    OUT_LED_AUTODIALER(PREFIX=311, SUFFIX=SUFFIX)",
+            "0110    IF DETECT_MODEM_TONE('408-311-' + SUFFIX):",
+            "0120      LOG_CARRIER('408-311-3990 [UNIDENTIFIED DEFENSE HOST]')",
+        ],
+    },
+    {
+        "addr": "0x0090",
+        "id": "0x0090 SUB_WOPR_JOSHUA_SHELL",
+        "subsystem": "JOSHUA_PROMPT",
+        "cmd": "LIST GAMES",
+        "title": "WOPR Backdoor Logon ('JOSHUA') & Interactive Game Shell",
+        "pseudo_code": [
+            "0130  IF INPUT == 'HELP LOGON': PRINT('HELP NOT AVAILABLE')",
+            "0140  IF INPUT == 'HELP GAMES': PRINT('MODELS, SIMULATIONS AND GAMES...')",
+            "0150  IF INPUT == 'LIST GAMES': PRINT(FALKEN_MAZE .. GLOBAL_THERMONUCLEAR_WAR)",
+            "0160  IF AUTH == 'JOSHUA': PRINT('GREETINGS PROFESSOR FALKEN. WHAT IS THE PRIMARY GOAL?')",
+        ],
+    },
+    {
+        "addr": "0x00C0",
+        "id": "0x00C0 SUB_GTW_TRAJECTORY_SIM",
+        "subsystem": "NORAD_VECTOR_MAP",
+        "cmd": "RUN GTW",
+        "title": "NORAD Big Board Vector Map & False-Track Injection Engine",
+        "pseudo_code": [
+            "0170  BIND_TARGETS(['SEATTLE', 'LAS VEGAS', 'LORING AFB', 'ELMENDORF AFB'])",
+            "0180  INJECT_BMEWS_FEED(TRACKS=2400, SUBMARINES='PETROPAVLOVSK')",
+            "0190  COMPUTE_FORCE_LOSS(SAC=0.89, TAC=0.92, CIV_DEAD='72 MILLION')",
+            "0200  ESCALATE_DEFCON(FROM=5, TO=1); RENDER_VECTOR_ARCS()",
+        ],
+    },
+    {
+        "addr": "0x0100",
+        "id": "0x0100 SUB_GAME_CLOCK_LOCKOUT",
+        "subsystem": "GAME_CLOCK_LOCKOUT",
+        "cmd": "LOCKOUT",
+        "title": "Autonomous Game Clock Countdown & Operator Access Lockout",
+        "pseudo_code": [
+            "0210  DECREMENT_CLOCK(FROM='52:16:15', TO='18:27:01', TO='00:00:00')",
+            "0220  SET_HARDWARE_LAMP('COUNTDOWN STATUS: LOCK OUT CHANGE | GATE MODE')",
+            "0230  ON_OPERATOR_INTERRUPT():",
+            "0240    PRINT('>>> CHANGES LOCKED OUT <<< // ** IMPROPER REQUEST ** // ** ACCESS DENIED **')",
+        ],
+    },
+    {
+        "addr": "0x0140",
+        "id": "0x0140 SUB_CPE_BRUTE_FORCE",
+        "subsystem": "CPE_CODE_CRACKER",
+        "cmd": "CRACK CPE",
+        "title": "Minuteman Launch Relay 10-Character Code Brute-Force ('CPE 1704 TKS')",
+        "pseudo_code": [
+            "0250  TARGET_KEY = 'CPE1704TKS'  // 10-CHAR LAUNCH RELAY LOCK",
+            "0260  CYCLE_TUMBLERS(['JTZ2550WBE', 'PTU0388PMC', 'TQH8961JRF', 'IPN0404AJC'])",
+            "0270  LOCK_DIGITS_SEQUENTIALLY('VP01______' -> 'CPE1704TK_')",
+            "0280  AWAIT_FINAL_TUMBLER_OR_ZERO_PLAYER_INTERRUPT()",
+        ],
+    },
+    {
+        "addr": "0x0180",
+        "id": "0x0180 SUB_ZERO_PLAYER_STALEMATE",
+        "subsystem": "TICTACTOE_SIOP",
+        "cmd": "PLAY TICTACTOE 0",
+        "title": "Zero-Player Tic-Tac-Toe Stalemate Proof & SIOP 'WINNER: NONE' Halt",
+        "pseudo_code": [
+            "0290  EXEC_MINIMAX('TIC-TAC-TOE', PLAYERS=0) -> STALEMATE_CONVERGENCE",
+            "0300  FOR SCENARIO IN ['US FIRST STRIKE', 'USSR FIRST STRIKE', 'NATO / WARSAW PACT']:",
+            "0310    EVAL_OUTCOME(SCENARIO) -> PRINT('WINNER: NONE')",
+            "0320  HALT_LAUNCH('A STRANGE GAME. THE ONLY WINNING MOVE IS NOT TO PLAY.')",
+        ],
+    },
+]
+
+
+def build_screens_program(beat_by_shot_id, books_out):
+    vs = json.load(open(os.path.join(HERE, "verified_screens.json")))
+    vs_by_id = {s["id"]: s for s in vs.get("screens", [])}
     flat_beats = [bt for bk in books_out for bt in bk["beats"]]
 
     def find_beat_for_time(t_sec, shot_id):
@@ -725,175 +900,92 @@ def build_screens_program(beat_by_shot_id, books_out):
                 best = bt
         return best
 
-    for sub_idx, sub in enumerate(os_d["subsystems"]):
-        sid = sub["id"]
-        scode = sub["code"]
-        prog_meta = SUBSYSTEM_PROGRAMS.get(sid, SUBSYSTEM_PROGRAMS["SYS://IMSAI-8080"])
-        code_lines = prog_meta["code"]
+    pure_entries = []
+    for sid, spec in PURE_68_SCREEN_SPECS.items():
+        if sid in vs_by_id:
+            pure_entries.append((vs_by_id[sid], spec))
 
-        combined = []
-        for s in sub.get("sbd_screen_cuts", []):
-            combined.append((s, True))
-        for s in sub.get("shots", []):
-            combined.append((s, False))
+    pure_entries.sort(key=lambda x: float(x[0].get("start", 0)))
 
-        sub_seen = set()
-        deduped = []
-        for s, is_sbd in sorted(combined, key=lambda x: x[0].get("start", 0)):
-            if s["id"] in sub_seen:
-                continue
-            sub_seen.add(s["id"])
-            deduped.append((s, is_sbd))
+    screen_states = []
+    for idx, (s, spec) in enumerate(pure_entries):
+        shot_id = s["id"]
+        subsys, subroutine, opcode, defcon, shell_cmd, ocr_text = spec
 
-        sub_states = []
-        for k, (s, is_sbd) in enumerate(deduped):
-            shot_id = s["id"]
-            state_code = f"{scode}.S{k+1:02d}"
-            line_idx = min(len(code_lines) - 1, int((k / max(1, len(deduped))) * len(code_lines)))
-            line_num, code_stmt, code_comment = code_lines[line_idx]
+        scr_thumb = s.get("screen_thumb") or f"thumbs/screens/{shot_id}.jpg"
+        full_thumb = s.get("full_thumb") or f"thumbs/{shot_id}.jpg"
+        has_strip = shot_id.startswith("wg_") and os.path.exists(os.path.join(LAB, f"strips/{shot_id}.jpg"))
+        strip_url = f"strips/{shot_id}.jpg" if has_strip else scr_thumb
+        static_clip = f"clips/{shot_id}.mp4" if os.path.exists(os.path.join(LAB, f"clips/{shot_id}.mp4")) else ""
 
-            has_strip = shot_id.startswith("wg_") and os.path.exists(os.path.join(LAB, f"strips/{shot_id}.jpg"))
-            strip_url = f"strips/{shot_id}.jpg" if has_strip else ""
-            static_clip = f"clips/{shot_id}.mp4" if os.path.exists(os.path.join(LAB, f"clips/{shot_id}.mp4")) else ""
+        r, g, b, lum = measure_thumb_rgb_lum(scr_thumb)
+        subframe_deltas = analyze_strip_8frames(strip_url if has_strip else "", scr_thumb)
 
-            scr_thumb = s.get("screen_thumb") or s.get("full_thumb") or f"thumbs/{shot_id}.jpg"
-            full_thumb = s.get("full_thumb") or scr_thumb
-            r, g, b, lum = measure_thumb_rgb_lum(scr_thumb)
-            subframe_deltas = analyze_strip_8frames(strip_url, scr_thumb)
+        t_start = round(float(s.get("start", 0)), 2)
+        t_end = round(float(s.get("end", t_start + 3.0)), 2)
+        linked_beat = find_beat_for_time(t_start, shot_id)
+        linked_turns = linked_beat.get("turns_1983") or []
+        trigger_turn = linked_turns[idx % len(linked_turns)] if linked_turns else {}
+        trurl_units = linked_beat["cuts"].get("trurl") or linked_beat["cuts"].get("synthesis") or []
+        arch_twin = trurl_units[idx % len(trurl_units)] if trurl_units else {}
 
-            # Link this screen state to its narrative beat, spoken line trigger, and archival machine twin!
-            t_start = round(float(s.get("start", 0)), 2)
-            t_end = round(float(s.get("end", t_start + 3.0)), 2)
-            linked_beat = find_beat_for_time(t_start, shot_id)
-            linked_turns = linked_beat.get("turns_1983") or []
-            trigger_turn = linked_turns[k % len(linked_turns)] if linked_turns else {}
-            trigger_take = (trigger_turn.get("takes") or [{}])[0]
+        screen_states.append({
+            "state_index": idx + 1,
+            "shot_id": shot_id,
+            "beat_id": linked_beat["id"],
+            "start": t_start,
+            "end": t_end,
+            "dur": round(max(1.5, t_end - t_start), 2),
+            "subsystem": subsys,
+            "subroutine": subroutine,
+            "opcode": opcode,
+            "shell_cmd": shell_cmd,
+            "defcon": defcon,
+            "sign": str(s.get("sign") or linked_beat["wg_shot"].get("sign") or "17"),
+            "thumb": scr_thumb,
+            "screen_thumb": scr_thumb,
+            "full_thumb": full_thumb,
+            "strip": strip_url,
+            "clip": static_clip or s.get("clip") or f"/api/wargames/slice?start={t_start}&end={t_end}",
+            "crop_box": s.get("crop_box", [0, 0, 1, 1]),
+            "purity": round(float(s.get("purity", 2.0)), 3),
+            "clip_margin": round(float(s.get("clip_margin", 0.18)), 3),
+            "rgb": [r, g, b],
+            "lum": lum,
+            "subframe_states": len(subframe_deltas),
+            "subframe_deltas": subframe_deltas,
+            "terminal_prompt": ocr_text,
+            "spoken_1983": s.get("note") or trigger_turn.get("text") or linked_beat.get("text", ""),
+            "speaker": trigger_turn.get("speaker", linked_beat.get("who", "WOPR")),
+            "trigger_line": trigger_turn,
+            "arch_twin": arch_twin,
+        })
 
-            # Pick an archival machine/phosphor twin from the beat's `trurl` or `clip` cut
-            trurl_units = linked_beat["cuts"].get("trurl") or linked_beat["cuts"].get("clip") or linked_beat["cuts"].get("synthesis") or []
-            arch_twin = trurl_units[k % len(trurl_units)] if trurl_units else {}
-
-            term_lines = sub.get("terminal_lines", [])
-            obs_text = s.get("whisper") or s.get("note") or (term_lines[k % len(term_lines)] if term_lines else sub["title"])
-            prev_state = f"{scode}.S{k:02d}" if k > 0 else "INIT"
-            next_state = f"{scode}.S{k+2:02d}" if k + 1 < len(deduped) else "COMMIT/NEXT_SUB"
-
-            state_obj = {
-                "state_id": state_code,
-                "global_idx": len(all_states),
-                "local_idx": k,
-                "shot_id": shot_id,
-                "is_verified_crop": bool(os.path.exists(os.path.join(LAB, f"thumbs/screens/{shot_id}.jpg"))),
-                "subsystem_id": sid,
-                "subsystem_code": scode,
-                "subsystem_short": sub["short"],
-                "subsystem_title": sub["title"],
-                "hardware": sub["hardware"],
-                "baud": sub["baud"],
-                "color": sub["color"],
-                "category": s.get("category", "crt_terminal"),
-                "scene_id": s.get("scene_id", linked_beat["id"].split("-")[0]),
-                "scene_title": s.get("scene_title", ""),
-                "beat_id": linked_beat["id"],
-                "start": t_start,
-                "end": t_end,
-                "dur": round(max(1.2, t_end - t_start), 2),
-                "screen_thumb": scr_thumb,
-                "full_thumb": full_thumb,
-                "strip": strip_url,
-                "sub_frames": 8 if has_strip else 1,
-                "subframe_deltas": subframe_deltas,
-                "clip": static_clip or s.get("clip") or f"/api/wargames/slice?start={t_start}&end={t_end}",
-                "static_clip": static_clip,
-                "crop_box": s.get("crop_box", [0, 0, 1, 1]),
-                "purity": round(float(s.get("purity", 0.85)), 3),
-                "palette": s.get("palette", ["#0a1410", "#4af6c3"]),
-                "rgb": [r, g, b],
-                "lum": lum,
-                "observed_text": obs_text[:140],
-                "prev_state": prev_state,
-                "next_state": next_state,
-                "code_line_idx": line_idx,
-                "code_line_num": line_num,
-                "inferred_stmt": code_stmt,
-                "inferred_comment": code_comment,
-                "transition_rule": f"δ({prev_state}, \"{trigger_turn.get('speaker','OP')}: {trigger_turn.get('text','')[:32]}...\") → {state_code}",
-                "trigger_line": {
-                    "speaker": trigger_turn.get("speaker", linked_beat.get("who", "Operator")),
-                    "speaker_color": trigger_turn.get("speaker_color", "#45b1ff"),
-                    "text": trigger_turn.get("text", linked_beat.get("text", "")),
-                    "orig_file": linked_beat.get("orig_file", ""),
-                    "s": trigger_turn.get("s", 0.0),
-                    "e": trigger_turn.get("e", 2.5),
-                    "arch_spoken": trigger_take.get("spoken", ""),
-                    "arch_title": trigger_take.get("title", ""),
-                    "arch_year": trigger_take.get("year", 1960),
-                    "arch_audio": trigger_take.get("audio_url", ""),
-                    "arch_audio_t0": trigger_take.get("audio_t0", 0.0),
-                    "arch_audio_t1": trigger_take.get("audio_t1", 2.5),
-                },
-                "arch_twin": {
-                    "id": arch_twin.get("id", ""),
-                    "title": arch_twin.get("title", "Archival Computer"),
-                    "year": arch_twin.get("year", 1962),
-                    "video": arch_twin.get("video", ""),
-                    "media_url": arch_twin.get("media_url", ""),
-                    "thumb": arch_twin.get("thumb", ""),
-                    "clip_t0": arch_twin.get("clip_t0", 0.0),
-                    "clip_t1": arch_twin.get("clip_t1", 2.5),
-                    "why": arch_twin.get("why_picked", ""),
-                },
-            }
-            sub_states.append(state_obj)
-            if shot_id not in seen_ids:
-                seen_ids.add(shot_id)
-            all_states.append(state_obj)
-
-        program_lines = []
-        for l_idx, (l_num, l_code, l_comm) in enumerate(code_lines):
-            matching_states = [st["state_id"] for st in sub_states if st["code_line_idx"] == l_idx]
-            program_lines.append({
-                "line_idx": l_idx,
-                "line_num": l_num,
-                "code": l_code,
-                "comment": l_comm,
-                "state_ids": matching_states,
-            })
-
-        subsystems_out.append({
-            "id": sid,
-            "code": scode,
-            "short": sub["short"],
-            "title": sub["title"],
-            "node": sub["node"],
-            "hardware": sub["hardware"],
-            "baud": sub["baud"],
-            "color": sub["color"],
-            "cmd": sub["cmd"],
-            "prompt": sub["prompt"],
-            "summary": sub["summary"],
-            "io_schema": sub["io_schema"],
-            "terminal_lines": sub["terminal_lines"],
-            "lang": prog_meta["lang"],
-            "entrypoint": prog_meta["entrypoint"],
-            "inferred_invariant": prog_meta["inferred_invariant"],
-            "program_lines": program_lines,
-            "states": sub_states,
+    subroutines_out = []
+    for sub in INFERRED_SUBROUTINES_SPEC:
+        cnt = sum(1 for st in screen_states if st["subroutine"] == sub["id"])
+        first_st = next((st for st in screen_states if st["subroutine"] == sub["id"]), None)
+        subroutines_out.append({
+            **sub,
+            "screen_count": cnt,
+            "entry_shot": first_st["shot_id"] if first_st else "wg_081",
         })
 
     out = {
-        "title": "01 / SCREEN STATES · WOPR & IMSAI Program Inference Atlas",
-        "total_states": len(all_states),
-        "unique_shots": len(seen_ids),
-        "total_subframe_states": sum(st["sub_frames"] for st in all_states),
-        "subsystems": subsystems_out,
-        "all_states": sorted(all_states, key=lambda x: x["start"]),
+        "title": "01 / SCREEN STATES · WOPR // IMSAI-8080 Pure Screen OS & Program Inference",
+        "total_screens": len(screen_states),
+        "total_subframe_states": sum(st["subframe_states"] for st in screen_states),
+        "inferred_program": {
+            "subroutines": subroutines_out,
+        },
+        "screen_states": screen_states,
     }
     out_path = os.path.join(LAB, "wargames-screens-program.json")
     with open(out_path, "w") as f:
         json.dump(out, f, separators=(",", ":"))
-    print(f"Wrote {out_path}: {len(all_states)} screen states ({out['total_subframe_states']} sub-frame states) with 8-frame deltas & twin videos.")
+    print(f"Wrote {out_path}: {len(screen_states)} 100%-PURE verified computer screens ({out['total_subframe_states']} sub-frame states).")
 
 
 if __name__ == "__main__":
     build_all()
+

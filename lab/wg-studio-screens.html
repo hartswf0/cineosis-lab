@@ -3,350 +3,359 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>01 / SCREEN STATES — Reverse-Engineering the WOPR &amp; IMSAI Program from All 258 Screen States</title>
+<title>01 / SCREEN STATES — WOPR // IMSAI-8080 Interactive Computer &amp; 68 Pure Screens Program</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#050608;
-    --panel:#0a0d12;
-    --panel2:#0e131a;
-    --ink:#efe9dd;
-    --muted:#8a94a2;
-    --dim:#495260;
-    --rule:rgba(239,233,221,.11);
-    --gold:#e8c070;
+    --bg:#030608;
+    --panel:#070c11;
+    --panel2:#0b131b;
+    --ink:#dffaf0;
+    --phos:#4af6c3;
     --cyan:#45b1ff;
-    --green:#41e096;
+    --gold:#e8c070;
     --red:#ff5548;
-    --amber:#f59e0b;
+    --muted:#73968c;
+    --rule:rgba(74,246,195,.16);
     --mono:'IBM Plex Mono',ui-monospace,monospace;
     --serif:'Fraunces',Georgia,serif;
-    --sans:'IBM Plex Sans',system-ui,sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--mono);overflow:hidden}
-  .shell{
+
+  /* Global subtle CRT scanline overlay */
+  body::after{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:95;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.13) 0px,rgba(0,0,0,.13) 1px,transparent 1px,transparent 3px);
+  }
+
+  .os-shell{
     position:fixed;top:40px;left:0;right:0;bottom:148px;
     display:grid;
-    grid-template-columns:360px 1fr 410px;
+    grid-template-columns:360px 1fr 430px;
     border-top:1px solid var(--rule);
-    transition:bottom .24s cubic-bezier(.22,1,.36,1);
   }
-  body.lines-collapsed .shell{bottom:44px}
-
   .col{display:flex;flex-direction:column;height:100%;overflow:hidden;border-right:1px solid var(--rule)}
   .col:last-child{border-right:0}
   .col-head{
-    padding:9px 14px;border-bottom:1px solid var(--rule);
-    background:rgba(10,13,18,.94);
+    padding:8px 12px;border-bottom:1px solid var(--rule);
+    background:#05090d;
     display:flex;align-items:center;justify-content:space-between;gap:8px;
-    font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);
+    font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);
     flex-shrink:0;
   }
-  .col-head b{color:var(--ink);font-weight:600}
+  .col-head b{color:var(--phos);font-weight:600;text-shadow:0 0 8px rgba(74,246,195,.35)}
 
-  /* LEFT: DUAL LIVE CRT EXECUTION + 8-SUBFRAME DELTA INSPECTOR + INFERRED PROGRAM */
-  .crt-pair{
-    display:grid;grid-template-columns:1fr 1fr;gap:6px;
-    padding:8px 10px;border-bottom:1px solid var(--rule);background:#030507;flex-shrink:0;
+  /* COLUMN 1: DUAL LIVE CRT HARDWARE MONITORS + 10-DIGIT CPE TUMBLER + INFERRED PROGRAM */
+  .crt-bay{
+    display:grid;grid-template-columns:1.15fr 0.85fr;gap:6px;
+    padding:8px 10px;border-bottom:1px solid var(--rule);background:#020406;flex-shrink:0;
   }
-  .crt-box{
-    border:1px solid rgba(69,177,255,.24);background:#000;position:relative;
-    display:flex;flex-direction:column;
+  .crt-bezel{
+    border:1.5px solid rgba(74,246,195,.35);background:#000;border-radius:4px;
+    overflow:hidden;display:flex;flex-direction:column;
+    box-shadow:inset 0 0 18px rgba(74,246,195,.12);
   }
-  .crt-box.twin{border-color:rgba(232,192,112,.28)}
-  .crt-lbl{
-    padding:3px 6px;font-size:8px;letter-spacing:.12em;text-transform:uppercase;
-    display:flex;justify-content:space-between;background:rgba(10,14,20,.9);border-bottom:1px solid rgba(255,255,255,.07);
+  .crt-bezel.twin{border-color:rgba(232,192,112,.35)}
+  .crt-bar{
+    padding:3px 6px;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;
+    display:flex;justify-content:space-between;background:#060c10;border-bottom:1px solid rgba(74,246,195,.14);
   }
-  .crt-screen{
+  .crt-viewport{
     position:relative;aspect-ratio:16/9;width:100%;background:#000;overflow:hidden;
   }
-  .crt-screen video,.crt-screen img{
-    width:100%;height:100%;object-fit:cover;display:block;
+  .crt-viewport video,.crt-viewport img{
+    width:100%;height:100%;object-fit:cover;display:block;transition:transform .22s ease;
   }
-  .crt-scan{
-    position:absolute;inset:0;pointer-events:none;
-    background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0px,rgba(0,0,0,0) 2px,rgba(0,0,0,.28) 3px);
-  }
-  .crt-meta{
-    padding:4px 6px;font-size:8px;line-height:1.35;color:var(--muted);
+  .crt-ocr{
+    padding:4px 6px;font-size:8px;line-height:1.3;color:var(--phos);
+    background:#04080b;border-top:1px solid rgba(74,246,195,.12);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+
+  /* 10-CHARACTER CPE-1704-TKS LAUNCH CODE HARDWARE LOCK */
+  .cpe-bar{
+    padding:6px 10px;border-bottom:1px solid var(--rule);background:#060a0e;
+    display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0;
+  }
+  .cpe-digits{display:flex;gap:3px}
+  .cpe-cell{
+    width:20px;height:24px;border:1px solid rgba(255,85,72,.4);background:#0e0506;
+    color:var(--red);font:600 12px/22px var(--mono);text-align:center;
+    text-shadow:0 0 8px rgba(255,85,72,.6);
+  }
+  .cpe-cell.locked{
+    border-color:var(--phos);background:rgba(74,246,195,.12);color:var(--phos);
+    text-shadow:0 0 8px rgba(74,246,195,.6);
   }
 
   /* 8-SUBFRAME DELTA STRIP */
-  .subframe-box{
-    padding:7px 10px;border-bottom:1px solid var(--rule);background:var(--panel);flex-shrink:0;
+  .sf-box{padding:6px 10px;border-bottom:1px solid var(--rule);background:var(--panel);flex-shrink:0}
+  .sf-strip{
+    position:relative;height:38px;border:1px solid var(--rule);background:#000;
+    display:grid;grid-template-columns:repeat(8,1fr);overflow:hidden;
   }
-  .sf-head{
-    display:flex;justify-content:space-between;align-items:center;
-    font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;
-  }
-  .sf-strip-wrap{
-    position:relative;height:44px;border:1px solid var(--rule);background:#000;overflow:hidden;
-    display:grid;grid-template-columns:repeat(8,1fr);
-  }
-  .sf-strip-bg{
-    position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.88;pointer-events:none;
-  }
+  .sf-strip img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.86;pointer-events:none}
   .sf-cell{
-    position:relative;z-index:2;border-right:1px solid rgba(255,255,255,.15);
-    display:flex;flex-direction:column;justify-content:space-between;padding:2px 3px;
-    font-size:7.5px;cursor:pointer;transition:background .12s;
+    position:relative;z-index:2;border-right:1px solid rgba(74,246,195,.18);
+    display:flex;flex-direction:column;justify-content:space-between;padding:2px;
+    font-size:7px;cursor:pointer;
   }
-  .sf-cell:hover,.sf-cell.on{background:rgba(232,192,112,.22);outline:1px solid var(--gold)}
-  .sf-cell span{background:rgba(0,0,0,.72);padding:1px 2px;width:max-content}
-  .sf-op-row{
-    display:grid;grid-template-columns:repeat(8,1fr);gap:2px;margin-top:4px;
-  }
-  .sf-op-tag{
-    font-size:7px;padding:2px 2px;text-align:center;border:1px solid var(--rule);
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  }
-  .sf-op-tag.VECTOR_SWEEP{border-color:rgba(255,85,72,.5);color:#ff857a;background:rgba(255,85,72,.1)}
-  .sf-op-tag.PAGE_FLIP{border-color:rgba(232,192,112,.5);color:var(--gold);background:rgba(232,192,112,.1)}
-  .sf-op-tag.TTY_CHAR_OUT{border-color:rgba(65,224,150,.45);color:var(--green);background:rgba(65,224,150,.08)}
+  .sf-cell:hover,.sf-cell.on{background:rgba(74,246,195,.22);outline:1px solid var(--phos)}
+  .sf-cell span{background:rgba(0,0,0,.78);padding:0 2px;width:max-content}
 
-  /* CODE LISTING */
+  /* INFERRED SUBROUTINE LISTING */
   .code-scroll{
-    flex:1;overflow-y:auto;padding:10px 12px;font-size:10px;line-height:1.52;
-    background:linear-gradient(180deg,#06080c 0%,#080b10 100%);
+    flex:1;overflow-y:auto;padding:8px 10px;font-size:9.5px;line-height:1.48;
+    background:#04070a;
   }
   .sub-block{
-    margin-bottom:12px;border:1px solid rgba(69,177,255,.15);background:rgba(12,17,24,.78);
+    margin-bottom:9px;border:1px solid rgba(74,246,195,.16);background:rgba(9,16,22,.82);
   }
-  .sub-block.active{border-color:var(--gold);box-shadow:0 0 18px rgba(232,192,112,.11)}
+  .sub-block.active{border-color:var(--gold);box-shadow:0 0 16px rgba(232,192,112,.14)}
   .sub-hdr{
-    padding:5px 9px;background:rgba(69,177,255,.08);border-bottom:1px solid rgba(69,177,255,.14);
+    padding:5px 8px;background:rgba(74,246,195,.08);border-bottom:1px solid rgba(74,246,195,.14);
     display:flex;justify-content:space-between;align-items:center;
-    color:var(--cyan);font-weight:600;font-size:9px;letter-spacing:.08em;cursor:pointer;
+    color:var(--phos);font-weight:600;font-size:8.5px;cursor:pointer;
   }
-  .sub-block.active .sub-hdr{background:rgba(232,192,112,.15);color:var(--gold)}
-  .sub-meta{padding:5px 9px;color:var(--muted);font-size:8.5px;border-bottom:1px dashed rgba(239,233,221,.07)}
-  .code-lines{padding:6px 9px;color:#d6e4f0}
-  .code-ln{display:block;white-space:pre-wrap;padding:1px 3px;border-radius:2px}
-  .code-ln.op-hl{background:rgba(232,192,112,.18);color:var(--gold);font-weight:600}
+  .sub-block.active .sub-hdr{background:rgba(232,192,112,.16);color:var(--gold)}
+  .code-lines{padding:5px 8px;color:#c7ece0;font-size:8.5px}
+  .code-ln{display:block;white-space:pre-wrap;padding:1px 3px}
+  .code-ln.hl{background:rgba(74,246,195,.16);color:#fff;font-weight:600}
 
-  /* CENTER: ALL 258 SCREEN STATES CONTACT SHEET & SUB-FRAME ATLAS */
+  /* COLUMN 2: 68 100%-PURE COMPUTER SCREENS MATRIX */
   .filter-bar{
-    padding:7px 12px;border-bottom:1px solid var(--rule);background:var(--panel);
-    display:flex;align-items:center;gap:5px;flex-wrap:wrap;flex-shrink:0;
+    padding:6px 10px;border-bottom:1px solid var(--rule);background:var(--panel);
+    display:flex;align-items:center;gap:4px;flex-wrap:wrap;flex-shrink:0;
   }
   .f-btn{
-    background:rgba(255,255,255,.03);border:1px solid var(--rule);color:var(--muted);
-    font:500 8.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;
-    padding:4px 7px;cursor:pointer;transition:all .14s;
+    background:rgba(74,246,195,.04);border:1px solid var(--rule);color:var(--muted);
+    font:500 8px/1 var(--mono);letter-spacing:.11em;text-transform:uppercase;
+    padding:4px 6px;cursor:pointer;transition:all .13s;
   }
-  .f-btn:hover{color:var(--ink);border-color:rgba(239,233,221,.35)}
-  .f-btn.on{color:#050608;background:var(--gold);border-color:var(--gold);font-weight:600}
-  .f-btn.sys-on{color:#050608;background:var(--cyan);border-color:var(--cyan);font-weight:600}
+  .f-btn:hover{color:var(--ink);border-color:var(--phos)}
+  .f-btn.on{color:#030608;background:var(--phos);border-color:var(--phos);font-weight:600}
+  .f-btn.gold-on{color:#030608;background:var(--gold);border-color:var(--gold);font-weight:600}
 
-  .grid-scroll{flex:1;overflow-y:auto;padding:10px;background:#040507}
+  .grid-scroll{flex:1;overflow-y:auto;padding:9px;background:#020406}
   .screen-grid{
-    display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:6px;
-  }
-  .screen-grid.strip-mode{
-    grid-template-columns:repeat(auto-fill,minmax(270px,1fr));
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:7px;
   }
   .sc-card{
-    border:1px solid rgba(239,233,221,.11);background:var(--panel);cursor:pointer;
+    border:1px solid rgba(74,246,195,.16);background:var(--panel);cursor:pointer;
     position:relative;overflow:hidden;transition:transform .12s,border-color .12s;
-    display:flex;flex-direction:column;
+    display:flex;flex-direction:column;border-radius:3px;
   }
-  .sc-card:hover{border-color:rgba(239,233,221,.48);transform:translateY(-1px);z-index:2}
-  .sc-card.active{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 16px rgba(232,192,112,.25);z-index:3}
+  .sc-card:hover{border-color:var(--phos);transform:translateY(-1px);z-index:2}
+  .sc-card.active{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 16px rgba(232,192,112,.3);z-index:3}
   .sc-img-wrap{position:relative;aspect-ratio:16/9;background:#000;overflow:hidden}
-  .screen-grid.strip-mode .sc-img-wrap{aspect-ratio:32/5}
   .sc-img-wrap img{width:100%;height:100%;object-fit:cover;display:block}
   .sc-badge{
-    position:absolute;top:3px;left:3px;padding:2px 4px;
-    background:rgba(5,6,8,.84);border:1px solid rgba(255,255,255,.14);
-    font-size:7.5px;letter-spacing:.08em;color:var(--ink);
+    position:absolute;top:3px;left:3px;padding:1.5px 4px;
+    background:rgba(3,6,8,.88);border:1px solid rgba(74,246,195,.3);
+    font-size:7px;letter-spacing:.08em;color:var(--phos);
   }
-  .sc-defcon{
-    position:absolute;top:3px;right:3px;padding:2px 4px;
-    font-size:7.5px;font-weight:600;letter-spacing:.08em;background:rgba(5,6,8,.84);
+  .sc-cmd-tag{
+    position:absolute;bottom:3px;right:3px;padding:1.5px 4px;
+    background:rgba(3,6,8,.88);border:1px solid rgba(232,192,112,.35);
+    font-size:7px;color:var(--gold);letter-spacing:.06em;
   }
-  .sc-defcon.d1{color:var(--red);border:1px solid rgba(255,85,72,.5)}
-  .sc-defcon.d2,.sc-defcon.d3{color:var(--amber);border:1px solid rgba(245,158,11,.45)}
-  .sc-defcon.d4,.sc-defcon.d5{color:var(--green);border:1px solid rgba(65,224,150,.35)}
-  .sc-foot{
-    padding:4px 6px;font-size:8px;display:flex;flex-direction:column;gap:2px;
-  }
-  .sc-op{color:var(--gold);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .sc-sub{color:var(--muted);display:flex;justify-content:space-between;font-size:7.5px}
+  .sc-foot{padding:4px 6px;font-size:7.5px;display:flex;flex-direction:column;gap:2px}
+  .sc-op{color:var(--ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sc-ocr{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:7px}
 
-  /* RIGHT: STATE INSPECTOR, TRIGGER SPOKEN LINE & TRANSITION TRACE */
-  .insp-scroll{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:9px}
-  .reg-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
-  .reg-cell{padding:6px 8px;border:1px solid var(--rule);background:var(--panel2)}
-  .reg-k{font-size:7.5px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-bottom:2px}
-  .reg-v{font-size:10.5px;color:var(--ink);font-weight:600;word-break:break-word}
-  .reg-v.gold{color:var(--gold)}
-  .reg-v.cyan{color:var(--cyan)}
-  .reg-v.green{color:var(--green)}
-
-  .term-box{
-    padding:8px 10px;border:1px solid rgba(65,224,150,.26);background:rgba(8,20,15,.55);
+  /* COLUMN 3: REAL INTERACTIVE WOPR // IMSAI-8080 TERMINAL SHELL & PAGE LAUNCHER */
+  .term-wrap{
+    flex:1;display:flex;flex-direction:column;background:#020507;overflow:hidden;
   }
-  .term-k{font-size:8px;letter-spacing:.14em;color:var(--green);text-transform:uppercase;margin-bottom:4px;display:flex;justify-content:space-between}
-  .term-txt{font:400 11px/1.42 var(--mono);color:#d7fbe8}
-
-  .trigger-box{
-    padding:8px 10px;border:1px solid rgba(232,192,112,.3);background:rgba(232,192,112,.06);
-    display:flex;flex-direction:column;gap:5px;
+  .term-screen{
+    flex:1;overflow-y:auto;padding:10px 12px;
+    font:400 10.5px/1.52 var(--mono);color:var(--phos);
+    text-shadow:0 0 6px rgba(74,246,195,.25);
   }
-  .trig-top{display:flex;justify-content:space-between;align-items:center;font-size:8px;letter-spacing:.12em;color:var(--gold);text-transform:uppercase}
-  .trig-1983{font:400 11.5px/1.38 var(--sans);color:var(--ink)}
-  .trig-arch{font:italic 400 11.5px/1.38 var(--serif);color:var(--green)}
-
-  .trace-list{display:flex;flex-direction:column;gap:3px}
-  .trace-row{
-    display:grid;grid-template-columns:46px 52px 1fr 48px;gap:5px;align-items:center;
-    padding:4px 6px;border:1px solid var(--rule);background:var(--panel);
-    font-size:8px;cursor:pointer;
+  .t-ln{margin-bottom:5px;word-break:break-word}
+  .t-ln.cmd{color:var(--gold);font-weight:600}
+  .t-ln.sys{color:var(--cyan)}
+  .t-ln.alert{color:var(--red);font-weight:600}
+  .t-ln.ocr{
+    padding:5px 8px;margin:4px 0;background:rgba(74,246,195,.07);
+    border-left:2px solid var(--phos);color:#fff;font-size:10px;
   }
-  .trace-row:hover{border-color:rgba(239,233,221,.35)}
-  .trace-row.on{border-color:var(--gold);background:rgba(232,192,112,.1)}
+  .t-link{
+    display:inline-block;padding:2px 6px;margin:2px 3px 2px 0;
+    border:1px solid rgba(74,246,195,.38);background:rgba(74,246,195,.08);
+    color:var(--phos);text-decoration:none;font-size:9px;cursor:pointer;
+  }
+  .t-link:hover{background:var(--phos);color:#030608;font-weight:600}
+
+  /* QUICK COMMAND KEYBOARD DECK */
+  .cmd-deck{
+    padding:7px 10px;border-top:1px solid var(--rule);background:#060b10;
+    display:flex;flex-direction:column;gap:5px;flex-shrink:0;
+  }
+  .cmd-row{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+  .cmd-lbl{font-size:7.5px;color:var(--muted);letter-spacing:.12em;margin-right:3px}
+  .q-key{
+    padding:3px 6px;border:1px solid rgba(74,246,195,.26);background:#09131b;
+    color:var(--ink);font:500 8px/1 var(--mono);letter-spacing:.08em;cursor:pointer;
+    text-transform:uppercase;
+  }
+  .q-key:hover{border-color:var(--phos);color:var(--phos);background:rgba(74,246,195,.1)}
+  .q-key.studio{border-color:rgba(232,192,112,.36);color:var(--gold)}
+  .q-key.studio:hover{background:var(--gold);color:#030608}
+
+  .term-form{
+    display:flex;align-items:center;border-top:1.5px solid var(--phos);
+    background:#010304;padding:0 10px;height:38px;flex-shrink:0;
+  }
+  .term-prompt{color:var(--phos);font-weight:600;font-size:11px;margin-right:8px;white-space:nowrap}
+  .term-input{
+    flex:1;background:transparent;border:0;color:#fff;
+    font:600 11.5px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;
+    outline:none;
+  }
+  .term-exec-btn{
+    padding:4px 9px;background:var(--phos);color:#030608;border:0;
+    font:600 8.5px/1 var(--mono);letter-spacing:.12em;cursor:pointer;
+  }
 
   @media (max-width:1120px){
-    .shell{grid-template-columns:310px 1fr 330px}
+    .os-shell{grid-template-columns:320px 1fr 360px}
   }
 </style>
 </head>
 <body>
 
-<main class="shell">
-  <!-- COLUMN 1: LIVE CRT MONITORS + 8-SUBFRAME DELTA ANALYZER + INFERRED PROGRAM -->
+<main class="os-shell">
+  <!-- COLUMN 1: LIVE CROPPED CRT HARDWARE + CPE-1704-TKS TUMBLER + INFERRED SUBROUTINES -->
   <section class="col">
     <div class="col-head">
-      <span><b>01 · LIVE CRT &amp; INFERRED PROGRAM</b></span>
+      <span><b>WOPR // IMSAI-8080 HARDWARE CRT</b></span>
       <div style="display:flex;gap:4px">
-        <button class="f-btn on" id="btnTraceMode" title="Lock Screen Inspector to Live Spoken Line Playback">SYNC TO BEAT</button>
-        <button class="f-btn" id="btnStepState" title="Step Next Screen State (S)">STEP +1</button>
+        <button class="f-btn on" id="btnBezelCrop" title="Zoom Video Monitor to Tightly Cropped Screen Bezel">BEZEL CROP: ON</button>
+        <button class="f-btn" id="btnRunTrace" title="Auto-Execute All 68 Pure Screen States">RUN TRACE</button>
       </div>
     </div>
 
-    <!-- DUAL LIVE VIDEO CRT MONITORS -->
-    <div class="crt-pair">
-      <div class="crt-box">
-        <div class="crt-lbl">
-          <span style="color:var(--cyan)" id="crtLeftId">STATE #001 · WG_001</span>
-          <span id="crtLeftSys">NORAD</span>
+    <div class="crt-bay">
+      <div class="crt-bezel">
+        <div class="crt-bar">
+          <span style="color:var(--phos)" id="crtLeftId">SCR #01 · SBD_0059</span>
+          <span id="crtLeftDef">DEFCON 5</span>
         </div>
-        <div class="crt-screen">
+        <div class="crt-viewport">
           <video id="crtVid1983" muted playsinline preload="auto"></video>
-          <div class="crt-scan"></div>
         </div>
-        <div class="crt-meta" id="crtLeftMeta">OP: INIT_MISSILE_DRILL · DEFCON 5</div>
+        <div class="crt-ocr" id="crtLeftOcr">WOPR EXECUTION ORDER K36.948.3</div>
       </div>
 
-      <div class="crt-box twin">
-        <div class="crt-lbl">
-          <span style="color:var(--gold)" id="crtRightId">ARCHIVAL MACHINE TWIN</span>
-          <span id="crtRightYear">ARCHIVE</span>
+      <div class="crt-bezel twin">
+        <div class="crt-bar">
+          <span style="color:var(--gold)" id="crtRightId">ARCHIVE TWIN</span>
+          <span id="crtRightYear">1964</span>
         </div>
-        <div class="crt-screen">
+        <div class="crt-viewport">
           <video id="crtVidTwin" muted playsinline preload="auto"></video>
-          <div class="crt-scan"></div>
         </div>
-        <div class="crt-meta" id="crtRightMeta">Loading archival twin...</div>
+        <div class="crt-ocr" style="color:var(--gold)" id="crtRightOcr">Dialectical Machine Twin</div>
       </div>
     </div>
 
-    <!-- 8-FRAME SUB-STATE STRIP & MEASURED PIXEL DELTAS -->
-    <div class="subframe-box">
-      <div class="sf-head">
-        <span>8-FRAME SUB-STATE STRIP (<b id="sfCountLbl" style="color:var(--gold)">f1–f8</b>)</span>
-        <span id="sfDeltaSummary">SUB-STATES: 4 · PEAK DELTA: 18.4</span>
+    <!-- 10-DIGIT CPE 1704 TKS LAUNCH CODE TUMBLER -->
+    <div class="cpe-bar">
+      <div style="font-size:8px;letter-spacing:.11em">
+        <div style="color:var(--red);font-weight:600">LAUNCH RELAY LOCK</div>
+        <div style="color:var(--muted)" id="cpeStatusLbl">TYPE `CRACK CPE` TO PERMUTE</div>
       </div>
-      <div class="sf-strip-wrap" id="sfStripWrap">
-        <img class="sf-strip-bg" id="sfStripImg" src="strips/wg_001.jpg" alt="8-Frame Strip">
-      </div>
-      <div class="sf-op-row" id="sfOpRow"></div>
+      <div class="cpe-digits" id="cpeDigits"></div>
     </div>
 
-    <!-- INFERRED WOPR / IMSAI PROGRAM LISTING -->
+    <!-- 8-SUBFRAME DELTA ANALYZER -->
+    <div class="sf-box">
+      <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--muted);margin-bottom:4px">
+        <span>8-SUBFRAME STATE DELTAS (<b style="color:var(--phos)" id="sfFrameTag">f1–f8</b>)</span>
+        <span id="sfDeltaTag">PEAK Δ: 14.2</span>
+      </div>
+      <div class="sf-strip" id="sfStrip">
+        <img id="sfStripImg" src="thumbs/screens/sbd_0059.jpg" alt="Screen Strip">
+      </div>
+    </div>
+
+    <!-- 8 INFERRED SUBROUTINES -->
     <div class="code-scroll" id="codeScroll"></div>
   </section>
 
-  <!-- COLUMN 2: ALL 258 SCREEN STATES CONTACT SHEET -->
+  <!-- COLUMN 2: ONLY THE 68 100%-PURE VERIFIED COMPUTER SCREENS -->
   <section class="col">
     <div class="col-head">
-      <span><b>ALL 258 SCREEN STATES</b> (<span id="shownCount">258</span> STATES · <span id="subframeTotal">1,049</span> SUB-FRAMES)</span>
+      <span><b>68 PURE COMPUTER SCREENS</b> (<span id="shownCount">68</span> SHOWN · ZERO NON-SCREENS)</span>
       <div style="display:flex;gap:4px">
-        <button class="f-btn on" id="btnViewThumb">SCREEN THUMBS</button>
-        <button class="f-btn" id="btnViewStrip">8-FRAME STRIPS (2,064 FRAMES)</button>
+        <button class="f-btn on" id="btnShowCropped">CROPPED SCREENS</button>
+        <button class="f-btn" id="btnShowFull">FULL 16:9 FRAME</button>
       </div>
     </div>
+
     <div class="filter-bar" id="sysFilterBar">
-      <button class="f-btn sys-on" data-sys="ALL">ALL (258)</button>
-      <button class="f-btn" data-sys="IMSAI_8080">IMSAI 8080</button>
-      <button class="f-btn" data-sys="WOPR_CORE">WOPR / JOSHUA</button>
-      <button class="f-btn" data-sys="NORAD_BIGBOARD">NORAD BIG BOARD</button>
-      <button class="f-btn" data-sys="DEFCON_LOGIC">DEFCON</button>
-      <button class="f-btn" data-sys="LAUNCH_SILO">SILO / CPE</button>
-      <button class="f-btn" data-sys="TICTACTOE_SOLVER">TIC-TAC-TOE</button>
+      <button class="f-btn on" data-sys="ALL">ALL 68 SCREENS</button>
+      <button class="f-btn" data-sys="JOSHUA_PROMPT">JOSHUA SHELL (8)</button>
+      <button class="f-btn" data-sys="IMSAI_GRADES_DB">IMSAI GRADES (4)</button>
+      <button class="f-btn" data-sys="WARDIALER_311">WARDIALER (2)</button>
+      <button class="f-btn" data-sys="SILO_EXEC_ORDER">SILO EAM (3)</button>
+      <button class="f-btn" data-sys="GAME_CLOCK_LOCKOUT">CLOCK / LOCKOUT (12)</button>
+      <button class="f-btn" data-sys="NORAD_VECTOR_MAP">VECTOR MAPS (18)</button>
+      <button class="f-btn" data-sys="CPE_CODE_CRACKER">CPE TUMBLERS (8)</button>
+      <button class="f-btn" data-sys="TICTACTOE_SIOP">TIC-TAC-TOE / SIOP (13)</button>
     </div>
+
     <div class="grid-scroll">
       <div class="screen-grid" id="screenGrid"></div>
     </div>
   </section>
 
-  <!-- COLUMN 3: STATE REGISTER INSPECTOR + SPOKEN TRIGGER LINE + EXECUTION TRACE -->
+  <!-- COLUMN 3: INTERACTIVE WOPR // IMSAI-8080 TERMINAL SHELL TO RUN PROGRAMS & OPEN ANY PAGE -->
   <section class="col">
     <div class="col-head">
-      <span><b>STATE REGISTER &amp; SPOKEN TRIGGER</b></span>
-      <span id="inspClock">T+00:00.0</span>
+      <span><b>JOSHUA // INTERACTIVE KERNEL TERMINAL</b></span>
+      <span style="color:var(--gold)">300 / 2400 BAUD TTY</span>
     </div>
-    <div class="insp-scroll">
-      <div class="reg-grid">
-        <div class="reg-cell">
-          <div class="reg-k">OPCODE / INSTRUCTION</div>
-          <div class="reg-v gold" id="regOpcode">INIT_MISSILE_DRILL</div>
+
+    <div class="term-wrap">
+      <div class="term-screen" id="termLog"></div>
+
+      <div class="cmd-deck">
+        <div class="cmd-row">
+          <span class="cmd-lbl">WOPR PROGRAMS:</span>
+          <button class="q-key" data-cmd="HELP">HELP</button>
+          <button class="q-key" data-cmd="LIST GAMES">LIST GAMES</button>
+          <button class="q-key" data-cmd="LOGON JOSHUA">LOGON JOSHUA</button>
+          <button class="q-key" data-cmd="PASSWORD PENCIL">GRADES F→A</button>
+          <button class="q-key" data-cmd="DIAL 408-311">DIAL 408-311</button>
+          <button class="q-key" data-cmd="RUN GTW">RUN GTW</button>
+          <button class="q-key" data-cmd="LOCKOUT">LOCKOUT</button>
+          <button class="q-key" data-cmd="CRACK CPE">CRACK CPE</button>
+          <button class="q-key" data-cmd="PLAY TICTACTOE 0">TIC-TAC-TOE 0</button>
         </div>
-        <div class="reg-cell">
-          <div class="reg-k">SUBSYSTEM &amp; DEFCON</div>
-          <div class="reg-v cyan" id="regSysDef">LAUNCH_SILO · DEFCON 5</div>
-        </div>
-        <div class="reg-cell">
-          <div class="reg-k">SUBROUTINE ADDR</div>
-          <div class="reg-v green" id="regSubroutine">0x0010 SUB_SILO_LAUNCH</div>
-        </div>
-        <div class="reg-cell">
-          <div class="reg-k">PHOSPHOR CHROMATICITY</div>
-          <div class="reg-v" id="regPhosphor">RGB(34,42,38) · LUM 39</div>
+        <div class="cmd-row">
+          <span class="cmd-lbl">LAUNCH STUDIO:</span>
+          <button class="q-key studio" data-cmd="STUDIOS">LS STUDIOS</button>
+          <button class="q-key studio" data-cmd="OPEN 00">00 INDEX</button>
+          <button class="q-key studio" data-cmd="OPEN 02">02 WHITNEY</button>
+          <button class="q-key studio" data-cmd="OPEN 03">03 KNOWLTON</button>
+          <button class="q-key studio" data-cmd="OPEN 05">05 NAKE</button>
+          <button class="q-key studio" data-cmd="OPEN 06">06 MOHR</button>
+          <button class="q-key studio" data-cmd="OPEN 10">10 REAS</button>
+          <button class="q-key studio" data-cmd="OPEN SOUND">SOUND BENCH</button>
+          <button class="q-key studio" data-cmd="OPEN VJ">VJ COUCH</button>
         </div>
       </div>
 
-      <div class="term-box">
-        <div class="term-k">
-          <span>DECIPHERED CRT / TERMINAL BUFFER</span>
-          <span id="termShotSpan">0.0s–4.8s</span>
-        </div>
-        <div class="term-txt" id="termText">Loading screen buffer...</div>
-      </div>
-
-      <!-- SPOKEN TRIGGER LINE & ARCHIVAL VOICE ANSWER -->
-      <div class="trigger-box">
-        <div class="trig-top">
-          <span id="trigSpeaker">SPOKEN TRIGGER LINE (1983)</span>
-          <div style="display:flex;gap:3px" id="trigTakeBtns"></div>
-        </div>
-        <div class="trig-1983" id="trig1983Text">—</div>
-        <div class="trig-arch" id="trigArchText">—</div>
-        <div style="font-size:8px;color:var(--muted);display:flex;justify-content:space-between" id="trigArchMeta">
-          <span>ARCHIVE TWIN</span>
-          <span>CLICK LINE BELOW TO AUDITION</span>
-        </div>
-      </div>
-
-      <div style="font-size:8.5px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-top:2px">
-        PROGRAM EXECUTION TRACE (258 SCREEN STATES)
-      </div>
-      <div class="trace-list" id="traceList"></div>
+      <form class="term-form" id="termForm">
+        <span class="term-prompt">WOPR&gt;</span>
+        <input class="term-input" id="termInput" type="text" placeholder="TYPE COMMAND (E.G. LIST GAMES, CRACK CPE, OPEN WHITNEY)..." autocomplete="off" spellcheck="false">
+        <button class="term-exec-btn" type="submit">EXEC</button>
+      </form>
     </div>
   </section>
 </main>
@@ -356,34 +365,91 @@
 (() => {
   'use strict';
 
+  const STUDIO_DIRECTORY = [
+    { cmd: 'OPEN 00', aliases: ['00', 'INDEX', 'STUDIO', 'PORTAL'], name: '00 / STUDIO INDEX', href: 'wargames-studio.html', desc: 'Master Portal for All 12 Studios' },
+    { cmd: 'OPEN 01', aliases: ['01', 'SCREENS', 'OS', 'WOPR'], name: '01 / SCREEN STATES OS', href: 'wg-studio-screens.html', desc: '68 Pure Computer Screens & WOPR Shell' },
+    { cmd: 'OPEN 02', aliases: ['02', 'WHITNEY', 'SLITSCAN'], name: '02 / JOHN WHITNEY', href: 'wg-studio-whitney.html', desc: 'Differential Harmonic Slit-Scan Orbits' },
+    { cmd: 'OPEN 03', aliases: ['03', 'KNOWLTON', 'MOSAIC', 'STILLS'], name: '03 / KEN KNOWLTON', href: 'wg-studio-knowlton.html', desc: 'A Film Made of Stills & 9-Cut Quadtree' },
+    { cmd: 'OPEN 05', aliases: ['05', 'NAKE', 'MATRIX', 'PLOTTER'], name: '05 / FRIEDER NAKE', href: 'wg-studio-nake.html', desc: '5-Column Vertical 35mm Plotter Matrix' },
+    { cmd: 'OPEN 06', aliases: ['06', 'MOHR', 'CUBE', 'HYPERCUBE'], name: '06 / MANFRED MOHR', href: 'wg-studio-mohr.html', desc: '4D Hypercube 6-Critic Cut Lattice' },
+    { cmd: 'OPEN 10', aliases: ['10', 'REAS', 'TISSUE'], name: '10 / CASEY REAS', href: 'wg-studio-reas.html', desc: 'Conversational Attractor Tissue' },
+    { cmd: 'OPEN 6LENS', aliases: ['6LENS', 'FOUND', 'ASAL'], name: 'ST / 6-LENS STUDIO', href: 'found-wargames.html', desc: '6-Critic ASAL & 8 Cybernetic Species' },
+    { cmd: 'OPEN MUSEUM', aliases: ['MUSEUM', 'MASK'], name: 'MU / MUSEUM STAGE', href: 'found-wargames-museum.html', desc: 'Traveling Mask & Spoken Cast Grid' },
+    { cmd: 'OPEN SOUND', aliases: ['SOUND', 'BUMBLEBEE', 'BENCH'], name: 'SB / SOUND BENCH', href: 'bumblebee-dilemma.html', desc: 'Bumblebee Spectrogram & Tarantino Line Lab' },
+    { cmd: 'OPEN VJ', aliases: ['VJ', 'COUCH', 'TV'], name: 'VJ / COUCH VJ RIG', href: 'vj-wargames.html', desc: 'Dual-Deck Living-Room TV + Phone Rig' },
+    { cmd: 'OPEN GEERTZ', aliases: ['GEERTZ', 'WEB'], name: 'GEERTZ WEB & ARCADE', href: 'wargames-web.html', desc: '21-Chapter Geertzian Essay & playable Galaga' },
+    { cmd: 'OPEN ARCHIVE', aliases: ['ARCHIVE', 'SHOTS'], name: '302-SHOT ARCHIVE', href: 'wargames.html', desc: '44-Sign Peirce/Deleuze Shot Browser' },
+  ];
+
+  const CPE_CODE = ['C','P','E','1','7','0','4','T','K','S'];
+
   let progData = null;
   let allStates = [];
   let filteredStates = [];
   let activeStateIdx = 0;
-  let activeSubFrame = 0;
-  let stripMode = false;
+  let bezelCrop = true;
+  let showCroppedThumbs = true;
   let sysFilter = 'ALL';
-  let syncToBeat = true;
+  let traceTimer = null;
+  let cpeTimer = null;
   let engine = null;
   let beatsById = {};
 
   const nav = WGStudioNav.mount({
     theme: 'dark',
     num: '01',
-    titleLeft: '01 / SCREEN STATES — INFERRED WOPR PROGRAM',
-    promptCenter: 'CLICK ANY SCREEN STATE OR SPOKEN LINE TO INSPECT & HEAR ITS EXECUTION',
-    onPrevBeat: () => engine && engine.prevBeat(),
-    onNextBeat: () => engine && engine.nextBeat(),
+    titleLeft: '01 / SCREEN STATES — WOPR // IMSAI-8080 OS (68 PURE SCREENS)',
+    promptCenter: 'TYPE ANY COMMAND IN THE TERMINAL (RIGHT) OR CLICK ANY PURE COMPUTER SCREEN',
+    onPrevBeat: () => selectScreenState(activeStateIdx - 1, true),
+    onNextBeat: () => selectScreenState(activeStateIdx + 1, true),
     onReset: () => {
+      stopTimers();
       sysFilter = 'ALL';
-      document.querySelectorAll('#sysFilterBar .f-btn').forEach(b => b.classList.toggle('sys-on', b.dataset.sys === 'ALL'));
       applyFilter();
-      selectScreenState(0, true);
+      selectScreenState(9, true); // wg_081 HELP GAMES
     }
   });
 
   const crtVid1983 = document.getElementById('crtVid1983');
   const crtVidTwin = document.getElementById('crtVidTwin');
+  const termLog = document.getElementById('termLog');
+  const termInput = document.getElementById('termInput');
+
+  function initCpeCells(lockedCount = 0) {
+    const wrap = document.getElementById('cpeDigits');
+    wrap.innerHTML = CPE_CODE.map((ch, i) => `
+      <div class="cpe-cell${i < lockedCount ? ' locked' : ''}" id="cpeCell_${i}">${i < lockedCount ? ch : '?'}</div>
+    `).join('');
+  }
+  initCpeCells(0);
+
+  function stopTimers() {
+    if (traceTimer) { clearInterval(traceTimer); traceTimer = null; }
+    if (cpeTimer) { clearInterval(cpeTimer); cpeTimer = null; }
+    document.getElementById('btnRunTrace').classList.remove('gold-on');
+  }
+
+  function logLine(html, cls = '') {
+    const div = document.createElement('div');
+    div.className = `t-ln ${cls}`;
+    div.innerHTML = html;
+    termLog.appendChild(div);
+    termLog.scrollTop = termLog.scrollHeight;
+  }
+
+  function applyBezelCropToVideo(st) {
+    if (!crtVid1983) return;
+    if (bezelCrop && st && Array.isArray(st.crop_box) && st.crop_box.length === 4) {
+      const [bx, by, bw, bh] = st.crop_box;
+      const cx = (bx + bw * 0.5) * 100;
+      const cy = (by + bh * 0.5) * 100;
+      const scale = Math.min(1.68, Math.max(1.12, 1 / Math.max(bw, bh)));
+      crtVid1983.style.transformOrigin = `${cx.toFixed(1)}% ${cy.toFixed(1)}%`;
+      crtVid1983.style.transform = `scale(${scale.toFixed(2)})`;
+    } else {
+      crtVid1983.style.transform = 'none';
+    }
+  }
 
   function setVideoClip(vidEl, unitOrUrl, t0 = 0) {
     if (!vidEl) return;
@@ -392,9 +458,7 @@
     const key = `${url}@${Number(t0 || 0).toFixed(2)}`;
     if (vidEl._scKey === key) return;
     vidEl._scKey = key;
-    if (vidEl.getAttribute('src') !== url) {
-      vidEl.src = url;
-    }
+    if (vidEl.getAttribute('src') !== url) vidEl.src = url;
     const seek = () => {
       try { vidEl.currentTime = Math.max(0, Number(t0 || 0)); } catch (_) {}
       vidEl.play().catch(() => {});
@@ -412,17 +476,13 @@
     wrap.innerHTML = progData.inferred_program.subroutines.map(sub => {
       const isAct = sub.id === activeSubId;
       return `
-        <div class="sub-block${isAct ? ' active' : ''}" data-sub="${sub.id}">
+        <div class="sub-block${isAct ? ' active' : ''}" data-cmd="${sub.cmd}">
           <div class="sub-hdr">
-            <span>${sub.addr} · ${sub.id}</span>
-            <span>${sub.screen_count} SCREENS</span>
+            <span>${sub.id}</span>
+            <span>[${sub.cmd}] · ${sub.screen_count} SCREENS</span>
           </div>
-          <div class="sub-meta">SYS: ${sub.subsystem} · ENTRY: ${sub.entry_shot ? sub.entry_shot.toUpperCase() : 'N/A'}</div>
           <div class="code-lines">
-            ${sub.pseudo_code.map(ln => {
-              const hl = isAct && st && ln.includes(st.opcode.split('_')[0]);
-              return `<span class="code-ln${hl ? ' op-hl' : ''}">${ln}</span>`;
-            }).join('')}
+            ${sub.pseudo_code.map(ln => `<span class="code-ln${isAct ? ' hl' : ''}">${ln}</span>`).join('')}
           </div>
         </div>
       `;
@@ -430,9 +490,7 @@
 
     wrap.querySelectorAll('.sub-block').forEach(el => {
       el.addEventListener('click', () => {
-        const sid = el.getAttribute('data-sub');
-        const idx = allStates.findIndex(s => s.subroutine === sid);
-        if (idx >= 0) selectScreenState(idx, true);
+        execCommand(el.getAttribute('data-cmd'));
       });
     });
   }
@@ -445,25 +503,21 @@
 
   function renderGrid() {
     const grid = document.getElementById('screenGrid');
-    grid.classList.toggle('strip-mode', stripMode);
     const activeShotId = allStates[activeStateIdx]?.shot_id;
 
     grid.innerHTML = filteredStates.map(s => {
       const isAct = s.shot_id === activeShotId;
-      const imgSrc = stripMode ? s.strip : s.thumb;
+      const imgSrc = showCroppedThumbs ? (s.screen_thumb || s.thumb) : (s.full_thumb || s.thumb);
       return `
         <div class="sc-card${isAct ? ' active' : ''}" data-state-idx="${s.state_index - 1}">
           <div class="sc-img-wrap">
             <img src="${imgSrc}" loading="lazy" alt="${s.shot_id}">
-            <span class="sc-badge">#${String(s.state_index).padStart(3,'0')} · ${s.shot_id.toUpperCase()}</span>
-            <span class="sc-defcon d${s.defcon}">DEF ${s.defcon}</span>
+            <span class="sc-badge">#${String(s.state_index).padStart(2,'0')} · ${s.shot_id.toUpperCase()}</span>
+            <span class="sc-cmd-tag">${s.shell_cmd || 'EXEC'}</span>
           </div>
           <div class="sc-foot">
             <div class="sc-op">${s.opcode}</div>
-            <div class="sc-sub">
-              <span>${s.subsystem.replace('_',' ')}</span>
-              <span>${s.subframe_states || 4} SUBS</span>
-            </div>
+            <div class="sc-ocr" title="${s.terminal_prompt}">${s.terminal_prompt}</div>
           </div>
         </div>
       `;
@@ -471,173 +525,368 @@
 
     grid.querySelectorAll('.sc-card').forEach(card => {
       card.addEventListener('click', () => {
+        stopTimers();
         const idx = parseInt(card.getAttribute('data-state-idx'), 10);
-        syncToBeat = false;
-        document.getElementById('btnTraceMode').classList.remove('on');
-        selectScreenState(idx, true);
+        selectScreenState(idx, true, true);
       });
     });
   }
 
-  function renderSubframeDeltas(st) {
-    const wrap = document.getElementById('sfStripWrap');
-    const opRow = document.getElementById('sfOpRow');
-    document.getElementById('sfStripImg').src = st.strip;
+  function renderSubframeStrip(st) {
+    const stripEl = document.getElementById('sfStrip');
     const deltas = st.subframe_deltas || [];
-    const peakD = deltas.reduce((m, d) => Math.max(m, Number(d.delta || 0)), 0);
-    document.getElementById('sfDeltaSummary').textContent =
-      `SUB-STATES: ${st.subframe_states || 1} · PEAK Δ: ${peakD.toFixed(1)}`;
+    const peak = deltas.reduce((m, d) => Math.max(m, Number(d.delta || 0)), 0);
+    document.getElementById('sfDeltaTag').textContent = `PEAK Δ: ${peak.toFixed(1)} · LUM ${st.lum || 42}`;
 
-    // Keep the img and rebuild 8 cells
-    const cellsHtml = Array.from({ length: 8 }, (_, k) => {
-      const d = deltas[k] || { frame: k + 1, delta: 0, lum: st.lum || 32, op: 'STEADY_HOLD' };
+    const cells = Array.from({ length: 8 }, (_, k) => {
+      const d = deltas[k] || { delta: 0, op: 'HOLD' };
       return `
-        <div class="sf-cell${k === activeSubFrame ? ' on' : ''}" data-sf="${k}" title="Frame f${k + 1}: ${d.op} (Δ=${d.delta}, Lum=${d.lum})">
-          <span>f${k + 1}</span>
-          <span style="color:${d.delta > 12 ? '#e8c070' : '#9aa4b2'}">Δ${Number(d.delta || 0).toFixed(0)}</span>
+        <div class="sf-cell" data-sf="${k}" title="f${k+1}: ${d.op} (Δ=${d.delta})">
+          <span>f${k+1}</span>
+          <span style="color:var(--gold)">Δ${Math.round(Number(d.delta || 0))}</span>
         </div>
       `;
     }).join('');
-    wrap.innerHTML = `<img class="sf-strip-bg" id="sfStripImg" src="${st.strip}" alt="8-Frame Strip">${cellsHtml}`;
-
-    opRow.innerHTML = Array.from({ length: 8 }, (_, k) => {
-      const d = deltas[k] || { op: 'HOLD' };
-      const shortOp = String(d.op || 'HOLD').replace('STEADY_', '').replace('INIT_', '');
-      return `<div class="sf-op-tag ${d.op || ''}" title="f${k + 1}: ${d.op}">${shortOp}</div>`;
-    }).join('');
-
-    wrap.querySelectorAll('.sf-cell').forEach(c => {
+    stripEl.innerHTML = `<img id="sfStripImg" src="${st.strip || st.screen_thumb}" alt="Strip">${cells}`;
+    stripEl.querySelectorAll('.sf-cell').forEach(c => {
       c.addEventListener('click', () => {
-        activeSubFrame = parseInt(c.getAttribute('data-sf'), 10);
-        document.getElementById('sfCountLbl').textContent = `f${activeSubFrame + 1} / 8`;
+        const k = parseInt(c.getAttribute('data-sf'), 10);
+        document.getElementById('sfFrameTag').textContent = `f${k + 1} / 8`;
         if (crtVid1983 && crtVid1983.duration) {
-          try { crtVid1983.currentTime = (activeSubFrame / 8) * crtVid1983.duration; } catch (_) {}
+          try { crtVid1983.currentTime = (k / 8) * crtVid1983.duration; } catch (_) {}
         }
-        renderSubframeDeltas(st);
       });
     });
   }
 
-  function renderTraceList() {
-    const list = document.getElementById('traceList');
-    const start = Math.max(0, activeStateIdx - 5);
-    const slice = allStates.slice(start, start + 14);
-    list.innerHTML = slice.map(s => {
-      const isAct = (s.state_index - 1) === activeStateIdx;
-      return `
-        <div class="trace-row${isAct ? ' on' : ''}" data-idx="${s.state_index - 1}">
-          <span style="color:var(--muted)">#${String(s.state_index).padStart(3,'0')}</span>
-          <span style="color:var(--cyan)">${s.shot_id.toUpperCase()}</span>
-          <span style="color:var(--gold);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.opcode}</span>
-          <span style="text-align:right;color:var(--green)">DEF ${s.defcon}</span>
-        </div>
-      `;
-    }).join('');
-    list.querySelectorAll('.trace-row').forEach(r => {
-      r.addEventListener('click', () => {
-        const idx = parseInt(r.getAttribute('data-idx'), 10);
-        selectScreenState(idx, true);
-      });
-    });
-  }
-
-  function selectScreenState(idx, jumpEngineBeat = false) {
+  function selectScreenState(idx, jumpEngineBeat = false, echoToTerminal = false) {
     if (!allStates.length) return;
     activeStateIdx = (idx + allStates.length) % allStates.length;
     const st = allStates[activeStateIdx];
 
-    // Update Left Dual Live CRTs
-    document.getElementById('crtLeftId').textContent = `STATE #${String(st.state_index).padStart(3,'0')} · ${st.shot_id.toUpperCase()}`;
-    document.getElementById('crtLeftSys').textContent = st.subsystem;
-    document.getElementById('crtLeftMeta').textContent = `OP: ${st.opcode} · SIGN #${st.sign}`;
-    setVideoClip(crtVid1983, st.clip || `clips/${st.shot_id}.mp4`, 0);
+    document.getElementById('crtLeftId').textContent = `SCR #${String(st.state_index).padStart(2,'0')}/68 · ${st.shot_id.toUpperCase()}`;
+    document.getElementById('crtLeftDef').textContent = `DEFCON ${st.defcon}`;
+    document.getElementById('crtLeftOcr').textContent = st.terminal_prompt;
+
+    setVideoClip(crtVid1983, st.clip, 0);
+    applyBezelCropToVideo(st);
 
     const twin = st.arch_twin || {};
-    document.getElementById('crtRightId').textContent = twin.title ? twin.title.slice(0, 22).toUpperCase() : 'ARCHIVAL TWIN';
+    document.getElementById('crtRightId').textContent = (twin.title || 'ARCHIVE TWIN').slice(0, 20).toUpperCase();
     document.getElementById('crtRightYear').textContent = twin.year || 'ARCHIVE';
-    document.getElementById('crtRightMeta').textContent = twin.why_picked || twin.regime || 'Dialectical Screen Twin';
+    document.getElementById('crtRightOcr').textContent = twin.why_picked || twin.spoken || 'Dialectical Machine Twin';
     if (twin.video || twin.media_url) {
       setVideoClip(crtVidTwin, twin, twin.clip_t0 || twin.t0 || 0);
     }
 
-    // Update 8-Subframe Delta Analyzer
-    renderSubframeDeltas(st);
+    // Update CPE lock cells if this is a CPE screen
+    if (st.shot_id === 'wg_295') initCpeCells(9);
+    else if (st.shot_id === 'sbd_1344' || st.shot_id === 'wg_281') initCpeCells(4);
 
-    // Update Registers & Terminal Buffer
-    document.getElementById('inspClock').textContent = `T+${Number(st.start || 0).toFixed(1)}s`;
-    document.getElementById('regOpcode').textContent = st.opcode;
-    document.getElementById('regSysDef').textContent = `${st.subsystem} · DEFCON ${st.defcon}`;
-    document.getElementById('regSubroutine').textContent = st.subroutine;
-    const rgb = st.rgb || [32, 40, 36];
-    document.getElementById('regPhosphor').textContent = `RGB(${rgb.join(',')}) · LUM ${st.lum || 35}`;
-    document.getElementById('termShotSpan').textContent = `${Number(st.start || 0).toFixed(1)}s–${Number(st.end || 0).toFixed(1)}s`;
-    document.getElementById('termText').textContent = st.terminal_prompt || st.spoken_1983 || `[${st.subsystem}] STATE #${st.state_index} EXECUTING ${st.opcode}`;
+    renderSubframeStrip(st);
+    renderSubroutines();
 
-    // Update Spoken Trigger Line & Takes
-    const trig = st.trigger_line || {};
-    const trigTakes = trig.takes || (trig.arch_take ? [trig.arch_take] : []);
-    const tk0 = trigTakes[0] || twin || {};
-    document.getElementById('trigSpeaker').textContent = `TRIGGER LINE · ${String(trig.speaker || st.speaker || 'WOPR / OPERATOR').toUpperCase()}`;
-    document.getElementById('trig1983Text').textContent = `"${trig.text || st.spoken_1983 || st.terminal_prompt || ''}"`;
-    document.getElementById('trigArchText').textContent = tk0.spoken ? `"${tk0.spoken}"` : (twin.spoken ? `"${twin.spoken}"` : '—');
-    document.getElementById('trigArchMeta').innerHTML = `
-      <span>${tk0.title || twin.title || 'Archival Twin'} (${tk0.year || twin.year || '—'})</span>
-      <span>${trigTakes.length} TAKES READY</span>
-    `;
-
-    // Update active highlight on grid
     document.querySelectorAll('#screenGrid .sc-card').forEach(c => {
-      c.classList.toggle('active', parseInt(c.getAttribute('data-state-idx'), 10) === activeStateIdx);
+      const isAct = parseInt(c.getAttribute('data-state-idx'), 10) === activeStateIdx;
+      c.classList.toggle('active', isAct);
+      if (isAct && echoToTerminal) {
+        c.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
     });
 
-    renderSubroutines();
-    renderTraceList();
+    if (echoToTerminal) {
+      logLine(`[STATE #${String(st.state_index).padStart(2,'0')} · ${st.shot_id.toUpperCase()} · ${st.opcode}]`, 'sys');
+      logLine(st.terminal_prompt, 'ocr');
+      const trig = st.trigger_line || {};
+      const tk0 = (trig.takes && trig.takes[0]) || {};
+      if (trig.text) {
+        logLine(`1983 (${trig.speaker || st.speaker}): "${trig.text}" → ARCHIVE (${tk0.title || 'Twin'}): "${tk0.spoken || ''}"`);
+      }
+    }
 
-    nav.setStatus(`STATE #${String(st.state_index).padStart(3,'0')}/258 · ${st.opcode} · DEFCON ${st.defcon}`);
+    nav.setStatus(`SCR #${String(st.state_index).padStart(2,'0')}/68 · ${st.opcode} · DEFCON ${st.defcon}`);
 
-    // If user clicked a screen state that belongs to a beat, jump WGStudioEngine to that beat!
     if (jumpEngineBeat && st.beat_id && engine && beatsById[st.beat_id] != null) {
       engine.loadBeat(beatsById[st.beat_id]);
     }
   }
 
+  function findStateIdxByShot(shotId) {
+    return allStates.findIndex(s => s.shot_id === shotId);
+  }
+
+  function stepThroughShots(shotIds, intervalMs = 1400, onDone = null) {
+    stopTimers();
+    let k = 0;
+    const step = () => {
+      if (k >= shotIds.length) {
+        stopTimers();
+        if (onDone) onDone();
+        return;
+      }
+      const idx = findStateIdxByShot(shotIds[k++]);
+      if (idx >= 0) selectScreenState(idx, k === 1, true);
+    };
+    step();
+    if (shotIds.length > 1) {
+      traceTimer = setInterval(step, intervalMs);
+    }
+  }
+
+  /* ==========================================================================
+     INTERACTIVE WOPR // IMSAI-8080 COMMAND SHELL INTERPRETER
+     ========================================================================== */
+  function execCommand(rawInput) {
+    const raw = String(rawInput || '').trim();
+    if (!raw) return;
+    const cmd = raw.toUpperCase();
+    logLine(`WOPR&gt; ${cmd}`, 'cmd');
+
+    // 1. Check if user typed a studio navigation command (`OPEN 02`, `WHITNEY`, `KNOWLTON`, `NAKE`, `MOHR`, `REAS`, `SOUND`, `VJ`, etc.)
+    const cleanTarget = cmd.replace(/^(OPEN|GO|CD|LAUNCH|RUN)\s+/, '').trim();
+    const matchedStudio = STUDIO_DIRECTORY.find(st =>
+      st.cmd === cmd || st.aliases.includes(cleanTarget) || st.aliases.includes(cmd)
+    );
+    if (matchedStudio && (cmd.startsWith('OPEN') || cmd.startsWith('GO') || cmd.startsWith('CD') || STUDIO_DIRECTORY.some(s => s.aliases.includes(cmd)))) {
+      if (matchedStudio.href === 'wg-studio-screens.html' && !cmd.startsWith('OPEN 01')) {
+        // Stay here if just typing OS
+      } else {
+        logLine(`MOUNTING STUDIO MODULE: <b>${matchedStudio.name}</b> (${matchedStudio.desc})...`, 'sys');
+        logLine(`<a class="t-link" href="${matchedStudio.href}">[CLICK IF NOT REDIRECTED → ${matchedStudio.name}]</a>`);
+        setTimeout(() => { window.location.href = matchedStudio.href; }, 420);
+        return;
+      }
+    }
+
+    // 2. Directory of all Studios & Pages (`STUDIOS`, `PAGES`, `LS`, `DIR`)
+    if (['STUDIOS', 'PAGES', 'LS', 'DIR', 'LS STUDIOS', 'HELP STUDIOS'].includes(cmd)) {
+      logLine(`DIRECTORY OF FOUND WARGAMES STUDIOS &amp; INTERFACES (CLICK OR TYPE \`OPEN &lt;NAME&gt;\`):`, 'sys');
+      logLine(STUDIO_DIRECTORY.map(s =>
+        `<a class="t-link" href="${s.href}" title="${s.desc}">${s.name}</a>`
+      ).join(''));
+      return;
+    }
+
+    // 3. Direct Screen Jump (`SCREEN 12` or `WG_203` or `SBD_0394`)
+    const scrMatch = cmd.match(/^(?:SCREEN|SCR|#)?\s*(\d{1,2})$/);
+    if (scrMatch) {
+      const n = parseInt(scrMatch[1], 10);
+      if (n >= 1 && n <= allStates.length) {
+        selectScreenState(n - 1, true, true);
+        return;
+      }
+    }
+    const directShotIdx = allStates.findIndex(s => s.shot_id.toUpperCase() === cmd);
+    if (directShotIdx >= 0) {
+      selectScreenState(directShotIdx, true, true);
+      return;
+    }
+
+    // 4. Inferred WOPR / IMSAI Programs
+    if (cmd === 'HELP' || cmd === 'HELP GAMES' || cmd === 'HELP LOGON') {
+      const idx = findStateIdxByShot('wg_081');
+      if (idx >= 0) selectScreenState(idx, true, true);
+      logLine(`'GAMES' REFERS TO MODELS, SIMULATIONS AND GAMES WHICH HAVE TACTICAL AND STRATEGIC APPLICATIONS.`, 'sys');
+      logLine(`PROGRAM COMMANDS: <b>LIST GAMES</b> | <b>LOGON JOSHUA</b> | <b>PASSWORD PENCIL</b> | <b>DIAL 408-311</b> | <b>SILO</b> | <b>RUN GTW</b> | <b>LOCKOUT</b> | <b>CRACK CPE</b> | <b>PLAY TICTACTOE 0</b> | <b>RUN TRACE</b>`);
+      logLine(`NAVIGATION COMMANDS: <b>STUDIOS</b> | <b>OPEN WHITNEY</b> | <b>OPEN KNOWLTON</b> | <b>OPEN NAKE</b> | <b>OPEN MOHR</b> | <b>OPEN REAS</b> | <b>OPEN SOUND</b> | <b>OPEN VJ</b>`);
+      return;
+    }
+
+    if (cmd === 'LIST GAMES' || cmd === 'GAMES') {
+      sysFilter = 'JOSHUA_PROMPT';
+      applyFilter();
+      stepThroughShots(['sbd_0394', 'sbd_1352', 'sbd_1334'], 1800);
+      const games = [
+        "FALKEN'S MAZE", "BLACK JACK", "GIN RUMMY", "HEARTS", "BRIDGE",
+        "CHECKERS", "CHESS", "POKER", "FIGHTER COMBAT", "GUERRILLA ENGAGEMENT",
+        "DESERT WARFARE", "AIR-TO-GROUND ACTIONS", "THEATREWIDE TACTICAL WARFARE",
+        "THEATREWIDE BIOTOXIC AND CHEMICAL WARFARE", "GLOBAL THERMONUCLEAR WAR"
+      ];
+      logLine(`WOPR GAME CATALOG (15 SIMULATIONS):`, 'sys');
+      logLine(games.map(g => `<span class="t-link" data-exec="${g === 'GLOBAL THERMONUCLEAR WAR' ? 'RUN GTW' : 'LOGON JOSHUA'}">${g}</span>`).join(''));
+      bindDynamicTermLinks();
+      return;
+    }
+
+    if (cmd.includes('JOSHUA') || cmd.includes('FALKEN')) {
+      sysFilter = 'JOSHUA_PROMPT';
+      applyFilter();
+      stepThroughShots(['wg_135', 'wg_166', 'wg_296'], 2000);
+      logLine(`GREETINGS PROFESSOR FALKEN.`, 'sys');
+      logLine(`SHALL WE PLAY A GAME?`, 'ocr');
+      return;
+    }
+
+    if (cmd.includes('PENCIL') || cmd.includes('GRADE') || cmd.includes('BIOLOGY')) {
+      sysFilter = 'IMSAI_GRADES_DB';
+      applyFilter();
+      logLine(`DIALING SEATTLE PUBLIC SCHOOLS (936-2364) · AUTH PASSWORD: [PENCIL]...`, 'sys');
+      stepThroughShots(['sbd_0512', 'sbd_0298', 'wg_059', 'sbd_0288'], 1500, () => {
+        logLine(`RECORD UPDATED: LIGHTMAN, DAVID L. // COURSE: BIOLOGY 2 (LIGGETT) // GRADE MUTATED: [F] → [A]`, 'ocr');
+      });
+      return;
+    }
+
+    if (cmd.includes('DIAL') || cmd.includes('311') || cmd.includes('WARDIAL')) {
+      sysFilter = 'WARDIALER_311';
+      applyFilter();
+      logLine(`IMSAI 8080 HARDWARE AUTODIALER: SWEEPING SUNNYVALE (408) 311-XXXX...`, 'sys');
+      stepThroughShots(['wg_062', 'wg_070'], 1600, () => {
+        logLine(`CARRIER DETECTED AT (408) 311-3990 [CHEYENNE MOUNTAIN WOPR BACKDOOR]. TYPE \`LOGON JOSHUA\`.`, 'ocr');
+      });
+      return;
+    }
+
+    if (cmd.includes('SILO') || cmd.includes('EAM') || cmd.includes('DLG')) {
+      sysFilter = 'SILO_EXEC_ORDER';
+      applyFilter();
+      logLine(`DECODING WOPR EXECUTION ORDER K36.948.3 // AUTH: DLG 2209 TVX...`, 'alert');
+      stepThroughShots(['sbd_0059', 'sbd_0060', 'sbd_0065'], 1600);
+      return;
+    }
+
+    if (cmd.includes('GTW') || cmd.includes('THERMONUCLEAR') || cmd.includes('MAP') || cmd.includes('SEATTLE')) {
+      sysFilter = 'NORAD_VECTOR_MAP';
+      applyFilter();
+      logLine(`EXECUTING GLOBAL THERMONUCLEAR WAR // PRIMARY TARGETS: SEATTLE, LAS VEGAS, LORING AFB...`, 'alert');
+      stepThroughShots(['wg_115', 'wg_116', 'wg_231', 'wg_244', 'wg_259', 'sbd_1233', 'wg_264'], 1500);
+      return;
+    }
+
+    if (cmd.includes('LOCKOUT') || cmd.includes('CLOCK') || cmd.includes('DENIED')) {
+      sysFilter = 'GAME_CLOCK_LOCKOUT';
+      applyFilter();
+      logLine(`WARNING: WOPR AUTONOMOUS GAME CLOCK LOCKED — ADMIN OVERRIDE REJECTED`, 'alert');
+      stepThroughShots(['sbd_0646', 'wg_203', 'wg_251', 'wg_270', 'wg_277', 'wg_280', 'sbd_1345'], 1400);
+      return;
+    }
+
+    if (cmd.includes('CPE') || cmd.includes('CRACK') || cmd.includes('LAUNCH')) {
+      sysFilter = 'CPE_CODE_CRACKER';
+      applyFilter();
+      logLine(`BRUTE-FORCING MINUTEMAN III 10-DIGIT LAUNCH RELAY CODE [CPE 1704 TKS]...`, 'alert');
+      stepThroughShots(['wg_232', 'wg_281', 'sbd_1282', 'sbd_1284', 'sbd_1294', 'sbd_1344', 'wg_295'], 1200);
+
+      let locked = 0;
+      if (cpeTimer) clearInterval(cpeTimer);
+      cpeTimer = setInterval(() => {
+        for (let i = locked; i < CPE_CODE.length; i++) {
+          const el = document.getElementById(`cpeCell_${i}`);
+          if (el) el.textContent = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+        }
+        const lockEl = document.getElementById(`cpeCell_${locked}`);
+        if (lockEl) {
+          lockEl.textContent = CPE_CODE[locked];
+          lockEl.classList.add('locked');
+        }
+        locked++;
+        document.getElementById('cpeStatusLbl').textContent = `LOCKED ${locked}/10 DIGITS`;
+        if (locked >= CPE_CODE.length) {
+          clearInterval(cpeTimer);
+          document.getElementById('cpeStatusLbl').textContent = `LOCK ACQUIRED: CPE 1704 TKS`;
+          logLine(`CRITICAL: LAUNCH CODE [CPE 1704 TKS] LOCKED! TYPE \`PLAY TICTACTOE 0\` TO INTERRUPT!`, 'alert');
+        }
+      }, 450);
+      return;
+    }
+
+    if (cmd.includes('TICTACTOE') || cmd.includes('TTT') || cmd.includes('STALEMATE') || cmd.includes('CHESS')) {
+      sysFilter = 'TICTACTOE_SIOP';
+      applyFilter();
+      logLine(`EXECUTING TIC-TAC-TOE (NUMBER OF PLAYERS: 0) → EXHAUSTIVE SIOP STALEMATE CASCADE...`, 'sys');
+      stepThroughShots([
+        'sbd_1427', 'wg_284', 'wg_283', 'wg_285', 'sbd_1375',
+        'sbd_1369', 'sbd_1380', 'sbd_1382', 'sbd_1420', 'wg_288',
+        'sbd_1410', 'sbd_1414', 'wg_296'
+      ], 950, () => {
+        initCpeCells(0);
+        document.getElementById('cpeStatusLbl').textContent = `LAUNCH ABORTED · DEFCON 5`;
+        logLine(`STRATEGY: U.S. FIRST STRIKE — WINNER: NONE // USSR FIRST STRIKE — WINNER: NONE // NATO / WARSAW PACT — WINNER: NONE`, 'ocr');
+        logLine(`JOSHUA: "A STRANGE GAME. THE ONLY WINNING MOVE IS NOT TO PLAY. HOW ABOUT A NICE GAME OF CHESS?"`, 'sys');
+      });
+      return;
+    }
+
+    if (cmd === 'RUN TRACE' || cmd === 'RUN PROGRAM' || cmd === 'TRACE') {
+      sysFilter = 'ALL';
+      applyFilter();
+      document.getElementById('btnRunTrace').classList.add('gold-on');
+      logLine(`STARTING SEQUENTIAL EXECUTION OF ALL 68 PURE SCREEN STATES...`, 'sys');
+      stepThroughShots(allStates.map(s => s.shot_id), 1500);
+      return;
+    }
+
+    if (cmd === 'CLEAR' || cmd === 'CLS') {
+      termLog.innerHTML = '';
+      return;
+    }
+
+    logLine(`** IMPROPER REQUEST ** TRY: \`HELP\`, \`LIST GAMES\`, \`LOGON JOSHUA\`, \`PASSWORD PENCIL\`, \`DIAL 408-311\`, \`RUN GTW\`, \`CRACK CPE\`, \`PLAY TICTACTOE 0\`, OR \`STUDIOS\`.`, 'alert');
+  }
+
+  function bindDynamicTermLinks() {
+    termLog.querySelectorAll('[data-exec]').forEach(el => {
+      if (el._bound) return;
+      el._bound = true;
+      el.addEventListener('click', () => execCommand(el.getAttribute('data-exec')));
+    });
+  }
+
   // Controls
-  document.getElementById('btnViewThumb').onclick = () => {
-    stripMode = false;
-    document.getElementById('btnViewThumb').classList.add('on');
-    document.getElementById('btnViewStrip').classList.remove('on');
+  document.getElementById('btnBezelCrop').onclick = e => {
+    bezelCrop = !bezelCrop;
+    e.currentTarget.classList.toggle('on', bezelCrop);
+    e.currentTarget.textContent = bezelCrop ? 'BEZEL CROP: ON' : 'BEZEL CROP: OFF';
+    applyBezelCropToVideo(allStates[activeStateIdx]);
+  };
+
+  document.getElementById('btnShowCropped').onclick = () => {
+    showCroppedThumbs = true;
+    document.getElementById('btnShowCropped').classList.add('on');
+    document.getElementById('btnShowFull').classList.remove('on');
     renderGrid();
   };
-  document.getElementById('btnViewStrip').onclick = () => {
-    stripMode = true;
-    document.getElementById('btnViewStrip').classList.add('on');
-    document.getElementById('btnViewThumb').classList.remove('on');
+  document.getElementById('btnShowFull').onclick = () => {
+    showCroppedThumbs = false;
+    document.getElementById('btnShowFull').classList.add('on');
+    document.getElementById('btnShowCropped').classList.remove('on');
     renderGrid();
   };
-  document.getElementById('btnStepState').onclick = () => {
-    selectScreenState(activeStateIdx + 1, true);
-  };
-  document.getElementById('btnTraceMode').onclick = e => {
-    syncToBeat = !syncToBeat;
-    e.currentTarget.classList.toggle('on', syncToBeat);
+
+  document.getElementById('btnRunTrace').onclick = () => {
+    if (traceTimer) stopTimers();
+    else execCommand('RUN TRACE');
   };
 
   document.querySelectorAll('#sysFilterBar .f-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       sysFilter = btn.getAttribute('data-sys') || 'ALL';
-      document.querySelectorAll('#sysFilterBar .f-btn').forEach(b => b.classList.toggle('sys-on', b === btn));
+      document.querySelectorAll('#sysFilterBar .f-btn').forEach(b => b.classList.toggle('on', b === btn));
       applyFilter();
+      if (filteredStates.length) {
+        selectScreenState(filteredStates[0].state_index - 1, true, true);
+      }
     });
   });
 
-  // Load both `wargames-screens-program.json` and `wargames-studio-cuts.json`
+  document.querySelectorAll('.q-key').forEach(btn => {
+    btn.addEventListener('click', () => execCommand(btn.getAttribute('data-cmd')));
+  });
+
+  document.getElementById('termForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const val = termInput.value;
+    termInput.value = '';
+    execCommand(val);
+  });
+
+  // Load 68 Pure Screen States + Studio Cuts
   Promise.all([
     fetch('wargames-screens-program.json').then(r => r.json()),
     fetch('wargames-studio-cuts.json').then(r => r.json())
   ]).then(([prog, studioCuts]) => {
     progData = prog;
     allStates = prog.screen_states || [];
-    document.getElementById('subframeTotal').textContent = (prog.total_subframe_states || 1049).toLocaleString();
 
     const flatBeats = [];
     (studioCuts.books || []).forEach((bk, bIdx) => {
@@ -650,32 +899,24 @@
     });
 
     applyFilter();
-    selectScreenState(0, false);
+
+    // Boot Banner inside the WOPR // IMSAI-8080 Terminal
+    logLine(`WOPR // SYSTEM-83 KERNEL INITIALIZED (68 CLIP-VERIFIED 100%-PURE COMPUTER SCREENS MOUNTED).`, 'sys');
+    logLine(`TYPE <b>HELP</b>, <b>LIST GAMES</b>, <b>CRACK CPE</b>, <b>PLAY TICTACTOE 0</b>, OR <b>OPEN WHITNEY / KNOWLTON / NAKE / MOHR / REAS</b> TO NAVIGATE.`);
+    logLine(STUDIO_DIRECTORY.slice(0, 7).map(s =>
+      `<a class="t-link" href="${s.href}">${s.name}</a>`
+    ).join(''));
+
+    // Start on State #10 (wg_081 `LOGON: Help Games`)
+    const startIdx = Math.max(0, findStateIdxByShot('wg_081'));
+    selectScreenState(startIdx, false, true);
 
     engine = WGStudioEngine.create({
       nav,
       cutKeys: ['1983', 'synthesis', 'trurl', 'cineosis'],
       defaultMode: 'duet',
-      onBeatChange: (bt) => {
-        if (!syncToBeat) return;
-        const shotId = bt.wg_shot?.id;
-        const stIdx = allStates.findIndex(s => s.beat_id === bt.id || s.shot_id === shotId);
-        if (stIdx >= 0 && stIdx !== activeStateIdx) {
-          selectScreenState(stIdx, false);
-        }
-      },
       onTurnChange: (st) => {
-        if (!st.activeTurn) return;
-        const tr = st.activeTurn;
         const tk = st.activeTake || {};
-        document.getElementById('trigSpeaker').textContent =
-          `LINE ${st.turnIdx + 1}/${st.turnCount} · ${String(tr.speaker || '').toUpperCase()} (${st.turnPhase === '1983' ? '1983 CALL' : 'ARCHIVE ANSWER'})`;
-        document.getElementById('trig1983Text').textContent = `"${tr.text || ''}"`;
-        document.getElementById('trigArchText').textContent = tk.spoken ? `"${tk.spoken}"` : '—';
-        document.getElementById('trigArchMeta').innerHTML = `
-          <span>${tk.title || 'Archive'} (${tk.year || '—'})</span>
-          <span>F0: ${tr.f0 || 125}Hz → ${tk.f0 || 125}Hz</span>
-        `;
         if (st.turnPhase === 'arch' && (tk.video || tk.media_url)) {
           setVideoClip(crtVidTwin, tk, tk.clip_t0 || tk.t0 || 0);
         }
