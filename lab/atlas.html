@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atlas of the Lab</title>
+<link rel="icon" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<!-- ATLAS OF THE LAB · an excavation of the whole Cineosis Lab repository, and a way to find anything in it. Drawn with Bolas set 06
+     (line, circle, dot): the LINE is time, every page a bead on its family's thread at the day it was born, the commits of each day
+     beneath; the CIRCLE is the ontology of set 13, six kingdoms out to families out to pages, with the selected page's links strung
+     across it as red thread; the DOT is where the reader is: one page, what it is, how old, what it links to, what data it reads and
+     which scripts make that data, and the route to it from the front door. LIST is the catalogue; DIG is what the excavation found.
+     Data: atlas.json, written by atlas_build.py from the repo and its git history. Red is only ever the thread; colour sits in an O. -->
+<style>
+:root { --bg: #0b0a09; --panel: #12110f; --ink: #ece6da; --dim: #a8a196; --faint: #6f685d; --rule: #26231e; --red: #e0483a; --gold: #f2c14e; --lime: #c4f46a;
+  --serif: 'Fraunces', Georgia, serif; --mono: 'IBM Plex Mono', ui-monospace, monospace; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--serif); display: grid; grid-template-rows: auto minmax(0, 1fr); }
+a { color: inherit; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px 22px; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--rule); }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.brand h1 { margin: 0; font-size: 26px; font-weight: 600; line-height: 1; }
+.brand small { display: block; font: 600 11px var(--mono); letter-spacing: .16em; color: var(--dim); margin-top: 4px; }
+.search { position: relative; min-width: 0; }
+.search input { width: 100%; background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; color: var(--ink); font: 16px var(--serif); padding: 9px 12px 9px 36px; outline: none; }
+.search input:focus { border-color: var(--dim); }
+.search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); }
+.search kbd { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font: 11px var(--mono); color: var(--faint); border: 1px solid var(--rule); border-radius: 3px; padding: 1px 5px; }
+nav.views { display: flex; gap: 4px; }
+nav.views button { font: 600 12px var(--mono); letter-spacing: .12em; padding: 8px 12px; border-radius: 99px; color: var(--dim); border: 1px solid transparent; }
+nav.views button.on { color: var(--ink); border-color: var(--dim); }
+nav.views button:hover { color: var(--ink); }
+.app { display: grid; grid-template-columns: 236px minmax(0, 1fr) 380px; min-height: 0; }
+aside.facets { border-right: 1px solid var(--rule); overflow: auto; padding: 14px 14px 40px; }
+.fh { font: 600 11px var(--mono); letter-spacing: .16em; color: var(--faint); text-transform: uppercase; margin: 16px 0 6px; display: flex; justify-content: space-between; }
+.fh button { font: 11px var(--mono); color: var(--dim); letter-spacing: 0; text-transform: none; }
+.fi { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 8px; align-items: center; width: 100%; text-align: left; padding: 4px 6px; border-radius: 4px; font-size: 14.5px; line-height: 1.25; }
+.fi:hover { background: #1a1815; } .fi.off { opacity: .32; } .fi b { font: 11px var(--mono); color: var(--faint); font-weight: 400; }
+.o { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink); background: var(--c, transparent); display: inline-block; flex: none; }
+.totals { font: 12px/1.6 var(--mono); color: var(--dim); }
+main { position: relative; overflow: hidden; min-width: 0; }
+.view { position: absolute; inset: 0; overflow: auto; display: none; }
+.view.on { display: block; }
+aside.dot { border-left: 1px solid var(--rule); overflow: auto; padding: 0 18px 40px; position: relative; }
+.mark { display: block; margin: 0 auto; }
+.dot h2 { margin: 6px 0 4px; font-size: 27px; line-height: 1.12; font-weight: 600; color: var(--c, var(--ink)); }
+.dot .path { font: 12px var(--mono); color: var(--dim); word-break: break-all; }
+.dot .desc { font-size: 16.5px; line-height: 1.5; color: #ddd5c8; margin: 12px 0; }
+.dot .open { display: inline-block; font: 600 12px var(--mono); letter-spacing: .1em; text-decoration: none; border: 1px solid var(--dim); border-radius: 99px; padding: 7px 14px; margin: 4px 0 12px; }
+.dot .open:hover { background: var(--ink); color: var(--bg); }
+.facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 12px; font-size: 14px; margin: 10px 0 14px; }
+.facts dt { font: 11px var(--mono); letter-spacing: .1em; color: var(--faint); text-transform: uppercase; padding-top: 3px; }
+.facts dd { margin: 0; } .facts dd i { color: var(--dim); }
+.badge { display: inline-block; font: 600 10.5px var(--mono); letter-spacing: .12em; padding: 3px 8px; border-radius: 3px; text-transform: uppercase; border: 1px solid #3a352e; color: var(--dim); }
+.badge.reachable { color: #000; background: var(--lime); border-color: var(--lime); } .badge.orphan, .badge.hidden { color: #000; background: var(--gold); border-color: var(--gold); }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 12px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font: 12px var(--mono); border: 1px solid var(--rule); border-radius: 99px; padding: 3px 9px 3px 6px; max-width: 100%; }
+.chip:hover { border-color: var(--dim); } .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh { font: 600 11px var(--mono); letter-spacing: .16em; color: var(--faint); text-transform: uppercase; margin: 16px 0 4px; }
+.route { font: 12.5px/1.8 var(--mono); color: var(--dim); }
+.route button { text-decoration: underline; text-decoration-color: #4a453d; }
+.scr { font-size: 14px; line-height: 1.4; margin: 6px 0; } .scr code { font: 12px var(--mono); color: var(--gold); display: block; }
+.empty { color: var(--dim); font-size: 16px; line-height: 1.5; padding-top: 10px; }
+/* LIST */
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+thead th { position: sticky; top: 0; background: var(--bg); font: 600 11px var(--mono); letter-spacing: .1em; color: var(--faint); text-transform: uppercase; text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--rule); cursor: pointer; white-space: nowrap; }
+tbody tr { border-bottom: 1px solid #1a1815; cursor: pointer; } tbody tr:hover { background: #15130f; } tbody tr.sel { background: #1d1a15; }
+td { padding: 7px 8px; vertical-align: top; } td.t { font-weight: 600; } td.t small { display: block; font: 11.5px var(--mono); color: var(--faint); font-weight: 400; }
+td.n { font: 12.5px var(--mono); color: var(--dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* DIG */
+.dig { max-width: 980px; padding: 26px 30px 80px; }
+.dig h2 { font-size: 34px; margin: 0 0 6px; } .dig h3 { font-size: 22px; margin: 34px 0 8px; border-top: 1px solid var(--rule); padding-top: 18px; }
+.dig p { font-size: 17px; line-height: 1.55; color: #ddd5c8; max-width: 72ch; }
+.dig .lay { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 4px 16px; margin: 10px 0; }
+.dig .lay b { font: 600 12px var(--mono); color: var(--gold); padding-top: 3px; }
+.dig .lay div { font-size: 15px; line-height: 1.5; }
+.tip { position: fixed; pointer-events: none; z-index: 20; background: #000e; border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; font: 12.5px/1.45 var(--mono); max-width: 360px; display: none; }
+.tip b { font: 600 15px var(--serif); display: block; }
+svg text { font-family: var(--mono); }
+@media (max-width: 1100px) { .app { grid-template-columns: minmax(0, 1fr) 340px; } aside.facets { display: none; } }
+@media (max-width: 760px) { header { grid-template-columns: minmax(0, 1fr); } .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; } aside.dot { border-left: 0; border-top: 1px solid var(--rule); max-height: 46vh; } }
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="./" title="Back to the lab"><svg width="34" height="44" viewBox="-17 -30 34 44"><line x1="0" y1="-30" x2="0" y2="-13" stroke="#e0483a" stroke-width="2.4"/><circle r="12" fill="none" stroke="#ece6da" stroke-width="3"/><circle cx="4" cy="2" r="3.2" fill="#ece6da"/></svg>
+    <span><h1>Atlas of the Lab</h1><small id="sub">AN EXCAVATION</small></span></a>
+  <label class="search"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="7" cy="7" r="5" fill="none" stroke="#a8a196" stroke-width="2"/><line x1="11" y1="11" x2="15" y2="15" stroke="#a8a196" stroke-width="2"/></svg>
+    <input id="q" type="search" placeholder="Find a page, a film, a word… Enter jumps to the best match" autocomplete="off" aria-label="Search the atlas"><kbd>/</kbd></label>
+  <nav class="views" aria-label="Views"><button data-v="line" title="Time: when each page was born">LINE</button><button data-v="circle" title="The ontology: kingdoms, families, pages">CIRCLE</button><button data-v="list" title="The catalogue">LIST</button><button data-v="dig" title="What the excavation found">DIG</button></nav>
+</header>
+<div class="app">
+  <aside class="facets" id="facets"></aside>
+  <main><div class="view" id="v-line"></div><div class="view" id="v-circle"></div><div class="view" id="v-list"></div><div class="view" id="v-dig"></div></main>
+  <aside class="dot" id="dot"></aside>
+</div>
+<div class="tip" id="tip"></div>
+<script>
+const $ = s => document.querySelector(s), esc = t => String(t ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+const NS = 'http://www.w3.org/2000/svg';
+let A, P, byPath, famOf, sel = null, view = 'line', q = '', off = { kingdom: new Set(), family: new Set(), kind: new Set(), status: new Set() }, sort = { k: 'born', d: 1 };
+const STATUS = { reachable: 'reachable from the lab', orphan: 'nothing links here but the site directory', hidden: 'reachable only through an orphan', pointer: 'points elsewhere or superseded', template: 'a template other pages are made from' };
+const fmtDay = d => d ? new Date(d + 'T12:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—';
+const href = p => '../' + p;   // atlas.html lives in lab/
+
+fetch('atlas.json?v=' + Date.now()).then(r => r.json()).then(d => {
+  A = d; P = d.pages; byPath = Object.fromEntries(P.map(p => [p.path, p])); famOf = Object.fromEntries(d.families.map(f => [f.id, f]));
+  $('#sub').textContent = `AN EXCAVATION · ${d.totals.pages} PAGES · ${d.totals.scripts} SCRIPTS · ${d.totals.commits} COMMITS · BUILT ${d.built}`;
+  const h = decodeURIComponent(location.hash.slice(1)); const st = (() => { try { return JSON.parse(localStorage.getItem('atlas.v') || '{}'); } catch (e) { return {}; } })();
+  setView(st.view || 'line', true); if (byPath[h]) select(h); else dot(); facets(); draw();
+});
+const visible = p => !off.kingdom.has(p.kingdom) && !off.family.has(p.family) && !off.kind.has(p.kind) && !off.status.has(p.status) && match(p);
+function match(p) { if (!q) return true; const s = (p.title + ' ' + p.path + ' ' + p.desc + ' ' + (famOf[p.family]?.name || '') + ' ' + A.kinds[p.kind] + ' ' + p.firstMsg + ' ' + p.lastMsg).toLowerCase(); return q.split(/\s+/).every(w => s.includes(w)); }
+function setView(v, quiet) { view = v; document.querySelectorAll('nav.views button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); document.querySelectorAll('.view').forEach(e => e.classList.toggle('on', e.id === 'v-' + v));
+  try { localStorage.setItem('atlas.v', JSON.stringify({ view: v })); } catch (e) { } if (!quiet) draw(); }
+document.querySelectorAll('nav.views button').forEach(b => b.onclick = () => setView(b.dataset.v));
+$('#q').oninput = e => { q = e.target.value.trim().toLowerCase(); facets(); draw(); };
+$('#q').onkeydown = e => { if (e.key === 'Enter') { const hit = P.filter(visible).sort((a, b) => (b.title.toLowerCase().includes(q) - a.title.toLowerCase().includes(q)) || b.in.length - a.in.length)[0]; if (hit) select(hit.path); } };
+addEventListener('keydown', e => { if (e.key === '/' && document.activeElement !== $('#q')) { e.preventDefault(); $('#q').focus(); } if (e.key === 'Escape') { if (document.activeElement === $('#q')) { $('#q').value = ''; q = ''; $('#q').blur(); facets(); draw(); } else select(null); } });
+addEventListener('hashchange', () => { const h = decodeURIComponent(location.hash.slice(1)); if (byPath[h] && h !== sel) select(h); });
+
+/* FACETS · the taxonomy as switches */
+function facets() {
+  const count = (k, v) => P.filter(p => p[k] === v && match(p)).length;
+  const group = (k, title, items) => `<div class="fh">${title}<button data-all="${k}">${off[k].size ? 'all' : ''}</button></div>` + items.map(([v, name, c]) => `<button class="fi ${off[k].has(v) ? 'off' : ''}" data-k="${k}" data-v="${v}"><i class="o" style="--c:${c || 'transparent'}"></i><span>${esc(name)}</span><b>${count(k, v)}</b></button>`).join('');
+  $('#facets').innerHTML = `<div class="totals">${A.totals.pages} pages, ${A.totals.scripts} scripts, ${A.totals.data} data files, ${A.totals.commits} commits from ${fmtDay(A.days[0].date)} to ${fmtDay(A.days.at(-1).date)}.</div>`
+    + group('kingdom', 'Kingdoms', A.kingdoms.map(k => [k.id, k.name]))
+    + group('family', 'Families', A.families.map(f => [f.id, f.name, f.color]))
+    + group('kind', 'Kinds', Object.entries(A.kinds).filter(([k]) => P.some(p => p.kind === k)))
+    + group('status', 'Status', Object.keys(STATUS).map(s => [s, s]));
+  $('#facets').querySelectorAll('.fi').forEach(b => b.onclick = e => { const s = off[b.dataset.k], v = b.dataset.v;
+    if (e.altKey || e.metaKey) { const all = [...$('#facets').querySelectorAll(`.fi[data-k="${b.dataset.k}"]`)].map(x => x.dataset.v); s.clear(); all.forEach(x => x !== v && s.add(x)); } else s.has(v) ? s.delete(v) : s.add(v); facets(); draw(); });
+  $('#facets').querySelectorAll('[data-all]').forEach(b => b.onclick = () => { off[b.dataset.all].clear(); facets(); draw(); });
+}
+function draw() { if (!A) return; ({ line, circle, list, dig })[view](); }
+
+/* tooltip */
+const tip = $('#tip'); const showTip = (e, p) => { tip.innerHTML = `<b style="color:${famOf[p.family]?.color}">${esc(p.title)}</b>${esc(p.path)}<br>${esc(A.kinds[p.kind])} · born ${fmtDay(p.born)} · ${p.commits} commits`; tip.style.display = 'block'; tip.style.left = Math.min(innerWidth - 380, e.clientX + 14) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; };
+const hideTip = () => tip.style.display = 'none';
+
+/* LINE · strata: one thread per family, a bead for each page at the day it was born, its life drawn on to its last change */
+function line() {
+  const el = $('#v-line'), days = A.days.map(d => d.date), d0 = new Date(days[0] + 'T00:00'), nd = Math.round((new Date(days.at(-1) + 'T00:00') - d0) / 864e5) + 1;
+  const W = Math.max(900, el.clientWidth - 20), L = 250, R = 24, cw = (W - L - R) / nd, X = d => L + (Math.round((new Date(d + 'T00:00') - d0) / 864e5) + .5) * cw;
+  const fams = A.families.map(f => ({ f, ps: P.filter(p => p.family === f.id && p.born).sort((a, b) => a.born.localeCompare(b.born)) })).filter(x => x.ps.length).sort((a, b) => a.ps[0].born.localeCompare(b.ps[0].born));
+  let y = 46, rows = '';
+  fams.forEach(({ f, ps }) => { const lanes = []; ps.forEach(p => { const x0 = X(p.born) - 7, x1 = X(p.last || p.born) + 7; let k = lanes.findIndex(e => e < x0); if (k < 0) { k = lanes.length; lanes.push(0); } lanes[k] = x1; p._lane = k; });
+    const h = Math.max(30, lanes.length * 15 + 14), cy = y + h / 2, sx = X(ps[0].born), ex = Math.max(...ps.map(p => X(p.last || p.born)));
+    rows += `<g><text x="${L - 16}" y="${cy + 4}" text-anchor="end" font-size="12.5" fill="#ece6da" font-family="Fraunces, serif">${esc(f.name)}</text><circle cx="${L - 6}" cy="${cy}" r="4.5" fill="${f.color}" stroke="#ece6da" stroke-width="1.5"/>
+      <line x1="${sx}" x2="${ex}" y1="${cy}" y2="${cy}" stroke="#e0483a" stroke-width="1.6" opacity=".55"/>`;
+    ps.forEach(p => { const py = y + 14 + p._lane * 15, show = visible(p), s = sel === p.path, r = Math.min(7, 3.2 + Math.sqrt(p.commits) * .9);
+      rows += `<g class="pg" data-p="${esc(p.path)}" opacity="${show ? 1 : .1}"><line x1="${X(p.born)}" x2="${X(p.last || p.born)}" y1="${py}" y2="${py}" stroke="${f.color}" stroke-width="2" opacity=".5"/>
+        <circle cx="${X(p.born)}" cy="${py}" r="${r}" fill="${f.color}" stroke="${s ? '#e0483a' : '#ece6da'}" stroke-width="${s ? 3 : 1.4}" ${p.status !== 'reachable' ? 'stroke-dasharray="2 2"' : ''}/>${s ? `<line x1="${X(p.born)}" x2="${X(p.born)}" y1="0" y2="${py - r}" stroke="#e0483a" stroke-width="2"/>` : ''}</g>`; });
+    rows += '</g>'; y += h + 6; });
+  const mx = Math.max(...A.days.map(d => d.commits.length)), hb = 70, yb = y + 30;
+  let axis = days.map(d => `<g class="day" data-d="${d}"><rect x="${X(d) - cw / 2 + 1}" y="${yb + hb - A.days.find(x => x.date === d).commits.length / mx * hb}" width="${Math.max(2, cw - 2)}" height="${A.days.find(x => x.date === d).commits.length / mx * hb}" fill="#f2c14e" opacity=".8"/><rect x="${X(d) - cw / 2}" y="${yb}" width="${cw}" height="${hb + 30}" fill="transparent"/></g>`).join('');
+  for (let i = 0; i < nd; i++) { const dt = new Date(d0.getTime() + i * 864e5), ds = dt.toISOString().slice(0, 10); if (i % 2 === 0) axis += `<text x="${X(ds)}" y="${yb + hb + 18}" text-anchor="middle" font-size="11" fill="#a8a196">${dt.getDate()} ${dt.toLocaleString('en-GB', { month: 'short' })}</text>`; axis += `<line x1="${X(ds) - cw / 2}" x2="${X(ds) - cw / 2}" y1="34" y2="${y}" stroke="#1d1b17"/>`; }
+  el.innerHTML = `<svg width="${W}" height="${yb + hb + 40}" style="display:block;margin:0 10px">
+    <text x="${L}" y="22" font-size="11" fill="#6f685d" letter-spacing="1.6">A BEAD IS A PAGE ON THE DAY IT WAS BORN · ITS TAIL RUNS TO ITS LAST CHANGE · DASHED: NOT REACHABLE</text>${axis}${rows}
+    <text x="${L - 16}" y="${yb + hb - 4}" text-anchor="end" font-size="11" fill="#a8a196">commits each day</text></svg>`;
+  el.querySelectorAll('.pg').forEach(g => { const p = byPath[g.dataset.p]; g.style.cursor = 'pointer'; g.onclick = () => select(p.path); g.onmousemove = e => showTip(e, p); g.onmouseleave = hideTip; });
+  el.querySelectorAll('.day').forEach(g => { const d = A.days.find(x => x.date === g.dataset.d); g.onmousemove = e => { tip.innerHTML = `<b>${fmtDay(d.date)} · ${d.commits.length} commits</b>` + d.commits.slice(0, 9).map(c => `${c.t} ${esc(c.m.slice(0, 70))}`).join('<br>') + (d.commits.length > 9 ? `<br>… and ${d.commits.length - 9} more` : ''); tip.style.display = 'block'; tip.style.left = Math.min(innerWidth - 380, e.clientX + 14) + 'px'; tip.style.top = Math.max(10, e.clientY - 200) + 'px'; }; g.onmouseleave = hideTip; });
+}
+
+/* CIRCLE · the ontology: centre, kingdoms, families, pages at the rim; the selected page strung to its links in red thread */
+function circle() {
+  const el = $('#v-circle'), S = Math.max(640, Math.min(el.clientWidth, el.clientHeight + 260) - 20), c = S / 2, R = c - 150, TAU = Math.PI * 2;
+  const tree = A.kingdoms.map(k => ({ k, fams: A.families.map(f => ({ f, ps: P.filter(p => p.kingdom === k.id && p.family === f.id).sort((a, b) => a.title.localeCompare(b.title)) })).filter(x => x.ps.length) })).filter(x => x.fams.length);
+  const n = P.length, gap = .018, per = (TAU - gap * tree.length - gap * .35 * tree.reduce((s, t) => s + t.fams.length, 0)) / n; let a = -Math.PI / 2; const pos = {};
+  let g = '', arcs = '', labels = '';
+  const arc = (r, a0, a1) => `M${c + Math.cos(a0) * r},${c + Math.sin(a0) * r} A${r},${r} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${c + Math.cos(a1) * r},${c + Math.sin(a1) * r}`;
+  tree.forEach(t => { const ka = a;
+    t.fams.forEach(fx => { const fa = a; fx.ps.forEach(p => { pos[p.path] = a + per / 2; a += per; }); const fb = a;
+      arcs += `<path d="${arc(R * .66, fa + .002, fb - .002)}" stroke="${fx.f.color}" stroke-width="9" fill="none"/>`;
+      const m = (fa + fb) / 2; if (fb - fa > .16) labels += `<text x="${c + Math.cos(m) * R * .58}" y="${c + Math.sin(m) * R * .58}" text-anchor="middle" dominant-baseline="middle" font-size="10.5" fill="#a8a196" font-family="Fraunces, serif">${esc(fx.f.name.length > 22 ? fx.f.name.slice(0, 21) + '…' : fx.f.name)}</text>`;
+      a += gap * .35; });
+    const kb = a - gap * .35, km = (ka + kb) / 2;
+    arcs += `<path d="${arc(R * .36, ka, kb)}" stroke="#ece6da" stroke-width="2.5" fill="none"/><line x1="${c + Math.cos(km) * 26}" y1="${c + Math.sin(km) * 26}" x2="${c + Math.cos(km) * R * .36}" y2="${c + Math.sin(km) * R * .36}" stroke="#4a453d"/>`;
+    const span = kb - ka, kr = R * (span < .5 ? .44 : .27), ks = span < .5 ? 12 : 17;
+    labels += `<text x="${c + Math.cos(km) * kr}" y="${c + Math.sin(km) * kr}" text-anchor="middle" dominant-baseline="middle" font-size="${ks}" fill="#ece6da" font-family="Fraunces, serif" font-weight="600">${esc(t.k.name)}</text>`;
+    a += gap; });
+  const pt = (p, r) => [c + Math.cos(pos[p]) * r, c + Math.sin(pos[p]) * r];
+  if (sel && pos[sel]) { const s = byPath[sel], [x0, y0] = pt(sel, R - 6);
+    [...s.out, ...s.in].forEach((o, i) => { if (!pos[o]) return; const [x1, y1] = pt(o, R - 6), isOut = i < s.out.length; g += `<path d="M${x0},${y0} Q${c},${c} ${x1},${y1}" fill="none" stroke="#e0483a" stroke-width="${isOut ? 1.8 : 1.2}" opacity="${isOut ? .9 : .5}" ${isOut ? '' : 'stroke-dasharray="4 3"'}/>`; }); }
+  P.forEach(p => { const [x, y] = pt(p.path, R), f = famOf[p.family], s = sel === p.path, show = visible(p), lit = sel && (byPath[sel].out.includes(p.path) || byPath[sel].in.includes(p.path)), deg = pos[p.path] * 180 / Math.PI, flip = Math.cos(pos[p.path]) < 0;
+    g += `<g class="pg" data-p="${esc(p.path)}" opacity="${show ? 1 : .12}"><circle cx="${x}" cy="${y}" r="${s ? 7 : 4.6}" fill="${f.color}" stroke="${s ? '#e0483a' : '#ece6da'}" stroke-width="${s ? 3 : 1.2}" ${p.status !== 'reachable' ? 'stroke-dasharray="2 2"' : ''}/>
+      <text transform="translate(${c + Math.cos(pos[p.path]) * (R + 12)},${c + Math.sin(pos[p.path]) * (R + 12)}) rotate(${flip ? deg + 180 : deg})" text-anchor="${flip ? 'end' : 'start'}" dominant-baseline="middle" font-size="${s ? 12 : 9.5}" fill="${s ? '#e0483a' : lit ? '#ece6da' : '#a8a196'}" font-weight="${s || lit ? 600 : 400}">${esc(p.title.length > 30 ? p.title.slice(0, 29) + '…' : p.title)}</text></g>`; });
+  el.innerHTML = `<svg width="${S}" height="${S}" style="display:block;margin:0 auto">${arcs}${labels}${g}
+    <circle cx="${c}" cy="${c}" r="20" fill="#0b0a09" stroke="#ece6da" stroke-width="3"/><circle cx="${c - 6}" cy="${c}" r="2.8" fill="#ece6da"/><circle cx="${c + 6}" cy="${c}" r="2.8" fill="#ece6da"/>
+    <text x="${c}" y="${c + 40}" text-anchor="middle" font-size="12" fill="#a8a196" font-family="Fraunces, serif" font-style="italic">the moving image</text></svg>`;
+  el.querySelectorAll('.pg').forEach(gg => { const p = byPath[gg.dataset.p]; gg.style.cursor = 'pointer'; gg.onclick = () => select(p.path); gg.onmousemove = e => showTip(e, p); gg.onmouseleave = hideTip; });
+}
+
+/* LIST · the catalogue */
+function list() {
+  const cols = [['title', 'Page'], ['kind', 'Kind'], ['family', 'Family'], ['born', 'Born'], ['last', 'Last change'], ['commits', 'Commits'], ['in', 'Links in'], ['depth', 'Clicks'], ['status', 'Status']];
+  const val = (p, k) => k === 'in' ? p.in.length : k === 'family' ? famOf[p.family].name : k === 'kind' ? A.kinds[p.kind] : p[k] ?? 99;
+  const rows = P.filter(visible).sort((a, b) => { const x = val(a, sort.k), y = val(b, sort.k); return (x > y ? 1 : x < y ? -1 : 0) * sort.d; });
+  $('#v-list').innerHTML = `<table><thead><tr>${cols.map(([k, t]) => `<th data-k="${k}">${t}${sort.k === k ? (sort.d > 0 ? ' ↑' : ' ↓') : ''}</th>`).join('')}</tr></thead><tbody>${rows.map(p => `<tr data-p="${esc(p.path)}" class="${sel === p.path ? 'sel' : ''}">
+    <td class="t"><span style="display:inline-flex;gap:8px;align-items:center"><i class="o" style="--c:${famOf[p.family].color}"></i>${esc(p.title)}</span><small>${esc(p.path)}</small></td><td>${esc(A.kinds[p.kind])}</td><td>${esc(famOf[p.family].name)}</td>
+    <td class="n">${fmtDay(p.born)}</td><td class="n">${fmtDay(p.last)}</td><td class="n">${p.commits}</td><td class="n">${p.in.length}</td><td class="n">${p.depth ?? '—'}</td><td><span class="badge ${p.status}">${p.status}</span></td></tr>`).join('')}</tbody></table>
+    <p style="font:12px var(--mono);color:var(--faint);padding:10px">${rows.length} of ${P.length} pages · click a heading to sort · Clicks = clicks from the lab's front door</p>`;
+  $('#v-list').querySelectorAll('th').forEach(th => th.onclick = () => { sort = { k: th.dataset.k, d: sort.k === th.dataset.k ? -sort.d : 1 }; list(); });
+  $('#v-list').querySelectorAll('tbody tr').forEach(tr => tr.onclick = () => select(tr.dataset.p));
+}
+
+/* DIG · what the excavation found */
+function dig() {
+  const weeks = []; A.days.forEach(d => { const w = Math.floor((new Date(d.date + 'T12:00') - new Date(A.days[0].date + 'T12:00')) / (7 * 864e5)); (weeks[w] = weeks[w] || []).push(d); });
+  const born = d => P.filter(p => p.born === d);
+  const lost = P.filter(p => p.status === 'orphan' || p.status === 'hidden'), ptr = P.filter(p => p.status === 'pointer'), deep = P.filter(p => p.depth >= 4).sort((a, b) => b.depth - a.depth);
+  const hubs = [...P].sort((a, b) => b.in.length - a.in.length).slice(0, 8), worked = [...P].sort((a, b) => b.commits - a.commits).slice(0, 8);
+  const shops = {}; A.scripts.forEach(s => { const k = s.path.split('/').slice(0, -1).join('/') || '(root)'; (shops[k] = shops[k] || []).push(s); });
+  const link = p => `<button class="chip" data-p="${esc(p.path)}"><i class="o" style="--c:${famOf[p.family].color}"></i><span>${esc(p.title)}</span></button>`;
+  $('#v-dig').innerHTML = `<div class="dig"><h2>What the dig found</h2>
+    <p>${A.totals.pages} pages, ${A.totals.scripts} scripts and ${A.totals.data} data files, laid down in ${A.totals.commits} commits over ${A.days.length} working days from ${fmtDay(A.days[0].date)} to ${fmtDay(A.days.at(-1).date)}. They sort into ${A.kingdoms.length} kingdoms and ${A.families.length} families. ${P.filter(p => p.status === 'reachable').length} pages can be reached from the lab's front door; the rest cannot, or only point somewhere else.</p>
+    <h3>The strata, week by week</h3>${weeks.map((w, i) => `<div class="lay"><b>WEEK ${i + 1}<br><span style="color:var(--faint);font-weight:400">${fmtDay(w[0].date)} – ${fmtDay(w.at(-1).date)}</span></b><div>${w.reduce((s, d) => s + d.commits.length, 0)} commits. Born: ${[...new Set(w.flatMap(d => born(d.date)).map(p => famOf[p.family].name))].join(', ') || 'no new pages'}.<div class="chips">${w.flatMap(d => born(d.date)).slice(0, 26).map(link).join('')}${w.flatMap(d => born(d.date)).length > 26 ? `<span class="chip"><span>+ ${w.flatMap(d => born(d.date)).length - 26} more</span></span>` : ''}</div></div></div>`).join('')}
+    <h3>Lost: ${lost.length} pages nobody can reach from the lab</h3><p>Linked from nothing but the generated site directory, or only from another lost page. Each needs a home in a section, or retiring.</p><div class="chips">${lost.map(link).join('')}</div>
+    <h3>Pointers: ${ptr.length} pages that only send you elsewhere</h3><div class="chips">${ptr.map(link).join('')}</div>
+    <h3>Deep: ${deep.length} pages four or more clicks from the front door</h3><div class="chips">${deep.map(p => link(p).replace('</span></button>', ` · ${p.depth}</span></button>`)).join('')}</div>
+    <h3>Hubs: the pages most linked to</h3><div class="chips">${hubs.map(p => link(p).replace('</span></button>', ` · ${p.in.length}</span></button>`)).join('')}</div>
+    <h3>Most worked: the pages with the most commits</h3><div class="chips">${worked.map(p => link(p).replace('</span></button>', ` · ${p.commits}</span></button>`)).join('')}</div>
+    <h3>Workshops: where the ${A.totals.scripts} scripts live</h3>${Object.entries(shops).sort((a, b) => b[1].length - a[1].length).map(([k, ss]) => `<div class="lay"><b>${esc(k)}<br><span style="color:var(--faint);font-weight:400">${ss.length} script${ss.length > 1 ? 's' : ''}</span></b><div>${ss.slice(0, 6).map(s => `<div class="scr"><code>${esc(s.path.split('/').pop())}</code>${esc(s.desc || '')}</div>`).join('')}${ss.length > 6 ? `<div class="scr" style="color:var(--faint)">and ${ss.length - 6} more</div>` : ''}</div></div>`).join('')}</div>`;
+  $('#v-dig').querySelectorAll('[data-p]').forEach(b => b.onclick = () => select(b.dataset.p));
+}
+
+/* DOT · where the reader is */
+function select(p) { sel = p; if (p) history.replaceState(null, '', '#' + encodeURIComponent(p)); else history.replaceState(null, '', location.pathname); dot(); draw();
+  if (p && view === 'list') { const r = $(`#v-list tr[data-p="${CSS.escape(p)}"]`); r && r.scrollIntoView({ block: 'nearest' }); } }
+function dot() {
+  const el = $('#dot'), mark = (y, open) => `<svg class="mark" width="70" height="${y + 34}" viewBox="-35 0 70 ${y + 34}"><line x1="0" y1="0" x2="0" y2="${y}" stroke="#e0483a" stroke-width="2.4"/><circle cx="0" cy="${y + 15}" r="15" fill="#0b0a09" stroke="#ece6da" stroke-width="3.4"/><circle cx="${open ? 0 : 5}" cy="${y + 17}" r="3.8" fill="#ece6da"/></svg>`;
+  if (!sel) { el.innerHTML = mark(40) + `<div class="empty"><h2 style="font-size:24px;margin:8px 0">Pick anything</h2>Every page of the lab is a bead: on the <b>line</b> it sits on the day it was born, on the <b>circle</b> in its kingdom and family. Click one and it lands here, with what it is, how old it is, what it links to, the data it reads, the scripts that make that data, and the way to it from the front door.<p style="font:12.5px/1.7 var(--mono);color:var(--faint)">/ search · Esc clear · alt-click a facet to show only that one</p></div>`; return; }
+  const p = byPath[sel], f = famOf[p.family], chip = x => byPath[x] ? `<button class="chip" data-p="${esc(x)}"><i class="o" style="--c:${famOf[byPath[x].family].color}"></i><span>${esc(byPath[x].title)}</span></button>` : '';
+  const scr = p.madeBy.map(s => A.scripts.find(x => x.path === s)).filter(Boolean);
+  el.innerHTML = mark(26, true) + `<h2 style="--c:${f.color}">${esc(p.title)}</h2><div class="path">${esc(p.path)}</div><a class="open" href="${esc(href(p.path))}" target="_blank" rel="noopener">OPEN THE PAGE ↗</a> <span class="badge ${p.status}">${p.status}</span>
+    <p class="desc">${esc(p.desc)}</p>
+    <dl class="facts"><dt>Kingdom</dt><dd>${esc(A.kingdoms.find(k => k.id === p.kingdom).name)}</dd><dt>Family</dt><dd><i class="o" style="--c:${f.color};vertical-align:-1px"></i> ${esc(f.name)}</dd><dt>Kind</dt><dd>${esc(A.kinds[p.kind])}</dd>
+      <dt>Born</dt><dd>${fmtDay(p.born)} <i>“${esc(p.firstMsg)}”</i></dd><dt>Last change</dt><dd>${fmtDay(p.last)} <i>“${esc(p.lastMsg)}”</i></dd><dt>Commits</dt><dd>${p.commits} · ${Math.round(p.bytes / 1024)} KB</dd>
+      <dt>Status</dt><dd>${esc(STATUS[p.status])}</dd></dl>
+    <div class="sh">The way there</div><div class="route">${p.route.length ? [...p.route, p.path].map(x => x === p.path ? `<b style="color:var(--ink)">${esc(byPath[x].title)}</b>` : `<button data-p="${esc(x)}">${esc(byPath[x]?.title || x)}</button>`).join(' → ') : 'No path from the lab’s front door.'}</div>
+    <div class="sh">Links out · ${p.out.length}</div><div class="chips">${p.out.map(chip).join('') || '<span class="empty">none</span>'}</div>
+    <div class="sh">Linked from · ${p.in.length}</div><div class="chips">${p.in.map(chip).join('') || '<span class="empty">nothing</span>'}</div>
+    ${p.data.length ? `<div class="sh">Data it reads · ${p.data.length}</div><div class="route">${p.data.map(esc).join('<br>')}</div>` : ''}
+    ${scr.length ? `<div class="sh">Made by</div>${scr.map(s => `<div class="scr"><code>${esc(s.path)}</code>${esc(s.desc)}</div>`).join('')}` : ''}
+    ${p.broken.length ? `<div class="sh">Links that go nowhere · ${p.broken.length}</div><div class="route">${p.broken.map(esc).join('<br>')}</div>` : ''}
+    <div class="sh">Same family</div><div class="chips">${P.filter(x => x.family === p.family && x.path !== p.path).slice(0, 18).map(x => chip(x.path)).join('')}</div>`;
+  el.querySelectorAll('[data-p]').forEach(b => b.onclick = () => select(b.dataset.p)); el.scrollTop = 0;
+}
+addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(draw, 150); });
+</script>
+</body>
+</html>
