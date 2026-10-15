@@ -174,7 +174,13 @@ class Handler(SimpleHTTPRequestHandler):
     def translate_path(self, path):
         if path.split("?")[0].rstrip("/").endswith("deamer.txt"):   # the book's text is local-only
             return os.path.join(ROOT, "__not_served__")
-        return super().translate_path(path)
+        resolved = super().translate_path(path)
+        if not os.path.exists(resolved):
+            clean = path.split("?")[0].split("#")[0].lstrip("/")
+            alt = os.path.join(LAB, clean)
+            if os.path.isfile(alt):
+                return alt
+        return resolved
 
     def end_headers(self):
         self.send_header("Cache-Control", "no-store" if self.path.endswith((".json", ".html", ".js", ".css")) else "max-age=86400")

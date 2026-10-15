@@ -12,6 +12,7 @@
   'use strict';
 
   const STUDIO_PAGES = [
+    { num: '00', name: 'STUDIO INDEX',  sub: 'All 12 Studios Together',        href: 'wargames-studio.html' },
     { num: '01', name: 'SCREEN STATES', sub: 'Infer Program from All Screens', href: 'wg-studio-screens.html' },
     { num: '02', name: 'JOHN WHITNEY',  sub: 'Harmonic Slit-Scan Orbits',      href: 'wg-studio-whitney.html' },
     { num: '03', name: 'KEN KNOWLTON',  sub: 'A Film Made of Stills',          href: 'wg-studio-knowlton.html' },
@@ -24,6 +25,7 @@
     { num: 'ST', name: '6-LENS STUDIO', sub: 'ASAL & 8 Cybernetic Species', href: 'found-wargames.html' },
     { num: 'MU', name: 'MUSEUM STAGE',  sub: 'Traveling Mask & Cast Grid',  href: 'found-wargames-museum.html' },
     { num: 'SB', name: 'SOUND BENCH',   sub: 'Bumblebee Spectrogram Lab',   href: 'bumblebee-dilemma.html' },
+    { num: 'VJ', name: 'VJ COUCH',      sub: 'Dual-Deck TV + Phone Rig',    href: 'vj-wargames.html' },
   ];
 
   const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX','XXI'];
