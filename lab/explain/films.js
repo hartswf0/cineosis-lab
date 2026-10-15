@@ -4,6 +4,7 @@
 window.FILMS = [
   { unit: 'Seeing', n: '2', t: 'What the Machines See', href: 'machines.html', v: 'what each machine is actually given, and what it does with it' },
   { unit: 'Seeing', n: '1', t: 'Where the Archive Came From', href: 'episode-1.html', v: 'the searches behind every shot the lab holds' },
+  { unit: 'Seeing', n: 'L3', t: 'The Neighbourhood', href: 'lesson-3.html', v: 'what "near" means inside the machine' },
   { unit: 'Seeing', n: 'L4', t: 'The Voice Is the Clock', href: 'lesson-4.html', v: 'the timing hidden inside a spoken line' },
   { unit: 'Making a cut', n: 'L5', t: 'The Table of Signs', href: 'lesson-5.html', v: 'what a sign is, and the signs each is mistaken for' },
   { unit: 'Making a cut', n: 'L6', t: 'The Sieve', href: 'lesson-6.html', v: 'the rules that remove shots before any shot is chosen' },

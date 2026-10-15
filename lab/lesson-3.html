@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Neighbourhood · Lesson 3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="explain/film.css?v=3"><link rel="stylesheet" href="explain/episode.css?v=3"><link rel="stylesheet" href="explain/lesson.css?v=3">
+<!-- CINEOSIS · LESSON 3 · THE NEIGHBOURHOOD. Unit: Seeing. What "near" means inside the machine. One shot (a crowd at Coney Island,
+     1940) and its nearest eight in two machines: CLIP, which learned pictures with their words, and DINO, which learned pictures
+     alone. They share none of the eight. All 2,203 downloaded shots as one field ordered by closeness, reordered from one machine to
+     the other; what neighbours share before meaning (the same film, the same light, the same decade, against random pairs); and two
+     walks, neighbour of a neighbour. Bolas spins the webs as red thread between the pictures, swings along the walks, and reacts to
+     what each shot shows. Words in quotation marks are BLIP's captions: a machine's words, not a reading.
+     Data and media: explain/l3.py -> explain/lesson/l3.json. Motion and character: explain/reel.js. -->
+<style>
+:root { --bg: #0b0a09; --ink: #ece6da; }
+body, #stage { background: var(--bg); }
+.view { position: absolute; inset: 0; clip-path: inset(30px 196px 136px 30px); }
+.world { position: absolute; left: 0; top: 0; width: 1600px; height: 900px; will-change: transform; }
+.web { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.bx { position: absolute; background: #000; outline: 4px solid transparent; outline-offset: 5px; transition: outline-color .5s, opacity .5s; }
+.bx video, .bx img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bx.contain video { object-fit: contain; }
+.bx .cap { position: absolute; left: 0; right: 0; top: 100%; margin-top: 6px; font: 12.5px/1.25 var(--mono); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bx.yes { outline-color: var(--lime); } .bx.gold { outline-color: var(--gold); } .bx.dim { opacity: .13 !important; } .bx.pop { opacity: 0; }
+.bd { right: 240px; } .bd p i { color: var(--ink); }
+canvas.fd { position: absolute; left: 120px; top: -205px; width: 1200px; height: 1200px; }
+.axis { position: absolute; left: 300px; width: 1040px; height: 14px; border-radius: 7px; }
+.tk { position: absolute; font: 13px var(--mono); color: var(--dim); transform: translateX(-50%); }
+.mark { position: absolute; width: 0; border-left: 2px dashed var(--gold); }
+.rowlab { position: absolute; left: 40px; font: 600 15px var(--mono); letter-spacing: .14em; color: var(--dim); text-transform: uppercase; }
+.rowlab b { display: block; font: 600 24px/1.1 var(--serif); letter-spacing: 0; text-transform: none; color: var(--ink); margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage"></div></div>
+<audio id="score" preload="auto"></audio><audio id="voice" preload="auto"></audio>
+<div id="bar"><button id="bPrev" title="previous (←)">‹</button><button id="bPlay" title="play / pause (space)">❚❚</button><button id="bNext" title="next (→)">›</button><div id="chs"></div><span id="time"></span><button id="bSnd" title="sound">♪ on</button></div>
+<div id="start"><div><p style="font:600 16px var(--mono);letter-spacing:.2em;color:#b3ab9e;margin:0 0 14px">CINEOSIS · LESSON 3</p><h1 style="font-weight:600;color:#ece6da">The Neighbourhood</h1><p>What “near” means inside the machine. About four and a half minutes, with sound.</p><b style="background:#c4f46a">▶ Watch</b></div></div>
+<script src="explain/lesson.js?v=3"></script>
+<script src="explain/reel.js?v=3"></script>
+<script>
+window.EPISODE = {
+  data: ['explain/lesson/l3.json?v=1'],
+  cues: ['dae-feather-rustle-dub', 'dae-cold-current-paddle', 'dae-slide-carousel-at-blue-hour', 'dae-cedar-and-cassette', 'dae-preparation-drift'],
+  build(D, B, K) {
+    const L = D[0], esc = LX.esc, PA = REEL.PA, box = REEL.box, place = REEL.place, SD = L.seed, ST = L.stats, A = L.atlas;
+    const at = (s, f) => K.later(s * 1000, f), pct = v => Math.round(v * 100), fmt = K.fmt;
+    const q = c => c ? `<i>“${esc(c)}”</i>` : '<i>no words for this one</i>';
+    const scene = (ch, secs, world, band, run, o = {}) => B(ch, secs, () => `<div class="view"><div class="world">${world}<svg class="web" width="8000" height="900"></svg></div></div>${o.over || ''}${band ? LX.band(band, o.label) : ''}`, el => {
+      K.startVideos(el); LX.runBand(el, K); const cam = REEL.cam(el.querySelector('.world'), K), g = REEL.bolas(el, K, o.g || {});
+      const $ = s => el.querySelector(s), $$ = s => [...el.querySelectorAll(s)]; if (!o.g) at(.2, () => g.park()); run({ el, cam, g, $, $$, web: el.querySelector('svg.web') });
+    });
+    /* how Bolas takes a picture: by what BLIP says is in it */
+    const react = (g, cap, i) => { const c = (cap || '').toLowerCase();
+      if (!c) return g.feel('confused', 1.6);
+      if (/sleep|in bed|eyes closed/.test(c)) return g.feel('sleepy', 2.2);
+      if (/eyes wide|staring/.test(c)) return g.feel('surprised', 1.6);
+      if (/danc|party|costume|parade/.test(c)) return g.feel('laugh', 1.6);
+      if (/dark|night|silhouette|fog/.test(c)) return g.feel('suspicious', 1.6);
+      if (/brushing|teeth/.test(c)) return g.feel('excited', 1.4);
+      if (/crowd|audience|people|men|group|children/.test(c)) return i % 2 ? g.feel('happy', 1.4) : (g.nod(), g.feel('determined', 1.2));
+      return g.feel(i % 2 ? 'curious' : 'think', 1.5); };
+
+    /* COLD OPEN · through the ring into the crowd; then the question */
+    scene('Cold open', 18, '', [[3.4, `A crowd at Coney Island, ${SD.year}.`], [7.4, 'Ask the machine for the shots most like it.'], [12.6, 'You would think its nearest neighbours are about the same thing.']],
+      ({ el, g, $ }) => { at(.3, () => g.drop(720, 380, 84)); at(1.2, () => { g.look(300, 380); g.feel('curious', 1); }); at(2, () => g.look(1150, 380)); at(2.6, () => { g.look(null); g.feel('excited', .6); });
+        at(3.1, () => { g.iris($('#hero'), 1.4); LX.tick(500, .6, .04); });
+        at(11.4, () => g.unIris($('#hero'), 720, 395, 84, 1.3)); at(12.8, () => g.feel('think', 2.6)); at(15.6, () => g.feel('curious', 2)); },
+      { g: { x: 720, y: -200, r: 84 }, over: box(PA, SD.hero, { id: 'hero', cls: 'contain', hide: true }) });   // the hero sits outside the world, at the picture area, for the iris
+
+    scene('Cold open', 7, '<div class="tc" style="left:120px;right:220px;top:290px"><small>CINEOSIS · LESSON 3</small><h1>The Neighbourhood</h1><p>What “near” means inside the machine.</p></div>', null,
+      ({ g }) => { g.to(720, 170, 52); LX.ping(); at(1.3, () => g.feel('happy', 1.6)); at(3.4, () => g.wink(1.2)); at(5.2, () => g.park()); }, { g: { x: -300, y: 170, r: 52 } });
+
+    /* THE FIELD · every downloaded shot, placed by how alike the machine finds it to the crowd */
+    const pos = rank => { if (rank < 0) return { x: 600, y: 600, w: 96, h: 72 }; if (rank < 8) { const a = (rank * 45 - 90) * Math.PI / 180; return { x: 600 + Math.cos(a) * 122, y: 600 + Math.sin(a) * 104, w: 60, h: 45 }; }
+      const j = rank - 8, r = Math.sqrt(205 * 205 + 56 * j), a = j * 2.39996; return { x: 600 + Math.cos(a) * r, y: 600 + Math.sin(a) * r, w: 13, h: 10 }; };
+    function field(el, K) {
+      const cv = el.querySelector('canvas.fd'), c = cv.getContext('2d'), n = A.rank_clip.length, img = new Image(); img.src = A.src; const S = 2;
+      const st = { mix: 0, reveal: n + 9, mark: 0 };
+      const draw = () => { c.setTransform(S, 0, 0, S, 0, 0); c.clearRect(0, 0, 1200, 1200); if (!img.complete) return;
+        const ord = [...Array(n).keys()].sort((a, b) => (A.rank_clip[b] < 8 && A.rank_clip[b] >= 0 || A.rank_dino[b] < 8 && A.rank_dino[b] >= 0 ? -1 : 0) - (A.rank_clip[a] < 8 && A.rank_clip[a] >= 0 || A.rank_dino[a] < 8 && A.rank_dino[a] >= 0 ? -1 : 0));
+        for (const i of ord) { const rc = A.rank_clip[i], rd = A.rank_dino[i]; if (rc >= st.reveal) continue;
+          const p = pos(rc), q = pos(rd), k = Math.min(1, Math.max(0, st.mix * 1.6 - (Math.min(rc, rd) / n) * .6)), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+          const w = p.w + (q.w - p.w) * e, h = p.h + (q.h - p.h) * e, x = p.x + (q.x - p.x) * e - w / 2, y = p.y + (q.y - p.y) * e - h / 2;
+          c.drawImage(img, (i % A.cols) * A.w, Math.floor(i / A.cols) * A.h, A.w, A.h, x, y, w, h);
+          if (st.mark && rc >= 0 && rc < 8) { c.strokeStyle = '#c4f46a'; c.lineWidth = 2.5; c.strokeRect(x - 2, y - 2, w + 4, h + 4); }
+          if (st.mark > 1 && rd >= 0 && rd < 8) { c.strokeStyle = '#f2c14e'; c.lineWidth = 2.5; c.strokeRect(x - 2, y - 2, w + 4, h + 4); } } };
+      img.onload = draw; return { st, draw, n };
+    }
+    const fieldHTML = '<canvas class="fd" width="2400" height="2400"></canvas>';
+    scene('The field', 22, fieldHTML, [[.3, `Here is every shot the lab has downloaded: ${fmt(L.n)}.`], [5.6, 'The machine has placed each one by how alike it finds it to our crowd. The closest sit at the centre.'], [12.6, 'Come closer. These eight are its nearest neighbours.'], [18, 'Let us meet them.']],
+      ({ el, cam, g }) => { const F = field(el, K); F.st.reveal = 0; cam.set(720, 395, 3.2);
+        K.raf(t => { F.st.reveal = Math.floor(Math.pow(Math.min(1, t / 6), 2.2) * (F.n + 9)) - 1; F.draw(); return t < 6.2; });
+        at(.5, () => cam.to(720, 395, .86, 5.5, 'io')); at(2.5, () => g.feel('surprised', 1.4)); at(4.6, () => g.feel('dizzy', 2)); at(7, () => g.look(720, 395));
+        at(12.4, () => { cam.to(720, 395, 3, 2.6); F.st.mark = 1; F.draw(); g.feel('curious', 2.4); }); at(17.6, () => g.feel('excited', 1.2)); });
+
+    /* THE WEB · Bolas spins a strand from the crowd to each neighbour; the neighbour wakes up */
+    const HUB = { x: 570, y: 283, w: 300, h: 225 };
+    const ring = list => list.map((x, i) => { const a = (-90 + 22.5 + i * 45) * Math.PI / 180, f = Math.min(1.18, 1 + (list[0].sim - x.sim) * 4);
+      const cx = 720 + Math.cos(a) * 480 * f, cy = 395 + Math.sin(a) * Math.min(250, 250 * f); return { x: Math.round(cx - 100), y: Math.round(cy - 75), w: 200, h: 150 }; });
+    const edge = (r, tx, ty) => { const cx = r.x + r.w / 2, cy = r.y + r.h / 2, dx = tx - cx, dy = ty - cy, k = Math.min((r.w / 2 + 6) / Math.abs(dx || 1e-6), (r.h / 2 + 6) / Math.abs(dy || 1e-6)); return [cx + dx * k, cy + dy * k]; };
+    const spin = (ch, list, who, intro, outro, extra = {}) => {
+      const R = ring(list), T0 = 3.4, STEP = 2.15, secs = T0 + list.length * STEP + 6;
+      scene(ch, secs, box(HUB, SD.loop, { id: 'hub' }) + list.map((x, i) => box(R[i], x.loop, { cls: 'pop nb', cap: esc((x.title || '').slice(0, 30)) + (x.year ? ', ' + x.year : '') })).join(''),
+        [[.3, intro], ...list.map((x, i) => [T0 + i * STEP + .9, q(x.cap)]), [T0 + list.length * STEP + .4, outro]],
+        ({ g, $$, web }) => { const nb = $$('.bx.nb'); at(.4, () => g.feel('determined', 1.6));
+          list.forEach((x, i) => { const r = R[i], hc = [HUB.x + HUB.w / 2, HUB.y + HUB.h / 2], nc = [r.x + r.w / 2, r.y + r.h / 2], a = edge(HUB, ...nc), b = edge(r, ...hc), t = T0 + i * STEP;
+            const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy), stop = [b[0] - dx / L * 26, b[1] - dy / L * 26];
+            at(t - .5, () => { g.anchor(...a); g.to(a[0] + dx / L * 30, a[1] + dy / L * 30, 22); });
+            at(t, () => { g.leap(stop[0], stop[1], 22, .12); LX.tick(900 + i * 60, .05, .02); });
+            at(t + .75, () => { REEL.strand(web, K, a, b, .25, 3); const e = nb[i]; e.classList.remove('pop'); e.style.opacity = 1; REEL.jiggle(e, K, 1.4); react(g, x.cap, i); LX.tick(1300, .08, .03); }); });
+          at(T0 + list.length * STEP + .2, () => { g.anchor(null); g.park(); }); if (extra.end) extra.end({ g, nb, at }); }, { g: { x: 720, y: -120, r: 22 } });
+    };
+    spin('The web', L.clip, 'clip', 'CLIP learned from millions of pictures with their words. Watch it find our crowd\'s nearest eight.', 'People at tables, people in suits, people dancing. About the same thing, so far.',
+      { end: ({ g, at }) => at(3.4 + 8 * 2.15 + 1.2, () => g.feel('happy', 2)) });
+    spin('Two machines', L.dino, 'dino', 'DINO learned from pictures alone, never a word. Same crowd. Its nearest eight:', `The two machines share <b>${L.shared.length ? L.shared.length : 'none'}</b> of the eight.`,
+      { end: ({ g, at }) => { at(3.4 + 8 * 2.15 + .6, () => g.feel('surprised', 1)); at(3.4 + 8 * 2.15 + 1.8, () => g.feel('dizzy', 2.4)); } });
+    scene('Two machines', 19, fieldHTML, [[.3, `Back to all ${fmt(L.n)}. Lime: CLIP's eight. Now let DINO reorder the field.`], [6, 'CLIP\'s eight scatter outwards. DINO\'s eight, in gold, come in from far away.'],
+      [12, `Across every shot, the two machines agree on about ${String(ST.agree_mean).replace('.', ' point ')} of 8 neighbours. For one shot in seven they agree on none.`]],
+      ({ el, cam, g }) => { const F = field(el, K); F.st.mark = 2; cam.set(720, 395, 1.5); F.draw();
+        at(2.6, () => { const t0 = { v: null }; K.raf(t => { if (t0.v === null) t0.v = t; F.st.mix = Math.min(1, (t - t0.v) / 5.5); F.draw(); return F.st.mix < 1; }); g.feel('surprised', 1.2); });
+        at(4.5, () => g.look(720, 395)); at(9, () => { cam.to(720, 395, .86, 3); g.feel('think', 2.5); }); at(12.4, () => g.feel('confused', 2.4)); at(16, () => g.shake()); });
+
+    /* WHAT NEAR MEANS · three tests, shown with the pictures themselves */
+    const SF = L.same_film_case, sfr = SF.near.map((_, i) => ({ x: 620 + (i % 4) * 195, y: 140 + Math.floor(i / 4) * 250, w: 180, h: 135 }));
+    scene('What near means', 18, box({ x: 40, y: 150, w: 520, h: 390 }, SF.seed.loop, { id: 'sf', cap: `${esc(SF.seed.title)}${SF.seed.year ? ', ' + SF.seed.year : ''}` })
+      + SF.near.map((x, i) => box(sfr[i], x.loop, { cls: 'sn' + (x.src === SF.seed.src ? ' same' : ''), cap: esc((x.title || '').slice(0, 26)) })).join(''),
+      [[.3, `Another shot: ${q(SF.seed.cap)}.`], [4.4, `${SF.near.filter(x => x.src === SF.seed.src).length} of its 8 nearest come from the very same film.`],
+        [9.4, `Across all shots, CLIP's neighbours share a film ${pct(ST.clip.same_film)} times in 100. Two shots picked at random: fewer than 1.`], [14, 'Same stock, same camera, same night. Not the same thing: a ship, a truck, a cat on a bed.']],
+      ({ g, $$ }) => { at(.6, () => g.feel('curious', 1.5)); at(4.4, () => { $$('.bx.same').forEach((e, i) => K.later(i * 140, () => { e.classList.add('yes'); REEL.jiggle(e, K, .8); })); g.feel('suspicious', 2.4); });
+        at(9.6, () => g.feel('surprised', 1.2)); at(14.2, () => g.feel('angry', 1.4)); at(16, () => g.shake()); });
+
+    const axisX = v => 300 + v * 1040, stackY = (list, key, y0, f, dir = -1) => { const xs = []; return list.map(x => { const xx = f(x[key]); let lv = 0; while (xs.some(([px, l]) => l === lv && Math.abs(px - xx) < 78)) lv++; xs.push([xx, lv]); return { x: xx - 36, y: y0 + dir * lv * 60, w: 72, h: 54 }; }); };
+    const ramp = (ch, secs, key, f, axis, words, react2) => {
+      const NB = L.clip.filter(x => x[key] != null), RD = L.rand.filter(x => x[key] != null), up = stackY(NB, key, 262, f), dn = stackY(RD, key, 470, f, 1), sx = f(SD[key]);
+      scene(ch, secs, axis + `<div class="rowlab" style="top:250px"><b>Its 8 neighbours</b>CLIP</div><div class="rowlab" style="top:480px"><b>8 random shots</b>for comparison</div>`
+        + `<div class="mark" style="left:${sx}px;top:90px;height:570px"></div>` + box({ x: sx - 60, y: 345, w: 120, h: 90 }, null, { cls: 'seedf', style: `background:#000 url(${esc(SD.frame)}) center/cover` })
+        + NB.map((x, i) => box({ x: sx - 36, y: 363, w: 72, h: 54 }, null, { cls: 'up', style: `background:#000 url(${esc(x.frame)}) center/cover` })).join('')
+        + RD.map((x, i) => box({ x: sx - 36, y: 363, w: 72, h: 54 }, null, { cls: 'dn', style: `background:#000 url(${esc(x.frame)}) center/cover` })).join(''), words,
+        ({ g, $$ }) => { at(1.4, () => { $$('.bx.up').forEach((e, i) => K.later(i * 90, () => { place(e, up[i], .8); LX.tick(1100 + i * 40, .04, .02); })); g.feel('curious', 1.4); });
+          at(4.6, () => { $$('.bx.dn').forEach((e, i) => K.later(i * 90, () => { place(e, dn[i], .8); LX.tick(700 + i * 40, .04, .02); })); g.feel('surprised', 1.2); });
+          react2 && react2(g); });
+    };
+    const grad = `<div class="axis" style="top:668px;background:linear-gradient(90deg,#000,#ece6da)"></div><span class="tk" style="left:300px;top:690px">dark</span><span class="tk" style="left:1340px;top:690px">bright</span>`;
+    ramp('What near means', 16, 'lum', v => axisX(Math.min(1, v / .8)), grad,
+      [[.3, 'Brightness, from dark to light. The dashed line is our crowd.'], [4.4, 'Its neighbours huddle near it. Random shots spread across the whole range.'], [9.6, `Over all shots: neighbours sit ${pct(ST.clip.lum_gap)} points apart in brightness, random pairs ${pct(ST.random.lum_gap)}.`]],
+      g => { at(7.5, () => g.feel('happy', 1.4)); at(10, () => g.nod()); });
+    const yx = y => axisX((y - 1900) / 110), yrs = [1900, 1920, 1940, 1960, 1980, 2000].map(y => `<span class="tk" style="left:${yx(y)}px;top:690px">${y}</span>`).join('');
+    ramp('What near means', 18, 'year', yx, `<div class="axis" style="top:668px;height:2px;background:#5a544b"></div>${yrs}`,
+      [[.3, 'Now the year each film was made.'], [4.4, 'Neighbours come from nearby decades. Random shots come from anywhere.'], [9.4, `Over all shots: half of all neighbours are within ${ST.clip.year_gap} years of each other. Random pairs: ${ST.random.year_gap}.`],
+        [13.6, 'Before meaning, the machine sees the film itself: its stock, its light, its decade.']],
+      g => { at(9.6, () => g.feel('think', 2.4)); at(13.8, () => g.feel('determined', 2)); });
+
+    /* WALKING · neighbour of a neighbour; Bolas swings from shot to shot and the thread trails behind */
+    const walk = (ch, list, step, intro, outro, cue) => {
+      const X = i => 510 + i * 470, Y = 260, T0 = 3, secs = T0 + list.length * step + 7;
+      scene(ch, secs, list.map((x, i) => box({ x: X(i), y: Y, w: 420, h: 315 }, x.loop, { cls: 'w', cap: esc((x.title || '').slice(0, 44)) + (x.year ? ', ' + x.year : '') })).join(''),
+        [[.3, intro], ...list.map((x, i) => [T0 + i * step + .15, q(x.cap)]), [T0 + list.length * step + .4, outro]],
+        ({ cam, g, web }) => { g.drop(720, 170, 34); cam.set(X(0) + 210, 395, 1);
+          list.forEach((x, i) => at(T0 + i * step, () => {
+            if (i) { cam.to(X(i) + 210, 395, 1, Math.min(.9, step * .6)); REEL.strand(web, K, [X(i - 1) + 210, Y - 22], [X(i) + 210, Y - 22], Math.min(.9, step * .6), 3); g.state.V.x += 900; g.to(720, 170); LX.tick(600 + i * 30, .06, .03); }
+            K.later(Math.min(.9, step * .6) * 1000, () => { cue ? cue(g, x, i) : react(g, x.cap, i); }); }));
+          const end = T0 + list.length * step; at(end + .2, () => { const mid = (X(0) + X(list.length - 1) + 420) / 2; cam.to(mid, 395, 1360 / (list.length * 470 + 200), 2.4); g.park(); });
+          at(end + 2.6, () => g.feel('laugh', 2)); }, { g: { x: 720, y: -160, r: 34 } });
+    };
+    walk('Walking', L.walks.clip, 2.3, 'Now walk: from each shot to its nearest, never staying inside one film. CLIP first.', 'Twelve steps, from a crowd to a sleeping baby.');
+    walk('Walking', L.walks.dino, 1.2, 'DINO walks too, from the same crowd.', 'It never leaves the crowd: costumes, audiences, a party. Same start, two machines, two ends.',
+      (g, x, i) => i < 6 ? g.feel(i % 2 ? 'sleepy' : 'suspicious', 1.1) : react(g, x.cap, i));
+
+    /* NOW YOU CAN READ */
+    const row = (list, y) => list.map((x, i) => box({ x: 230 + i * 89, y, w: 84, h: 63 }, null, { cls: 'pop rr', style: `background:#000 url(${esc(x.frame)}) center/cover` })).join('');
+    scene('Now you can read', 15, `<div class="rowlab" style="top:200px"><b>CLIP</b>walk</div>${row(L.walks.clip, 190)}<div class="rowlab" style="top:400px"><b>DINO</b>walk</div>${row(L.walks.dino, 390)}`,
+      [[.3, 'Near means alike to one machine, as it was trained to see.'], [6, 'Neighbours share stock, light and decade before they share meaning.'], [11, 'Lesson 4 listens instead: the timing hidden in a spoken line.']],
+      ({ g, $$ }) => { $$('.rr').forEach((e, i) => K.later(300 + (i % 13) * 110 + Math.floor(i / 13) * 60, () => { e.style.opacity = 1; e.classList.remove('pop'); REEL.jiggle(e, K, .6); })); at(3, () => g.feel('happy', 2)); at(8, () => g.wink(1.4)); });
+    scene('Now you can read', 8, '<div class="tc" style="left:120px;right:220px;top:290px"><small>NEXT · LESSON 4</small><h1>The Voice Is the Clock</h1><p>The timing hidden inside a spoken line.</p></div>', null,
+      ({ g }) => { LX.ping(); g.to(720, 170, 50); at(2, () => g.feel('excited', 1.2)); at(4.4, () => g.wink(1)); at(5.8, () => g.leap(720, -260, 50)); }, { g: { x: 720, y: -200, r: 50 } });
+  }
+};
+</script>
+<script src="explain/player.js?v=9"></script>
+</body>
+</html>
