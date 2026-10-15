@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>10 / CASEY REAS · Organic Flow-Field &amp; Simultaneous Tissue Assembly</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="wg-studio-nav.js"></script>
+<style>
+  :root{
+    --paper:#f4f0e6;
+    --ink:#1a1815;
+    --seed:#e85d44;
+    --serif:'Fraunces',Georgia,serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;user-select:none}
+  html,body{height:100%;width:100%;background:var(--paper);color:var(--ink);font-family:var(--mono);overflow:hidden;-webkit-font-smoothing:antialiased}
+
+  #reasCanvas{
+    position:fixed;top:0;left:0;width:100vw;height:calc(100vh - 48px);
+    display:block;cursor:grab;
+  }
+  #reasCanvas:active{cursor:grabbing}
+</style>
+</head>
+<body>
+
+<canvas id="reasCanvas"></canvas>
+
+<div style="display:none">
+  <video id="vid1983" muted playsinline loop crossorigin="anonymous"></video>
+  <audio id="audMain" preload="auto"></audio>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // 4 Major Tissue Eddies & Satellite Nodes matching Reference Image 1 (10 / CASEY REAS)
+  const TISSUE_CLUSTERS = [
+    {
+      key: 'murch',
+      title: 'VOICES & FACES (MURCH / SPOKEN)',
+      cx: 0.21, cy: 0.28, radius: 0.17,
+      nodes: [
+        { dx: -0.03, dy: -0.04, w: 0.14, h: 0.19, round: true },
+        { dx:  0.07, dy: -0.01, w: 0.09, h: 0.13, round: true },
+        { dx: -0.02, dy:  0.10, w: 0.07, h: 0.09, round: true },
+        { dx: -0.09, dy:  0.05, w: 0.055, h: 0.07, round: false },
+        { dx:  0.14, dy:  0.03, w: 0.065, h: 0.08, round: false },
+        { dx: -0.14, dy: -0.06, w: 0.05,  h: 0.065, round: false },
+        { dx:  0.05, dy: -0.14, w: 0.048, h: 0.06, round: false },
+        { dx: -0.10, dy:  0.15, w: 0.048, h: 0.06, round: false },
+      ]
+    },
+    {
+      key: 'klapaucius',
+      title: 'CONSOLE & ACTION (KLAPAUCIUS / BLIP)',
+      cx: 0.34, cy: 0.72, radius: 0.16,
+      nodes: [
+        { dx: -0.05, dy: -0.06, w: 0.13, h: 0.16, round: true },
+        { dx: -0.09, dy:  0.08, w: 0.09, h: 0.10, round: false },
+        { dx:  0.01, dy:  0.11, w: 0.08, h: 0.09, round: false },
+        { dx:  0.11, dy:  0.08, w: 0.07, h: 0.09, round: false },
+        { dx:  0.08, dy: -0.03, w: 0.08, h: 0.09, round: false },
+        { dx:  0.20, dy:  0.05, w: 0.06, h: 0.07, round: false },
+        { dx:  0.27, dy:  0.03, w: 0.055, h: 0.065, round: false },
+      ]
+    },
+    {
+      key: 'vjepa',
+      title: 'BALLISTIC & TRAJECTORY (V-JEPA / SYNTHESIS)',
+      cx: 0.75, cy: 0.30, radius: 0.19,
+      nodes: [
+        { dx: -0.08, dy:  0.01, w: 0.15, h: 0.21, round: true },
+        { dx:  0.10, dy: -0.03, w: 0.17, h: 0.18, round: true },
+        { dx: -0.09, dy:  0.16, w: 0.085, h: 0.095, round: false },
+        { dx:  0.02, dy:  0.12, w: 0.08,  h: 0.09,  round: false },
+        { dx: -0.18, dy:  0.11, w: 0.06,  h: 0.07,  round: false },
+        { dx: -0.03, dy: -0.15, w: 0.09,  h: 0.08,  round: true },
+      ]
+    },
+    {
+      key: '1983',
+      title: '1983 MOUNTAIN & PORTAL',
+      cx: 0.91, cy: 0.67, radius: 0.11,
+      nodes: [
+        { dx:  0.00, dy:  0.00, w: 0.13, h: 0.18, round: true },
+        { dx: -0.06, dy:  0.05, w: 0.055, h: 0.065, round: false },
+      ]
+    }
+  ];
+
+  const state = {
+    data: null,
+    flatBeats: [],
+    beatIdx: 0,
+    seedX: 0.765,
+    seedY: 0.655,
+    dragging: false,
+    playing: true,
+    soundOn: true,
+    tick: 0,
+    streamlines: [],
+  };
+
+  const cv = document.getElementById('reasCanvas');
+  const ctx = cv.getContext('2d');
+  const vid1983 = document.getElementById('vid1983');
+  const audMain = document.getElementById('audMain');
+
+  const imgCache = new Map();
+  function getImg(src) {
+    if (!src) return null;
+    if (imgCache.has(src)) return imgCache.get(src);
+    const im = new Image();
+    im.crossOrigin = 'anonymous';
+    im.src = src;
+    imgCache.set(src, im);
+    return im;
+  }
+
+  const nav = WGStudioNav.mount({
+    theme: 'paper',
+    num: '10',
+    titleLeft: '10 / CASEY REAS',
+    promptCenter: 'DRAG THE SEED TO REDIRECT THE ASSEMBLY',
+    onTogglePlay(p) {
+      state.playing = p;
+      if (p) {
+        vid1983.play().catch(() => {});
+        if (state.soundOn) audMain.play().catch(() => {});
+      } else {
+        vid1983.pause();
+        audMain.pause();
+      }
+    },
+    onReset() {
+      state.seedX = 0.765;
+      state.seedY = 0.655;
+      initStreamlines();
+    },
+    onPrevBeat() { loadBeat(state.beatIdx - 1); },
+    onNextBeat() { loadBeat(state.beatIdx + 1); },
+    onToggleSound(s) {
+      state.soundOn = s;
+      audMain.muted = !s;
+      if (s && state.playing) audMain.play().catch(() => {});
+    },
+  });
+
+  function initStreamlines() {
+    // Create 420 organic multi-segment streamlines wrapping around the 4 tissue eddies
+    const lines = [];
+    for (let i = 0; i < 420; i++) {
+      const clusterIdx = i % TISSUE_CLUSTERS.length;
+      const cl = TISSUE_CLUSTERS[clusterIdx];
+      const baseAngle = (i / 420) * Math.PI * 2 * 5;
+      const ringR = cl.radius * (0.45 + ((i * 19) % 100) / 100 * 0.95);
+      lines.push({
+        clusterIdx,
+        baseAngle,
+        ringR,
+        speed: 0.004 + (i % 9) * 0.0008,
+        steps: 18 + (i % 14),
+        isRedWake: i < 28,
+      });
+    }
+    state.streamlines = lines;
+  }
+
+  fetch('wargames-studio-cuts.json')
+    .then(r => r.json())
+    .then(d => {
+      state.data = d;
+      state.flatBeats = [];
+      d.books.forEach(bk => {
+        bk.beats.forEach(bt => {
+          state.flatBeats.push({ book: bk, beat: bt });
+        });
+      });
+      d.stills_atlas.slice(0, 75).forEach(s => {
+        getImg(s.strip);
+        getImg(s.thumb);
+      });
+      initStreamlines();
+      loadBeat(14);
+      requestAnimationFrame(draw);
+    });
+
+  function loadBeat(idx) {
+    if (!state.flatBeats.length) return;
+    state.beatIdx = (idx + state.flatBeats.length) % state.flatBeats.length;
+    const { book, beat } = state.flatBeats[state.beatIdx];
+
+    nav.setBeatLabel(`Book ${WGStudioNav.ROMAN[book.n - 1]} · ${book.title} (${beat.id})`);
+    nav.setStatus(`4 TISSUE EDDIES · BEAT ${state.beatIdx + 1}/${state.flatBeats.length}`);
+
+    getImg(beat.wg_shot.strip);
+    getImg(beat.wg_shot.thumb);
+    TISSUE_CLUSTERS.forEach(cl => {
+      (beat.cuts[cl.key] || []).forEach(u => {
+        if (u.thumb) getImg(u.thumb);
+      });
+    });
+
+    const vUrl = beat.wg_shot.static_clip || beat.wg_shot.video;
+    if (vUrl) {
+      vid1983.src = vUrl;
+      if (state.playing) vid1983.play().catch(() => {});
+    }
+    const aUrl = beat.aligned_file || beat.orig_file;
+    if (aUrl) {
+      audMain.src = aUrl;
+      audMain.muted = !state.soundOn;
+      if (state.playing && state.soundOn) audMain.play().catch(() => {});
+    }
+  }
+
+  audMain.addEventListener('ended', () => {
+    if (state.playing) loadBeat(state.beatIdx + 1);
+  });
+
+  // Vector field angle at normalized (x, y) influenced by the 4 eddies + draggable coral seed
+  function fieldAngle(nx, ny, t) {
+    let vx = 0, vy = 0;
+    TISSUE_CLUSTERS.forEach((cl, idx) => {
+      const dx = nx - cl.cx;
+      const dy = ny - cl.cy;
+      const distSq = dx * dx + dy * dy + 0.008;
+      const swirl = (idx % 2 === 0 ? 1 : -1) * (0.045 / distSq);
+      vx += -dy * swirl + 0.12;
+      vy +=  dx * swirl + Math.sin(nx * 5.2 + t * 0.01) * 0.08;
+    });
+    // Strong dipole attraction/curl toward the draggable coral-red seed
+    const sdx = state.seedX - nx;
+    const sdy = state.seedY - ny;
+    const sDist = Math.hypot(sdx, sdy) + 0.04;
+    vx += (sdx / sDist) * 0.38 - (sdy / sDist) * 0.25;
+    vy += (sdy / sDist) * 0.38 + (sdx / sDist) * 0.25;
+    return Math.atan2(vy, vx);
+  }
+
+  function draw() {
+    if (state.playing) state.tick++;
+    const dpr = window.devicePixelRatio || 1;
+    const W = cv.clientWidth;
+    const H = cv.clientHeight;
+    if (cv.width !== W * dpr || cv.height !== H * dpr) {
+      cv.width = W * dpr;
+      cv.height = H * dpr;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // 1. Warm Ivory Parchment Ground (#f4f0e6)
+    ctx.fillStyle = '#f4f0e6';
+    ctx.fillRect(0, 0, W, H);
+
+    const cur = state.flatBeats[state.beatIdx];
+    const beat = cur ? cur.beat : null;
+    const atlas = state.data ? state.data.stills_atlas : [];
+
+    // 2. Draw the Swirling Dashed Ink Flow-Field Filaments (matching Image 1)
+    ctx.save();
+    state.streamlines.forEach((sl, sIdx) => {
+      const cl = TISSUE_CLUSTERS[sl.clusterIdx];
+      const seedPullX = (state.seedX - 0.765) * 0.28;
+      const seedPullY = (state.seedY - 0.655) * 0.28;
+
+      let nx = cl.cx + seedPullX + Math.cos(sl.baseAngle + state.tick * sl.speed) * sl.ringR;
+      let ny = cl.cy + seedPullY + Math.sin(sl.baseAngle + state.tick * sl.speed) * sl.ringR * 1.15;
+
+      if (sl.isRedWake) {
+        // Coral-red dashed wake radiating from the draggable seed into the right portal
+        const a = (sIdx / 28) * Math.PI * 1.4 - 0.7;
+        nx = state.seedX + Math.cos(a) * 0.018;
+        ny = state.seedY + Math.sin(a) * 0.018;
+        ctx.strokeStyle = 'rgba(232, 93, 68, 0.58)';
+      } else {
+        ctx.strokeStyle = 'rgba(26, 24, 21, 0.68)';
+      }
+
+      ctx.lineWidth = 1.05;
+      ctx.setLineDash([4.5, 4.5]);
+      ctx.beginPath();
+      ctx.moveTo(nx * W, ny * H);
+
+      for (let k = 0; k < sl.steps; k++) {
+        const ang = sl.isRedWake
+          ? Math.atan2((0.67 - ny) + Math.sin(k * 0.3 + sIdx) * 0.18, 0.92 - nx)
+          : fieldAngle(nx, ny, state.tick);
+        nx += Math.cos(ang) * 0.0085;
+        ny += Math.sin(ang) * 0.0085;
+        ctx.lineTo(nx * W, ny * H);
+      }
+      ctx.stroke();
+    });
+    ctx.restore();
+
+    // 3. Draw the 4 Simultaneous Cut Tissue Constellations Nested in the Flow Field
+    if (beat) {
+      const wgStrip = getImg(beat.wg_shot.strip);
+      const seedPullX = (state.seedX - 0.765) * 0.25;
+      const seedPullY = (state.seedY - 0.655) * 0.25;
+
+      TISSUE_CLUSTERS.forEach((cl, cIdx) => {
+        const units = beat.cuts[cl.key] || [];
+        const fallbackItem = atlas[(state.beatIdx * 7 + cIdx * 19) % Math.max(1, atlas.length)];
+        const fallbackStrip = fallbackItem ? getImg(fallbackItem.strip) : null;
+
+        cl.nodes.forEach((nd, nIdx) => {
+          const driftX = Math.sin(state.tick * 0.018 + cIdx * 2 + nIdx) * 0.004;
+          const driftY = Math.cos(state.tick * 0.016 + cIdx + nIdx * 1.7) * 0.004;
+
+          const px = (cl.cx + nd.dx + seedPullX * (0.4 + cIdx * 0.2) + driftX) * W;
+          const py = (cl.cy + nd.dy + seedPullY * (0.4 + cIdx * 0.2) + driftY) * H;
+          const pw = nd.w * W;
+          const ph = nd.h * H;
+
+          const u = units[nIdx % Math.max(1, units.length)] || {};
+          const uImg = u.thumb ? getImg(u.thumb) : null;
+          const stepIdx = (nIdx + Math.floor(state.tick / 26)) % 8;
+
+          ctx.save();
+          ctx.beginPath();
+          if (nd.round) {
+            ctx.ellipse(px, py, pw * 0.52, ph * 0.52, 0, 0, Math.PI * 2);
+          } else {
+            ctx.rect(px - pw / 2, py - ph / 2, pw, ph);
+          }
+          ctx.clip();
+
+          // Monochrome archival film grade matching Reference Image 1
+          ctx.filter = 'grayscale(82%) contrast(112%)';
+
+          if (cl.key === '1983' && nIdx === 0 && vid1983.readyState >= 2) {
+            ctx.drawImage(vid1983, px - pw / 2, py - ph / 2, pw, ph);
+          } else if (uImg && uImg.complete && uImg.naturalWidth > 0) {
+            ctx.drawImage(uImg, px - pw / 2, py - ph / 2, pw, ph);
+          } else if (fallbackStrip && fallbackStrip.complete && fallbackStrip.naturalWidth > 0) {
+            const sw = fallbackStrip.naturalWidth / 8;
+            ctx.drawImage(fallbackStrip, stepIdx * sw, 0, sw, fallbackStrip.naturalHeight, px - pw / 2, py - ph / 2, pw, ph);
+          } else if (wgStrip && wgStrip.complete && wgStrip.naturalWidth > 0) {
+            const sw = wgStrip.naturalWidth / 8;
+            ctx.drawImage(wgStrip, stepIdx * sw, 0, sw, wgStrip.naturalHeight, px - pw / 2, py - ph / 2, pw, ph);
+          }
+
+          ctx.filter = 'none';
+          ctx.restore();
+
+          // Subtle ink ring around rectangular satellite stills
+          if (!nd.round) {
+            ctx.strokeStyle = 'rgba(26, 24, 21, 0.22)';
+            ctx.lineWidth = 0.75;
+            ctx.strokeRect(px - pw / 2, py - ph / 2, pw, ph);
+          }
+        });
+      });
+    }
+
+    // 4. Draw the Draggable Coral-Red Seed (#e85d44 — exact match to Image 1)
+    const sx = state.seedX * W;
+    const sy = state.seedY * H;
+
+    ctx.fillStyle = 'rgba(232, 93, 68, 0.18)';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 18, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#e85d44';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 8.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    requestAnimationFrame(draw);
+  }
+
+  cv.addEventListener('pointerdown', e => {
+    state.dragging = true;
+    updateSeed(e);
+    cv.setPointerCapture(e.pointerId);
+  });
+
+  cv.addEventListener('pointermove', e => {
+    if (!state.dragging) return;
+    updateSeed(e);
+  });
+
+  cv.addEventListener('pointerup', () => {
+    state.dragging = false;
+  });
+
+  function updateSeed(e) {
+    const rect = cv.getBoundingClientRect();
+    state.seedX = Math.max(0.08, Math.min(0.92, (e.clientX - rect.left) / rect.width));
+    state.seedY = Math.max(0.10, Math.min(0.90, (e.clientY - rect.top) / rect.height));
+  }
+})();
+</script>
+</body>
+</html>

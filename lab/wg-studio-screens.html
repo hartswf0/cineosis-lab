@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>01 / SCREEN STATES · Examine All Screens to Infer a Program</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="wg-studio-nav.js"></script>
+<style>
+  :root{
+    --bg:#060606;
+    --panel:#0b0a09;
+    --ink:#efe9dd;
+    --dim:#8a8378;
+    --faint:#24211d;
+    --hi:#e8c070;
+    --phos:#4af6c3;
+    --red:#e0523c;
+    --serif:'Fraunces',Georgia,serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--mono);overflow:hidden;-webkit-font-smoothing:antialiased}
+
+  #app{
+    position:fixed;
+    top:40px;bottom:48px;left:0;right:0;
+    display:grid;
+    grid-template-columns:1fr 450px;
+    border-top:1px solid var(--faint);
+  }
+
+  /* ─── LEFT: ALL-SCREENS STATE MATRIX & GRAPH ─── */
+  #leftPane{
+    display:grid;
+    grid-template-rows:auto auto 1fr;
+    min-width:0;min-height:0;
+    border-right:1px solid var(--faint);
+  }
+
+  /* Subsystem Filter Bar */
+  #subBar{
+    display:flex;align-items:center;gap:4px;overflow-x:auto;
+    padding:8px 16px;border-bottom:1px solid var(--faint);
+    background:#090807;scrollbar-width:none;
+  }
+  #subBar::-webkit-scrollbar{display:none}
+  .sub-btn{
+    flex:0 0 auto;background:#0e0d0b;border:1px solid var(--faint);
+    color:var(--dim);font:500 9.5px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;
+    padding:7px 10px;cursor:pointer;transition:all .15s;
+    display:inline-flex;align-items:center;gap:6px;
+  }
+  .sub-btn i{width:6px;height:6px;border-radius:50%;display:inline-block}
+  .sub-btn:hover{color:var(--ink);border-color:#443e36}
+  .sub-btn.on{color:#060606;background:var(--hi);border-color:var(--hi)}
+  .sub-btn.on i{background:#060606!important}
+
+  /* Control Toolbar */
+  #viewToolbar{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:7px 16px;border-bottom:1px solid var(--faint);
+    background:#070706;font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--dim);
+  }
+  .t-group{display:inline-flex;align-items:center;gap:4px}
+  .t-chip{
+    background:none;border:1px solid var(--faint);color:var(--dim);
+    font:400 9px/1 var(--mono);letter-spacing:.15em;text-transform:uppercase;
+    padding:5px 9px;cursor:pointer;
+  }
+  .t-chip:hover{color:var(--ink)}
+  .t-chip.on{border-color:var(--hi);color:var(--hi);background:rgba(232,192,112,.08)}
+
+  /* Scrollable Screen States Container */
+  #matrixWrap{
+    position:relative;overflow-y:auto;overflow-x:hidden;
+    padding:16px;background:#050505;
+  }
+
+  .sub-section{margin-bottom:26px}
+  .sub-hdr{
+    display:flex;align-items:baseline;justify-content:space-between;
+    padding-bottom:8px;margin-bottom:10px;border-bottom:1px solid #1c1916;
+  }
+  .sub-hdr h3{
+    font:400 italic 18px/1.1 var(--serif);color:var(--ink);
+    display:inline-flex;align-items:baseline;gap:10px;
+  }
+  .sub-hdr h3 span.code{
+    font:500 10px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--hi);
+  }
+  .sub-hdr .inv{
+    font:400 9.5px/1 var(--mono);color:var(--phos);letter-spacing:.08em;
+  }
+
+  /* Contact Sheet Grid of Screen States */
+  .state-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(148px,1fr));
+    gap:8px;
+  }
+  body.crop-subframes .state-grid{
+    grid-template-columns:repeat(auto-fill,minmax(290px,1fr));
+  }
+
+  .st-card{
+    position:relative;background:#0c0b0a;border:1px solid #1f1c18;
+    cursor:pointer;transition:border-color .14s,transform .14s;
+    display:flex;flex-direction:column;overflow:hidden;
+  }
+  .st-card:hover{border-color:#6e6559;transform:translateY(-1px)}
+  .st-card.active{border-color:var(--hi);box-shadow:0 0 0 1px var(--hi)}
+  .st-card.code-linked{border-color:var(--phos);box-shadow:0 0 0 1px var(--phos)}
+
+  .st-img-wrap{
+    position:relative;width:100%;aspect-ratio:4/3;background:#000;overflow:hidden;
+  }
+  body.crop-subframes .st-img-wrap{aspect-ratio:16/3}
+  .st-img-wrap img{
+    width:100%;height:100%;object-fit:cover;display:block;
+    filter:contrast(1.06);
+  }
+  .st-badge{
+    position:absolute;top:5px;left:5px;
+    background:rgba(5,5,5,.82);color:var(--ink);
+    font:500 8.5px/1 var(--mono);letter-spacing:.12em;
+    padding:3px 5px;border:1px solid rgba(239,233,221,.18);
+  }
+  .st-time{
+    position:absolute;bottom:5px;right:5px;
+    background:rgba(5,5,5,.82);color:var(--hi);
+    font:400 8px/1 var(--mono);letter-spacing:.1em;padding:2px 5px;
+  }
+  .st-crop-pill{
+    position:absolute;top:5px;right:5px;
+    background:rgba(74,246,195,.16);color:var(--phos);
+    font:500 7.5px/1 var(--mono);letter-spacing:.1em;padding:2px 4px;
+    border:1px solid rgba(74,246,195,.35);
+  }
+  .st-meta{
+    padding:6px 7px;display:flex;flex-direction:column;gap:3px;
+    border-top:1px solid #161412;
+  }
+  .st-stmt{
+    font:500 8.5px/1.2 var(--mono);color:var(--phos);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .st-obs{
+    font:300 11px/1.25 var(--serif);color:#bfb7a8;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+
+  /* FSM Graph Canvas Mode */
+  #fsmCanvasWrap{
+    display:none;width:100%;height:100%;position:relative;background:#050505;
+  }
+  body.view-fsm #matrixWrap{display:none}
+  body.view-fsm #fsmCanvasWrap{display:block}
+  #fsmCanvas{width:100%;height:100%;display:block;cursor:grab}
+
+  /* ─── RIGHT SPINE: PROGRAM INFERENCE & STATE EXECUTOR ─── */
+  #rightPane{
+    background:var(--panel);
+    display:grid;
+    grid-template-rows:auto auto 1fr auto;
+    min-height:0;overflow:hidden;
+  }
+
+  /* Active Screen State Monitor */
+  #inspectorTop{
+    padding:14px 16px;border-bottom:1px solid var(--faint);
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .ins-kicker{
+    display:flex;align-items:center;justify-content:space-between;
+    font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--hi);
+  }
+  .ins-stage{
+    position:relative;width:100%;aspect-ratio:16/9;background:#000;
+    border:1px solid #26221d;overflow:hidden;
+  }
+  #insVideo,#insImg{
+    position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;
+  }
+  #insVideo{display:none}
+  #insVideo.on{display:block}
+  .ins-strip-bar{
+    display:grid;grid-template-columns:repeat(8,1fr);gap:2px;
+    height:34px;background:#050505;border:1px solid #1e1b17;padding:2px;
+  }
+  .ins-subcell{
+    position:relative;overflow:hidden;cursor:pointer;border:1px solid transparent;
+    background-repeat:no-repeat;background-size:800% 100%;
+  }
+  .ins-subcell.on{border-color:var(--hi)}
+  .ins-subcell span{
+    position:absolute;bottom:1px;right:2px;font-size:7px;color:#fff;
+    background:rgba(0,0,0,.7);padding:0 2px;
+  }
+
+  /* State Transition Rule Box */
+  #ruleBox{
+    padding:10px 16px;border-bottom:1px solid var(--faint);
+    background:#080807;display:flex;flex-direction:column;gap:5px;
+  }
+  #ruleBox .rule-eq{
+    font:500 10px/1.35 var(--mono);color:var(--phos);
+    padding:5px 8px;background:rgba(74,246,195,.06);border-left:2px solid var(--phos);
+  }
+  #ruleBox .rule-obs{
+    font:italic 300 13.5px/1.3 var(--serif);color:var(--ink);
+  }
+  #ruleBox .rule-io{
+    font:400 9px/1.35 var(--mono);color:var(--dim);
+  }
+
+  /* Reconstructed Executable Program Listing */
+  #codeWrap{
+    display:flex;flex-direction:column;min-height:0;overflow:hidden;
+  }
+  .code-hdr{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:8px 16px;border-bottom:1px solid var(--faint);
+    font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);
+    background:#0d0c0a;
+  }
+  .code-hdr b{color:var(--ink);font-weight:500}
+  #codeList{
+    overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;gap:4px;
+  }
+  .code-row{
+    display:grid;grid-template-columns:38px 1fr auto;align-items:baseline;gap:8px;
+    padding:7px 8px;border:1px solid transparent;background:#080706;
+    cursor:pointer;transition:all .14s;
+  }
+  .code-row:hover{border-color:#2c2822;background:#100e0c}
+  .code-row.on{
+    border-color:var(--phos);background:rgba(74,246,195,.08);
+  }
+  .code-row .ln{font-size:9px;color:var(--dim);letter-spacing:.1em}
+  .code-row .stmt{font:500 10.5px/1.3 var(--mono);color:var(--ink)}
+  .code-row.on .stmt{color:var(--phos)}
+  .code-row .comm{
+    grid-column:2 / 4;font:300 11.5px/1.25 var(--serif);color:#9c9488;margin-top:2px;
+  }
+  .code-row .cnt{
+    font-size:8.5px;color:var(--hi);letter-spacing:.1em;
+    border:1px solid rgba(232,192,112,.3);padding:2px 5px;
+  }
+
+  /* Bottom Executor Controls */
+  #execFoot{
+    padding:10px 16px;border-top:1px solid var(--faint);
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    background:#090807;
+  }
+  .exec-btn{
+    background:var(--hi);color:#060606;border:0;
+    font:500 9.5px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;
+    padding:9px 14px;cursor:pointer;flex:1;
+  }
+  .exec-btn.running{background:var(--phos)}
+  .exec-step{
+    background:none;border:1px solid var(--faint);color:var(--ink);
+    font:400 9.5px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;
+    padding:8px 11px;cursor:pointer;
+  }
+
+  @media (max-width:980px){
+    #app{grid-template-columns:1fr;grid-template-rows:1fr 390px}
+    #leftPane{border-right:0;border-bottom:1px solid var(--faint)}
+  }
+</style>
+</head>
+<body class="crop-screens">
+
+<div id="app">
+  <!-- LEFT: ALL 258 SCREEN STATES + FSM GRAPH -->
+  <section id="leftPane">
+    <nav id="subBar" aria-label="10 Computer Subsystems"></nav>
+
+    <div id="viewToolbar">
+      <div class="t-group">
+        <span>VIEW:</span>
+        <button class="t-chip on" data-v="matrix">CONTACT MATRIX (258)</button>
+        <button class="t-chip" data-v="fsm">STATE MACHINE GRAPH (FSM)</button>
+      </div>
+      <div class="t-group">
+        <span>IMAGE STATE:</span>
+        <button class="t-chip on" data-c="screens">CROPPED SCREENS</button>
+        <button class="t-chip" data-c="full">FULL CAMERA FRAME</button>
+        <button class="t-chip" data-c="subframes">8-FRAME SUB-STATES (f1–f8)</button>
+      </div>
+    </div>
+
+    <div id="matrixWrap"></div>
+    <div id="fsmCanvasWrap">
+      <canvas id="fsmCanvas"></canvas>
+    </div>
+  </section>
+
+  <!-- RIGHT: ACTIVE SCREEN STATE INSPECTOR & INFERRED PROGRAM -->
+  <aside id="rightPane">
+    <div id="inspectorTop">
+      <div class="ins-kicker">
+        <span id="insStateId">SYS-01.S01 · ROM://ARCADE</span>
+        <span id="insHardware">NAMCO GALAGA PCB · 256×224 RGB</span>
+      </div>
+      <div class="ins-stage" id="insStage" title="Click to toggle live video slice vs high-res screen capture">
+        <img id="insImg" src="" alt="Active screen state">
+        <video id="insVideo" playsinline muted loop></video>
+      </div>
+      <div class="ins-strip-bar" id="insStripBar" title="8-Frame Sub-Shot Temporal Evolution (f1..f8)"></div>
+    </div>
+
+    <div id="ruleBox">
+      <div class="rule-eq" id="insRuleEq">δ(INIT, t=708.5s) → SYS-01.S01</div>
+      <div class="rule-obs" id="insObs">Observed Screen State</div>
+      <div class="rule-io" id="insIo">IN: Joystick · OUT: CRT Raster</div>
+    </div>
+
+    <div id="codeWrap">
+      <div class="code-hdr">
+        <b id="progTitle">INFERRED PROGRAM · Z80 ASM</b>
+        <span id="progCount">7 INSTRUCTIONS</span>
+      </div>
+      <div id="codeList"></div>
+    </div>
+
+    <div id="execFoot">
+      <button class="exec-step" id="btnPrevState">PREV STATE</button>
+      <button class="exec-btn" id="btnExecProg">EXECUTE INFERRED PROGRAM</button>
+      <button class="exec-step" id="btnNextState">NEXT STATE</button>
+    </div>
+  </aside>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const state = {
+    data: null,
+    subFilter: 'ALL',     // 'ALL' or subsystem.id
+    viewMode: 'matrix',   // 'matrix' | 'fsm'
+    cropMode: 'screens',  // 'screens' | 'full' | 'subframes'
+    activeState: null,
+    activeCodeLine: null, // { subId, lineIdx }
+    executing: true,
+    execTimer: null,
+    fsmZoom: 1,
+    fsmPanX: 0,
+    fsmPanY: 0,
+  };
+
+  const $ = id => document.getElementById(id);
+
+  const nav = WGStudioNav.mount({
+    theme: 'dark',
+    num: '01',
+    titleLeft: '01 / SCREEN STATES',
+    promptCenter: 'CLICK ANY SCREENSHOT OR INSTRUCTION TO INFER & TRACE THE PROGRAM',
+    onTogglePlay(playing) {
+      state.executing = playing;
+      updateExecButton();
+    },
+    onReset() {
+      state.subFilter = 'ALL';
+      state.activeCodeLine = null;
+      renderSubBar();
+      renderMatrix();
+      if (state.data && state.data.all_states.length) {
+        selectState(state.data.all_states[0]);
+      }
+    },
+    onPrevBeat() { stepState(-1); },
+    onNextBeat() { stepState(1); },
+  });
+
+  fetch('wargames-screens-program.json')
+    .then(r => r.json())
+    .then(d => {
+      state.data = d;
+      nav.setStatus(`${d.total_states} SCREENS · ${d.total_subframe_states} SUB-STATES`);
+      renderSubBar();
+      renderMatrix();
+      if (d.all_states.length) selectState(d.all_states[0]);
+      startAutoStep();
+    });
+
+  function renderSubBar() {
+    const bar = $('subBar');
+    if (!bar || !state.data) return;
+    const allBtn = `<button class="sub-btn${state.subFilter === 'ALL' ? ' on' : ''}" data-sub="ALL">
+      <i style="background:#e8c070"></i>ALL 10 SUBSYSTEMS (${state.data.total_states})
+    </button>`;
+    const subBtns = state.data.subsystems.map(s => `
+      <button class="sub-btn${state.subFilter === s.id ? ' on' : ''}" data-sub="${s.id}">
+        <i style="background:${s.color || '#4af6c3'}"></i>${s.code} · ${s.short} (${s.states.length})
+      </button>
+    `).join('');
+    bar.innerHTML = allBtn + subBtns;
+
+    bar.querySelectorAll('.sub-btn').forEach(btn => {
+      btn.onclick = () => {
+        state.subFilter = btn.dataset.sub;
+        state.activeCodeLine = null;
+        renderSubBar();
+        renderMatrix();
+        const list = visibleStates();
+        if (list.length) selectState(list[0]);
+        if (state.viewMode === 'fsm') drawFSM();
+      };
+    });
+  }
+
+  function visibleSubsystems() {
+    if (!state.data) return [];
+    if (state.subFilter === 'ALL') return state.data.subsystems;
+    return state.data.subsystems.filter(s => s.id === state.subFilter);
+  }
+
+  function visibleStates() {
+    return visibleSubsystems().flatMap(s => s.states);
+  }
+
+  function imgForState(st) {
+    if (state.cropMode === 'subframes' && st.strip) return st.strip;
+    if (state.cropMode === 'full') return st.full_thumb;
+    return st.screen_thumb || st.full_thumb;
+  }
+
+  function renderMatrix() {
+    const wrap = $('matrixWrap');
+    if (!wrap || !state.data) return;
+    const subs = visibleSubsystems();
+
+    wrap.innerHTML = subs.map(sub => `
+      <div class="sub-section" data-sub-sec="${sub.id}">
+        <div class="sub-hdr">
+          <h3>
+            <span class="code">${sub.code} · ${sub.id}</span>
+            <span>${sub.title}</span>
+          </h3>
+          <span class="inv">${sub.entrypoint} :: ${sub.inferred_invariant}</span>
+        </div>
+        <div class="state-grid">
+          ${sub.states.map(st => {
+            const isAct = state.activeState && state.activeState.state_id === st.state_id;
+            const isLinked = state.activeCodeLine &&
+              state.activeCodeLine.subId === sub.id &&
+              state.activeCodeLine.lineIdx === st.code_line_idx;
+            return `
+              <div class="st-card${isAct ? ' active' : ''}${isLinked ? ' code-linked' : ''}" data-stid="${st.state_id}">
+                <div class="st-img-wrap">
+                  <img loading="lazy" src="${imgForState(st)}" alt="${st.state_id}">
+                  <span class="st-badge">${st.state_id}</span>
+                  ${st.is_verified_crop ? '<span class="st-crop-pill">CRT CROP</span>' : (st.strip ? '<span class="st-crop-pill">8× STRIP</span>' : '')}
+                  <span class="st-time">${fmtClock(st.start)}</span>
+                </div>
+                <div class="st-meta">
+                  <div class="st-stmt">${st.code_line_num} ${st.inferred_stmt}</div>
+                  <div class="st-obs">${st.observed_text}</div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `).join('');
+
+    wrap.querySelectorAll('.st-card').forEach(card => {
+      card.onclick = () => {
+        const st = findStateById(card.dataset.stid);
+        if (st) selectState(st, true);
+      };
+    });
+  }
+
+  function findStateById(stid) {
+    for (const sub of (state.data?.subsystems || [])) {
+      for (const st of sub.states) {
+        if (st.state_id === stid) return st;
+      }
+    }
+    return null;
+  }
+
+  function findSubById(subId) {
+    return (state.data?.subsystems || []).find(s => s.id === subId);
+  }
+
+  function selectState(st, manual = false) {
+    if (!st) return;
+    if (manual) {
+      state.executing = false;
+      nav.setPlaying(false);
+      updateExecButton();
+    }
+    state.activeState = st;
+    const sub = findSubById(st.subsystem_id);
+
+    nav.setBeatLabel(`${st.state_id} · ${sub ? sub.short : ''} (${fmtClock(st.start)})`);
+
+    // Highlight active card in matrix
+    document.querySelectorAll('.st-card').forEach(c => {
+      const isAct = c.dataset.stid === st.state_id;
+      const isLinked = state.activeCodeLine &&
+        c.dataset.stid.startsWith(sub?.code || '___') &&
+        findStateById(c.dataset.stid)?.code_line_idx === state.activeCodeLine.lineIdx;
+      c.classList.toggle('active', isAct);
+      c.classList.toggle('code-linked', Boolean(isLinked));
+    });
+
+    // Update Inspector Top
+    $('insStateId').textContent = `${st.state_id} · ${st.subsystem_id} (${st.shot_id})`;
+    $('insHardware').textContent = `${st.hardware} · ${st.baud}`;
+    $('insImg').src = st.screen_thumb || st.full_thumb;
+
+    const vid = $('insVideo');
+    const clipUrl = st.static_clip || st.clip;
+    if (clipUrl) {
+      vid.onerror = () => { vid.classList.remove('on'); };
+      vid.src = clipUrl;
+      vid.classList.add('on');
+      vid.play().catch(() => { vid.classList.remove('on'); });
+    } else {
+      vid.pause();
+      vid.classList.remove('on');
+    }
+
+    // 8-Frame Sub-Shot Strip Bar
+    const sb = $('insStripBar');
+    const stripSrc = st.strip || st.screen_thumb;
+    sb.innerHTML = Array.from({ length: 8 }, (_, i) => {
+      const pct = (i / 7) * 100;
+      const bgStyle = st.strip
+        ? `background-image:url('${stripSrc}');background-position:${pct.toFixed(1)}% 0%;background-size:800% 100%`
+        : `background-image:url('${stripSrc}');background-position:center;background-size:cover`;
+      return `<div class="ins-subcell${i === 0 ? ' on' : ''}" style="${bgStyle}" data-f="${i}"><span>f${i + 1}</span></div>`;
+    }).join('');
+    sb.querySelectorAll('.ins-subcell').forEach(cell => {
+      cell.onclick = () => {
+        sb.querySelectorAll('.ins-subcell').forEach(c => c.classList.remove('on'));
+        cell.classList.add('on');
+        vid.classList.remove('on');
+      };
+    });
+
+    // Rule & Telemetry Box
+    $('insRuleEq').textContent = st.transition_rule;
+    $('insObs').textContent = `\u201C${st.observed_text}\u201D`;
+    $('insIo').textContent = sub
+      ? `IN: ${sub.io_schema.input}  |  OUT: ${sub.io_schema.output}`
+      : '';
+
+    // Render Subsystem's Inferred Program Listing
+    renderProgramListing(sub, st.code_line_idx);
+
+    if (state.viewMode === 'fsm') drawFSM();
+  }
+
+  function renderProgramListing(sub, activeLineIdx) {
+    if (!sub) return;
+    $('progTitle').textContent = `${sub.code} INFERRED PROGRAM · ${sub.lang}`;
+    $('progCount').textContent = `${sub.program_lines.length} RULES · ${sub.states.length} STATES`;
+
+    const list = $('codeList');
+    list.innerHTML = sub.program_lines.map(pl => `
+      <div class="code-row${pl.line_idx === activeLineIdx ? ' on' : ''}" data-lidx="${pl.line_idx}">
+        <span class="ln">${pl.line_num}</span>
+        <span class="stmt">${pl.code}</span>
+        <span class="cnt">${pl.state_ids.length} SCREENS</span>
+        <div class="comm">// ${pl.comment}</div>
+      </div>
+    `).join('');
+
+    list.querySelectorAll('.code-row').forEach(row => {
+      row.onclick = () => {
+        const lidx = Number(row.dataset.lidx);
+        state.activeCodeLine = { subId: sub.id, lineIdx: lidx };
+        const matching = sub.states.filter(s => s.code_line_idx === lidx);
+        if (matching.length) selectState(matching[0], true);
+      };
+    });
+  }
+
+  function stepState(delta) {
+    const list = visibleStates();
+    if (!list.length) return;
+    const curIdx = list.findIndex(s => state.activeState && s.state_id === state.activeState.state_id);
+    const nextIdx = (Math.max(0, curIdx) + delta + list.length) % list.length;
+    selectState(list[nextIdx]);
+    const card = document.querySelector(`.st-card[data-stid="${list[nextIdx].state_id}"]`);
+    if (card && state.viewMode === 'matrix') {
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  function startAutoStep() {
+    if (state.execTimer) clearInterval(state.execTimer);
+    state.execTimer = setInterval(() => {
+      if (!state.executing) return;
+      stepState(1);
+    }, 2800);
+  }
+
+  function updateExecButton() {
+    const btn = $('btnExecProg');
+    if (!btn) return;
+    btn.classList.toggle('running', state.executing);
+    btn.textContent = state.executing ? 'EXECUTING PROGRAM STATES (PAUSE)' : 'EXECUTE INFERRED PROGRAM';
+  }
+
+  $('btnExecProg').onclick = () => {
+    state.executing = !state.executing;
+    nav.setPlaying(state.executing);
+    updateExecButton();
+  };
+  $('btnPrevState').onclick = () => stepState(-1);
+  $('btnNextState').onclick = () => stepState(1);
+  $('insStage').onclick = () => {
+    const vid = $('insVideo');
+    vid.classList.toggle('on');
+  };
+
+  // Toolbar toggles
+  document.querySelectorAll('[data-v]').forEach(btn => {
+    btn.onclick = () => {
+      state.viewMode = btn.dataset.v;
+      document.querySelectorAll('[data-v]').forEach(b => b.classList.toggle('on', b === btn));
+      document.body.classList.toggle('view-fsm', state.viewMode === 'fsm');
+      if (state.viewMode === 'fsm') drawFSM();
+    };
+  });
+
+  document.querySelectorAll('[data-c]').forEach(btn => {
+    btn.onclick = () => {
+      state.cropMode = btn.dataset.c;
+      document.querySelectorAll('[data-c]').forEach(b => b.classList.toggle('on', b === btn));
+      document.body.classList.remove('crop-screens', 'crop-full', 'crop-subframes');
+      document.body.classList.add(`crop-${state.cropMode}`);
+      renderMatrix();
+    };
+  });
+
+  // ─── INTERACTIVE FSM GRAPH CANVAS ───
+  const imgCache = new Map();
+  function getThumbImg(src) {
+    if (imgCache.has(src)) return imgCache.get(src);
+    const im = new Image();
+    im.src = src;
+    im.onload = () => { if (state.viewMode === 'fsm') drawFSM(); };
+    imgCache.set(src, im);
+    return im;
+  }
+
+  let fsmNodes = [];
+  function drawFSM() {
+    const cv = $('fsmCanvas');
+    if (!cv || !state.data) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = cv.clientWidth * dpr;
+    const h = cv.clientHeight * dpr;
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const W = cv.clientWidth, H = cv.clientHeight;
+    ctx.fillStyle = '#050505';
+    ctx.fillRect(0, 0, W, H);
+
+    const subs = visibleSubsystems();
+    fsmNodes = [];
+    const rows = subs.length;
+    const rowH = Math.max(76, (H - 40) / Math.max(1, rows));
+
+    subs.forEach((sub, rIdx) => {
+      const y = 28 + rIdx * rowH + rowH * 0.45;
+      // Subsystem Lane Label
+      ctx.fillStyle = sub.color || '#e8c070';
+      ctx.font = '500 9.5px "IBM Plex Mono", monospace';
+      ctx.fillText(`${sub.code} ${sub.short}`, 16, y - 22);
+
+      const n = sub.states.length;
+      const startX = 140;
+      const availW = W - startX - 36;
+      const stepX = Math.max(46, availW / Math.max(1, n));
+
+      sub.states.forEach((st, cIdx) => {
+        const x = startX + cIdx * stepX;
+        const nw = Math.min(54, stepX - 6);
+        const nh = nw * 0.72;
+        fsmNodes.push({ x, y, w: nw, h: nh, st });
+
+        // Edge to next state
+        if (cIdx + 1 < n) {
+          ctx.strokeStyle = 'rgba(232,192,112,0.28)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x + nw / 2, y);
+          ctx.lineTo(x + stepX - nw / 2, y);
+          ctx.stroke();
+        }
+
+        // Draw screenshot thumbnail inside state node
+        const im = getThumbImg(st.screen_thumb);
+        if (im && im.complete && im.naturalWidth > 0) {
+          ctx.drawImage(im, x - nw / 2, y - nh / 2, nw, nh);
+        } else {
+          ctx.fillStyle = '#141210';
+          ctx.fillRect(x - nw / 2, y - nh / 2, nw, nh);
+        }
+
+        const isAct = state.activeState && state.activeState.state_id === st.state_id;
+        ctx.strokeStyle = isAct ? '#4af6c3' : (sub.color || '#554d42');
+        ctx.lineWidth = isAct ? 2.2 : 1;
+        ctx.strokeRect(x - nw / 2, y - nh / 2, nw, nh);
+
+        if (isAct || stepX > 68) {
+          ctx.fillStyle = isAct ? '#4af6c3' : '#9c9488';
+          ctx.font = '400 8px "IBM Plex Mono", monospace';
+          ctx.fillText(st.state_id.split('.')[1] || st.state_id, x - nw / 2, y + nh / 2 + 10);
+        }
+      });
+    });
+  }
+
+  $('fsmCanvas').addEventListener('click', e => {
+    const rect = e.target.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    for (const nd of fsmNodes) {
+      if (mx >= nd.x - nd.w / 2 && mx <= nd.x + nd.w / 2 && my >= nd.y - nd.h / 2 && my <= nd.y + nd.h / 2) {
+        selectState(nd.st, true);
+        break;
+      }
+    }
+  });
+
+  window.addEventListener('resize', () => { if (state.viewMode === 'fsm') drawFSM(); });
+
+  function fmtClock(sec) {
+    sec = Math.max(0, Math.floor(sec || 0));
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>05 / FRIEDER NAKE · Algorithmic Matrix &amp; Simultaneous Vertical Cuts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="wg-studio-nav.js"></script>
+<style>
+  :root{
+    --paper:#ede8dc;
+    --ink:#141311;
+    --gold:#e5a922;
+    --red:#d9381e;
+    --serif:'Fraunces',Georgia,serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;user-select:none}
+  html,body{height:100%;width:100%;background:var(--paper);color:var(--ink);font-family:var(--mono);overflow:hidden;-webkit-font-smoothing:antialiased}
+
+  #nakeCanvas{
+    position:fixed;top:0;left:0;width:100vw;height:calc(100vh - 48px);
+    display:block;cursor:ew-resize;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="nakeCanvas"></canvas>
+
+<div style="display:none">
+  <video id="vid1983" muted playsinline loop crossorigin="anonymous"></video>
+  <audio id="audMain" preload="auto"></audio>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const STRIP_COLS = [
+    { key: 'vjepa',      label: 'I · V-JEPA BALLISTIC',   baseX: 0.12, frames: 6 },
+    { key: 'klapaucius', label: 'II · KLAPAUCIUS CUT',    baseX: 0.31, frames: 5 },
+    { key: 'murch',      label: 'III · MURCH VOICE',      baseX: 0.43, frames: 6 },
+    { key: 'synthesis',  label: 'IV · APEX SYNTHESIS',    baseX: 0.62, frames: 5 },
+    { key: '1983',       label: 'V · 1983 NORAD RADAR',   baseX: 0.88, frames: 6 },
+  ];
+
+  const state = {
+    data: null,
+    flatBeats: [],
+    beatIdx: 0,
+    lineX: 0.50,      // Normalized position of the vertical vermilion datum line [0.08..0.92]
+    lineY: 0.48,
+    dragging: false,
+    playing: true,
+    soundOn: true,
+    tick: 0,
+    matrixBlocks: [],
+  };
+
+  const cv = document.getElementById('nakeCanvas');
+  const ctx = cv.getContext('2d');
+  const vid1983 = document.getElementById('vid1983');
+  const audMain = document.getElementById('audMain');
+
+  const imgCache = new Map();
+  function getImg(src) {
+    if (!src) return null;
+    if (imgCache.has(src)) return imgCache.get(src);
+    const im = new Image();
+    im.crossOrigin = 'anonymous';
+    im.src = src;
+    imgCache.set(src, im);
+    return im;
+  }
+
+  const nav = WGStudioNav.mount({
+    theme: 'paper',
+    num: '05',
+    titleLeft: '05 / FRIEDER NAKE',
+    promptCenter: 'MOVE THE LINE TO REDISTRIBUTE THE CUTS',
+    onTogglePlay(p) {
+      state.playing = p;
+      if (p) {
+        vid1983.play().catch(() => {});
+        if (state.soundOn) audMain.play().catch(() => {});
+      } else {
+        vid1983.pause();
+        audMain.pause();
+      }
+    },
+    onReset() {
+      state.lineX = 0.50;
+      state.lineY = 0.48;
+      generatePlotterMatrix(state.beatIdx);
+    },
+    onPrevBeat() { loadBeat(state.beatIdx - 1); },
+    onNextBeat() { loadBeat(state.beatIdx + 1); },
+    onToggleSound(s) {
+      state.soundOn = s;
+      audMain.muted = !s;
+      if (s && state.playing) audMain.play().catch(() => {});
+    },
+  });
+
+  fetch('wargames-studio-cuts.json')
+    .then(r => r.json())
+    .then(d => {
+      state.data = d;
+      state.flatBeats = [];
+      d.books.forEach(bk => {
+        bk.beats.forEach(bt => {
+          state.flatBeats.push({ book: bk, beat: bt });
+        });
+      });
+      d.stills_atlas.slice(0, 60).forEach(s => {
+        getImg(s.strip);
+        getImg(s.thumb);
+      });
+      loadBeat(12);
+      requestAnimationFrame(draw);
+    });
+
+  function generatePlotterMatrix(seed) {
+    const blocks = [];
+    const rows = 28;
+    for (let r = 0; r < rows; r++) {
+      const yNorm = r / rows;
+      const hNorm = (1 / rows) * (0.65 + ((r * 17 + seed) % 5) * 0.14);
+      const count = 8 + ((r * 7 + seed) % 9);
+      for (let c = 0; c < count; c++) {
+        const hash = (r * 31 + c * 19 + seed * 11) % 100;
+        const xNorm = ((c / count) + (hash % 7) * 0.012) % 0.96;
+        const wNorm = 0.025 + (hash % 11) * 0.008;
+        let kind = 'barcode';
+        if (hash < 16) kind = 'black';
+        else if (hash < 24) kind = 'gold';
+        else if (hash < 30) kind = 'red';
+        else if (hash < 54) kind = 'lines';
+        blocks.push({ xNorm, yNorm, wNorm, hNorm, kind, density: 6 + (hash % 18) });
+      }
+    }
+    state.matrixBlocks = blocks;
+  }
+
+  function loadBeat(idx) {
+    if (!state.flatBeats.length) return;
+    state.beatIdx = (idx + state.flatBeats.length) % state.flatBeats.length;
+    const { book, beat } = state.flatBeats[state.beatIdx];
+
+    nav.setBeatLabel(`Book ${WGStudioNav.ROMAN[book.n - 1]} · ${book.title} (${beat.id})`);
+    nav.setStatus(`5 VERTICAL FILMSTRIPS · BEAT ${state.beatIdx + 1}/${state.flatBeats.length}`);
+
+    generatePlotterMatrix(state.beatIdx + 1);
+    getImg(beat.wg_shot.strip);
+    getImg(beat.wg_shot.thumb);
+    STRIP_COLS.forEach(col => {
+      (beat.cuts[col.key] || []).forEach(u => {
+        if (u.thumb) getImg(u.thumb);
+      });
+    });
+
+    const vUrl = beat.wg_shot.static_clip || beat.wg_shot.video;
+    if (vUrl) {
+      vid1983.src = vUrl;
+      if (state.playing) vid1983.play().catch(() => {});
+    }
+    const aUrl = beat.aligned_file || beat.orig_file;
+    if (aUrl) {
+      audMain.src = aUrl;
+      audMain.muted = !state.soundOn;
+      if (state.playing && state.soundOn) audMain.play().catch(() => {});
+    }
+  }
+
+  audMain.addEventListener('ended', () => {
+    if (state.playing) loadBeat(state.beatIdx + 1);
+  });
+
+  function warpX(xNorm) {
+    // Redistribute horizontal space around the draggable red line (state.lineX)
+    const pivot = state.lineX;
+    if (xNorm < pivot) {
+      return (xNorm / Math.max(0.05, pivot)) * pivot;
+    }
+    return pivot + ((xNorm - pivot) / Math.max(0.05, 1 - pivot)) * (1 - pivot);
+  }
+
+  function draw() {
+    if (state.playing) state.tick++;
+    const dpr = window.devicePixelRatio || 1;
+    const W = cv.clientWidth;
+    const H = cv.clientHeight;
+    if (cv.width !== W * dpr || cv.height !== H * dpr) {
+      cv.width = W * dpr;
+      cv.height = H * dpr;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // 1. Warm Museum Paper Ground (#ede8dc)
+    ctx.fillStyle = '#ede8dc';
+    ctx.fillRect(0, 0, W, H);
+
+    // 2. Subtle Horizontal Plotter Grid Lines
+    ctx.strokeStyle = 'rgba(20, 19, 17, 0.09)';
+    ctx.lineWidth = 0.7;
+    for (let y = 24; y < H; y += 22) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.stroke();
+    }
+
+    // 3. Frieder Nake Algorithmic Matrix Blocks (Black, Ochre Gold, Vermilion Red, Barcodes, Hatching)
+    const redX = state.lineX * W;
+    state.matrixBlocks.forEach(b => {
+      // Shift blocks dynamically relative to the red line position
+      const distFromLine = b.xNorm - state.lineX;
+      const pull = Math.sin(distFromLine * Math.PI) * (state.lineX - 0.5) * 0.22;
+      const bx = (b.xNorm + pull) * W;
+      const by = b.yNorm * (H - 40) + 28;
+      const bw = b.wNorm * W * (1 + (0.5 - Math.abs(distFromLine)) * 0.35);
+      const bh = b.hNorm * H;
+
+      if (b.kind === 'black') {
+        ctx.fillStyle = '#141311';
+        ctx.fillRect(bx, by, bw, bh);
+      } else if (b.kind === 'gold') {
+        ctx.fillStyle = '#e5a922';
+        ctx.fillRect(bx, by, bw, bh);
+      } else if (b.kind === 'red') {
+        ctx.fillStyle = '#d9381e';
+        ctx.fillRect(bx, by, bw, bh * 0.65);
+      } else if (b.kind === 'barcode') {
+        ctx.fillStyle = '#141311';
+        const ticks = b.density;
+        const step = bw / ticks;
+        for (let t = 0; t < ticks; t++) {
+          if ((t + Math.floor(state.lineX * 20)) % 2 === 0) {
+            ctx.fillRect(bx + t * step, by, Math.max(1, step * 0.52), bh * 0.58);
+          }
+        }
+      } else if (b.kind === 'lines') {
+        ctx.strokeStyle = 'rgba(20, 19, 17, 0.48)';
+        ctx.lineWidth = 0.8;
+        for (let ly = by; ly < by + bh; ly += 3.2) {
+          ctx.beginPath();
+          ctx.moveTo(bx, ly);
+          ctx.lineTo(bx + bw, ly);
+          ctx.stroke();
+        }
+      }
+    });
+
+    // 4. Draw the 5 Simultaneous Vertical 35mm Filmstrip Columns (matching Image 3)
+    const cur = state.flatBeats[state.beatIdx];
+    if (cur) {
+      const { beat } = cur;
+      const atlas = state.data ? state.data.stills_atlas : [];
+
+      STRIP_COLS.forEach((col, cIdx) => {
+        // Redistribute column X based on the draggable red line
+        const shift = (state.lineX - 0.5) * (cIdx - 2) * 0.055;
+        const cx = Math.max(64, Math.min(W - 64, (col.baseX + shift) * W));
+        const proximity = Math.max(0, 1 - Math.abs((cx / W) - state.lineX) * 3.2);
+        const stripW = Math.min(126, Math.max(76, W * 0.078)) * (0.92 + proximity * 0.24);
+        const topY = col.frames === 5 ? H * 0.12 : H * 0.04;
+        const botY = H * 0.94;
+        const totalH = botY - topY;
+        const frameH = totalH / col.frames;
+
+        // 35mm Black Celluloid Backing with Sprocket Margins
+        const margin = 9;
+        ctx.fillStyle = '#121110';
+        ctx.fillRect(cx - stripW / 2 - margin, topY - 6, stripW + margin * 2, totalH + 12);
+
+        // Sprocket Perforations along left & right edges
+        ctx.fillStyle = '#ede8dc';
+        for (let py = topY; py < botY; py += 16) {
+          ctx.fillRect(cx - stripW / 2 - margin + 2, py, 4.5, 7);
+          ctx.fillRect(cx + stripW / 2 + margin - 6.5, py, 4.5, 7);
+        }
+
+        const units = beat.cuts[col.key] || [];
+        const wgStrip = getImg(beat.wg_shot.strip);
+        const fallbackAtlasItem = atlas[(state.beatIdx * 5 + cIdx * 17) % Math.max(1, atlas.length)];
+        const fallbackStrip = fallbackAtlasItem ? getImg(fallbackAtlasItem.strip) : null;
+
+        for (let f = 0; f < col.frames; f++) {
+          const fy = topY + f * frameH;
+          const fh = frameH - 3;
+          const fx = cx - stripW / 2;
+
+          const u = units[f % Math.max(1, units.length)];
+          const uImg = u && u.thumb ? getImg(u.thumb) : null;
+          const stepIdx = (f + Math.floor(state.tick / 28)) % 8;
+
+          if (col.key === '1983' && f === 2 && vid1983.readyState >= 2) {
+            ctx.drawImage(vid1983, fx, fy, stripW, fh);
+          } else if (col.key === '1983' && wgStrip && wgStrip.complete && wgStrip.naturalWidth > 0) {
+            const sw = wgStrip.naturalWidth / 8;
+            ctx.drawImage(wgStrip, stepIdx * sw, 0, sw, wgStrip.naturalHeight, fx, fy, stripW, fh);
+          } else if (uImg && uImg.complete && uImg.naturalWidth > 0) {
+            ctx.drawImage(uImg, fx, fy, stripW, fh);
+          } else if (fallbackStrip && fallbackStrip.complete && fallbackStrip.naturalWidth > 0) {
+            const sw = fallbackStrip.naturalWidth / 8;
+            ctx.drawImage(fallbackStrip, ((f + cIdx) % 8) * sw, 0, sw, fallbackStrip.naturalHeight, fx, fy, stripW, fh);
+          }
+
+          // Subtle monochrome / archival contrast frame border
+          ctx.strokeStyle = proximity > 0.55 ? '#e5a922' : 'rgba(237,232,220,0.35)';
+          ctx.lineWidth = proximity > 0.55 ? 1.5 : 0.8;
+          ctx.strokeRect(fx, fy, stripW, fh);
+        }
+
+        // Column Header Stamp
+        ctx.fillStyle = proximity > 0.55 ? '#d9381e' : '#141311';
+        ctx.font = '500 8.5px "IBM Plex Mono", monospace';
+        ctx.fillText(col.label, cx - stripW / 2 - margin, topY - 12);
+      });
+    }
+
+    // 5. Draw the Interactive Vertical Vermilion Red Datum Line & Handle (exact match to Image 3)
+    ctx.strokeStyle = '#d9381e';
+    ctx.lineWidth = 3.2;
+    ctx.beginPath();
+    ctx.moveTo(redX, 0);
+    ctx.lineTo(redX, H);
+    ctx.stroke();
+
+    const handleY = state.lineY * H;
+    ctx.fillStyle = '#ede8dc';
+    ctx.strokeStyle = '#d9381e';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(redX, handleY, 7.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    requestAnimationFrame(draw);
+  }
+
+  cv.addEventListener('pointerdown', e => {
+    state.dragging = true;
+    updateLineFromEvent(e);
+    cv.setPointerCapture(e.pointerId);
+  });
+
+  cv.addEventListener('pointermove', e => {
+    if (!state.dragging) return;
+    updateLineFromEvent(e);
+  });
+
+  cv.addEventListener('pointerup', () => {
+    state.dragging = false;
+  });
+
+  function updateLineFromEvent(e) {
+    const rect = cv.getBoundingClientRect();
+    state.lineX = Math.max(0.06, Math.min(0.94, (e.clientX - rect.left) / rect.width));
+    state.lineY = Math.max(0.12, Math.min(0.88, (e.clientY - rect.top) / rect.height));
+  }
+})();
+</script>
+</body>
+</html>

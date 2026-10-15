@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>02 / JOHN WHITNEY · Harmonic Differential Slit-Scan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="wg-studio-nav.js"></script>
+<style>
+  :root{
+    --bg:#040404;
+    --ink:#efe9dd;
+    --dim:#8a8378;
+    --hi:#e8c070;
+    --cyan:#45e3ff;
+    --gold:#f5b841;
+    --mag:#ea4c89;
+    --serif:'Fraunces',Georgia,serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;user-select:none}
+  html,body{height:100%;width:100%;background:var(--bg);color:var(--ink);font-family:var(--mono);overflow:hidden;-webkit-font-smoothing:antialiased}
+
+  #stageCanvas{
+    position:fixed;inset:0;width:100vw;height:100vh;display:block;cursor:grab;
+  }
+  #stageCanvas:active{cursor:grabbing}
+
+  /* Subtle floating cut legend & slit-scan mode selector */
+  #hudLeft{
+    position:fixed;top:54px;left:24px;z-index:40;
+    display:flex;flex-direction:column;gap:6px;
+    pointer-events:none;
+  }
+  #hudLeft > *{pointer-events:auto}
+  .lobe-tag{
+    display:inline-flex;align-items:center;gap:8px;
+    background:rgba(8,8,8,.72);backdrop-filter:blur(6px);
+    border:1px solid rgba(239,233,221,.12);
+    padding:5px 10px;font-size:9px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--dim);cursor:pointer;transition:all .18s;
+  }
+  .lobe-tag i{width:7px;height:7px;border-radius:50%;display:inline-block}
+  .lobe-tag:hover,.lobe-tag.on{color:var(--ink);border-color:rgba(239,233,221,.45)}
+
+  #captionHud{
+    position:fixed;bottom:62px;left:50%;transform:translateX(-50%);z-index:40;
+    text-align:center;pointer-events:none;max-width:720px;width:92vw;
+  }
+  #captionHud .who{
+    font:500 9.5px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;
+    color:var(--gold);margin-bottom:4px;
+  }
+  #captionHud .line{
+    font:italic 300 clamp(16px,1.9vw,23px)/1.28 var(--serif);
+    color:var(--ink);text-shadow:0 2px 16px #000,0 0 28px #000;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stageCanvas"></canvas>
+
+<aside id="hudLeft" aria-label="Simultaneous Slit-Scan Lobes"></aside>
+
+<div id="captionHud">
+  <div class="who" id="capWho">02 / JOHN WHITNEY · DIFFERENTIAL HARMONIC SLIT-SCAN</div>
+  <div class="line" id="capLine">Loading simultaneous cuts…</div>
+</div>
+
+<!-- Hidden video/audio pools for live slit-scan frame sampling -->
+<div style="display:none">
+  <video id="vid1983" muted playsinline loop crossorigin="anonymous"></video>
+  <video id="vidArchA" muted playsinline loop crossorigin="anonymous"></video>
+  <video id="vidArchB" muted playsinline loop crossorigin="anonymous"></video>
+  <audio id="audMain" preload="auto"></audio>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const LOBES = [
+    { key: '1983',       label: 'LOBE I · 1983 RADAR & SILO',      color: '#45e3ff', angle: Math.PI * 0.78 },
+    { key: 'murch',      label: 'LOBE II · SPOKEN FACE (MURCH)',   color: '#ea4c89', angle: Math.PI * 0.06 },
+    { key: 'vjepa',      label: 'LOBE III · V-JEPA BALLISTIC',     color: '#45e3ff', angle: Math.PI * 1.12 },
+    { key: 'synthesis',  label: 'LOBE IV · APEX SYNTHESIS (π*)',   color: '#f5b841', angle: Math.PI * 1.52 },
+    { key: 'klapaucius', label: 'LOBE V · CONTRAPUNTAL ACTION',    color: '#ea4c89', angle: Math.PI * 0.34 },
+  ];
+
+  const state = {
+    data: null,
+    flatBeats: [],
+    beatIdx: 0,
+    activeLobe: 0,
+    playing: true,
+    soundOn: true,
+    phase: 0.42,
+    orbitSpeed: 0.0038,
+    harmonicA: 2.0,
+    harmonicB: 3.0,
+    tiltX: 0.0,
+    tiltY: 0.0,
+    dragging: false,
+    dragStartAngle: 0,
+    dragStartPhase: 0,
+    sunScreenPos: { x: 0, y: 0 },
+  };
+
+  const cv = document.getElementById('stageCanvas');
+  const ctx = cv.getContext('2d');
+  const vid1983 = document.getElementById('vid1983');
+  const vidArchA = document.getElementById('vidArchA');
+  const vidArchB = document.getElementById('vidArchB');
+  const audMain = document.getElementById('audMain');
+
+  // Offscreen slit-scan history ring buffer (12 vertical temporal slices per cut)
+  const SLIT_SLICES = 10;
+  const imgCache = new Map();
+
+  function getImg(src) {
+    if (!src) return null;
+    if (imgCache.has(src)) return imgCache.get(src);
+    const im = new Image();
+    im.crossOrigin = 'anonymous';
+    im.src = src;
+    imgCache.set(src, im);
+    return im;
+  }
+
+  const nav = WGStudioNav.mount({
+    theme: 'dark',
+    num: '02',
+    titleLeft: '02 / JOHN WHITNEY  |  DRAG THE ORBIT TO CHANGE PHASE',
+    promptCenter: 'SLIT-SCANNING 5 SIMULTANEOUS CUTS ACROSS LISSAJOUS HARMONICS',
+    onTogglePlay(p) {
+      state.playing = p;
+      if (p) {
+        vid1983.play().catch(() => {});
+        if (state.soundOn) audMain.play().catch(() => {});
+      } else {
+        vid1983.pause();
+        audMain.pause();
+      }
+    },
+    onReset() {
+      state.phase = 0.42;
+      state.tiltX = 0;
+      state.tiltY = 0;
+      state.harmonicA = 2.0;
+      state.harmonicB = 3.0;
+    },
+    onPrevBeat() { loadBeat(state.beatIdx - 1); },
+    onNextBeat() { loadBeat(state.beatIdx + 1); },
+    onToggleSound(s) {
+      state.soundOn = s;
+      audMain.muted = !s;
+      if (s && state.playing) audMain.play().catch(() => {});
+    },
+  });
+
+  function renderLobeLegend() {
+    const box = document.getElementById('hudLeft');
+    box.innerHTML = LOBES.map((lb, i) => `
+      <button class="lobe-tag${i === state.activeLobe ? ' on' : ''}" data-idx="${i}">
+        <i style="background:${lb.color};box-shadow:0 0 8px ${lb.color}"></i>
+        <span>${lb.label}</span>
+      </button>
+    `).join('');
+    box.querySelectorAll('.lobe-tag').forEach(btn => {
+      btn.onclick = () => {
+        state.activeLobe = Number(btn.dataset.idx);
+        renderLobeLegend();
+        updateCaption();
+      };
+    });
+  }
+
+  fetch('wargames-studio-cuts.json')
+    .then(r => r.json())
+    .then(d => {
+      state.data = d;
+      state.flatBeats = [];
+      d.books.forEach(bk => {
+        bk.beats.forEach(bt => {
+          state.flatBeats.push({ book: bk, beat: bt });
+        });
+      });
+      // Preload first 40 local strips for ultra-smooth slit-scan
+      d.stills_atlas.slice(0, 45).forEach(s => {
+        getImg(s.strip);
+        getImg(s.thumb);
+      });
+      renderLobeLegend();
+      loadBeat(8); // Start on rich NORAD / WarGames scene
+      requestAnimationFrame(draw);
+    });
+
+  function loadBeat(idx) {
+    if (!state.flatBeats.length) return;
+    state.beatIdx = (idx + state.flatBeats.length) % state.flatBeats.length;
+    const { book, beat } = state.flatBeats[state.beatIdx];
+
+    nav.setBeatLabel(`Book ${WGStudioNav.ROMAN[book.n - 1]} · ${book.title} (${beat.id})`);
+    nav.setStatus(`BEAT ${state.beatIdx + 1}/${state.flatBeats.length} · 5 HARMONIC LOBES`);
+
+    // Preload 8-frame strip & thumbnails for all 5 lobes
+    getImg(beat.wg_shot.strip);
+    getImg(beat.wg_shot.thumb);
+    LOBES.forEach(lb => {
+      const units = beat.cuts[lb.key] || [];
+      units.forEach(u => {
+        if (u.thumb) getImg(u.thumb);
+        if (u.strip) getImg(u.strip);
+      });
+    });
+
+    // Video & Audio
+    const vUrl = beat.wg_shot.static_clip || beat.wg_shot.video;
+    if (vUrl) {
+      vid1983.src = vUrl;
+      if (state.playing) vid1983.play().catch(() => {});
+    }
+    const aUrl = beat.aligned_file || beat.orig_file;
+    if (aUrl) {
+      audMain.src = aUrl;
+      audMain.muted = !state.soundOn;
+      if (state.playing && state.soundOn) audMain.play().catch(() => {});
+    }
+
+    updateCaption();
+  }
+
+  audMain.addEventListener('ended', () => {
+    if (state.playing) loadBeat(state.beatIdx + 1);
+  });
+
+  function updateCaption() {
+    if (!state.flatBeats.length) return;
+    const { beat } = state.flatBeats[state.beatIdx];
+    const lb = LOBES[state.activeLobe];
+    const units = beat.cuts[lb.key] || [];
+    const u0 = units[0] || {};
+    document.getElementById('capWho').textContent = `${lb.label} · ${u0.title || beat.who} (${u0.year || 1983})`;
+    document.getElementById('capLine').textContent = `\u201C${u0.spoken || beat.text}\u201D`;
+  }
+
+  // ─── JOHN WHITNEY DIFFERENTIAL SLIT-SCAN RENDERER ───
+  function draw() {
+    const dpr = window.devicePixelRatio || 1;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    if (cv.width !== W * dpr || cv.height !== H * dpr) {
+      cv.width = W * dpr;
+      cv.height = H * dpr;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Subtle motion-blur phosphor persistence trail
+    ctx.fillStyle = 'rgba(4, 4, 4, 0.34)';
+    ctx.fillRect(0, 0, W, H);
+
+    if (state.playing && !state.dragging) {
+      state.phase += state.orbitSpeed;
+    }
+
+    const cx = W * 0.50;
+    const cy = H * 0.49;
+    const rx = Math.min(W * 0.43, 620);
+    const ry = Math.min(H * 0.39, 390);
+
+    const cur = state.flatBeats[state.beatIdx];
+    const beat = cur ? cur.beat : null;
+
+    // 1. Draw the 5 Slit-Scanned Cut Ribbons along the 5 Rose/Lissajous Petals
+    if (beat) {
+      LOBES.forEach((lb, lIdx) => {
+        drawSlitScanPetal(ctx, cx, cy, rx, ry, lb, lIdx, beat);
+      });
+    }
+
+    // 2. Draw the 3 Dotted Harmonic Bead Orbits (Cyan, Gold, Magenta — exact match to Image 5)
+    drawDottedOrbit(ctx, cx, cy, rx * 1.02, ry * 0.62, -0.32 + state.tiltY * 0.3, '#45e3ff', 108, state.phase * 1.0);
+    drawDottedOrbit(ctx, cx, cy, rx * 0.52, ry * 1.04,  0.14 + state.tiltX * 0.3, '#f5b841', 96, -state.phase * 1.3);
+    drawDottedOrbit(ctx, cx, cy, rx * 1.04, ry * 0.64,  0.34 - state.tiltY * 0.25, '#ea4c89', 108, state.phase * 0.85);
+
+    // 3. Draw the Bright Glowing Draggable Phase Sun Node on the Gold Orbit
+    const sunTheta = -state.phase * 1.3 + 1.05;
+    const rot = 0.14 + state.tiltX * 0.3;
+    const ux = Math.cos(sunTheta) * (rx * 0.52);
+    const uy = Math.sin(sunTheta) * (ry * 1.04);
+    const sx = cx + ux * Math.cos(rot) - uy * Math.sin(rot);
+    const sy = cy + ux * Math.sin(rot) + uy * Math.cos(rot);
+    state.sunScreenPos = { x: sx, y: sy };
+
+    const grad = ctx.createRadialGradient(sx, sy, 2, sx, sy, 26);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.35, '#ffe39f');
+    grad.addColorStop(1, 'rgba(245, 184, 65, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 26, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#fffef8';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 8.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    requestAnimationFrame(draw);
+  }
+
+  function drawSlitScanPetal(ctx, cx, cy, rx, ry, lb, lIdx, beat) {
+    const baseAngle = lb.angle + Math.sin(state.phase * 0.45 + lIdx) * 0.08 + state.tiltX * 0.4;
+    const units = beat.cuts[lb.key] || [];
+    const stripImg = getImg(beat.wg_shot.strip);
+    const atlas = state.data ? state.data.stills_atlas : [];
+
+    const numSlices = SLIT_SLICES;
+    const isFocused = lIdx === state.activeLobe;
+
+    for (let s = 0; s < numSlices; s++) {
+      // Normalized radial distance u from center (0.14 -> 0.96)
+      const u = 0.14 + (s / (numSlices - 1)) * 0.82;
+      // Temporal slit-scan phase offset along the ribbon
+      const waveOffset = Math.sin(u * 2.8 - state.phase * 2.4 + lIdx * 1.2) * 0.14;
+      const theta = baseAngle + waveOffset;
+
+      const dist = u * Math.min(rx, ry * 1.28);
+      const px = cx + Math.cos(theta) * (u * rx * 0.94);
+      const py = cy + Math.sin(theta) * (u * ry * 0.88);
+
+      // Frame scale grows nonlinearly toward the outer apogee of the petal (matching Image 5)
+      const w = (28 + Math.pow(u, 1.35) * 108) * (isFocused ? 1.08 : 0.94);
+      const h = w * 0.76;
+
+      ctx.save();
+      ctx.translate(px, py);
+      // Align frame tangent to the petal curve with slight temporal shear
+      const tangent = theta + (Math.cos(u * 2.8 - state.phase * 2.4) * 0.18);
+      ctx.rotate(tangent * 0.22);
+
+      // Pick the slit-scan source frame (either from the 8-frame strip f1..f8 or the cut's unit thumbnails)
+      const timeStep = Math.floor((s + state.phase * 6) % 8);
+      const unit = units[s % Math.max(1, units.length)];
+      const unitImg = unit && unit.thumb ? getImg(unit.thumb) : null;
+
+      ctx.globalAlpha = 0.28 + Math.pow(u, 0.85) * 0.68;
+
+      if (lIdx === 0 && vid1983.readyState >= 2 && s === numSlices - 1) {
+        // Outer apogee of Lobe I plays the live video frame
+        ctx.drawImage(vid1983, -w / 2, -h / 2, w, h);
+      } else if (lIdx === 0 && stripImg && stripImg.complete && stripImg.naturalWidth > 0) {
+        // Slit-scan across the 8 sub-shot frames of the 1983 strip
+        const fw = stripImg.naturalWidth / 8;
+        const fh = stripImg.naturalHeight;
+        ctx.drawImage(stripImg, timeStep * fw, 0, fw, fh, -w / 2, -h / 2, w, h);
+      } else if (unitImg && unitImg.complete && unitImg.naturalWidth > 0) {
+        ctx.drawImage(unitImg, -w / 2, -h / 2, w, h);
+      } else if (atlas.length) {
+        // Fallback to local 8-frame strip from stills_atlas so every slice is crisp and CORS-free
+        const fallbackItem = atlas[(state.beatIdx * 7 + lIdx * 13 + s) % atlas.length];
+        const fStrip = getImg(fallbackItem.strip || fallbackItem.thumb);
+        if (fStrip && fStrip.complete && fStrip.naturalWidth > 0) {
+          if (fallbackItem.strip && fStrip.naturalWidth > fStrip.naturalHeight * 3) {
+            const fw = fStrip.naturalWidth / 8;
+            ctx.drawImage(fStrip, timeStep * fw, 0, fw, fStrip.naturalHeight, -w / 2, -h / 2, w, h);
+          } else {
+            ctx.drawImage(fStrip, -w / 2, -h / 2, w, h);
+          }
+        }
+      }
+
+      // Film-frame border & subtle harmonic tint
+      ctx.strokeStyle = isFocused ? lb.color : 'rgba(239,233,221,0.22)';
+      ctx.lineWidth = isFocused && s === numSlices - 1 ? 1.6 : 0.75;
+      ctx.strokeRect(-w / 2, -h / 2, w, h);
+
+      ctx.restore();
+    }
+  }
+
+  function drawDottedOrbit(ctx, cx, cy, a, b, rot, color, count, phaseShift) {
+    ctx.save();
+    for (let i = 0; i < count; i++) {
+      const t = (i / count) * Math.PI * 2 + phaseShift;
+      const ux = Math.cos(t) * a;
+      const uy = Math.sin(t) * b;
+      const x = cx + ux * Math.cos(rot) - uy * Math.sin(rot);
+      const y = cy + ux * Math.sin(rot) + uy * Math.cos(rot);
+
+      const pulse = 0.45 + 0.55 * Math.sin(t * 2 - state.phase * 3);
+      const r = 1.6 + pulse * 1.5;
+
+      ctx.globalAlpha = 0.35 + pulse * 0.6;
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // ─── POINTER INTERACTION: DRAG THE ORBIT TO CHANGE PHASE ───
+  cv.addEventListener('pointerdown', e => {
+    state.dragging = true;
+    const cx = window.innerWidth * 0.5;
+    const cy = window.innerHeight * 0.49;
+    state.dragStartAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
+    state.dragStartPhase = state.phase;
+    cv.setPointerCapture(e.pointerId);
+  });
+
+  cv.addEventListener('pointermove', e => {
+    if (!state.dragging) return;
+    const cx = window.innerWidth * 0.5;
+    const cy = window.innerHeight * 0.49;
+    const ang = Math.atan2(e.clientY - cy, e.clientX - cx);
+    let delta = ang - state.dragStartAngle;
+    if (delta > Math.PI) delta -= Math.PI * 2;
+    if (delta < -Math.PI) delta += Math.PI * 2;
+    state.phase = state.dragStartPhase - delta * 1.4;
+    state.tiltX = ((e.clientX / window.innerWidth) - 0.5) * 0.85;
+    state.tiltY = ((e.clientY / window.innerHeight) - 0.5) * 0.85;
+
+    // Activate nearest lobe by angle
+    let bestLobe = 0, bestDiff = 999;
+    LOBES.forEach((lb, idx) => {
+      const d = Math.abs(Math.atan2(Math.sin(ang - lb.angle), Math.cos(ang - lb.angle)));
+      if (d < bestDiff) { bestDiff = d; bestLobe = idx; }
+    });
+    if (bestLobe !== state.activeLobe) {
+      state.activeLobe = bestLobe;
+      renderLobeLegend();
+      updateCaption();
+    }
+  });
+
+  cv.addEventListener('pointerup', () => {
+    state.dragging = false;
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>06 / MANFRED MOHR · Cubic Lattice &amp; Simultaneous Cut Planes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="wg-studio-nav.js"></script>
+<style>
+  :root{
+    --bg:#040404;
+    --ink:#efe9dd;
+    --dim:#8a8378;
+    --orange:#e85d44;
+    --serif:'Fraunces',Georgia,serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;user-select:none}
+  html,body{height:100%;width:100%;background:var(--bg);color:var(--ink);font-family:var(--mono);overflow:hidden;-webkit-font-smoothing:antialiased}
+
+  #mohrCanvas{
+    position:fixed;top:0;left:0;width:100vw;height:calc(100vh - 48px);
+    display:block;cursor:grab;
+  }
+  #mohrCanvas:active{cursor:grabbing}
+
+  #pathHud{
+    position:fixed;top:52px;left:24px;z-index:40;
+    pointer-events:none;display:flex;flex-direction:column;gap:4px;
+  }
+  #pathHud .k{font:500 9.5px/1 var(--mono);letter-spacing:.2em;color:var(--orange);text-transform:uppercase}
+  #pathHud .v{font:italic 300 16px/1.25 var(--serif);color:var(--ink)}
+</style>
+</head>
+<body>
+
+<canvas id="mohrCanvas"></canvas>
+
+<div id="pathHud">
+  <span class="k" id="hudAxis">HYPERCUBE PATH · [θx 24° · θy -32° · θw 18°]</span>
+  <span class="v" id="hudCut">7 Simultaneous Cuts Projected Across the Cubic Lattice</span>
+</div>
+
+<div style="display:none">
+  <video id="vid1983" muted playsinline loop crossorigin="anonymous"></video>
+  <audio id="audMain" preload="auto"></audio>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // 7 Isometric / Perspective Facets of Manfred Mohr's Cubic Lattice (matching Reference Image 2)
+  const FACETS = [
+    { key: '1983',       label: '1983 NORAD RADAR',        ox: -0.31, oy: -0.02, w: 0.19, h: 0.25, shearY: -0.22, depth: 0.8 },
+    { key: 'murch',      label: 'MURCH SPOKEN FACE',       ox: -0.20, oy: -0.26, w: 0.14, h: 0.26, shearY:  0.26, depth: 0.6 },
+    { key: 'vjepa',      label: 'V-JEPA TUNNEL',           ox:  0.09, oy: -0.25, w: 0.15, h: 0.25, shearY:  0.25, depth: 0.7 },
+    { key: 'synthesis',  label: 'APEX SYNTHESIS (π*)',     ox:  0.30, oy: -0.17, w: 0.15, h: 0.26, shearY: -0.24, depth: 0.9 },
+    { key: 'trurl',      label: 'TRURL NOCTURNE',          ox: -0.19, oy:  0.25, w: 0.14, h: 0.23, shearY: -0.25, depth: 0.5 },
+    { key: 'klapaucius', label: 'KLAPAUCIUS CONTRAPUNTAL', ox:  0.30, oy:  0.10, w: 0.17, h: 0.20, shearY:  0.22, depth: 1.0 },
+    { key: 'cineosis',   label: 'CINEOSIS 44-SIGN',        ox:  0.22, oy:  0.26, w: 0.12, h: 0.21, shearY:  0.28, depth: 0.4 },
+  ];
+
+  const state = {
+    data: null,
+    flatBeats: [],
+    beatIdx: 0,
+    rotX: 0.22,
+    rotY: -0.34,
+    rotW: 0.18,
+    dragging: false,
+    dragStartX: 0,
+    dragStartY: 0,
+    startRotX: 0,
+    startRotY: 0,
+    playing: true,
+    soundOn: true,
+    tick: 0,
+    activeFacet: 0,
+  };
+
+  const cv = document.getElementById('mohrCanvas');
+  const ctx = cv.getContext('2d');
+  const vid1983 = document.getElementById('vid1983');
+  const audMain = document.getElementById('audMain');
+
+  const imgCache = new Map();
+  function getImg(src) {
+    if (!src) return null;
+    if (imgCache.has(src)) return imgCache.get(src);
+    const im = new Image();
+    im.crossOrigin = 'anonymous';
+    im.src = src;
+    imgCache.set(src, im);
+    return im;
+  }
+
+  const nav = WGStudioNav.mount({
+    theme: 'dark',
+    num: '06',
+    titleLeft: '06 / MANFRED MOHR',
+    promptCenter: 'TURN THE AXIS TO CHANGE THE PATH',
+    onTogglePlay(p) {
+      state.playing = p;
+      if (p) {
+        vid1983.play().catch(() => {});
+        if (state.soundOn) audMain.play().catch(() => {});
+      } else {
+        vid1983.pause();
+        audMain.pause();
+      }
+    },
+    onReset() {
+      state.rotX = 0.22;
+      state.rotY = -0.34;
+      state.rotW = 0.18;
+    },
+    onPrevBeat() { loadBeat(state.beatIdx - 1); },
+    onNextBeat() { loadBeat(state.beatIdx + 1); },
+    onToggleSound(s) {
+      state.soundOn = s;
+      audMain.muted = !s;
+      if (s && state.playing) audMain.play().catch(() => {});
+    },
+  });
+
+  fetch('wargames-studio-cuts.json')
+    .then(r => r.json())
+    .then(d => {
+      state.data = d;
+      state.flatBeats = [];
+      d.books.forEach(bk => {
+        bk.beats.forEach(bt => {
+          state.flatBeats.push({ book: bk, beat: bt });
+        });
+      });
+      d.stills_atlas.slice(0, 50).forEach(s => {
+        getImg(s.strip);
+        getImg(s.thumb);
+      });
+      loadBeat(16);
+      requestAnimationFrame(draw);
+    });
+
+  function loadBeat(idx) {
+    if (!state.flatBeats.length) return;
+    state.beatIdx = (idx + state.flatBeats.length) % state.flatBeats.length;
+    const { book, beat } = state.flatBeats[state.beatIdx];
+
+    nav.setBeatLabel(`Book ${WGStudioNav.ROMAN[book.n - 1]} · ${book.title} (${beat.id})`);
+    nav.setStatus(`7 CUBIC PLANES · BEAT ${state.beatIdx + 1}/${state.flatBeats.length}`);
+
+    getImg(beat.wg_shot.strip);
+    getImg(beat.wg_shot.thumb);
+    FACETS.forEach(f => {
+      (beat.cuts[f.key] || []).forEach(u => {
+        if (u.thumb) getImg(u.thumb);
+      });
+    });
+
+    const vUrl = beat.wg_shot.static_clip || beat.wg_shot.video;
+    if (vUrl) {
+      vid1983.src = vUrl;
+      if (state.playing) vid1983.play().catch(() => {});
+    }
+    const aUrl = beat.aligned_file || beat.orig_file;
+    if (aUrl) {
+      audMain.src = aUrl;
+      audMain.muted = !state.soundOn;
+      if (state.playing && state.soundOn) audMain.play().catch(() => {});
+    }
+  }
+
+  audMain.addEventListener('ended', () => {
+    if (state.playing) loadBeat(state.beatIdx + 1);
+  });
+
+  function draw() {
+    if (state.playing) {
+      state.tick++;
+      if (!state.dragging) {
+        state.rotW += 0.0025;
+      }
+    }
+
+    const dpr = window.devicePixelRatio || 1;
+    const W = cv.clientWidth;
+    const H = cv.clientHeight;
+    if (cv.width !== W * dpr || cv.height !== H * dpr) {
+      cv.width = W * dpr;
+      cv.height = H * dpr;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    ctx.fillStyle = '#040404';
+    ctx.fillRect(0, 0, W, H);
+
+    const cx = W * 0.50;
+    const cy = H * 0.49;
+    const scale = Math.min(W, H * 1.45);
+
+    const cur = state.flatBeats[state.beatIdx];
+    const beat = cur ? cur.beat : null;
+    const atlas = state.data ? state.data.stills_atlas : [];
+
+    // 1. Draw Background Dashed Hypercube Construction Edges
+    drawHypercubeWireframe(ctx, cx, cy, scale, true);
+
+    // 2. Draw the 7 Sheared Isometric Cut Planes + Vertical 35mm Strip Hinges
+    if (beat) {
+      const wgStrip = getImg(beat.wg_shot.strip);
+
+      FACETS.forEach((fc, fIdx) => {
+        const dx = Math.sin(state.rotY + fIdx * 0.7) * 0.045 * fc.depth;
+        const dy = Math.cos(state.rotX + fIdx * 0.5) * 0.038 * fc.depth;
+        const shear = fc.shearY + Math.sin(state.rotY * 1.2 + state.rotW) * 0.14;
+
+        const px = cx + (fc.ox + dx) * scale;
+        const py = cy + (fc.oy + dy) * H;
+        const pw = fc.w * scale;
+        const ph = fc.h * H;
+
+        const units = beat.cuts[fc.key] || [];
+        const u = units[Math.floor(state.tick / 80) % Math.max(1, units.length)] || {};
+        const uImg = u.thumb ? getImg(u.thumb) : null;
+        const fallbackItem = atlas[(state.beatIdx * 7 + fIdx * 11) % Math.max(1, atlas.length)];
+        const fallbackStrip = fallbackItem ? getImg(fallbackItem.strip) : null;
+
+        ctx.save();
+        // Isometric vertical shear transform: [1, shear, 0, 1, px, py]
+        ctx.transform(1, shear, 0, 1, px, py);
+
+        // Draw image plane
+        ctx.fillStyle = '#0a0a0a';
+        ctx.fillRect(-pw / 2, -ph / 2, pw, ph);
+
+        const stepIdx = (fIdx + Math.floor(state.tick / 24)) % 8;
+        if (fc.key === '1983' && vid1983.readyState >= 2) {
+          ctx.drawImage(vid1983, -pw / 2, -ph / 2, pw, ph);
+        } else if (uImg && uImg.complete && uImg.naturalWidth > 0) {
+          ctx.drawImage(uImg, -pw / 2, -ph / 2, pw, ph);
+        } else if (wgStrip && wgStrip.complete && wgStrip.naturalWidth > 0 && fIdx % 2 === 0) {
+          const sw = wgStrip.naturalWidth / 8;
+          ctx.drawImage(wgStrip, stepIdx * sw, 0, sw, wgStrip.naturalHeight, -pw / 2, -ph / 2, pw, ph);
+        } else if (fallbackStrip && fallbackStrip.complete && fallbackStrip.naturalWidth > 0) {
+          const sw = fallbackStrip.naturalWidth / 8;
+          ctx.drawImage(fallbackStrip, stepIdx * sw, 0, sw, fallbackStrip.naturalHeight, -pw / 2, -ph / 2, pw, ph);
+        }
+
+        // Crisp Manfred Mohr 1.2px white architectural edge
+        const isAct = state.activeFacet === fIdx;
+        ctx.strokeStyle = isAct ? '#e85d44' : '#efe9dd';
+        ctx.lineWidth = isAct ? 2.0 : 1.15;
+        ctx.strokeRect(-pw / 2, -ph / 2, pw, ph);
+
+        // Draw Vertical 35mm Contact Strip Hinge on inner facets (matching Image 2)
+        if (fIdx === 1 || fIdx === 4 || fIdx === 6) {
+          const stripW = 34;
+          const stripX = pw / 2 + 4;
+          ctx.fillStyle = '#080808';
+          ctx.fillRect(stripX, -ph / 2, stripW, ph);
+          const stripSrc = fallbackStrip || wgStrip;
+          if (stripSrc && stripSrc.complete && stripSrc.naturalWidth > 0) {
+            const sw = stripSrc.naturalWidth / 8;
+            for (let k = 0; k < 4; k++) {
+              ctx.drawImage(
+                stripSrc,
+                ((k + fIdx) % 8) * sw, 0, sw, stripSrc.naturalHeight,
+                stripX + 2, -ph / 2 + k * (ph / 4) + 1, stripW - 4, (ph / 4) - 2
+              );
+            }
+          }
+          ctx.strokeStyle = 'rgba(239,233,221,0.55)';
+          ctx.lineWidth = 0.9;
+          ctx.strokeRect(stripX, -ph / 2, stripW, ph);
+        }
+
+        ctx.restore();
+      });
+    }
+
+    // 3. Draw Foreground Solid Hypercube Wireframe Lattice
+    drawHypercubeWireframe(ctx, cx, cy, scale, false);
+
+    // 4. Draw Central Interactive Orange 3-Axis Gnomon & Ring (#e85d44 — exact match to Image 2)
+    const gx = cx + Math.sin(state.rotY) * 18;
+    const gy = cy + Math.sin(state.rotX) * 14;
+
+    ctx.strokeStyle = '#e85d44';
+    ctx.lineWidth = 2.4;
+    // Vertical Orange Axis
+    ctx.beginPath();
+    ctx.moveTo(gx, gy - 96);
+    ctx.lineTo(gx, gy - 9);
+    ctx.stroke();
+    // Lower-left Orange Axis
+    ctx.beginPath();
+    ctx.moveTo(gx - 8, gy + 3);
+    ctx.lineTo(gx - 68, gy + 24);
+    ctx.stroke();
+
+    // Central Orange Ring
+    ctx.fillStyle = '#040404';
+    ctx.beginPath();
+    ctx.arc(gx, gy, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    requestAnimationFrame(draw);
+  }
+
+  function drawHypercubeWireframe(ctx, cx, cy, scale, dashedOnly) {
+    // 16 vertices of a 4D hypercube projected into 2D isometric space
+    const verts = [];
+    const a = state.rotY;
+    const b = state.rotX;
+    const wRot = state.rotW;
+
+    for (let i = 0; i < 16; i++) {
+      let x = (i & 1) ? 1 : -1;
+      let y = (i & 2) ? 1 : -1;
+      let z = (i & 4) ? 1 : -1;
+      let w = (i & 8) ? 0.58 : -0.58;
+
+      // XW & ZW 4D rotation
+      const xw = x * Math.cos(wRot * 0.4) - w * Math.sin(wRot * 0.4);
+      const ww = x * Math.sin(wRot * 0.4) + w * Math.cos(wRot * 0.4);
+      x = xw; w = ww;
+
+      // 3D rotation
+      const x1 = x * Math.cos(a) - z * Math.sin(a);
+      const z1 = x * Math.sin(a) + z * Math.cos(a);
+      const y1 = y * Math.cos(b) - z1 * Math.sin(b);
+      const z2 = y * Math.sin(b) + z1 * Math.cos(b);
+
+      const pScale = (0.24 + (w + 1) * 0.085) * scale;
+      verts.push({
+        sx: cx + x1 * pScale * 1.25,
+        sy: cy + y1 * pScale * 0.78,
+        z: z2 + w
+      });
+    }
+
+    ctx.save();
+    for (let i = 0; i < 16; i++) {
+      for (let bit = 0; bit < 4; bit++) {
+        const j = i ^ (1 << bit);
+        if (i < j) {
+          const isBack = (verts[i].z + verts[j].z) < -0.2;
+          if (dashedOnly !== isBack) continue;
+          ctx.strokeStyle = isBack ? 'rgba(239,233,221,0.38)' : 'rgba(239,233,221,0.82)';
+          ctx.lineWidth = isBack ? 0.85 : 1.1;
+          ctx.setLineDash(isBack ? [5, 5] : []);
+          ctx.beginPath();
+          ctx.moveTo(verts[i].sx, verts[i].sy);
+          ctx.lineTo(verts[j].sx, verts[j].sy);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  cv.addEventListener('pointerdown', e => {
+    state.dragging = true;
+    state.dragStartX = e.clientX;
+    state.dragStartY = e.clientY;
+    state.startRotY = state.rotY;
+    state.startRotX = state.rotX;
+    cv.setPointerCapture(e.pointerId);
+  });
+
+  cv.addEventListener('pointermove', e => {
+    if (!state.dragging) return;
+    const dx = (e.clientX - state.dragStartX) / window.innerWidth;
+    const dy = (e.clientY - state.dragStartY) / window.innerHeight;
+    state.rotY = state.startRotY + dx * 2.4;
+    state.rotX = Math.max(-0.85, Math.min(0.85, state.startRotX + dy * 1.8));
+    state.rotW += dx * 0.15;
+
+    const degX = Math.round((state.rotX * 180) / Math.PI);
+    const degY = Math.round((state.rotY * 180) / Math.PI);
+    const degW = Math.round((state.rotW * 180) / Math.PI) % 360;
+    document.getElementById('hudAxis').textContent = `HYPERCUBE PATH · [θx ${degX}° · θy ${degY}° · θw ${degW}°]`;
+
+    state.activeFacet = Math.abs(Math.floor((state.rotY * 3) % FACETS.length));
+    const fc = FACETS[state.activeFacet];
+    document.getElementById('hudCut').textContent = `Active Lattice Path → ${fc.label}`;
+  });
+
+  cv.addEventListener('pointerup', () => {
+    state.dragging = false;
+  });
+})();
+</script>
+</body>
+</html>
