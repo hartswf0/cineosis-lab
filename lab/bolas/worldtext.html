@@ -52,7 +52,23 @@ button[aria-pressed="true"],[role=tab][aria-selected="true"]{border-color:var(--
 .reading td{border-top:1px solid var(--line);padding:6px 8px 6px 0;vertical-align:top}
 .cc{min-height:2.8em;margin-top:10px;font-size:20px;line-height:1.35;max-width:62ch;color:var(--ink)}
 .cc[hidden]{display:none}
-@media (max-width:720px){.reading{display:block}.stage .hint{display:none}}
+@media (max-width:720px){.reading{display:block}.stage .hint{display:none}
+  .wrap{padding-top:14px}h1{font-size:34px;margin:4px 0 6px}.lede{font-size:17px;line-height:1.4}.ways{display:none}
+  .ctl{gap:6px}.ctl .clock{margin-left:0;width:100%}}
+@media (pointer:coarse){button,.btn{min-height:44px;min-width:44px}nav.bset a{display:inline-block;padding:12px 0}.scenes button{padding:11px 2px}.scrub{height:44px}.scrub input{top:12px;height:24px}}
+/* phone held sideways: the stage takes the screen */
+@media (orientation:landscape) and (max-height:500px){
+  .bset,#top{display:none !important}
+  .wrap{padding:6px 12px 40px}
+  .tabs{margin-bottom:6px}
+  .stagewrap{max-width:min(100%,calc((100dvh - 64px) * 16 / 9));min-width:0}
+  .reading{display:block}.stage .hint{display:none}}
+/* full screen where the browser will not do it (iPhone) */
+.stage.pfs{position:fixed;inset:0;z-index:60;width:100vw;height:100vh;height:100dvh;aspect-ratio:auto;display:flex;align-items:center;justify-content:center}
+.stage.pfs canvas{position:relative;inset:auto;width:min(100vw,calc(100dvh * 16 / 9));height:auto;aspect-ratio:16/9}
+body.pfs-on{overflow:hidden}
+.stage .xfs{display:none;position:absolute;top:max(8px,env(safe-area-inset-top));right:max(8px,env(safe-area-inset-right));z-index:2;background:transparent;color:#8d867a;border-color:#4a453d}
+.stage.pfs .xfs{display:inline-flex}
 .notes{margin-top:16px;border-top:1px solid var(--line);padding-top:12px;font-size:18px}
 .notes[hidden]{display:none}
 .notes h3{font:500 11px "IBM Plex Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:14px 0 4px}
@@ -144,6 +160,7 @@ body.presenter .wrap{max-width:none;padding:14px 16px}
       <div class="stage" id="stage" tabindex="0" aria-roledescription="slide" aria-label="Scene">
         <canvas id="cv" width="1280" height="720"></canvas>
         <span class="num" id="num"></span>
+        <button class="xfs" id="bExit" aria-label="Leave full screen">close</button>
         <span class="hint" id="hint">← → · N notes · P presenter · F full screen</span>
       </div>
       <div class="sr" aria-live="polite" id="live" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)"></div>
@@ -255,22 +272,43 @@ function replay() { if (mode === 'present') { t0 = performance.now(); send(); } 
 $('bPrev').onclick = () => go(idx - 1); $('bNext').onclick = () => go(idx + 1); $('bReplay').onclick = replay;
 $('bNotes').onclick = () => toggleNotes();
 function toggleNotes() { notesOn = !notesOn; $('notes').hidden = !notesOn; $('bNotes').setAttribute('aria-pressed', notesOn); }
-function full() { const el = $('stage'); if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen().catch(() => {}); }
+function pfs(on) { const el = $('stage'); el.classList.toggle('pfs', on); document.body.classList.toggle('pfs-on', on); setTimeout(() => sizeCanvas(cv), 60); }
+function full() {
+  const el = $('stage'), d = document;
+  if (el.classList.contains('pfs')) return pfs(false);
+  if (d.fullscreenElement || d.webkitFullscreenElement) return (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+  const req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!req) return pfs(true);
+  try { const r = req.call(el); if (r && r.catch) r.catch(() => pfs(true)); } catch (e) { pfs(true); }
+}
+$('bExit').addEventListener('pointerup', e => e.stopPropagation());
+$('bExit').onclick = e => { e.stopPropagation(); pfs(false); };
+addEventListener('keydown', e => { if (e.key === 'Escape' && $('stage').classList.contains('pfs')) pfs(false); });
+document.addEventListener('webkitfullscreenchange', () => setTimeout(() => sizeCanvas(cv), 60));
 $('bFull').onclick = full; $('bFull2').onclick = full;
 document.addEventListener('fullscreenchange', () => setTimeout(() => sizeCanvas(cv), 60));
 
 /* click and swipe on the stage */
 (() => {
   const st = $('stage'); let sx = null, sy = null, moved = false;
-  st.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; moved = false; });
-  st.addEventListener('pointerup', e => {
-    if (sx == null) return; const dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
+  const end = (x, y) => {
+    if (sx == null) return; const dx = x - sx, dy = y - sy; sx = null; const e = { clientX: x };
     if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) { mode === 'present' ? go(idx + (dx < 0 ? 1 : -1)) : go(idx + (dx < 0 ? 1 : -1)); return; }
     if (Math.abs(dx) < 8 && Math.abs(dy) < 8) {
       if (mode === 'play') { togglePlay(); return; }
       const r = st.getBoundingClientRect(); go(idx + ((e.clientX - r.left) < r.width / 3 ? -1 : 1));
     }
-  });
+  };
+  const skip = t => t && t.closest && t.closest('button');
+  /* fingers: touch events, so a sideways swipe is never lost to the page scrolling */
+  st.addEventListener('touchstart', e => { if (skip(e.target) || e.touches.length > 1) { sx = null; return; } const t = e.touches[0]; sx = t.clientX; sy = t.clientY; }, { passive: true });
+  st.addEventListener('touchmove', e => { if (sx == null) return; const t = e.touches[0]; if (Math.abs(t.clientX - sx) > 12 && Math.abs(t.clientX - sx) > Math.abs(t.clientY - sy)) e.preventDefault(); }, { passive: false });
+  st.addEventListener('touchend', e => { if (sx == null) return; const t = e.changedTouches[0]; e.preventDefault(); end(t.clientX, t.clientY); });
+  st.addEventListener('touchcancel', () => { sx = null; });
+  /* mouse and pen */
+  st.addEventListener('pointerdown', e => { if (e.pointerType === 'touch' || skip(e.target)) return; sx = e.clientX; sy = e.clientY; });
+  st.addEventListener('pointerup', e => { if (e.pointerType === 'touch') return; end(e.clientX, e.clientY); });
+  st.addEventListener('pointercancel', () => { sx = null; });
 })();
 document.addEventListener('keydown', e => {
   if (e.target.closest('input,textarea,select') || e.metaKey || e.ctrlKey || e.altKey) return;
