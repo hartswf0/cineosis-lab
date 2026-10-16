@@ -1041,7 +1041,7 @@ def build_screens_program(beat_by_shot_id, books_out):
 
         scr_thumb = s.get("screen_thumb") or f"thumbs/screens/{shot_id}.jpg"
         full_thumb = s.get("full_thumb") or f"thumbs/{shot_id}.jpg"
-        has_strip = shot_id.startswith("wg_") and os.path.exists(os.path.join(LAB, f"strips/{shot_id}.jpg"))
+        has_strip = os.path.exists(os.path.join(LAB, f"strips/{shot_id}.jpg"))
         strip_url = f"strips/{shot_id}.jpg" if has_strip else scr_thumb
         static_clip = f"clips/{shot_id}.mp4" if os.path.exists(os.path.join(LAB, f"clips/{shot_id}.mp4")) else ""
 

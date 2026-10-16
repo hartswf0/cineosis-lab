@@ -2,986 +2,757 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>04 / SOUND BENCH · Character Line Inference, Dialogue Pacing &amp; The Bumblebee Dilemma</title>
-<meta name="description" content="Inferred character-by-character spoken lines, breath/pause cadence, WPM pacing telemetry, and 3 unbroken archival takes per line across all 105 beats of WarGames (1983).">
-<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>04 / SEMIOSIS &amp; LINE PACING TUI — Thinking the Unthinkable in Moving-Image Semiosis</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #0b0d10;
-  --panel: #12151b;
-  --panel-hi: #181c24;
-  --ink: #ecebe6;
-  --dim: #8e929f;
-  --line: #252a36;
-  --accent: #45b1ff;
-  --gold: #f5c542;
-  --green: #38d996;
-  --coral: #ff6b52;
-  --purple: #9b7bff;
+  --bg: #000000;
+  --bg-alt: #030705;
+  --fg: #33ff99;
+  --fg-dim: #1c8550;
+  --fg-hi: #c2ffe0;
+  --accent: #ffb000;
+  --cyan: #33ccff;
+  --alert: #ff3b30;
+  --rule: #15472e;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
-* { box-sizing: border-box; }
-html, body {
+[data-phosphor="amber"] {
+  --bg: #000000;
+  --bg-alt: #080500;
+  --fg: #ffb000;
+  --fg-dim: #8c6200;
+  --fg-hi: #ffe5a3;
+  --accent: #33ff99;
+  --rule: #4d3600;
+}
+[data-phosphor="cyan"] {
+  --bg: #000000;
+  --bg-alt: #020609;
+  --fg: #33ccff;
+  --fg-dim: #1a6d8a;
+  --fg-hi: #c4f0ff;
+  --accent: #ffb000;
+  --rule: #144459;
+}
+[data-phosphor="red"] {
+  --bg: #000000;
+  --bg-alt: #090202;
+  --fg: #ff453a;
+  --fg-dim: #8c241e;
+  --fg-hi: #ffc4c0;
+  --accent: #ffb000;
+  --rule: #521612;
+}
+* {
+  box-sizing: border-box;
   margin: 0;
+  padding: 0;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+html, body {
+  width: 100%;
+  min-height: 100%;
   background: var(--bg);
-  color: var(--ink);
-  font: 12.5px/1.45 "IBM Plex Mono", ui-monospace, Menlo, monospace;
-  -webkit-font-smoothing: antialiased;
+  color: var(--fg);
+  font: 12px/1.4 var(--mono);
+  -webkit-font-smoothing: none;
 }
 a { color: inherit; text-decoration: none; }
-button, select, input { font: inherit; color: inherit; cursor: pointer; }
-
-/* STUDIO SET RIBBON */
-.studio-ribbon {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 14px;
-  background: #07080a;
-  border-bottom: 1px solid var(--line);
-  overflow-x: auto;
-  font-size: 10.5px;
+button, select, input {
+  font: inherit;
+  color: inherit;
+  background: #000;
+  border: 1px solid var(--rule);
+  cursor: pointer;
 }
-.studio-ribbon .sr-brand {
-  font-weight: 700;
-  color: var(--gold);
-  letter-spacing: 0.08em;
-  margin-right: 8px;
-  white-space: nowrap;
-}
-.studio-ribbon a {
-  padding: 3px 8px;
-  border-radius: 4px;
-  border: 1px solid #1e232e;
-  background: #101319;
-  color: var(--dim);
-  white-space: nowrap;
-  transition: all 0.12s ease;
-}
-.studio-ribbon a:hover {
-  border-color: var(--ink);
-  color: var(--ink);
-}
-.studio-ribbon a.active {
-  background: var(--gold);
-  color: #090b0e;
-  border-color: var(--gold);
-  font-weight: 700;
+button:hover, select:hover {
+  border-color: var(--fg);
+  color: var(--fg-hi);
 }
 
-/* TOP HEADER & SCENE SELECTOR */
-.top-header {
+/* Subtle horizontal CRT scanlines */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.20) 0px,
+    rgba(0, 0, 0, 0.20) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* TOP TUI SYSTEM BUS */
+.tui-topbar {
+  height: 28px;
+  border-bottom: 1px solid var(--fg);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 16px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
-  flex-wrap: wrap;
-}
-.brand-block {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.brand-block h1 {
-  font: 800 16px/1.1 Inter, system-ui, sans-serif;
-  margin: 0;
-  letter-spacing: -0.01em;
-  color: var(--ink);
-}
-.brand-block .sub {
+  padding: 0 8px;
+  background: #000;
   font-size: 11px;
-  color: var(--dim);
-}
-.nav-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.nav-controls select, .nav-controls button {
-  background: var(--panel-hi);
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  padding: 5px 10px;
-  font-size: 11.5px;
-  color: var(--ink);
-}
-.nav-controls button:hover, .nav-controls select:hover {
-  border-color: var(--accent);
-}
-
-/* PRESET SCENE BAR */
-.preset-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 16px;
-  background: #0e1116;
-  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
   overflow-x: auto;
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
-.preset-bar .lbl {
-  font: 700 10px/1 Inter, sans-serif;
-  letter-spacing: 0.1em;
+.bus-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.tui-topbar a, .tui-topbar button {
+  padding: 1px 6px;
+  border: 1px solid var(--rule);
+  font-size: 10.5px;
   text-transform: uppercase;
-  color: var(--dim);
-  margin-right: 4px;
-  white-space: nowrap;
 }
-.preset-pill {
-  background: #151922;
-  border: 1px solid #262c3a;
-  border-radius: 14px;
-  padding: 3px 10px;
-  font-size: 11px;
-  color: #c5c8d4;
-  white-space: nowrap;
-  transition: all 0.12s ease;
-}
-.preset-pill:hover {
-  border-color: var(--gold);
-  color: var(--ink);
-}
-.preset-pill.on {
-  background: rgba(245, 197, 66, 0.16);
-  border-color: var(--gold);
-  color: var(--gold);
-  font-weight: 600;
+.tui-topbar a.active, .tui-topbar button.active {
+  background: var(--fg);
+  color: #000;
+  border-color: var(--fg);
+  font-weight: 700;
 }
 
-/* MAIN WORKSPACE CONTAINER */
-.workspace {
-  max-width: 1640px;
+/* SEMIOSIS REDUCTION & SCENE NAVIGATION BAR */
+.tui-ctrlbar {
+  border-bottom: 1px solid var(--rule);
+  background: var(--bg-alt);
+  padding: 6px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+.ctrl-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.ctrl-lbl {
+  color: var(--fg-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  margin-right: 2px;
+}
+.tui-btn {
+  padding: 2px 7px;
+  border: 1px solid var(--fg-dim);
+  color: var(--fg);
+  font-size: 10.5px;
+  text-transform: uppercase;
+}
+.tui-btn:hover {
+  background: var(--fg);
+  color: #000;
+}
+.tui-btn.on {
+  background: var(--fg);
+  color: #000;
+  border-color: var(--fg);
+  font-weight: 700;
+}
+.tui-btn.amber {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.tui-btn.amber:hover, .tui-btn.amber.on {
+  background: var(--accent);
+  color: #000;
+  font-weight: 700;
+}
+.tui-btn.red {
+  border-color: var(--alert);
+  color: var(--alert);
+}
+.tui-btn.red:hover {
+  background: var(--alert);
+  color: #000;
+}
+select.tui-sel, input.tui-inp {
+  padding: 2px 6px;
+  border: 1px solid var(--fg-dim);
+  color: var(--fg-hi);
+  background: #000;
+  font-size: 11px;
+}
+
+/* PRESET SCENE STRIP */
+.tui-presetbar {
+  border-bottom: 1px solid var(--rule);
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  white-space: nowrap;
+  background: #000;
+  font-size: 10px;
+}
+.p-chip {
+  padding: 1px 6px;
+  border: 1px solid var(--rule);
+  color: var(--fg-dim);
+}
+.p-chip:hover {
+  border-color: var(--fg);
+  color: var(--fg);
+}
+.p-chip.on {
+  background: var(--accent);
+  color: #000;
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+/* WORKSPACE */
+.tui-workspace {
+  max-width: 1680px;
   margin: 0 auto;
-  padding: 12px 16px 40px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
-/* UPPER STAGE: DUAL MONITORS + TRANSPORT CENTER */
-.stage-grid {
+/* TOP STAGE: DUAL CRT MONITORS + TUI EXECUTION CONSOLE */
+.stage-3col {
   display: grid;
-  grid-template-columns: 1fr 390px 1fr;
-  gap: 12px;
-  align-items: stretch;
+  grid-template-columns: 1fr 380px 1fr;
+  border: 1px solid var(--fg);
+  background: #000;
 }
-@media (max-width: 1180px) {
-  .stage-grid {
+@media (max-width: 1150px) {
+  .stage-3col {
     grid-template-columns: 1fr;
   }
 }
-.monitor-card {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  overflow: hidden;
+.stage-col {
+  border-right: 1px solid var(--rule);
   display: flex;
   flex-direction: column;
 }
-.monitor-card.left-mon {
-  border-top: 3px solid var(--accent);
+.stage-col:last-child {
+  border-right: none;
 }
-.monitor-card.right-mon {
-  border-top: 3px solid var(--gold);
-}
-.mon-head {
+.box-hdr {
+  height: 24px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--bg-alt);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 7px 12px;
-  background: #0d1015;
-  border-bottom: 1px solid var(--line);
-  font-size: 11px;
-}
-.mon-tag {
-  font: 700 10.5px/1 Inter, sans-serif;
-  letter-spacing: 0.08em;
+  font-size: 10.5px;
   text-transform: uppercase;
+  color: var(--fg-hi);
 }
-.mon-video-wrap {
+.crt-vp {
   position: relative;
-  background: #000;
   aspect-ratio: 16 / 9;
-  max-height: 230px;
+  max-height: 215px;
   width: 100%;
+  background: #000;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
-.mon-video-wrap video {
+.crt-vp video {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
-.mon-hud-top {
+.crt-hud {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  right: 8px;
+  top: 4px;
+  left: 4px;
+  right: 4px;
   display: flex;
   justify-content: space-between;
-  gap: 6px;
   pointer-events: none;
+  font-size: 10px;
 }
-.hud-badge {
-  background: rgba(8, 10, 14, 0.84);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 4px;
-  padding: 2px 7px;
-  font-size: 10.5px;
-  font-weight: 600;
-  backdrop-filter: blur(4px);
+.crt-hud span {
+  background: rgba(0, 0, 0, 0.88);
+  border: 1px solid var(--rule);
+  padding: 1px 5px;
 }
-.mon-caption-bar {
-  padding: 9px 12px;
-  background: #0e1117;
-  border-top: 1px solid var(--line);
-  min-height: 58px;
+.crt-caption {
+  padding: 6px 8px;
+  border-top: 1px solid var(--rule);
+  background: #020403;
+  min-height: 52px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
 }
-.mon-caption-speaker {
-  font: 700 10px/1 Inter, sans-serif;
-  letter-spacing: 0.08em;
+.crt-cap-meta {
+  font-size: 9.5px;
+  color: var(--fg-dim);
   text-transform: uppercase;
 }
-.mon-caption-text {
-  font: 600 13px/1.35 Inter, system-ui, sans-serif;
-  color: var(--ink);
+.crt-cap-line {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--fg-hi);
 }
 
-/* CENTER TRANSPORT & SCENE PACING SUMMARY */
-.transport-card {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 12px;
+/* CENTER TRANSPORT & SEMIOTIC TELEMETRY */
+.exec-console {
+  padding: 8px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 10px;
-}
-.transport-title {
-  font: 700 11px/1.2 Inter, sans-serif;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--gold);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.mode-stack {
-  display: flex;
-  flex-direction: column;
   gap: 6px;
+  flex: 1;
 }
-.play-mode-btn {
+.exec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.exec-row-btn {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--rule);
+  background: #020503;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 11px;
-  border-radius: 6px;
-  border: 1px solid #2b3140;
-  background: #171b24;
-  color: var(--ink);
   text-align: left;
-  transition: all 0.12s ease;
 }
-.play-mode-btn:hover {
-  border-color: var(--gold);
-  background: #1d222d;
+.exec-row-btn:hover {
+  border-color: var(--fg);
+  background: rgba(51, 255, 153, 0.08);
 }
-.play-mode-btn.active {
-  background: var(--gold);
-  color: #090b0e;
-  border-color: var(--gold);
+.exec-row-btn.active {
+  background: var(--fg);
+  color: #000;
+  border-color: var(--fg);
   font-weight: 700;
 }
-.play-mode-btn .pm-main {
-  font: 700 11.5px/1.2 Inter, sans-serif;
-}
-.play-mode-btn .pm-sub {
-  font-size: 10px;
-  opacity: 0.8;
-}
-.stop-btn {
-  padding: 6px 10px;
-  border-radius: 5px;
-  border: 1px solid #3a2629;
-  background: #221619;
-  color: #ff8e7a;
-  font-weight: 600;
+.exec-row-btn .er-title {
   font-size: 11px;
-  text-align: center;
+  font-weight: 700;
 }
-.stop-btn:hover {
-  background: #331c20;
-  border-color: var(--coral);
+.exec-row-btn .er-sub {
+  font-size: 9.5px;
+  opacity: 0.82;
 }
-.pacing-kpi-grid {
+.kpi-4grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  border-top: 1px solid var(--rule);
   padding-top: 6px;
-  border-top: 1px solid var(--line);
+  gap: 4px;
 }
-.kpi-box {
-  background: #0d1016;
-  border: 1px solid #202532;
-  border-radius: 5px;
-  padding: 5px 7px;
+.kpi-cell {
+  border: 1px solid var(--rule);
+  padding: 3px 4px;
   text-align: center;
+  background: #010302;
 }
-.kpi-box .k-val {
-  font: 700 13px/1.1 "IBM Plex Mono", monospace;
-  color: var(--ink);
+.kpi-cell .kv {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--fg-hi);
 }
-.kpi-box .k-lbl {
-  font-size: 9.5px;
-  color: var(--dim);
+.kpi-cell .kl {
+  font-size: 9px;
+  color: var(--fg-dim);
   text-transform: uppercase;
-  margin-top: 2px;
 }
 
-/* PACING TIMELINE & SPECTROGRAM RIBBON */
-.timeline-card {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 10px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+/* PACING RIBBON & SPECTROGRAM BOX */
+.tui-box {
+  border: 1px solid var(--rule);
+  background: #000;
 }
-.tl-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.tl-head-title {
-  font: 700 11px/1 Inter, sans-serif;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink);
-}
-.tl-legend {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 11px;
-  color: var(--dim);
-  flex-wrap: wrap;
-}
-.tl-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-.tl-legend i {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  border-radius: 2px;
-}
-
-/* TURN PACING BAR (CHARACTER BLOCKS + PAUSE GAPS) */
-.turn-pacing-track {
+.turn-track {
   position: relative;
-  height: 44px;
-  background: #090b0f;
-  border: 1px solid #222734;
-  border-radius: 6px;
+  height: 40px;
+  border-bottom: 1px solid var(--rule);
+  background: #010302;
   overflow: hidden;
-  user-select: none;
 }
-.tp-turn-block {
+.t-blk {
   position: absolute;
-  top: 3px;
-  bottom: 3px;
-  border-radius: 4px;
-  padding: 3px 6px;
+  top: 2px;
+  bottom: 2px;
+  border: 1px solid var(--fg-dim);
+  background: rgba(51, 255, 153, 0.10);
+  padding: 2px 4px;
   overflow: hidden;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
-.tp-turn-block:hover {
+.t-blk:hover {
+  border-color: var(--fg-hi);
+  z-index: 4;
+}
+.t-blk.active {
+  border-color: var(--accent);
+  background: rgba(255, 176, 0, 0.20);
   z-index: 5;
-  box-shadow: 0 0 0 1.5px #fff;
 }
-.tp-turn-block.active {
-  z-index: 6;
-  box-shadow: 0 0 0 2px var(--gold);
+.t-blk.fulcrum {
+  border-color: var(--accent);
 }
-.tp-turn-block .tp-who {
-  font: 700 10px/1 Inter, sans-serif;
+.t-blk .tb-who {
+  font-size: 9.5px;
+  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.tp-turn-block .tp-line {
-  font-size: 10px;
-  opacity: 0.92;
+.t-blk .tb-txt {
+  font-size: 9px;
+  opacity: 0.88;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.tp-pause-marker {
+.t-gap {
   position: absolute;
   top: 0;
   bottom: 0;
-  background: repeating-linear-gradient(
-    -45deg,
-    rgba(255, 255, 255, 0.03),
-    rgba(255, 255, 255, 0.03) 4px,
-    rgba(0, 0, 0, 0.2) 4px,
-    rgba(0, 0, 0, 0.2) 8px
-  );
-  border-left: 1px dashed rgba(255, 255, 255, 0.15);
-  border-right: 1px dashed rgba(255, 255, 255, 0.15);
+  border-left: 1px dashed var(--rule);
+  border-right: 1px dashed var(--rule);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
-  color: var(--dim);
+  font-size: 8.5px;
+  color: var(--fg-dim);
   pointer-events: none;
 }
-.tp-playhead {
+.t-playhead {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 2px;
-  background: var(--gold);
-  box-shadow: 0 0 8px var(--gold);
+  background: var(--accent);
   pointer-events: none;
   z-index: 10;
 }
-
-/* SPECTROGRAM + F0 CONTOUR CANVAS */
-.spec-wrap {
+.spec-box {
   position: relative;
-  height: 76px;
-  background: #07090c;
-  border: 1px solid #222734;
-  border-radius: 6px;
-  overflow: hidden;
+  height: 68px;
+  background: #000;
   cursor: pointer;
 }
-.spec-wrap canvas {
+.spec-box canvas {
   width: 100%;
   height: 100%;
   display: block;
 }
 
-/* MAIN DIALOGUE SCORE TABLE (THE CORE INSTRUMENT) */
-.script-card {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.script-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 16px;
-  background: #0e1117;
-  border-bottom: 1px solid var(--line);
-  flex-wrap: wrap;
-}
-.script-head h2 {
-  font: 800 14px/1.2 Inter, sans-serif;
-  margin: 0;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--ink);
-}
-.script-head .sh-sub {
-  font-size: 11px;
-  color: var(--dim);
-}
-.turns-list {
-  display: flex;
-  flex-direction: column;
-}
-.turn-row {
-  display: grid;
-  grid-template-columns: 270px 1fr 1.15fr;
-  gap: 14px;
-  padding: 13px 16px;
-  border-bottom: 1px solid var(--line);
-  align-items: start;
-  transition: background 0.12s ease;
-}
-@media (max-width: 1100px) {
-  .turn-row {
-    grid-template-columns: 1fr;
-  }
-}
-.turn-row:last-child {
-  border-bottom: none;
-}
-.turn-row:hover {
-  background: rgba(255, 255, 255, 0.02);
-}
-.turn-row.active-turn {
-  background: rgba(245, 197, 66, 0.07);
-  box-shadow: inset 4px 0 0 var(--gold);
-}
-.turn-row.fulcrum-turn {
-  background: linear-gradient(90deg, rgba(245, 197, 66, 0.05), transparent 45%);
-}
-
-/* COL 1: CHARACTER & PACING TELEMETRY */
-.tr-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.tr-speaker-line {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  flex-wrap: wrap;
-}
-.tr-num {
-  font: 700 11px/1 "IBM Plex Mono", monospace;
-  padding: 3px 6px;
-  border-radius: 4px;
-  background: #1c212c;
-  color: var(--ink);
-}
-.tr-speaker-badge {
-  font: 700 12px/1.1 Inter, sans-serif;
-  padding: 3px 8px;
-  border-radius: 4px;
-  border: 1px solid currentColor;
-}
-.tr-role-tag {
-  font-size: 9.5px;
-  color: var(--dim);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.tr-fulcrum-pill {
-  display: inline-block;
-  background: var(--gold);
-  color: #090b0e;
-  font: 800 9.5px/1 Inter, sans-serif;
-  letter-spacing: 0.08em;
-  padding: 3px 7px;
-  border-radius: 3px;
-  text-transform: uppercase;
-}
-.tr-pacing-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  font-size: 10.5px;
-}
-.p-badge {
-  background: #0d1016;
-  border: 1px solid #232836;
-  border-radius: 4px;
-  padding: 2px 6px;
-  color: #c2c6d4;
-}
-.p-badge strong {
-  color: var(--ink);
-}
-
-/* COL 2: 1983 SPOKEN LINE */
-.tr-1983-col {
-  background: #0e1218;
-  border: 1px solid #212838;
-  border-left: 3px solid var(--accent);
-  border-radius: 6px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.col-top-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 10.5px;
-  color: var(--dim);
-}
-.spoken-quote-1983 {
-  font: 600 14.5px/1.42 Inter, system-ui, sans-serif;
-  color: var(--ink);
-}
-.spoken-quote-1983 .hl-word, .spoken-quote-arch .hl-word {
-  background: rgba(245, 197, 66, 0.22);
-  color: var(--gold);
-  padding: 0 3px;
-  border-radius: 3px;
-  border-bottom: 1px solid var(--gold);
-}
-.mini-btn-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.mini-btn {
-  background: #171c26;
-  border: 1px solid #2b3244;
-  border-radius: 4px;
-  padding: 3px 9px;
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--ink);
-  transition: all 0.12s ease;
-}
-.mini-btn:hover {
-  border-color: var(--accent);
-  background: #1e2533;
-}
-.mini-btn.gold:hover {
-  border-color: var(--gold);
-}
-.mini-btn.on {
-  background: var(--gold);
-  color: #090b0e;
-  border-color: var(--gold);
-}
-
-/* COL 3: ARCHIVAL COUNTER-LINE & 3 TAKES */
-.tr-arch-col {
-  background: #111319;
-  border: 1px solid #282c3a;
-  border-left: 3px solid var(--gold);
-  border-radius: 6px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.spoken-quote-arch {
-  font: 600 14px/1.4 Inter, system-ui, sans-serif;
-  color: #f3efe2;
-}
-.arch-source-meta {
-  font-size: 11px;
-  color: var(--gold);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.take-tabs {
-  display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-.take-tab {
-  background: #171a22;
-  border: 1px solid #2b3040;
-  border-radius: 4px;
-  padding: 3px 8px;
-  font-size: 10.5px;
-  color: var(--dim);
-}
-.take-tab:hover {
-  border-color: var(--ink);
-  color: var(--ink);
-}
-.take-tab.active {
-  background: rgba(245, 197, 66, 0.18);
-  border-color: var(--gold);
-  color: var(--gold);
-  font-weight: 700;
-}
-
-/* COLLAPSIBLE WORD PROSODY DRAWER */
-.drawer-card {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.drawer-toggle {
+/* SPARSE TUI DIALOGUE & SEMIOSIS SCORE TABLE */
+.tui-score-table {
   width: 100%;
-  padding: 10px 16px;
-  background: #0e1117;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font: 700 11.5px/1 Inter, sans-serif;
-  letter-spacing: 0.06em;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+.tui-score-table th, .tui-score-table td {
+  border: 1px solid var(--rule);
+  padding: 7px 9px;
+  vertical-align: top;
+  text-align: left;
+}
+.tui-score-table th {
+  background: var(--bg-alt);
+  color: var(--fg-hi);
+  font-size: 10px;
   text-transform: uppercase;
-  color: var(--dim);
+  letter-spacing: 0.06em;
 }
-.drawer-toggle:hover {
-  color: var(--ink);
+.tui-score-table tr.turn-tr:hover {
+  background: rgba(51, 255, 153, 0.04);
 }
-.drawer-body {
-  padding: 12px 16px;
-  border-top: 1px solid var(--line);
-  display: none;
+.tui-score-table tr.turn-tr.active {
+  background: rgba(255, 176, 0, 0.09);
+  outline: 1px solid var(--accent);
 }
-.drawer-body.open {
-  display: block;
+.hl-stem {
+  background: rgba(255, 176, 0, 0.24);
+  color: var(--accent);
+  padding: 0 2px;
+  border-bottom: 1px solid var(--accent);
 }
-.word-chip-flow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.w-chip {
-  background: #0d1016;
-  border: 1px solid #232836;
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 11px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.w-chip .wc-w {
+.fulc-tag {
+  display: inline-block;
+  background: var(--accent);
+  color: #000;
   font-weight: 700;
-  color: var(--ink);
-}
-.w-chip .wc-m {
   font-size: 9.5px;
-  color: var(--dim);
+  padding: 0 4px;
+  margin-left: 4px;
+}
+.take-pill {
+  padding: 1px 6px;
+  border: 1px solid var(--rule);
+  font-size: 10px;
+  color: var(--fg-dim);
+  margin-right: 3px;
+}
+.take-pill:hover {
+  border-color: var(--fg);
+  color: var(--fg);
+}
+.take-pill.on {
+  background: var(--accent);
+  color: #000;
+  border-color: var(--accent);
+  font-weight: 700;
 }
 </style>
 </head>
-<body>
+<body data-phosphor="green">
 
-<!-- STUDIO SET NAVIGATION RIBBON -->
-<div class="studio-ribbon">
-  <span class="sr-brand">WARGAMES STUDIO SET //</span>
-  <a href="wargames-studios.html">00 / STUDIO INDEX</a>
-  <a href="wg-studio-screens.html">01 / SCREEN STATES (IMSAI SHELL)</a>
-  <a href="wg-studio-whitney.html">02 / JOHN WHITNEY SLIT-SCAN</a>
-  <a href="wg-studio-knowlton.html">03 / KEN KNOWLTON STILLS</a>
-  <a href="bumblebee-dilemma.html" class="active">04 / SOUND &amp; LINE PACING</a>
-  <a href="wg-studio-nake.html">05 / FRIEDER NAKE MATRIX</a>
-  <a href="wg-studio-mohr.html">06 / MANFRED MOHR HYPERCUBE</a>
-  <a href="found-wargames.html">07 / PARALLEL MONTAGE</a>
-  <a href="found-wargames-museum.html">08 / MUSEUM GALLERY</a>
-  <a href="vj-wargames.html">09 / TV LIVE VJ</a>
-  <a href="wg-studio-reas.html">10 / CASEY REAS TISSUE</a>
-</div>
-
-<!-- TOP HEADER -->
-<header class="top-header">
-  <div class="brand-block">
-    <h1>04 / THE BUMBLEBEE DILEMMA &middot; CHARACTER LINE PACING STUDIO</h1>
-    <span class="sub">Inferred Screenplay Spoken Lines &middot; Speaker Attribution &middot; Breath/Pause Cadence &middot; 3 Archival Takes Per Line</span>
+<!-- TOP TUI SYSTEM BUS -->
+<header class="tui-topbar">
+  <div class="bus-links">
+    <strong style="color:var(--fg-hi);margin-right:6px">[WOPR // SEMIOSIS &amp; LINE PACING TUI]</strong>
+    <a href="wargames-studios.html">00:INDEX</a>
+    <a href="wg-studio-screens.html">01:SCREENS(TUI)</a>
+    <a href="wg-studio-whitney.html">02:WHITNEY</a>
+    <a href="wg-studio-knowlton.html">03:KNOWLTON</a>
+    <a href="bumblebee-dilemma.html" class="active">04:SEMIOSIS/SOUND</a>
+    <a href="wg-studio-nake.html">05:NAKE</a>
+    <a href="wg-studio-mohr.html">06:MOHR</a>
+    <a href="found-wargames.html">07:MONTAGE</a>
+    <a href="found-wargames-museum.html">08:MUSEUM</a>
+    <a href="vj-wargames.html">09:VJ</a>
+    <a href="wg-studio-reas.html">10:REAS</a>
   </div>
-  <div class="nav-controls">
-    <button id="prevBeatBtn" title="Previous Scene Beat ([)">&larr; Prev Beat</button>
-    <select id="bookSelect" aria-label="Select Book"></select>
-    <select id="beatSelect" aria-label="Select Scene Beat"></select>
-    <button id="nextBeatBtn" title="Next Scene Beat (])">Next Beat &rarr;</button>
+  <div class="bus-links">
+    <span style="color:var(--fg-dim)">CRT PHOSPHOR:</span>
+    <button onclick="setPhosphor('green')" id="ph-green" class="active">P1:GREEN</button>
+    <button onclick="setPhosphor('amber')" id="ph-amber">P3:AMBER</button>
+    <button onclick="setPhosphor('cyan')" id="ph-cyan">NORAD:CYAN</button>
+    <button onclick="setPhosphor('red')" id="ph-red">DEFCON1:RED</button>
   </div>
 </header>
 
-<!-- CURATED DIALOGUE SCENE PRESETS -->
-<div class="preset-bar" id="presetBar">
-  <span class="lbl">KEY DIALOGUE SCENES:</span>
+<!-- SEMIOSIS REDUCTION & SCENE SELECTOR BAR -->
+<div class="tui-ctrlbar">
+  <div class="ctrl-group">
+    <span class="ctrl-lbl">SCENE BEAT:</span>
+    <button class="tui-btn" id="prevBeatBtn">[&lt; PREV]</button>
+    <select class="tui-sel" id="bookSelect" aria-label="Book"></select>
+    <select class="tui-sel" id="beatSelect" aria-label="Beat"></select>
+    <button class="tui-btn" id="nextBeatBtn">[NEXT &gt;]</button>
+  </div>
+
+  <div class="ctrl-group">
+    <span class="ctrl-lbl">SEMIOTIC SCOPE:</span>
+    <button class="tui-btn on" id="scopeSceneBtn" onclick="setScopeMode('scene')">[SCENE DIALOGUE SCORE]</button>
+    <button class="tui-btn amber" id="scopeGlobalBtn" onclick="setScopeMode('global')">[ALL 370 SPOKEN LINES MATRIX]</button>
+    <select class="tui-sel" id="speakerFilter" onchange="onGlobalFilterChange()">
+      <option value="ALL">SPEAKER: ALL CHARACTERS</option>
+      <option value="John McKittrick">JOHN MCKITTRICK</option>
+      <option value="General Beringer">GENERAL BERINGER</option>
+      <option value="David Lightman">DAVID LIGHTMAN</option>
+      <option value="Jennifer Mack">JENNIFER MACK</option>
+      <option value="Stephen Falken">STEPHEN FALKEN</option>
+      <option value="WOPR (Joshua)">WOPR (JOSHUA)</option>
+      <option value="Col. Joe Conley">COL. JOE CONLEY</option>
+      <option value="Paul Richter">PAUL RICHTER</option>
+      <option value="Jim Sting">JIM STING</option>
+      <option value="Mr. Liggett">MR. LIGGETT</option>
+    </select>
+    <select class="tui-sel" id="pacingFilter" onchange="onGlobalFilterChange()">
+      <option value="ALL">PACING: ALL REGIMES</option>
+      <option value="FULCRUM">ONLY "THE LINE" (105 FULCRUMS)</option>
+      <option value="SILENCE">DRAMATIC / TENSION PAUSES (&gt;0.6s)</option>
+      <option value="URGENT">URGENT / RAPID CADENCE (&gt;165 WPM)</option>
+      <option value="DELIBERATE">DELIBERATE CADENCE (&lt;110 WPM)</option>
+    </select>
+  </div>
 </div>
 
-<!-- MAIN WORKSPACE -->
-<main class="workspace">
+<!-- KEY DIALOGUE SCENE PRESETS -->
+<div class="tui-presetbar" id="presetBar">
+  <span style="color:var(--fg-dim);margin-right:4px">SCENES:</span>
+</div>
 
-  <!-- UPPER STAGE: LEFT 1983 MONITOR | CENTER TRANSPORT | RIGHT ARCHIVAL MONITOR -->
-  <section class="stage-grid">
-    <!-- LEFT MONITOR: 1983 CHARACTER SPEAKING -->
-    <div class="monitor-card left-mon">
-      <div class="mon-head">
-        <span class="mon-tag" style="color:var(--accent)">1983 WARGAMES &middot; INFERRED CHARACTER TURN</span>
-        <span id="leftMonMeta" style="color:var(--dim)">wg_001 &middot; 124 Hz</span>
+<!-- MAIN TUI WORKSPACE -->
+<main class="tui-workspace">
+
+  <!-- UPPER STAGE: DUAL CRT MONITORS + CENTER TUI TRANSPORT -->
+  <section class="stage-3col">
+    <!-- LEFT CRT: 1983 CHARACTER SPEAKER -->
+    <div class="stage-col">
+      <div class="box-hdr">
+        <span>┌─[ CRT-A // 1983 CHARACTER TURN &amp; SIGN ]</span>
+        <span id="leftMonMeta">wg_001 · 124 Hz</span>
       </div>
-      <div class="mon-video-wrap">
+      <div class="crt-vp">
         <video id="vid1983" playsinline preload="auto" muted></video>
-        <div class="mon-hud-top">
-          <span class="hud-badge" id="leftHudSpeaker" style="color:var(--accent)">JOHN MCKITTRICK</span>
-          <span class="hud-badge" id="leftHudTime">0.00s / 18.00s</span>
+        <div class="crt-hud">
+          <span id="leftHudSpeaker" style="color:var(--fg-hi)">JOHN MCKITTRICK</span>
+          <span id="leftHudTime">0.00s / 18.00s</span>
         </div>
       </div>
-      <div class="mon-caption-bar">
-        <div class="mon-caption-speaker" id="leftCapSpeaker" style="color:var(--accent)">TURN 1 &middot; 1983 ORIGINAL LINE</div>
-        <div class="mon-caption-text" id="leftCapText">Loading inferred screenplay dialogue turns...</div>
+      <div class="crt-caption">
+        <div class="crt-cap-meta" id="leftCapSpeaker">TURN 1 · 1983 VERBATIM LINE</div>
+        <div class="crt-cap-line" id="leftCapText">Loading inferred screenplay dialogue turns...</div>
       </div>
     </div>
 
-    <!-- CENTER TRANSPORT: SIMPLE, UNMISTAKABLE SCENE PLAYBACK MODES -->
-    <div class="transport-card">
-      <div class="transport-title">
-        <span>DIALOGUE &amp; PACING TRANSPORT</span>
-        <span id="transportStatus" style="color:var(--green)">READY</span>
+    <!-- CENTER TUI TRANSPORT CONSOLE -->
+    <div class="stage-col">
+      <div class="box-hdr">
+        <span>├─[ DIALOGUE PACING TRANSPORT ]</span>
+        <span id="transportStatus" style="color:var(--accent)">READY</span>
       </div>
-      <div class="mode-stack">
-        <button class="play-mode-btn active" id="btnPlayArchiveScene">
-          <div>
-            <div class="pm-main">[PLAY] ARCHIVE CAST (LINE-BY-LINE)</div>
-            <div class="pm-sub">Each character's line spoken by its selected Archival Take</div>
-          </div>
-          <span>1&rarr;N</span>
-        </button>
-        <button class="play-mode-btn" id="btnPlayDuetScene">
-          <div>
-            <div class="pm-main">[PLAY] CALL &amp; ANSWER DUET</div>
-            <div class="pm-sub">1983 character speaks Line k &rarr; Archive answers Line k</div>
-          </div>
-          <span>A&harr;B</span>
-        </button>
-        <button class="play-mode-btn" id="btnPlay1983Scene">
-          <div>
-            <div class="pm-main">[PLAY] 1983 ORIGINAL SCENE</div>
-            <div class="pm-sub">Unaltered 1983 master audio locked to character turns</div>
-          </div>
-          <span>1983</span>
-        </button>
-        <button class="play-mode-btn" id="btnPlayBumblebeeTrap">
-          <div>
-            <div class="pm-main">[DEMO] THE BUMBLEBEE WORD-SPLICE TRAP</div>
-            <div class="pm-sub">Hear why chopping individual words fails vs. whole lines</div>
-          </div>
-          <span>TRAP</span>
-        </button>
-        <button class="stop-btn" id="btnStopAll">[STOP PLAYBACK]</button>
-      </div>
-      <div class="pacing-kpi-grid">
-        <div class="kpi-box">
-          <div class="k-val" id="kpiTurns">0</div>
-          <div class="k-lbl">Spoken Lines</div>
+      <div class="exec-console">
+        <div class="exec-list">
+          <button class="exec-row-btn active" id="btnPlayArchiveScene">
+            <div>
+              <div class="er-title">[EXEC 1] ARCHIVE CAST (LINE-BY-LINE)</div>
+              <div class="er-sub">Each character's line spoken by its Archival Take</div>
+            </div>
+            <span>1&rarr;N</span>
+          </button>
+          <button class="exec-row-btn" id="btnPlayDuetScene">
+            <div>
+              <div class="er-title">[EXEC 2] CALL &amp; ANSWER DUET</div>
+              <div class="er-sub">1983 speaker delivers Line k &rarr; Archive answers Line k</div>
+            </div>
+            <span>A&harr;B</span>
+          </button>
+          <button class="exec-row-btn" id="btnPlay1983Scene">
+            <div>
+              <div class="er-title">[EXEC 3] 1983 MASTER SCENE AUDIO</div>
+              <div class="er-sub">Unaltered 1983 dialogue across Turn 1..N</div>
+            </div>
+            <span>1983</span>
+          </button>
+          <button class="exec-row-btn" id="btnPlayBumblebeeTrap">
+            <div>
+              <div class="er-title">[EXEC 4] BUMBLEBEE WORD-SPLICE TRAP</div>
+              <div class="er-sub">Contrast chopped word-splicing vs unbroken lines</div>
+            </div>
+            <span>TRAP</span>
+          </button>
+          <button class="tui-btn red" id="btnStopAll" style="width:100%;padding:4px">[HALT / STOP PLAYBACK]</button>
         </div>
-        <div class="kpi-box">
-          <div class="k-val" id="kpiSpeakers">0</div>
-          <div class="k-lbl">Characters</div>
-        </div>
-        <div class="kpi-box">
-          <div class="k-val" id="kpiWpm">0</div>
-          <div class="k-lbl">Mean WPM</div>
-        </div>
-        <div class="kpi-box">
-          <div class="k-val" id="kpiDur">0.0s</div>
-          <div class="k-lbl">Scene Window</div>
+        <div class="kpi-4grid">
+          <div class="kpi-cell">
+            <div class="kv" id="kpiTurns">0</div>
+            <div class="kl">LINES</div>
+          </div>
+          <div class="kpi-cell">
+            <div class="kv" id="kpiSpeakers">0</div>
+            <div class="kl">SPEAKERS</div>
+          </div>
+          <div class="kpi-cell">
+            <div class="kv" id="kpiWpm">0</div>
+            <div class="kl">MEAN WPM</div>
+          </div>
+          <div class="kpi-cell">
+            <div class="kv" id="kpiDur">0.0s</div>
+            <div class="kl">WINDOW</div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- RIGHT MONITOR: ARCHIVAL COUNTER-SPEAKER -->
-    <div class="monitor-card right-mon">
-      <div class="mon-head">
-        <span class="mon-tag" style="color:var(--gold)">ARCHIVAL COUNTER-VOICE &middot; UNBROKEN TAKE</span>
-        <span id="rightMonMeta" style="color:var(--dim)">Take 1 &middot; -21 LUFS</span>
+    <!-- RIGHT CRT: ARCHIVAL COUNTER-VOICE -->
+    <div class="stage-col">
+      <div class="box-hdr">
+        <span style="color:var(--accent)">┌─[ CRT-B // ARCHIVAL COUNTER-SPEAKER ]</span>
+        <span id="rightMonMeta" style="color:var(--accent)">TAKE 1 · -21 LUFS</span>
       </div>
-      <div class="mon-video-wrap">
+      <div class="crt-vp">
         <video id="vidArch" playsinline preload="auto" muted></video>
-        <div class="mon-hud-top">
-          <span class="hud-badge" id="rightHudFilm" style="color:var(--gold)">ARCHIVE TAKE 1</span>
-          <span class="hud-badge" id="rightHudPitch">124 Hz &middot; LOW</span>
+        <div class="crt-hud">
+          <span id="rightHudFilm" style="color:var(--accent)">ARCHIVE TAKE 1</span>
+          <span id="rightHudPitch">124 Hz · LOW</span>
         </div>
       </div>
-      <div class="mon-caption-bar">
-        <div class="mon-caption-speaker" id="rightCapSpeaker" style="color:var(--gold)">UNBROKEN ARCHIVAL SENTENCE</div>
-        <div class="mon-caption-text" id="rightCapText">Select or play any character turn below...</div>
+      <div class="crt-caption">
+        <div class="crt-cap-meta" id="rightCapSpeaker" style="color:var(--accent)">ARCHIVAL SENTENCE</div>
+        <div class="crt-cap-line" id="rightCapText" style="color:var(--accent)">Select or execute any character line below...</div>
       </div>
     </div>
   </section>
 
-  <!-- MIDDLE RIBBON: CHARACTER LINE PACING SCORE + MEL SPECTROGRAM & PITCH CONTOUR -->
-  <section class="timeline-card">
-    <div class="tl-head">
-      <div class="tl-head-title" id="tlSceneTitle">SCENE DIALOGUE PACING TIMELINE &amp; ACOUSTIC CONTOUR</div>
-      <div class="tl-legend">
-        <span><i style="background:var(--accent)"></i>Character Turn Block (Click to Isolate Line)</span>
-        <span><i style="background:var(--gold)"></i>[THE LINE] Dramatic Fulcrum</span>
-        <span><i style="background:#444"></i>Breath / Dramatic Pause Gap</span>
-        <span><i style="background:var(--green)"></i>YIN Pitch Contour f0(t)</span>
-      </div>
+  <!-- MIDDLE TUI RIBBON: CHARACTER TURN PACING BLOCKS + MEL SPECTROGRAM -->
+  <section class="tui-box">
+    <div class="box-hdr">
+      <span id="tlSceneTitle">┌─[ SCENE DIALOGUE PACING SCORE // TURN BLOCKS + BREATH GAPS + 16-BAND MEL &amp; YIN f0(t) ]</span>
+      <button class="tui-btn amber" id="btnPlayFulcrumOnly">[ISOLATE "THE LINE" (FULCRUM)]</button>
     </div>
-    <!-- Track 1: Character Turn Blocks + Pause Gaps -->
-    <div class="turn-pacing-track" id="turnPacingTrack">
-      <div class="tp-playhead" id="tlPlayhead" style="left:0%"></div>
+    <div class="turn-track" id="turnPacingTrack">
+      <div class="t-playhead" id="tlPlayhead" style="left:0%"></div>
     </div>
-    <!-- Track 2: 16-Band Mel Spectrogram + f0 Pitch Contour -->
-    <div class="spec-wrap" id="specWrap" title="Click anywhere on spectrogram to audition 1983 audio at that timestamp">
-      <canvas id="specCanvas" width="1280" height="84"></canvas>
-      <div class="tp-playhead" id="specPlayhead" style="left:0%"></div>
+    <div class="spec-box" id="specWrap" title="Click spectrogram to audition 1983 turn at timestamp">
+      <canvas id="specCanvas" width="1280" height="72"></canvas>
+      <div class="t-playhead" id="specPlayhead" style="left:0%"></div>
     </div>
   </section>
 
-  <!-- MAIN STAGE: CHARACTER-BY-CHARACTER DIALOGUE SCRIPT & 3 ARCHIVAL TAKES PER LINE -->
-  <section class="script-card">
-    <div class="script-head">
-      <div>
-        <h2 id="scriptHeaderTitle">INFERRED SCENE DIALOGUE SCRIPT &amp; LINE-BY-LINE PACING SCORE</h2>
-        <div class="sh-sub" id="scriptHeaderSub">Every spoken line attributed to its character with breath gap, WPM cadence, vocal pitch, and 3 unbroken archival takes.</div>
-      </div>
-      <div class="mini-btn-row">
-        <button class="mini-btn gold" id="btnPlayFulcrumOnly">[ISOLATE "THE LINE" (SCENE FULCRUM)]</button>
-      </div>
+  <!-- MAIN TUI TABLE: INFERRED CHARACTER LINES, PACING TELEMETRY & 3 ARCHIVAL TAKES -->
+  <section class="tui-box">
+    <div class="box-hdr">
+      <span id="scriptHeaderTitle">┌─[ INFERRED DIALOGUE SCRIPT &amp; SEMIOTIC PACING TABLE ]</span>
+      <span id="scriptHeaderSub">370 VERIFIED CHARACTER TURNS · 1,110 ARCHIVAL TAKES</span>
     </div>
-    <div class="turns-list" id="turnsList"></div>
-  </section>
-
-  <!-- OPTIONAL COLLAPSIBLE DRAWER: WORD-BY-WORD PROSODIC BREAKDOWN -->
-  <section class="drawer-card">
-    <button class="drawer-toggle" id="drawerToggle">
-      <span>[+] WORD-BY-WORD PROSODIC STRESS, PITCH &amp; SYLLABLE TELEMETRY</span>
-      <span id="drawerCountLbl">0 WORDS</span>
-    </button>
-    <div class="drawer-body" id="drawerBody">
-      <div class="word-chip-flow" id="wordChipFlow"></div>
+    <div style="overflow-x:auto">
+      <table class="tui-score-table">
+        <thead>
+          <tr>
+            <th style="width:240px">LINE# // CHARACTER &amp; PITCH</th>
+            <th style="width:230px">PACING TELEMETRY [TIME / GAP / WPM]</th>
+            <th>1983 SCREENPLAY UTTERANCE (VERBATIM)</th>
+            <th>ARCHIVAL COUNTER-UTTERANCE (3 UNBROKEN TAKES)</th>
+          </tr>
+        </thead>
+        <tbody id="turnsTableBody"></tbody>
+      </table>
     </div>
   </section>
 
 </main>
 
-<!-- HIDDEN MASTER AUDIO PLAYERS -->
 <audio id="audScene" preload="auto"></audio>
 <audio id="audSlice" preload="auto"></audio>
 
 <script>
 const PRESET_SCENES = [
-  { id: "S01-B05", label: "S01-B05 · Silo Key Refusal (20M People)" },
-  { id: "S02-B03", label: "S02-B03 · Take Men Out of the Loop" },
-  { id: "S02-B04", label: "S02-B04 · 23 Minutes to Impact" },
-  { id: "S04-B01", label: "S04-B01 · Nitrogen Nodules ('Love?')" },
-  { id: "S04-B02", label: "S04-B02 · Asexual Reproduction" },
-  { id: "S05-B03", label: "S05-B03 · Hacking Biology Grade" },
-  { id: "S07-B03", label: "S07-B03 · Mr. Potato Head Backdoor" },
-  { id: "S08-B05", label: "S08-B05 · Discovering 'Joshua'" },
-  { id: "S09-B03", label: "S09-B03 · Shall We Play a Game?" },
-  { id: "S10-B04", label: "S10-B04 · DEFCON 4 Simulation" },
-  { id: "S12-B04", label: "S12-B04 · World War III Interrogation" },
-  { id: "S13-B02", label: "S13-B02 · Real or Game? ('What's the Difference?')" },
-  { id: "S16-B02", label: "S16-B02 · Falken's Futility Lesson" },
-  { id: "S18-B02", label: "S18-B02 · Computer Hallucination" },
-  { id: "S19-B05", label: "S19-B05 · Still Alive at Loring" },
-  { id: "S20-B03", label: "S20-B03 · Defense System Sucks" },
-  { id: "S21-B03", label: "S21-B03 · Only Winning Move" }
+  { id: "S01-B05", label: "S01-B05:SILO_REFUSAL" },
+  { id: "S02-B03", label: "S02-B03:OUT_OF_LOOP" },
+  { id: "S02-B04", label: "S02-B04:23_MIN_IMPACT" },
+  { id: "S04-B01", label: "S04-B01:NITROGEN_LOVE" },
+  { id: "S04-B02", label: "S04-B02:ASEXUAL_REPRO" },
+  { id: "S05-B03", label: "S05-B03:BIOLOGY_GRADE" },
+  { id: "S07-B03", label: "S07-B03:BACKDOOR_SECRET" },
+  { id: "S08-B05", label: "S08-B05:LOGON_JOSHUA" },
+  { id: "S09-B03", label: "S09-B03:PLAY_A_GAME" },
+  { id: "S10-B04", label: "S10-B04:DEFCON4_SIM" },
+  { id: "S12-B04", label: "S12-B04:WW3_INTERROGATION" },
+  { id: "S13-B02", label: "S13-B02:REAL_OR_GAME" },
+  { id: "S16-B02", label: "S16-B02:FUTILITY_LESSON" },
+  { id: "S18-B02", label: "S18-B02:HALLUCINATION" },
+  { id: "S19-B05", label: "S19-B05:LORING_ALIVE" },
+  { id: "S20-B03", label: "S20-B03:SYSTEM_SUCKS" },
+  { id: "S21-B03", label: "S21-B03:WINNING_MOVE" }
 ];
 
 let DATA = null;
@@ -989,7 +760,8 @@ let FLAT_BEATS = [];
 let BEAT_BY_ID = {};
 let curBeat = null;
 let curTurnIdx = 0;
-let selectedTakeByTurn = {}; // { "S02-B03:3": 0|1|2 }
+let scopeMode = "scene"; // "scene" | "global"
+let selectedTakeByTurn = {};
 let activeRunToken = 0;
 let rafId = null;
 
@@ -1006,20 +778,27 @@ function esc(s) {
     .replace(/"/g, "&quot;");
 }
 
+function setPhosphor(mode) {
+  document.body.setAttribute("data-phosphor", mode);
+  ["green", "amber", "cyan", "red"].forEach(m => {
+    const el = document.getElementById("ph-" + m);
+    if (el) el.classList.toggle("active", m === mode);
+  });
+  if (curBeat) drawSpectrogram(curBeat);
+}
+
 function highlightWords(text, indices) {
   const words = String(text || "").split(/\s+/);
   const set = new Set(indices || []);
-  return words.map((w, i) => set.has(i) ? `<span class="hl-word">${esc(w)}</span>` : esc(w)).join(" ");
+  return words.map((w, i) => set.has(i) ? `<span class="hl-stem">${esc(w)}</span>` : esc(w)).join(" ");
 }
 
 function getSelectedTakeIdx(beatId, turnNum) {
-  const k = `${beatId}:${turnNum}`;
-  return selectedTakeByTurn[k] || 0;
+  return selectedTakeByTurn[`${beatId}:${turnNum}`] || 0;
 }
 
 function setSelectedTakeIdx(beatId, turnNum, takeIdx) {
-  const k = `${beatId}:${turnNum}`;
-  selectedTakeByTurn[k] = takeIdx;
+  selectedTakeByTurn[`${beatId}:${turnNum}`] = takeIdx;
 }
 
 function stopPlayback() {
@@ -1033,13 +812,30 @@ function stopPlayback() {
   try { vid1983.pause(); } catch (e) {}
   try { vidArch.pause(); } catch (e) {}
   document.getElementById("transportStatus").textContent = "READY";
-  document.querySelectorAll(".play-mode-btn").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".exec-row-btn").forEach(b => b.classList.remove("active"));
 }
 
 function setPlayheadPct(pct) {
   const clamped = Math.max(0, Math.min(100, pct));
   document.getElementById("tlPlayhead").style.left = clamped + "%";
   document.getElementById("specPlayhead").style.left = clamped + "%";
+}
+
+function setScopeMode(mode) {
+  scopeMode = mode;
+  document.getElementById("scopeSceneBtn").classList.toggle("on", mode === "scene");
+  document.getElementById("scopeGlobalBtn").classList.toggle("on", mode === "global");
+  renderTurnsTable();
+}
+
+function onGlobalFilterChange() {
+  const sp = document.getElementById("speakerFilter").value;
+  const pc = document.getElementById("pacingFilter").value;
+  if (sp !== "ALL" || pc !== "ALL") {
+    setScopeMode("global");
+  } else {
+    renderTurnsTable();
+  }
 }
 
 function syncMonitorsToTurn(turnIdx) {
@@ -1052,23 +848,20 @@ function syncMonitorsToTurn(turnIdx) {
   const tIdx = getSelectedTakeIdx(curBeat.id, tr.turn_num);
   const tk = takes[tIdx] || takes[0] || tr.arch_take || {};
 
-  // Highlight active turn in timeline and script table
-  document.querySelectorAll(".tp-turn-block").forEach((el, i) => {
+  document.querySelectorAll(".t-blk").forEach((el, i) => {
     el.classList.toggle("active", i === curTurnIdx);
   });
-  document.querySelectorAll(".turn-row").forEach((el, i) => {
-    el.classList.toggle("active-turn", i === curTurnIdx);
+  document.querySelectorAll("tr.turn-tr").forEach(row => {
+    const match = row.dataset.beat === curBeat.id && Number(row.dataset.turn) === curTurnIdx;
+    row.classList.toggle("active", match);
   });
 
-  // Update Left 1983 Monitor HUD & Caption
-  const col = tr.speaker_color || "#45b1ff";
-  document.getElementById("leftHudSpeaker").textContent = `${tr.speaker} · ${tr.role_tag || "1983"}`;
-  document.getElementById("leftHudSpeaker").style.color = col;
-  document.getElementById("leftHudTime").textContent = `${Number(tr.s).toFixed(2)}s – ${Number(tr.e).toFixed(2)}s (${Number(tr.dur).toFixed(2)}s)`;
+  document.getElementById("leftHudSpeaker").textContent = `${tr.speaker} // ${tr.role_tag || "1983"}`;
+  document.getElementById("leftHudTime").textContent = `${Number(tr.s).toFixed(2)}s..${Number(tr.e).toFixed(2)}s (${Number(tr.dur).toFixed(2)}s)`;
   document.getElementById("leftMonMeta").textContent = `${tr.wg_shot_id || curBeat.shot_id || "1983"} · ${Number(tr.f0 || 125).toFixed(0)} Hz ${tr.reg || ""}`;
-  document.getElementById("leftCapSpeaker").textContent = `TURN ${tr.turn_num} OF ${turns.length} · ${tr.speaker.toUpperCase()} (${tr.wpm || 130} WPM · ${tr.pause_type || "BEAT"})`;
-  document.getElementById("leftCapSpeaker").style.color = col;
-  document.getElementById("leftCapText").innerHTML = highlightWords(tr.text, tk.hl || []);
+  document.getElementById("leftCapSpeaker").textContent =
+    `${curBeat.id} · LINE ${tr.turn_num}/${turns.length} · ${tr.speaker.toUpperCase()} [${tr.wpm || 130} WPM · ${tr.pause_type || "BEAT"}]`;
+  document.getElementById("leftCapText").innerHTML = `"${highlightWords(tr.text, tk.hl || [])}"`;
 
   const wgVidUrl = tr.wg_video || curBeat.wg_video || `clips/${curBeat.shot_id || "wg_001"}.mp4`;
   if (vid1983.dataset.src !== wgVidUrl) {
@@ -1076,11 +869,10 @@ function syncMonitorsToTurn(turnIdx) {
     vid1983.src = wgVidUrl;
   }
 
-  // Update Right Archival Monitor HUD & Caption
-  document.getElementById("rightHudFilm").textContent = `TAKE ${tIdx + 1} · ${tk.title || "Archive"} (${tk.year || 1960})`;
+  document.getElementById("rightHudFilm").textContent = `TAKE ${tIdx + 1} // ${tk.title || "Archive"} (${tk.year || 1960})`;
   document.getElementById("rightHudPitch").textContent = `${Number(tk.f0 || 125).toFixed(0)} Hz · ${tk.reg || "LOW"}`;
-  document.getElementById("rightMonMeta").textContent = `${tk.role || "Take " + (tIdx + 1)} · ${Number(tk.lufs || -21).toFixed(1)} LUFS`;
-  document.getElementById("rightCapSpeaker").textContent = `ARCHIVAL ANSWER TO ${tr.speaker.toUpperCase()} · [${Number(tk.dur || 2.5).toFixed(2)}s]`;
+  document.getElementById("rightMonMeta").textContent = `TAKE ${tIdx + 1} · ${Number(tk.lufs || -21).toFixed(1)} LUFS`;
+  document.getElementById("rightCapSpeaker").textContent = `ARCHIVAL COUNTER-LINE -> ${tr.speaker.toUpperCase()} [${Number(tk.dur || 2.5).toFixed(2)}s]`;
   document.getElementById("rightCapText").innerHTML = `"${highlightWords(tk.spoken || "", tk.ha || [])}"`;
 
   const archVidUrl = tk.media_url || tk.video || "";
@@ -1097,7 +889,6 @@ function syncMonitorsToTurn(turnIdx) {
   setPlayheadPct((Number(tr.s || 0) / sceneDur) * 100);
 }
 
-// Play a single 1983 character turn slice [s, e] from curBeat.orig_file
 function play1983TurnSlice(turnIdx, onDone) {
   if (!curBeat) return;
   const turns = curBeat.turns_1983 || [];
@@ -1106,7 +897,7 @@ function play1983TurnSlice(turnIdx, onDone) {
 
   const myToken = ++activeRunToken;
   syncMonitorsToTurn(turnIdx);
-  document.getElementById("transportStatus").textContent = `PLAYING 1983 TURN ${tr.turn_num}: ${tr.speaker.toUpperCase()}`;
+  document.getElementById("transportStatus").textContent = `1983 L${tr.turn_num}: ${tr.speaker.toUpperCase()}`;
 
   const origUrl = curBeat.orig_file || `cache/wg_sound/${curBeat.id}_orig.m4a`;
   if (audScene.dataset.src !== origUrl) {
@@ -1151,7 +942,6 @@ function play1983TurnSlice(turnIdx, onDone) {
   }
 }
 
-// Play a single Archival Take slice for turnIdx
 function playArchivalTakeSlice(turnIdx, takeIdxOverride, onDone) {
   if (!curBeat) return;
   const turns = curBeat.turns_1983 || [];
@@ -1167,7 +957,7 @@ function playArchivalTakeSlice(turnIdx, takeIdxOverride, onDone) {
   const myToken = ++activeRunToken;
   syncMonitorsToTurn(turnIdx);
   renderTurnsTable();
-  document.getElementById("transportStatus").textContent = `PLAYING ARCHIVE TAKE ${tIdx + 1} FOR ${tr.speaker.toUpperCase()}`;
+  document.getElementById("transportStatus").textContent = `ARCHIVE T${tIdx + 1} -> ${tr.speaker.toUpperCase()}`;
 
   const aUrl = tk.audio_url || tk.media_url || tk.video || "";
   if (!aUrl) { if (onDone) onDone(); return; }
@@ -1223,7 +1013,6 @@ function playArchivalTakeSlice(turnIdx, takeIdxOverride, onDone) {
   }
 }
 
-// MODE 1: Play full scene with Archival Cast replacing every character line in order
 function playSceneArchiveCast() {
   stopPlayback();
   if (!curBeat) return;
@@ -1232,11 +1021,11 @@ function playSceneArchiveCast() {
   let idx = 0;
   const next = () => {
     if (idx >= turns.length) {
-      document.getElementById("transportStatus").textContent = "SCENE COMPLETE (ARCHIVE CAST)";
+      document.getElementById("transportStatus").textContent = "ARCHIVE CAST COMPLETE";
       return;
     }
     const i = idx++;
-    const pauseMs = i === 0 ? 80 : Math.min(650, Math.max(120, Number(turns[i].pause_before || 0.2) * 450));
+    const pauseMs = i === 0 ? 80 : Math.min(600, Math.max(110, Number(turns[i].pause_before || 0.2) * 420));
     const tok = activeRunToken;
     setTimeout(() => {
       if (tok !== activeRunToken) return;
@@ -1246,7 +1035,6 @@ function playSceneArchiveCast() {
   next();
 }
 
-// MODE 2: Play Call & Answer Duet (1983 Line k -> Archival Counter-Line k)
 function playSceneDuet() {
   stopPlayback();
   if (!curBeat) return;
@@ -1255,7 +1043,7 @@ function playSceneDuet() {
   let idx = 0;
   const nextTurn = () => {
     if (idx >= turns.length) {
-      document.getElementById("transportStatus").textContent = "SCENE DUET COMPLETE";
+      document.getElementById("transportStatus").textContent = "DUET COMPLETE";
       return;
     }
     const i = idx++;
@@ -1266,7 +1054,6 @@ function playSceneDuet() {
   nextTurn();
 }
 
-// MODE 3: Play full 1983 Original Scene across Turn 1 .. Turn N
 function playScene1983Original() {
   stopPlayback();
   if (!curBeat) return;
@@ -1288,18 +1075,15 @@ function playScene1983Original() {
     if (myToken !== activeRunToken) return;
     const ct = audScene.currentTime || 0;
     setPlayheadPct((ct / sceneDur) * 100);
-    // Find which character turn is active at ct
     let activeIdx = 0;
     for (let i = 0; i < turns.length; i++) {
       if (ct >= Number(turns[i].s || 0)) activeIdx = i;
     }
-    if (activeIdx !== curTurnIdx) {
-      syncMonitorsToTurn(activeIdx);
-    }
-    document.getElementById("transportStatus").textContent = `1983 SCENE: ${ct.toFixed(1)}s / ${sceneDur.toFixed(1)}s`;
+    if (activeIdx !== curTurnIdx) syncMonitorsToTurn(activeIdx);
+    document.getElementById("transportStatus").textContent = `1983: ${ct.toFixed(1)}s / ${sceneDur.toFixed(1)}s`;
     if (audScene.ended || audScene.paused) {
       try { vid1983.pause(); } catch (e) {}
-      document.getElementById("transportStatus").textContent = "1983 SCENE COMPLETE";
+      document.getElementById("transportStatus").textContent = "1983 COMPLETE";
       return;
     }
     rafId = requestAnimationFrame(tick);
@@ -1307,7 +1091,6 @@ function playScene1983Original() {
   rafId = requestAnimationFrame(tick);
 }
 
-// MODE 4: Play The Bumblebee Word-Splice Trap (tight.m4a)
 function playBumblebeeTrapDemo() {
   stopPlayback();
   if (!curBeat) return;
@@ -1319,14 +1102,14 @@ function playBumblebeeTrapDemo() {
     audScene.src = tightUrl;
   }
   audScene.currentTime = 0;
-  document.getElementById("transportStatus").textContent = "BUMBLEBEE TRAP: CHOPPED WORD-SPLICE AUDIO";
+  document.getElementById("transportStatus").textContent = "BUMBLEBEE WORD-SPLICE TRAP";
   audScene.play().catch(() => {});
   const tick = () => {
     if (myToken !== activeRunToken) return;
     const dur = Math.max(1, audScene.duration || 8);
     setPlayheadPct(((audScene.currentTime || 0) / dur) * 100);
     if (audScene.ended || audScene.paused) {
-      document.getElementById("transportStatus").textContent = "TRAP DEMO COMPLETE — COMPARE WITH UNBROKEN LINES BELOW";
+      document.getElementById("transportStatus").textContent = "TRAP COMPLETE";
       return;
     }
     rafId = requestAnimationFrame(tick);
@@ -1334,16 +1117,16 @@ function playBumblebeeTrapDemo() {
   rafId = requestAnimationFrame(tick);
 }
 
-// Draw 16-band Mel Spectrogram + YIN f0 contour
 function drawSpectrogram(beat) {
   const canvas = document.getElementById("specCanvas");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   const W = canvas.width;
   const H = canvas.height;
-  ctx.fillStyle = "#07090c";
+  ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, W, H);
 
+  const ph = document.body.getAttribute("data-phosphor") || "green";
   const mel = beat.mel16 || [];
   if (mel.length) {
     const nBands = mel.length;
@@ -1355,48 +1138,38 @@ function drawSpectrogram(beat) {
       for (let t = 0; t < nSteps; t++) {
         const v = parseInt(rowStr[t] || "0", 36) / 35.0;
         if (v <= 0.04) continue;
-        const r = Math.round(25 + v * 220);
-        const g = Math.round(40 + Math.pow(v, 1.3) * 165);
-        const bl = Math.round(70 + (1 - v) * 90);
-        ctx.fillStyle = `rgba(${r},${g},${bl},${0.25 + v * 0.7})`;
+        if (ph === "amber") ctx.fillStyle = `rgba(255, 176, 0, ${0.15 + v * 0.78})`;
+        else if (ph === "cyan") ctx.fillStyle = `rgba(51, 204, 255, ${0.15 + v * 0.78})`;
+        else if (ph === "red") ctx.fillStyle = `rgba(255, 69, 58, ${0.15 + v * 0.78})`;
+        else ctx.fillStyle = `rgba(51, 255, 153, ${0.15 + v * 0.78})`;
         ctx.fillRect(t * cw, b * ch, Math.ceil(cw), Math.ceil(ch));
       }
     }
   }
 
-  // Overlay character turn boundaries on spectrogram
   const sceneDur = Math.max(1, Number(beat.e || (beat.a1 - beat.a0) || 15));
-  const turns = beat.turns_1983 || [];
-  turns.forEach(tr => {
+  (beat.turns_1983 || []).forEach(tr => {
     const x0 = (Number(tr.s || 0) / sceneDur) * W;
     const x1 = (Number(tr.e || 0) / sceneDur) * W;
-    ctx.strokeStyle = tr.is_fulcrum ? "rgba(245, 197, 66, 0.65)" : "rgba(69, 177, 255, 0.35)";
+    ctx.strokeStyle = tr.is_fulcrum ? "#ffb000" : "rgba(255,255,255,0.28)";
     ctx.lineWidth = tr.is_fulcrum ? 1.5 : 1;
     ctx.strokeRect(x0, 1, Math.max(2, x1 - x0), H - 2);
   });
 
-  // Overlay YIN f0 pitch contour
   const f0 = beat.f0 || [];
   if (f0.length > 1) {
     ctx.beginPath();
-    ctx.strokeStyle = "#38d996";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#ffb000";
+    ctx.lineWidth = 1.8;
     let started = false;
     for (let i = 0; i < f0.length; i++) {
       const hz = Number(f0[i] || 0);
-      if (hz < 65) {
-        started = false;
-        continue;
-      }
+      if (hz < 65) { started = false; continue; }
       const x = (i / (f0.length - 1)) * W;
       const normY = Math.max(0, Math.min(1, (hz - 70) / 220));
-      const y = H - 6 - normY * (H - 12);
-      if (!started) {
-        ctx.moveTo(x, y);
-        started = true;
-      } else {
-        ctx.lineTo(x, y);
-      }
+      const y = H - 5 - normY * (H - 10);
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
     }
     ctx.stroke();
   }
@@ -1404,7 +1177,7 @@ function drawSpectrogram(beat) {
 
 function renderTurnPacingTrack(beat) {
   const track = document.getElementById("turnPacingTrack");
-  track.innerHTML = `<div class="tp-playhead" id="tlPlayhead" style="left:0%"></div>`;
+  track.innerHTML = `<div class="t-playhead" id="tlPlayhead" style="left:0%"></div>`;
   const turns = beat.turns_1983 || [];
   const sceneDur = Math.max(1, Number(beat.e || (beat.a1 - beat.a0) || 15));
 
@@ -1412,17 +1185,14 @@ function renderTurnPacingTrack(beat) {
   turns.forEach((tr, idx) => {
     const s = Number(tr.s || 0);
     const e = Number(tr.e || s + 2);
-    // Render breath/pause gap marker if gap >= 0.25s
     if (s - prevE >= 0.25) {
       const gapL = (prevE / sceneDur) * 100;
       const gapW = ((s - prevE) / sceneDur) * 100;
       const gapEl = document.createElement("div");
-      gapEl.className = "tp-pause-marker";
+      gapEl.className = "t-gap";
       gapEl.style.left = gapL + "%";
       gapEl.style.width = gapW + "%";
-      if (gapW > 5) {
-        gapEl.textContent = `+${(s - prevE).toFixed(1)}s`;
-      }
+      if (gapW > 4.5) gapEl.textContent = `+${(s - prevE).toFixed(1)}s`;
       track.appendChild(gapEl);
     }
     prevE = e;
@@ -1430,15 +1200,12 @@ function renderTurnPacingTrack(beat) {
     const leftPct = (s / sceneDur) * 100;
     const widthPct = Math.max(2.5, ((e - s) / sceneDur) * 100);
     const blk = document.createElement("div");
-    blk.className = "tp-turn-block" + (idx === curTurnIdx ? " active" : "");
+    blk.className = `t-blk ${idx === curTurnIdx ? "active" : ""} ${tr.is_fulcrum ? "fulcrum" : ""}`;
     blk.style.left = leftPct + "%";
     blk.style.width = widthPct + "%";
-    const col = tr.speaker_color || "#45b1ff";
-    blk.style.background = tr.is_fulcrum ? "rgba(245, 197, 66, 0.20)" : "rgba(69, 177, 255, 0.14)";
-    blk.style.border = `1px solid ${tr.is_fulcrum ? "#f5c542" : col}`;
     blk.innerHTML = `
-      <div class="tp-who" style="color:${tr.is_fulcrum ? "#f5c542" : col}">L${tr.turn_num} &middot; ${esc(tr.speaker)}</div>
-      <div class="tp-line">${esc(tr.text)}</div>
+      <div class="tb-who">L${tr.turn_num} · ${esc(tr.speaker)}</div>
+      <div class="tb-txt">${esc(tr.text)}</div>
     `;
     blk.onclick = () => {
       stopPlayback();
@@ -1448,136 +1215,158 @@ function renderTurnPacingTrack(beat) {
   });
 }
 
-function renderTurnsTable() {
-  if (!curBeat) return;
-  const container = document.getElementById("turnsList");
-  const turns = curBeat.turns_1983 || [];
+function getRowsToRender() {
+  const spFilter = document.getElementById("speakerFilter").value;
+  const pcFilter = document.getElementById("pacingFilter").value;
 
-  container.innerHTML = turns.map((tr, idx) => {
+  const passFilters = (tr) => {
+    if (spFilter !== "ALL" && tr.speaker !== spFilter) return false;
+    if (pcFilter === "FULCRUM" && !tr.is_fulcrum) return false;
+    if (pcFilter === "SILENCE" && Number(tr.pause_before || 0) < 0.6) return false;
+    if (pcFilter === "URGENT" && Number(tr.wpm || 130) < 165) return false;
+    if (pcFilter === "DELIBERATE" && Number(tr.wpm || 130) >= 110) return false;
+    return true;
+  };
+
+  if (scopeMode === "global") {
+    const out = [];
+    FLAT_BEATS.forEach(bt => {
+      (bt.turns_1983 || []).forEach((tr, idx) => {
+        if (passFilters(tr)) out.push({ bt, tr, idx });
+      });
+    });
+    return out;
+  }
+
+  if (!curBeat) return [];
+  return (curBeat.turns_1983 || [])
+    .map((tr, idx) => ({ bt: curBeat, tr, idx }))
+    .filter(({ tr }) => passFilters(tr));
+}
+
+function renderTurnsTable() {
+  const tbody = document.getElementById("turnsTableBody");
+  const rows = getRowsToRender();
+
+  document.getElementById("scriptHeaderSub").textContent =
+    scopeMode === "global"
+      ? `SHOWING ${rows.length} MATCHED SPOKEN LINES ACROSS ALL 21 BOOKS`
+      : `${curBeat ? curBeat.id : ""} · ${rows.length} SPOKEN LINES IN ACTIVE SCENE`;
+
+  tbody.innerHTML = rows.map(({ bt, tr, idx }) => {
     const takes = tr.takes || [];
-    const selTakeIdx = getSelectedTakeIdx(curBeat.id, tr.turn_num);
+    const selTakeIdx = getSelectedTakeIdx(bt.id, tr.turn_num);
     const tk = takes[selTakeIdx] || takes[0] || tr.arch_take || {};
-    const col = tr.speaker_color || "#45b1ff";
+    const isAct = curBeat && bt.id === curBeat.id && idx === curTurnIdx;
     const pauseStr = idx === 0
       ? `OPENING (+${Number(tr.pause_before || 0).toFixed(2)}s)`
       : `+${Number(tr.pause_before || 0).toFixed(2)}s ${tr.pause_type || "BEAT"}`;
 
-    const takeTabsHtml = takes.map((tItem, k) => `
-      <button class="take-tab ${k === selTakeIdx ? "active" : ""}" data-turn="${idx}" data-take="${k}">
-        Take ${k + 1} &middot; ${esc((tItem.title || "Archive").slice(0, 22))} (${tItem.year || 1960})
+    const takePills = takes.map((tItem, k) => `
+      <button class="take-pill ${k === selTakeIdx ? "on" : ""}"
+              data-beat="${esc(bt.id)}" data-turn="${idx}" data-take="${k}">
+        T${k + 1}:${esc((tItem.title || "Archive").slice(0, 18))}(${tItem.year || 1960})
       </button>
     `).join("");
 
     return `
-      <div class="turn-row ${idx === curTurnIdx ? "active-turn" : ""} ${tr.is_fulcrum ? "fulcrum-turn" : ""}" data-row-turn="${idx}">
-        <!-- COL 1: CHARACTER & PACING TELEMETRY -->
-        <div class="tr-meta">
-          <div class="tr-speaker-line">
-            <span class="tr-num">LINE ${tr.turn_num}</span>
-            <span class="tr-speaker-badge" style="color:${col};background:${col}18">${esc(tr.speaker)}</span>
-            ${tr.is_fulcrum ? `<span class="tr-fulcrum-pill">[THE LINE &middot; FULCRUM]</span>` : ""}
+      <tr class="turn-tr ${isAct ? "active" : ""}" data-beat="${esc(bt.id)}" data-turn="${idx}">
+        <td>
+          <div>
+            <strong>${esc(bt.id)} // L${tr.turn_num}</strong>
+            ${tr.is_fulcrum ? `<span class="fulc-tag">[THE LINE]</span>` : ""}
           </div>
-          <div class="tr-role-tag">${esc(tr.role_tag || "CHARACTER")} &middot; ${Number(tr.f0 || 125).toFixed(0)} Hz (${esc(tr.reg || "LOW")})</div>
-          <div class="tr-pacing-badges">
-            <span class="p-badge"><strong>${Number(tr.s).toFixed(2)}s–${Number(tr.e).toFixed(2)}s</strong> (${Number(tr.dur).toFixed(2)}s)</span>
-            <span class="p-badge">Pause: <strong>${esc(pauseStr)}</strong></span>
-            <span class="p-badge">Cadence: <strong>${tr.wpm || 130} WPM</strong> (${esc(tr.cadence_label || "CONVERSATIONAL")})</span>
+          <div style="color:var(--fg-hi);font-weight:700;margin-top:2px">${esc(tr.speaker)}</div>
+          <div style="color:var(--fg-dim);font-size:10px">${esc(tr.role_tag || "CHARACTER")} · ${Number(tr.f0 || 125).toFixed(0)} Hz (${esc(tr.reg || "LOW")})</div>
+        </td>
+        <td>
+          <div>WINDOW: <strong>${Number(tr.s).toFixed(2)}s..${Number(tr.e).toFixed(2)}s</strong> (${Number(tr.dur).toFixed(2)}s)</div>
+          <div>PAUSE: <strong>${esc(pauseStr)}</strong></div>
+          <div>SPEED: <strong>${tr.wpm || 130} WPM</strong> (${esc(tr.cadence_label || "CONVERSATIONAL")})</div>
+        </td>
+        <td>
+          <div style="color:var(--fg-hi);font-weight:600;margin-bottom:5px">"${highlightWords(tr.text, tk.hl || [])}"</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <button class="tui-btn" data-act="play1983" data-beat="${esc(bt.id)}" data-turn="${idx}">[RUN 1983 LINE]</button>
+            <button class="tui-btn amber" data-act="duet" data-beat="${esc(bt.id)}" data-turn="${idx}">[DUET 1983&rarr;ARCHIVE]</button>
           </div>
-        </div>
-
-        <!-- COL 2: 1983 ORIGINAL SPOKEN LINE -->
-        <div class="tr-1983-col" style="border-left-color:${col}">
-          <div class="col-top-bar">
-            <span style="color:${col};font-weight:700">1983 SCREENPLAY LINE &middot; ${esc(tr.speaker.toUpperCase())}</span>
-            <span>Shot ${esc(tr.wg_shot_id || curBeat.shot_id || "wg")} &middot; ${tr.word_count || tr.text.split(/\s+/).length} words</span>
+        </td>
+        <td>
+          <div style="color:var(--accent);font-weight:600;margin-bottom:4px">"${highlightWords(tk.spoken || "", tk.ha || [])}"</div>
+          <div style="color:var(--fg-dim);font-size:10px;margin-bottom:5px">
+            SOURCE: ${esc(tk.title || "Archive")} (${tk.year || 1960}) · ${Number(tk.dur || 2.5).toFixed(2)}s · ${Number(tk.f0 || 125).toFixed(0)} Hz · ${Number(tk.lufs || -21).toFixed(1)} LUFS
           </div>
-          <div class="spoken-quote-1983">"${highlightWords(tr.text, tk.hl || [])}"</div>
-          <div class="mini-btn-row">
-            <button class="mini-btn" data-act="play1983" data-turn="${idx}">[PLAY 1983 LINE]</button>
-            <button class="mini-btn gold" data-act="duetTurn" data-turn="${idx}">[DUET LINE ${tr.turn_num} (1983 &rarr; ARCHIVE)]</button>
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+            ${takePills}
+            <button class="tui-btn amber" data-act="playArch" data-beat="${esc(bt.id)}" data-turn="${idx}">[RUN TAKE ${selTakeIdx + 1}]</button>
           </div>
-        </div>
-
-        <!-- COL 3: ARCHIVAL COUNTER-LINE & 3 SELECTABLE TAKES -->
-        <div class="tr-arch-col">
-          <div class="arch-source-meta">
-            <span>ARCHIVAL COUNTER-LINE &middot; ${esc(tk.title || "Archive")} (${tk.year || 1960})</span>
-            <span style="color:var(--dim)">${Number(tk.dur || 2.5).toFixed(2)}s &middot; ${Number(tk.f0 || 125).toFixed(0)} Hz &middot; ${Number(tk.lufs || -21).toFixed(1)} LUFS</span>
-          </div>
-          <div class="spoken-quote-arch">"${highlightWords(tk.spoken || "", tk.ha || [])}"</div>
-          <div class="take-tabs">${takeTabsHtml}</div>
-          <div class="mini-btn-row">
-            <button class="mini-btn gold" data-act="playArch" data-turn="${idx}">[PLAY ARCHIVE TAKE ${selTakeIdx + 1}]</button>
-          </div>
-        </div>
-      </div>
+        </td>
+      </tr>
     `;
   }).join("");
 
-  // Wire buttons inside turnsList
-  container.querySelectorAll("button[data-act='play1983']").forEach(btn => {
+  tbody.querySelectorAll("button[data-act='play1983']").forEach(btn => {
     btn.onclick = (e) => {
       e.stopPropagation();
       stopPlayback();
-      play1983TurnSlice(Number(btn.dataset.turn));
-    };
-  });
-  container.querySelectorAll("button[data-act='playArch']").forEach(btn => {
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      stopPlayback();
-      playArchivalTakeSlice(Number(btn.dataset.turn));
-    };
-  });
-  container.querySelectorAll("button[data-act='duetTurn']").forEach(btn => {
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      stopPlayback();
+      const bId = btn.dataset.beat;
       const tIdx = Number(btn.dataset.turn);
+      if (!curBeat || curBeat.id !== bId) selectBeatById(bId, false);
+      play1983TurnSlice(tIdx);
+    };
+  });
+  tbody.querySelectorAll("button[data-act='playArch']").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      stopPlayback();
+      const bId = btn.dataset.beat;
+      const tIdx = Number(btn.dataset.turn);
+      if (!curBeat || curBeat.id !== bId) selectBeatById(bId, false);
+      playArchivalTakeSlice(tIdx);
+    };
+  });
+  tbody.querySelectorAll("button[data-act='duet']").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      stopPlayback();
+      const bId = btn.dataset.beat;
+      const tIdx = Number(btn.dataset.turn);
+      if (!curBeat || curBeat.id !== bId) selectBeatById(bId, false);
       play1983TurnSlice(tIdx, () => playArchivalTakeSlice(tIdx));
     };
   });
-  container.querySelectorAll("button.take-tab").forEach(btn => {
+  tbody.querySelectorAll("button.take-pill").forEach(btn => {
     btn.onclick = (e) => {
       e.stopPropagation();
       stopPlayback();
+      const bId = btn.dataset.beat;
       const tIdx = Number(btn.dataset.turn);
       const k = Number(btn.dataset.take);
+      if (!curBeat || curBeat.id !== bId) selectBeatById(bId, false);
       playArchivalTakeSlice(tIdx, k);
     };
   });
-  container.querySelectorAll(".turn-row").forEach(row => {
+  tbody.querySelectorAll("tr.turn-tr").forEach(row => {
     row.onclick = () => {
-      const tIdx = Number(row.dataset.rowTurn);
+      const bId = row.dataset.beat;
+      const tIdx = Number(row.dataset.turn);
+      if (!curBeat || curBeat.id !== bId) selectBeatById(bId, false);
       syncMonitorsToTurn(tIdx);
     };
   });
 }
 
-function renderWordDrawer(beat) {
-  const words = beat.words || [];
-  document.getElementById("drawerCountLbl").textContent = `${words.length} WORDS ACROSS ${(beat.turns_1983 || []).length} SPOKEN LINES`;
-  const flow = document.getElementById("wordChipFlow");
-  flow.innerHTML = words.map(w => `
-    <div class="w-chip" style="border-top:2px solid ${w.speaker_color || "#45b1ff"}">
-      <span class="wc-w">${esc(w.w)}</span>
-      <span class="wc-m">L${w.turn_num || 1} &middot; ${esc((w.speaker || "").split(" ").pop())} &middot; ${Number(w.s || 0).toFixed(2)}s</span>
-    </div>
-  `).join("");
-}
-
-function selectBeatById(beatId) {
+function selectBeatById(beatId, resetScope) {
   const bt = BEAT_BY_ID[beatId];
   if (!bt) return;
   stopPlayback();
   curBeat = bt;
   curTurnIdx = 0;
 
-  // Update selectors & preset pills
   document.getElementById("bookSelect").value = String(bt._bookIdx);
   populateBeatSelect(bt._bookIdx);
   document.getElementById("beatSelect").value = bt.id;
-  document.querySelectorAll(".preset-pill").forEach(p => {
+  document.querySelectorAll(".p-chip").forEach(p => {
     p.classList.toggle("on", p.dataset.id === bt.id);
   });
 
@@ -1594,16 +1383,13 @@ function selectBeatById(beatId) {
   document.getElementById("kpiDur").textContent = `${sceneDur.toFixed(1)}s`;
 
   document.getElementById("tlSceneTitle").textContent =
-    `${bt.id} · ${speakers.join(" / ")} · [${bt.a0.toFixed(1)}s – ${bt.a1.toFixed(1)}s IN MASTER FILM]`;
+    `┌─[ ${bt.id} // ${speakers.join(" <-> ")} // MASTER FILM ${bt.a0.toFixed(1)}s..${bt.a1.toFixed(1)}s ]`;
   document.getElementById("scriptHeaderTitle").textContent =
-    `${bt.id} DIALOGUE SCORE · ${turns.length} SPOKEN ${turns.length === 1 ? "LINE" : "LINES"} (${speakers.join(" ↔ ")})`;
-  document.getElementById("scriptHeaderSub").textContent =
-    `Book ${bt._bookBnum}: ${bt._bookTitle} · Fulcrum Speaker: ${bt.who}`;
+    `┌─[ ${bt.id} DIALOGUE & SEMIOSIS SCORE // ${turns.length} SPOKEN LINES ]`;
 
   renderTurnPacingTrack(bt);
   drawSpectrogram(bt);
   renderTurnsTable();
-  renderWordDrawer(bt);
 
   const fulcrumIdx = Math.max(0, turns.findIndex(t => t.is_fulcrum));
   syncMonitorsToTurn(fulcrumIdx);
@@ -1614,7 +1400,7 @@ function populateBeatSelect(bookIdx) {
   const sel = document.getElementById("beatSelect");
   sel.innerHTML = (bk.lines || []).map(l => {
     const spCount = (l.turns_1983 || []).length;
-    return `<option value="${esc(l.id)}">${esc(l.id)} · ${esc(l.who)} (${spCount} lines) — ${esc((l.text || "").slice(0, 48))}</option>`;
+    return `<option value="${esc(l.id)}">${esc(l.id)} · ${esc(l.who)} (${spCount}L) — ${esc((l.text || "").slice(0, 42))}</option>`;
   }).join("");
 }
 
@@ -1634,10 +1420,9 @@ async function init() {
     });
   });
 
-  // Populate Book Select
   const bookSel = document.getElementById("bookSelect");
   bookSel.innerHTML = (DATA.books || []).map((bk, i) =>
-    `<option value="${i}">Book ${esc(bk.bnum)} · ${esc(bk.title)}</option>`
+    `<option value="${i}">BOOK ${esc(bk.bnum)} · ${esc(bk.title)}</option>`
   ).join("");
 
   bookSel.onchange = () => {
@@ -1647,36 +1432,31 @@ async function init() {
     if (firstLine) selectBeatById(firstLine.id);
   };
 
-  document.getElementById("beatSelect").onchange = (e) => {
-    selectBeatById(e.target.value);
-  };
-
+  document.getElementById("beatSelect").onchange = (e) => selectBeatById(e.target.value);
   document.getElementById("prevBeatBtn").onclick = () => {
     if (!curBeat) return;
     const idx = FLAT_BEATS.findIndex(b => b.id === curBeat.id);
-    const prev = FLAT_BEATS[(idx - 1 + FLAT_BEATS.length) % FLAT_BEATS.length];
-    selectBeatById(prev.id);
+    selectBeatById(FLAT_BEATS[(idx - 1 + FLAT_BEATS.length) % FLAT_BEATS.length].id);
   };
-
   document.getElementById("nextBeatBtn").onclick = () => {
     if (!curBeat) return;
     const idx = FLAT_BEATS.findIndex(b => b.id === curBeat.id);
-    const next = FLAT_BEATS[(idx + 1) % FLAT_BEATS.length];
-    selectBeatById(next.id);
+    selectBeatById(FLAT_BEATS[(idx + 1) % FLAT_BEATS.length].id);
   };
 
-  // Populate Presets
   const pBar = document.getElementById("presetBar");
   PRESET_SCENES.forEach(p => {
     const btn = document.createElement("button");
-    btn.className = "preset-pill";
+    btn.className = "p-chip";
     btn.dataset.id = p.id;
     btn.textContent = p.label;
-    btn.onclick = () => selectBeatById(p.id);
+    btn.onclick = () => {
+      setScopeMode("scene");
+      selectBeatById(p.id);
+    };
     pBar.appendChild(btn);
   });
 
-  // Transport buttons
   document.getElementById("btnPlayArchiveScene").onclick = playSceneArchiveCast;
   document.getElementById("btnPlayDuetScene").onclick = playSceneDuet;
   document.getElementById("btnPlay1983Scene").onclick = playScene1983Original;
@@ -1691,7 +1471,6 @@ async function init() {
     play1983TurnSlice(fIdx, () => playArchivalTakeSlice(fIdx));
   };
 
-  // Spectrogram click -> seek & play 1983 turn at that time
   document.getElementById("specWrap").onclick = (e) => {
     if (!curBeat) return;
     const rect = e.currentTarget.getBoundingClientRect();
@@ -1707,12 +1486,6 @@ async function init() {
     play1983TurnSlice(bestIdx);
   };
 
-  // Drawer toggle
-  document.getElementById("drawerToggle").onclick = () => {
-    document.getElementById("drawerBody").classList.toggle("open");
-  };
-
-  // Keyboard shortcuts
   window.addEventListener("keydown", (e) => {
     if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
     if (e.key === "[") document.getElementById("prevBeatBtn").click();
@@ -1723,7 +1496,6 @@ async function init() {
     }
   });
 
-  // Start on S02-B03 ("I think we oughta take the men out of the loop" — classic 6-turn Beringer/McKittrick exchange)
   const hashId = (location.hash || "").replace("#", "");
   selectBeatById(BEAT_BY_ID[hashId] ? hashId : "S02-B03");
 }
