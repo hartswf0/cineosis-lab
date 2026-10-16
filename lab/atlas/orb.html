@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Orb · Atlas</title>
+<link rel="icon" href="../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="bets.css?v=1">
+<!-- THE ORB · bet on Bolas set 13, The Web of Cineosis, where an orb web is similarity search: a question at the hub, the spiral
+     catching the nearest shots in order. Type and your words take the hub; the pages that answer them hang on the spiral, nearest
+     first, each a moving frame. Click one and it takes the hub: around it hang what looks like it, what shares its code, what it
+     links to and what serves the same work. The thread at the top is the path you walked; click any bead on it to go back. -->
+<style>
+body { display: grid; grid-template-rows: auto auto minmax(0, 1fr); height: 100%; overflow: hidden; }
+.trail { display: flex; align-items: center; gap: 0; padding: 8px 18px; border-bottom: 1px solid var(--rule); overflow-x: auto; min-height: 52px; }
+.trail button { display: flex; align-items: center; gap: 8px; font-size: 14.5px; padding: 6px 10px; border-radius: 99px; white-space: nowrap; }
+.trail button:hover { background: #15130f; } .trail button i { width: 12px; height: 12px; border-radius: 50%; border: 2.5px solid var(--ink); background: var(--bg); flex: none; }
+.trail .th { width: 26px; height: 3px; background: var(--red); flex: none; }
+.wrap { display: grid; grid-template-columns: minmax(0, 1fr) 360px; min-height: 0; }
+#orb { width: 100%; height: 100%; display: block; }
+.side { border-left: 1px solid var(--rule); overflow: auto; padding: 16px 18px 50px; }
+.side h2 { margin: 10px 0 4px; font-size: 26px; line-height: 1.15; } .side p { font-size: 16px; line-height: 1.5; color: #ddd5c8; }
+.legend { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 6px 10px; font-size: 14.5px; align-items: center; margin: 12px 0; }
+.legend i { width: 14px; height: 4px; background: var(--c); }
+@media (max-width: 900px) { .wrap { grid-template-columns: minmax(0, 1fr); grid-template-rows: 70vh auto; overflow: auto; } }
+</style>
+</head>
+<body>
+<header class="top"><a class="who" href="index.html"><svg width="30" height="42" viewBox="-15 -30 30 42"><line x1="0" y1="-30" x2="0" y2="-12" stroke="#e0483a" stroke-width="2.4"/><circle r="11" fill="none" stroke="#ece6da" stroke-width="3"/><circle cx="-3.6" cy="0" r="2.4" fill="#ece6da"/><circle cx="3.6" cy="0" r="2.4" fill="#ece6da"/></svg><span><b>The Orb</b><small>bet on set 13 · web of cineosis</small></span></a>
+  <label class="find"><svg width="18" height="18" viewBox="0 0 16 16"><circle cx="7" cy="7" r="5" fill="none" stroke="#b3ab9e" stroke-width="2"/><line x1="11" y1="11" x2="15" y2="15" stroke="#b3ab9e" stroke-width="2"/></svg><input id="q" type="search" placeholder="Put a question at the hub: words, a work, what it looked like…" autocomplete="off" autofocus><span class="n" id="n"></span></label>
+  <nav><a href="index.html">SIX BETS</a><a href="../atlas.html">ATLAS</a></nav></header>
+<div class="trail" id="trail"></div>
+<div class="wrap"><svg id="orb"></svg><aside class="side" id="side"></aside></div>
+<script src="atlas-core.js?v=1"></script>
+<script>
+const A = ATLAS, esc = A.esc, $ = s => document.querySelector(s), NS = 'http://www.w3.org/2000/svg';
+let hub = null, q = '', trail = [], beads = [], hov = null;
+const STRAND = { look: ['#7fd6e8', 'looks like it'], code: ['#c4f46a', 'shares its code'], link: ['#ece6da', 'it links to, or from'], work: ['#f2c14e', 'serves the same work'] };
+function neighbours(p) {
+  const m = new Map(), add = (x, w, k) => { if (!A.by[x] || x === p.path) return; const o = m.get(x) || { s: 0, k }; o.s += w; if (w >= (o.w || 0)) { o.k = k; o.w = w; } m.set(x, o); };
+  (p.looks || []).forEach(([x, s]) => add(x, s * 2, 'look')); (p.versions || []).forEach(([x, s]) => add(x, s * 2.2, 'code'));
+  [...p.out, ...p.in].forEach(x => add(x, .55, 'link')); A.pages.filter(x => x.subject === p.subject && x.subject !== 'lab').sort((a, b) => a.rank - b.rank).slice(0, 10).forEach(x => add(x.path, .5, 'work'));
+  return [...m.entries()].sort((a, b) => b[1].s - a[1].s).slice(0, 34).map(([x, o]) => ({ p: A.by[x], k: o.k }));
+}
+function draw() {
+  const svg = $('#orb'), W = svg.clientWidth, H = svg.clientHeight, cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - 40;
+  beads = hub ? neighbours(hub) : (q ? A.search(q).slice(0, 34).map(r => ({ p: r.p, k: 'q', snip: r.snip })) : [...A.pages].sort((a, b) => a.rank - b.rank).slice(0, 34).map(p => ({ p, k: 'q' })));
+  $('#n').textContent = hub ? '' : q ? `${A.search(q).length} answer` : 'most linked';
+  const n = beads.length, turns = 2.6, pos = beads.map((b, i) => { const t = i / Math.max(1, n - 1), a = -Math.PI / 2 + t * turns * Math.PI * 2, r = R * (.3 + .7 * t); return [cx + Math.cos(a) * r, cy + Math.sin(a) * r * .88]; });   // a true spiral: nearest at the inside, winding out
+  let s = '';
+  for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; s += `<line x1="${cx}" y1="${cy}" x2="${cx + Math.cos(a) * R * 1.05}" y2="${cy + Math.sin(a) * R * .95}" stroke="#2a2621" stroke-width="1"/>`; }
+  if (n > 1) { let d = ''; for (let k = 0; k <= 200; k++) { const t = k / 200, a = -Math.PI / 2 + t * turns * Math.PI * 2, r = R * (.3 + .7 * t); d += (k ? ' L' : 'M') + (cx + Math.cos(a) * r).toFixed(1) + ',' + (cy + Math.sin(a) * r * .88).toFixed(1); } s += `<path d="${d}" fill="none" stroke="#e0483a" stroke-width="1.6" opacity=".75"/>`; }
+  pos.forEach(([x, y], i) => { const b = beads[i]; if (b.k !== 'q') s += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="${STRAND[b.k][0]}" stroke-width="1.6" opacity=".55"/>`; });
+  const tw = Math.max(64, Math.min(132, R / 3.9)), th = tw * .625;
+  pos.forEach(([x, y], i) => { const b = beads[i], f = A.frames(b.p), w = tw * (1 - i / n * .45), h = w * .625;
+    s += `<g class="bd" data-i="${i}" style="cursor:pointer"><rect x="${x - w / 2 - 3}" y="${y - h / 2 - 3}" width="${w + 6}" height="${h + 6}" rx="4" fill="#0b0a09" stroke="${b.k === 'q' ? A.color(b.p) : STRAND[b.k][0]}" stroke-width="2"/>
+      <image href="${esc(f[1] || f[0] || '')}" data-f="${esc(f.join('|'))}" x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice"/>
+      ${i < 12 ? `<text x="${x}" y="${y + h / 2 + 16}" text-anchor="middle" font-family="Fraunces, serif" font-size="12.5" fill="#ece6da" font-weight="600">${esc(b.p.clean.length > 26 ? b.p.clean.slice(0, 25) + '…' : b.p.clean)}</text>` : ''}</g>`; });
+  if (hub) { const f = A.frames(hub), w = tw * 1.6, h = w * .625; s += `<rect x="${cx - w / 2 - 5}" y="${cy - h / 2 - 5}" width="${w + 10}" height="${h + 10}" rx="6" fill="#0b0a09" stroke="#e0483a" stroke-width="3"/><image id="hubimg" href="${esc(f[1] || f[0] || '')}" data-f="${esc(f.join('|'))}" x="${cx - w / 2}" y="${cy - h / 2}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice"/><text x="${cx}" y="${cy + h / 2 + 22}" text-anchor="middle" font-family="Fraunces, serif" font-size="16" fill="#ece6da" font-weight="600">${esc(hub.clean)}</text>`; }
+  else s += `<circle cx="${cx}" cy="${cy}" r="48" fill="#0b0a09" stroke="#ece6da" stroke-width="3.5"/><circle cx="${cx - 12}" cy="${cy}" r="5" fill="#ece6da"/><circle cx="${cx + 12}" cy="${cy}" r="5" fill="#ece6da"/><text x="${cx}" y="${cy + 72}" text-anchor="middle" font-family="Fraunces, serif" font-style="italic" font-size="17" fill="#b3ab9e">${esc(q ? '“' + q + '”' : 'the lab, most linked first')}</text>`;
+  svg.innerHTML = s;
+  svg.querySelectorAll('.bd').forEach(g => { const b = beads[+g.dataset.i]; g.onclick = () => go(b.p); g.onmouseenter = () => side(b.p, b); g.onmouseleave = () => side(hub); });
+  side(hub); drawTrail();
+}
+function go(p) { if (!p) return; if (hub) trail.push(hub.path); hub = p; history.replaceState(null, '', '#' + encodeURIComponent(p.path)); draw(); }
+function side(p, b) { if (!p) { $('#side').innerHTML = `<h2>${q ? 'Answers to “' + esc(q) + '”' : 'The orb'}</h2><p>${q ? 'Nearest first, along the red spiral. Hover a bead to read it, click it to put it at the hub.' : 'Type a question to put it at the hub, or click any page.'}</p><div class="legend">${Object.values(STRAND).map(([c, t]) => `<i style="--c:${c}"></i><span>${t}</span>`).join('')}</div><div class="hint">Once a page holds the hub, the threads to it are coloured by why each neighbour hangs there.</div>`; return; }
+  const f = A.frames(p); $('#side').innerHTML = `<img class="shot" ${A.flipAttr(p)} style="border-radius:6px" alt=""><h2>${A.mark(p.clean, q)}</h2>
+    <div><span class="pill" style="--c:${A.color(p)}">${esc(A.subjects[p.subject].name)}</span> <span class="pill">${esc(A.KIND[p.kind])}</span>${b && b.k !== 'q' ? ` <span class="pill" style="--c:${STRAND[b.k][0]}">${esc(STRAND[b.k][1])}</span>` : ''}</div>
+    ${b && b.snip ? `<p>${b.snip}</p>` : ''}<p>${esc(p.desc)}</p><div class="hint">${p.lines.toLocaleString()} lines · ~${p.hours.toFixed(1)} h · ${p.commits} commits · ${esc(p.path)}</div><p><a class="btn" href="${esc(A.open(p))}" target="_blank" rel="noopener">Open the page ↗</a></p>
+    ${p === hub ? `<div class="legend">${Object.values(STRAND).map(([c, t]) => `<i style="--c:${c}"></i><span>${t}</span>`).join('')}</div>` : ''}`; }
+function drawTrail() { const t = [...trail, hub && hub.path].filter(Boolean); $('#trail').innerHTML = `<button id="home"><i></i>${esc(q ? '“' + q + '”' : 'the hub')}</button>` + t.map((x, k) => `<span class="th"></span><button data-k="${k}"><i style="background:${k === t.length - 1 ? 'var(--ink)' : 'var(--bg)'}"></i>${esc(A.by[x].clean)}</button>`).join('');
+  $('#home').onclick = () => { hub = null; trail = []; draw(); }; $('#trail').querySelectorAll('[data-k]').forEach(b => b.onclick = () => { const k = +b.dataset.k; hub = A.by[t[k]]; trail = t.slice(0, k); draw(); }); }
+setInterval(() => document.querySelectorAll('#orb image[data-f]').forEach((im, i) => { const f = im.dataset.f.split('|'); if (f.length > 1) { const k = (+(im.dataset.k || 0) + 1) % f.length; im.dataset.k = k; im.setAttribute('href', f[k]); } }), 700);
+let t0; $('#q').oninput = e => { q = e.target.value.trim(); hub = null; trail = []; clearTimeout(t0); t0 = setTimeout(draw, 120); };
+$('#q').onkeydown = e => { if (e.key === 'Enter' && beads[0]) go(beads[0].p); };
+addEventListener('resize', () => { clearTimeout(t0); t0 = setTimeout(draw, 150); });
+A.load().then(() => { const h = decodeURIComponent(location.hash.slice(1)); if (A.by[h]) hub = A.by[h]; draw(); });
+</script>
+</body>
+</html>

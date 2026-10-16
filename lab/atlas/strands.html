@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Strands · Atlas</title>
+<link rel="icon" href="../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="bets.css?v=1">
+<!-- STRANDS · bet on Bolas set 14, Webs of Significance: one real thing at the centre and the strands it is caught in. One page holds
+     the middle, playing its frames large. Four strands run from it, each a row of moving pages: what LOOKS like it (CLIP on the
+     frames), what shares its CODE (shingled code), what it LINKS with (in and out), and what serves the same WORK. Click any page to
+     step to it; the path you walk is drawn as a thread at the top and you can walk back along it. Search picks where to start. -->
+<style>
+body { display: grid; grid-template-rows: auto auto minmax(0, 1fr); height: 100%; overflow: hidden; }
+.path { display: flex; align-items: center; padding: 8px 18px; gap: 0; border-bottom: 1px solid var(--rule); overflow-x: auto; min-height: 56px; }
+.path button { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; flex: none; }
+.path button img { width: 54px; height: 34px; object-fit: cover; border-radius: 2px; } .path button span { font-size: 13.5px; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.path button:hover { background: #15130f; } .path .th { width: 30px; height: 3px; background: var(--red); flex: none; }
+.body { overflow: auto; padding: 18px 22px 60px; }
+.centre { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 26px; align-items: start; }
+.centre img { border-radius: 8px; outline: 3px solid var(--red); outline-offset: 3px; }
+.centre h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.1; } .centre p { font-size: 17px; line-height: 1.5; color: #ddd5c8; }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 12px 0; max-width: 560px; }
+.facts div { border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; } .facts b { display: block; font: 600 20px var(--mono); } .facts small { font: 11.5px var(--mono); color: var(--faint); }
+.strand { margin-top: 26px; display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 16px; align-items: start; }
+.strand .lbl { border-left: 3px solid var(--red); padding: 2px 0 2px 12px; } .strand .lbl b { display: block; font: 600 15px var(--mono); letter-spacing: .1em; }
+.strand .lbl small { display: block; font-size: 14px; color: var(--dim); margin-top: 4px; line-height: 1.35; }
+.row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; }
+.row .t { flex: none; width: 210px; cursor: pointer; border-radius: 6px; padding: 4px; } .row .t:hover { background: #15130f; }
+.row .t img { border-radius: 4px; } .row .t b { display: block; font-size: 14.5px; margin-top: 6px; line-height: 1.25; } .row .t small { font: 11.5px var(--mono); color: var(--faint); }
+.row .none { color: var(--faint); font-size: 15px; padding: 10px 0; }
+.res { display: flex; gap: 10px; overflow-x: auto; padding: 8px 0 0; }
+.res .t { flex: none; width: 160px; cursor: pointer; } .res .t b { display: block; font-size: 13.5px; margin-top: 4px; }
+@media (max-width: 860px) { .centre { grid-template-columns: minmax(0, 1fr); } .strand { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<header class="top"><a class="who" href="index.html"><svg width="30" height="42" viewBox="-15 -30 30 42"><line x1="0" y1="-30" x2="0" y2="-12" stroke="#e0483a" stroke-width="2.4"/><circle r="11" fill="none" stroke="#ece6da" stroke-width="3"/><circle cx="-3.6" cy="0" r="2.4" fill="#ece6da"/><circle cx="3.6" cy="0" r="2.4" fill="#ece6da"/></svg><span><b>Strands</b><small>bet on set 14 · webs of significance</small></span></a>
+  <label class="find"><svg width="18" height="18" viewBox="0 0 16 16"><circle cx="7" cy="7" r="5" fill="none" stroke="#b3ab9e" stroke-width="2"/><line x1="11" y1="11" x2="15" y2="15" stroke="#b3ab9e" stroke-width="2"/></svg><input id="q" type="search" placeholder="Where shall we start? type anything, Enter starts at the best match" autocomplete="off"><span class="n" id="n"></span></label>
+  <nav><a href="index.html">SIX BETS</a><a href="../atlas.html">ATLAS</a></nav></header>
+<div class="path" id="path"></div>
+<div class="body" id="body"></div>
+<script src="atlas-core.js?v=1"></script>
+<script>
+const A = ATLAS, esc = A.esc, $ = s => document.querySelector(s);
+let walk = [], q = '';
+const tile = (p, why, cls = 't') => `<div class="${cls}" data-p="${esc(p.path)}"><img class="shot" loading="lazy" ${A.flipAttr(p, p.rank % 4)} alt=""><b>${A.mark(p.clean, q)}</b><small>${esc(why)}</small></div>`;
+function strands(p) {
+  const look = (p.looks || []).filter(([x]) => A.by[x]).slice(0, 8).map(([x, s]) => [A.by[x], `${Math.round(s * 100)}% alike to the eye`]);
+  const code = (p.versions || []).filter(([x]) => A.by[x]).slice(0, 8).map(([x, s]) => [A.by[x], `${Math.round(s * 100)}% of the code shared`]);
+  const link = [...p.out.map(x => [x, 'it links here']), ...p.in.map(x => [x, 'links to it'])].filter(([x]) => A.by[x] && x !== p.path).slice(0, 12).map(([x, w]) => [A.by[x], w]);
+  const work = p.subject === 'lab' ? [] : A.pages.filter(x => x.subject === p.subject && x.path !== p.path).sort((a, b) => a.rank - b.rank).slice(0, 10).map(x => [x, A.KIND[x.kind]]);
+  return [['LOOKS LIKE', 'to CLIP, comparing its frames with every other page’s', look], ['SHARES CODE', 'the same lines of code, shingled and compared', code], ['LINKS WITH', 'pages it links to and pages that link to it', link], ['SAME WORK', p.subject === 'lab' ? 'this page serves the lab in general' : `the other pages made for ${A.subjects[p.subject].name}`, work]];
+}
+function show() {
+  const p = A.by[walk[walk.length - 1]];
+  $('#path').innerHTML = walk.length ? walk.map((x, i) => `${i ? '<span class="th"></span>' : ''}<button data-k="${i}"><img src="${esc(A.frames(A.by[x])[1] || A.frames(A.by[x])[0] || '')}" alt=""><span>${esc(A.by[x].clean)}</span></button>`).join('') : '<span class="hint">The path you walk will be drawn here.</span>';
+  $('#path').querySelectorAll('[data-k]').forEach(b => b.onclick = () => { walk = walk.slice(0, +b.dataset.k + 1); show(); }); $('#path').scrollLeft = 1e6;
+  if (!p) { results(); return; } history.replaceState(null, '', '#' + encodeURIComponent(p.path));
+  $('#body').innerHTML = `<div class="centre"><img class="shot" ${A.flipAttr(p)} alt=""><div><h1>${A.mark(p.clean, q)}</h1><div><span class="pill" style="--c:${A.color(p)}">${esc(A.subjects[p.subject].name)}</span> <span class="pill">${esc(A.KIND[p.kind])}</span>${p.status !== 'reachable' ? ` <span class="pill" style="--c:#ff8f6e">${esc(p.status)}</span>` : ''}</div>
+    <p>${esc(p.desc)}</p><div class="facts"><div><b>${p.lines.toLocaleString()}</b><small>lines</small></div><div><b>~${p.hours.toFixed(1)}</b><small>hours</small></div><div><b>${p.commits}</b><small>commits</small></div><div><b>#${p.rank}</b><small>importance</small></div></div>
+    ${p.tags.length ? `<div class="hint">looks like: ${esc(p.tags.join(' · '))}</div>` : ''}<p><a class="btn" href="${esc(A.open(p))}" target="_blank" rel="noopener">Open the page ↗</a></p></div></div>`
+    + strands(p).map(([t, d, xs]) => `<div class="strand"><div class="lbl"><b>${t}</b><small>${d}</small></div><div class="row">${xs.length ? xs.map(([x, w]) => tile(x, w)).join('') : '<div class="none">Nothing on this strand.</div>'}</div></div>`).join('');
+  $('#body').querySelectorAll('.t').forEach(t => t.onclick = () => { walk.push(t.dataset.p); show(); }); $('#body').scrollTop = 0;
+}
+function results() { const rs = A.search(q).slice(0, 24); $('#n').textContent = q ? `${A.search(q).length} matches` : '';
+  $('#body').innerHTML = `<h1 style="font-size:30px;margin:6px 0 4px">${q ? 'Start from one of these' : 'Pick a starting page'}</h1><p class="hint" style="font-size:14px">${q ? 'Best matches first.' : 'The most linked pages of the lab. Or type above.'}</p><div class="res">${(q ? rs.map(r => r.p) : [...A.pages].sort((a, b) => a.rank - b.rank).slice(0, 24)).map(p => tile(p, A.subjects[p.subject].name)).join('')}</div>`;
+  $('#body').querySelectorAll('.t').forEach(t => t.onclick = () => { walk = [t.dataset.p]; show(); }); }
+$('#q').oninput = e => { q = e.target.value.trim(); if (q) { walk = []; show(); } };
+$('#q').onkeydown = e => { if (e.key === 'Enter') { const r = A.search(q)[0]; if (r) { walk = [r.p.path]; show(); } } };
+addEventListener('keydown', e => { if (e.key === '/' && document.activeElement !== $('#q')) { e.preventDefault(); $('#q').focus(); } if (e.key === 'Backspace' && document.activeElement !== $('#q') && walk.length > 1) { walk.pop(); show(); } });
+A.load().then(() => { const h = decodeURIComponent(location.hash.slice(1)); if (A.by[h]) walk = [h]; show(); });
+</script>
+</body>
+</html>

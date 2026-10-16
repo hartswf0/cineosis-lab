@@ -36,7 +36,7 @@ FAMILIES = [
   ('syzygy', 'Syzygy', '#7fd6e8', [r'^lab/syzygy/']),
   ('bets', 'Bets and theories', '#a8a196', [r'^lab/(bets|program-theories)/']),
   ('play', 'Games and flix', '#f2c14e', [r'^lab/(ludens|abc-flix)/']),
-  ('archive', 'The lab itself', '#d8d0c0', [r'^lab/(index|rushes|takes|film|narrative|recurring-cast|talk-back|party|calltime|live|cineosis)\.html$', r'^lab/tools/']),
+  ('archive', 'The lab itself', '#d8d0c0', [r'^lab/(index|rushes|takes|film|narrative|recurring-cast|talk-back|party|calltime|live|cineosis)\.html$', r'^lab/tools/', r'^lab/atlas/']),
 ]
 FAM = {f[0]: f for f in FAMILIES}
 # kind: what a page is for -> kingdom
@@ -44,7 +44,7 @@ KINDS = {'explainer': ('Explainer film', 'films'), 'film': ('Film or player', 'f
          'browser': ('Archive browser', 'archive'), 'machine': ('Machine view', 'machines'), 'bench': ('Bench or instrument', 'operations'),
          'reading': ('Reading or paper', 'readings'), 'index': ('Index or front door', 'house'), 'mark': ('Mark and identity', 'house'),
          'template': ('Template', 'house'), 'pointer': ('Pointer or superseded', 'house'), 'game': ('Game', 'operations')}
-RULES = [(r'^lab/(lesson-\d|episode-\d|machines|how-it-sees|operative|myth|room-[a-z]+)\.html$', 'explainer'),
+RULES = [(r'^lab/atlas/', 'index'), (r'^lab/(lesson-\d|episode-\d|machines|how-it-sees|operative|myth|room-[a-z]+)\.html$', 'explainer'),
          (r'markov-republic-ep\d+|markov-republic-pilot', 'series'), (r'template', 'template'),
          (r'^lab/bolas/|idents\.html$', 'mark'), (r'^(lab/)?index\.html$|^lab/(bolas|bets)/index\.html$|series\.html$|papers\.html$|404\.html$|contact\.html$|atlas\.html$', 'index'),
          (r'(synthesis|wygwyl-spine|source-audit|program-theories|periodic-table|signs-in-motion|compounds|chemistry-trials|deleuze|metz|syntagma\.html)', 'reading'),

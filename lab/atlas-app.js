@@ -31,11 +31,24 @@ fetch('atlas.json?v=' + Date.now()).then(r => r.json()).then(d => {
   $('#sub').textContent = `THE REPOSITORY AS A CITY · ${d.totals.pages} PAGES · ${P.reduce((s, p) => s + p.lines, 0).toLocaleString()} LINES · ~${Math.round(d.hoursTotal)} HOURS · ${d.totals.commits} COMMITS`;
   let v0 = 'city'; try { v0 = JSON.parse(localStorage.getItem('atlas.st') || '{}').view || 'city'; } catch (e) { }
   const h = decodeURIComponent(location.hash.slice(1)); if (byPath[h]) sel = h; setView(v0, true); ctl(); dot(); draw();
+  if (window.ATLAS) ATLAS.load('.', 'atlas/').then(() => { dot(); });
 });
 function setView(v, quiet) { view = v; document.body.classList.toggle('paper', v === 'ledger'); document.querySelectorAll('nav.views button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); document.querySelectorAll('.view').forEach(e => e.classList.toggle('on', e.id === 'v-' + v)); save(); if (!quiet) { ctl(); draw(); } }
 document.querySelectorAll('nav.views button').forEach(b => b.onclick = () => setView(b.dataset.v));
-$('#q').oninput = e => { q = e.target.value.trim().toLowerCase(); ctl(); draw(); };
-$('#q').onkeydown = e => { if (e.key === 'Enter') { const hit = P.filter(visible).sort((a, b) => (b.title.toLowerCase().includes(q) - a.title.toLowerCase().includes(q)) || b.importance - a.importance)[0]; if (hit) select(hit.path); } };
+$('#q').oninput = e => { q = e.target.value.trim().toLowerCase(); ctl(); draw(); results(); };
+/* the results list under the search: every match as a moving frame, with where the words were found */
+let rk = -1;
+function results() { const el = $('#res'); if (!q || !window.ATLAS || !ATLAS.pages.length) { el.classList.remove('on'); return; } const rs = ATLAS.search(q); rk = -1;
+  el.innerHTML = rs.slice(0, 10).map((r, i) => `<div class="r" data-i="${i}" data-path="${esc(r.p.path)}"><img ${ATLAS.flipAttr(r.p, i)} alt=""><div><b>${ATLAS.mark(r.p.clean, q)}</b><small>${esc(ATLAS.subjects[r.p.subject].name)} · ${esc(ATLAS.KIND[r.p.kind])}${r.p.tags.length ? ' · looks like ' + esc(r.p.tags.slice(0, 2).join(', ')) : ''}</small>${r.snip ? `<p>${r.snip}</p>` : ''}</div></div>`).join('')
+    + `<div class="more">${rs.length ? `${rs.length} match${rs.length > 1 ? 'es' : ''} · ↑ ↓ and Enter · <a href="atlas/wall.html?q=${encodeURIComponent(q)}">see them all on the Wall →</a>` : 'Nothing matches. Try a work (odyssey), a kind (game), or what it looked like (map, timeline, crowd).'}</div>`;
+  el.classList.add('on'); el.querySelectorAll('.r').forEach(r => r.onmousedown = ev => { ev.preventDefault(); pickRes(r.dataset.path); }); }
+function pickRes(path) { $('#res').classList.remove('on'); select(path); }
+$('#q').addEventListener('blur', () => setTimeout(() => $('#res').classList.remove('on'), 150));
+$('#q').addEventListener('focus', () => q && results());
+$('#q').onkeydown = e => { const rows = [...document.querySelectorAll('#res .r')];
+  if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && rows.length) { e.preventDefault(); rk = Math.max(0, Math.min(rows.length - 1, rk + (e.key === 'ArrowDown' ? 1 : -1))); rows.forEach((r, i) => r.classList.toggle('k', i === rk)); rows[rk].scrollIntoView({ block: 'nearest' }); return; }
+  if (e.key === 'Enter' && rows.length) { pickRes(rows[Math.max(0, rk)].dataset.path); return; }
+  if (e.key === 'Enter') { const hit = P.filter(visible).sort((a, b) => (b.title.toLowerCase().includes(q) - a.title.toLowerCase().includes(q)) || b.importance - a.importance)[0]; if (hit) select(hit.path); } };
 addEventListener('keydown', e => { if (e.key === '/' && document.activeElement !== $('#q')) { e.preventDefault(); $('#q').focus(); } if (e.key === 'Escape') { if (document.activeElement === $('#q')) { $('#q').value = ''; q = ''; $('#q').blur(); ctl(); draw(); } else select(null); } });
 addEventListener('hashchange', () => { const h = decodeURIComponent(location.hash.slice(1)); if (byPath[h] && h !== sel) select(h); });
 addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(draw, 160); });
@@ -206,7 +219,8 @@ function dot() {
   const p = byPath[sel], all = k => Math.max(...P.map(x => x[k] || 0)), chip = x => byPath[x] ? `<button class="chip" data-p="${esc(x)}" data-tip="no"><i style="--c:${colourOf(byPath[x])}"></i><span>${esc(byPath[x].title)}</span></button>` : '';
   const meter = (label, v, mx, txt) => `<span>${label}</span><div class="bar"><i style="width:${Math.max(1, v / mx * 100)}%"></i></div><b>${txt}</b>`;
   const subs = Object.entries(p.subjects || {});
-  el.innerHTML = `<div style="height:14px"></div><span class="pill" style="--c:${colourOf(p)}">${esc(groups().find(g => g[0] === groupOf(p))?.[1] || '')}</span>
+  const AP = window.ATLAS && ATLAS.by && ATLAS.by[p.path];
+  el.innerHTML = `${AP && ATLAS.frames(AP).length ? `<img class="flip" ${ATLAS.flipAttr(AP)} alt="">${AP.tags.length ? `<div class="hint" style="margin-top:6px">looks like ${esc(AP.tags.join(' · '))}</div>` : ''}` : ''}<div style="height:14px"></div><span class="pill" style="--c:${colourOf(p)}">${esc(groups().find(g => g[0] === groupOf(p))?.[1] || '')}</span>
     <h2>${esc(p.title)}</h2><div class="path">${esc(p.path)}</div>
     <a class="btn" href="${esc(href(p.path))}" target="_blank" rel="noopener">Open the page ↗</a>
     ${p.ia ? `<div class="warn">⚑ ${esc(p.ia)}.</div>` : ''}${p.status !== 'reachable' ? `<div class="warn" style="border-color:#ff8f6e">${esc(STATUS[p.status][0])}.</div>` : ''}

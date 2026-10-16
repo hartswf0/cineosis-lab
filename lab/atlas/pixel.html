@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pixel · Atlas</title>
+<link rel="icon" href="../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="bets.css?v=1">
+<!-- PIXEL · bet on Bolas set 11, Bolas Pixel: one icon on a 32-pixel grid that holds up from across a room. Every page becomes its own
+     pixel icon, made from its own frames (each frame cut to 32 by 20 pixels, with no smoothing) and played as a flipbook, with a
+     strip of its work's colour beneath. All of them fit on one screen, sorted by work. Search lights the matches and dims the rest;
+     arrows move the cursor; the card at the side shows the page at full size. -->
+<style>
+body { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100%; overflow: hidden; }
+.wrap { display: grid; grid-template-columns: minmax(0, 1fr) 380px; min-height: 0; }
+.field { overflow: auto; padding: 16px 18px 50px; }
+.grp { margin: 0 0 14px; } .grp h3 { margin: 0 0 6px; font: 600 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--c); }
+.icons { display: flex; flex-wrap: wrap; gap: 6px; }
+.ic { position: relative; width: 96px; cursor: pointer; border-radius: 4px; padding: 3px; border: 2px solid transparent; transition: opacity .25s; }
+.ic canvas { width: 88px; height: 55px; image-rendering: pixelated; display: block; background: #000; }
+.ic .bar { height: 5px; background: var(--c); margin-top: 2px; }
+.ic.dim { opacity: .12; } .ic.on { border-color: var(--ink); } .ic:hover { border-color: #5a544b; }
+.ic span { display: block; font: 10.5px var(--mono); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
+.card { border-left: 1px solid var(--rule); overflow: auto; padding: 16px 18px 50px; }
+.card h2 { margin: 10px 0 4px; font-size: 26px; line-height: 1.15; } .card p { font-size: 16px; line-height: 1.5; color: #ddd5c8; }
+.big { width: 100%; aspect-ratio: 16/10; image-rendering: pixelated; display: block; background: #000; border-radius: 4px; }
+.zoom { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; } .zoom button { border: 1px solid var(--rule); border-radius: 99px; padding: 6px 12px; min-height: 38px; } .zoom button.on { background: var(--ink); color: var(--bg); }
+@media (max-width: 900px) { .wrap { grid-template-columns: minmax(0, 1fr); overflow: auto; } }
+</style>
+</head>
+<body>
+<header class="top"><a class="who" href="index.html"><svg width="30" height="42" viewBox="0 0 15 21" shape-rendering="crispEdges"><rect x="7" y="0" width="1" height="6" fill="#e0483a"/><path d="M4 6h7v1h1v1h1v5h-1v1h-1v1H4v-1H3v-1H2V8h1V7h1z" fill="#ece6da"/><rect x="4" y="8" width="7" height="5" fill="#0b0a09"/><rect x="5" y="10" width="1" height="1" fill="#ece6da"/><rect x="9" y="10" width="1" height="1" fill="#ece6da"/></svg><span><b>Pixel</b><small>bet on set 11 · bolas pixel</small></span></a>
+  <label class="find"><svg width="18" height="18" viewBox="0 0 16 16"><circle cx="7" cy="7" r="5" fill="none" stroke="#b3ab9e" stroke-width="2"/><line x1="11" y1="11" x2="15" y2="15" stroke="#b3ab9e" stroke-width="2"/></svg><input id="q" type="search" placeholder="Light up the icons that match…" autocomplete="off" autofocus><span class="n" id="n"></span></label>
+  <nav><a href="index.html">SIX BETS</a><a href="../atlas.html">ATLAS</a></nav></header>
+<div class="wrap"><div class="field" id="field"></div><aside class="card" id="card"></aside></div>
+<script src="atlas-core.js?v=1"></script>
+<script>
+const A = ATLAS, esc = A.esc, $ = s => document.querySelector(s);
+let RES = 32, cur = null, list = [], q = '';
+const cache = {}; // path -> [ImageData frames]
+function pix(p) { if (cache[p.path]) return cache[p.path]; const fs = A.frames(p); const out = cache[p.path] = [];
+  fs.forEach((src, k) => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'), w = RES, h = Math.round(RES * .625); c.width = w; c.height = h; const x = c.getContext('2d'); x.imageSmoothingEnabled = true; x.drawImage(im, 0, 0, w, h); out[k] = c; }; im.src = src; });
+  return out; }
+function field() {
+  const groups = A.data.subjects.map(s => ({ s, ps: A.pages.filter(p => p.subject === s.id).sort((a, b) => a.rank - b.rank) })).filter(g => g.ps.length).sort((a, b) => b.ps.length - a.ps.length);
+  list = groups.flatMap(g => g.ps.map(p => p.path));
+  $('#field').innerHTML = `<div class="zoom"><span class="hint">Grain</span>${[16, 32, 64].map(r => `<button data-r="${r}" class="${RES === r ? 'on' : ''}">${r} px</button>`).join('')}<span class="hint" style="margin-left:10px">every icon is made from its page’s own frames</span></div>`
+    + groups.map(g => `<div class="grp" style="--c:${g.s.color}"><h3>${esc(g.s.name)} · ${g.ps.length}</h3><div class="icons">${g.ps.map(p => `<div class="ic" data-p="${esc(p.path)}" style="--c:${g.s.color}" title="${esc(p.clean)}"><canvas width="88" height="55"></canvas><div class="bar"></div><span>${esc(p.clean)}</span></div>`).join('')}</div></div>`).join('');
+  $('#field').querySelectorAll('[data-r]').forEach(b => b.onclick = () => { RES = +b.dataset.r; Object.keys(cache).forEach(k => delete cache[k]); field(); });
+  $('#field').querySelectorAll('.ic').forEach(el => { el.onclick = () => pick(el.dataset.p); pix(A.by[el.dataset.p]); });
+  filter(); if (cur) pick(cur);
+}
+let t = 0;
+setInterval(() => { t++; document.querySelectorAll('.ic').forEach((el, i) => { const fr = cache[el.dataset.p]; if (!fr || !fr.length) return; const c = fr[(t + i) % fr.length] || fr.find(Boolean); if (!c) return;
+  const x = el.firstElementChild.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(c, 0, 0, 88, 55); });
+  const big = $('#bigc'); if (big && cur) { const fr = cache[cur]; const c = fr && (fr[t % fr.length] || fr.find(Boolean)); if (c) { const x = big.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(c, 0, 0, big.width, big.height); } } }, 600);
+function filter() { const ok = new Set(A.search(q).map(r => r.p.path)); document.querySelectorAll('.ic').forEach(el => el.classList.toggle('dim', !!q && !ok.has(el.dataset.p))); $('#n').textContent = q ? `${ok.size} lit` : `${A.pages.length} icons`; }
+function pick(path) { cur = path; const p = A.by[path]; document.querySelectorAll('.ic').forEach(el => el.classList.toggle('on', el.dataset.p === path)); history.replaceState(null, '', '#' + encodeURIComponent(path));
+  pix(p); $('#card').innerHTML = `<canvas class="big" id="bigc" width="320" height="200"></canvas><img class="shot" ${A.flipAttr(p)} style="margin-top:8px;border-radius:4px" alt=""><h2>${A.mark(p.clean, q)}</h2>
+    <div><span class="pill" style="--c:${A.color(p)}">${esc(A.subjects[p.subject].name)}</span> <span class="pill">${esc(A.KIND[p.kind])}</span></div><p>${esc(p.desc)}</p>
+    <div class="hint">${p.lines.toLocaleString()} lines · ~${p.hours.toFixed(1)} h · ${p.commits} commits · ${esc(p.path)}</div><p><a class="btn" href="${esc(A.open(p))}" target="_blank" rel="noopener">Open the page ↗</a></p>`;
+  const el = document.querySelector(`.ic[data-p="${CSS.escape(path)}"]`); el && el.scrollIntoView({ block: 'nearest' }); }
+$('#q').oninput = e => { q = e.target.value.trim(); filter(); const r = q && A.search(q)[0]; if (r) pick(r.p.path); };
+$('#q').onkeydown = e => { if (e.key === 'Enter') { const r = A.search(q)[0]; if (r) pick(r.p.path); } };
+addEventListener('keydown', e => { if (document.activeElement === $('#q') && !e.key.startsWith('Arrow')) return; const vis = list.filter(x => !document.querySelector(`.ic[data-p="${CSS.escape(x)}"]`)?.classList.contains('dim'));
+  const i = Math.max(0, vis.indexOf(cur)), per = Math.max(1, Math.floor(($('#field').clientWidth - 36) / 102)), mv = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: per, ArrowUp: -per }[e.key];
+  if (mv && vis.length) { e.preventDefault(); $('#q').blur(); pick(vis[Math.max(0, Math.min(vis.length - 1, cur ? i + mv : 0))]); } if ((e.key === 'o' || e.key === 'Enter') && cur && document.activeElement !== $('#q')) window.open(A.open(A.by[cur]), '_blank'); if (e.key === '/') { e.preventDefault(); $('#q').focus(); } });
+A.load().then(() => { const h = decodeURIComponent(location.hash.slice(1)); cur = A.by[h] ? h : [...A.pages].sort((a, b) => a.rank - b.rank)[0].path; field(); });
+</script>
+</body>
+</html>

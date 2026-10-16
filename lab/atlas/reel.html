@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Reel · Atlas</title>
+<link rel="icon" href="../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="bets.css?v=1">
+<!-- THE REEL · bet on Bolas set 06, Line, Circle, Dot. The line is time: every page of the lab laid end to end as shots on one film
+     strip, in the order they were born, each shot made of the page's own frames. The circle is the O at the top of the playhead; the
+     dot is where you are. Steer the film: scroll or drag the strip, arrows step page by page, space plays it, and the shot under the
+     red thread fills the screen. Search dims every shot that does not match; Enter jumps to the next that does. -->
+<style>
+body { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; overflow: hidden; }
+.stage { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: 22px; padding: 18px 22px 10px; min-height: 0; }
+.screen { position: relative; background: #000; border-radius: 8px; overflow: hidden; align-self: start; max-height: 100%; aspect-ratio: 16/10; }
+.screen img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.screen .fn { position: absolute; left: 12px; bottom: 10px; font: 600 12px var(--mono); letter-spacing: .12em; color: #fff; background: #000a; padding: 4px 8px; border-radius: 3px; }
+.info { overflow: auto; min-height: 0; }
+.info .date { font: 600 13px var(--mono); letter-spacing: .14em; color: var(--gold); }
+.info h1 { margin: 8px 0 6px; font-size: 32px; line-height: 1.1; font-weight: 600; }
+.info p { font-size: 17px; line-height: 1.5; color: #ddd5c8; }
+.ctrl { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+.ctrl button { min-height: 42px; border: 1px solid var(--rule); border-radius: 99px; padding: 8px 16px; font-size: 15.5px; }
+.ctrl button:hover { border-color: var(--dim); }
+.reelbox { position: relative; height: 196px; border-top: 1px solid var(--rule); background: #070606; overflow: hidden; cursor: grab; user-select: none; }
+.reelbox:active { cursor: grabbing; }
+.film { position: absolute; left: 0; top: 34px; display: flex; gap: 14px; will-change: transform; }
+.shotg { display: flex; flex-direction: column; gap: 4px; transition: opacity .3s; }
+.shotg .fr { display: flex; gap: 2px; padding: 5px 4px; background: #1a1714; border-radius: 3px; background-image: radial-gradient(circle, #070606 2px, transparent 2.5px); background-size: 12px 8px; background-position: 0 0; background-repeat: repeat-x; }
+.shotg .fr img { width: 104px; height: 65px; object-fit: cover; display: block; margin-top: 4px; }
+.shotg b { font: 600 13.5px var(--serif); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; }
+.shotg small { font: 11px var(--mono); color: var(--faint); }
+.shotg.dim { opacity: .13; } .shotg.cur .fr { background-color: #3a2a20; }
+.head { position: absolute; left: 50%; top: 0; bottom: 0; width: 0; pointer-events: none; }
+.head::before { content: ''; position: absolute; left: -1.5px; top: 22px; bottom: 0; width: 3px; background: var(--red); }
+.head svg { position: absolute; left: -15px; top: -2px; }
+.days { position: absolute; left: 0; top: 6px; height: 18px; font: 11px var(--mono); color: var(--faint); }
+@media (max-width: 860px) { .stage { grid-template-columns: minmax(0, 1fr); overflow: auto; } }
+</style>
+</head>
+<body>
+<header class="top"><a class="who" href="index.html"><svg width="30" height="42" viewBox="-15 -30 30 42"><line x1="0" y1="-30" x2="0" y2="-12" stroke="#e0483a" stroke-width="2.4"/><circle r="11" fill="none" stroke="#ece6da" stroke-width="3"/><circle cx="3" cy="2" r="3" fill="#ece6da"/></svg><span><b>The Reel</b><small>bet on set 06 · line, circle, dot</small></span></a>
+  <label class="find"><svg width="18" height="18" viewBox="0 0 16 16"><circle cx="7" cy="7" r="5" fill="none" stroke="#b3ab9e" stroke-width="2"/><line x1="11" y1="11" x2="15" y2="15" stroke="#b3ab9e" stroke-width="2"/></svg><input id="q" type="search" placeholder="Search, then Enter to jump to the next match on the reel…" autocomplete="off"><span class="n" id="n"></span></label>
+  <nav><a href="index.html">SIX BETS</a><a href="../atlas.html">ATLAS</a></nav></header>
+<section class="stage"><div class="screen"><img id="scr" alt=""><span class="fn" id="fn"></span></div><div class="info" id="info"></div></section>
+<div class="reelbox" id="box"><div class="days" id="days"></div><div class="film" id="film"></div><div class="head"><svg width="30" height="30" viewBox="-15 -15 30 30"><circle r="11" fill="#0b0a09" stroke="#ece6da" stroke-width="3"/><circle cx="3" cy="2" r="3" fill="#ece6da"/></svg></div></div>
+<script src="atlas-core.js?v=1"></script>
+<script>
+const A = ATLAS, esc = A.esc, $ = s => document.querySelector(s);
+let order = [], X = 0, target = 0, cur = -1, q = '', hits = [], playing = false, fi = 0;
+const centres = [];
+function build() {
+  order = [...A.pages].sort((a, b) => (a.born || '9').localeCompare(b.born || '9') || a.rank - b.rank);
+  $('#film').innerHTML = order.map((p, i) => { const f = A.frames(p); return `<div class="shotg" data-i="${i}"><div class="fr">${[0, 1, 3].map(k => f[k] ? `<img src="${esc(f[k])}" loading="lazy" alt="">` : '').join('')}</div><b>${esc(p.clean)}</b><small>${esc(p.born || '')} · ${esc(A.subjects[p.subject].name)}</small></div>`; }).join('');
+  requestAnimationFrame(() => { document.querySelectorAll('.shotg').forEach((g, i) => centres[i] = g.offsetLeft + g.offsetWidth / 2);
+    let last = ''; $('#days').innerHTML = order.map((p, i) => { if (p.born === last) return ''; last = p.born; return `<span style="position:absolute;left:${document.querySelectorAll('.shotg')[i].offsetLeft}px;border-left:1px solid #3a352e;padding-left:5px">${esc(new Date(p.born + 'T12:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}</span>`; }).join('');
+    const h = decodeURIComponent(location.hash.slice(1)), j = order.findIndex(p => p.path === h); go(j >= 0 ? j : 0, true); });
+}
+const W = () => $('#box').clientWidth;
+function go(i, now) { i = Math.max(0, Math.min(order.length - 1, i)); target = W() / 2 - centres[i]; if (now) X = target; show(i); }
+function show(i) { if (i === cur) return; cur = i; const p = order[i]; fi = 0; document.querySelectorAll('.shotg').forEach((g, k) => g.classList.toggle('cur', k === i));
+  history.replaceState(null, '', '#' + encodeURIComponent(p.path)); const f = A.frames(p); $('#scr').src = f[1] || f[0] || ''; $('#fn').textContent = `${i + 1} / ${order.length}`;
+  $('#info').innerHTML = `<div class="date">${esc(p.born ? new Date(p.born + 'T12:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) : '')}</div><h1>${A.mark(p.clean, q)}</h1>
+    <div><span class="pill" style="--c:${A.color(p)}">${esc(A.subjects[p.subject].name)}</span> <span class="pill">${esc(A.KIND[p.kind])}</span></div>
+    <p>${esc(p.desc)}</p><div class="hint">${p.lines.toLocaleString()} lines · ~${p.hours.toFixed(1)} h · ${p.commits} commits · first commit: “${esc(p.firstMsg)}”</div>
+    <div class="ctrl"><button id="prev">← page</button><button id="play">${playing ? '❚❚ pause' : '▶ play the reel'}</button><button id="next">page →</button><a class="btn" href="${esc(A.open(p))}" target="_blank" rel="noopener">Open ↗</a></div>
+    <div class="hint">Drag or scroll the strip · <span class="kbd">←</span> <span class="kbd">→</span> step · <span class="kbd">space</span> play · <span class="kbd">/</span> search · <span class="kbd">Enter</span> next match</div>`;
+  $('#prev').onclick = () => go(cur - 1); $('#next').onclick = () => go(cur + 1); $('#play').onclick = toggle; }
+function toggle() { playing = !playing; $('#play').textContent = playing ? '❚❚ pause' : '▶ play the reel'; }
+let lastT = 0, held = 0;
+function loop(t) { const dt = Math.min(.05, (t - lastT) / 1000); lastT = t; X += (target - X) * Math.min(1, dt * 9); $('#film').style.transform = `translateX(${X}px)`;
+  const c = W() / 2 - X; let best = 0, bd = 1e9; centres.forEach((m, i) => { const d = Math.abs(m - c); if (d < bd) { bd = d; best = i; } }); if (Math.abs(target - X) < 40) show(best);
+  if (playing) { held += dt; if (held > 2.6) { held = 0; go(cur + 1 >= order.length ? 0 : cur + 1); } } requestAnimationFrame(loop); }
+setInterval(() => { if (cur < 0) return; const f = A.frames(order[cur]); if (f.length) { fi = (fi + 1) % f.length; $('#scr').src = f[fi]; } }, 900);
+// steering: wheel, drag, keys
+$('#box').addEventListener('wheel', e => { e.preventDefault(); target -= (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) * 1.2; snapLater(); }, { passive: false });
+let drag = null; $('#box').onpointerdown = e => { drag = { x: e.clientX, t: target }; $('#box').setPointerCapture(e.pointerId); };
+$('#box').onpointermove = e => { if (drag) { target = drag.t + (e.clientX - drag.x); X = target; } }; $('#box').onpointerup = () => { drag = null; snapLater(); };
+let snapT; function snapLater() { clearTimeout(snapT); snapT = setTimeout(() => { const c = W() / 2 - target; let best = 0, bd = 1e9; centres.forEach((m, i) => { const d = Math.abs(m - c); if (d < bd) { bd = d; best = i; } }); go(best); }, 180); }
+addEventListener('keydown', e => { if (document.activeElement === $('#q')) { if (e.key === 'Enter') { e.preventDefault(); nextHit(); } if (e.key === 'Escape') { $('#q').value = ''; search(''); $('#q').blur(); } return; }
+  if (e.key === 'ArrowRight') go(cur + 1); else if (e.key === 'ArrowLeft') go(cur - 1); else if (e.key === ' ') { e.preventDefault(); toggle(); } else if (e.key === '/') { e.preventDefault(); $('#q').focus(); } else if (e.key === 'Enter') nextHit(); });
+function search(v) { q = v.trim(); const ok = new Set(A.search(q).map(r => r.p.path)); hits = order.map((p, i) => ok.has(p.path) ? i : -1).filter(i => i >= 0);
+  document.querySelectorAll('.shotg').forEach((g, i) => g.classList.toggle('dim', !!q && !ok.has(order[i].path))); $('#n').textContent = q ? `${hits.length} on the reel` : '';
+  if (q && hits.length) { const best = A.search(q)[0].p.path; go(order.findIndex(p => p.path === best)); } cur = cur; }
+function nextHit() { if (!hits.length) return; const n = hits.find(i => i > cur); go(n ?? hits[0]); }
+$('#q').oninput = e => search(e.target.value);
+A.load().then(() => { build(); requestAnimationFrame(loop); });
+</script>
+</body>
+</html>
