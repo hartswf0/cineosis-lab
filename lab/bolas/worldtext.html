@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>From Imagetext to Worldtext</title>
+<meta name="description" content="Watson Hartsoe's dissertation, Georgia Tech Digital Media, as a presentation that is also a film: twenty-seven scenes performed by Bolas, to present, to play with narration, or to download as a video and a PDF.">
+<style>
+@font-face{font-family:"Cormorant Garamond";src:url(worldtext/fonts/cormorant-garamond-latin-400-normal.woff2) format("woff2");font-weight:400;font-style:normal}
+@font-face{font-family:"Cormorant Garamond";src:url(worldtext/fonts/cormorant-garamond-latin-400-italic.woff2) format("woff2");font-weight:400;font-style:italic}
+@font-face{font-family:"Cormorant Garamond";src:url(worldtext/fonts/cormorant-garamond-latin-500-normal.woff2) format("woff2");font-weight:500;font-style:normal}
+@font-face{font-family:"Cormorant Garamond";src:url(worldtext/fonts/cormorant-garamond-latin-500-italic.woff2) format("woff2");font-weight:500;font-style:italic}
+@font-face{font-family:"IBM Plex Mono";src:url(worldtext/fonts/ibm-plex-mono-latin-400-normal.woff2) format("woff2");font-weight:400}
+@font-face{font-family:"IBM Plex Mono";src:url(worldtext/fonts/ibm-plex-mono-latin-500-normal.woff2) format("woff2");font-weight:500}
+:root{--bg:#ece7dd;--card:#f8f4ed;--ink:#17140f;--mute:#857e72;--line:#d8d0c2;--red:#e0483a;--screen:#0b0a09;--paper:#ece6da;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121110;--card:#1f1d19;--ink:#ece6da;--mute:#8d867a;--line:#36322b;--red:#ea5444;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121110;--card:#1f1d19;--ink:#ece6da;--mute:#8d867a;--line:#36322b;--red:#ea5444;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:19px/1.5 "Cormorant Garamond",Georgia,serif;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding:40px 16px 90px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+h1{font-weight:400;font-size:clamp(38px,6.4vw,72px);line-height:.98;margin:10px 0 12px}
+p{margin:0 0 12px;max-width:66ch}
+.lede{font-size:21px}
+.ways{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:4px 22px;margin:18px 0 22px;font-size:18px;max-width:1000px}
+.ways b{font:500 12px "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--red);display:block}
+button,.btn{font:500 13px "IBM Plex Mono",ui-monospace,Menlo,monospace;color:var(--ink);background:var(--card);border:1px solid var(--line);padding:8px 12px;min-height:38px;cursor:pointer;border-radius:0;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+button:hover,.btn:hover{border-color:var(--ink)}
+button[aria-pressed="true"],[role=tab][aria-selected="true"]{border-color:var(--red);color:var(--red)}
+:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.stagewrap{position:relative;width:100%;max-width:min(100%,calc((100vh - 150px) * 16 / 9));min-width:min(100%,560px);margin:0 auto}
+.stage{position:relative;width:100%;aspect-ratio:16/9;background:var(--screen);overflow:hidden;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.stage .num{position:absolute;right:10px;bottom:8px;font:500 12px "IBM Plex Mono",monospace;color:#8d867a;letter-spacing:.08em;pointer-events:none}
+.stage .hint{position:absolute;left:10px;bottom:8px;font:12px "IBM Plex Mono",monospace;color:#5d574e;pointer-events:none}
+.stage:fullscreen{max-width:none;aspect-ratio:auto;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center}
+.stage:fullscreen canvas{position:relative;inset:auto;width:min(100vw,calc(100vh * 16 / 9));height:auto;aspect-ratio:16/9}
+.ctl[hidden],.scrub[hidden]{display:none !important}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.ctl .clock{margin-left:auto;color:var(--mute);font:13px "IBM Plex Mono",monospace}
+.scrub{position:relative;margin-top:12px;height:34px}
+.scrub input{position:absolute;left:0;right:0;top:8px;width:100%;margin:0;accent-color:var(--red)}
+.scrub .marks{position:absolute;left:0;right:0;top:0;height:8px;pointer-events:none}
+.scrub .marks span{position:absolute;top:0;width:1px;height:8px;background:var(--mute)}
+.scrub .marks span.sec{background:var(--red);height:10px;width:2px}
+.prev{position:absolute;bottom:42px;width:160px;height:90px;border:1px solid var(--line);background:var(--screen) no-repeat;display:none;pointer-events:none;transform:translateX(-50%)}
+.prev span{position:absolute;left:0;right:0;bottom:-20px;font:11px "IBM Plex Mono",monospace;color:var(--mute);text-align:center;white-space:nowrap}
+.reading{display:none;margin-top:12px;font-size:20px;line-height:1.35}
+.reading .sec{font:500 11px "IBM Plex Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);display:block;margin-bottom:4px}
+.reading table{border-collapse:collapse;font-size:17px;margin-top:6px}
+.reading td{border-top:1px solid var(--line);padding:6px 8px 6px 0;vertical-align:top}
+.cc{min-height:2.8em;margin-top:10px;font-size:20px;line-height:1.35;max-width:62ch;color:var(--ink)}
+.cc[hidden]{display:none}
+@media (max-width:720px){.reading{display:block}.stage .hint{display:none}}
+.notes{margin-top:16px;border-top:1px solid var(--line);padding-top:12px;font-size:18px}
+.notes[hidden]{display:none}
+.notes h3{font:500 11px "IBM Plex Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:14px 0 4px}
+.notes .say{font-style:italic}
+.notes .st{border-left:2px solid var(--red);padding-left:10px}
+.notes a{color:inherit;text-decoration-color:var(--red);text-underline-offset:3px}
+.notes table.nt{border-collapse:collapse;font-size:16.5px;margin:6px 0 12px}
+.notes .nt th{font:500 11px "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);text-align:left;padding:4px 10px 4px 0}
+.notes .nt td{border-top:1px solid var(--line);padding:5px 10px 5px 0;vertical-align:top}
+.dl{display:grid;gap:18px;margin-top:6px}
+@media (min-width:860px){.dl{grid-template-columns:minmax(0,3fr) minmax(0,2fr)}}
+.dl video{width:100%;aspect-ratio:16/9;background:var(--screen);display:block}
+.dl ul{list-style:none;padding:0;margin:0;border-top:1px solid var(--line)}
+.dl li{border-bottom:1px solid var(--line);padding:10px 2px}
+.dl li a{color:inherit;text-decoration-color:var(--red);text-underline-offset:4px;font-size:20px}
+.dl li span{display:block;font:12px "IBM Plex Mono",monospace;color:var(--mute)}
+.panel[hidden]{display:none}
+.scenes{list-style:none;padding:0;margin:28px 0 0;border-top:1px solid var(--line);columns:2 340px;column-gap:28px}
+.scenes li{break-inside:avoid;border-bottom:1px solid var(--line)}
+.scenes button{all:unset;box-sizing:border-box;display:grid;grid-template-columns:3ch minmax(0,1fr);gap:10px;width:100%;padding:7px 2px;cursor:pointer;font-size:17.5px;line-height:1.3}
+.scenes button:focus-visible{outline:2px solid var(--red)}
+.scenes .i{font:12px/1.9 "IBM Plex Mono",monospace;color:var(--mute)}
+.scenes li.on .i{color:var(--red)}
+.scenes .s{display:block;font:11px "IBM Plex Mono",monospace;color:var(--mute);letter-spacing:.06em}
+.foot{margin-top:48px;padding-top:14px;border-top:1px solid var(--line);font-size:16px;color:var(--mute)}
+.foot p{max-width:none}
+.foot a{color:inherit}
+/* presenter view */
+body.presenter .wrap{max-width:none;padding:14px 16px}
+.pv{display:grid;gap:14px;grid-template-columns:minmax(0,3fr) minmax(0,2fr)}
+.pv .cur canvas,.pv .nxt canvas{width:100%;aspect-ratio:16/9;display:block;background:var(--screen)}
+.pv .timer{font:500 40px "IBM Plex Mono",monospace;letter-spacing:.04em}
+.pv .pnotes{font-size:19px;max-height:calc(100vh - 120px);overflow:auto;border-top:1px solid var(--line);padding-top:8px}
+@media (max-width:800px){.pv{grid-template-columns:1fr}}
+/* print */
+@media print{
+  @page{size:13.333in 7.5in;margin:0}
+  body{background:#fff;color:#17140f}
+  .wrap > :not(#print){display:none !important}
+  .bset{display:none !important}
+  .wrap{padding:0;max-width:none}
+  .pg{width:13.333in;height:7.5in;page-break-after:always;break-after:page;overflow:hidden;position:relative}
+  .pg canvas{width:100%;height:100%;display:block}
+  .pn{padding:.55in .7in;font-size:15.5px;line-height:1.38}
+  .pn h2{font-weight:400;font-size:30px;margin:4px 0 10px}
+  .pn .mono{color:#6e675c}
+  .pn .say{font-style:italic;margin-bottom:10px}
+  .pn .st{border-left:2px solid #e0483a;padding-left:8px}
+  .pn a{color:inherit}
+  .pn table.nt{border-collapse:collapse;font-size:14px;margin:4px 0 8px}
+  .pn .nt th{font:500 10px "IBM Plex Mono",monospace;text-transform:uppercase;text-align:left;padding:2px 8px 2px 0;color:#6e675c}
+  .pn .nt td{border-top:1px solid #d8d0c2;padding:3px 8px 3px 0;vertical-align:top}
+  .pn .cols{columns:2;column-gap:.5in}
+  .pn .cols p{break-inside:avoid}
+}
+#print{display:none}
+@media print{#print{display:block}}
+</style>
+</head>
+<body>
+<style>
+.bset{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:10px 20px;font:13px/1.3 "IBM Plex Mono",ui-monospace,Menlo,monospace;border-bottom:1px solid rgba(128,120,108,.35);background:inherit}
+.bset a{color:inherit;text-decoration:none;padding:4px 0;border-bottom:1px solid transparent}
+.bset a:hover,.bset a:focus-visible{border-bottom-color:#e0483a;outline:none}
+.bset .here{opacity:.6;margin-right:auto}
+.bset [aria-disabled]{opacity:.3}
+</style><nav class="bset" aria-label="Bolas set"><a href="index.html">Bolas set</a><span class="here">17 / 17</span><a href="the-play.html" rel="prev">← The Play</a><span aria-disabled="true">→</span></nav>
+
+<div class="wrap">
+  <div id="top">
+  <div class="mono">Cineosis Lab · Bolas performs a dissertation</div>
+  <h1>From Imagetext to Worldtext</h1>
+  <p class="lede">Watson Hartsoe's dissertation (Georgia Tech, Digital Media; adviser Jay David Bolter) in twenty-seven scenes. Each scene has one line on screen and one thing Bolas does. The same scenes are a talk and a film.</p>
+  <div class="ways">
+    <p><b>Present</b>One scene per screen. Arrow keys, click or swipe to move. N shows notes, P opens a presenter view, F fills the screen, R replays the scene.</p>
+    <p><b>Play</b>The scenes run on their own with narration. The line appears as it is spoken. The bar underneath marks each scene.</p>
+    <p><b>Download</b>The film as an mp4, to show as a plain video, and the slides as a PDF, with notes, to keep as a fallback.</p>
+  </div>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Ways to use it">
+    <button role="tab" id="tPresent" aria-selected="true" aria-controls="pStage">Present</button>
+    <button role="tab" id="tPlay" aria-selected="false" aria-controls="pStage">Play</button>
+    <button role="tab" id="tDown" aria-selected="false" aria-controls="pDown">Download</button>
+  </div>
+
+  <div id="pStage" class="panel">
+    <div class="stagewrap">
+      <div class="stage" id="stage" tabindex="0" aria-roledescription="slide" aria-label="Scene">
+        <canvas id="cv" width="1280" height="720"></canvas>
+        <span class="num" id="num"></span>
+        <span class="hint" id="hint">← → · N notes · P presenter · F full screen</span>
+      </div>
+      <div class="sr" aria-live="polite" id="live" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)"></div>
+      <div id="ctlPresent" class="ctl">
+        <button id="bPrev" aria-label="Previous scene">←</button>
+        <button id="bNext" aria-label="Next scene">→</button>
+        <button id="bReplay">replay</button>
+        <button id="bNotes" aria-pressed="false">notes</button>
+        <button id="bPresenter">presenter view</button>
+        <button id="bFull">full screen</button>
+        <span class="clock" id="sceneName"></span>
+      </div>
+      <div id="ctlPlay" class="ctl" hidden>
+        <button id="bPlay">play</button>
+        <button id="bBack" aria-label="Previous scene">← scene</button>
+        <button id="bFwd" aria-label="Next scene">scene →</button>
+        <button id="bCC" aria-pressed="false">captions</button>
+        <button id="bFull2">full screen</button>
+        <span class="clock" id="clock">0:00 / 0:00</span>
+      </div>
+      <div class="scrub" id="scrubWrap" hidden>
+        <div class="marks" id="marks"></div>
+        <input type="range" id="scrub" min="0" max="1" step="0.01" value="0" aria-label="Position in the film">
+        <div class="prev" id="prev"><span></span></div>
+      </div>
+      <p class="cc" id="cc" hidden aria-live="polite"></p>
+      <div class="reading" id="reading"></div>
+      <div class="notes" id="notes" hidden></div>
+      <audio id="aud" preload="auto"><source src="worldtext/narration.mp3" type="audio/mpeg"></audio>
+    </div>
+    <ol class="scenes" id="scenes"></ol>
+  </div>
+
+  <div id="pDown" class="panel" hidden>
+    <div class="dl">
+      <video id="vid" controls preload="none" playsinline poster="worldtext/worldtext.jpg"><source src="worldtext/worldtext.mp4" type="video/mp4"></video>
+      <ul>
+        <li><a href="worldtext/worldtext.mp4" download>The film, mp4</a><span id="mp4meta">1280 × 720, H.264 and AAC, narration and sound</span></li>
+        <li><a href="worldtext/worldtext.pdf" download>The slides, PDF</a><span id="pdfmeta">one scene per page, its notes on the page after</span></li>
+        <li><a href="worldtext/worldtext.jpg">Poster frame</a><span>jpg</span></li>
+        <li><a href="worldtext/thumbs/sprite.jpg">Preview sprite</a><span>one frame every five seconds, 160 × 90, ten to a row</span></li>
+        <li><a href="worldtext/deck.js">The source</a><span>deck.js: every scene's line, narration, notes and action</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="foot">
+    <p>Text: Watson Hartsoe, from three planning documents: the three experiments and "the story for anyone"; the accumulating question and the twelve chapter modules; and the chapter atlas of 15 October 2026. Status labels on the slides and in the notes (observed, repository-reported, reconstructed, proposed) follow the atlas. The Cyberiad stories are provocations, not evidence. Narration: Kokoro, voice am_michael. Bolas is the Cineosis Lab avatar, after <i>Spider Engineers</i> (1956); the clip in scene 20 is wg_050 from <i>WarGames</i> (1983), as followed in <a href="the-play.html">The Play</a>.</p>
+  </div>
+  <div id="print"></div>
+</div>
+
+<script src="worldtext/deck.js"></script>
+<script src="worldtext/timing.js"></script>
+<script src="worldtext/stage.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const DECK = window.DECK, TM = STAGE.timingFor(DECK, window.TIMING), N = DECK.scenes.length, TOTAL = TM.scenes.reduce((s, x) => s + x.d, 0);
+const Q = new URLSearchParams(location.search);
+const RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const pad = n => String(n).padStart(2, '0');
+const fmt = s => `${Math.floor(s / 60)}:${pad(Math.floor(s % 60))}`;
+const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+let mode = 'present', idx = 0, t0 = performance.now(), notesOn = false, ready = false, popup = null;
+const cv = $('cv'), cx = cv.getContext('2d');
+
+/* hi-dpi canvas */
+function sizeCanvas(c) { const r = c.getBoundingClientRect(), d = Math.min(2, window.devicePixelRatio || 1); const w = Math.max(320, Math.round(r.width * d)); if (c.width !== w) { c.width = w; c.height = Math.round(w * 9 / 16); } }
+addEventListener('resize', () => sizeCanvas(cv));
+
+/* ---------- the scene list, notes and reading panel ---------- */
+function sceneT(i) { return TM.scenes[i]; }
+$('scenes').innerHTML = DECK.scenes.map((s, i) => `<li data-i="${i}"><button type="button"><span class="i">${pad(i + 1)}</span><span>${esc(s.line || (s.id === 'table' ? 'The argument connecting them' : 'The story for anyone'))}<span class="s">${esc(s.section || '')}</span></span></button></li>`).join('');
+[...$('scenes').children].forEach(li => li.querySelector('button').addEventListener('click', () => { go(+li.dataset.i); $('stage').scrollIntoView({ block: 'nearest', behavior: RM ? 'auto' : 'smooth' }); }));
+function notesHTML(s, i) {
+  return `<span class="mono">${pad(i + 1)} / ${N}${s.section ? ' · ' + esc(s.section) : ''}</span>
+  <h3>What Bolas does</h3><p>${esc(s.action)}</p>
+  <h3>Narration</h3><p class="say">${s.say.map(x => esc(x.t)).join(' ')}</p>
+  <h3>Notes</h3>${s.notes}`;
+}
+function readingHTML(s) {
+  let h = s.section ? `<span class="sec">${esc(s.section)}</span>` : '';
+  if (s.rows) h += `<div>The argument connecting them</div><table>${s.rows.map(r => `<tr><td><i>${esc(r[0])}</i></td><td>${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join('')}</table>`;
+  else if (s.line) h += `<div>${esc(s.line)}</div>`;
+  else h += `<div>${esc(s.say.map(x => x.t).join(' '))}</div>`;
+  if (s.status) h += `<span class="sec" style="color:var(--red);margin-top:6px">${esc(s.status)}</span>`;
+  return h;
+}
+function setScene(i) {
+  idx = i; const s = DECK.scenes[i];
+  $('num').textContent = `${pad(i + 1)} / ${N}`;
+  $('sceneName').textContent = s.section || '';
+  $('reading').innerHTML = readingHTML(s);
+  $('notes').innerHTML = notesHTML(s, i);
+  $('live').textContent = `Scene ${i + 1} of ${N}. ${s.line || ''}`;
+  [...$('scenes').children].forEach((li, j) => li.classList.toggle('on', j === i));
+  if (mode === 'present') { try { history.replaceState(null, '', '#' + (i + 1)); } catch (e) {} }
+  send();
+}
+
+/* ---------- present ---------- */
+function go(i, keepTime) {
+  i = Math.max(0, Math.min(N - 1, i));
+  if (mode === 'play') { seek(sceneT(i).t0 + .01); return; }
+  setScene(i); t0 = performance.now() - (RM ? sceneT(i).d * 1000 : 0);
+}
+function replay() { if (mode === 'present') { t0 = performance.now(); send(); } else seek(sceneT(idx).t0 + .01); }
+$('bPrev').onclick = () => go(idx - 1); $('bNext').onclick = () => go(idx + 1); $('bReplay').onclick = replay;
+$('bNotes').onclick = () => toggleNotes();
+function toggleNotes() { notesOn = !notesOn; $('notes').hidden = !notesOn; $('bNotes').setAttribute('aria-pressed', notesOn); }
+function full() { const el = $('stage'); if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen().catch(() => {}); }
+$('bFull').onclick = full; $('bFull2').onclick = full;
+document.addEventListener('fullscreenchange', () => setTimeout(() => sizeCanvas(cv), 60));
+
+/* click and swipe on the stage */
+(() => {
+  const st = $('stage'); let sx = null, sy = null, moved = false;
+  st.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; moved = false; });
+  st.addEventListener('pointerup', e => {
+    if (sx == null) return; const dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) { mode === 'present' ? go(idx + (dx < 0 ? 1 : -1)) : go(idx + (dx < 0 ? 1 : -1)); return; }
+    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) {
+      if (mode === 'play') { togglePlay(); return; }
+      const r = st.getBoundingClientRect(); go(idx + ((e.clientX - r.left) < r.width / 3 ? -1 : 1));
+    }
+  });
+})();
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input,textarea,select') || e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key;
+  if (['ArrowRight', 'PageDown'].includes(k) || (k === ' ' && mode === 'present')) { e.preventDefault(); go(idx + 1); }
+  else if (['ArrowLeft', 'PageUp'].includes(k)) { e.preventDefault(); go(idx - 1); }
+  else if (k === ' ' && mode === 'play') { e.preventDefault(); togglePlay(); }
+  else if (k === 'Home') go(0); else if (k === 'End') go(N - 1);
+  else if (k === 'n' || k === 'N') toggleNotes();
+  else if (k === 'p' || k === 'P') openPresenter();
+  else if (k === 'f' || k === 'F') full();
+  else if (k === 'r' || k === 'R') replay();
+});
+
+/* ---------- presenter view, in a second window ---------- */
+function openPresenter() {
+  try { popup = window.open(location.href.split('#')[0].split('?')[0] + '?presenter', 'worldtext-presenter', 'width=1180,height=760'); } catch (e) { popup = null; }
+  setTimeout(send, 400); setTimeout(send, 1200);
+}
+$('bPresenter').onclick = openPresenter;
+function send() { if (popup && !popup.closed) try { popup.postMessage({ wt: 'scene', idx, at: (performance.now() - t0) / 1000 }, '*'); } catch (e) {} }
+addEventListener('message', e => { const d = e.data || {}; if (d.wt === 'nav') go(idx + d.dir); if (d.wt === 'goto') go(d.idx); if (d.wt === 'hello') send(); });
+
+/* ---------- play (film) ---------- */
+const aud = $('aud'); let clock0 = null, clockAt = 0, audOK = true;
+aud.addEventListener('error', () => { audOK = false; }, true);
+aud.querySelector('source').addEventListener('error', () => { audOK = false; });
+function now() { if (audOK && aud.readyState >= 1) return aud.currentTime; return clock0 == null ? clockAt : clockAt + (performance.now() - clock0) / 1000; }
+function playing() { return audOK && aud.readyState >= 1 ? !aud.paused : clock0 != null; }
+function togglePlay() {
+  if (playing()) { if (audOK) aud.pause(); if (clock0 != null) { clockAt = now(); clock0 = null; } }
+  else { if (now() >= TOTAL - .05) seek(0); if (audOK) { const p = aud.play(); if (p && p.catch) p.catch(() => { audOK = false; clock0 = performance.now(); }); } else clock0 = performance.now(); }
+  setTimeout(syncPlayBtn, 30);
+}
+function syncPlayBtn() { $('bPlay').textContent = playing() ? 'pause' : 'play'; }
+aud.addEventListener('play', syncPlayBtn); aud.addEventListener('pause', syncPlayBtn); aud.addEventListener('ended', syncPlayBtn);
+function seek(t) { t = Math.max(0, Math.min(TOTAL, t)); if (audOK && aud.readyState >= 1) aud.currentTime = t; clockAt = t; if (clock0 != null) clock0 = performance.now(); }
+$('bPlay').onclick = togglePlay; $('bBack').onclick = () => go(idx - (now() - sceneT(idx).t0 < 1.5 ? 1 : 0)); $('bFwd').onclick = () => go(idx + 1);
+$('bCC').onclick = e => { const on = $('cc').hidden; $('cc').hidden = !on; e.currentTarget.setAttribute('aria-pressed', on); };
+$('scrub').max = TOTAL.toFixed(2);
+$('scrub').addEventListener('input', e => seek(+e.target.value));
+$('marks').innerHTML = TM.scenes.map((s, i) => `<span class="${DECK.scenes[i].section !== (DECK.scenes[i - 1] || {}).section ? 'sec' : ''}" style="left:${(s.t0 / TOTAL * 100).toFixed(3)}%" title="${pad(i + 1)}"></span>`).join('');
+(() => { /* hover preview from the sprite (one frame every five seconds) */
+  const w = $('scrubWrap'), pv = $('prev');
+  w.addEventListener('pointermove', e => {
+    const r = w.getBoundingClientRect(), f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), t = f * TOTAL, k = Math.floor(t / 5);
+    pv.style.display = 'block'; pv.style.left = Math.max(80, Math.min(r.width - 80, f * r.width)) + 'px';
+    pv.style.backgroundImage = 'url(worldtext/thumbs/sprite.jpg)'; pv.style.backgroundPosition = `-${(k % 10) * 160}px -${Math.floor(k / 10) * 90}px`;
+    let si = 0; TM.scenes.forEach((s, i) => { if (t >= s.t0) si = i; });
+    pv.querySelector('span').textContent = `${fmt(t)} · ${pad(si + 1)}`;
+  });
+  w.addEventListener('pointerleave', () => pv.style.display = 'none');
+})();
+
+/* ---------- modes ---------- */
+function setMode(m) {
+  const was = mode; mode = m;
+  $('tPresent').setAttribute('aria-selected', m === 'present'); $('tPlay').setAttribute('aria-selected', m === 'play'); $('tDown').setAttribute('aria-selected', m === 'download');
+  $('pStage').hidden = m === 'download'; $('pDown').hidden = m !== 'download';
+  $('ctlPresent').hidden = m !== 'present'; $('ctlPlay').hidden = m !== 'play'; $('scrubWrap').hidden = m !== 'play';
+  $('hint').textContent = m === 'play' ? 'space play · ← → scenes' : '← → · N notes · P presenter · F full screen';
+  if (m === 'play' && was !== 'play') { seek(sceneT(idx).t0 + .01); }
+  if (m !== 'play' && playing()) togglePlay();
+  if (m === 'present' && was === 'play') { setScene(idx); t0 = performance.now() - sceneT(idx).d * 1000; }
+  if (m !== 'download') requestAnimationFrame(() => sizeCanvas(cv));
+}
+$('tPresent').onclick = () => setMode('present'); $('tPlay').onclick = () => setMode('play'); $('tDown').onclick = () => setMode('download');
+
+/* ---------- the clock ---------- */
+let lastCC = '';
+function frame() {
+  if (ready && mode !== 'download' && !document.hidden) {
+    if (mode === 'present') {
+      const t = Math.min(sceneT(idx).d, (performance.now() - t0) / 1000);
+      STAGE.draw(cx, DECK, TM, idx, t, { fade: true });
+    } else {
+      const T = now(); let si = 0; TM.scenes.forEach((s, i) => { if (T >= s.t0) si = i; });
+      if (si !== idx) setScene(si);
+      const lt = T - TM.scenes[si].t0;
+      STAGE.draw(cx, DECK, TM, si, lt, { reveal: true });
+      if (document.activeElement !== $('scrub')) $('scrub').value = T.toFixed(2);
+      $('clock').textContent = `${fmt(T)} / ${fmt(TOTAL)}`;
+      const s = TM.scenes[si].s; let c = ''; s.forEach((x, j) => { if (lt >= x.t0 - .1 && lt <= x.t1 + .3) c = DECK.scenes[si].say[j].t; });
+      if (c !== lastCC) { lastCC = c; $('cc').textContent = c; }
+      if (clock0 != null && T >= TOTAL) { clockAt = TOTAL; clock0 = null; syncPlayBtn(); }
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- presenter window ---------- */
+function presenter() {
+  document.body.classList.add('presenter');
+  document.querySelector('.bset').remove();
+  const w = document.querySelector('.wrap');
+  w.innerHTML = `<div class="pv"><div class="cur"><span class="mono">Now · <span id="pnum"></span></span><canvas id="pc" width="1280" height="720"></canvas>
+    <div class="ctl"><button id="pp">←</button><button id="pn">→</button><span class="clock"><span class="timer" id="ptimer">0:00</span></span><button id="preset">reset timer</button></div></div>
+    <div><span class="mono">Next</span><div class="nxt"><canvas id="nc" width="640" height="360"></canvas></div><div class="pnotes" id="pnotes"></div></div></div>`;
+  const pc = $('pc').getContext('2d'), nc = $('nc').getContext('2d');
+  let pi = 0, pt0 = performance.now(), start = performance.now();
+  const op = window.opener;
+  const nav = d => { if (op && !op.closed) op.postMessage({ wt: 'nav', dir: d }, '*'); else show(pi + d, 0); };
+  $('pp').onclick = () => nav(-1); $('pn').onclick = () => nav(1); $('preset').onclick = () => start = performance.now();
+  document.addEventListener('keydown', e => { if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); nav(1); } if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); nav(-1); } });
+  function show(i, at) {
+    pi = Math.max(0, Math.min(N - 1, i)); pt0 = performance.now() - (at || 0) * 1000;
+    $('pnum').textContent = `${pad(pi + 1)} / ${N}`;
+    const s = DECK.scenes[pi];
+    $('pnotes').innerHTML = notesHTML(s, pi).replace('notes"', '');
+    document.title = `Presenter · ${pad(pi + 1)} / ${N}`;
+    if (pi + 1 < N) STAGE.draw(nc, DECK, TM, pi + 1, TM.scenes[pi + 1].d, {}); else { nc.fillStyle = '#0b0a09'; nc.fillRect(0, 0, 640, 360); }
+  }
+  addEventListener('message', e => { const d = e.data || {}; if (d.wt === 'scene') show(d.idx, d.at); });
+  if (op && !op.closed) op.postMessage({ wt: 'hello' }, '*');
+  show(0, 0);
+  (function loop() {
+    const t = Math.min(TM.scenes[pi].d, (performance.now() - pt0) / 1000);
+    STAGE.draw(pc, DECK, TM, pi, t, { fade: true, number: true });
+    $('ptimer').textContent = fmt((performance.now() - start) / 1000);
+    requestAnimationFrame(loop);
+  })();
+}
+
+/* ---------- print: one scene per page, its notes on the next ---------- */
+function printPages() {
+  const host = $('print');
+  host.innerHTML = DECK.scenes.map((s, i) => {
+    return `<section class="pg"><canvas width="1600" height="900" data-i="${i}" role="img" aria-label="Scene ${i + 1}: ${esc(s.line || s.id)}"></canvas></section>
+    <section class="pg pn"><span class="mono">${pad(i + 1)} / ${N}${s.section ? ' · ' + esc(s.section) : ''}${s.status ? ' · ' + esc(s.status) : ''}</span><h2>${esc(s.line || (s.id === 'table' ? 'The argument connecting them' : 'The story for anyone'))}</h2>
+    <p class="say">${s.say.map(x => esc(x.t)).join(' ')}</p><div class="cols"><p><b style="font-weight:500">What Bolas does.</b> ${esc(s.action)}</p>${s.notes}</div></section>`;
+  }).join('');
+  host.querySelectorAll('canvas[data-i]').forEach(c => { const i = +c.dataset.i; STAGE.draw(c.getContext('2d'), DECK, TM, i, TM.scenes[i].d - .25, { number: true }); });
+  document.body.dataset.printed = '1';
+}
+
+/* ---------- start ---------- */
+const fontsReady = document.fonts ? Promise.all([document.fonts.load('52px "Cormorant Garamond"'), document.fonts.load('italic 23px "Cormorant Garamond"'), document.fonts.load('500 13px "IBM Plex Mono"')]).catch(() => {}) : Promise.resolve();
+fontsReady.then(() => STAGE.load('', () => {
+  ready = true;
+  if (Q.has('presenter')) { presenter(); return; }
+  if (Q.has('print')) { printPages(); return; }
+  sizeCanvas(cv);
+  const h = parseInt((location.hash || '').slice(1), 10);
+  setScene(h >= 1 && h <= N ? h - 1 : 0); t0 = performance.now();
+  if (Q.get('mode') === 'play') setMode('play'); else if (Q.get('mode') === 'download') setMode('download');
+  requestAnimationFrame(frame);
+}));
+</script>
+</body>
+</html>

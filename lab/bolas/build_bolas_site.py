@@ -21,6 +21,8 @@ SET = [  # slug, source file in the scratchpad (None = page already on the site)
     ('web-of-cineosis', 'web-of-cineosis', 'The Web of Cineosis', 'The whole ontology as a circle, web types and radars.'),
     ('webs-of-significance', 'webs-of-significance', 'Webs of Significance', 'One real line, its questions, finds and choices.'),
     ('editing-table', None, 'The Editing Table', 'One shot placed while another waits: a scene you steer, and your own cut.'),
+    ('the-play', None, 'The Play', 'One shot, one gesture that is easy to miss, two possible cuts.'),
+    ('worldtext', None, 'From Imagetext to Worldtext', 'The dissertation as a talk and a film, performed by Bolas: present, play, download.'),
 ]
 
 NAV_CSS = """<style>
@@ -117,7 +119,7 @@ li a:focus-visible{{outline:2px solid var(--red);outline-offset:2px}}
 <main>
 <span class="thread" aria-hidden="true"></span>
 <h1>Bolas set</h1>
-<p>Fourteen tests of the Cineosis mark, the character and the webs, in the order they were made. Each page has previous and next at the top.</p>
+<p>Seventeen tests of the Cineosis mark, the character and the webs, in the order they were made. Each page has previous and next at the top.</p>
 <ol>
 {items}
 </ol>

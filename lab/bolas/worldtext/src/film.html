@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>From Imagetext to Worldtext · film</title>
+<style>
+@font-face{font-family:"Cormorant Garamond";src:url(../fonts/cormorant-garamond-latin-400-normal.woff2) format("woff2");font-weight:400;font-style:normal}
+@font-face{font-family:"Cormorant Garamond";src:url(../fonts/cormorant-garamond-latin-400-italic.woff2) format("woff2");font-weight:400;font-style:italic}
+@font-face{font-family:"Cormorant Garamond";src:url(../fonts/cormorant-garamond-latin-500-normal.woff2) format("woff2");font-weight:500;font-style:normal}
+@font-face{font-family:"IBM Plex Mono";src:url(../fonts/ibm-plex-mono-latin-400-normal.woff2) format("woff2");font-weight:400}
+@font-face{font-family:"IBM Plex Mono";src:url(../fonts/ibm-plex-mono-latin-500-normal.woff2) format("woff2");font-weight:500}
+html,body{margin:0;background:#222}
+canvas#film{display:block;width:1280px;height:720px}
+</style>
+</head>
+<body>
+<canvas id="film" width="1280" height="720"></canvas>
+<script src="../deck.js"></script>
+<script src="../timing.js"></script>
+<script src="../stage.js"></script>
+<script>
+/* window.__render(frame) draws frame n of the film at 24 fps, from the same deck and the timing built from the narration */
+const FPS = 24, cv = document.getElementById('film'), g = cv.getContext('2d');
+const TM = STAGE.timingFor(DECK, window.TIMING), TOTAL = TM.scenes.reduce((s, x) => s + x.d, 0);
+window.__T = TM; window.__NF = Math.round(TOTAL * FPS);
+window.__render = async (f) => {
+  const t = f / FPS; let si = 0; TM.scenes.forEach((s, i) => { if (t >= s.t0) si = i; });
+  const lt = t - TM.scenes[si].t0;
+  STAGE.draw(g, DECK, TM, si, lt, { reveal: true });
+  /* a short dip at each cut, and a fade at the very end */
+  const a = Math.max(si ? 1 - lt / .25 : 1 - lt / .6, (t - (TOTAL - .8)) / .8);
+  if (a > 0) { g.fillStyle = `rgba(11,10,9,${Math.min(1, a)})`; g.fillRect(0, 0, 1280, 720); }
+};
+Promise.all([document.fonts.load('52px "Cormorant Garamond"'), document.fonts.load('italic 23px "Cormorant Garamond"'), document.fonts.load('500 13px "IBM Plex Mono"'), document.fonts.load('400 13px "IBM Plex Mono"')])
+  .then(() => STAGE.load('../../', () => { window.__ready = true; }));
+</script>
+</body>
+</html>
