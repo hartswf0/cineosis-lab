@@ -2,6 +2,7 @@
    "makes visible", and the card at the end that leads to the next film from it. Each film names the invisible thing it shows.
    Order follows the curriculum: how machines see, where the archive came from, then how a cut is made, the cuts, the rooms. */
 window.FILMS = [
+  { unit: 'Seeing', n: '0', t: 'What Kind of Archive Is This?', href: 'archive-kind.html', v: 'what the lab is, and every kind of missing kept apart' },
   { unit: 'Seeing', n: '1', t: 'Where the Archive Came From', href: 'episode-1.html', v: 'the searches behind every shot the lab holds' },
   { unit: 'Seeing', n: '2·', t: 'How the Lab Sees', href: 'how-it-sees.html', v: 'how the machines learned to look and listen' },
   { unit: 'Seeing', n: '3', t: 'A Moving Image', href: 'operative.html?ch=A%20moving%20image', v: 'what changes when a shot is read whole, not as one frame' },
