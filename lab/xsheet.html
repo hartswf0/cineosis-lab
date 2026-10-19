@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WYGWYL X-Sheet</title>
+<meta name="description" content="Every WYGWYL cel shot as a multiplane and exposure state graph: the sheet, the footage's own key poses, the five gates (silhouette, volume, contact, arcs, vitality), the director layer, and critiques that rewrite the timing.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--case:#111214;--panel:#1a1b1e;--panel2:#212327;--key:#2b2e33;--key2:#34383e;--edge:#3b3f46;--ink:#e9eaec;--dim:#8d929b;--faint:#5c616a;--bad:#e5322d;--good:#2fbf4f;--amber:#f2a623;--lit:#f4f5f2;--na:#4a4e55}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--case);color:var(--ink)}
+body{font:500 12.5px/1.35 "Barlow Condensed","Arial Narrow",system-ui,sans-serif;letter-spacing:.03em}
+button{font:inherit;color:inherit;letter-spacing:inherit}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;letter-spacing:0}
+header{display:flex;align-items:center;gap:12px;padding:6px 12px;border-bottom:1px solid var(--edge);background:var(--panel);flex-wrap:wrap}
+header h1{margin:0;font-weight:700;font-size:15px;letter-spacing:.16em}
+header a{color:var(--dim);text-decoration:none;font-size:12px;letter-spacing:.1em}
+header a:hover{color:var(--ink)}
+header .sp{flex:1}
+.wrap{display:grid;grid-template-columns:250px minmax(0,1fr) 340px;gap:8px;padding:8px;max-width:1900px;margin:0 auto}
+.mod{background:var(--panel);border:1px solid var(--edge);border-radius:6px;padding:8px 10px;min-width:0}
+.mod h2{margin:0 0 6px;font-weight:600;font-size:10.5px;letter-spacing:.2em;color:var(--dim)}
+.list{max-height:calc(100vh - 70px);overflow:auto;padding:4px}
+.poem{font-size:10.5px;letter-spacing:.2em;color:var(--dim);margin:8px 4px 3px}
+.shot{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:6px;align-items:center;padding:4px 5px;border-radius:4px;cursor:pointer}
+.shot:hover{background:var(--panel2)} .shot.on{background:var(--key2);outline:1px solid var(--dim)}
+.shot b{font-weight:600;font-size:12px} .shot span{color:var(--dim);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.leds{display:flex;gap:3px}
+.led{width:8px;height:8px;border-radius:50%;background:var(--na)}
+.led.p{background:var(--good)} .led.f{background:var(--bad)}
+.center{display:grid;gap:8px;min-width:0}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start}
+.screen{position:relative;background:#000;border:2px solid var(--edge);border-radius:4px;aspect-ratio:16/9;overflow:hidden}
+.screen canvas{width:100%;height:100%;display:block}
+.screen .lab{position:absolute;left:0;top:0;padding:2px 8px;font-weight:700;font-size:11.5px;letter-spacing:.16em;background:#000c;border-bottom-right-radius:4px}
+.screen .tc{position:absolute;right:0;top:0;padding:2px 8px;background:#000c;font-size:12px}
+.screen .sub{position:absolute;left:0;right:0;bottom:0;padding:4px 10px;font-size:13px;background:linear-gradient(transparent,#000c)}
+.ctl{display:flex;flex-direction:column;gap:5px;width:150px}
+.k{min-width:34px;height:28px;padding:0 8px;border-radius:4px;border:1px solid #0006;background:linear-gradient(var(--key2),var(--key));color:var(--ink);cursor:pointer;font-weight:600;font-size:11.5px;letter-spacing:.08em;box-shadow:inset 0 1px 0 #ffffff14,0 1px 0 #000}
+.k:active{transform:translateY(1px)} .k[aria-pressed=true]{background:var(--lit);color:#111}
+.k.amber[aria-pressed=true]{background:var(--amber);color:#2a1a00}
+.k.big{height:38px;font-size:14px}
+.row{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.lbl{font-size:10px;letter-spacing:.18em;color:var(--dim);margin-top:4px}
+.sheet{overflow-x:auto;background:#0c0d0e;border-radius:4px;border:1px solid var(--edge)}
+.sheet canvas{display:block;cursor:pointer}
+.gate{border-left:3px solid var(--na);padding:4px 8px;margin:5px 0;background:var(--panel2);border-radius:0 4px 4px 0}
+.gate.p{border-color:var(--good)} .gate.f{border-color:var(--bad)}
+.gate b{font-weight:700;letter-spacing:.12em;font-size:11.5px}
+.gate .v{font-size:11.5px;color:var(--dim);margin-top:2px}
+.gate .fix{font-size:11.5px;color:var(--amber);margin-top:2px}
+.planes{display:grid;gap:3px}
+.pl{display:grid;grid-template-columns:24px minmax(0,1fr) 96px;gap:6px;align-items:center;font-size:11.5px}
+.pl .bar{display:block;height:5px;background:var(--dim);border-radius:2px;margin-bottom:2px}
+.pl i{display:block;height:8px;background:var(--dim);border-radius:2px}
+.pl span{color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dir{font-size:12.5px;line-height:1.45}
+.dir .beats{display:flex;flex-wrap:wrap;gap:3px;margin:4px 0}
+.dir .beats span{border:1px solid var(--edge);border-radius:3px;padding:1px 5px;font-size:11px}
+.dir .beats span.now{background:var(--amber);color:#111;border-color:var(--amber)}
+.diff{font-size:11.5px;color:var(--amber);min-height:1.4em}
+.sil{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.sil img{height:46px;background:#fff;border-radius:2px}
+.sum{font-size:12px;color:var(--dim);line-height:1.5}
+.sum b{color:var(--ink)}
+@media (max-width:1250px){.wrap{grid-template-columns:200px minmax(0,1fr)}.right{grid-column:1/-1}}
+@media (max-width:760px){.wrap{grid-template-columns:1fr}.list{max-height:240px}.stage{grid-template-columns:1fr}.ctl{width:auto;flex-direction:row;flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<header><a href="./">◂ LAB</a><h1>X-SHEET</h1><span class="mono" id="count" style="color:var(--dim)"></span><span class="sp"></span>
+  <a href="cel-mixer.html">CEL MIXER</a><a href="cel-colour.html">COLOUR</a><a href="cel-cuts.html">CEL CUTS</a></header>
+<div class="wrap">
+  <div class="mod list" id="list"></div>
+  <div class="center">
+    <div class="mod">
+      <div class="stage">
+        <div class="screen"><span class="lab" id="shotLab"></span><span class="tc mono" id="tc"></span><canvas id="cv" width="960" height="540"></canvas><div class="sub" id="sub"></div></div>
+        <div class="ctl">
+          <div class="row"><button class="k big" id="play">▶</button><button class="k" id="prev">◂</button><button class="k" id="next">▸</button></div>
+          <div class="lbl">PLAY</div>
+          <div class="row"><button class="k" data-mode="sheet" title="Every drawing, as the sheet exposes it">SHEET</button><button class="k" data-mode="drawn" title="Flip test on our drawn keys only">DRAWN KEYS</button><button class="k" data-mode="story" title="Flip test on the footage's own key poses and breakdowns">STORY KEYS</button></div>
+          <div class="lbl">OVERLAY</div>
+          <div class="row"><button class="k" data-ov="arcs">ARCS</button><button class="k" data-ov="pins">PINS</button><button class="k" data-ov="cam">CAM</button></div>
+          <div class="lbl">DIRECTOR</div>
+          <div class="row"><button class="k amber" data-dir="heavier">HEAVIER</button><button class="k amber" data-dir="scared">SCARED</button><button class="k amber" data-dir="funnier">FUNNIER</button><button class="k amber" data-dir="huge">WORLD HUGE</button><button class="k" id="reset">RESET</button></div>
+          <div class="diff" id="diff"></div>
+          <button class="k" id="export" title="Download this shot's sheet as it stands">⇩ SHEET</button>
+        </div>
+      </div>
+    </div>
+    <div class="mod"><h2>EXPOSURE SHEET · 24 FPS · DRAG TO SCRUB</h2><div class="sheet" id="sheetWrap"><canvas id="sheet" height="214"></canvas></div></div>
+    <div class="mod"><h2>DIRECTOR LAYER · STATE 1</h2><div class="dir" id="dir"></div></div>
+  </div>
+  <div class="right">
+    <div class="mod"><h2>THE FIVE GATES</h2><div id="gates"></div></div>
+    <div class="mod" style="margin-top:8px"><h2>MULTIPLANE STACK</h2><div class="planes" id="planes"></div></div>
+    <div class="mod" style="margin-top:8px"><h2>ALL SHOTS</h2><div class="sum" id="sum"></div></div>
+  </div>
+</div>
+<script src="feel.js"></script>
+<script>
+(async () => {
+'use strict';
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)], esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const feel = n => { try { window.Feel && Feel.play(n); } catch (e) { } };
+const IDX = await fetch('cels/scion/index.json').then(r => r.json()); const DIR = await fetch('cels/scion/director.json').then(r => r.ok ? r.json() : {}).catch(() => ({}));
+const S = { shot: null, atlas: null, sheet: [], t: 0, playing: false, mode: 'sheet', ov: new Set(['arcs']), mutations: [], last: 0 };
+$('#count').textContent = `${IDX.shots.length} shots`;
+const cls = v => v === true ? 'p' : v === false ? 'f' : '';
+// the list
+let html = '', lastPoem = null;
+for (const s of IDX.shots) {
+  if (s.poem !== lastPoem) { html += `<div class="poem">POEM ${esc(s.poem)}</div>`; lastPoem = s.poem; }
+  html += `<div class="shot" data-id="${esc(s.id)}"><b>${esc(s.id)}</b><span>${esc(s.name || '')}</span><span class="leds">${['G1', 'G2', 'G3', 'G4', 'G5'].map(g => `<i class="led ${cls(s.gates[g])}" title="${g}"></i>`).join('')}</span></div>`;
+}
+$('#list').innerHTML = html; $$('.shot').forEach(e => e.onclick = () => load(e.dataset.id));
+// the summary over all shots
+{ const N = IDX.shots.length, cnt = g => [IDX.shots.filter(s => s.gates[g] === true).length, IDX.shots.filter(s => s.gates[g] === false).length];
+  const med = a => { a = a.filter(x => x != null).sort((x, y) => x - y); return a.length ? a[Math.floor(a.length / 2)] : null; };
+  const cov = med(IDX.shots.map(s => s.key_coverage)), boil = med(IDX.shots.map(s => s.g.boil)), peak1 = IDX.shots.filter(s => s.g.peak === 'first way').length, peaks = IDX.shots.filter(s => s.g.peak).length;
+  $('#sum').innerHTML = ['G1', 'G2', 'G3', 'G4', 'G5'].map(g => { const [p, f] = cnt(g); return `<b>${g}</b> ${['silhouette', 'volume', 'contact', 'arcs', 'vitality'][+g[1] - 1]}: ${p} pass · ${f} fail · ${N - p - f} n/a`; }).join('<br>') +
+    `<br><br>Our drawings land on <b>${Math.round(cov * 100)}%</b> of the footage's own key poses (median); they are placed on a clock, every 3 s, not on poses.<br>Inside the figure our cels change <b>${boil}×</b> as much as their footage does, once motion is taken out (median): that is the boiling.<br>The first way is the peak checkpoint on <b>${peak1} of ${peaks}</b> shots.`; }
+
+async function load(id) {
+  S.shot = await fetch(`cels/scion/${id}.json`).then(r => r.json()); S.mutations = []; S.t = 0;
+  S.atlas = new Image(); S.atlas.src = S.shot.atlas.file; await S.atlas.decode().catch(() => { });
+  $$('.shot').forEach(e => e.classList.toggle('on', e.dataset.id === id)); history.replaceState(null, '', '#' + id);
+  $('#shotLab').textContent = `${S.shot.id} · ${S.shot.name || ''}`.toUpperCase(); $('#sub').textContent = S.shot.line || S.shot.what || '';
+  build(); gates(); planes(); director(); feel('tap');
+}
+// the sheet: one entry per exposure, in 24 fps frames
+function base() { return S.shot.xsheet.map(r => ({ f: r.f, ex: r.ex, row: r })); }
+function build() {
+  let E = base();
+  if (S.mode === 'drawn') { const K = S.shot.drawn_keys; E = K.map((k, i) => ({ f: k, ex: 2 * ((K[i + 1] ?? S.shot.frames) - k), row: S.shot.xsheet[k] })); }
+  if (S.mode === 'story') { const K = [...new Set([0, ...S.shot.motion_keys, ...S.shot.breakdowns])].sort((a, b) => a - b); E = K.map((k, i) => ({ f: k, ex: 2 * ((K[i + 1] ?? S.shot.frames) - k), row: S.shot.xsheet[k] })); }
+  for (const m of S.mutations) E = MUT[m](E);
+  S.sheet = E; S.total = E.reduce((a, e) => a + e.ex, 0);
+  const d = S.total - 2 * S.shot.frames; $('#diff').textContent = S.mutations.length ? `${S.mutations.join(' + ').toUpperCase()}: ${d >= 0 ? '+' : ''}${d} frames (${(d / 24).toFixed(2)} s)` : '';
+  drawSheet();
+}
+// director translation: each critique is a deterministic rewrite of the sheet (timing; the camera where it can)
+const isKey = e => e.row.motion_key === 'K', isPin = e => !!e.row.pin;
+const MUT = {
+  heavier: E => E.map((e, i) => ({ ...e, ex: e.ex + (isPin(e) && !(E[i - 1] && isPin(E[i - 1])) ? 4 : 0) + (isKey(e) ? 2 : 0), shake: isPin(e) && !(E[i - 1] && isPin(E[i - 1])) })),
+  scared: E => E.map((e, i) => { const toKey = E.slice(i + 1, i + 4).some(isKey); return { ...e, ex: e.ex + (isKey(e) ? 6 : 0) + (toKey ? 1 : 0) }; }),
+  funnier: E => E.map((e, i) => { const toKey = E.slice(i + 1, i + 3).some(isKey), afterKey = E.slice(Math.max(0, i - 2), i).some(isKey);
+    return { ...e, ex: isKey(e) ? e.ex + 8 : toKey ? 1 : afterKey ? e.ex + 3 : e.ex }; }),
+  huge: E => E.map(e => ({ ...e, huge: true })),
+};
+function frameAt(t) { let acc = 0; for (let i = 0; i < S.sheet.length; i++) { acc += S.sheet[i].ex; if (t < acc) return [i, S.sheet[i]]; } return [S.sheet.length - 1, S.sheet[S.sheet.length - 1]]; }
+// the picture
+const cv = $('#cv'), cx = cv.getContext('2d');
+function draw() {
+  if (!S.shot || !S.atlas) return;
+  const [i, e] = frameAt(S.t), A = S.shot.atlas, f = e.f, sx = (f % A.cols) * A.w, sy = Math.floor(f / A.cols) * A.h, W = cv.width, H = cv.height;
+  cx.fillStyle = '#000'; cx.fillRect(0, 0, W, H); cx.save();
+  if (e.huge) { const s = .62; cx.translate(W * (1 - s) / 2, H * (1 - s) * .62); cx.scale(s, s); }
+  if (e.shake && (S.t % 24) < 4) cx.translate(0, ((S.t % 2) ? 1 : -1) * 6);
+  cx.drawImage(S.atlas, sx, sy, A.w, A.h, 0, 0, W, H); cx.restore();
+  if (e.huge) { const g = cx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#000'); g.addColorStop(.22, '#0000'); g.addColorStop(.8, '#0000'); g.addColorStop(1, '#000e'); cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+    cx.fillStyle = '#000'; cx.beginPath(); cx.moveTo(0, H); cx.lineTo(0, H * .55); cx.quadraticCurveTo(W * .12, H * .7, W * .2, H); cx.fill(); }
+  const X = v => v * W, Y = v => v * H, R = S.shot.xsheet;
+  if (S.ov.has('arcs') && !e.huge) { cx.lineWidth = 2; [['top', '#f2a623'], ['foot', '#6fc3df']].forEach(([k, c]) => { cx.strokeStyle = c; cx.beginPath(); let on = false;
+      R.forEach(r => { if (!r[k]) { on = false; return; } on ? cx.lineTo(X(r[k][0]), Y(r[k][1])) : cx.moveTo(X(r[k][0]), Y(r[k][1])); on = true; }); cx.stroke(); });
+    cx.strokeStyle = '#fff8'; cx.beginPath(); let on = false; R.forEach(r => { if (r.cx == null) { on = false; return; } on ? cx.lineTo(X(r.cx), Y(r.cy)) : cx.moveTo(X(r.cx), Y(r.cy)); on = true; }); cx.stroke();
+    const r = e.row; if (r.cx != null) { cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(X(r.cx), Y(r.cy), 5, 0, 7); cx.fill(); } }
+  if (S.ov.has('pins') && !e.huge) R.forEach(r => { if (r.pin && r.foot) { cx.fillStyle = r.f === f ? '#e5322d' : '#e5322d66'; cx.fillRect(X(r.foot[0]) - 4, Y(r.foot[1]) - 4, 8, 8); } });
+  if (S.ov.has('cam') && e.row.cam) { const [dx, dy] = e.row.cam; cx.strokeStyle = '#2fbf4f'; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(W - 70, 70); cx.lineTo(W - 70 + dx * 12, 70 + dy * 12); cx.stroke(); cx.beginPath(); cx.arc(W - 70, 70, 26, 0, 7); cx.lineWidth = 1; cx.stroke(); }
+  $('#tc').textContent = `F${String(Math.floor(S.t)).padStart(3, '0')} · ${e.row.drawing}${e.row.motion_key ? ' · ' + e.row.motion_key : ''} · ×${e.ex}`;
+  // beats
+  const beats = (DIR[S.shot.id]?.keys || []); let acc = 0, now = -1; beats.forEach((b, k) => { if (f >= (b[2] ?? 0)) now = k; });
+  $$('.dir .beats span').forEach((s, k) => s.classList.toggle('now', k === now));
+}
+// the sheet canvas: rows of the exposure sheet
+const sc = $('#sheet'), sx = sc.getContext('2d'), CW = 9;
+const ROWS = [['DRAWING', 20], ['STORY', 16], ['EXPOSURE', 22], ['CONTACT', 14], ['CAMERA', 28], ['MOTION', 46], ['BEAT', 30]];
+function drawSheet() {
+  if (!S.shot) return; const r = devicePixelRatio || 1, Wd = Math.max(sc.parentElement.clientWidth, S.total * CW + 80), Hh = ROWS.reduce((a, x) => a + x[1], 0) + 18;
+  sc.width = Wd * r; sc.height = Hh * r; sc.style.width = Wd + 'px'; sc.style.height = Hh + 'px'; sx.setTransform(r, 0, 0, r, 0, 0); sx.clearRect(0, 0, Wd, Hh);
+  let y = 14; sx.font = '600 10px Barlow Condensed'; sx.fillStyle = '#5c616a';
+  for (let t = 0; t < S.total; t += 24) { sx.fillText(`${t / 24}s`, 80 + t * CW + 2, 10); sx.fillRect(80 + t * CW, 12, 1, Hh); }
+  ROWS.forEach(([n, h]) => { sx.fillStyle = '#8d929b'; sx.fillText(n, 4, y + h / 2 + 3); sx.fillStyle = '#1a1b1e'; sx.fillRect(80, y, Wd, 1); y += h; });
+  let t = 0, y0 = 14; const R = S.shot.xsheet, mx = Math.max(.5, ...R.map(r => Math.hypot(...(r.v_src || [0, 0])), ...R.map(r => Math.hypot(...(r.v_cel || [0, 0])))));
+  S.sheet.forEach(e => {
+    const x = 80 + t * CW, w = e.ex * CW, r0 = e.row; let y = y0;
+    const k = r0.drawing !== 'eb'; sx.fillStyle = k ? '#f4f5f2' : '#3b3f46'; sx.fillRect(x + 1, y + 3, w - 2, 14); if (k && w > 20) { sx.fillStyle = '#111'; sx.fillText(r0.drawing, x + 3, y + 13); } y += 20;
+    if (r0.motion_key) { sx.fillStyle = r0.motion_key === 'K' ? '#f2a623' : '#c08a5c'; sx.beginPath(); sx.arc(x + 5, y + 8, 4, 0, 7); sx.fill(); } y += 16;
+    sx.strokeStyle = '#8d929b'; sx.strokeRect(x + .5, y + 3, w - 1, 16); sx.fillStyle = '#e9eaec'; if (w > 14) sx.fillText(e.ex > 3 ? 'H' + e.ex : String(e.ex), x + 3, y + 15); y += 22;
+    if (r0.pin) { sx.fillStyle = '#e5322d'; sx.fillRect(x, y + 4, w, 6); } y += 14;
+    if (r0.cam) { const [dx, dy] = r0.cam, cxx = x + w / 2, cy = y + 14; sx.strokeStyle = '#2fbf4f'; sx.beginPath(); sx.moveTo(cxx, cy); sx.lineTo(cxx + Math.max(-12, Math.min(12, dx * 4)), cy + Math.max(-12, Math.min(12, dy * 4))); sx.stroke(); } y += 28;
+    const vs = Math.hypot(...(r0.v_src || [0, 0])) / mx, vc = Math.hypot(...(r0.v_cel || [0, 0])) / mx;
+    sx.fillStyle = '#5c616a'; sx.fillRect(x, y + 44 - vs * 40, w, vs * 40); sx.fillStyle = '#e9eaecaa'; sx.fillRect(x + w / 3, y + 44 - vc * 40, Math.max(1, w / 3), vc * 40); y += 46;
+    t += e.ex;
+  });
+  // beats from the director layer
+  const B = DIR[S.shot.id]?.keys || []; let yb = y0 + ROWS.slice(0, 6).reduce((a, x) => a + x[1], 0);
+  B.forEach((b, k) => { const f0 = b[2] ?? 0, f1 = B[k + 1]?.[2] ?? S.shot.frames; let t0 = 0, t1 = 0, acc = 0; S.sheet.forEach(e => { if (e.f < f0) t0 = acc + e.ex; if (e.f < f1) t1 = acc + e.ex; acc += e.ex; });
+    const x = 80 + t0 * CW, w = Math.max(6, (t1 - t0) * CW); sx.fillStyle = k % 2 ? '#2b2e33' : '#34383e'; sx.fillRect(x, yb + 4, w - 2, 22); sx.fillStyle = '#e9eaec'; sx.save(); sx.beginPath(); sx.rect(x, yb, w - 4, 30); sx.clip(); sx.fillText(b[1] || b[0], x + 4, yb + 18); sx.restore(); });
+  sx.fillStyle = '#e5322d'; sx.fillRect(80 + S.t * CW, 12, 2, Hh);
+  sx.fillStyle = '#5c616a'; sx.fillText('footage ▮  cel ▮', 4, 14 + ROWS.slice(0, 5).reduce((a, x) => a + x[1], 0) + 40);
+}
+{ const go = e => { const b = sc.getBoundingClientRect(); S.t = Math.max(0, Math.min(S.total - 1, (e.clientX - b.left - 80) / CW)); S.playing = false; paintPlay(); draw(); drawSheet(); };
+  sc.addEventListener('pointerdown', e => { go(e); sc.setPointerCapture(e.pointerId); }); sc.addEventListener('pointermove', e => { if (e.buttons) go(e); }); }
+// the gates panel
+const FIX = {
+  G1: 'Push the figure off its ground (the mixer\'s FIX key); re-stage so the gesture reads in silhouette: limbs off the torso, profile over three-quarter.',
+  G2: 'Re-draw with keys on the footage\'s own poses, each warm-started from the one before; fewer EbSynth frames between distant drawings. Or take the first way if it is the peak checkpoint.',
+  G3: 'Pin the lowest point for the contact window: hold the planted drawing (HEAVIER), or re-draw the in-betweens on the footage\'s flow so the foot does not slide.',
+  G4: 'Place keys on the footage\'s extremes (STORY KEYS) and breakdowns at the arc\'s apex; EbSynth between keys that far apart wanders off the arc.',
+  G5: 'Restore the peak checkpoint: the drawing pass made the shot less alive than its footage (or added jitter); keep the rougher, livelier pass.',
+};
+function gates() {
+  const G = S.shot.gates, v = (x, d = 2) => x == null ? '—' : (+x).toFixed(d);
+  const card = (k, title, vals, pass, extra = '') => `<div class="gate ${cls(pass)}"><b>${k} · ${title}</b> <span class="mono" style="float:right;color:var(--dim)">${pass === true ? 'PASS' : pass === false ? 'FAIL' : 'N/A'}</span><div class="v">${vals}</div>${extra}${pass === false ? `<div class="fix">${FIX[k]}</div>` : ''}</div>`;
+  const g1 = G.G1.keys;
+  $('#gates').innerHTML =
+    card('G1', 'SILHOUETTE', g1.length ? g1.map((k, i) => k.figure ? `K${String(i + 1).padStart(2, '0')}: contrast ${v(k.contrast)} · solidity ${v(k.solidity)} · notches ${k.notches} ${k.pass ? '✓' : '✗'}` : `K${String(i + 1).padStart(2, '0')}: no figure on plane 2`).join('<br>') : 'no drawn keys', G.G1.pass,
+      `<div class="sil">${g1.map((k, i) => k.figure ? `<img src="cels/scion/${esc(S.shot.id)}_K${String(i + 1).padStart(2, '0')}.png" alt="silhouette K${i + 1}">` : '').join('')}</div>`) +
+    card('G2', 'VOLUME', `inside the figure, change not explained by its motion: cel ${v(G.G2.boil_cel)} · footage ${v(G.G2.boil_footage)} · first way ${v(G.G2.boil_first_way)} → ${v(G.G2.ratio)}× the footage (fail over 1.5×)`, G.G2.pass) +
+    card('G3', 'CONTACT', G.G3.pins ? `${G.G3.pins} planted windows, ${G.G3.pinned_frames} frames · slide ${v(G.G3.slide_px_per_frame)} px a frame (fail over 1.5)` : 'no planted lowest point in frame', G.G3.pass) +
+    card('G4', 'ARCS', G.G4.held ? 'the footage holds: no arc to keep' : `reversals a second: cel ${v(G.G4.reversals_per_s_cel)} · footage ${v(G.G4.reversals_per_s_footage)} · follows the footage ${v(G.G4.follows_footage)}`, G.G4.pass) +
+    card('G5', 'VITALITY', G.G5.held ? `the footage holds (${v(G.G5.energy_footage)} px a frame); the cel moves ${v(G.G5.energy_cel)}: see G2` : `motion energy: cel ${v(G.G5.energy_cel)} · footage ${v(G.G5.energy_footage)} · first way ${v(G.G5.energy_first_way)} → ${v(G.G5.ratio)}× (pass .7–1.6) · peak checkpoint: ${G.G5.peak_checkpoint || '—'}`, G.G5.pass) +
+    `<div class="gate"><b>KEYS</b><div class="v">drawn ${S.shot.drawn_keys.length} on a clock · the footage's own key poses ${S.shot.motion_keys.length}, breakdowns ${S.shot.breakdowns.length} · drawn keys land on ${S.shot.key_coverage == null ? '—' : Math.round(S.shot.key_coverage * 100) + '%'} of them</div></div>`;
+}
+function planes() {
+  const M = S.shot.multiplane; if (!M) { $('#planes').innerHTML = '<span class="sum">not measured</span>'; return; }
+  $('#planes').innerHTML = M.planes.map(p => `<div class="pl" title="${esc((p.contents || []).join(', '))}${p.motion?.length ? ' · ' + esc(p.motion.join('; ')) : ''}"><b>${p.id}</b><span><i class="bar" style="width:${Math.round(Math.min(1, p.area * 2) * 100)}%"></i>${esc(p.name)} · ${esc((p.contents || []).slice(0, 3).join(', '))}</span><span class="mono" style="text-align:right">Z ${p.Z ?? '∞'}${p.parallax != null ? ' · ∥' + (+p.parallax).toFixed(2) : ''}</span></div>`).join('') +
+    (M.camera ? `<div class="sum" style="margin-top:6px">camera: ${esc(M.camera.move)} · ${esc(M.camera.why || '')}</div>` : '');
+}
+function director() {
+  const D = DIR[S.shot.id];
+  if (!D) { $('#dir').innerHTML = `<span class="sum">${esc(S.shot.what || '')}</span>`; return; }
+  $('#dir').innerHTML = `<b>${esc(D.title || '')}</b> · <span style="color:var(--dim)">${esc(D.emotion || '')}</span><br>${esc(D.action || '')}
+    <div class="beats">${(D.keys || []).map(k => `<span title="frame ${k[2]}">${esc(k[0])} ${esc(k[1])}</span>`).join('')}</div>
+    ${D.chain ? `<div class="sum">${Object.entries(D.chain).map(([k, v]) => `<b>${esc(k.toUpperCase())}</b> ${esc(v)}`).join(' → ')}</div>` : ''}
+    ${D.staging ? `<div class="sum"><b>STAGING</b> ${esc(D.staging)}</div>` : ''}${D.secondary ? `<div class="sum"><b>SECONDARY</b> ${esc([].concat(D.secondary).join('; '))}</div>` : ''}
+    ${D.flip ? `<div class="sum"><b>FLIP TEST</b> ${esc(D.flip)}</div>` : ''}${D.flaw ? `<div class="sum" style="color:var(--amber)"><b>THE ONE FLAW</b> ${esc(D.flaw)}</div>` : ''}`;
+}
+// transport
+const paintPlay = () => { $('#play').textContent = S.playing ? '❚❚' : '▶'; };
+$('#play').onclick = () => { S.playing = !S.playing; S.last = performance.now(); paintPlay(); feel('tap'); };
+const step = d => { const i = IDX.shots.findIndex(s => s.id === S.shot.id); load(IDX.shots[(i + d + IDX.shots.length) % IDX.shots.length].id); };
+$('#prev').onclick = () => step(-1); $('#next').onclick = () => step(1);
+$$('[data-mode]').forEach(b => b.onclick = () => { S.mode = b.dataset.mode; $$('[data-mode]').forEach(x => x.setAttribute('aria-pressed', x === b)); S.t = 0; build(); feel('tap'); });
+$$('[data-ov]').forEach(b => b.onclick = () => { S.ov.has(b.dataset.ov) ? S.ov.delete(b.dataset.ov) : S.ov.add(b.dataset.ov); b.setAttribute('aria-pressed', S.ov.has(b.dataset.ov)); feel('tick'); });
+$$('[data-dir]').forEach(b => b.onclick = () => { const m = b.dataset.dir, i = S.mutations.indexOf(m); i < 0 ? S.mutations.push(m) : S.mutations.splice(i, 1); b.setAttribute('aria-pressed', S.mutations.includes(m)); S.t = 0; build(); feel('couple'); });
+$('#reset').onclick = () => { S.mutations = []; $$('[data-dir]').forEach(b => b.setAttribute('aria-pressed', false)); build(); feel('undo'); };
+$('#export').onclick = () => { const b = new Blob([JSON.stringify({ shot: S.shot.id, fps: 24, mode: S.mode, mutations: S.mutations, sheet: S.sheet.map(e => ({ frame12: e.f, exposure24: e.ex, drawing: e.row.drawing, key: e.row.motion_key || null, pin: !!e.row.pin, camera: e.row.cam || null })) }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `xsheet-${S.shot.id}.json`; a.click(); };
+addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); $('#play').click(); } else if (e.key === 'ArrowDown') { e.preventDefault(); step(1); } else if (e.key === 'ArrowUp') { e.preventDefault(); step(-1); } });
+$$('[data-mode="sheet"]')[0].setAttribute('aria-pressed', true); $$('[data-ov="arcs"]')[0].setAttribute('aria-pressed', true);
+function loop(now) { if (S.playing && S.shot) { S.t += (now - S.last) / 1000 * 24; if (S.t >= S.total) S.t = 0; } S.last = now; draw(); if (S.playing && Math.floor(now / 100) !== Math.floor((now - 16) / 100)) drawSheet(); requestAnimationFrame(loop); }
+addEventListener('resize', drawSheet);
+await load(location.hash.slice(1) && IDX.shots.some(s => s.id === location.hash.slice(1)) ? location.hash.slice(1) : IDX.shots[0].id);
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
