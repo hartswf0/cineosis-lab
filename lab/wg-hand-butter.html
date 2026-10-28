@@ -19260,21 +19260,23 @@ const MILESTONES=[['M1','Three Machines','Project launch and research'],['M2','T
 const LM={title:'LAST MOVE · TITLE',board:'LAST MOVE · LIVE BOARD',result:'LAST MOVE · RESULT'};
 const INPUTS=['CLICK','KEY','WAIT','END','DRAW','X WINS','O WINS'];
 const PIECE={X:{part:'3003',color:4},O:{part:'3941',color:2}},SCREEN_PART='3032',SCREEN_COLOR=0;
-const CELL=80,BOARD={x:0,z:40},TRAY=[];for(const x of [200,245])for(let i=0;i<5;i++)TRAY.push({x,z:-50+i*50});
+const CELL=80,BOARD={x:0,z:40},TRAY=[];for(const x of [200,246])for(let i=0;i<7;i++)TRAY.push({x,z:-84+i*44});
 const STORE='wag-wargames-v1';
-const LINES=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+const NC=27;
 const PH='#4af6c3',AM='#e8c070',RD='#e0523c',INK='#dff7f0';
 
 /* ---------------- persistent state ---------------- */
-const WG={meta:{},flow:{edges:[],start:null},tally:{games:0,X:0,O:0,D:0},woprFirst:false};
-try{const saved=JSON.parse(localStorage.getItem(STORE)||'null');if(saved){Object.assign(WG.meta,saved.meta||{});if(saved.flow)WG.flow=saved.flow;if(saved.tally)WG.tally=saved.tally;WG.woprFirst=!!saved.woprFirst;}}catch(e){}
+const WG={meta:{},flow:{edges:[],start:null},tally:{games:0,X:0,O:0,D:0},woprFirst:false,dims:3};
+try{const saved=JSON.parse(localStorage.getItem(STORE)||'null');if(saved){Object.assign(WG.meta,saved.meta||{});if(saved.flow)WG.flow=saved.flow;if(saved.tally)WG.tally=saved.tally;WG.woprFirst=!!saved.woprFirst;WG.dims=saved.dims===2?2:3;}}catch(e){}
 function persistWG(){try{localStorage.setItem(STORE,JSON.stringify(WG));}catch(e){}}
 function partOf(id){return S.parts.find(p=>p.id===id);}
 function metaOf(p){const m=p&&WG.meta[p.id];return m&&p.part===SCREEN_PART?m:null;}
+function isCtl(p){const m=metaOf(p);return !!(m&&m.src.startsWith('c:'));}
 
 /* ---------------- sources ---------------- */
 function srcInfo(src){
  const [k,v]=src.split(':');
+ if(k==='c'){const c=CTL[v]||CTL.new;return {kind:'ctl',key:v,label:'CONTROL · '+c.name,floor:c.name,title:c.title,group:'CONTROLS',img:LAB+'thumbs/screens/'+c.clip+'.jpg',video:LAB+'clips/'+c.clip+'.mp4'};}
  if(k==='f'){const s=SCREENS.get(v)||{id:v,t:v,g:'SCREEN',n:''};return {kind:'film',id:v,label:(s.g||'SCREEN')+' · '+shortName(s),title:s.n||s.t,group:s.g,img:LAB+'thumbs/screens/'+v+'.jpg',video:s.c?LAB+'clips/'+v+'.mp4':null};}
  if(k==='m'){const m=MILESTONES.find(m=>m[0]===v)||[v,v,''];return {kind:'milestone',label:m[0]+' · '+m[1],title:m[2],group:'MILESTONES',img:FILMS+m[0]+'.jpg',video:FILMS+m[0]+'.mp4'};}
  return {kind:'lm',key:v,label:LM[v]||v,title:v==='board'?'The live board on the plate is this state.':v==='result'?'Shows how the last game ended.':'Title screen of the game BUG and NIT build.',group:'LAST MOVE',img:null,video:null};
@@ -19287,27 +19289,50 @@ const VID={wall:mkVideo(),focus:mkVideo(),tile:mkVideo()};
 function playVideo(v,url,loop=true){if(!url){if(v.dataset.src){v.pause();v.removeAttribute('src');v.dataset.src='';v.load();}return;}v.loop=loop;if(v.dataset.src!==url){v.dataset.src=url;v.src=url;}if(v.paused)v.play().catch(()=>{});}
 function vready(v){return v.dataset.src&&v.readyState>=2&&v.videoWidth>0;}
 
-/* ---------------- game ---------------- */
-const G={cells:Array(9).fill(''),seen:'',since:0,status:'idle',result:'',line:null,turn:'X',thinking:null,drop:null,hold:false,lastMove:-1,lastKind:'',gameCounted:false,learn:null,conflict:false};
+/* ---------------- game: nine columns on the board, bricks stack up to three high ----------------
+   cell index = level*9 + column, column = row*3 + col (row 0 is the back row).
+   3D: 27 cells, 49 lines, bricks fall to the top of their column. 2D: the classic 3×3. */
+const LINES2=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+const LINES3=(()=>{const out=[],seen=new Set(),at=(x,y,z)=>z*9+y*3+x;
+ for(let z=0;z<3;z++)for(let y=0;y<3;y++)for(let x=0;x<3;x++)for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){if(!dx&&!dy&&!dz)continue;
+  const pts=[0,1,2].map(k=>[x+dx*k,y+dy*k,z+dz*k]);if(pts.some(q=>q.some(v=>v<0||v>2)))continue;const l=pts.map(q=>at(...q)),key=[...l].sort((a,b)=>a-b).join();if(seen.has(key))continue;seen.add(key);out.push(l);}
+ return out;})();
+function LINES(){return WG.dims===3?LINES3:LINES2;}
+const LINES_AT={2:[],3:[]};for(let i=0;i<NC;i++){LINES_AT[2][i]=LINES2.filter(l=>l.includes(i));LINES_AT[3][i]=LINES3.filter(l=>l.includes(i));}
+const G={cells:Array(NC).fill(''),seen:'',since:0,status:'idle',result:'',line:null,turn:'X',thinking:null,drop:null,hold:false,lastMove:-1,lastKind:'',gameCounted:false,learn:null,conflict:false};
 function kindOf(p){if(p.part===PIECE.X.part&&p.color===PIECE.X.color)return 'X';if(p.part===PIECE.O.part&&p.color===PIECE.O.color)return 'O';return '';}
-function cellOf(p){if(p.y>4)return -1;const cx=Math.round((p.x-BOARD.x)/CELL),cz=Math.round((p.z-BOARD.z)/CELL);if(Math.abs(cx)>1||Math.abs(cz)>1)return -1;if(Math.abs(p.x-(BOARD.x+cx*CELL))>32||Math.abs(p.z-(BOARD.z+cz*CELL))>32)return -1;return (cz+1)*3+(cx+1);}
-function cellCenter(c){return {x:BOARD.x+(c%3-1)*CELL,z:BOARD.z+(Math.floor(c/3)-1)*CELL};}
-function readBoard(){const cells=Array(9).fill('');for(const p of S.parts){const k=kindOf(p);if(!k)continue;const c=cellOf(p);if(c<0)continue;cells[c]=cells[c]?'#':k;}return cells;}
-function winner(c){for(const l of LINES){const [a,b,d]=l;if(c[a]&&c[a]!=='#'&&c[a]===c[b]&&c[a]===c[d])return {who:c[a],line:l};}return null;}
+function colAt(x,z,tol=32){const cx=Math.round((x-BOARD.x)/CELL),cz=Math.round((z-BOARD.z)/CELL);if(Math.abs(cx)>1||Math.abs(cz)>1)return -1;if(Math.abs(x-(BOARD.x+cx*CELL))>tol||Math.abs(z-(BOARD.z+cz*CELL))>tol)return -1;return (cz+1)*3+(cx+1);}
+function cellOf(p){if(p.y>100)return -1;return colAt(p.x,p.z);}
+function cellCenter(c){c=c%9;return {x:BOARD.x+(c%3-1)*CELL,z:BOARD.z+(Math.floor(c/3)-1)*CELL};}
+function readBoard(){const cells=Array(NC).fill(''),cols=Array.from({length:9},()=>[]);
+ for(const p of S.parts){const k=kindOf(p);if(!k)continue;const c=cellOf(p);if(c>=0)cols[c].push(p);}
+ const max=WG.dims===3?3:1;cols.forEach((list,c)=>{list.sort((a,b)=>a.y-b.y);list.forEach((p,i)=>{if(i<max)cells[i*9+c]=kindOf(p);else cells[(max-1)*9+c]='#';});});return cells;}
+function winner(c){for(const l of LINES()){const v=c[l[0]];if(v&&v!=='#'&&v===c[l[1]]&&v===c[l[2]])return {who:v,line:l};}return null;}
 function counts(c){return {X:c.filter(v=>v==='X').length,O:c.filter(v=>v==='O').length};}
-function minimax(c,me){const w=winner(c);if(w)return {s:w.who==='O'?10:-10};if(c.every(Boolean))return {s:0};const moves=[];for(let i=0;i<9;i++)if(!c[i]){c[i]=me;const r=minimax(c,me==='O'?'X':'O');c[i]='';moves.push({i,s:r.s*.95});}
- const best=me==='O'?Math.max(...moves.map(m=>m.s)):Math.min(...moves.map(m=>m.s));const pool=moves.filter(m=>Math.abs(m.s-best)<1e-9);return pool[Math.floor(Math.random()*pool.length)]||moves[0];}
-function bestFor(c,me){if(me==='O')return minimax(c.slice(),'O').i;const flip=c.map(v=>v==='X'?'O':v==='O'?'X':'');return minimax(flip,'O').i;}
+function heightOf(c,col){let h=0;while(h<3&&c[h*9+col])h++;return h;}
+function movesOf(c){const m=[];if(WG.dims===3){for(let col=0;col<9;col++){const h=heightOf(c,col);if(h<3)m.push(h*9+col);}}else for(let i=0;i<9;i++)if(!c[i])m.push(i);return m;}
+function isFull(c){return movesOf(c).length===0;}
+/* WOPR: negamax with alpha-beta. 2D searches to the end (perfect play); 3D looks six plies ahead. */
+const ORDER=[4,1,3,5,7,0,2,6,8];
+function wonAt(c,i){const v=c[i];for(const l of LINES_AT[WG.dims][i])if(c[l[0]]===v&&c[l[1]]===v&&c[l[2]]===v)return true;return false;}
+function evalFor(c,me){const op=me==='X'?'O':'X';let s=0;for(const l of LINES()){let a=0,b=0;for(const i of l){if(c[i]===me)a++;else if(c[i]===op)b++;}if(a&&!b)s+=a===2?9:1;else if(b&&!a)s-=b===2?9:1;}return s;}
+function negamax(c,depth,alpha,beta,me){const op=me==='X'?'O':'X',ms=movesOf(c);if(!ms.length)return 0;if(depth===0)return evalFor(c,me);
+ ms.sort((a,b)=>ORDER.indexOf(a%9)-ORDER.indexOf(b%9));let best=-1e9;
+ for(const m of ms){c[m]=me;const v=wonAt(c,m)?1000+depth:-negamax(c,depth-1,-beta,-alpha,op);c[m]='';if(v>best)best=v;if(v>alpha)alpha=v;if(alpha>=beta)break;}return best;}
+function bestFor(cells,me,depth){const c=cells.map(v=>v==='#'?'':v),ms=movesOf(c);if(!ms.length)return -1;const op=me==='X'?'O':'X';
+ const D=depth??(WG.dims===3?6:9);let best=-1e9,pick=ms[0];
+ for(const m of ms){c[m]=me;let v=wonAt(c,m)?1000+D:-negamax(c,D-1,-1e9,1e9,op);c[m]='';v+=Math.random()*.6;if(v>best){best=v;pick=m;}}return pick;}
 function starter(){return WG.woprFirst?'O':'X';}
 function turnOf(c){const n=counts(c),s=starter(),o=s==='X'?'O':'X';return n[s]===n[o]?s:o;}
 function legal(c){const n=counts(c),s=starter(),o=s==='X'?'O':'X';return n[s]-n[o]===0||n[s]-n[o]===1;}
+function cellName(i){return WG.dims===3?'column '+(i%9+1)+', level '+(Math.floor(i/9)+1):'cell '+(i+1);}
 
 function judge(cells,now){
  const prev=G.cells;G.cells=cells;G.conflict=cells.includes('#');
  if(G.learn)return;
  G.thinking=null;if(G.drop){plate.remove(G.drop.mesh);G.drop=null;}
  const empty=cells.every(v=>!v);
- if(G.conflict){G.status='conflict';say('Two pieces share a cell. Move one out.','BOARD');return dirty();}
+ if(G.conflict){G.status='conflict';say(WG.dims===3?'Four bricks in one column. Take the top one off.':'Two pieces share a cell. Move one out.','BOARD');return dirty();}
  if(!legal(cells)){G.status='illegal';say('This board is not a legal game: too many '+(counts(cells).X>counts(cells).O?'X':'O')+'. Undo or New game.','BOARD');return dirty();}
  const removedO=prev.some((v,i)=>v==='O'&&cells[i]!=='O');
  const added=cells.findIndex((v,i)=>v&&!prev[i]);
@@ -19316,28 +19341,30 @@ function judge(cells,now){
  if(added>=0&&addedCount===1)snapToCell(added);
  if(empty){G.result='';G.line=null;G.gameCounted=false;G.hold=false;G.lastMove=-1;}
  else if(added>=0){G.lastMove=added;G.lastKind=cells[added];G.flash=now;}
- const w=winner(cells),full=cells.every(Boolean);
+ const w=winner(cells),full=isFull(cells);
  if(w||full){G.status='over';G.result=w?w.who+' WINS':'DRAW';G.line=w?w.line:null;G.turn='';
   const fin=cells.join('');if(!G.gameCounted&&WG.lastCounted!==fin){G.gameCounted=true;WG.lastCounted=fin;WG.tally.games++;WG.tally[w?w.who:'D']++;persistWG();feedback(w?'blocked':'click');}
-  say(w?(w.who==='X'?'X WINS. WOPR missed a block.':'O WINS. WOPR completed a line.'):'DRAW. Nobody can win against perfect play.',G.result);
+  say(w?(w.who==='X'?'X WINS. WOPR missed a block.':'O WINS. WOPR completed a line.'):(WG.dims===3?'DRAW. All 27 cells filled and no line.':'DRAW. Nobody can win against perfect play.'),G.result);
   flowEvent(G.result);return dirty();}
  G.result='';G.line=null;G.turn=turnOf(cells);
  if(removedO&&G.turn==='O'){G.hold=true;G.status='hold';say('Board rolled back. WOPR waits: undo again to take back your move, or tap WOPR GO.','HOLD');return dirty();}
- if(G.turn==='O'&&!G.hold){G.status='thinking';say('WOPR is choosing a cell…','WOPR');G.thinking=now+700;}
- else if(G.turn==='X'){G.status='yours';G.hold=false;say(empty?'New board. Pinch a red brick from the tray, set it in a cell, open your hand.':'Your move: set a red brick in an empty cell.','YOUR MOVE');}
+ if(G.turn==='O'&&!G.hold){G.status='thinking';say('WOPR is choosing…','WOPR');G.thinking=now+700;G.peek=-1;}
+ else if(G.turn==='X'){G.status='yours';G.hold=false;say(empty?(WG.dims===3?'New board. Carry a red brick over any column and let go: it lands on top of the stack. Three in a line in any direction wins.':'New board. Pinch a red brick from the tray, set it in a cell, open your hand.'):(added>=0&&cells[added]==='O'?'WOPR took '+cellName(added)+'. Your move.':'Your move.'),'YOUR MOVE');}
  dirty();
 }
-function snapToCell(cell){const c=cellCenter(cell),p=S.parts.find(p=>kindOf(p)&&cellOf(p)===cell);if(!p||S.tx)return;if(Math.abs(p.x-c.x)<2&&Math.abs(p.z-c.z)<2)return;const before=checkpoint(),old={x:p.x,z:p.z},sel=new Set(S.selected);p.x=c.x;p.z=c.z;sync(p);S.selected=new Set([p.id]);const fail=validate();S.selected=sel;if(fail){p.x=old.x;p.z=old.z;sync(p);return;}record(before);rebuildBodies();}
+function snapToCell(idx){const col=idx%9,c=cellCenter(col),list=S.parts.filter(p=>kindOf(p)&&cellOf(p)===col).sort((a,b)=>a.y-b.y),p=list[Math.floor(idx/9)]||list[list.length-1];if(!p||S.tx)return;if(Math.abs(p.x-c.x)<2&&Math.abs(p.z-c.z)<2)return;const before=checkpoint(),old={x:p.x,z:p.z},sel=new Set(S.selected);p.x=c.x;p.z=c.z;sync(p);S.selected=new Set([p.id]);const fail=validate();S.selected=sel;if(fail){p.x=old.x;p.z=old.z;sync(p);return;}record(before);rebuildBodies();}
 function say(text,phase){G.say=text;note(text,phase);}
-function dropO(cell){
- const c=cellCenter(cell),ghost=new THREE.Mesh(catalog.get(PIECE.O.part).geometry,material(PIECE.O.color));ghost.castShadow=true;plate.add(ghost);ghost.add(glyphMesh('O',24));
- G.drop={cell,mesh:ghost,t0:performance.now(),x:c.x,z:c.z};feedback('select');
+/* top of whatever stands in a column (bricks, or anything else set there) */
+function columnTop(col,exceptId){const c=cellCenter(col);let y=0;for(const p of S.parts){if(p.id===exceptId)continue;const b=bounds(p);if(b.max.x>c.x-19&&b.min.x<c.x+19&&b.max.z>c.z-19&&b.min.z<c.z+19)y=Math.max(y,b.max.y);}return y;}
+function dropO(idx){
+ const col=idx%9,c=cellCenter(col),ghost=new THREE.Mesh(catalog.get(PIECE.O.part).geometry,material(PIECE.O.color));ghost.castShadow=true;plate.add(ghost);ghost.add(glyphMesh('O',24));
+ G.drop={idx,col,mesh:ghost,t0:performance.now(),x:c.x,z:c.z,y:columnTop(col)};feedback('select');
 }
-function finishDrop(){const d=G.drop;G.drop=null;plate.remove(d.mesh);const now=readBoard();if(now[d.cell]||turnOf(now)!=='O')return;if(S.tx){say('Release what you are holding; WOPR will move after.','WOPR');G.thinking=performance.now()+600;return;}placePiece('O',d.cell);}
-function placePiece(kind,cell){
- const c=cellCenter(cell),before=checkpoint(),oldSel=new Set(S.selected),id='p'+S.next++;
- create({id,part:PIECE[kind].part,color:PIECE[kind].color,x:c.x,y:0,z:c.z,r:0});S.selected=new Set([id]);const fail=validate();
- if(fail){restore(JSON.parse(before));S.selected=oldSel;say('WOPR cannot place in that cell: '+fail+'. Clear the cell.','BLOCKED');refresh();return false;}
+function finishDrop(){const d=G.drop;G.drop=null;plate.remove(d.mesh);const now=readBoard();if(now[d.idx]||turnOf(now)!=='O'||(WG.dims===3&&heightOf(now,d.col)!==Math.floor(d.idx/9)))return;if(S.tx){say('Release what you are holding; WOPR will move after.','WOPR');G.thinking=performance.now()+600;G.peek=-1;return;}placePiece('O',d.col);}
+function placePiece(kind,col){
+ col=col%9;const c=cellCenter(col),before=checkpoint(),oldSel=new Set(S.selected),id='p'+S.next++;
+ create({id,part:PIECE[kind].part,color:PIECE[kind].color,x:c.x,y:columnTop(col),z:c.z,r:0});S.selected=new Set([id]);const fail=validate();
+ if(fail){restore(JSON.parse(before));S.selected=oldSel;say('Cannot place in column '+(col+1)+': '+fail+'.','BLOCKED');refresh();return false;}
  S.selected=oldSel;S.selected.delete(id);record(before);rebuildBodies();feedback('click');return true;
 }
 function freeTray(rowsList){const occupied=rowsList.map(r=>bounds(r));for(const t of TRAY){const box=new THREE.Box3(V(t.x-20,0,t.z-20),V(t.x+20,24,t.z+20)).expandByScalar(-.5);if(!occupied.some(b=>b.intersectsBox(box)))return t;}return null;}
@@ -19346,26 +19373,32 @@ function newGame(){
  if(G.learn)stopLearn();
  const before=checkpoint(),keep=[];
  for(const r of rows()){const k=kindOf(r),c=cellOf(r);if(k&&c>=0){if(k==='O')continue;const t=freeTray(keep);if(t){r.x=t.x;r.z=t.z;r.y=0;r.r=0;delete r.q;}else continue;}keep.push(r);}
- S.selected.clear();restore(keep);record(before);rebuildBodies();G.hold=false;G.gameCounted=false;G.seen='';G.cells=Array(9).fill('#');
+ S.selected.clear();restore(keep);record(before);rebuildBodies();G.hold=false;G.gameCounted=false;G.seen='';G.cells=Array(NC).fill('#');
  say('Board cleared. Red bricks are back in the tray.','NEW GAME');
- if(WG.woprFirst){G.cells=Array(9).fill('');G.turn='O';G.status='thinking';G.thinking=performance.now()+800;}
+ if(WG.woprFirst){G.cells=Array(NC).fill('');G.turn='O';G.status='thinking';G.thinking=performance.now()+800;G.peek=-1;}
 }
 function addX(){
  if(S.tx)return note('Release what you are holding first.','HELD');
  const t=freeTray(rows());if(!t)return note('The tray is full.','TRAY');
  const before=checkpoint(),id='p'+S.next++;create({id,part:PIECE.X.part,color:PIECE.X.color,x:t.x,y:0,z:t.z,r:0});record(before);rebuildBodies();feedback('place');note('A red X brick is in the tray.','TRAY');
 }
-function woprGo(){if(G.status!=='hold')return;G.hold=false;G.status='thinking';G.thinking=performance.now()+300;dirty();}
+function woprGo(){if(G.status!=='hold')return;G.hold=false;G.status='thinking';G.thinking=performance.now()+300;G.peek=-1;dirty();}
+function setDims(d){if(G.learn)stopLearn();WG.dims=d===2?2:3;persistWG();G.line=null;newGame();say(WG.dims===3?'3D: nine columns, three levels, 49 lines. Bricks stack.':'2D: the classic 3×3 board. One brick per cell.','RULE');dirty();}
 
-/* zero players: WOPR plays itself on the board glass, faster each game */
-function startLearn(){if(S.tx)return;const filled=G.cells.some(v=>v&&v!=='#');if(filled){newGame();note('Board cleared for zero players. Undo brings the game back.','LEARN');}G.learn={game:0,cells:Array(9).fill(''),next:performance.now()+600,turn:'X',draws:0,phase:'play',clip:0,t0:performance.now()};say('Zero players. WOPR plays both sides.','LEARN');dirty();}
-function stopLearn(){G.learn=null;G.cells=readBoard();say('Learning stopped.','READY');dirty();}
+/* zero players: WOPR plays itself on the wall, faster each game */
+const LEARN_GAMES=50;
+function startLearn(){if(S.tx)return;const filled=G.cells.some(v=>v&&v!=='#');if(filled){newGame();note('Board cleared for zero players. Undo brings the game back.','LEARN');}G.learn={game:0,cells:Array(NC).fill(''),next:performance.now()+600,turn:'X',tally:{X:0,O:0,D:0},phase:'play',t0:performance.now()};say('Zero players. WOPR plays both sides.','LEARN');dirty();}
+function stopLearn(){G.learn=null;G.cells=readBoard();say('Self-play stopped.','READY');dirty();}
+function learnVerdict(L){const t=L.tally,n=t.X+t.O+t.D;
+ if(t.D===n)return [n+' GAMES · '+n+' DRAWS','Every line gets blocked. The only winning move is not to play.'];
+ if(t.X===n)return [n+' GAMES · THE FIRST MOVER WON ALL '+n,'Whoever strikes first wins. The only winning move is not to play.'];
+ return [n+' GAMES · X '+t.X+' · O '+t.O+' · DRAW '+t.D,(t.X>t.O?'The first mover wins most games.':'')+' The only winning move is not to play.'];}
 function stepLearn(now){const L=G.learn;if(!L||now<L.next)return;
  if(L.phase==='end')return;
- const speed=Math.max(22,420*Math.pow(.76,L.game));
- const w=winner(L.cells),full=L.cells.every(Boolean);
- if(w||full){L.game++;if(!w)L.draws++;L.cells=Array(9).fill('');L.turn='X';L.next=now+speed*2.2;feedback('tick');if(L.game>=50){L.phase='end';L.endAt=now;say('50 games. 50 draws. Every line gets blocked.','DRAW');}dirty();return;}
- const i=L.game===0&&L.cells.every(v=>!v)?4:bestFor(L.cells,L.turn);L.cells[i]=L.turn;L.turn=L.turn==='X'?'O':'X';L.next=now+speed;if(L.game<4)feedback('tick');dirty();
+ const speed=Math.max(18,380*Math.pow(.76,L.game));
+ const w=winner(L.cells),full=isFull(L.cells);
+ if(w||full){L.game++;L.tally[w?w.who:'D']++;L.cells=Array(NC).fill('');L.turn='X';L.next=Math.max(L.next,now-400)+speed*2.2;feedback('tick');if(L.game>=LEARN_GAMES){L.phase='end';L.endAt=now;say(learnVerdict(L).join(' — '),'LEARN');}dirty();return;}
+ const i=L.cells.every(v=>!v)?(L.game%3===0?4:[0,1,2,3,5,6,7,8][L.game%8]):bestFor(L.cells,L.turn,WG.dims===3?3:undefined);L.cells[i]=L.turn;L.turn=L.turn==='X'?'O':'X';L.next=Math.max(L.next,now-400)+speed;if(L.game<4)feedback('tick');dirty();
 }
 
 /* ---------------- decorations: board glass, piece glyphs, screen monitors ---------------- */
@@ -19380,25 +19413,103 @@ const boardCanvas=document.createElement('canvas');boardCanvas.width=boardCanvas
 const boardTex=new THREE.CanvasTexture(boardCanvas);boardTex.encoding=THREE.sRGBEncoding;
 const boardMesh=new THREE.Mesh(new THREE.PlaneGeometry(3*CELL+24,3*CELL+24),new THREE.MeshBasicMaterial({map:boardTex,transparent:true,depthWrite:false}));
 boardMesh.rotation.x=-Math.PI/2;boardMesh.position.set(BOARD.x,.8,BOARD.z);boardMesh.renderOrder=3;plate.add(boardMesh);
-const trayMesh=new THREE.Mesh(new THREE.PlaneGeometry(100,262),new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,map:(()=>{const c=document.createElement('canvas');c.width=128;c.height=300;const x=c.getContext('2d');x.strokeStyle='rgba(224,82,60,.7)';x.setLineDash([8,6]);x.lineWidth=3;x.strokeRect(6,6,116,288);x.fillStyle='rgba(224,82,60,.85)';x.font='600 15px ui-monospace,monospace';x.textAlign='center';x.fillText('X TRAY',64,24);const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t;})()}));
-trayMesh.rotation.x=-Math.PI/2;trayMesh.position.set(222.5,.7,50);plate.add(trayMesh);
+const trayMesh=new THREE.Mesh(new THREE.PlaneGeometry(104,330),new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,map:(()=>{const c=document.createElement('canvas');c.width=128;c.height=406;const x=c.getContext('2d');x.strokeStyle='rgba(224,82,60,.7)';x.setLineDash([8,6]);x.lineWidth=3;x.strokeRect(6,6,116,394);x.fillStyle='rgba(224,82,60,.85)';x.font='600 15px ui-monospace,monospace';x.textAlign='center';x.fillText('X TRAY',64,24);const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t;})()}));
+trayMesh.rotation.x=-Math.PI/2;trayMesh.position.set(223,.7,TRAY[0].z+132);plate.add(trayMesh);
+
+/* the 3D cell lattice: cell borders at the three levels and posts at the corners, so empty space reads as cells */
+function smallLabel(t){const c=document.createElement('canvas');c.width=96;c.height=40;const x=c.getContext('2d');x.font='600 26px ui-monospace,monospace';x.fillStyle=PH;x.textAlign='center';x.textBaseline='middle';x.fillText(t,48,21);const tx=new THREE.CanvasTexture(c);tx.encoding=THREE.sRGBEncoding;return tx;}
+const lattice=(()=>{const g=new THREE.Group(),pts=[],xs=[-120,-40,40,120].map(v=>v+BOARD.x),zs=[-120,-40,40,120].map(v=>v+BOARD.z);
+ for(const y of [24,48,72]){for(const x of xs)pts.push(V(x,y,zs[0]),V(x,y,zs[3]));for(const z of zs)pts.push(V(xs[0],y,z),V(xs[3],y,z));}
+ for(const x of xs)for(const z of zs)pts.push(V(x,0,z),V(x,72,z));
+ const ls=new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0x4af6c3,transparent:true,opacity:.32,depthWrite:false}));ls.renderOrder=4;g.add(ls);
+ ['L1','L2','L3'].forEach((t,i)=>{const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:smallLabel(t),transparent:true,depthTest:false}));sp.scale.set(24,10,1);sp.position.set(xs[0]-16,i*24+12,zs[3]);sp.renderOrder=12;g.add(sp);});
+ plate.add(g);return g;})();
+/* the winning line, drawn through the bricks */
+const beam=new THREE.Mesh(new THREE.CylinderGeometry(3.2,3.2,1,10),new THREE.MeshBasicMaterial({color:0xff5a3c,transparent:true,opacity:.92,depthTest:false}));beam.renderOrder=20;beam.visible=false;plate.add(beam);
+function cellPoint(i){const c=cellCenter(i%9);return V(c.x,WG.dims===3?Math.floor(i/9)*24+13:32,c.z);}
+function updateBeam(){if(!G.line||G.learn){beam.visible=false;return;}const a=cellPoint(G.line[0]),b=cellPoint(G.line[2]),dir=b.clone().sub(a),len=dir.length();dir.normalize();a.addScaledVector(dir,-22);beam.position.copy(a.clone().addScaledVector(dir,(len+44)/2));beam.scale.set(1,len+44,1);beam.quaternion.setFromUnitVectors(V(0,1,0),dir);beam.visible=true;}
+
+/* drawing a board on a canvas: flat 3×3, or three stacked planes in oblique view */
+function drawFlat(x,cells,ox,oy,s,o={}){const cs=s/3;x.save();x.strokeStyle=PH;x.shadowColor=PH;x.shadowBlur=10;x.lineWidth=Math.max(2,o.lw/2||3);x.lineCap='round';
+ for(let i=1;i<3;i++){x.beginPath();x.moveTo(ox+i*cs,oy);x.lineTo(ox+i*cs,oy+s);x.stroke();x.beginPath();x.moveTo(ox,oy+i*cs);x.lineTo(ox+s,oy+i*cs);x.stroke();}x.restore();
+ for(let i=0;i<9;i++){const v=cells[i];if(v==='X'||v==='O')glyph(x,v,ox+(i%3+.5)*cs,oy+(Math.floor(i/3)+.5)*cs,cs*.28,o.lw||8);}
+ if(o.line){const c=k=>[ox+(k%3+.5)*cs,oy+(Math.floor(k/3)+.5)*cs];const [ax,ay]=c(o.line[0]),[bx,by]=c(o.line[2]);x.save();x.strokeStyle=RD;x.shadowColor=RD;x.shadowBlur=16;x.lineWidth=(o.lw||8)*1.2;x.lineCap='round';x.beginPath();x.moveTo(ax,ay);x.lineTo(bx,by);x.stroke();x.restore();}}
+function cubeMap(ox,oy,w,h){const gap=h*.07,ph=(h-2*gap)/3,ch=ph/3,sk=ch*.95,cw=(w-3*sk)/3,top=L=>oy+(2-L)*(ph+gap);return {ch,cw,sk,ph,top,ox,P:(L,u,v)=>[ox+u*cw+(3-v)*sk,top(L)+v*ch]};}
+function drawCube(x,cells,ox,oy,w,h,o={}){const M=cubeMap(ox,oy,w,h),P=M.P,lw=o.lw||6;
+ const poly=(L,u0,v0,u1,v1)=>{x.beginPath();const a=P(L,u0,v0),b=P(L,u1,v0),c=P(L,u1,v1),d=P(L,u0,v1);x.moveTo(...a);x.lineTo(...b);x.lineTo(...c);x.lineTo(...d);x.closePath();};
+ const line=(a,b)=>{x.beginPath();x.moveTo(...a);x.lineTo(...b);x.stroke();};
+ // corner posts behind the planes
+ x.save();x.strokeStyle='rgba(74,246,195,.28)';x.lineWidth=1.5;x.setLineDash([5,6]);for(const [u,v] of [[0,0],[3,0],[0,3],[3,3]])line(P(0,u,v),P(2,u,v));x.restore();
+ for(let L=2;L>=0;L--){
+  poly(L,0,0,3,3);x.fillStyle='rgba(2,14,10,.72)';x.fill();
+  for(let c=0;c<9;c++){const i=L*9+c,v=cells[i],u=c%3,r=Math.floor(c/3);
+   if(o.thumbs){const live=i===o.last&&o.now-(G.flash||0)<9000&&vready(VID.tile);const id=IDLE[(i*2+(v==='O'?1:0))%IDLE.length],im=live?VID.tile:img(LAB+'thumbs/screens/'+id+'.jpg');
+    if(live||ready(im)){x.save();poly(L,u,r,u+1,r+1);x.clip();x.transform(M.cw,0,-M.sk,M.ch,M.ox+3*M.sk,M.top(L));cover(x,im,u,r,1,1,live?.95:v?.5:.16);x.restore();}}
+   if(v==='#'){poly(L,u,r,u+1,r+1);x.fillStyle='rgba(224,82,60,.4)';x.fill();}
+   if(i===o.last){x.save();poly(L,u,r,u+1,r+1);x.strokeStyle=AM;x.lineWidth=3;x.stroke();x.restore();}}
+  x.save();x.strokeStyle=PH;x.shadowColor=PH;x.shadowBlur=8;x.lineWidth=Math.max(1.5,lw/3);for(let k=1;k<3;k++){line(P(L,k,0),P(L,k,3));line(P(L,0,k),P(L,3,k));}x.globalAlpha=.6;poly(L,0,0,3,3);x.stroke();x.restore();
+  for(let c=0;c<9;c++){const v=cells[L*9+c];if(v!=='X'&&v!=='O')continue;const u=c%3,r=Math.floor(c/3),[cx,cy]=P(L,u+.5,r+.5);
+   x.save();x.lineCap='round';x.lineWidth=lw;x.shadowBlur=14;if(v==='X'){x.strokeStyle='#ffd88a';x.shadowColor=AM;line(P(L,u+.24,r+.22),P(L,u+.76,r+.78));line(P(L,u+.76,r+.22),P(L,u+.24,r+.78));}else{x.strokeStyle='#9fffe0';x.shadowColor=PH;x.beginPath();x.ellipse(cx,cy,M.cw*.24,M.ch*.3,0,0,Math.PI*2);x.stroke();}x.restore();}
+  if(o.labels!==false){const [lx,ly]=P(L,0,1.5);x.save();x.font='600 '+Math.round(M.ch*.42)+'px ui-monospace,monospace';x.fillStyle='rgba(74,246,195,.8)';x.textAlign='right';x.textBaseline='middle';x.fillText('LEVEL '+(L+1),lx-12,ly);x.restore();}
+ }
+ if(o.line){const pts=o.line.map(i=>P(Math.floor(i/9),i%9%3+.5,Math.floor(i%9/3)+.5));x.save();x.strokeStyle=RD;x.shadowColor=RD;x.shadowBlur=20;x.lineWidth=lw*1.3;x.lineCap='round';x.beginPath();x.moveTo(...pts[0]);x.lineTo(...pts[1]);x.lineTo(...pts[2]);x.stroke();x.restore();}
+}
+
+/* the plate decal: the grid, and in each cell a small stack showing what is on levels 1 to 3 */
 function drawBoard(now){
  const x=boardCanvas.getContext('2d'),W=512,m=26,cs=(W-2*m)/3;x.clearRect(0,0,W,W);
  x.fillStyle='rgba(3,17,12,.55)';x.fillRect(0,0,W,W);
- const learn=G.learn,cells=learn?learn.cells:G.cells;
+ const learn=G.learn,cells=learn?Array(NC).fill(''):G.cells;
  x.strokeStyle=PH;x.shadowColor=PH;x.shadowBlur=12;x.lineWidth=5;x.lineCap='round';
  for(let i=1;i<3;i++){x.beginPath();x.moveTo(m+i*cs,m+8);x.lineTo(m+i*cs,W-m-8);x.stroke();x.beginPath();x.moveTo(m+8,m+i*cs);x.lineTo(W-m-8,m+i*cs);x.stroke();}
- x.shadowBlur=0;x.font='500 14px ui-monospace,monospace';x.fillStyle='rgba(74,246,195,.45)';
- for(let i=0;i<9;i++){const cx=m+(i%3)*cs,cy=m+Math.floor(i/3)*cs;if(!cells[i])x.fillText(String(i+1),cx+10,cy+22);}
- if(G.thinking&&!learn&&G.status==='thinking'){const pick=G.peek;if(pick>=0){const cx=m+(pick%3)*cs,cy=m+Math.floor(pick/3)*cs;x.fillStyle='rgba(74,246,195,'+(0.12+0.1*Math.sin(now/90))+')';x.fillRect(cx+6,cy+6,cs-12,cs-12);}}
- if(learn){x.lineWidth=12;x.shadowBlur=14;for(let i=0;i<9;i++){const v=cells[i];if(!v)continue;const cx=m+(i%3+.5)*cs,cy=m+(Math.floor(i/3)+.5)*cs,r=cs*.28;if(v==='X'){x.strokeStyle='#ffd88a';x.shadowColor=AM;x.beginPath();x.moveTo(cx-r,cy-r);x.lineTo(cx+r,cy+r);x.moveTo(cx+r,cy-r);x.lineTo(cx-r,cy+r);x.stroke();}else{x.strokeStyle='#9fffe0';x.shadowColor=PH;x.beginPath();x.arc(cx,cy,r,0,Math.PI*2);x.stroke();}}}
- if(G.line&&!learn){const a=G.line[0],b=G.line[2],ax=m+(a%3+.5)*cs,ay=m+(Math.floor(a/3)+.5)*cs,bx=m+(b%3+.5)*cs,by=m+(Math.floor(b/3)+.5)*cs;x.strokeStyle=RD;x.shadowColor=RD;x.shadowBlur=16;x.lineWidth=10;x.beginPath();x.moveTo(ax,ay);x.lineTo(bx,by);x.stroke();}
- if(G.conflict&&!learn){x.fillStyle='rgba(224,82,60,.25)';G.cells.forEach((v,i)=>{if(v==='#')x.fillRect(m+(i%3)*cs+6,m+Math.floor(i/3)*cs+6,cs-12,cs-12);});}
- x.shadowBlur=0;x.fillStyle=AM;x.font='600 15px ui-monospace,monospace';x.textAlign='center';
- x.fillText(learn?('ZERO PLAYERS · GAME '+(learn.game+1)):boardCaption(),W/2,W-6);x.textAlign='left';
+ x.shadowBlur=0;x.font='500 14px ui-monospace,monospace';x.fillStyle='rgba(74,246,195,.5)';
+ for(let c=0;c<9;c++){const cx=m+(c%3)*cs,cy=m+Math.floor(c/3)*cs;x.fillText(String(c+1),cx+10,cy+22);
+  if(WG.dims===3&&!learn)for(let L=0;L<3;L++){const v=cells[L*9+c],bx=cx+cs-24,by=cy+cs-22-L*16;x.fillStyle=v==='X'?'#ff9b7c':v==='O'?'#7dffd4':'rgba(74,246,195,.12)';x.fillRect(bx,by,14,12);x.strokeStyle='rgba(74,246,195,.4)';x.lineWidth=1;x.strokeRect(bx,by,14,12);}}
+ if(G.thinking&&!learn&&G.status==='thinking'&&G.peek>=0){const c=G.peek%9,cx=m+(c%3)*cs,cy=m+Math.floor(c/3)*cs;x.fillStyle='rgba(74,246,195,'+(0.12+0.1*Math.sin(now/90))+')';x.fillRect(cx+6,cy+6,cs-12,cs-12);}
+ if(G.conflict&&!learn){x.fillStyle='rgba(224,82,60,.25)';G.cells.forEach((v,i)=>{if(v==='#'){const c=i%9;x.fillRect(m+(c%3)*cs+6,m+Math.floor(c/3)*cs+6,cs-12,cs-12);}});}
+ x.fillStyle=AM;x.font='600 15px ui-monospace,monospace';x.textAlign='center';
+ x.fillText(learn?('ZERO PLAYERS · GAME '+(learn.game+1)+' · SEE THE WALL'):(WG.dims===3?'3D · ':'2D · ')+boardCaption(),W/2,W-6);x.textAlign='left';
  boardTex.needsUpdate=true;
 }
-function boardCaption(){return {yours:'YOUR MOVE',thinking:'WOPR',over:G.result,hold:'WOPR WAITS',illegal:'ILLEGAL BOARD',conflict:'TWO IN ONE CELL',idle:'LAST MOVE'}[G.status]||'LAST MOVE';}
+function boardCaption(){return {yours:'YOUR MOVE',thinking:'WOPR',over:G.result,hold:'WOPR WAITS',illegal:'ILLEGAL BOARD',conflict:WG.dims===3?'COLUMN OVERFULL':'TWO IN ONE CELL',idle:'LAST MOVE'}[G.status]||'LAST MOVE';}
+
+/* ---------------- controls are bricks: four monitors, each a clip from the film ----------------
+   Tap (or pinch and let go without moving) to run one. Drag to move it like any brick. */
+const CTL={
+ new:{name:'NEW GAME',clip:'wg_283',title:'Clear the board. WOPR takes back its bricks; yours go back to the tray.',label:()=>'NEW GAME',sub:()=>'clear the board'},
+ first:{name:'FIRST MOVE',clip:'wg_135',title:'Who moves first. While WOPR waits after an undo, this lets it move.',label:()=>G.status==='hold'?'WOPR GO':WG.woprFirst?'WOPR FIRST':'YOU FIRST',sub:()=>G.status==='hold'?'let WOPR move':'tap to switch'},
+ dims:{name:'BOARD',clip:'wg_288',title:'3D: 27 cells, bricks stack three high. 2D: the classic 3×3.',label:()=>WG.dims===3?'3D · 3×3×3':'2D · 3×3',sub:()=>'tap to switch'},
+ learn:{name:'ZERO PLAYERS',clip:'wg_296',title:'WOPR plays itself 50 times on the wall.',label:()=>G.learn?'STOP':'ZERO PLAYERS',sub:()=>G.learn?'end self-play':'WOPR plays itself'}};
+function ctlCanvas(key){const c=document.createElement('canvas');c.width=320;c.height=200;const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.userData={canvas:c,ctl:key,sig:''};paintCtl(t);return t;}
+function paintCtl(t){const k=t.userData.ctl,d=CTL[k];if(!d)return;const im=img(LAB+'thumbs/screens/'+d.clip+'.jpg'),hot=CT.flash&&CT.flash.key===k&&performance.now()<CT.flash.until;
+ const sig=d.label()+d.sub()+ready(im)+hot;if(sig===t.userData.sig)return;t.userData.sig=sig;const x=t.userData.canvas.getContext('2d');
+ x.fillStyle='#03110c';x.fillRect(0,0,320,200);if(ready(im))cover(x,im,0,0,320,200,.75);
+ x.fillStyle='rgba(2,8,6,.82)';x.fillRect(0,128,320,72);x.fillStyle=hot?PH:AM;x.shadowColor=x.fillStyle;x.shadowBlur=10;x.font='700 30px ui-monospace,monospace';x.textAlign='center';x.fillText(d.label(),160,166);x.shadowBlur=0;
+ x.font='400 14px ui-monospace,monospace';x.fillStyle=INK;x.fillText(d.sub(),160,188);x.strokeStyle=hot?PH:'rgba(232,192,112,.7)';x.lineWidth=hot?8:4;x.strokeRect(2,2,316,196);
+ x.fillStyle='rgba(0,0,0,.22)';for(let y=0;y<200;y+=3)x.fillRect(0,y,320,1);t.needsUpdate=true;}
+function refreshCtlTextures(){for(const [src,t] of screenTex)if(t.userData?.ctl)paintCtl(t);}
+const CT={sel:null,t:0,tx:null,moved:null,flash:null};
+function runCtl(key){
+ if(key==='new')newGame();
+ else if(key==='first'){if(G.status==='hold')woprGo();else{WG.woprFirst=!WG.woprFirst;persistWG();const fresh=G.cells.every(v=>!v||v==='#');if(fresh)newGame();note(WG.woprFirst?'WOPR moves first'+(fresh?'.':' from the next game.'):'You move first'+(fresh?'.':' from the next game.'),'RULE');}}
+ else if(key==='dims')setDims(WG.dims===3?2:3);
+ else if(key==='learn'){G.learn?stopLearn():startLearn();}
+ dirty();PANEL.render();}
+function fireCtl(p){const key=WG.meta[p.id].src.slice(2);S.selected.clear();refresh();CT.sel=null;CT.moved=null;CT.flash={id:p.id,key,until:performance.now()+3200};feedback('select');runCtl(key);}
+function watchCtl(now){const a=selected(),p=a.length===1&&isCtl(a[0])?a[0]:null;
+ if(S.tx){if(p&&!CT.tx)CT.tx={id:p.id,t:now,x:p.x,y:p.y,z:p.z};return;}
+ if(CT.tx){const t=CT.tx;CT.tx=null;const q=partOf(t.id);if(q&&now-t.t<800&&Math.hypot(q.x-t.x,q.y-t.y,q.z-t.z)<12)fireCtl(q);else CT.moved=t.id;return;}
+ if(!p){CT.sel=null;CT.moved=null;return;}
+ if(CT.moved===p.id||RUN.on&&LINK.armed)return;
+ if(CT.sel!==p.id){CT.sel=p.id;CT.t=now;return;}
+ if(now-CT.t>260)fireCtl(p);}
+
+/* carrying an X or O brick over a column: it rides on top of that column's stack, centred, so letting go drops it there */
+const rawPropose=propose;
+propose=function(delta,now){rawPropose(delta,now);try{const t=S.tx;if(!t)return;const a=selected();if(a.length!==1)return;const p=a[0];if(!kindOf(p))return;const col=colAt(p.x,p.z,46);if(col<0)return;
+ const top=columnTop(col,p.id);if(WG.dims===2&&top>0)return;if(WG.dims===3&&top>=72){note('Column '+(col+1)+' is full.','BLOCKED');return;}
+ const c=cellCenter(col);p.x=c.x;p.z=c.z;p.y=top;sync(p);if(t.magnet){t.magnet=null;drawContact(null);}
+ const fail=validate();if(!fail)t.lastValid=rows().filter(r=>S.selected.has(r.id));note(fail||('Column '+(col+1)+(WG.dims===3?' · lands on level '+(Math.round(top/24)+1):'')+' · let go to drop'),fail?'BLOCKED':'HELD');refresh();}catch(e){console.error('[WAR GAMES]',e);}};
 
 /* monitors on screen bricks */
 const monitorGeo={box:new THREE.BoxGeometry(104,72,18),screen:new THREE.PlaneGeometry(88,56),neck:new THREE.BoxGeometry(30,10,14)};
@@ -19406,14 +19517,14 @@ const monitorMat={shell:new THREE.MeshStandardMaterial({color:new THREE.Color(0x
 const screenTex=new Map();
 function lmCanvas(key){const c=document.createElement('canvas');c.width=320;c.height=200;drawLM(c.getContext('2d'),320,200,key);const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.userData={canvas:c,key};return t;}
 function texFor(src){let t=screenTex.get(src);if(t)return t;const info=srcInfo(src);
- if(info.kind==='lm')t=lmCanvas(info.key);else{t=new THREE.TextureLoader().load(info.img);t.encoding=THREE.sRGBEncoding;}
+ if(info.kind==='lm')t=lmCanvas(info.key);else if(info.kind==='ctl')t=ctlCanvas(info.key);else{t=new THREE.TextureLoader().load(info.img);t.encoding=THREE.sRGBEncoding;}
  screenTex.set(src,t);return t;}
 const focusTex=new THREE.VideoTexture(VID.focus);focusTex.encoding=THREE.sRGBEncoding;
 function makeMonitor(src){const g=new THREE.Group();g.userData.wgDeco=src;
  const box=new THREE.Mesh(monitorGeo.box,monitorMat.shell);box.castShadow=true;box.position.set(0,8+10+36,-26);g.add(box);
  const neck=new THREE.Mesh(monitorGeo.neck,monitorMat.dark);neck.position.set(0,8+5,-26);g.add(neck);
  const scr=new THREE.Mesh(monitorGeo.screen,new THREE.MeshBasicMaterial({map:texFor(src),toneMapped:false}));scr.position.set(0,8+10+36,-26+9.2);g.add(scr);g.userData.screen=scr;
- const lab=new THREE.Mesh(new THREE.PlaneGeometry(110,22),new THREE.MeshBasicMaterial({map:labelTexture(srcInfo(src).label),transparent:true,depthWrite:false}));lab.rotation.x=-Math.PI/2;lab.position.set(0,8.6,12);lab.renderOrder=5;g.add(lab);
+ const lab=new THREE.Mesh(new THREE.PlaneGeometry(110,22),new THREE.MeshBasicMaterial({map:labelTexture(srcInfo(src).floor||srcInfo(src).label),transparent:true,depthWrite:false}));lab.rotation.x=-Math.PI/2;lab.position.set(0,8.6,12);lab.renderOrder=5;g.add(lab);
  return g;}
 const labelCache=new Map();
 function labelTexture(text){if(labelCache.has(text))return labelCache.get(text);const c=document.createElement('canvas');c.width=330;c.height=66;const x=c.getContext('2d');x.fillStyle='rgba(5,8,8,.0)';x.fillRect(0,0,330,66);x.font='600 25px ui-monospace,monospace';x.fillStyle=AM;x.textAlign='center';x.textBaseline='middle';let t=text;while(x.measureText(t).width>318&&t.length>4)t=t.slice(0,-2);if(t!==text)t=t.slice(0,-1)+'…';x.fillText(t,165,33);const tex=new THREE.CanvasTexture(c);tex.encoding=THREE.sRGBEncoding;labelCache.set(text,tex);return tex;}
@@ -19446,8 +19557,10 @@ function wallMode(){if(RUN.on)return RUN.mode();if(G.learn)return 'learn';const 
 function drawWall(now){
  const x=wallCanvas.getContext('2d'),W=1024,H=576,mode=wallMode();x.fillStyle='#010403';x.fillRect(0,0,W,H);
  if(mode==='board'){
-  const t=WG.tally;header(x,W,'WOPR · LAST MOVE',(boardCaption())+'   GAMES '+t.games+' · X '+t.X+' · O '+t.O+' · DRAW '+t.D);
-  const gx=14,gy=48,gw=(W-28)/3,gh=(H-56)/3;
+  const t=WG.tally;header(x,W,'WOPR · LAST MOVE · '+(WG.dims===3?'3D':'2D'),(boardCaption())+'   GAMES '+t.games+' · X '+t.X+' · O '+t.O+' · DRAW '+t.D);
+  if(WG.dims===3){drawCube(x,G.cells,200,50,640,350,{thumbs:true,lw:8,line:G.line,last:G.lastMove,now,labels:true});x.font='500 15px ui-monospace,monospace';x.fillStyle='rgba(223,247,240,.55)';x.textAlign='center';x.fillText('9 COLUMNS · 3 LEVELS · 49 LINES · BRICKS STACK',W/2,424);x.textAlign='left';}
+  else{
+  const gx=180,gy=48,gw=(W-360)/3,gh=(H-56)/3;
   for(let i=0;i<9;i++){const tx=gx+(i%3)*gw,ty=gy+Math.floor(i/3)*gh,v=G.cells[i];
    const id=IDLE[(i*2+(v==='O'?1:0))%IDLE.length],im=img(LAB+'thumbs/screens/'+id+'.jpg');
    const live=i===G.lastMove&&now-(G.flash||0)<9000&&vready(VID.tile);
@@ -19458,11 +19571,13 @@ function drawWall(now){
    if(v==='#'){x.fillStyle='rgba(224,82,60,.35)';x.fillRect(tx+3,ty+3,gw-6,gh-6);}
   }
   if(G.line){const a=G.line[0],b=G.line[2],c=k=>[gx+(k%3+.5)*gw,gy+(Math.floor(k/3)+.5)*gh];const [ax,ay]=c(a),[bx,by]=c(b);x.strokeStyle=RD;x.shadowColor=RD;x.shadowBlur=24;x.lineWidth=14;x.lineCap='round';x.beginPath();x.moveTo(ax,ay);x.lineTo(bx,by);x.stroke();x.shadowBlur=0;}
-  if(G.status==='over'){x.fillStyle='rgba(1,6,4,.72)';x.fillRect(0,H/2-56,W,112);x.font='600 64px ui-monospace,monospace';x.textAlign='center';x.fillStyle=AM;x.shadowColor=AM;x.shadowBlur=18;x.fillText(G.result,W/2,H/2+22);x.shadowBlur=0;x.textAlign='left';}
+  }
+  if(G.status==='over'){const yy=WG.dims===3?215:H/2;x.fillStyle='rgba(1,6,4,.72)';x.fillRect(0,yy-56,W,112);x.font='600 64px ui-monospace,monospace';x.textAlign='center';x.fillStyle=AM;x.shadowColor=AM;x.shadowBlur=18;x.fillText(G.result,W/2,yy+22);x.shadowBlur=0;x.textAlign='left';}
  }else if(mode==='learn'){
-  const L=G.learn;const v=VID.wall;if(vready(v))cover(x,v,0,40,W,H-40,L.phase==='end'?1:.55);
-  header(x,W,'WOPR · ZERO PLAYERS',L.phase==='end'?'GAMES 50 · DRAWS 50':('GAME '+(L.game+1)+' · DRAWS '+L.draws));
-  if(L.phase!=='end'){const s=300,ox=(W-s)/2,oy=(H-s)/2+20,cs=s/3;x.fillStyle='rgba(1,6,4,.6)';x.fillRect(ox-14,oy-14,s+28,s+28);x.strokeStyle=PH;x.shadowColor=PH;x.shadowBlur=10;x.lineWidth=5;for(let i=1;i<3;i++){x.beginPath();x.moveTo(ox+i*cs,oy);x.lineTo(ox+i*cs,oy+s);x.stroke();x.beginPath();x.moveTo(ox,oy+i*cs);x.lineTo(ox+s,oy+i*cs);x.stroke();}x.shadowBlur=0;L.cells.forEach((c,i)=>{if(c)glyph(x,c,ox+(i%3+.5)*cs,oy+(Math.floor(i/3)+.5)*cs,cs*.28,10);});}
+  const L=G.learn;const v=VID.wall;if(vready(v))cover(x,v,0,40,W,H-40,L.phase==='end'?1:.5);
+  header(x,W,'WOPR · ZERO PLAYERS · '+(WG.dims===3?'3D':'2D'),'GAME '+Math.min(L.game+1,LEARN_GAMES)+' · X '+L.tally.X+' · O '+L.tally.O+' · DRAW '+L.tally.D);
+  if(L.phase!=='end'){x.fillStyle='rgba(1,6,4,.66)';if(WG.dims===3){x.fillRect(220,48,584,370);drawCube(x,L.cells,250,56,520,350,{lw:6,labels:false});}else{const s=300,ox=(W-s)/2,oy=(H-s)/2+20;x.fillRect(ox-14,oy-14,s+28,s+28);drawFlat(x,L.cells,ox,oy,s,{lw:10});}}
+  else{x.fillStyle='rgba(1,6,4,.72)';x.fillRect(0,150,W,110);x.font='600 26px ui-monospace,monospace';x.textAlign='center';x.fillStyle=AM;x.shadowColor=AM;x.shadowBlur=12;x.fillText(learnVerdict(L)[0],W/2,196);x.font='400 18px ui-monospace,monospace';x.fillStyle=INK;x.shadowBlur=0;x.fillText(learnVerdict(L)[1],W/2,232);x.textAlign='left';}
  }else{
   const src=mode==='focus'?focusSrc():RUN.src(),info=srcInfo(src);
   let drawn=false;
@@ -19473,23 +19588,23 @@ function drawWall(now){
   x.fillStyle='#020605';x.fillRect(0,H-56,W,56);x.font='400 17px ui-monospace,monospace';x.fillStyle=INK;let t=info.title||'';while(x.measureText(t).width>W-40&&t.length>8)t=t.slice(0,-4)+'…';x.fillText(t,18,H-22);
   if(mode==='run'){const nx=RUN.nextLabels();x.textAlign='right';x.fillStyle=AM;x.fillText(nx,W-18,H-22);x.textAlign='left';}
  }
- scan(x,W,H);wallTex.needsUpdate=true;
+ drawCamInset(x,W);scan(x,W,H);wallTex.needsUpdate=true;
 }
 function drawLMto(x,ox,oy,w,h,key){x.save();x.translate(ox,oy);drawLM(x,w,h,key);x.restore();}
 function drawLM(x,w,h,key){
  x.fillStyle='#03110c';x.fillRect(0,0,w,h);const s=Math.min(w/320,h/200);x.save();x.translate(w/2,h/2);x.scale(s,s);x.textAlign='center';x.shadowBlur=10;
  if(key==='title'){x.fillStyle=PH;x.shadowColor=PH;x.font='600 34px ui-monospace,monospace';x.fillText('LAST MOVE',0,-12);x.font='400 11px ui-monospace,monospace';x.globalAlpha=.75;x.fillText('A GAME OF X AND O',0,8);x.globalAlpha=1;x.fillStyle=AM;x.shadowColor=AM;x.font='500 13px ui-monospace,monospace';x.fillText('CLICK A SQUARE',0,52);}
- else if(key==='board'){const cs=36,o=-cs*1.5;x.strokeStyle=PH;x.shadowColor=PH;x.lineWidth=3;for(let i=1;i<3;i++){x.beginPath();x.moveTo(o+i*cs,o);x.lineTo(o+i*cs,-o);x.stroke();x.beginPath();x.moveTo(o,o+i*cs);x.lineTo(-o,o+i*cs);x.stroke();}G.cells.forEach((v,i)=>{if(v==='X'||v==='O')glyph(x,v,o+(i%3+.5)*cs,o+(Math.floor(i/3)+.5)*cs,10,4);});x.fillStyle=AM;x.shadowColor=AM;x.font='500 11px ui-monospace,monospace';x.fillText('LIVE BOARD · '+boardCaption(),0,86);}
+ else if(key==='board'){x.restore();x.save();if(WG.dims===3)drawCube(x,G.cells,w*.2,h*.1,w*.62,h*.72,{lw:3,line:G.line,last:G.lastMove,labels:false});else drawFlat(x,G.cells,w/2-h*.36,h*.08,h*.72,{lw:4,line:G.line});x.fillStyle=AM;x.shadowColor=AM;x.shadowBlur=8;x.font='500 '+Math.round(h*.06)+'px ui-monospace,monospace';x.textAlign='center';x.fillText('LIVE BOARD · '+boardCaption(),w/2,h*.94);}
  else{const r=G.result||(WG.tally.games?'—':'NO GAME YET');x.fillStyle=AM;x.shadowColor=AM;x.font='600 40px ui-monospace,monospace';x.fillText(r,0,10);x.fillStyle=PH;x.shadowColor=PH;x.font='400 11px ui-monospace,monospace';x.fillText('GAMES '+WG.tally.games+' · X '+WG.tally.X+' · O '+WG.tally.O+' · DRAW '+WG.tally.D,0,44);}
  x.restore();x.fillStyle='rgba(0,0,0,.25)';for(let y=0;y<h;y+=3)x.fillRect(0,y,w,1);
 }
 function refreshLMTextures(){for(const [src,t] of screenTex){if(t.userData?.canvas&&(t.userData.key==='board'||t.userData.key==='result')){drawLM(t.userData.canvas.getContext('2d'),320,200,t.userData.key);t.needsUpdate=true;}}}
 
 /* ---------------- focus: one selected screen brick previews on its monitor and the wall ---------------- */
-function focusSrc(){if(PANEL.preview)return PANEL.preview;const a=selected();if(a.length!==1)return null;const m=metaOf(a[0]);return m?m.src:null;}
+function focusSrc(){if(PANEL.preview)return PANEL.preview;const a=selected();if(a.length!==1||isCtl(a[0]))return null;const m=metaOf(a[0]);return m?m.src:null;}
 let focusedId=null;
-function updateFocus(){
- const a=selected(),p=a.length===1&&metaOf(a[0])?a[0]:(RUN.on?partOf(RUN.node):null),id=p?p.id:null;
+function updateFocus(now=performance.now()){
+ const a=selected(),flash=CT.flash&&now<CT.flash.until?partOf(CT.flash.id):null,p=a.length===1&&metaOf(a[0])&&!isCtl(a[0])?a[0]:(RUN.on?partOf(RUN.node):flash),id=p?p.id:null;
  if(id!==focusedId){
   const old=focusedId&&partOf(focusedId);if(old){const scr=old.mesh.children.find(c=>c.userData.screen)?.userData.screen;if(scr){scr.material.map=texFor(WG.meta[old.id].src);scr.material.needsUpdate=true;}}
   focusedId=id;const info=p?srcInfo(WG.meta[p.id].src):null;
@@ -19505,8 +19620,8 @@ function updateFocus(){
 
 /* ---------------- flow: links between screen bricks ---------------- */
 const flowGroup=new THREE.Group();plate.add(flowGroup);let flowKey='';
-function screenParts(){return S.parts.filter(p=>metaOf(p));}
-function edgeOK(e){return metaOf(partOf(e.a))&&metaOf(partOf(e.b));}
+function screenParts(){return S.parts.filter(p=>metaOf(p)&&!isCtl(p));}
+function edgeOK(e){const a=partOf(e.a),b=partOf(e.b);return metaOf(a)&&metaOf(b)&&!isCtl(a)&&!isCtl(b);}
 function drawFlow(){
  const key=JSON.stringify(WG.flow)+'|'+screenParts().map(p=>p.id+','+p.x+','+p.z+','+p.y).join(';')+'|'+(RUN.on?RUN.node:'');if(key===flowKey)return;flowKey=key;
  while(flowGroup.children.length){const c=flowGroup.children.pop();c.geometry?.dispose();}
@@ -19572,9 +19687,10 @@ function addScreen(src){
 function sceneDoc(id){
  const parts=[],meta={},edges=[];let n=0;const tag={'wg-lastmove':'wgL','wg-wopr':'wgW','wg-milestones':'wgM'}[id];
  const put=(part,color,x,z,src)=>{const pid=tag+(n++);parts.push({id:pid,part,color,x,y:0,z,r:0});if(src)meta[pid]={src};return pid;};
- const tray=()=>{for(let i=0;i<5;i++)put(PIECE.X.part,PIECE.X.color,TRAY[i].x,TRAY[i].z);};
- let start=null,name='',actors=[{kind:'citizen',x:-235,y:0,z:150,heading:0}];
- if(id==='wg-lastmove'){name='WarGames · Last Move room';tray();const a=put(SCREEN_PART,0,-160,-210,'l:title'),b=put(SCREEN_PART,0,0,-210,'l:board'),c=put(SCREEN_PART,0,160,-210,'l:result');edges.push({a,b,i:'CLICK'},{a:b,b:c,i:'END'},{a:c,b:a,i:'KEY'});start=a;}
+ const tray=(k=TRAY.length)=>{for(let i=0;i<k;i++)put(PIECE.X.part,PIECE.X.color,TRAY[i].x,TRAY[i].z);};
+ const controls=()=>{[['new',-225],['first',-75],['dims',75],['learn',225]].forEach(([k,x])=>put(SCREEN_PART,0,x,-215,'c:'+k));};
+ let start=null,name='',actors=[{kind:'citizen',x:-250,y:0,z:170,heading:0}];
+ if(id==='wg-lastmove'){name='WarGames · Last Move room (3D)';tray();controls();const a=put(SCREEN_PART,0,-180,-330,'l:title'),b=put(SCREEN_PART,0,0,-330,'l:board'),c=put(SCREEN_PART,0,180,-330,'l:result');edges.push({a,b,i:'CLICK'},{a:b,b:c,i:'END'},{a:c,b:a,i:'KEY'});start=a;}
  if(id==='wg-wopr'){name='WarGames · WOPR flow';tray();const ids=['sbd_0298','sbd_0394','wg_135','wg_277','wg_283','l:board','wg_288','wg_296'];const pos=[[-280,-320],[-140,-320],[0,-320],[140,-320],[280,-320],[-210,-190],[-70,-190],[70,-190]];let prev=null;ids.forEach((s,i)=>{const src=s.startsWith('l:')?s:'f:'+s;const pid=put(SCREEN_PART,0,pos[i][0],pos[i][1],src);if(prev)edges.push({a:prev,b:pid,i:src==='l:board'?'CLICK':WG_SRC(prev,meta)==='l:board'?'END':'WAIT'});else start=pid;prev=pid;});}
  if(id==='wg-milestones'){name='WarGames · Milestones flow';tray();const pos=[[-280,-320],[-140,-320],[0,-320],[140,-320],[280,-320],[-210,-190],[-70,-190]];let prev=null;MILESTONES.forEach((m,i)=>{const pid=put(SCREEN_PART,0,pos[i][0],pos[i][1],'m:'+m[0]);if(prev)edges.push({a:prev,b:pid,i:'WAIT'});else start=pid;prev=pid;});const b=put(SCREEN_PART,0,70,-190,'l:board');edges.push({a:prev,b,i:'CLICK'});}
  return {doc:{version:1,id,name,parts,actors,plateAngle:0},meta,flow:{edges,start}};
@@ -19587,7 +19703,7 @@ async function loadScene(id){
  const s=sceneDoc(id);if(!window.ButterScenes)return note('Scenes are not ready yet.','SCENE');
  try{if(RUN.on)RUN.stop();if(G.learn)stopLearn();
   Object.assign(WG.meta,s.meta);
-  await ButterScenes.load(s.doc);WG.flow=s.flow;floorGrip(true);G.seen='';G.cells=Array(9).fill('#');G.gameCounted=false;persistWG();flowKey='';PANEL.render();dirty();
+  await ButterScenes.load(s.doc);WG.flow=s.flow;viewShift='';floorGrip(true);G.seen='';G.cells=Array(NC).fill('#');G.gameCounted=false;persistWG();flowKey='';PANEL.render();dirty();
   note(s.doc.name+' loaded. Undo restores your previous scene.','SCENE');
  }catch(e){note(e.message,'SCENE');}
 }
@@ -19607,24 +19723,39 @@ const oldFile=$('#file').onchange;$('#file').onchange=async e=>{try{const f=e.ta
 
 /* ---------------- hand-friendly picking of monitors ---------------- */
 const rawPick=pick;const ray=new THREE.Raycaster();
-pick=function(x,y){const id=rawPick(x,y);if(id)return id;const r=$('#stage').getBoundingClientRect();ray.setFromCamera({x:x/r.width*2-1,y:1-y/r.height*2},camera);const mons=[];for(const p of S.parts){if(!metaOf(p))continue;for(const c of p.mesh.children)if(c.userData.wgDeco)c.traverse(o=>{if(o.isMesh){o.userData.partId=p.id;mons.push(o);}});}const hits=ray.intersectObjects(mons,false);return hits.length?hits[0].object.userData.partId:null;};
+pick=function(x,y){const id=rawPick(x,y);const r=$('#stage').getBoundingClientRect();ray.setFromCamera({x:x/r.width*2-1,y:1-y/r.height*2},camera);const mons=[];for(const p of S.parts){if(!metaOf(p))continue;for(const c of p.mesh.children)if(c.userData.wgDeco)c.traverse(o=>{if(o.isMesh){o.userData.partId=p.id;mons.push(o);}});}const hits=ray.intersectObjects(mons,false);if(!hits.length)return id;if(!id)return hits[0].object.userData.partId;
+ // a monitor in front of another brick wins: compare distances
+ const pm=partOf(id)?.mesh,ph=pm?ray.intersectObject(pm,false):[];return ph.length&&ph[0].distance<hits[0].distance?id:hits[0].object.userData.partId;};
 
-/* ---------------- performer plate shrinks into the corner while the big board is up ---------------- */
-let performerCorner=true;
-function placePerformer(){if(!ROOM.video)return;if(PANEL.open&&performerCorner){ROOM.video.scale.set(.36,.36,1);ROOM.video.position.set(268,96,-398.8);}else{ROOM.video.scale.set(1,1,1);ROOM.video.position.set(0,230,-399);}}
+/* ---------------- the camera picture never covers the board ----------------
+   The app maps hand landmarks through ROOM.video's transform, so that plane keeps its full size and place;
+   it is only taken off the render layer. The picture goes into a small inset in the top-right corner of WOPR's
+   wall display, beside the board, never over it. */
+const CAM={on:true};
+function camSource(){const v=ROOM.video;if(!CAM.on||!v||!v.visible)return null;const el=v.material.map?.image;return el&&el.readyState>=2&&el.videoWidth?el:null;}
+function placeCam(){const v=ROOM.video;if(!v||v.userData.wgCam)return;v.userData.wgCam=true;v.layers.set(1);v.scale.set(1,1,1);v.position.set(0,230,-399);}
+function drawCamInset(x,W){const el=camSource();if(!el)return;const w=150,h=96,ox=W-w-12,oy=48;x.save();x.fillStyle='#020605';x.fillRect(ox-4,oy-4,w+8,h+24);x.translate(ox+w,oy);x.scale(-1,1);cover(x,el,0,0,w,h,1);x.restore();x.strokeStyle='rgba(74,246,195,.6)';x.lineWidth=2;x.strokeRect(ox-4,oy-4,w+8,h+24);x.font='500 11px ui-monospace,monospace';x.fillStyle=PH;x.fillText('OPERATOR',ox,oy+h+14);}
 
 /* on phones the panel takes the bottom of the stage; the view shifts so the room sits above it */
 let viewShift='';
 function placeView(){const st=$('#stage').getBoundingClientRect(),cue=$('#stageCue');let key='';
- const mobile=PANEL.open&&matchMedia('(max-width: 760px)').matches&&!window.ButterEye?.active;
- if(mobile){const pr=P.getBoundingClientRect(),free=Math.max(80,pr.top-st.top);
-  // zoom so the board area fills the free space above the panel, centred on the board
-  plate.updateMatrixWorld(true);const a=project(V(BOARD.x-150,0,BOARD.z+150)),b=project(V(BOARD.x+150,0,BOARD.z+150)),c=project(V(BOARD.x,140,-400));
-  const z=Math.max(1,Math.min(1.8,(st.width*.98)/Math.max(1,Math.abs(b.x-a.x))));const w=st.width/z,h=st.height/z;
-  const cx=(a.x+b.x)/2,top=c.y,bottom=a.y,mid=(top+bottom)/2,yy=mid-free/2/z;
-  const ox=Math.max(0,Math.min(st.width-w,cx-w/2)),oy=Math.max(0,Math.min(st.height-h,yy));key=[st.width,st.height,ox|0,oy|0,w|0,h|0].join(',');
-  if(key!==viewShift){camera.clearViewOffset();camera.updateProjectionMatrix();const a2=project(V(BOARD.x-150,0,BOARD.z+150)),b2=project(V(BOARD.x+150,0,BOARD.z+150)),c2=project(V(BOARD.x,140,-400));const z2=Math.max(1,Math.min(1.8,(st.width*.98)/Math.max(1,Math.abs(b2.x-a2.x)))),w2=st.width/z2,h2=st.height/z2,mid2=(c2.y+a2.y)/2,ox2=Math.max(0,Math.min(st.width-w2,(a2.x+b2.x)/2-w2/2)),oy2=Math.max(0,Math.min(st.height-h2,mid2-free/2/z2));camera.setViewOffset(st.width,st.height,ox2,oy2,w2,h2);camera.updateProjectionMatrix();viewShift=key;}
-  if(cue){cue.style.bottom=(st.bottom-pr.top+8)+'px';}
+ const mobile=matchMedia('(max-width: 760px)').matches&&!window.ButterEye?.active&&S.parts.some(isCtl);
+ if(mobile){const pr=PANEL.open?P.getBoundingClientRect():null,free=pr?Math.max(80,pr.top-st.top):st.height;
+  plate.updateMatrixWorld(true);const zk=[st.width,st.height,free|0,ROOM.yaw|0,ROOM.pitch|0].join(',');
+  if(zk!==viewShift||!camera.view?.enabled){camera.clearViewOffset();camera.updateProjectionMatrix();
+   const a=project(V(BOARD.x-290,0,BOARD.z+150)),b=project(V(BOARD.x+290,0,BOARD.z+150)),c=project(V(BOARD.x,90,-260));
+   const z=Math.max(1,Math.min(1.8,(st.width*.98)/Math.max(1,Math.abs(b.x-a.x)))),w=st.width/z,h=st.height/z,mid=(c.y+a.y)/2;
+   const ox=Math.max(0,Math.min(st.width-w,(a.x+b.x)/2-w/2)),oy=Math.max(0,Math.min(st.height-h,mid-free/2/z));
+   camera.setViewOffset(st.width,st.height,ox,oy,w,h);camera.updateProjectionMatrix();viewShift=zk;}
+  if(cue)cue.style.bottom=pr?(st.bottom-pr.top+8)+'px':'';
+ }else if(!window.ButterEye?.active&&S.parts.some(isCtl)){const zk='d'+[st.width,st.height,ROOM.yaw|0].join(',');
+  if(zk!==viewShift||!camera.view?.enabled){camera.clearViewOffset();camera.updateProjectionMatrix();plate.updateMatrixWorld(true);ROOM.group.updateMatrixWorld(true);
+   const pts=[V(-392,430,-400),V(392,430,-400),V(-300,0,230),V(300,0,230),V(0,0,230)].map(p=>p.y>400?project(ROOM.group.localToWorld(p.clone())):project(p));
+   const minx=Math.min(...pts.map(p=>p.x)),maxx=Math.max(...pts.map(p=>p.x)),miny=Math.min(...pts.map(p=>p.y)),maxy=Math.max(...pts.map(p=>p.y));
+   const z=Math.max(1,Math.min(1.6,.96*Math.min(st.width/(maxx-minx),st.height/(maxy-miny)))),w=st.width/z,h=st.height/z;
+   const ox=Math.max(0,Math.min(st.width-w,(minx+maxx)/2-w/2)),oy=Math.max(0,Math.min(st.height-h,(miny+maxy)/2-h/2));
+   camera.setViewOffset(st.width,st.height,ox,oy,w,h);camera.updateProjectionMatrix();viewShift=zk;}
+  if(cue)cue.style.bottom='';
  }else if(viewShift){viewShift='';camera.clearViewOffset();camera.updateProjectionMatrix();if(cue)cue.style.bottom='';}}
 
 /* ---------------- panel ---------------- */
@@ -19643,14 +19774,14 @@ const style=document.createElement('style');style.textContent=`
 const PANEL={open:false,tab:'play',preview:null,group:'LAST MOVE',
  el:document.createElement('section'),
  input(){return this.el.querySelector('#wgInput')?.value||'CLICK';},
- toggle(force){this.open=force??!this.open;this.el.hidden=!this.open;btn.setAttribute('aria-pressed',this.open);wallMesh.visible=true;placePerformer();if(this.open)this.render();},
+ toggle(force){this.open=force??!this.open;this.el.hidden=!this.open;btn.setAttribute('aria-pressed',this.open);wallMesh.visible=true;if(this.open)this.render();},
  render(){if(!this.open)return;const t=this.tab,el=this.el;el.querySelectorAll('nav button').forEach(b=>b.setAttribute('aria-selected',b.dataset.t===t));const body=el.querySelector('.body');
-  if(t==='play'){const T=WG.tally;body.innerHTML=`<div class="status">${G.learn?(G.learn.phase==='end'?'50 games, 50 draws. Every line gets blocked.':'Zero players: WOPR plays both sides on the board glass.'):esc(G.say||'Load the Last Move room, or set red bricks on the green board.')}</div>
-   <div class="tally">GAMES ${T.games} · X ${T.X} · O ${T.O} · DRAW ${T.D} · YOU ARE X (red 2×2) · WOPR IS O (green round)</div>
-   <div class="row"><button class="hi" data-a="new">New game</button><button data-a="addx">+ X brick</button>${G.status==='hold'?'<button class="hi" data-a="go">WOPR go</button>':''}<button data-a="first" class="${WG.woprFirst?'on':''}">WOPR first</button><button data-a="learn" class="${G.learn?'on':''}">${G.learn?'Stop':'Zero players'}</button></div>
+  if(t==='play'){const T=WG.tally;body.innerHTML=`<div class="status">${G.learn?esc(G.say||''):esc(G.say||'Load the Last Move room, or set red bricks on the green board.')}</div>
+   <div class="tally">${WG.dims===3?'3D · 27 CELLS · 49 LINES':'2D · 9 CELLS · 8 LINES'} · GAMES ${T.games} · X ${T.X} · O ${T.O} · DRAW ${T.D}</div>
+   <div class="row"><button class="hi" data-a="new">New game</button><button data-a="addx">+ X brick</button>${G.status==='hold'?'<button class="hi" data-a="go">WOPR go</button>':''}<button data-a="first" class="${WG.woprFirst?'on':''}">WOPR first</button><button data-a="dims">${WG.dims===3?'Play 2D':'Play 3D'}</button><button data-a="learn" class="${G.learn?'on':''}">${G.learn?'Stop':'Zero players'}</button></div>
    <div class="row"><button data-a="scene:wg-lastmove">Load Last Move room</button><button data-a="grip">${gripPlane()==='xz'?'Grip: floor':'Grip: upright'}</button></div>
-   <div class="help">Hands: pinch a red brick, carry it over a cell, open your hand to drop; thumb up seats it. WOPR answers by dropping a green round brick. Knock a brick off and the board changes: the board is wherever the bricks are.</div>`;}
-  else if(t==='screens'){const groups=['LAST MOVE','MILESTONES',...[...new Set(DATA.screens.map(s=>s.g))]];const items=this.items();
+   <div class="help">The same controls stand in the room as four monitors behind the board: tap one to run it. Carry a red brick over a column; it rides on top of the stack there. Let go to drop it. WOPR answers with a green round brick.</div>`;}
+  else if(t==='screens'){const groups=['LAST MOVE','CONTROLS','MILESTONES',...[...new Set(DATA.screens.map(s=>s.g))]];const items=this.items();
    body.innerHTML=`<div class="row"><select id="wgGroup" aria-label="Screen group">${groups.map(g=>`<option ${g===this.group?'selected':''}>${esc(g)}</option>`).join('')}</select><button class="hi" data-a="addscreen" ${this.preview?'':'disabled'}>+ Screen brick</button></div>
    <div class="cards">${items.map(src=>{const i=srcInfo(src);return `<button class="card ${this.preview===src?'on':''}" data-src="${src}"><div class="im" style="${i.img?`background-image:url('${i.img}')`:''}">${i.kind==='lm'?esc(i.label.split(' · ')[1]):''}</div><small>${i.video?'<i>▶ </i>':''}${esc(i.label)}</small></button>`;}).join('')}</div>
    <div class="help">${this.preview?esc(srcInfo(this.preview).title||''):'Tap a screen to preview it on the back wall, then add it as a brick. '+items.length+' screens in this group.'}</div>`;}
@@ -19661,20 +19792,20 @@ const PANEL={open:false,tab:'play',preview:null,group:'LAST MOVE',
    <div class="row"><button data-a="undolink">Undo link</button><button data-a="table">Copy state table</button><button data-a="record">Copy run record</button></div>
    <div class="edges">${edges.length?edges.map(e=>`<div>${esc(srcInfo(WG.meta[e.a].src).label)} —${esc(e.i)}→ ${esc(srcInfo(WG.meta[e.b].src).label)}</div>`).join(''):'No links yet. Select a screen brick, tap Link, then select the next one. While running, selecting the next brick takes that link.'}</div>`;}
  },
- items(){if(this.group==='LAST MOVE')return ['l:title','l:board','l:result'];if(this.group==='MILESTONES')return MILESTONES.map(m=>'m:'+m[0]);return DATA.screens.filter(s=>s.g===this.group).map(s=>'f:'+s.id);}
+ items(){if(this.group==='LAST MOVE')return ['l:title','l:board','l:result'];if(this.group==='CONTROLS')return Object.keys(CTL).map(k=>'c:'+k);if(this.group==='MILESTONES')return MILESTONES.map(m=>'m:'+m[0]);return DATA.screens.filter(s=>s.g===this.group).map(s=>'f:'+s.id);}
 };
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-const P=PANEL.el;P.id='wgPanel';P.hidden=true;P.innerHTML='<header><b>WAR GAMES · LAST MOVE</b><button id="wgPerf" title="Performer video: corner or full">CAM</button><button id="wgClose" aria-label="Close">×</button></header><nav><button data-t="play">Play</button><button data-t="screens">Screens</button><button data-t="flow">Flow</button></nav><div class="body"></div>';
+const P=PANEL.el;P.id='wgPanel';P.hidden=true;P.innerHTML='<header><b>WAR GAMES · LAST MOVE</b><button id="wgPerf" title="Camera picture in the wall corner: on or off">CAM</button><button id="wgClose" aria-label="Close">×</button></header><nav><button data-t="play">Play</button><button data-t="screens">Screens</button><button data-t="flow">Flow</button></nav><div class="body"></div>';
 $('#stage').appendChild(P);
 P.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
  if(b.dataset.t){PANEL.tab=b.dataset.t;if(b.dataset.t!=='screens')PANEL.preview=null;dirty();PANEL.render();return;}
  if(b.id==='wgClose'){PANEL.preview=null;PANEL.toggle(false);dirty();return;}
- if(b.id==='wgPerf'){performerCorner=!performerCorner;placePerformer();return;}
+ if(b.id==='wgPerf'){CAM.on=!CAM.on;note(CAM.on?'Camera shows small in the corner of the wall display.':'Camera picture hidden. Hand tracking still runs.','CAM');PANEL.render();return;}
  if(b.dataset.src){PANEL.preview=PANEL.preview===b.dataset.src?null:b.dataset.src;dirty();PANEL.render();return;}
  if(b.dataset.go!==undefined){const e2=RUN.out()[+b.dataset.go];if(e2)RUN.take(e2);return;}
  const a=b.dataset.a;if(!a)return;
  if(a==='new')newGame();else if(a==='addx')addX();else if(a==='go')woprGo();
- else if(a==='first'){WG.woprFirst=!WG.woprFirst;persistWG();note(WG.woprFirst?'WOPR moves first next game.':'You move first next game.','RULE');}
+ else if(a==='first')runCtl('first');else if(a==='dims')runCtl('dims');
  else if(a==='learn'){G.learn?stopLearn():startLearn();}
  else if(a==='grip'){floorGrip(gripPlane()!=='xz');}
  else if(a.startsWith('scene:'))loadScene(a.slice(6));
@@ -19688,7 +19819,7 @@ P.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
 P.addEventListener('change',e=>{if(e.target.id==='wgGroup'){PANEL.group=e.target.value;PANEL.preview=null;PANEL.render();}if(e.target.id==='wgInput')PANEL.lastInput=e.target.value;});
 const btn=document.createElement('button');btn.id='wgBtn';btn.textContent='WAR GAMES';btn.setAttribute('aria-pressed','false');btn.title='Tic-tac-toe with bricks, screen bricks and flows';btn.onclick=()=>PANEL.toggle();
 $('.header-tools').prepend(btn);
-const help=document.createElement('p');help.innerHTML='<b>War Games:</b> open WAR GAMES. Play: a red 2×2 brick in a cell of the green board is your X; WOPR drops a green round brick. Screens: put film screens, LAST MOVE screens and milestone films on the plate as screen bricks. Flow: link screens with inputs and Run the prototype on the back wall; the live board is the PLAY state.';$('#help')?.prepend(help);
+const help=document.createElement('p');help.innerHTML='<b>War Games:</b> three-dimensional tic-tac-toe with bricks. Red 2×2 bricks are X, WOPR drops green round bricks. Bricks stack, up to three high in each of the nine columns: 49 ways to make a line. The four monitors behind the board are the controls: tap one (or pinch and let go) to run it; drag one to move it. WAR GAMES opens the screen and flow tools.';$('#help')?.prepend(help);
 
 /* ---------------- frame ---------------- */
 let lastPanel=0,lastLM='';
@@ -19697,25 +19828,26 @@ function frame(now){
  if(!S.ready&&!S.parts)return;
  try{
   if(now-(frame.lastAdopt||0)>500){frame.lastAdopt=now;adoptPresetFlow();}
-  adoptCopies();decorate();watchLink();
+  adoptCopies();decorate();watchLink();watchCtl(now);
   if(!S.tx&&!G.drop&&!G.learn){const cells=readBoard(),key=cells.join(',');if(key!==G.seen){G.seen=key;G.since=now;}else if(now-G.since>450&&key!==G.cells.join(','))judge(cells,now);}
   if(G.status==='thinking'&&G.thinking&&!G.drop){if(G.peek===undefined||G.peek<0)G.peek=bestFor(G.cells,'O');if(now>=G.thinking){G.thinking=null;const i=G.peek;G.peek=-1;if(i!==undefined&&i>=0&&!G.cells[i])dropO(i);}boardDirty=true;}
-  if(G.drop){const d=G.drop,k=Math.min(1,(now-d.t0)/520),e=1-Math.pow(1-k,3);d.mesh.position.set(d.x,(1-e)*230,d.z);d.mesh.rotation.y=(1-e)*1.6;if(k>=1)finishDrop();}
+  if(G.drop){const d=G.drop,k=Math.min(1,(now-d.t0)/560),e=1-Math.pow(1-k,3);d.mesh.position.set(d.x,d.y+(1-e)*230,d.z);d.mesh.rotation.y=(1-e)*1.6;if(k>=1)finishDrop();}
   if(G.lastMove>=0&&now-(G.flash||0)<200){const pool=G.lastKind==='X'?CLIPS.x:CLIPS.o;playVideo(VID.tile,LAB+'clips/'+pool[G.lastMove%pool.length]+'.mp4',false);}
-  if(G.learn){stepLearn(now);}
-  RUN.tick(now);updateFocus();drawFlow();
-  const lmKey=G.cells.join('')+G.status+WG.tally.games;if(lmKey!==lastLM){lastLM=lmKey;refreshLMTextures();}
+  if(G.learn){for(let k=0;k<6&&G.learn&&G.learn.phase!=='end'&&now>=G.learn.next;k++)stepLearn(now);}
+  RUN.tick(now);updateFocus(now);drawFlow();updateBeam();lattice.visible=WG.dims===3;
+  if(now-(frame.lastCtl||0)>250){frame.lastCtl=now;refreshCtlTextures();}
+  const lmKey=G.cells.join('')+G.status+WG.tally.games+WG.dims;if(lmKey!==lastLM){lastLM=lmKey;refreshLMTextures();}
   if(boardDirty||G.status==='thinking'){boardDirty=false;drawBoard(now);}
-  const videoLive=vready(VID.wall)||vready(VID.tile)&&now-(G.flash||0)<9000;
+  const videoLive=vready(VID.wall)||vready(VID.tile)&&now-(G.flash||0)<9000||!!camSource();
   if(wallDirty||(videoLive&&now-lastWall>66)||now-lastWall>1000){wallDirty=false;lastWall=now;drawWall(now);}
-  if(PANEL.open&&now-lastPanel>500&&PANEL.tab!=='screens'){lastPanel=now;const sig=G.status+G.say+RUN.node+LINK.from+LINK.armed+WG.tally.games+(G.learn?G.learn.game:'');if(sig!==PANEL.sig){PANEL.sig=sig;PANEL.render();}}
-  placePerformer();placeView();
+  if(PANEL.open&&now-lastPanel>500&&PANEL.tab!=='screens'){lastPanel=now;const sig=G.status+G.say+RUN.node+LINK.from+LINK.armed+WG.tally.games+WG.dims+(G.learn?G.learn.game:'');if(sig!==PANEL.sig){PANEL.sig=sig;PANEL.render();}}
+  placeCam();placeView();
  }catch(err){console.error('[WAR GAMES]',err);}
 }
 requestAnimationFrame(frame);
-window.WarGames={G,WG,RUN,PANEL,loadScene,newGame,addX,addScreen,readBoard,stateTable,runRecord,startLearn,stopLearn,cellCenter,placePiece};
+window.WarGames={G,WG,RUN,PANEL,loadScene,newGame,addX,addScreen,readBoard,stateTable,runRecord,startLearn,stopLearn,cellCenter,placePiece,bestFor,LINES3,setDims,runCtl,columnTop,cam:()=>CAM,camSource};
 document.title='WAG / HAND BUTTER · WAR GAMES';
-if(new URLSearchParams(location.search).has('wargames'))setTimeout(()=>PANEL.toggle(true),400);
+if(new URLSearchParams(location.search).has('wargames'))setTimeout(()=>{if(!S.parts.some(isCtl))loadScene('wg-lastmove');},500);
 })();
 
 </script>
