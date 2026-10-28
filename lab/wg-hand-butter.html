@@ -19275,10 +19275,11 @@ function metaOf(p){const m=p&&WG.meta[p.id];return m&&p.part===SCREEN_PART?m:nul
 /* ---------------- sources ---------------- */
 function srcInfo(src){
  const [k,v]=src.split(':');
- if(k==='f'){const s=SCREENS.get(v)||{id:v,t:v,g:'SCREEN',n:''};return {kind:'film',label:(s.g||'SCREEN')+' · '+v,title:s.n||s.t,group:s.g,img:LAB+'thumbs/screens/'+v+'.jpg',video:s.c?LAB+'clips/'+v+'.mp4':null};}
+ if(k==='f'){const s=SCREENS.get(v)||{id:v,t:v,g:'SCREEN',n:''};return {kind:'film',id:v,label:(s.g||'SCREEN')+' · '+shortName(s),title:s.n||s.t,group:s.g,img:LAB+'thumbs/screens/'+v+'.jpg',video:s.c?LAB+'clips/'+v+'.mp4':null};}
  if(k==='m'){const m=MILESTONES.find(m=>m[0]===v)||[v,v,''];return {kind:'milestone',label:m[0]+' · '+m[1],title:m[2],group:'MILESTONES',img:FILMS+m[0]+'.jpg',video:FILMS+m[0]+'.mp4'};}
  return {kind:'lm',key:v,label:LM[v]||v,title:v==='board'?'The live board on the plate is this state.':v==='result'?'Shows how the last game ended.':'Title screen of the game BUG and NIT build.',group:'LAST MOVE',img:null,video:null};
 }
+function shortName(s){let t=(s.n||s.t||s.id||'').replace(/^['"]|['"]$/g,'').replace(/^[^A-Za-z0-9]+/,'');t=t.split(/[.:;—–]| - /)[0].trim();if(t.length>22)t=t.slice(0,21).replace(/\s+\S*$/,'')+'…';return (t||s.id).toUpperCase();}
 const IMG=new Map();function img(url){if(!url)return null;let im=IMG.get(url);if(!im){im=new Image();im.crossOrigin='anonymous';im.decoding='async';im.src=url;IMG.set(url,im);}return im;}
 function ready(im){return im&&im.complete&&im.naturalWidth>0;}
 function mkVideo(){const v=document.createElement('video');v.crossOrigin='anonymous';v.muted=true;v.loop=true;v.playsInline=true;v.setAttribute('playsinline','');v.preload='auto';return v;}
@@ -19304,30 +19305,35 @@ function legal(c){const n=counts(c),s=starter(),o=s==='X'?'O':'X';return n[s]-n[
 function judge(cells,now){
  const prev=G.cells;G.cells=cells;G.conflict=cells.includes('#');
  if(G.learn)return;
+ G.thinking=null;if(G.drop){plate.remove(G.drop.mesh);G.drop=null;}
  const empty=cells.every(v=>!v);
  if(G.conflict){G.status='conflict';say('Two pieces share a cell. Move one out.','BOARD');return dirty();}
  if(!legal(cells)){G.status='illegal';say('This board is not a legal game: too many '+(counts(cells).X>counts(cells).O?'X':'O')+'. Undo or New game.','BOARD');return dirty();}
- const removed=prev.some((v,i)=>v&&v!=='#'&&cells[i]!==v);
+ const removedO=prev.some((v,i)=>v==='O'&&cells[i]!=='O');
  const added=cells.findIndex((v,i)=>v&&!prev[i]);
+ const addedCount=cells.filter((v,i)=>v&&!prev[i]).length,prevEmpty=prev.every(v=>!v||v==='#');
+ if(addedCount===1&&prevEmpty)WG.lastCounted=null;
+ if(added>=0&&addedCount===1)snapToCell(added);
  if(empty){G.result='';G.line=null;G.gameCounted=false;G.hold=false;G.lastMove=-1;}
  else if(added>=0){G.lastMove=added;G.lastKind=cells[added];G.flash=now;}
  const w=winner(cells),full=cells.every(Boolean);
  if(w||full){G.status='over';G.result=w?w.who+' WINS':'DRAW';G.line=w?w.line:null;G.turn='';
-  if(!G.gameCounted){G.gameCounted=true;WG.tally.games++;WG.tally[w?w.who:'D']++;persistWG();feedback(w?'blocked':'click');}
+  const fin=cells.join('');if(!G.gameCounted&&WG.lastCounted!==fin){G.gameCounted=true;WG.lastCounted=fin;WG.tally.games++;WG.tally[w?w.who:'D']++;persistWG();feedback(w?'blocked':'click');}
   say(w?(w.who==='X'?'X WINS. WOPR missed a block.':'O WINS. WOPR completed a line.'):'DRAW. Nobody can win against perfect play.',G.result);
   flowEvent(G.result);return dirty();}
  G.result='';G.line=null;G.turn=turnOf(cells);
- if(removed&&G.turn==='O'){G.hold=true;G.status='hold';say('Board rolled back. WOPR waits: undo again to take back your move, or tap WOPR GO.','HOLD');return dirty();}
+ if(removedO&&G.turn==='O'){G.hold=true;G.status='hold';say('Board rolled back. WOPR waits: undo again to take back your move, or tap WOPR GO.','HOLD');return dirty();}
  if(G.turn==='O'&&!G.hold){G.status='thinking';say('WOPR is choosing a cell…','WOPR');G.thinking=now+700;}
  else if(G.turn==='X'){G.status='yours';G.hold=false;say(empty?'New board. Pinch a red brick from the tray, set it in a cell, open your hand.':'Your move: set a red brick in an empty cell.','YOUR MOVE');}
  dirty();
 }
+function snapToCell(cell){const c=cellCenter(cell),p=S.parts.find(p=>kindOf(p)&&cellOf(p)===cell);if(!p||S.tx)return;if(Math.abs(p.x-c.x)<2&&Math.abs(p.z-c.z)<2)return;const before=checkpoint(),old={x:p.x,z:p.z},sel=new Set(S.selected);p.x=c.x;p.z=c.z;sync(p);S.selected=new Set([p.id]);const fail=validate();S.selected=sel;if(fail){p.x=old.x;p.z=old.z;sync(p);return;}record(before);rebuildBodies();}
 function say(text,phase){G.say=text;note(text,phase);}
 function dropO(cell){
  const c=cellCenter(cell),ghost=new THREE.Mesh(catalog.get(PIECE.O.part).geometry,material(PIECE.O.color));ghost.castShadow=true;plate.add(ghost);ghost.add(glyphMesh('O',24));
  G.drop={cell,mesh:ghost,t0:performance.now(),x:c.x,z:c.z};feedback('select');
 }
-function finishDrop(){const d=G.drop;G.drop=null;plate.remove(d.mesh);if(S.tx){say('Release what you are holding; WOPR will move after.','WOPR');G.thinking=performance.now()+600;return;}placePiece('O',d.cell);}
+function finishDrop(){const d=G.drop;G.drop=null;plate.remove(d.mesh);const now=readBoard();if(now[d.cell]||turnOf(now)!=='O')return;if(S.tx){say('Release what you are holding; WOPR will move after.','WOPR');G.thinking=performance.now()+600;return;}placePiece('O',d.cell);}
 function placePiece(kind,cell){
  const c=cellCenter(cell),before=checkpoint(),oldSel=new Set(S.selected),id='p'+S.next++;
  create({id,part:PIECE[kind].part,color:PIECE[kind].color,x:c.x,y:0,z:c.z,r:0});S.selected=new Set([id]);const fail=validate();
@@ -19352,7 +19358,7 @@ function addX(){
 function woprGo(){if(G.status!=='hold')return;G.hold=false;G.status='thinking';G.thinking=performance.now()+300;dirty();}
 
 /* zero players: WOPR plays itself on the board glass, faster each game */
-function startLearn(){if(S.tx)return;const filled=G.cells.some(v=>v&&v!=='#');if(filled){newGame();}G.learn={game:0,cells:Array(9).fill(''),next:performance.now()+600,turn:'X',draws:0,phase:'play',clip:0,t0:performance.now()};say('Zero players. WOPR plays both sides.','LEARN');dirty();}
+function startLearn(){if(S.tx)return;const filled=G.cells.some(v=>v&&v!=='#');if(filled){newGame();note('Board cleared for zero players. Undo brings the game back.','LEARN');}G.learn={game:0,cells:Array(9).fill(''),next:performance.now()+600,turn:'X',draws:0,phase:'play',clip:0,t0:performance.now()};say('Zero players. WOPR plays both sides.','LEARN');dirty();}
 function stopLearn(){G.learn=null;G.cells=readBoard();say('Learning stopped.','READY');dirty();}
 function stepLearn(now){const L=G.learn;if(!L||now<L.next)return;
  if(L.phase==='end')return;
@@ -19515,13 +19521,15 @@ function drawFlow(){
  }
  if(WG.flow.start&&metaOf(partOf(WG.flow.start))){const p=partOf(WG.flow.start);const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTexture('▶ START'),transparent:true,depthTest:false}));sp.scale.set(70,14,1);sp.position.set(p.x,p.y+108,p.z-26);sp.renderOrder=12;flowGroup.add(sp);}
 }
-function addEdge(a,b,i){if(a===b)return;WG.flow.edges=WG.flow.edges.filter(e=>!(e.a===a&&e.b===b));WG.flow.edges.push({a,b,i});if(!WG.flow.start)WG.flow.start=a;persistWG();flowKey='';PANEL.render();}
+const FLOWHIST=[];function pushFlow(){FLOWHIST.push(JSON.stringify(WG.flow));if(FLOWHIST.length>30)FLOWHIST.shift();}
+function undoFlow(){const f=FLOWHIST.pop();if(!f)return note('No link change to undo.','FLOW');WG.flow=JSON.parse(f);persistWG();flowKey='';PANEL.render();note('Last link change undone.','FLOW');}
+function addEdge(a,b,i){if(a===b)return;pushFlow();const old=WG.flow.edges.find(e=>e.a===a&&e.b===b);if(old&&old.i!==i)setTimeout(()=>note('Replaced the '+old.i+' link with '+i+'. Undo link restores it.','LINK'),50);WG.flow.edges=WG.flow.edges.filter(e=>!(e.a===a&&e.b===b));WG.flow.edges.push({a,b,i});if(!WG.flow.start)WG.flow.start=a;persistWG();flowKey='';PANEL.render();}
 const LINK={armed:false,from:null};
 function watchLink(){if(!LINK.armed)return;const a=selected();if(a.length!==1||!metaOf(a[0]))return;const id=a[0].id;
  if(!LINK.from){LINK.from=id;note('Linking from '+srcInfo(WG.meta[id].src).label+'. Now select the screen it leads to.','LINK');PANEL.render();return;}
  if(id!==LINK.from){addEdge(LINK.from,id,PANEL.input());note(srcInfo(WG.meta[LINK.from].src).label+' —'+PANEL.input()+'→ '+srcInfo(WG.meta[id].src).label,'LINKED');LINK.from=null;LINK.armed=false;PANEL.render();}}
-function chainByPosition(){const list=screenParts().sort((a,b)=>Math.round(a.z/120)-Math.round(b.z/120)||a.x-b.x);if(list.length<2)return note('Place at least two screen bricks.','FLOW');WG.flow.edges=[];for(let i=0;i<list.length-1;i++)WG.flow.edges.push({a:list[i].id,b:list[i+1].id,i:WG.meta[list[i].id].src==='l:board'?'END':'CLICK'});WG.flow.start=list[0].id;persistWG();flowKey='';PANEL.render();note('Linked '+list.length+' screens in reading order (back row first, left to right).','FLOW');}
-function unlinkSelected(){const ids=new Set(selected().map(p=>p.id));const n=WG.flow.edges.length;WG.flow.edges=WG.flow.edges.filter(e=>!ids.has(e.a)&&!ids.has(e.b));persistWG();flowKey='';PANEL.render();note((n-WG.flow.edges.length)+' links removed.','FLOW');}
+function chainByPosition(){pushFlow();const list=screenParts().sort((a,b)=>Math.round(a.z/120)-Math.round(b.z/120)||a.x-b.x);if(list.length<2)return note('Place at least two screen bricks.','FLOW');WG.flow.edges=[];for(let i=0;i<list.length-1;i++)WG.flow.edges.push({a:list[i].id,b:list[i+1].id,i:WG.meta[list[i].id].src==='l:board'?'END':'CLICK'});WG.flow.start=list[0].id;persistWG();flowKey='';PANEL.render();note('Linked '+list.length+' screens in reading order (back row first, left to right).','FLOW');}
+function unlinkSelected(){pushFlow();const ids=new Set(selected().map(p=>p.id));const n=WG.flow.edges.length;WG.flow.edges=WG.flow.edges.filter(e=>!ids.has(e.a)&&!ids.has(e.b));persistWG();flowKey='';PANEL.render();note((n-WG.flow.edges.length)+' links removed.','FLOW');}
 function setStart(){const a=selected();if(a.length!==1||!metaOf(a[0]))return note('Select one screen brick.','FLOW');WG.flow.start=a[0].id;persistWG();flowKey='';PANEL.render();}
 
 /* ---------------- run the prototype ---------------- */
@@ -19536,19 +19544,27 @@ const RUN={on:false,node:null,log:[],enteredAt:0,
  caption(){return 'STEP '+this.log.length;},
  nextLabels(){const o=this.out();return o.length?o.map(e=>e.i+' → '+srcInfo(WG.meta[e.b].src).label.split(' · ').pop()).join('   '):'END OF FLOW';},
  tick(now){if(!this.on)return;if(!partOf(this.node))return this.stop();const o=this.out(),info=srcInfo(this.src()),age=now-this.enteredAt;
-  const wait=o.find(e=>e.i==='WAIT');if(wait){const v=VID.wall,done=info.video?(vready(v)&&v.duration&&age>Math.max(2500,v.duration*1000)):age>3000;if(done)this.take(wait);}
+  const wait=o.find(e=>e.i==='WAIT');if(wait){const v=VID.wall,cap=info.kind==='milestone'?12000:8000;let done;if(info.video){const failed=v.error||(!vready(v)&&age>5000);done=failed?age>3000:(vready(v)&&v.duration&&age>Math.min(cap,Math.max(2500,v.duration*1000)))||age>cap;}else done=age>3000;if(done)this.take(wait);}
   const a=selected();if(a.length===1&&a[0].id!==this.node){const e=o.find(e=>e.b===a[0].id);if(e){S.selected.clear();refresh();this.take(e);}}}
 };
+/* CLICK fires on a tap of the room that is not a drag and not a brick; KEY fires on a key press */
+(function(){const cv=$('#view');let down=null;cv.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY,t:performance.now()};},true);
+ cv.addEventListener('pointerup',e=>{if(!down||!RUN.on)return;const moved=Math.hypot(e.clientX-down.x,e.clientY-down.y),r=cv.getBoundingClientRect();const hit=pick(e.clientX-r.left,e.clientY-r.top);down=null;if(moved>8||hit)return;const ed=RUN.out().find(e=>e.i==='CLICK');if(ed)RUN.take(ed);},true);
+ document.addEventListener('keydown',e=>{if(!RUN.on||e.target.closest?.('input,select,textarea'))return;if(['Shift','Control','Alt','Meta','Escape'].includes(e.key))return;const ed=RUN.out().find(x=>x.i==='KEY');if(ed){e.preventDefault();RUN.take(ed);}});})();
 function flowEvent(result){if(!RUN.on||WG.meta[RUN.node]?.src!=='l:board')return;const o=RUN.out();const e=o.find(e=>e.i===result)||o.find(e=>e.i==='END');if(e)setTimeout(()=>{if(RUN.on&&RUN.node===e.a)RUN.take(e);},1600);}
 function stateTable(){const nodes=screenParts();const lines=['| State | Screen | Input | Next state |','|---|---|---|---|'];for(const p of nodes){const info=srcInfo(WG.meta[p.id].src),out=WG.flow.edges.filter(e=>e.a===p.id&&edgeOK(e));if(!out.length)lines.push(`| ${p.id}${WG.flow.start===p.id?' (start)':''} | ${info.label} | — | (end) |`);for(const e of out)lines.push(`| ${p.id}${WG.flow.start===p.id?' (start)':''} | ${info.label} | ${e.i} | ${e.b} · ${srcInfo(WG.meta[e.b].src).label} |`);}return 'LAST MOVE prototype · state table · '+new Date().toISOString().slice(0,10)+'\n\n'+lines.join('\n');}
 function runRecord(){if(!RUN.log.length)return 'No run recorded yet. Press Run.';const L=['RUN RECORD · LAST MOVE prototype · '+new Date().toISOString().slice(0,16).replace('T',' '),'start: '+srcInfo(WG.meta[RUN.log[0].to]?.src||'l:title').label,''];RUN.log.slice(1).forEach((r,i)=>L.push(`${i+1}. ${srcInfo(WG.meta[r.from]?.src||'l:title').label} --${r.input}--> ${srcInfo(WG.meta[r.to]?.src||'l:title').label}  (${r.t})`));L.push('','observed end: '+(G.result||'—')+' · games '+WG.tally.games);L.push('expected: __________   pass / fail / not tested: __________');return L.join('\n');}
 async function copyText(t,what){try{await navigator.clipboard.writeText(t);note(what+' copied.','COPIED');}catch(e){download(t,what.toLowerCase().replace(/\s+/g,'-')+'.txt','text/plain');note(what+' downloaded.','SAVED');}}
 
 /* ---------------- adding screen bricks ---------------- */
+const SLOTS=[];for(const z of [-320,-190])for(const x of (z===-320?[-280,-140,0,140,280]:[-210,-70,70,210]))SLOTS.push({x,z});for(const z of [-60,60,180,300])for(const x of [-320,320])SLOTS.push({x,z});for(const x of [-210,-70,70,210])SLOTS.push({x,z:290});
 function addScreen(src){
  if(S.tx)return note('Release what you are holding first.','HELD');
- const keep=S.color;S.color=SCREEN_COLOR;const before=S.parts.length;addPart(SCREEN_PART);S.color=keep;
- if(S.parts.length===before)return;const p=S.parts[S.parts.length-1];WG.meta[p.id]={src};persistWG();seenParts.add(p.id);
+ if(S.parts.length>=200)return note('Workshop limit: 200 parts.','BLOCKED');
+ const before=checkpoint(),oldSel=new Set(S.selected),id='p'+S.next++;const p=create({id,part:SCREEN_PART,color:SCREEN_COLOR,x:0,y:0,z:0,r:0});S.selected=new Set([id]);let ok=false;
+ for(const sl of SLOTS){p.x=sl.x;p.z=sl.z;sync(p);if(!validate()){ok=true;break;}}
+ if(!ok){restore(JSON.parse(before));S.selected=oldSel;refresh();return note('No free screen slot. Move some screen bricks first.','BLOCKED');}
+ record(before);rebuildBodies();refresh();WG.meta[p.id]={src};persistWG();seenParts.add(p.id);
  note(srcInfo(src).label+' added as a screen brick. Pinch it to place it.','SCREEN');dirty();
 }
 
@@ -19559,8 +19575,8 @@ function sceneDoc(id){
  const tray=()=>{for(let i=0;i<5;i++)put(PIECE.X.part,PIECE.X.color,TRAY[i].x,TRAY[i].z);};
  let start=null,name='',actors=[{kind:'citizen',x:-235,y:0,z:150,heading:0}];
  if(id==='wg-lastmove'){name='WarGames · Last Move room';tray();const a=put(SCREEN_PART,0,-160,-210,'l:title'),b=put(SCREEN_PART,0,0,-210,'l:board'),c=put(SCREEN_PART,0,160,-210,'l:result');edges.push({a,b,i:'CLICK'},{a:b,b:c,i:'END'},{a:c,b:a,i:'KEY'});start=a;}
- if(id==='wg-wopr'){name='WarGames · WOPR flow';tray();const ids=['sbd_0298','sbd_0394','wg_135','wg_277','wg_283','l:board','wg_288','wg_296'];const pos=[[-280,-320],[-140,-320],[0,-320],[140,-320],[280,-320],[-280,-190],[-140,-190],[0,-190]];let prev=null;ids.forEach((s,i)=>{const src=s.startsWith('l:')?s:'f:'+s;const pid=put(SCREEN_PART,0,pos[i][0],pos[i][1],src);if(prev)edges.push({a:prev,b:pid,i:src==='l:board'?'CLICK':WG_SRC(prev,meta)==='l:board'?'END':'WAIT'});else start=pid;prev=pid;});}
- if(id==='wg-milestones'){name='WarGames · Milestones flow';tray();const pos=[[-280,-320],[-140,-320],[0,-320],[140,-320],[280,-320],[-280,-190],[-140,-190]];let prev=null;MILESTONES.forEach((m,i)=>{const pid=put(SCREEN_PART,0,pos[i][0],pos[i][1],'m:'+m[0]);if(prev)edges.push({a:prev,b:pid,i:'WAIT'});else start=pid;prev=pid;});const b=put(SCREEN_PART,0,0,-190,'l:board');edges.push({a:prev,b,i:'CLICK'});}
+ if(id==='wg-wopr'){name='WarGames · WOPR flow';tray();const ids=['sbd_0298','sbd_0394','wg_135','wg_277','wg_283','l:board','wg_288','wg_296'];const pos=[[-280,-320],[-140,-320],[0,-320],[140,-320],[280,-320],[-210,-190],[-70,-190],[70,-190]];let prev=null;ids.forEach((s,i)=>{const src=s.startsWith('l:')?s:'f:'+s;const pid=put(SCREEN_PART,0,pos[i][0],pos[i][1],src);if(prev)edges.push({a:prev,b:pid,i:src==='l:board'?'CLICK':WG_SRC(prev,meta)==='l:board'?'END':'WAIT'});else start=pid;prev=pid;});}
+ if(id==='wg-milestones'){name='WarGames · Milestones flow';tray();const pos=[[-280,-320],[-140,-320],[0,-320],[140,-320],[280,-320],[-210,-190],[-70,-190]];let prev=null;MILESTONES.forEach((m,i)=>{const pid=put(SCREEN_PART,0,pos[i][0],pos[i][1],'m:'+m[0]);if(prev)edges.push({a:prev,b:pid,i:'WAIT'});else start=pid;prev=pid;});const b=put(SCREEN_PART,0,70,-190,'l:board');edges.push({a:prev,b,i:'CLICK'});}
  return {doc:{version:1,id,name,parts,actors,plateAngle:0},meta,flow:{edges,start}};
 }
 function WG_SRC(pid,meta){return meta[pid]?.src;}
@@ -19598,25 +19614,31 @@ let performerCorner=true;
 function placePerformer(){if(!ROOM.video)return;if(PANEL.open&&performerCorner){ROOM.video.scale.set(.36,.36,1);ROOM.video.position.set(268,96,-398.8);}else{ROOM.video.scale.set(1,1,1);ROOM.video.position.set(0,230,-399);}}
 
 /* on phones the panel takes the bottom of the stage; the view shifts so the room sits above it */
-let viewShift=0;
-function placeView(){const st=$('#stage').getBoundingClientRect();let want=0;
- if(PANEL.open&&matchMedia('(max-width: 760px)').matches&&!window.ButterEye?.active){const pr=P.getBoundingClientRect();const free=pr.top-st.top;want=Math.max(0,Math.round((st.height-free)/2*.92));}
- if(want!==viewShift){viewShift=want;if(want){camera.setViewOffset(st.width,st.height,0,want,st.width,st.height);}else camera.clearViewOffset();camera.updateProjectionMatrix();}
- else if(want&&camera.view&&(camera.view.fullWidth!==st.width||camera.view.fullHeight!==st.height)){camera.setViewOffset(st.width,st.height,0,want,st.width,st.height);camera.updateProjectionMatrix();}
- else if(want&&!camera.view?.enabled){camera.setViewOffset(st.width,st.height,0,want,st.width,st.height);camera.updateProjectionMatrix();}}
+let viewShift='';
+function placeView(){const st=$('#stage').getBoundingClientRect(),cue=$('#stageCue');let key='';
+ const mobile=PANEL.open&&matchMedia('(max-width: 760px)').matches&&!window.ButterEye?.active;
+ if(mobile){const pr=P.getBoundingClientRect(),free=Math.max(80,pr.top-st.top);
+  // zoom so the board area fills the free space above the panel, centred on the board
+  plate.updateMatrixWorld(true);const a=project(V(BOARD.x-150,0,BOARD.z+150)),b=project(V(BOARD.x+150,0,BOARD.z+150)),c=project(V(BOARD.x,140,-400));
+  const z=Math.max(1,Math.min(1.8,(st.width*.98)/Math.max(1,Math.abs(b.x-a.x))));const w=st.width/z,h=st.height/z;
+  const cx=(a.x+b.x)/2,top=c.y,bottom=a.y,mid=(top+bottom)/2,yy=mid-free/2/z;
+  const ox=Math.max(0,Math.min(st.width-w,cx-w/2)),oy=Math.max(0,Math.min(st.height-h,yy));key=[st.width,st.height,ox|0,oy|0,w|0,h|0].join(',');
+  if(key!==viewShift){camera.clearViewOffset();camera.updateProjectionMatrix();const a2=project(V(BOARD.x-150,0,BOARD.z+150)),b2=project(V(BOARD.x+150,0,BOARD.z+150)),c2=project(V(BOARD.x,140,-400));const z2=Math.max(1,Math.min(1.8,(st.width*.98)/Math.max(1,Math.abs(b2.x-a2.x)))),w2=st.width/z2,h2=st.height/z2,mid2=(c2.y+a2.y)/2,ox2=Math.max(0,Math.min(st.width-w2,(a2.x+b2.x)/2-w2/2)),oy2=Math.max(0,Math.min(st.height-h2,mid2-free/2/z2));camera.setViewOffset(st.width,st.height,ox2,oy2,w2,h2);camera.updateProjectionMatrix();viewShift=key;}
+  if(cue){cue.style.bottom=(st.bottom-pr.top+8)+'px';}
+ }else if(viewShift){viewShift='';camera.clearViewOffset();camera.updateProjectionMatrix();if(cue)cue.style.bottom='';}}
 
 /* ---------------- panel ---------------- */
 const style=document.createElement('style');style.textContent=`
 #wgBtn{background:#06120e;border-color:#2b6a55;color:#4af6c3;font-family:ui-monospace,monospace;letter-spacing:.08em}#wgBtn[aria-pressed=true]{background:#4af6c3;color:#06120e;border-color:#4af6c3}
 #wgPanel{position:absolute;z-index:30;left:12px;top:44px;width:340px;max-height:calc(100% - 100px);display:flex;flex-direction:column;background:#071210f2;border:1px solid #2b6a55;border-radius:10px;color:#dff7f0;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;box-shadow:0 10px 30px #0008;overflow:hidden}
-#wgPanel[hidden]{display:none}#wgPanel header{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid #1d3e34;background:#04100c}#wgPanel header b{color:#4af6c3;letter-spacing:.12em;font-size:11px;flex:1}
+#wgPanel[hidden]{display:none}#wgPanel header{height:auto;min-height:0;overflow:visible;flex-wrap:nowrap;display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid #1d3e34;background:#04100c}#wgPanel header b{color:#4af6c3;letter-spacing:.12em;font-size:11px;flex:1}
 #wgPanel nav{display:flex;gap:4px;padding:6px 8px 0}#wgPanel nav button,#wgPanel .row button,#wgPanel select{min-height:34px;padding:4px 9px;font:inherit;font-size:11px;letter-spacing:.06em;border-radius:6px;background:#0d1e19;border:1px solid #23463c;color:#dff7f0}
 #wgPanel nav button{flex:1;text-transform:uppercase}#wgPanel nav button[aria-selected=true]{background:#4af6c3;color:#04100c;border-color:#4af6c3}#wgPanel .body{padding:8px 10px 10px;overflow:auto;display:flex;flex-direction:column;gap:8px}
 #wgPanel .status{font-size:13px;line-height:1.45;color:#e8c070;min-height:38px}#wgPanel .tally{color:#8fb8ab;font-size:11px;letter-spacing:.05em}#wgPanel .row{display:flex;gap:5px;flex-wrap:wrap;align-items:center}#wgPanel .row button.hi{background:#e8c070;color:#1a1306;border-color:#e8c070;font-weight:700}#wgPanel .row button.on{background:#4af6c3;color:#04100c}
 #wgPanel .help{color:#8fb8ab;font-size:11px;line-height:1.5}#wgPanel .cards{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x mandatory}#wgPanel .card{flex:0 0 118px;scroll-snap-align:start;background:#0b1a16;border:1px solid #23463c;border-radius:6px;padding:4px;cursor:pointer;text-align:left;color:inherit;font:inherit}#wgPanel .card.on{border-color:#e8c070;box-shadow:0 0 0 1px #e8c070}
 #wgPanel .card .im{width:108px;height:62px;background:#03110c center/cover no-repeat;border-radius:3px;display:grid;place-items:center;color:#4af6c3;font-size:10px;text-align:center}#wgPanel .card small{display:block;font-size:9.5px;color:#9fc4b8;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#wgPanel .card i{font-style:normal;color:#e8c070;font-size:9px}
 #wgPanel .edges{max-height:96px;overflow:auto;border-top:1px solid #1d3e34;padding-top:6px;font-size:11px;color:#bfe3d6}#wgPanel .edges div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#wgPanel .go button{border-color:#e8c070}
-@media (max-width:760px){#wgPanel{left:6px;right:6px;width:auto;top:auto;bottom:6px;max-height:44%}#wgPanel .status{font-size:12px;min-height:0}#wgPanel .help{display:none}#wgPanel header{padding:5px 8px}#wgPanel nav button,#wgPanel .row button,#wgPanel select{min-height:32px;padding:3px 8px}#wgPanel .body{gap:6px;padding:6px 8px 8px}#wgPanel .card{flex-basis:104px}#wgPanel .card .im{width:94px;height:54px}}
+@media (max-width:760px){#wgPanel{left:6px;right:6px;width:auto;top:auto;bottom:6px;height:44%;max-height:44%}#wgPanel header,#wgPanel nav{flex:none}#wgPanel .body{flex:1 1 auto;min-height:0}#wgPanel .body>*{flex:none}#wgPanel .edges{max-height:none}#wgPanel .status{font-size:12px;min-height:0}#wgPanel .help{display:none}#wgPanel header{padding:5px 8px}#wgPanel nav button,#wgPanel .row button,#wgPanel select{min-height:32px;padding:3px 8px}#wgPanel .body{gap:6px;padding:6px 8px 8px}#wgPanel .card{flex-basis:104px}#wgPanel .card .im{width:94px;height:54px}}
 `;document.head.appendChild(style);
 const PANEL={open:false,tab:'play',preview:null,group:'LAST MOVE',
  el:document.createElement('section'),
@@ -19626,7 +19648,7 @@ const PANEL={open:false,tab:'play',preview:null,group:'LAST MOVE',
   if(t==='play'){const T=WG.tally;body.innerHTML=`<div class="status">${G.learn?(G.learn.phase==='end'?'50 games, 50 draws. Every line gets blocked.':'Zero players: WOPR plays both sides on the board glass.'):esc(G.say||'Load the Last Move room, or set red bricks on the green board.')}</div>
    <div class="tally">GAMES ${T.games} · X ${T.X} · O ${T.O} · DRAW ${T.D} · YOU ARE X (red 2×2) · WOPR IS O (green round)</div>
    <div class="row"><button class="hi" data-a="new">New game</button><button data-a="addx">+ X brick</button>${G.status==='hold'?'<button class="hi" data-a="go">WOPR go</button>':''}<button data-a="first" class="${WG.woprFirst?'on':''}">WOPR first</button><button data-a="learn" class="${G.learn?'on':''}">${G.learn?'Stop':'Zero players'}</button></div>
-   <div class="row"><button data-a="scene:wg-lastmove">Load Last Move room</button><button data-a="grip">${gripPlane()==='xz'?'Grip: floor':'Grip: lift'}</button></div>
+   <div class="row"><button data-a="scene:wg-lastmove">Load Last Move room</button><button data-a="grip">${gripPlane()==='xz'?'Grip: floor':'Grip: upright'}</button></div>
    <div class="help">Hands: pinch a red brick, carry it over a cell, open your hand to drop; thumb up seats it. WOPR answers by dropping a green round brick. Knock a brick off and the board changes: the board is wherever the bricks are.</div>`;}
   else if(t==='screens'){const groups=['LAST MOVE','MILESTONES',...[...new Set(DATA.screens.map(s=>s.g))]];const items=this.items();
    body.innerHTML=`<div class="row"><select id="wgGroup" aria-label="Screen group">${groups.map(g=>`<option ${g===this.group?'selected':''}>${esc(g)}</option>`).join('')}</select><button class="hi" data-a="addscreen" ${this.preview?'':'disabled'}>+ Screen brick</button></div>
@@ -19636,7 +19658,7 @@ const PANEL={open:false,tab:'play',preview:null,group:'LAST MOVE',
    body.innerHTML=`<div class="row"><button class="${LINK.armed?'on':''}" data-a="link">${LINK.armed?(LINK.from?'Select target…':'Select source…'):'Link →'}</button><select id="wgInput" aria-label="Input on the link">${INPUTS.map(i=>`<option ${i===(this.lastInput||'CLICK')?'selected':''}>${i}</option>`).join('')}</select><button data-a="start">Start here</button><button data-a="unlink">Unlink</button></div>
    <div class="row"><button data-a="chain">Chain by position</button><button class="hi" data-a="run">${RUN.on?'■ Stop':'▶ Run'}</button></div>
    ${RUN.on?`<div class="status">${esc(srcInfo(RUN.src()).label)}</div><div class="row go">${RUN.out().map((e,k)=>`<button data-go="${k}">${esc(e.i)} → ${esc(srcInfo(WG.meta[e.b].src).label.split(' · ').pop())}</button>`).join('')||'<span class="help">End of flow.</span>'}</div>`:''}
-   <div class="row"><button data-a="table">Copy state table</button><button data-a="record">Copy run record</button></div>
+   <div class="row"><button data-a="undolink">Undo link</button><button data-a="table">Copy state table</button><button data-a="record">Copy run record</button></div>
    <div class="edges">${edges.length?edges.map(e=>`<div>${esc(srcInfo(WG.meta[e.a].src).label)} —${esc(e.i)}→ ${esc(srcInfo(WG.meta[e.b].src).label)}</div>`).join(''):'No links yet. Select a screen brick, tap Link, then select the next one. While running, selecting the next brick takes that link.'}</div>`;}
  },
  items(){if(this.group==='LAST MOVE')return ['l:title','l:board','l:result'];if(this.group==='MILESTONES')return MILESTONES.map(m=>'m:'+m[0]);return DATA.screens.filter(s=>s.g===this.group).map(s=>'f:'+s.id);}
@@ -19658,6 +19680,7 @@ P.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
  else if(a.startsWith('scene:'))loadScene(a.slice(6));
  else if(a==='addscreen'&&PANEL.preview){addScreen(PANEL.preview);PANEL.preview=null;}
  else if(a==='link'){LINK.armed=!LINK.armed;LINK.from=null;if(LINK.armed){const s=selected();if(s.length===1&&metaOf(s[0])){LINK.from=s[0].id;}note(LINK.from?'Now select the screen it leads to.':'Select the screen the link starts from.','LINK');}}
+ else if(a==='undolink')undoFlow();
  else if(a==='start')setStart();else if(a==='unlink')unlinkSelected();else if(a==='chain')chainByPosition();
  else if(a==='run'){RUN.on?RUN.stop():RUN.start();}
  else if(a==='table')copyText(stateTable(),'State table');else if(a==='record')copyText(runRecord(),'Run record');
