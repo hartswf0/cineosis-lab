@@ -19267,7 +19267,7 @@ const PH='#4af6c3',AM='#e8c070',RD='#e0523c',INK='#dff7f0';
 
 /* ---------------- persistent state ---------------- */
 const WG={meta:{},flow:{edges:[],start:null},tally:{games:0,X:0,O:0,D:0},woprFirst:false,dims:3};
-try{const saved=JSON.parse(localStorage.getItem(STORE)||'null');if(saved){Object.assign(WG.meta,saved.meta||{});if(saved.flow)WG.flow=saved.flow;if(saved.tally)WG.tally=saved.tally;WG.woprFirst=!!saved.woprFirst;WG.dims=saved.dims===2?2:3;}}catch(e){}
+try{const saved=JSON.parse(localStorage.getItem(STORE)||'null');if(saved){Object.assign(WG.meta,saved.meta||{});if(saved.flow)WG.flow=saved.flow;if(saved.tally)WG.tally=saved.tally;WG.woprFirst=!!saved.woprFirst;WG.dims=saved.dims===2?2:3;WG.free=!!saved.free;WG.face=saved.face==='cut'?'cut':'game';WG.order=saved.order||[];}}catch(e){}
 function persistWG(){try{localStorage.setItem(STORE,JSON.stringify(WG));}catch(e){}}
 function partOf(id){return S.parts.find(p=>p.id===id);}
 function metaOf(p){const m=p&&WG.meta[p.id];return m&&p.part===SCREEN_PART?m:null;}
@@ -19332,6 +19332,7 @@ function judge(cells,now){
  if(G.learn)return;
  G.thinking=null;if(G.drop){plate.remove(G.drop.mesh);G.drop=null;}
  const empty=cells.every(v=>!v);
+ if(WG.free){G.status='free';G.line=null;G.result='';const n=cells.filter(v=>v&&v!=='#').length;say('FREE board · '+n+' shots on the board · they play in cell order.','FREE');return dirty();}
  if(G.conflict){G.status='conflict';say(WG.dims===3?'Four bricks in one column. Take the top one off.':'Two pieces share a cell. Move one out.','BOARD');return dirty();}
  if(!legal(cells)){G.status='illegal';say('This board is not a legal game: too many '+(counts(cells).X>counts(cells).O?'X':'O')+'. Undo or New game.','BOARD');return dirty();}
  const removedO=prev.some((v,i)=>v==='O'&&cells[i]!=='O');
@@ -19372,7 +19373,8 @@ function newGame(){
  if(S.tx)return note('Release what you are holding first.','HELD');
  if(G.learn)stopLearn();
  const before=checkpoint(),keep=[];
- for(const r of rows()){const k=kindOf(r),c=cellOf(r);if(k&&c>=0){if(k==='O')continue;const t=freeTray(keep);if(t){r.x=t.x;r.z=t.z;r.y=0;r.r=0;delete r.q;}else continue;}keep.push(r);}
+ for(const r of rows()){const k=kindOf(r),c=cellOf(r);if(k&&c>=0){if(k==='O'){delete WG.meta[r.id];continue;}if(WG.meta[r.id]?.take?.auto)delete WG.meta[r.id];const t=freeTray(keep);if(t){r.x=t.x;r.z=t.z;r.y=0;r.r=0;delete r.q;}else continue;}keep.push(r);}
+ WG.order=[];
  S.selected.clear();restore(keep);record(before);rebuildBodies();G.hold=false;G.gameCounted=false;G.seen='';G.cells=Array(NC).fill('#');
  say('Board cleared. Red bricks are back in the tray.','NEW GAME');
  if(WG.woprFirst){G.cells=Array(NC).fill('');G.turn='O';G.status='thinking';G.thinking=performance.now()+800;G.peek=-1;}
@@ -19383,11 +19385,12 @@ function addX(){
  const before=checkpoint(),id='p'+S.next++;create({id,part:PIECE.X.part,color:PIECE.X.color,x:t.x,y:0,z:t.z,r:0});record(before);rebuildBodies();feedback('place');note('A red X brick is in the tray.','TRAY');
 }
 function woprGo(){if(G.status!=='hold')return;G.hold=false;G.status='thinking';G.thinking=performance.now()+300;G.peek=-1;dirty();}
-function setDims(d){if(G.learn)stopLearn();WG.dims=d===2?2:3;persistWG();G.line=null;newGame();say(WG.dims===3?'3D: nine columns, three levels, 49 lines. Bricks stack.':'2D: the classic 3×3 board. One brick per cell.','RULE');dirty();}
+function setFree(){if(G.learn)stopLearn();WG.free=true;WG.dims=3;persistWG();G.line=null;G.status='free';G.seen='';G.cells=Array(NC).fill('#');say('FREE board: no rules and no WOPR. The board is a timeline: shots play cell 1 to 27, level by level.','RULE');dirty();}
+function setDims(d){if(G.learn)stopLearn();WG.free=false;WG.dims=d===2?2:3;persistWG();G.line=null;newGame();say(WG.dims===3?'3D: nine columns, three levels, 49 lines. Bricks stack.':'2D: the classic 3×3 board. One brick per cell.','RULE');dirty();}
 
 /* zero players: WOPR plays itself on the wall, faster each game */
 const LEARN_GAMES=50;
-function startLearn(){if(S.tx)return;const filled=G.cells.some(v=>v&&v!=='#');if(filled){newGame();note('Board cleared for zero players. Undo brings the game back.','LEARN');}G.learn={game:0,cells:Array(NC).fill(''),next:performance.now()+600,turn:'X',tally:{X:0,O:0,D:0},phase:'play',t0:performance.now()};say('Zero players. WOPR plays both sides.','LEARN');dirty();}
+function startLearn(){if(S.tx)return;if(cutMode())setFace('game');if(WG.free)setDims(3);const filled=G.cells.some(v=>v&&v!=='#');if(filled){newGame();note('Board cleared for zero players. Undo brings the game back.','LEARN');}G.learn={game:0,cells:Array(NC).fill(''),next:performance.now()+600,turn:'X',tally:{X:0,O:0,D:0},phase:'play',t0:performance.now()};say('Zero players. WOPR plays both sides.','LEARN');dirty();}
 function stopLearn(){G.learn=null;G.cells=readBoard();say('Self-play stopped.','READY');dirty();}
 function learnVerdict(L){const t=L.tally,n=t.X+t.O+t.D;
  if(t.D===n)return [n+' GAMES · '+n+' DRAWS','Every line gets blocked. The only winning move is not to play.'];
@@ -19443,7 +19446,7 @@ function drawCube(x,cells,ox,oy,w,h,o={}){const M=cubeMap(ox,oy,w,h),P=M.P,lw=o.
  for(let L=2;L>=0;L--){
   poly(L,0,0,3,3);x.fillStyle='rgba(2,14,10,.72)';x.fill();
   for(let c=0;c<9;c++){const i=L*9+c,v=cells[i],u=c%3,r=Math.floor(c/3);
-   if(o.thumbs){const live=i===o.last&&o.now-(G.flash||0)<9000&&vready(VID.tile);const id=IDLE[(i*2+(v==='O'?1:0))%IDLE.length],im=live?VID.tile:img(LAB+'thumbs/screens/'+id+'.jpg');
+   if(o.thumbs){const live=i===o.last&&o.now-(G.flash||0)<9000&&vready(VID.tile);const id=IDLE[(i*2+(v==='O'?1:0))%IDLE.length],own=o.thumbAt&&o.thumbAt(i),im=live?VID.tile:own?img(own):img(LAB+'thumbs/screens/'+id+'.jpg');
     if(live||ready(im)){x.save();poly(L,u,r,u+1,r+1);x.clip();x.transform(M.cw,0,-M.sk,M.ch,M.ox+3*M.sk,M.top(L));cover(x,im,u,r,1,1,live?.95:v?.5:.16);x.restore();}}
    if(v==='#'){poly(L,u,r,u+1,r+1);x.fillStyle='rgba(224,82,60,.4)';x.fill();}
    if(i===o.last){x.save();poly(L,u,r,u+1,r+1);x.strokeStyle=AM;x.lineWidth=3;x.stroke();x.restore();}}
@@ -19471,18 +19474,19 @@ function drawBoard(now){
  x.fillText(learn?('ZERO PLAYERS · GAME '+(learn.game+1)+' · SEE THE WALL'):(WG.dims===3?'3D · ':'2D · ')+boardCaption(),W/2,W-6);x.textAlign='left';
  boardTex.needsUpdate=true;
 }
-function boardCaption(){return {yours:'YOUR MOVE',thinking:'WOPR',over:G.result,hold:'WOPR WAITS',illegal:'ILLEGAL BOARD',conflict:WG.dims===3?'COLUMN OVERFULL':'TWO IN ONE CELL',idle:'LAST MOVE'}[G.status]||'LAST MOVE';}
+function cellThumbs(){const m=new Map();for(const o of boardPieces()){const k=WG.meta[o.p.id]?.take;if(k){const it=itemOf(k.src);if(it)m.set(o.cell,k.thumb||it.thumb);}}return i=>m.get(i);}
+function boardCaption(){return {free:'FREE BOARD',yours:'YOUR MOVE',thinking:'WOPR',over:G.result,hold:'WOPR WAITS',illegal:'ILLEGAL BOARD',conflict:WG.dims===3?'COLUMN OVERFULL':'TWO IN ONE CELL',idle:'LAST MOVE'}[G.status]||'LAST MOVE';}
 
 /* ---------------- controls are bricks: four monitors, each a clip from the film ----------------
    Tap (or pinch and let go without moving) to run one. Drag to move it like any brick. */
 const CTL={
  new:{name:'NEW GAME',clip:'wg_283',title:'Clear the board. WOPR takes back its bricks; yours go back to the tray.',label:()=>'NEW GAME',sub:()=>'clear the board'},
  first:{name:'FIRST MOVE',clip:'wg_135',title:'Who moves first. While WOPR waits after an undo, this lets it move.',label:()=>G.status==='hold'?'WOPR GO':WG.woprFirst?'WOPR FIRST':'YOU FIRST',sub:()=>G.status==='hold'?'let WOPR move':'tap to switch'},
- dims:{name:'BOARD',clip:'wg_288',title:'3D: 27 cells, bricks stack three high. 2D: the classic 3×3.',label:()=>WG.dims===3?'3D · 3×3×3':'2D · 3×3',sub:()=>'tap to switch'},
- play:{name:'PLAY EDIT',clip:'wg_289',title:'Play the edit on the wall: the take bricks on the timeline lanes, in order.',label:()=>CUT.prog.on&&!CUT.rendering?'STOP':'PLAY EDIT',sub:()=>edit().length+' takes · '+short(editLength())},
+ dims:{name:'RULES',clip:'wg_288',title:'3D game, 2D game, or FREE: no rules, the board is a timeline read cell by cell.',label:()=>WG.free?'FREE BOARD':WG.dims===3?'3D GAME':'2D GAME',sub:()=>WG.free?'cells in order, no WOPR':WG.dims===3?'27 cells, 49 lines':'the classic 3×3'},
+ play:{name:'PLAY',clip:'wg_289',title:'Play the board as a film (move order, or cell order on a FREE board), or the drawn sheets.',label:()=>CUT.prog.on&&!CUT.rendering?'STOP':CUT.view==='frames'?'PLAY SHEETS':'PLAY THE BOARD',sub:()=>CUT.view==='frames'?anim().frames.length+' sheets':edit().length+' shots · '+short(editLength())},
  render:{name:'RENDER',clip:'wg_286',title:'Record the edit to a webm file, in real time.',label:()=>CUT.rendering?'RECORDING':'RENDER',sub:()=>CUT.rendering?'plays through once':'webm with sound'},
  edl:{name:'EDL',clip:'wg_281',title:'Save the edit as a CMX 3600 EDL and JSON for another editor.',label:()=>'EDL',sub:()=>'CMX 3600 + JSON'},
- room:{name:'ROOM',clip:'wg_115',title:'Switch between the game room and the cut room.',label:()=>cutMode()?'GAME ROOM':'CUT ROOM',sub:()=>cutMode()?'back to tic-tac-toe':'edit the footage'},
+ wall:{name:'WALL',clip:'wg_115',title:'The back wall shows the game, or the cut: footage, scrubbing, drawing.',label:()=>cutMode()?'GAME WALL':'CUT WALL',sub:()=>cutMode()?'show the board':'cut and draw'},
  learn:{name:'ZERO PLAYERS',clip:'wg_296',title:'WOPR plays itself 50 times on the wall.',label:()=>G.learn?'STOP':'ZERO PLAYERS',sub:()=>G.learn?'end self-play':'WOPR plays itself'}};
 function ctlCanvas(key){const c=document.createElement('canvas');c.width=320;c.height=200;const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.userData={canvas:c,ctl:key,sig:''};paintCtl(t);return t;}
 function paintCtl(t){const k=t.userData.ctl,d=CTL[k];if(!d)return;const im=img(LAB+'thumbs/screens/'+d.clip+'.jpg'),hot=CT.flash&&CT.flash.key===k&&performance.now()<CT.flash.until;
@@ -19496,12 +19500,12 @@ const CT={sel:null,t:0,tx:null,moved:null,flash:null};
 function runCtl(key){
  if(key==='new')newGame();
  else if(key==='first'){if(G.status==='hold')woprGo();else{WG.woprFirst=!WG.woprFirst;persistWG();const fresh=G.cells.every(v=>!v||v==='#');if(fresh)newGame();note(WG.woprFirst?'WOPR moves first'+(fresh?'.':' from the next game.'):'You move first'+(fresh?'.':' from the next game.'),'RULE');}}
- else if(key==='dims')setDims(WG.dims===3?2:3);
+ else if(key==='dims'){if(WG.free)setDims(3);else if(WG.dims===3)setDims(2);else setFree();}
  else if(key==='learn'){G.learn?stopLearn():startLearn();}
  else if(key==='play'){if(CUT.prog.on)pauseProg();else{CUT.view='edit';playProg();}}
- else if(key==='render')renderEdit();else if(key==='edl')exportEDL();else if(key==='room')switchRoom();
+ else if(key==='render')renderEdit();else if(key==='edl')exportEDL();else if(key==='wall')setFace(cutMode()?'game':'cut');
  dirty();PANEL.render();}
-function switchRoom(){if(cutMode()){try{WG.cutDoc=ButterScenes.snapshot();persistWG();}catch(e){}pauseProg();CV.src.pause();loadScene('wg-lastmove');}else loadScene('wg-cut');}
+function setFace(f){WG.face=f;if(f!=='cut'){pauseProg();CV.src.pause();}else if(G.learn)stopLearn();persistWG();dirty();viewShift='';note(f==='cut'?'Cut wall: dig footage on the right, scrub and cut takes under the viewer, draw on sheets. Every piece on the board is a shot.':'Game wall: the board in three levels.','WALL');}
 function fireCtl(p){const key=WG.meta[p.id].src.slice(2);S.selected.clear();refresh();CT.sel=null;CT.moved=null;CT.flash={id:p.id,key,until:performance.now()+3200};feedback('select');runCtl(key);}
 function watchCtl(now){const a=selected(),p=a.length===1&&isCtl(a[0])?a[0]:null;
  if(S.tx){if(p&&!CT.tx)CT.tx={id:p.id,t:now,x:p.x,y:p.y,z:p.z};return;}
@@ -19527,6 +19531,9 @@ function texFor(src){let t=screenTex.get(src);if(t)return t;const info=srcInfo(s
  if(info.kind==='lm')t=lmCanvas(info.key);else if(info.kind==='ctl')t=ctlCanvas(info.key);else{t=new THREE.TextureLoader().load(info.img);t.encoding=THREE.sRGBEncoding;}
  screenTex.set(src,t);return t;}
 const focusTex=new THREE.VideoTexture(VID.focus);focusTex.encoding=THREE.sRGBEncoding;
+/* flat pads in front of the board: controls you tap on the floor, out of the line of sight */
+const PADS=new Set(['c:play','c:render','c:edl','c:wall']);
+function makePad(src){const g=new THREE.Group();g.userData.wgDeco=src;const scr=new THREE.Mesh(new THREE.PlaneGeometry(112,70),new THREE.MeshBasicMaterial({map:texFor(src),toneMapped:false}));scr.rotation.x=-Math.PI/2;scr.position.y=12.4;scr.renderOrder=6;g.add(scr);g.userData.screen=null;return g;}
 function makeMonitor(src){const g=new THREE.Group();g.userData.wgDeco=src;
  const box=new THREE.Mesh(monitorGeo.box,monitorMat.shell);box.castShadow=true;box.position.set(0,8+10+36,-26);g.add(box);
  const neck=new THREE.Mesh(monitorGeo.neck,monitorMat.dark);neck.position.set(0,8+5,-26);g.add(neck);
@@ -19542,7 +19549,7 @@ function decorate(){
   const have=p.mesh.userData.wgKey||'';if(have===want)continue;
   for(const ch of [...p.mesh.children])if(ch.userData.wgDeco)p.mesh.remove(ch);
   p.mesh.userData.wgKey=want;if(!want)continue;
-  if(m)p.mesh.add(makeMonitor(m.src));else p.mesh.add(glyphMesh(k,catalog.get(p.part).h));
+  if(m)p.mesh.add(PADS.has(m.src)?makePad(m.src):makeMonitor(m.src));else p.mesh.add(glyphMesh(k,catalog.get(p.part).h));
  }
 }
 /* a copied screen brick inherits its screen */
@@ -19566,7 +19573,7 @@ function drawWall(now){
  if(mode==='cut'){drawCut(x,W,H,now);}
  else if(mode==='board'){
   const t=WG.tally;header(x,W,'WOPR · LAST MOVE · '+(WG.dims===3?'3D':'2D'),(boardCaption())+'   GAMES '+t.games+' · X '+t.X+' · O '+t.O+' · DRAW '+t.D);
-  if(WG.dims===3){drawCube(x,G.cells,200,50,640,350,{thumbs:true,lw:8,line:G.line,last:G.lastMove,now,labels:true});x.font='500 15px ui-monospace,monospace';x.fillStyle='rgba(223,247,240,.55)';x.textAlign='center';x.fillText('9 COLUMNS · 3 LEVELS · 49 LINES · BRICKS STACK',W/2,424);x.textAlign='left';}
+  if(WG.dims===3){drawCube(x,G.cells,200,50,640,350,{thumbAt:cellThumbs(),thumbs:true,lw:8,line:G.line,last:G.lastMove,now,labels:true});x.font='500 15px ui-monospace,monospace';x.fillStyle='rgba(223,247,240,.55)';x.textAlign='center';x.fillText('9 COLUMNS · 3 LEVELS · 49 LINES · BRICKS STACK',W/2,424);x.textAlign='left';}
   else{
   const gx=180,gy=48,gw=(W-360)/3,gh=(H-56)/3;
   for(let i=0;i<9;i++){const tx=gx+(i%3)*gw,ty=gy+Math.floor(i/3)*gh,v=G.cells[i];
@@ -19642,7 +19649,7 @@ function drawFlow(){
   const ah=new THREE.Mesh(new THREE.BufferGeometry().setFromPoints([t,head.clone().addScaledVector(side,10),head.clone().addScaledVector(side,-10)]),mat);ah.renderOrder=11;flowGroup.add(ah);
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTexture(e.i),transparent:true,depthTest:false}));sp.scale.set(92,18,1);sp.position.copy(s.clone().lerp(t,.5)).add(V(0,16,0));sp.renderOrder=12;flowGroup.add(sp);
  }
- if(WG.flow.start&&metaOf(partOf(WG.flow.start))){const p=partOf(WG.flow.start);const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTexture('▶ START'),transparent:true,depthTest:false}));sp.scale.set(70,14,1);sp.position.set(p.x,p.y+108,p.z-26);sp.renderOrder=12;flowGroup.add(sp);}
+ if(WG.flow.start&&metaOf(partOf(WG.flow.start))){const p=partOf(WG.flow.start);const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTexture('START'),transparent:true,depthTest:false}));sp.scale.set(70,14,1);sp.position.set(p.x,p.y+108,p.z-26);sp.renderOrder=12;flowGroup.add(sp);}
 }
 const FLOWHIST=[];function pushFlow(){FLOWHIST.push(JSON.stringify(WG.flow));if(FLOWHIST.length>30)FLOWHIST.shift();}
 function undoFlow(){const f=FLOWHIST.pop();if(!f)return note('No link change to undo.','FLOW');WG.flow=JSON.parse(f);persistWG();flowKey='';PANEL.render();note('Last link change undone.','FLOW');}
@@ -19691,193 +19698,319 @@ function addScreen(src){
  note(srcInfo(src).label+' added as a screen brick. Pinch it to place it.','SCREEN');dirty();
 }
 
-/* ================= CUT ROOM — a minimal film editor in the same room =================
-   Wall = three hand zones: DIG (library, skim a clip by moving across its cell), VIEW (pinch to play),
-   SCRUB (hover to scrub, pinch-drag to cut a take). A take becomes a white brick; the bricks standing
-   on the two timeline lanes in front are the edit, in lane order, left to right. Move bricks to re-cut.
-   PLAY / RENDER (webm) / EDL (CMX 3600 + JSON) are monitors, like the game controls. */
+/* ================= THE ENGINE: one room, one set of verbs =================
+   Objects: bricks (X and O pieces, each carrying a clip), the board, the wall, drawing sheets.
+   Verbs, the same for every object, by hand or by mouse:
+     pinch = grab / draw / scrub      open = drop
+     two fingers (V) = copy           thumb up = land / next      thumb down = delete      fist = undo
+     second hand pinch, up and down = move through the depth (sheets, shots, frames)
+   Rules read the space: tic-tac-toe reads the board; the cut reads the board's move order
+   (or cell order in FREE); the flipbook reads the sheets in depth. */
 const CUTLIB=(()=>{const out={w:[],p:[],m:[]};
  for(const id of DATA.cut.wg){const s=SCREENS.get(id);out.w.push({src:'w:'+id,name:s?shortName(s):id.replace('wg_','WG ').toUpperCase(),url:LAB+'clips/'+id+'.mp4',thumb:LAB+'thumbs/clips/'+id+'.jpg',fps:30,reel:id.replace('_','').toUpperCase()});}
  for(const [slug,file,still] of DATA.cut.pae){const n=slug==='00-threshold'?'PAE-00 THRESHOLD':slug==='00-scion'?'PAE-01 SCION':slug.replace(/^(\d+)-/,'$1 ').replace(/-/g,' ').toUpperCase();out.p.push({src:'p:'+slug,name:n,url:ROOT+'/bolas/'+file,thumb:ROOT+'/bolas/'+still,fps:24,reel:('P'+slug.replace(/[^a-z0-9]/gi,'')).slice(0,8).toUpperCase()});}
  for(const m of MILESTONES)out.m.push({src:'m:'+m[0],name:m[0]+' '+m[1].toUpperCase(),url:FILMS+m[0]+'.mp4',thumb:FILMS+m[0]+'.jpg',fps:24,reel:'MS'+m[0]});
  return out;})();
 const CUTMAP=new Map([...CUTLIB.w,...CUTLIB.p,...CUTLIB.m].map(i=>[i.src,i]));
-const TABS=[['w','WAR GAMES'],['p','PAELEO'],['m','MILESTONES']];
-const TAKE_PART='3001',TAKE_COLOR=15,LANES=[95,160],SLOTX=[-308,-220,-132,-44,44,132,220,308];
+const TABS=[['w','WAR GAMES'],['p','PAELEO'],['m','MILESTONES'],['a','DRAWN']];
+const POOL_O=DATA.screens.filter(s=>s.g==='TIC-TAC-TOE'&&DATA.cut.wg.includes(s.id)).map(s=>'w:'+s.id),POOL_X=DATA.screens.filter(s=>(s.g==='WAR MAP'||s.g==='DEFCON'||s.g==='GAME CLOCK')&&DATA.cut.wg.includes(s.id)).map(s=>'w:'+s.id);
 const CZ={view:{x:16,y:46,w:576,h:324},band:{x:16,y:378,w:576,h:34},tabs:{x:608,y:46,w:400,h:26},lib:{x:608,y:78,w:400,h:334}};
-const CELLW=128,CELLH=72,CELLGX=8,ROWH=84;
+const SHEET={x:24,y:66,w:520,h:292.5},RAIL={x:556,y:66,w:30,h:292},TOOLS=[['copy','COPY'],['new','NEW'],['delete','DELETE'],['undo','UNDO']];
+const CELLW=128,CELLH=72,CELLGX=8,ROWH=84,FPS=12,MAXF=240;
 function mkAV(){const v=mkVideo();v.loop=false;return v;}
 const CV={src:mkAV(),hov:mkVideo(),prog:[mkAV(),mkAV()]};
-const CUT={group:'w',scroll:0,hover:-1,hoverU:0,item:null,view:'source',mark:null,hand:null,ptr:null,prog:{on:false,t:0,i:-1},rendering:null,sel:null};
-function cutMode(){return WG.mode==='cut';}
-function isTake(p){return p&&p.part===TAKE_PART&&WG.meta[p.id]?.take;}
-function laneOf(p){if(!isTake(p)||p.y>4)return -1;for(let k=0;k<LANES.length;k++)if(Math.abs(p.z-LANES[k])<=30&&Math.abs(p.x)<=360)return k;return -1;}
-function edit(){const list=S.parts.filter(p=>laneOf(p)>=0).sort((a,b)=>laneOf(a)-laneOf(b)||a.x-b.x);let t=0;return list.map((p,i)=>{const k=WG.meta[p.id].take,d=Math.max(.1,k.out-k.in),e={p,k,item:CUTMAP.get(k.src),i,start:t,dur:d};t+=d;return e;});}
-function editLength(E=edit()){return E.length?E[E.length-1].start+E[E.length-1].dur:0;}
+const CUT={group:'w',scroll:0,hover:-1,hoverU:0,item:null,view:'source',mark:null,hand:null,ptr:null,prog:{on:false,t:0,i:-1},rendering:null,draw:null,anim:0,frame:0,trim:null,grip:null,gest:{g:null,since:0,latched:false,neutral:0}};
+function cutMode(){return WG.face==='cut';}
+
+/* ---------- drawn animations: sheets in depth ---------- */
+const AKEY='wag-wargames-anims';
+let ANIMS=[];try{ANIMS=JSON.parse(localStorage.getItem(AKEY)||'[]');}catch(e){}
+if(!ANIMS.length)ANIMS=[{id:'a1',name:'ANIM 1',fps:FPS,frames:[{strokes:[],ref:null}]}];
+let animSaveT=0;function saveAnims(){clearTimeout(animSaveT);animSaveT=setTimeout(()=>{try{localStorage.setItem(AKEY,JSON.stringify(ANIMS));}catch(e){note('Drawings are too large to keep in this browser; render them to keep them.','DRAW');}},400);}
+function anim(){return ANIMS[Math.min(CUT.anim,ANIMS.length-1)];}
+function sheet(){const a=anim();CUT.frame=Math.max(0,Math.min(a.frames.length-1,CUT.frame));return a.frames[CUT.frame];}
+const STROKE_UNDO=[];
+function snapshotAnim(){STROKE_UNDO.push({anim:CUT.anim,frame:CUT.frame,data:JSON.stringify(anim().frames)});if(STROKE_UNDO.length>60)STROKE_UNDO.shift();}
+function undoDraw(){const u=STROKE_UNDO.pop();if(!u)return note('Nothing to undo on the sheets.','DRAW');const a=ANIMS[u.anim];if(a){a.frames=JSON.parse(u.data);CUT.anim=u.anim;CUT.frame=u.frame;}saveAnims();feedback('tick');note('Undone.','DRAW');}
+function newSheet(blank=true){const a=anim();if(a.frames.length>=MAXF)return note('Sheet limit reached.','DRAW');snapshotAnim();const cur=sheet();a.frames.splice(CUT.frame+1,0,blank?{strokes:[],ref:cur.ref}:JSON.parse(JSON.stringify(cur)));CUT.frame++;saveAnims();feedback('click');note((blank?'New sheet ':'Copied to sheet ')+(CUT.frame+1)+' of '+a.frames.length+'. The sheet before shows faintly underneath.','DRAW');}
+function deleteSheet(){const a=anim();snapshotAnim();if(a.frames.length<=1){a.frames[0]={strokes:[],ref:null};}else{a.frames.splice(CUT.frame,1);CUT.frame=Math.min(CUT.frame,a.frames.length-1);}saveAnims();feedback('blocked');note('Sheet deleted. Fist or UNDO brings it back.','DRAW');}
+function frameToSheet(){const v=CUT.view==='edit'?progVideo(Math.max(0,CUT.prog.i)):CV.src;const ref=grabFrame(v,320,180);if(!ref)return note('Load footage first.','DRAW');const a=anim();snapshotAnim();const cur=sheet();if(!cur.strokes.length&&!cur.ref){cur.ref=ref;}else{a.frames.splice(CUT.frame+1,0,{strokes:[],ref});CUT.frame++;}CUT.view='frames';saveAnims();feedback('click');note('Frame copied onto sheet '+(CUT.frame+1)+'. Draw over it.','DRAW');}
+function newAnim(){if(ANIMS.length>=24)return note('Too many animations.','DRAW');const n=ANIMS.length+1;ANIMS.push({id:'a'+Date.now().toString(36),name:'ANIM '+n,fps:FPS,frames:[{strokes:[],ref:null}]});CUT.anim=ANIMS.length-1;CUT.frame=0;CUT.view='frames';saveAnims();note('New animation. Pinch and drag on the sheet to draw.','DRAW');}
+function animLen(a){return a.frames.length/(a.fps||FPS);}
+const refImg=new Map();function refOf(url){if(!url)return null;let im=refImg.get(url);if(!im){im=new Image();im.src=url;refImg.set(url,im);}return im;}
+function drawStrokes(x,strokes,r,col,alpha,lw){x.save();x.globalAlpha=alpha;x.strokeStyle=col;x.lineCap='round';x.lineJoin='round';for(const s of strokes){if(!s.pts.length)continue;x.lineWidth=(s.w||3)*lw;x.beginPath();s.pts.forEach(([u,v],i)=>{const px=r.x+u*r.w,py=r.y+v*r.h;i?x.lineTo(px,py):x.moveTo(px,py);});if(s.pts.length===1)x.lineTo(r.x+s.pts[0][0]*r.w+.1,r.y+s.pts[0][1]*r.h);x.stroke();}x.restore();}
+function drawSheet(x,a,i,r,o={}){const f=a.frames[Math.max(0,Math.min(a.frames.length-1,i))];if(!f)return;
+ if(o.bg!==false){x.fillStyle='#f3efe4';x.fillRect(r.x,r.y,r.w,r.h);}
+ const im=refOf(f.ref);if(im&&im.complete&&im.naturalWidth)cover(x,im,r.x,r.y,r.w,r.h,o.refAlpha??.55);
+ if(o.onion&&i>0)drawStrokes(x,a.frames[i-1].strokes,r,'#d0523c',.28,r.w/520);
+ drawStrokes(x,f.strokes,r,'#101418',1,r.w/520);}
+function animThumb(a){if(a._thumb&&a._thumbN===a.frames.length&&a._thumbS===a.frames[0].strokes.length)return a._thumb;const c=document.createElement('canvas');c.width=160;c.height=90;drawSheet(c.getContext('2d'),a,0,{x:0,y:0,w:160,h:90});a._thumb=c.toDataURL('image/jpeg',.7);a._thumbN=a.frames.length;a._thumbS=a.frames[0].strokes.length;return a._thumb;}
+function itemOf(src){if(src&&src.startsWith('a:')){const a=ANIMS.find(a=>a.id===src.slice(2));return a?{src,name:a.name,anim:a,thumb:animThumb(a),fps:a.fps||FPS,reel:a.name.replace(/\s/g,'').slice(0,8)}:null;}return CUTMAP.get(src);}
+function libList(){return CUT.group==='a'?[...ANIMS.map(a=>itemOf('a:'+a.id)),{src:'new',name:'NEW ANIMATION',isNew:true}]:CUTLIB[CUT.group];}
+
+/* ---------- the edit is read from the board ---------- */
+function isTake(p){return p&&!!kindOf(p)&&!!WG.meta[p.id]?.take;}
+function boardPieces(){const cols=Array.from({length:9},()=>[]);for(const p of S.parts){if(!kindOf(p))continue;const c=cellOf(p);if(c>=0)cols[c].push(p);}const out=[];cols.forEach((l,c)=>{l.sort((a,b)=>a.y-b.y);l.forEach((p,lv)=>out.push({p,cell:lv*9+c}));});return out;}
+let orderSig='';
+function syncOrder(){const on=boardPieces(),ids=new Set(on.map(o=>o.p.id));const before=(WG.order||[]).join();WG.order=(WG.order||[]).filter(id=>ids.has(id));
+ for(const o of on.sort((a,b)=>a.p.y-b.p.y))if(!WG.order.includes(o.p.id)){WG.order.push(o.p.id);
+  if(!WG.meta[o.p.id]?.take){const k=kindOf(o.p),used=new Set(edit().map(e=>e.k.src)),pool=(k==='O'?POOL_O:POOL_X).filter(s=>!used.has(s)),src=(pool.length?pool:(k==='O'?POOL_O:POOL_X))[Math.floor(Math.random()*(pool.length||1))]||'w:wg_283';WG.meta[o.p.id]={take:{src,in:0,out:2.5,auto:true}};}}
+ if(WG.order.join()!==before)persistWG();}
+function edit(){const on=boardPieces(),cell=new Map(on.map(o=>[o.p.id,o.cell]));let list=on.map(o=>o.p).filter(p=>WG.meta[p.id]?.take);
+ if(WG.free)list.sort((a,b)=>cell.get(a.id)-cell.get(b.id));else{const ord=WG.order||[];list.sort((a,b)=>ord.indexOf(a.id)-ord.indexOf(b.id));}
+ let t=0;return list.map((p,i)=>{const k=WG.meta[p.id].take,it=itemOf(k.src),d=Math.max(.1,k.out-k.in),e={p,k,item:it,type:k.src.startsWith('a:')?'a':'v',i,start:t,dur:d,side:kindOf(p),cell:cell.get(p.id)};t+=d;return e;}).filter(e=>e.item);}
+function frameProgram(){const a=anim();return [{p:null,k:{src:'a:'+a.id,in:0,out:animLen(a)},item:itemOf('a:'+a.id),type:'a',i:0,start:0,dur:animLen(a)}];}
+function program(){return CUT.view==='frames'?frameProgram():edit();}
+function progLength(E=program()){return E.length?E[E.length-1].start+E[E.length-1].dur:0;}
+function editLength(E=edit()){return progLength(E);}
 function tc(s,fps=24){s=Math.max(0,s);const f=Math.round(s*fps),ff=f%fps,ss=Math.floor(f/fps)%60,mm=Math.floor(f/fps/60)%60,hh=Math.floor(f/fps/3600);return [hh,mm,ss,ff].map(n=>String(n).padStart(2,'0')).join(':');}
 function short(s){s=Math.max(0,s);return Math.floor(s/60)+':'+(s%60).toFixed(1).padStart(4,'0');}
-function libList(){return CUTLIB[CUT.group];}
 function seekTo(v,t){if(!isFinite(t))return;if(v.seeking){v._want=t;return;}if(Math.abs(v.currentTime-t)>.03)try{v.currentTime=t;}catch(e){}}
 for(const v of [CV.src,CV.hov,...CV.prog])v.addEventListener('seeked',()=>{if(v._want!=null){const t=v._want;v._want=null;seekTo(v,t);}});
 function load(v,url){if(v.dataset.src!==url){v.dataset.src=url;v.src=url;v.load();}}
 function soundOK(){return !!navigator.userActivation?.hasBeenActive;}
 
-/* ---------- zones ---------- */
+/* ---------- zones on the wall ---------- */
 function inR(r,x,y){return x>=r.x&&x<r.x+r.w&&y>=r.y&&y<r.y+r.h;}
 function zoneAt(x,y){
- if(inR(CZ.tabs,x,y))return {z:'tab',i:Math.min(2,Math.floor((x-CZ.tabs.x)/(CZ.tabs.w/3)))};
+ if(inR(CZ.tabs,x,y))return {z:'tab',i:Math.min(3,Math.floor((x-CZ.tabs.x)/(CZ.tabs.w/4)))};
  if(inR(CZ.lib,x,y)){const ly=y-CZ.lib.y;if(ly<18)return {z:'dig',dir:-1};if(ly>CZ.lib.h-18)return {z:'dig',dir:1};
-  const col=Math.floor((x-CZ.lib.x)/(CELLW+CELLGX)),cx=x-CZ.lib.x-col*(CELLW+CELLGX),row=Math.floor((ly-18+CUT.scroll*ROWH)/ROWH),cy=(ly-18+CUT.scroll*ROWH)-row*ROWH;
+  const col=Math.floor((x-CZ.lib.x)/(CELLW+CELLGX)),cx=x-CZ.lib.x-col*(CELLW+CELLGX),yy=ly-18+CUT.scroll*ROWH,row=Math.floor(yy/ROWH),cy=yy-row*ROWH;
   if(col>2||cx>CELLW||cy>CELLH)return {z:'lib',i:-1};const i=row*3+col;return {z:'lib',i:i<libList().length?i:-1,u:cx/CELLW};}
  if(inR({x:CZ.band.x-8,y:CZ.band.y-6,w:CZ.band.w+16,h:CZ.band.h+12},x,y))return {z:'band',u:Math.max(0,Math.min(1,(x-CZ.band.x)/CZ.band.w))};
+ if(CUT.view==='frames'){
+  if(y>=CZ.view.y&&y<SHEET.y-2&&x>=CZ.view.x&&x<CZ.view.x+TOOLS.length*78)return {z:'tool',k:TOOLS[Math.floor((x-CZ.view.x)/78)][0]};
+  if(inR(RAIL,x,y))return {z:'rail',i:railIndexAt(y)};
+  if(inR({x:SHEET.x-6,y:SHEET.y-6,w:SHEET.w+12,h:SHEET.h+12},x,y))return {z:'sheet',u:Math.max(0,Math.min(1,(x-SHEET.x)/SHEET.w)),v:Math.max(0,Math.min(1,(y-SHEET.y)/SHEET.h))};}
  if(inR(CZ.view,x,y))return {z:'view'};
  return null;}
+function railWindow(){const a=anim(),n=a.frames.length,per=Math.floor(RAIL.h/22),s=Math.max(0,Math.min(n+1-per,CUT.frame-Math.floor(per/2)));return {s,per,n};}
+function railIndexAt(y){const w=railWindow(),i=w.s+Math.floor((y-RAIL.y)/22);return i>=w.n?'add':Math.max(0,i);}
 const wallRay=new THREE.Raycaster();
 function wallPoint(sx,sy){const r=$('#stage').getBoundingClientRect();wallRay.setFromCamera({x:sx/r.width*2-1,y:1-sy/r.height*2},camera);const h=wallRay.intersectObject(wallMesh,false)[0];if(!h||!h.uv)return null;
- // anything nearer than the wall (a brick, a monitor) blocks it
  const near=wallRay.intersectObjects(S.parts.map(p=>p.mesh),true)[0];if(near&&near.distance<h.distance)return null;return {x:h.uv.x*1024,y:(1-h.uv.y)*576};}
 
-/* ---------- actions ---------- */
+/* ---------- operations ---------- */
 function curDur(){const v=CV.src;return CUT.item&&v.duration&&isFinite(v.duration)?v.duration:0;}
-function pickSource(item,t=0){CUT.item=item;CUT.view='source';stopProg();load(CV.src,item.url);CV.src.muted=!soundOK();CV.src.pause();const go=()=>seekTo(CV.src,Math.min(t,(CV.src.duration||t+1)-.05));if(CV.src.readyState>=1)go();else CV.src.addEventListener('loadedmetadata',go,{once:true});note(item.name+' in the viewer. Hover the scrub bar to scrub; pinch and drag across it to cut a take.','SOURCE');dirty();}
-function togglePlay(){if(CUT.view==='edit'){CUT.prog.on?pauseProg():playProg();return;}const v=CV.src;if(!CUT.item)return;v.muted=!soundOK();if(v.paused){if(v.ended||v.currentTime>=curDur()-.05)seekTo(v,0);v.play().catch(()=>{});}else v.pause();}
+function pickSource(item,t=0){if(item.isNew)return newAnim();if(item.anim){CUT.anim=ANIMS.indexOf(item.anim);CUT.frame=0;CUT.view='frames';stopProg();note(item.name+': '+item.anim.frames.length+' sheets. Draw with a pinch; second hand moves through the sheets.','DRAW');return;}
+ CUT.item=item;CUT.view='source';stopProg();load(CV.src,item.url);CV.src.muted=!soundOK();CV.src.pause();const go=()=>seekTo(CV.src,Math.min(t,(CV.src.duration||t+1)-.05));if(CV.src.readyState>=1)go();else CV.src.addEventListener('loadedmetadata',go,{once:true});note(item.name+' in the viewer. Hover the bar to scrub; pinch and drag across it to cut a take brick.','SOURCE');dirty();}
+function togglePlay(){if(CUT.view!=='source'){CUT.prog.on?pauseProg():playProg();return;}const v=CV.src;if(!CUT.item)return;v.muted=!soundOK();if(v.paused){if(v.ended||v.currentTime>=curDur()-.05)seekTo(v,0);v.play().catch(()=>{});}else v.pause();}
+function selTake(){const a=selected();return a.length===1&&isTake(a[0])?a[0]:null;}
+function bandMap(){ // what the bar shows: a selected take brick's source (trim), the source, the program
+ const tp=selTake();if(tp&&!CUT.prog.on){const k=WG.meta[tp.id].take,it=itemOf(k.src);if(it&&it.anim)return {kind:'trim',p:tp,k,it,len:animLen(it.anim)};if(it&&CUT.item&&CUT.item.src===k.src&&curDur())return {kind:'trim',p:tp,k,it,len:curDur()};if(it){if(!CUT.item||CUT.item.src!==k.src)pickSource(it,k.in);return {kind:'source',len:curDur()};}}
+ if(CUT.view==='source')return {kind:'source',len:curDur()};
+ return {kind:'program',len:progLength()};}
 function press(zn,now){if(!zn)return;
  if(zn.z==='tab'){CUT.group=TABS[zn.i][0];CUT.scroll=0;CUT.hover=-1;feedback('tick');return;}
- if(zn.z==='lib'&&zn.i>=0){const it=libList()[zn.i],t=CV.hov.dataset.src===it.url&&CV.hov.duration?CV.hov.currentTime:0;pickSource(it,t);feedback('select');return;}
+ if(zn.z==='lib'&&zn.i>=0){const it=libList()[zn.i],t=it.url&&CV.hov.dataset.src===it.url&&CV.hov.duration?CV.hov.currentTime:0;pickSource(it,t);feedback('select');return;}
+ if(zn.z==='tool'){runOp(zn.k);return;}
+ if(zn.z==='rail'){if(zn.i==='add')newSheet(true);else{CUT.frame=zn.i;feedback('tick');}return;}
+ if(zn.z==='sheet'){if(CUT.prog.on)pauseProg();CUT.draw={pts:[[zn.u,zn.v]]};return;}
  if(zn.z==='view'){togglePlay();feedback('tick');return;}
- if(zn.z==='band'){if(CUT.view==='source'&&curDur()){CV.src.pause();const t=zn.u*curDur();CUT.mark={t0:t,t1:t,thumb:null};seekTo(CV.src,t);setTimeout(()=>{if(CUT.mark)CUT.mark.thumb=grabFrame(CV.src);},120);}else if(CUT.view==='edit'){pauseProg();scrubProg(zn.u*editLength());}}}
+ if(zn.z==='band'){const B=bandMap();if(!B.len)return;const t=zn.u*B.len;
+  if(B.kind==='trim'){const a=B.k.in/B.len,b=B.k.out/B.len,px=1/CZ.band.w*14;const which=Math.abs(zn.u-a)<px?'in':Math.abs(zn.u-b)<px?'out':'scrub';CUT.trim={which,p:B.p};if(which!=='scrub')snapshotTrim(B.p);trimTo(B,which,t);return;}
+  if(B.kind==='source'){CV.src.pause();CUT.mark={t0:t,t1:t,thumb:null};seekTo(CV.src,t);setTimeout(()=>{if(CUT.mark)CUT.mark.thumb=grabFrame(CV.src,160,90);},120);return;}
+  if(CUT.view==='frames'){CUT.mark={t0:t,t1:t,anim:true};scrubProg(t);return;}
+  pauseProg();scrubProg(t);}}
 function hover(zn,held){
- if(!zn){CUT.hover=-1;return;}
- if(zn.z==='lib'){CUT.hover=zn.i;CUT.hoverU=zn.u||0;}else CUT.hover=-1;
- if(zn.z==='dig'){CUT.digDir=zn.dir;}else CUT.digDir=0;
- if(zn.z==='band'){if(CUT.view==='source'&&curDur()){const t=zn.u*curDur();if(CUT.mark)CUT.mark.t1=t;if(CUT.mark||!held&&CV.src.paused)seekTo(CV.src,t);if(!CUT.mark&&!CV.src.paused&&!held)CV.src.pause(),seekTo(CV.src,t);}
-  else if(CUT.view==='edit'&&(!CUT.prog.on)){scrubProg(zn.u*editLength());}}}
-function release(zn){const m=CUT.mark;CUT.mark=null;if(!m)return;const a=Math.min(m.t0,m.t1),b=Math.max(m.t0,m.t1);if(b-a<.25){seekTo(CV.src,m.t1);return;}makeTake(CUT.item,a,b,m.thumb);}
-function grabFrame(v){try{if(!v.videoWidth)return null;const c=document.createElement('canvas');c.width=160;c.height=90;cover(c.getContext('2d'),v,0,0,160,90,1);return c.toDataURL('image/jpeg',.7);}catch(e){return null;}}
-function railSlots(){const s=[];LANES.forEach((z,k)=>SLOTX.forEach(x=>s.push({x,z,k})));return s;}
+ if(!zn){CUT.hover=-1;CUT.digDir=0;return;}
+ CUT.hover=zn.z==='lib'?zn.i:-1;CUT.hoverU=zn.u||0;CUT.digDir=zn.z==='dig'?zn.dir:0;
+ if(zn.z==='sheet'&&CUT.draw&&held){const last=CUT.draw.pts[CUT.draw.pts.length-1];if(Math.hypot(zn.u-last[0],(zn.v-last[1])*.5625)>.003)CUT.draw.pts.push([+zn.u.toFixed(4),+zn.v.toFixed(4)]);return;}
+ if(zn.z==='rail'&&held&&zn.i!=='add'){CUT.frame=zn.i;return;}
+ if(zn.z==='band'){const B=bandMap();if(!B.len)return;const t=zn.u*B.len;
+  if(B.kind==='trim'){if(CUT.trim)trimTo(B,CUT.trim.which,t);else if(!held)previewTrim(B,t);return;}
+  if(B.kind==='source'){if(CUT.mark)CUT.mark.t1=t;if(CUT.mark||!held){if(!CV.src.paused)CV.src.pause();seekTo(CV.src,t);}return;}
+  if(CUT.mark&&CUT.mark.anim){CUT.mark.t1=t;scrubProg(t);return;}
+  if(!CUT.prog.on)scrubProg(t);}}
+function release(zn){
+ if(CUT.draw){const d=CUT.draw;CUT.draw=null;if(d.pts.length>=1){snapshotAnim();sheet().strokes.push({w:3,pts:d.pts});saveAnims();}return;}
+ if(CUT.trim){const T=CUT.trim;CUT.trim=null;if(T.which!=='scrub'){takeTex.clear();persistWG();note('Trimmed: in '+short(WG.meta[T.p.id].take.in)+', out '+short(WG.meta[T.p.id].take.out)+'.','TRIM');}return;}
+ const m=CUT.mark;CUT.mark=null;if(!m)return;const a=Math.min(m.t0,m.t1),b=Math.max(m.t0,m.t1);
+ if(m.anim){if(b-a<1/FPS){return;}const A=anim();makeTake(itemOf('a:'+A.id),a,b,null);return;}
+ if(b-a<.25){seekTo(CV.src,m.t1);return;}makeTake(CUT.item,a,b,m.thumb);}
+const TRIM_UNDO=[];function snapshotTrim(p){TRIM_UNDO.push({id:p.id,take:{...WG.meta[p.id].take}});}
+function trimTo(B,which,t){const k=B.k,min=.1;if(which==='in')k.in=+Math.max(0,Math.min(t,k.out-min)).toFixed(3);else if(which==='out')k.out=+Math.min(B.len,Math.max(t,k.in+min)).toFixed(3);k.auto=false;previewTrim(B,which==='in'?k.in:which==='out'?k.out:t);}
+function previewTrim(B,t){if(B.it.anim){CUT.anim=ANIMS.indexOf(B.it.anim);CUT.view='frames';CUT.frame=Math.min(B.it.anim.frames.length-1,Math.floor(t*(B.it.anim.fps||FPS)));return;}CUT.view='source';if(!CV.src.paused)CV.src.pause();seekTo(CV.src,t);}
+function grabFrame(v,w,h){try{if(!v||!v.videoWidth)return null;const c=document.createElement('canvas');c.width=w;c.height=h;cover(c.getContext('2d'),v,0,0,w,h,1);return c.toDataURL('image/jpeg',.72);}catch(e){return null;}}
 function makeTake(item,a,b,thumb){
- if(S.tx)return note('Release what you are holding first.','HELD');if(S.parts.length>=200)return note('Workshop limit: 200 parts.','BLOCKED');
- const E=edit(),last=E.length?E[E.length-1].p:null,slots=railSlots(),lastIdx=last?slots.findIndex(s=>Math.abs(s.x-last.x)<44&&s.k===laneOf(last)):-1;
- const order=[...slots.slice(lastIdx+1),...slots.slice(0,lastIdx+1),{x:-330,z:-90,k:-1},{x:330,z:-90,k:-1},{x:-330,z:20,k:-1},{x:330,z:20,k:-1}];
- const before=checkpoint(),oldSel=new Set(S.selected),id='p'+S.next++;const p=create({id,part:TAKE_PART,color:TAKE_COLOR,x:0,y:0,z:0,r:0});S.selected=new Set([id]);let ok=false;
- for(const s of order){p.x=s.x;p.z=s.z;sync(p);if(!validate()){ok=true;break;}}
- if(!ok){restore(JSON.parse(before));S.selected=oldSel;refresh();return note('No free place for a new take. Remove some bricks.','BLOCKED');}
+ if(!item)return;if(S.tx)return note('Release what you are holding first.','HELD');if(S.parts.length>=200)return note('Workshop limit: 200 parts.','BLOCKED');
+ const spots=[...TRAY,{x:300,z:-60},{x:340,z:-60},{x:300,z:200},{x:340,z:200},{x:-330,z:-60},{x:-330,z:0}];
+ const before=checkpoint(),oldSel=new Set(S.selected),id='p'+S.next++;const p=create({id,part:PIECE.X.part,color:PIECE.X.color,x:0,y:0,z:0,r:0});S.selected=new Set([id]);let ok=false;
+ for(const s of spots){p.x=s.x;p.z=s.z;sync(p);if(!validate()){ok=true;break;}}
+ if(!ok){restore(JSON.parse(before));S.selected=oldSel;refresh();return note('No free place for a new take brick. Clear the tray.','BLOCKED');}
  S.selected=oldSel;record(before);rebuildBodies();refresh();WG.meta[id]={take:{src:item.src,in:+a.toFixed(3),out:+b.toFixed(3),thumb}};persistWG();seenParts.add(id);
- feedback('click');note('Take '+short(a)+'–'+short(b)+' ('+(b-a).toFixed(1)+' s) from '+item.name+(laneOf(p)>=0?' added to the end of the edit.':' set aside: the timeline lanes are full.'),'TAKE');dirty();}
+ feedback('click');note('Take '+short(a)+'–'+short(b)+' ('+(b-a).toFixed(1)+' s) from '+item.name+' is a red X brick in the tray. Set it on the board: it is your move and your next shot.','TAKE');dirty();}
+function takeWhole(item){if(item.isNew)return;if(item.anim)return makeTake(item,0,animLen(item.anim),null);const d=CV.hov.dataset.src===item.url&&CV.hov.duration?CV.hov.duration:item.src.startsWith('w:')?2.5:10;makeTake(item,0,d,null);}
 
-/* ---------- program playback ---------- */
-function progVideo(i){return CV.prog[i%2];}
-function enterTake(E,i,offset,play){const e=E[i];if(!e||!e.item)return;CUT.prog.i=i;const v=progVideo(i);load(v,e.item.url);v.muted=!soundOK()&&!CUT.rendering;const go=()=>{seekTo(v,e.k.in+offset);if(play)v.play().catch(()=>{});};if(v.readyState>=1)go();else v.addEventListener('loadedmetadata',go,{once:true});
- const o=progVideo(i+1);if(o!==v)o.pause();const nx=E[i+1];if(nx&&nx.item){load(o,nx.item.url);const pre=()=>seekTo(o,nx.k.in);if(o.readyState>=1)pre();else o.addEventListener('loadedmetadata',pre,{once:true});}}
-function playProg(){const E=edit();if(!E.length)return note('Put take bricks on the timeline lanes first.','EDIT');CUT.view='edit';if(CUT.prog.t>=editLength(E)-.05)CUT.prog.t=0;const i=E.findIndex(e=>CUT.prog.t<e.start+e.dur);CUT.prog.on=true;CV.src.pause();enterTake(E,Math.max(0,i),CUT.prog.t-E[Math.max(0,i)].start,true);dirty();PANEL.render();}
+/* ---------- one verb set, read from the hand over the wall ---------- */
+function runOp(k){const zv=CUT.view;
+ if(k==='copy'){if(zv==='frames')newSheet(false);else frameToSheet();}
+ else if(k==='new'){if(zv==='frames')newSheet(true);else togglePlay();}
+ else if(k==='delete'){if(zv==='frames')deleteSheet();}
+ else if(k==='undo'){if(zv==='frames')undoDraw();else if(TRIM_UNDO.length){const u=TRIM_UNDO.pop();if(WG.meta[u.id])WG.meta[u.id].take=u.take;takeTex.clear();persistWG();note('Trim undone.','TRIM');}}}
+const GEST={V:['COPY',100,'copy'],up:['LAND',100,'new'],down:['DELETE',350,'delete'],fist:['UNDO',250,'undo']};
+function wallGesture(t,zn,now){const s=CUT.gest;let g=null;try{g=t.marks&&typeof gestureOf==='function'?gestureOf(t):null;}catch(e){}
+ const cmd=GEST[g];if(!cmd||!zn){if(!s.neutral)s.neutral=now;if(now-s.neutral>120){s.latched=false;s.g=null;}CUT.gestProg=0;return;}
+ s.neutral=0;if(s.latched)return;if(s.g!==g){s.g=g;s.since=now;}const p=Math.min(1,(now-s.since)/cmd[1]);CUT.gestProg=p;CUT.gestName=cmd[0];if(p<1)return;s.latched=true;CUT.gestProg=0;
+ if(zn.z==='lib'&&zn.i>=0){const it=libList()[zn.i];if(g==='V')takeWhole(it);else if(g==='up')pickSource(it,0);return;}
+ if(['sheet','view','rail','tool','band'].includes(zn.z))runOp(cmd[2]);}
+
+/* ---------- mouse, touch, keys on the wall ---------- */
+(function(){const cv=$('#view');let drag=false;
+ const at=e=>{const r=cv.getBoundingClientRect();return wallPoint(e.clientX-r.left,e.clientY-r.top);};
+ cv.addEventListener('pointerdown',e=>{if(!cutMode()||RUN.on)return;const p=at(e);const zn=p&&zoneAt(p.x,p.y);if(!zn)return;e.stopImmediatePropagation();e.preventDefault();drag=true;CUT.ptr={...p,down:true,zn};try{cv.setPointerCapture(e.pointerId);}catch(_){}hover(zn,false);press(zn,performance.now());},true);
+ cv.addEventListener('pointermove',e=>{if(!cutMode())return;const p=at(e);if(drag){e.stopImmediatePropagation();if(p){const zn=lockZone(p);CUT.ptr={...p,down:true,zn};hover(zn,true);}return;}
+  if(e.pointerType==='mouse'){const zn=p&&zoneAt(p.x,p.y);CUT.ptr=p?{...p,down:false,zn}:null;if(!S.tx)hover(zn,false);}},true);
+ const up=e=>{if(!drag)return;drag=false;e.stopImmediatePropagation();const p=at(e);release(p&&zoneAt(p.x,p.y));if(e.pointerType!=='mouse')CUT.ptr=null;else if(CUT.ptr)CUT.ptr.down=false;};
+ cv.addEventListener('pointerup',up,true);cv.addEventListener('pointercancel',up,true);
+ cv.addEventListener('wheel',e=>{if(!cutMode())return;const p=at(e);if(!p)return;if(inR(CZ.lib,p.x,p.y)){e.preventDefault();e.stopImmediatePropagation();CUT.scroll=Math.max(0,Math.min(maxScroll(),CUT.scroll+e.deltaY/120));}else if(inR(CZ.view,p.x,p.y)){e.preventDefault();e.stopImmediatePropagation();CUT.wheel=(CUT.wheel||0)+e.deltaY;while(Math.abs(CUT.wheel)>=60){depthStep(Math.sign(CUT.wheel));CUT.wheel-=Math.sign(CUT.wheel)*60;}}},{capture:true,passive:false});
+ document.addEventListener('keydown',e=>{if(!cutMode()||e.target.closest?.('input,select,textarea')||!CUT.ptr)return;const k=e.key.toLowerCase();
+  if(CUT.view==='frames'&&(k==='c'||k==='n'||k==='backspace'||k==='delete'||(k==='z'&&(e.metaKey||e.ctrlKey)))){e.preventDefault();e.stopImmediatePropagation();runOp(k==='c'?'copy':k==='n'?'new':k==='z'?'undo':'delete');}
+  else if(k==='arrowup'||k==='arrowdown'){e.preventDefault();depthStep(k==='arrowdown'?1:-1);}
+  else if(k===' '){e.preventDefault();togglePlay();}},true);})();
+function lockZone(p){if(CUT.mark||CUT.trim)return {z:'band',u:Math.max(0,Math.min(1,(p.x-CZ.band.x)/CZ.band.w))};if(CUT.draw)return {z:'sheet',u:Math.max(0,Math.min(1,(p.x-SHEET.x)/SHEET.w)),v:Math.max(0,Math.min(1,(p.y-SHEET.y)/SHEET.h))};return zoneAt(p.x,p.y);}
+function maxScroll(){return Math.max(0,Math.ceil(libList().length/3)-(CZ.lib.h-36)/ROWH);}
+/* depth: sheets in the flipbook, shots in the edit, frames in the source */
+function depthStep(n){if(CUT.view==='frames'){CUT.frame=Math.max(0,Math.min(anim().frames.length-1,CUT.frame+n));feedback('tick');}
+ else if(CUT.view==='edit'){const E=edit();if(!E.length)return;pauseProg();let i=E.findIndex(e=>CUT.prog.t<e.start+e.dur);i=Math.max(0,Math.min(E.length-1,(i<0?E.length-1:i)+n));scrubProg(E[i].start+.001);}
+ else if(CUT.item){CV.src.pause();seekTo(CV.src,Math.max(0,Math.min(curDur()-.04,CV.src.currentTime+n/(CUT.item.fps||24))));}}
+function handTick(now){
+ const tracks=H.active?H.tracks.filter(t=>t.point&&now-(t.seen||0)<400):[];const r=$('#stage').getBoundingClientRect();
+ // the tool hand is the one over the wall (the owner first); the other hand grips the depth
+ const pts=tracks.map(t=>({t,p:wallPoint(t.point.x*r.width,t.point.y*r.height)}));
+ const tool=pts.find(o=>o.p&&o.t.id===H.owner)||pts.find(o=>o.p)||null,other=tracks.find(t=>!tool||t!==tool.t);
+ const was=CUT.hand?.closed;
+ if(!tool){if(was)release(null);CUT.hand=null;}
+ else{const t=tool.t,p=tool.p;CUT.hand={...p,closed:!!t.closed};
+  if(!(S.tx&&!CUT.mark&&!CUT.draw&&!CUT.trim)){const zn=(CUT.mark||CUT.draw||CUT.trim)?lockZone(p):zoneAt(p.x,p.y);
+   hover(zn,!!t.closed);if(t.closed&&!was)press(zn,now);if(!t.closed&&was)release(zn);if(!t.closed)wallGesture(t,zn,now);}}
+ // second hand: pinch and move up or down to step through the depth
+ if(other&&other.closed){const y=other.point.y*r.height;if(!CUT.grip)CUT.grip={y0:y,steps:0};const n=Math.trunc((y-CUT.grip.y0)/28);if(n!==CUT.grip.steps){depthStep(n-CUT.grip.steps);CUT.grip.steps=n;}}else CUT.grip=null;}
+
+/* ---------- playback of the program (the edit, or the flipbook) ---------- */
+function progVideo(i){return CV.prog[((i%2)+2)%2];}
+function enterSeg(E,i,offset,play){const e=E[i];if(!e)return;CUT.prog.i=i;if(e.type==='a'){CV.prog.forEach(v=>v.pause());preload(E,i+1);return;}
+ const v=progVideo(i);load(v,e.item.url);v.muted=!soundOK()&&!CUT.rendering;const go=()=>{seekTo(v,e.k.in+offset);if(play)v.play().catch(()=>{});};if(v.readyState>=1)go();else v.addEventListener('loadedmetadata',go,{once:true});
+ const o=progVideo(i+1);if(o!==v)o.pause();preload(E,i+1);}
+function preload(E,j){const nx=E[j];if(!nx||nx.type!=='v')return;const o=progVideo(j);if(o===progVideo(CUT.prog.i)&&E[CUT.prog.i]?.type==='v')return;load(o,nx.item.url);const pre=()=>seekTo(o,nx.k.in);if(o.readyState>=1)pre();else o.addEventListener('loadedmetadata',pre,{once:true});}
+function playProg(){if(CUT.view==='source')CUT.view='edit';const E=program();if(!E.length)return note(CUT.view==='edit'?'Set take bricks on the board first: each piece on the board is a shot.':'Nothing to play.','EDIT');if(CUT.prog.t>=progLength(E)-.05)CUT.prog.t=0;const i=Math.max(0,E.findIndex(e=>CUT.prog.t<e.start+e.dur));CUT.prog.on=true;CUT.prog.last=performance.now();CV.src.pause();enterSeg(E,i,CUT.prog.t-E[i].start,true);dirty();PANEL.render();}
 function pauseProg(){CUT.prog.on=false;CV.prog.forEach(v=>v.pause());}
 function stopProg(){pauseProg();}
-function scrubProg(t){const E=edit();if(!E.length)return;CUT.view='edit';t=Math.max(0,Math.min(editLength(E)-.01,t));CUT.prog.t=t;const i=E.findIndex(e=>t<e.start+e.dur);enterTake(E,i,t-E[i].start,false);}
-function tickProg(){const P=CUT.prog;if(!P.on)return;const E=edit(),e=E[P.i];if(!e){P.on=false;return endProg();}const v=progVideo(P.i);if(v.readyState<2)return;
- P.t=e.start+Math.max(0,v.currentTime-e.k.in);if(v.currentTime>=e.k.out-.04||v.ended){if(P.i+1<E.length)enterTake(E,P.i+1,0,true);else{P.on=false;P.t=editLength(E);v.pause();endProg();}}}
+function scrubProg(t){const E=program();if(!E.length)return;if(CUT.view==='source')CUT.view='edit';t=Math.max(0,Math.min(progLength(E)-.01,t));CUT.prog.t=t;const i=E.findIndex(e=>t<e.start+e.dur);enterSeg(E,i,t-E[i].start,false);if(CUT.view==='frames')CUT.frame=animIndexAt(E[i],t);}
+function animIndexAt(e,t){const a=e.item.anim,f=a.fps||FPS;return Math.max(0,Math.min(a.frames.length-1,Math.floor((e.k.in+(t-e.start))*f+1e-6)));}
+function tickProg(now){const P=CUT.prog;if(!P.on){P.last=now;return;}const E=program(),e=E[P.i];if(!e){P.on=false;return endProg();}
+ if(e.type==='a'){const dt=(now-(P.last||now))/1000;P.t+=CUT.rendering?dt:Math.min(.1,dt);P.last=now;if(CUT.view==='frames')CUT.frame=animIndexAt(e,P.t);if(P.t>=e.start+e.dur){if(P.i+1<E.length)enterSeg(E,P.i+1,0,true);else{P.on=false;P.t=progLength(E);endProg();}}return;}
+ P.last=now;const v=progVideo(P.i);if(v.readyState<2||v.error){if(!P.stall)P.stall=now;if(v.error||now-P.stall>4000){P.stall=0;if(P.i+1<E.length)enterSeg(E,P.i+1,0,true);else{P.on=false;endProg();}}return;}P.stall=0;
+ P.t=e.start+Math.max(0,v.currentTime-e.k.in);if(v.currentTime>=e.k.out-.04||v.ended){if(P.i+1<E.length)enterSeg(E,P.i+1,0,true);else{P.on=false;P.t=progLength(E);v.pause();endProg();}}}
 function endProg(){if(CUT.rendering)finishRender();PANEL.render();}
+function drawSeg(x,e,t,r){if(!e)return false;if(e.type==='a'){drawSheet(x,e.item.anim,animIndexAt(e,t),r);return true;}const v=progVideo(CUT.prog.i);return v.readyState>=2?cover(x,v,r.x,r.y,r.w,r.h):false;}
 
-/* ---------- render the edit to a webm, in real time ---------- */
-function renderEdit(){if(CUT.rendering)return;const E=edit();if(!E.length)return note('Nothing on the timeline to render.','RENDER');if(!window.MediaRecorder)return note('This browser cannot record video.','RENDER');
+/* ---------- render to webm in real time ---------- */
+function renderEdit(){if(CUT.rendering)return;if(CUT.view==='source')CUT.view='edit';const E=program();if(!E.length)return note('Nothing to render.','RENDER');if(!window.MediaRecorder)return note('This browser cannot record video.','RENDER');
  const c=document.createElement('canvas');c.width=1280;c.height=720;const x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,1280,720);const stream=c.captureStream(30);
  try{const ac=CUT.ac||(CUT.ac=new (window.AudioContext||window.webkitAudioContext)());ac.resume?.();const dest=ac.createMediaStreamDestination();for(const v of CV.prog){if(!v._node){v._node=ac.createMediaElementSource(v);v._node.connect(ac.destination);}v._node.connect(dest);}CUT.dest=dest;const tr=dest.stream.getAudioTracks()[0];if(tr)stream.addTrack(tr);}catch(e){console.warn('[WAR GAMES] audio not captured',e);}
  const mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'';const rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:6e6}:{});const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
- rec.onstop=()=>{const blob=new Blob(chunks,{type:'video/webm'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='cut-room-'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.webm';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);note('Rendered '+(blob.size/1e6).toFixed(1)+' MB webm. Saved to your downloads.','RENDER');CUT.lastRender={size:blob.size,dur:editLength(E)};};
- CUT.rendering={c,x,rec,total:editLength(E)};rec.start(250);CUT.prog.t=0;playProg();note('Rendering the edit in real time: '+short(editLength(E))+'.','RENDER');}
-function renderFrame(){const R=CUT.rendering;if(!R)return;const v=progVideo(CUT.prog.i);if(v.readyState>=2)cover(R.x,v,0,0,1280,720,1);}
+ const what=CUT.view==='frames'?anim().name.toLowerCase().replace(/\s+/g,'-'):'edit';
+ rec.onstop=()=>{const blob=new Blob(chunks,{type:'video/webm'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='wargames-'+what+'-'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.webm';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);note('Rendered '+(blob.size/1e6).toFixed(1)+' MB webm. Saved to your downloads.','RENDER');CUT.lastRender={size:blob.size};};
+ CUT.rendering={c,x,rec,total:progLength(E)};CUT.prog.t=0;playProg();renderFrame();rec.start(250);note('Rendering in real time: '+short(progLength(E))+'.','RENDER');}
+function renderFrame(){const R=CUT.rendering;if(!R)return;const E=program(),e=E[CUT.prog.i];if(e){R.x.fillStyle='#000';if(e.type==='a')R.x.fillRect(0,0,1280,720);drawSeg(R.x,e,CUT.prog.t,{x:0,y:0,w:1280,h:720});}}
 function finishRender(){const R=CUT.rendering;CUT.rendering=null;try{if(R.rec.state!=='inactive')R.rec.stop();}catch(e){}try{if(CUT.dest)for(const v of CV.prog)v._node.disconnect(CUT.dest);}catch(e){}}
 
 /* ---------- EDL ---------- */
-function edlText(E=edit()){const L=['TITLE: CUT ROOM','FCM: NON-DROP FRAME',''];let rec=3600;
- E.forEach((e,n)=>{const it=e.item||{reel:'AX',name:e.k.src,url:''};L.push(String(n+1).padStart(3,'0')+'  '+it.reel.padEnd(8).slice(0,8)+' B     C        '+tc(e.k.in)+' '+tc(e.k.out)+' '+tc(rec)+' '+tc(rec+e.dur));L.push('* FROM CLIP NAME: '+it.name);L.push('* SOURCE FILE: '+new URL(it.url,location.href).href);L.push('');rec+=e.dur;});
- L.push('* 24 FPS RECORD TIMELINE. WAR GAMES SOURCES ARE 30 FPS; EXACT SECONDS ARE IN THE JSON.');return L.join('\n');}
-function editJSON(E=edit()){return {name:'CUT ROOM',created:new Date().toISOString(),duration:+editLength(E).toFixed(3),takes:E.map(e=>({index:e.i+1,source:e.k.src,name:e.item?.name,url:e.item?new URL(e.item.url,location.href).href:'',in:e.k.in,out:e.k.out,record_in:+e.start.toFixed(3),record_out:+(e.start+e.dur).toFixed(3)}))};}
-function exportEDL(){const E=edit();if(!E.length)return note('Nothing on the timeline yet.','EDL');const t=edlText(E);download(t,'cut-room.edl','text/plain');setTimeout(()=>download(JSON.stringify(editJSON(E),null,2),'cut-room.json','application/json'),400);navigator.clipboard?.writeText(t).catch(()=>{});note('EDL ('+E.length+' events) and JSON saved; EDL copied.','EDL');}
+function edlText(E=edit()){const L=['TITLE: WAR GAMES · LAST MOVE','FCM: NON-DROP FRAME',''];let rec=3600;
+ E.forEach((e,n)=>{const it=e.item;L.push(String(n+1).padStart(3,'0')+'  '+(it.reel||'AX').padEnd(8).slice(0,8)+' B     C        '+tc(e.k.in)+' '+tc(e.k.out)+' '+tc(rec)+' '+tc(rec+e.dur));L.push('* FROM CLIP NAME: '+it.name+' · '+e.side+' · CELL '+(e.cell+1));L.push(it.url?'* SOURCE FILE: '+new URL(it.url,location.href).href:'* DRAWN ANIMATION: render it from the DRAWN tab');L.push('');rec+=e.dur;});
+ L.push('* 24 FPS RECORD TIMELINE. ORDER: '+(WG.free?'CELL ORDER (FREE BOARD)':'MOVE ORDER')+'. EXACT SECONDS ARE IN THE JSON.');return L.join('\n');}
+function editJSON(E=edit()){return {name:'WAR GAMES · LAST MOVE',created:new Date().toISOString(),order:WG.free?'cells':'moves',duration:+editLength(E).toFixed(3),shots:E.map(e=>({index:e.i+1,side:e.side,cell:e.cell+1,source:e.k.src,name:e.item?.name,url:e.item?.url?new URL(e.item.url,location.href).href:null,in:e.k.in,out:e.k.out,record_in:+e.start.toFixed(3),record_out:+(e.start+e.dur).toFixed(3)}))};}
+function exportEDL(){const E=edit();if(!E.length)return note('No shots on the board yet.','EDL');const t=edlText(E);download(t,'wargames-cut.edl','text/plain');setTimeout(()=>download(JSON.stringify(editJSON(E),null,2),'wargames-cut.json','application/json'),400);navigator.clipboard?.writeText(t).catch(()=>{});note('EDL ('+E.length+' shots) and JSON saved; EDL copied.','EDL');}
 
-/* ---------- inputs: mouse / touch on the wall, and the hand cursor ---------- */
-(function(){const cv=$('#view');let drag=false;
- const at=e=>{const r=cv.getBoundingClientRect();return wallPoint(e.clientX-r.left,e.clientY-r.top);};
- cv.addEventListener('pointerdown',e=>{if(!cutMode()||RUN.on)return;const p=at(e);const zn=p&&zoneAt(p.x,p.y);if(!zn)return;e.stopImmediatePropagation();e.preventDefault();drag=true;CUT.ptr={...p,down:true};try{cv.setPointerCapture(e.pointerId);}catch(_){}hover(zn,false);press(zn,performance.now());},true);
- cv.addEventListener('pointermove',e=>{if(!cutMode())return;const p=at(e);if(drag){e.stopImmediatePropagation();if(p){CUT.ptr={...p,down:true};const zn=CUT.mark?{z:'band',u:Math.max(0,Math.min(1,(p.x-CZ.band.x)/CZ.band.w))}:zoneAt(p.x,p.y);hover(zn,true);}return;}
-  if(e.pointerType==='mouse'){CUT.ptr=p?{...p,down:false}:null;if(!S.tx)hover(p&&zoneAt(p.x,p.y),false);}},true);
- const up=e=>{if(!drag)return;drag=false;e.stopImmediatePropagation();const p=at(e);release(p&&zoneAt(p.x,p.y));if(e.pointerType!=='mouse')CUT.ptr=null;else if(CUT.ptr)CUT.ptr.down=false;};
- cv.addEventListener('pointerup',up,true);cv.addEventListener('pointercancel',up,true);
- cv.addEventListener('wheel',e=>{if(!cutMode())return;const p=at(e);if(p&&inR(CZ.lib,p.x,p.y)){e.preventDefault();e.stopImmediatePropagation();CUT.scroll=Math.max(0,Math.min(maxScroll(),CUT.scroll+e.deltaY/120));}},{capture:true,passive:false});})();
-function maxScroll(){return Math.max(0,Math.ceil(libList().length/3)-(CZ.lib.h-36)/ROWH);}
-function handTick(now){const t=H.active?(H.tracks.find(t=>t.id===H.owner)||H.tracks[0]):null;if(!t||!t.point||now-(t.seen||0)>400){if(CUT.hand?.closed&&CUT.mark)release(null);CUT.hand=null;return;}
- const r=$('#stage').getBoundingClientRect(),p=wallPoint(t.point.x*r.width,t.point.y*r.height),was=CUT.hand?.closed;
- CUT.hand=p?{...p,closed:!!t.closed}:{closed:!!t.closed,off:true};if(S.tx&&!CUT.mark)return;
- if(!p){if(was&&!t.closed)release(null);return;}
- const zn=CUT.mark?{z:'band',u:Math.max(0,Math.min(1,(p.x-CZ.band.x)/CZ.band.w))}:zoneAt(p.x,p.y);
- hover(zn,!!t.closed);if(t.closed&&!was)press(zn,now);if(!t.closed&&was)release(zn);}
-
-/* ---------- per-frame ---------- */
+/* ---------- per frame ---------- */
 function cutTick(now){
- if(CUT.digDir){CUT.scroll=Math.max(0,Math.min(maxScroll(),CUT.scroll+CUT.digDir*.06));}
+ if(CUT.digDir)CUT.scroll=Math.max(0,Math.min(maxScroll(),CUT.scroll+CUT.digDir*.06));
  const it=CUT.hover>=0?libList()[CUT.hover]:null;
- if(it){load(CV.hov,it.url);if(CV.hov.duration)seekTo(CV.hov,CUT.hoverU*(CV.hov.duration-.05));if(!CV.hov.paused)CV.hov.pause();}
- tickProg();renderFrame();}
+ if(it&&it.url){load(CV.hov,it.url);if(CV.hov.duration)seekTo(CV.hov,CUT.hoverU*(CV.hov.duration-.05));if(!CV.hov.paused)CV.hov.pause();}
+ tickProg(now);renderFrame();}
 
-/* ---------- drawing the wall ---------- */
+/* ---------- the wall ---------- */
+function label(x,t,px,py,col=INK,size=11,align='left',weight=500){x.font=weight+' '+size+'px ui-monospace,monospace';x.fillStyle=col;x.textAlign=align;x.fillText(t,px,py);x.textAlign='left';}
 function drawCut(x,W,H,now){
- const E=edit(),total=editLength(E);
- header(x,W,'CUT ROOM · '+(CUT.view==='edit'?'EDIT':CUT.item?'SOURCE · '+CUT.item.name:'SOURCE'),'EDIT '+E.length+' TAKES · '+short(total)+(CUT.rendering?'   ● REC':''));
- // VIEW
- const V0=CZ.view;x.fillStyle='#000';x.fillRect(V0.x,V0.y,V0.w,V0.h);let drawn=false;
- if(CUT.view==='edit'){const v=progVideo(Math.max(0,CUT.prog.i));if(v.readyState>=2)drawn=cover(x,v,V0.x,V0.y,V0.w,V0.h);}
- else if(CUT.item){if(CV.src.readyState>=2)drawn=cover(x,CV.src,V0.x,V0.y,V0.w,V0.h);if(!drawn){const im=img(CUT.item.thumb);if(ready(im))drawn=cover(x,im,V0.x,V0.y,V0.w,V0.h,.6);}}
- if(!drawn){x.fillStyle=PH;x.font='500 20px ui-monospace,monospace';x.textAlign='center';x.fillText(CUT.view==='edit'?'LOADING THE EDIT':'PICK FOOTAGE ON THE RIGHT',V0.x+V0.w/2,V0.y+V0.h/2-8);x.font='400 14px ui-monospace,monospace';x.fillStyle=INK;x.fillText(CUT.view==='edit'?'':'move across a clip to skim it · pinch or tap to load it',V0.x+V0.w/2,V0.y+V0.h/2+18);x.textAlign='left';}
- const cur=CUT.view==='edit'?CUT.prog.t:CV.src.currentTime||0,len=CUT.view==='edit'?total:curDur();
- x.fillStyle='rgba(1,6,4,.7)';x.fillRect(V0.x,V0.y+V0.h-26,V0.w,26);x.font='500 14px ui-monospace,monospace';x.fillStyle=AM;x.fillText(tc(cur)+' / '+tc(len),V0.x+10,V0.y+V0.h-8);
- x.textAlign='right';x.fillStyle=INK;const playing=CUT.view==='edit'?CUT.prog.on:!CV.src.paused;x.fillText((playing?'PLAYING':'PAUSED')+' · PINCH TO '+(playing?'PAUSE':'PLAY'),V0.x+V0.w-10,V0.y+V0.h-8);x.textAlign='left';
- x.strokeStyle=CUT.view==='edit'?AM:'rgba(74,246,195,.5)';x.lineWidth=2;x.strokeRect(V0.x,V0.y,V0.w,V0.h);
- // SCRUB BAND
- const B=CZ.band;x.fillStyle='#06120e';x.fillRect(B.x,B.y,B.w,B.h);
- if(CUT.view==='edit'&&total){E.forEach((e,n)=>{const a=B.x+e.start/total*B.w,w=e.dur/total*B.w;x.fillStyle=n%2?'#16352b':'#1f4a3c';x.fillRect(a,B.y,w-1,B.h);const im=e.k.thumb?img(e.k.thumb):img(e.item?.thumb);if(ready(im)&&w>30){x.save();x.beginPath();x.rect(a,B.y,w-1,B.h);x.clip();cover(x,im,a,B.y,Math.max(w-1,60),B.h,.45);x.restore();}x.fillStyle=INK;x.font='600 12px ui-monospace,monospace';if(w>16)x.fillText(String(n+1),a+4,B.y+14);});}
- else if(len){const own=E.filter(e=>e.k.src===CUT.item.src);for(const e of own){x.fillStyle='rgba(74,246,195,.25)';x.fillRect(B.x+e.k.in/len*B.w,B.y,(e.k.out-e.k.in)/len*B.w,B.h);}
-  x.fillStyle='rgba(223,247,240,.35)';for(let s=0;s<=len;s+=len>20?5:1)x.fillRect(B.x+s/len*B.w,B.y+B.h-7,1,7);
-  if(CUT.mark){const a=Math.min(CUT.mark.t0,CUT.mark.t1),b=Math.max(CUT.mark.t0,CUT.mark.t1);x.fillStyle='rgba(232,192,112,.55)';x.fillRect(B.x+a/len*B.w,B.y,Math.max(2,(b-a)/len*B.w),B.h);x.fillStyle=AM;x.font='600 12px ui-monospace,monospace';x.fillText('IN '+short(a)+'  OUT '+short(b)+'  '+(b-a).toFixed(1)+' s',B.x+6,B.y-5);}}
- if(len){x.fillStyle='#fff';x.fillRect(B.x+cur/len*B.w-1,B.y-3,2,B.h+6);}
- x.strokeStyle='rgba(74,246,195,.5)';x.lineWidth=1.5;x.strokeRect(B.x,B.y,B.w,B.h);
- if(!CUT.mark){x.font='500 11px ui-monospace,monospace';x.fillStyle='rgba(223,247,240,.7)';x.textAlign='right';x.fillText(CUT.view==='edit'?'SCRUB THE EDIT':'SCRUB · PINCH AND DRAG TO CUT A TAKE',B.x+B.w-4,B.y-5);x.textAlign='left';}
- // TABS + DIG
- const T=CZ.tabs,tw=T.w/3;TABS.forEach(([g,n],i)=>{const on=CUT.group===g;x.fillStyle=on?PH:'#0b1a16';x.fillRect(T.x+i*tw+1,T.y,tw-2,T.h);x.fillStyle=on?'#04100c':INK;x.font='600 12px ui-monospace,monospace';x.textAlign='center';x.fillText(n+' '+CUTLIB[g].length,T.x+i*tw+tw/2,T.y+17);x.textAlign='left';});
+ const E=edit(),view=CUT.view;
+ header(x,W,'CUT · '+(view==='frames'?'DRAW · '+anim().name:view==='edit'?'EDIT · '+(WG.free?'CELL ORDER':'MOVE ORDER'):CUT.item?'SOURCE · '+CUT.item.name:'SOURCE'),E.length+' SHOTS · '+short(editLength(E))+(CUT.rendering?'   REC':''));
+ const V0=CZ.view;x.fillStyle='#000';x.fillRect(V0.x,V0.y,V0.w,V0.h);
+ if(view==='frames')drawFrames(x,now);
+ else{let drawn=false;
+  if(view==='edit'){const P=program(),e=P[Math.max(0,CUT.prog.i)];drawn=drawSeg(x,e,CUT.prog.t,V0);}
+  else if(CUT.item){if(CV.src.readyState>=2)drawn=cover(x,CV.src,V0.x,V0.y,V0.w,V0.h);if(!drawn){const im=img(CUT.item.thumb);if(ready(im))drawn=cover(x,im,V0.x,V0.y,V0.w,V0.h,.6);}}
+  if(!drawn){label(x,view==='edit'?'NO SHOTS YET':'PICK FOOTAGE ON THE RIGHT',V0.x+V0.w/2,V0.y+V0.h/2-8,PH,20,'center');label(x,view==='edit'?'every piece on the board is a shot: X yours, O WOPR\'s':'move across a clip to skim it · pinch to load · two fingers to copy it as a take',V0.x+V0.w/2,V0.y+V0.h/2+18,INK,13,'center',400);}
+  const B=bandMap(),cur=B.kind==='program'?CUT.prog.t:CV.src.currentTime||0;
+  x.fillStyle='rgba(1,6,4,.7)';x.fillRect(V0.x,V0.y+V0.h-26,V0.w,26);label(x,tc(cur)+' / '+tc(B.len||0),V0.x+10,V0.y+V0.h-8,AM,14);
+  const playing=view==='edit'?CUT.prog.on:!CV.src.paused;label(x,(playing?'PLAYING':'PAUSED')+' · PINCH TO '+(playing?'PAUSE':'PLAY')+' · TWO FINGERS COPY THE FRAME TO A SHEET',V0.x+V0.w-10,V0.y+V0.h-8,INK,11,'right');
+  if(view==='edit'){const e=program()[CUT.prog.i];if(e){x.fillStyle=e.side==='O'?'#e0523c':'#3b82f6';x.fillRect(V0.x,V0.y,30,20);label(x,e.side+(e.i+1),V0.x+5,V0.y+15,'#fff',13,'left',700);}}}
+ x.strokeStyle=view==='source'?'rgba(74,246,195,.5)':AM;x.lineWidth=2;x.strokeRect(V0.x,V0.y,V0.w,V0.h);
+ drawBand(x);drawLib(x);
+ const hc=CUT.hand;if(hc){x.save();x.strokeStyle=hc.closed?AM:PH;x.fillStyle=hc.closed?'rgba(232,192,112,.5)':'rgba(74,246,195,.12)';x.lineWidth=3;x.beginPath();x.arc(hc.x,hc.y,hc.closed?9:15,0,Math.PI*2);x.fill();x.stroke();
+  if(CUT.gestProg>0){x.strokeStyle=AM;x.lineWidth=4;x.beginPath();x.arc(hc.x,hc.y,22,-Math.PI/2,-Math.PI/2+CUT.gestProg*Math.PI*2);x.stroke();label(x,CUT.gestName,hc.x+26,hc.y+4,AM,12,'left',700);}x.restore();}
+ if(CUT.grip){label(x,'DEPTH',CZ.view.x+CZ.view.w-60,CZ.view.y+14,AM,11,'left',700);}
+ if(CUT.rendering){const p=Math.min(1,CUT.prog.t/Math.max(.1,CUT.rendering.total));x.fillStyle=RD;x.fillRect(V0.x,V0.y,V0.w*p,4);}}
+function drawFrames(x,now){const a=anim(),i=CUT.frame,n=a.frames.length;
+ // tools as words on a line
+ TOOLS.forEach(([k,t],j)=>{const tx=CZ.view.x+j*78;x.strokeStyle='rgba(74,246,195,.5)';x.lineWidth=1;x.strokeRect(tx+2,CZ.view.y+3,74,14);label(x,t,tx+39,CZ.view.y+14,k==='delete'?'#ff9b7c':INK,10,'center',600);});
+ label(x,'SHEET '+(i+1)+' / '+n+' · '+a.fps+' FPS',CZ.view.x+CZ.view.w-8,CZ.view.y+14,AM,11,'right',600);
+ // the sheets behind, in depth
+ for(let k=Math.min(3,n-1-i);k>=1;k--){const r={x:SHEET.x+k*9,y:SHEET.y-k*6,w:SHEET.w,h:SHEET.h};x.save();x.globalAlpha=.18+.1*(3-k);drawSheet(x,a,i+k,r,{refAlpha:.3});x.restore();x.strokeStyle='rgba(74,246,195,.35)';x.strokeRect(r.x,r.y,r.w,r.h);}
+ drawSheet(x,a,i,SHEET,{onion:!CUT.prog.on});
+ if(CUT.draw)drawStrokes(x,[{w:3,pts:CUT.draw.pts}],SHEET,'#101418',1,1);
+ x.strokeStyle=AM;x.lineWidth=2;x.strokeRect(SHEET.x,SHEET.y,SHEET.w,SHEET.h);
+ if(!a.frames.some(f=>f.strokes.length||f.ref))label(x,'PINCH AND DRAG TO DRAW · THUMB UP FOR THE NEXT SHEET · SECOND HAND MOVES THROUGH THE SHEETS',SHEET.x+SHEET.w/2,SHEET.y+SHEET.h-12,'#6b6355',11,'center',500);
+ // rail: one mark per sheet
+ const w=railWindow();x.fillStyle='#020906';x.fillRect(RAIL.x-2,RAIL.y-2,RAIL.w+4,RAIL.h+4);
+ for(let j=0;j<w.per;j++){const fi=w.s+j,y=RAIL.y+j*22;if(fi>w.n)break;if(fi===w.n){x.strokeStyle='rgba(74,246,195,.7)';x.lineWidth=2;x.beginPath();x.moveTo(RAIL.x+RAIL.w/2-6,y+9);x.lineTo(RAIL.x+RAIL.w/2+6,y+9);x.moveTo(RAIL.x+RAIL.w/2,y+3);x.lineTo(RAIL.x+RAIL.w/2,y+15);x.stroke();break;}
+  const on=fi===i,f=a.frames[fi];x.fillStyle=on?AM:f.strokes.length?'#1f4a3c':'#0b1a16';x.fillRect(RAIL.x,y,RAIL.w,18);label(x,String(fi+1),RAIL.x+RAIL.w/2,y+13,on?'#04100c':INK,10,'center',600);}}
+function drawBand(x){const B0=CZ.band,M=bandMap();x.fillStyle='#06120e';x.fillRect(B0.x,B0.y,B0.w,B0.h);const len=M.len;
+ if(M.kind==='program'){const P=program(),tot=progLength(P);if(tot){P.forEach((e,n)=>{const a=B0.x+e.start/tot*B0.w,w=e.dur/tot*B0.w;x.fillStyle=n%2?'#16352b':'#1f4a3c';x.fillRect(a,B0.y,w-1,B0.h);if(e.type==='v'){const im=img(e.k.thumb||e.item.thumb);if(ready(im)&&w>24){x.save();x.beginPath();x.rect(a,B0.y,w-1,B0.h);x.clip();cover(x,im,a,B0.y,Math.max(w-1,60),B0.h,.45);x.restore();}}
+   if(e.side){x.fillStyle=e.side==='O'?'#e0523c':'#3b82f6';x.fillRect(a,B0.y+B0.h-3,w-1,3);}if(w>18)label(x,(e.side||'')+(e.type==='a'&&CUT.view==='frames'?'':String(n+1)),a+4,B0.y+13,INK,11,'left',600);});
+   if(CUT.view==='frames'){const A=anim(),f=A.frames.length;for(let k=1;k<f;k++){x.fillStyle='rgba(0,0,0,.5)';x.fillRect(B0.x+k/f*B0.w,B0.y,1,B0.h);}}
+   if(CUT.mark&&CUT.mark.anim){const a=Math.min(CUT.mark.t0,CUT.mark.t1),b=Math.max(CUT.mark.t0,CUT.mark.t1);x.fillStyle='rgba(232,192,112,.55)';x.fillRect(B0.x+a/tot*B0.w,B0.y,(b-a)/tot*B0.w,B0.h);}
+   x.fillStyle='#fff';x.fillRect(B0.x+CUT.prog.t/tot*B0.w-1,B0.y-3,2,B0.h+6);}
+  label(x,CUT.view==='frames'?'SCRUB THE SHEETS · PINCH AND DRAG TO CUT THEM INTO A TAKE BRICK':'SCRUB THE EDIT',B0.x+B0.w-4,B0.y-5,'rgba(223,247,240,.7)',11,'right');}
+ else if(len){const E=edit();if(M.kind==='source'&&CUT.item)for(const e of E.filter(e=>e.k.src===CUT.item.src)){x.fillStyle='rgba(74,246,195,.22)';x.fillRect(B0.x+e.k.in/len*B0.w,B0.y,(e.k.out-e.k.in)/len*B0.w,B0.h);}
+  x.fillStyle='rgba(223,247,240,.35)';for(let s=0;s<=len;s+=len>20?5:1)x.fillRect(B0.x+s/len*B0.w,B0.y+B0.h-7,1,7);
+  if(M.kind==='trim'){const a=M.k.in/len,b=M.k.out/len;x.fillStyle='rgba(0,0,0,.55)';x.fillRect(B0.x,B0.y,a*B0.w,B0.h);x.fillRect(B0.x+b*B0.w,B0.y,(1-b)*B0.w,B0.h);
+   for(const u of [a,b]){x.fillStyle=AM;x.fillRect(B0.x+u*B0.w-2,B0.y-6,4,B0.h+12);}label(x,'TRIM '+M.it.name+' · IN '+short(M.k.in)+' · OUT '+short(M.k.out)+' · GRAB A LINE',B0.x+4,B0.y-5,AM,11,'left',600);}
+  if(CUT.mark&&!CUT.mark.anim){const a=Math.min(CUT.mark.t0,CUT.mark.t1),b=Math.max(CUT.mark.t0,CUT.mark.t1);x.fillStyle='rgba(232,192,112,.55)';x.fillRect(B0.x+a/len*B0.w,B0.y,Math.max(2,(b-a)/len*B0.w),B0.h);label(x,'IN '+short(a)+'  OUT '+short(b)+'  '+(b-a).toFixed(1)+' s',B0.x+6,B0.y-5,AM,12,'left',600);}
+  const cur=M.kind==='trim'&&M.it.anim?CUT.frame/(M.it.anim.fps||FPS):CV.src.currentTime||0;x.fillStyle='#fff';x.fillRect(B0.x+cur/len*B0.w-1,B0.y-3,2,B0.h+6);
+  if(M.kind==='source'&&!CUT.mark)label(x,'SCRUB · PINCH AND DRAG TO CUT A TAKE BRICK',B0.x+B0.w-4,B0.y-5,'rgba(223,247,240,.7)',11,'right');}
+ x.strokeStyle='rgba(74,246,195,.5)';x.lineWidth=1.5;x.strokeRect(B0.x,B0.y,B0.w,B0.h);}
+function drawLib(x){const T=CZ.tabs,tw=T.w/4;TABS.forEach(([g,n],i)=>{const on=CUT.group===g;x.fillStyle=on?PH:'#0b1a16';x.fillRect(T.x+i*tw+1,T.y,tw-2,T.h);label(x,n+' '+(g==='a'?ANIMS.length:CUTLIB[g].length),T.x+i*tw+tw/2,T.y+17,on?'#04100c':INK,11,'center',600);});
  const Lz=CZ.lib,list=libList();x.save();x.beginPath();x.rect(Lz.x,Lz.y,Lz.w,Lz.h);x.clip();x.fillStyle='#020906';x.fillRect(Lz.x,Lz.y,Lz.w,Lz.h);
  const r0=Math.floor(CUT.scroll),off=(CUT.scroll-r0)*ROWH;
  for(let r=r0;r<r0+6;r++)for(let c=0;c<3;c++){const i=r*3+c;if(i>=list.length)break;const it=list[i],cx=Lz.x+c*(CELLW+CELLGX),cy=Lz.y+18+(r-r0)*ROWH-off;if(cy>Lz.y+Lz.h)continue;
-  const hov=i===CUT.hover,cur2=CUT.item&&CUT.item.src===it.src;let ok=false;if(hov&&CV.hov.dataset.src===it.url&&CV.hov.readyState>=2)ok=cover(x,CV.hov,cx,cy,CELLW,CELLH);if(!ok){const im=img(it.thumb);if(ready(im))cover(x,im,cx,cy,CELLW,CELLH,hov?1:.8);else{x.fillStyle='#0b1a16';x.fillRect(cx,cy,CELLW,CELLH);}}
+  const hov=i===CUT.hover,cur=CUT.item&&CUT.item.src===it.src||(it.anim&&CUT.view==='frames'&&anim()===it.anim);
+  if(it.isNew){x.strokeStyle=hov?PH:'rgba(74,246,195,.4)';x.lineWidth=2;x.strokeRect(cx,cy,CELLW,CELLH);x.beginPath();x.moveTo(cx+CELLW/2-12,cy+CELLH/2-6);x.lineTo(cx+CELLW/2+12,cy+CELLH/2-6);x.moveTo(cx+CELLW/2,cy+CELLH/2-18);x.lineTo(cx+CELLW/2,cy+CELLH/2+6);x.stroke();label(x,'NEW ANIMATION',cx+CELLW/2,cy+CELLH-6,INK,10,'center');continue;}
+  let ok=false;if(hov&&it.url&&CV.hov.dataset.src===it.url&&CV.hov.readyState>=2)ok=cover(x,CV.hov,cx,cy,CELLW,CELLH);
+  if(!ok&&hov&&it.anim){drawSheet(x,it.anim,Math.floor(CUT.hoverU*it.anim.frames.length),{x:cx,y:cy,w:CELLW,h:CELLH});ok=true;}
+  if(!ok){const im=img(it.thumb);if(ready(im))cover(x,im,cx,cy,CELLW,CELLH,hov?1:.8);else{x.fillStyle='#0b1a16';x.fillRect(cx,cy,CELLW,CELLH);}}
   if(hov){x.fillStyle=AM;x.fillRect(cx+CUT.hoverU*CELLW-1,cy,2,CELLH);}
-  x.strokeStyle=cur2?AM:hov?PH:'rgba(74,246,195,.25)';x.lineWidth=cur2||hov?3:1;x.strokeRect(cx,cy,CELLW,CELLH);
-  x.fillStyle='rgba(1,6,4,.75)';x.fillRect(cx,cy+CELLH-15,CELLW,15);x.fillStyle=INK;x.font='500 10px ui-monospace,monospace';let nm=it.name;while(x.measureText(nm).width>CELLW-6&&nm.length>3)nm=nm.slice(0,-2);x.fillText(nm,cx+3,cy+CELLH-4);}
+  x.strokeStyle=cur?AM:hov?PH:'rgba(74,246,195,.25)';x.lineWidth=cur||hov?3:1;x.strokeRect(cx,cy,CELLW,CELLH);
+  x.fillStyle='rgba(1,6,4,.75)';x.fillRect(cx,cy+CELLH-15,CELLW,15);x.font='500 10px ui-monospace,monospace';let nm=it.name+(it.anim?' · '+it.anim.frames.length:'');while(x.measureText(nm).width>CELLW-6&&nm.length>3)nm=nm.slice(0,-2);label(x,nm,cx+3,cy+CELLH-4,INK,10);}
  const tri=(cy,up)=>{x.fillStyle=CUT.digDir===(up?-1:1)?AM:'rgba(74,246,195,.6)';x.beginPath();const cx=Lz.x+Lz.w/2;x.moveTo(cx-10,cy+(up?5:-5));x.lineTo(cx+10,cy+(up?5:-5));x.lineTo(cx,cy+(up?-4:4));x.closePath();x.fill();};
  x.fillStyle='rgba(2,9,6,.92)';x.fillRect(Lz.x,Lz.y,Lz.w,16);x.fillRect(Lz.x,Lz.y+Lz.h-16,Lz.w,16);if(CUT.scroll>0)tri(Lz.y+8,true);if(CUT.scroll<maxScroll())tri(Lz.y+Lz.h-8,false);
- x.font='500 10px ui-monospace,monospace';x.fillStyle='rgba(223,247,240,.6)';x.fillText('DIG · hold at the edge to scroll',Lz.x+4,Lz.y+11);x.restore();
- // hand / pointer cursor
- const hc=CUT.hand&&!CUT.hand.off?CUT.hand:null;if(hc){x.save();x.strokeStyle=hc.closed?AM:PH;x.fillStyle=hc.closed?'rgba(232,192,112,.5)':'rgba(74,246,195,.15)';x.lineWidth=3;x.beginPath();x.arc(hc.x,hc.y,hc.closed?11:15,0,Math.PI*2);x.fill();x.stroke();x.restore();}
- if(CUT.rendering){const p=Math.min(1,CUT.prog.t/Math.max(.1,CUT.rendering.total));x.fillStyle=RD;x.fillRect(V0.x,V0.y,V0.w*p,4);}
-}
+ label(x,'DIG · hold at the edge to scroll · two fingers copy a whole clip',Lz.x+4,Lz.y+11,'rgba(223,247,240,.6)',10);x.restore();}
 
-/* ---------- the timeline lanes on the plate, and take-brick decals ---------- */
-const railCanvas=document.createElement('canvas');railCanvas.width=1024;railCanvas.height=256;
-(function(){const x=railCanvas.getContext('2d');x.clearRect(0,0,1024,256);x.fillStyle='rgba(3,17,12,.62)';x.fillRect(0,0,1024,256);const sx=v=>(v+360)/720*1024,sz=z=>(z-(LANES[0]-40))/140*256;
- LANES.forEach((z,k)=>{x.strokeStyle='rgba(74,246,195,.8)';x.lineWidth=3;x.setLineDash([12,8]);x.strokeRect(sx(-356),sz(z-26),sx(356)-sx(-356),sz(z+26)-sz(z-26));x.setLineDash([]);
-  SLOTX.forEach((sxv,i)=>{x.fillStyle='rgba(74,246,195,.35)';x.font='600 18px ui-monospace,monospace';x.fillText(String(k*8+i+1),sx(sxv-40)+4,sz(z-26)+20);});});
- x.fillStyle='rgba(232,192,112,.9)';x.font='700 22px ui-monospace,monospace';x.fillText('TIMELINE  LANE 1, THEN LANE 2, LEFT TO RIGHT',sx(-356),sz(LANES[1]+26)+26);})();
-const railTex=new THREE.CanvasTexture(railCanvas);railTex.encoding=THREE.sRGBEncoding;
-const railMesh=new THREE.Mesh(new THREE.PlaneGeometry(720,140),new THREE.MeshBasicMaterial({map:railTex,transparent:true,depthWrite:false}));railMesh.rotation.x=-Math.PI/2;railMesh.position.set(0,.7,LANES[0]+30);railMesh.renderOrder=3;railMesh.visible=false;plate.add(railMesh);
-const playMark=new THREE.Mesh(new THREE.BoxGeometry(84,4,44),new THREE.MeshBasicMaterial({color:0xe8c070,transparent:true,opacity:.85,depthTest:false}));playMark.renderOrder=15;playMark.visible=false;plate.add(playMark);
+/* ---------- take bricks: the clip on top of the piece ---------- */
+const playMark=new THREE.Mesh(new THREE.TorusGeometry(26,2.2,6,32),new THREE.MeshBasicMaterial({color:0xe8c070,transparent:true,opacity:.95,depthTest:false}));playMark.rotation.x=-Math.PI/2;playMark.renderOrder=15;playMark.visible=false;plate.add(playMark);
 const takeTex=new Map();
-function takeTexture(p,n){const k=WG.meta[p.id].take,key=p.id+'|'+n+'|'+k.src+k.in+k.out;let t=takeTex.get(key);if(t)return t;const c=document.createElement('canvas');c.width=256;c.height=128;const x=c.getContext('2d'),it=CUTMAP.get(k.src);
- const paint=()=>{x.fillStyle='#111';x.fillRect(0,0,256,128);const im=img(k.thumb||it?.thumb);if(ready(im))cover(x,im,0,0,256,128,1);x.fillStyle='rgba(0,0,0,.6)';x.fillRect(0,0,256,30);x.fillRect(0,100,256,28);x.fillStyle=AM;x.font='700 22px ui-monospace,monospace';x.fillText(n>0?String(n):'—',8,23);x.fillStyle='#fff';x.font='500 18px ui-monospace,monospace';x.textAlign='right';x.fillText((k.out-k.in).toFixed(1)+' s',248,22);x.textAlign='left';x.font='500 15px ui-monospace,monospace';let nm=it?.name||k.src;while(x.measureText(nm).width>240&&nm.length>3)nm=nm.slice(0,-2);x.fillText(nm,8,120);t.needsUpdate=true;};
- t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;paint();const im=img(k.thumb||it?.thumb);if(im&&!ready(im))im.addEventListener('load',paint,{once:true});takeTex.set(key,t);return t;}
+function takeTexture(p,n){const k=WG.meta[p.id].take,side=kindOf(p),key=p.id+'|'+n+'|'+k.src+k.in+k.out+side;let t=takeTex.get(key);if(t)return t;const c=document.createElement('canvas');c.width=128;c.height=128;const x=c.getContext('2d'),it=itemOf(k.src);
+ t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;
+ const paint=()=>{x.fillStyle='#111';x.fillRect(0,0,128,128);const im=img(k.thumb||it?.thumb);if(ready(im))cover(x,im,0,0,128,128,1);x.fillStyle=side==='O'?'#e0523c':'#3b82f6';x.fillRect(0,0,128,26);x.fillStyle='#fff';x.font='700 20px ui-monospace,monospace';x.fillText(side+(n>0?n:''),6,20);x.textAlign='right';x.font='500 15px ui-monospace,monospace';x.fillText((k.out-k.in).toFixed(1)+'s',122,19);x.textAlign='left';t.needsUpdate=true;};
+ paint();const im=img(k.thumb||it?.thumb);if(im&&!ready(im))im.addEventListener('load',paint,{once:true});takeTex.set(key,t);if(takeTex.size>300)takeTex.delete(takeTex.keys().next().value);return t;}
 function decorateTakes(){const E=edit(),idx=new Map(E.map(e=>[e.p.id,e.i+1]));
- for(const p of S.parts){if(!isTake(p))continue;const n=idx.get(p.id)||0,k=WG.meta[p.id].take,want='take:'+n+':'+k.src+k.in+k.out;if(p.mesh.userData.wgKey===want)continue;
+ for(const p of S.parts){if(!isTake(p))continue;const n=idx.get(p.id)||0,k=WG.meta[p.id].take,want='take:'+n+':'+k.src+k.in+k.out+kindOf(p);if(p.mesh.userData.wgKey===want)continue;
   for(const ch of [...p.mesh.children])if(ch.userData.wgDeco)p.mesh.remove(ch);p.mesh.userData.wgKey=want;
-  const m=new THREE.Mesh(new THREE.PlaneGeometry(78,38),new THREE.MeshBasicMaterial({map:takeTexture(p,n),toneMapped:false}));m.rotation.x=-Math.PI/2;m.position.y=28.8;m.userData.wgDeco=true;m.renderOrder=6;p.mesh.add(m);}
- const e=CUT.prog.on||CUT.view==='edit'?E[CUT.prog.i]:null;if(e){playMark.visible=true;playMark.position.set(e.p.x,e.p.y+34,e.p.z);}else playMark.visible=false;}
-function adoptTakeCopies(){for(const p of S.parts){if(p.part!==TAKE_PART||WG.meta[p.id])continue;const twin=S.parts.find(q=>q!==p&&isTake(q)&&Math.abs(q.x-p.x)<1&&Math.abs(q.z-p.z)<1&&Math.abs(q.y-p.y)<1);if(twin){WG.meta[p.id]={take:{...WG.meta[twin.id].take}};persistWG();}}}
-let cutSaveAt=0,cutSig='';
-function saveCutRoom(now){if(now-cutSaveAt<3000)return;cutSaveAt=now;try{const sig=S.parts.map(p=>p.id+p.x+p.z).join();if(sig===cutSig)return;cutSig=sig;WG.cutDoc=ButterScenes.snapshot();persistWG();}catch(e){}}
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(38,38),new THREE.MeshBasicMaterial({map:takeTexture(p,n),toneMapped:false}));m.rotation.x=-Math.PI/2;m.position.y=29.2;m.userData.wgDeco=true;m.renderOrder=6;p.mesh.add(m);}
+ const e=cutMode()&&CUT.view==='edit'?program()[CUT.prog.i]:null;if(e&&e.p){playMark.visible=true;playMark.position.set(e.p.x,e.p.y+36,e.p.z);}else playMark.visible=false;}
+function adoptTakeCopies(){for(const p of S.parts){if(!kindOf(p)||WG.meta[p.id])continue;const twin=S.parts.find(q=>q!==p&&isTake(q)&&Math.abs(q.x-p.x)<1&&Math.abs(q.z-p.z)<1&&Math.abs(q.y-p.y)<1);if(twin){WG.meta[p.id]={take:{...WG.meta[twin.id].take,auto:false}};persistWG();}}}
+/* plain words instead of pictographs in the app's gesture cue */
+setTimeout(()=>{const s=document.querySelector('#gestureCue span');if(s)s.textContent='TOOL HAND: TWO FINGERS COPY · FIST HOLD · THUMB UP LAND · THUMB DOWN DELETE';},800);
 
 /* ---------------- scenes ---------------- */
 function sceneDoc(id){
@@ -19885,9 +20018,8 @@ function sceneDoc(id){
  const put=(part,color,x,z,src)=>{const pid=tag+(n++);parts.push({id:pid,part,color,x,y:0,z,r:0});if(src)meta[pid]={src};return pid;};
  const tray=(k=TRAY.length)=>{for(let i=0;i<k;i++)put(PIECE.X.part,PIECE.X.color,TRAY[i].x,TRAY[i].z);};
  const controls=()=>{[['new',-225],['first',-75],['dims',75],['learn',225]].forEach(([k,x])=>put(SCREEN_PART,0,x,-215,'c:'+k));};
- let start=null,name='',actors=[{kind:'citizen',x:-250,y:0,z:170,heading:0}];
- if(id==='wg-cut'){name='WarGames · Cut room';[['play',-225],['render',-75],['edl',75],['room',225]].forEach(([k,x])=>put(SCREEN_PART,0,x,-215,'c:'+k));[['wg_283',0,2.5],['wg_288',.4,2.5],['wg_296',0,2.5]].forEach(([c,a,b],i)=>{const pid=put(TAKE_PART,TAKE_COLOR,SLOTX[i],LANES[0]);meta[pid]={take:{src:'w:'+c,in:a,out:b}};});actors=[{kind:'citizen',x:-330,y:0,z:-60,heading:0}];}
- if(id==='wg-lastmove'){name='WarGames · Last Move room (3D)';tray();controls();put(SCREEN_PART,0,330,-330,'c:room');const a=put(SCREEN_PART,0,-180,-330,'l:title'),b=put(SCREEN_PART,0,0,-330,'l:board'),c=put(SCREEN_PART,0,180,-330,'l:result');edges.push({a,b,i:'CLICK'},{a:b,b:c,i:'END'},{a:c,b:a,i:'KEY'});start=a;}
+ let start=null,name='',actors=[{kind:'citizen',x:-300,y:0,z:60,heading:0}];
+ if(id==='wg-lastmove'||id==='wg-cut'){name=id==='wg-cut'?'WarGames · Last Move, cut wall':'WarGames · Last Move room (3D)';tray(10);controls();[['play',-210],['render',-70],['edl',70],['wall',210]].forEach(([k,x])=>put(SCREEN_PART,0,x,245,'c:'+k));}
  if(id==='wg-wopr'){name='WarGames · WOPR flow';tray();const ids=['sbd_0298','sbd_0394','wg_135','wg_277','wg_283','l:board','wg_288','wg_296'];const pos=[[-280,-320],[-140,-320],[0,-320],[140,-320],[280,-320],[-210,-190],[-70,-190],[70,-190]];let prev=null;ids.forEach((s,i)=>{const src=s.startsWith('l:')?s:'f:'+s;const pid=put(SCREEN_PART,0,pos[i][0],pos[i][1],src);if(prev)edges.push({a:prev,b:pid,i:src==='l:board'?'CLICK':WG_SRC(prev,meta)==='l:board'?'END':'WAIT'});else start=pid;prev=pid;});}
  if(id==='wg-milestones'){name='WarGames · Milestones flow';tray();const pos=[[-280,-320],[-140,-320],[0,-320],[140,-320],[280,-320],[-210,-190],[-70,-190]];let prev=null;MILESTONES.forEach((m,i)=>{const pid=put(SCREEN_PART,0,pos[i][0],pos[i][1],'m:'+m[0]);if(prev)edges.push({a:prev,b:pid,i:'WAIT'});else start=pid;prev=pid;});const b=put(SCREEN_PART,0,70,-190,'l:board');edges.push({a:prev,b,i:'CLICK'});}
  return {doc:{version:1,id,name,parts,actors,plateAngle:0},meta,flow:{edges,start}};
@@ -19898,14 +20030,13 @@ function gripPlane(){return window.ButterGrid?.primary?.()||S.plane;}
 function floorGrip(on){if(S.tx||typeof setPlane!=='function')return;setPlane(on?'xz':'xy');PANEL.render();}
 async function loadScene(id){
  const s=sceneDoc(id);if(!window.ButterScenes)return note('Scenes are not ready yet.','SCENE');
- if(id==='wg-cut'&&WG.cutDoc&&WG.cutDoc.parts?.some(p=>WG.meta[p.id]?.src==='c:play')){s.doc=WG.cutDoc;s.flow=WG.flow;}
  try{if(RUN.on)RUN.stop();if(G.learn)stopLearn();
   Object.assign(WG.meta,s.meta);
-  await ButterScenes.load(s.doc);WG.mode=id==='wg-cut'?'cut':'game';WG.flow=s.flow;cutSig='';viewShift='';floorGrip(true);G.seen='';G.cells=Array(NC).fill('#');G.gameCounted=false;persistWG();flowKey='';PANEL.render();dirty();
+  await ButterScenes.load(s.doc);if(id==='wg-cut'||id==='wg-lastmove')WG.face=id==='wg-cut'?'cut':'game';WG.order=[];WG.flow=s.flow;viewShift='';floorGrip(true);G.seen='';G.cells=Array(NC).fill('#');G.gameCounted=false;persistWG();flowKey='';PANEL.render();dirty();
   note(s.doc.name+' loaded. Undo restores your previous scene.','SCENE');
  }catch(e){note(e.message,'SCENE');}
 }
-for(const id of ['wg-lastmove','wg-cut','wg-wopr','wg-milestones']){const s=sceneDoc(id);ButterScenePresets.push({id,name:s.doc.name,description:'WAR GAMES · '+(id==='wg-lastmove'?'3D tic-tac-toe, controls as monitors.':id==='wg-cut'?'cut room: dig, scrub and cut footage into take bricks on a timeline.':id==='wg-wopr'?'film screens in film order, the live board, the ending screen.':'the seven milestone films chained into the live board.'),parts:s.doc.parts,actors:s.doc.actors});const o=document.createElement('option');o.value=id;o.textContent=s.doc.name;$('#scenePreset')?.appendChild(o);}
+for(const id of ['wg-lastmove','wg-cut','wg-wopr','wg-milestones']){const s=sceneDoc(id);ButterScenePresets.push({id,name:s.doc.name,description:'WAR GAMES · '+(id==='wg-lastmove'?'3D tic-tac-toe; every piece carries a clip; controls are monitors.':id==='wg-cut'?'the same room with the cut wall: dig, scrub, cut take bricks, draw sheets.':id==='wg-wopr'?'film screens in film order, the live board, the ending screen.':'the seven milestone films chained into the live board.'),parts:s.doc.parts,actors:s.doc.actors});const o=document.createElement('option');o.value=id;o.textContent=s.doc.name;$('#scenePreset')?.appendChild(o);}
 /* scenes loaded from the app's own picker also bring their screens and links:
    preset part ids are unique (wgL*, wgW*, wgM*), so their screens are registered up front,
    and the preset's links are adopted when its bricks appear without links. */
@@ -19941,14 +20072,14 @@ function placeView(){const st=$('#stage').getBoundingClientRect(),cue=$('#stageC
  if(mobile){const pr=PANEL.open?P.getBoundingClientRect():null,free=pr?Math.max(80,pr.top-st.top):st.height;
   plate.updateMatrixWorld(true);const zk=[st.width,st.height,free|0,ROOM.yaw|0,ROOM.pitch|0].join(',');
   if(zk!==viewShift||!camera.view?.enabled){camera.clearViewOffset();camera.updateProjectionMatrix();
-   const a=project(V(BOARD.x-290,0,BOARD.z+150)),b=project(V(BOARD.x+290,0,BOARD.z+150)),c=project(V(BOARD.x,90,-260));
+   const a=project(V(BOARD.x-290,0,BOARD.z+250)),b=project(V(BOARD.x+290,0,BOARD.z+250)),c=project(V(BOARD.x,90,-260));
    const z=Math.max(1,Math.min(1.8,(st.width*.98)/Math.max(1,Math.abs(b.x-a.x)))),w=st.width/z,h=st.height/z,mid=(c.y+a.y)/2;
    const ox=Math.max(0,Math.min(st.width-w,(a.x+b.x)/2-w/2)),oy=Math.max(0,Math.min(st.height-h,mid-free/2/z));
    camera.setViewOffset(st.width,st.height,ox,oy,w,h);camera.updateProjectionMatrix();viewShift=zk;}
   if(cue)cue.style.bottom=pr?(st.bottom-pr.top+8)+'px':'';
- }else if(!window.ButterEye?.active&&S.parts.some(isCtl)){const zk='d'+[st.width,st.height,ROOM.yaw|0,WG.mode].join(',');
+ }else if(!window.ButterEye?.active&&S.parts.some(isCtl)){const zk='d'+[st.width,st.height,ROOM.yaw|0,WG.face].join(',');
   if(zk!==viewShift||!camera.view?.enabled){camera.clearViewOffset();camera.updateProjectionMatrix();plate.updateMatrixWorld(true);ROOM.group.updateMatrixWorld(true);
-   const pts=(cutMode()?[V(-392,436,-400),V(392,436,-400),V(-240,0,LANES[1]+28),V(240,0,LANES[1]+28)]:[V(-392,430,-400),V(392,430,-400),V(-300,0,230),V(300,0,230),V(0,0,230)]).map(p=>p.y>400?project(ROOM.group.localToWorld(p.clone())):project(p));
+   const pts=[V(-392,436,-400),V(392,436,-400),V(-300,0,290),V(300,0,290),V(0,0,290)].map(p=>p.y>400?project(ROOM.group.localToWorld(p.clone())):project(p));
    const minx=Math.min(...pts.map(p=>p.x)),maxx=Math.max(...pts.map(p=>p.x)),miny=Math.min(...pts.map(p=>p.y)),maxy=Math.max(...pts.map(p=>p.y));
    const z=Math.max(1,Math.min(1.6,.96*Math.min(st.width/(maxx-minx),st.height/(maxy-miny)))),w=st.width/z,h=st.height/z;
    const ox=Math.max(0,Math.min(st.width-w,(minx+maxx)/2-w/2)),oy=Math.max(0,Math.min(st.height-h,(miny+maxy)/2-h/2));
@@ -19958,6 +20089,7 @@ function placeView(){const st=$('#stage').getBoundingClientRect(),cue=$('#stageC
 
 /* ---------------- panel ---------------- */
 const style=document.createElement('style');style.textContent=`
+#stageCue{bottom:auto!important;top:8px}
 #wgBtn{background:#06120e;border-color:#2b6a55;color:#4af6c3;font-family:ui-monospace,monospace;letter-spacing:.08em}#wgBtn[aria-pressed=true]{background:#4af6c3;color:#06120e;border-color:#4af6c3}
 #wgPanel{position:absolute;z-index:30;left:12px;top:44px;width:340px;max-height:calc(100% - 100px);display:flex;flex-direction:column;background:#071210f2;border:1px solid #2b6a55;border-radius:10px;color:#dff7f0;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;box-shadow:0 10px 30px #0008;overflow:hidden}
 #wgPanel[hidden]{display:none}#wgPanel header{height:auto;min-height:0;overflow:visible;flex-wrap:nowrap;display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid #1d3e34;background:#04100c}#wgPanel header b{color:#4af6c3;letter-spacing:.12em;font-size:11px;flex:1}
@@ -19977,15 +20109,15 @@ const PANEL={open:false,tab:'play',preview:null,group:'LAST MOVE',
   if(t==='play'){const T=WG.tally;body.innerHTML=`<div class="status">${G.learn?esc(G.say||''):esc(G.say||'Load the Last Move room, or set red bricks on the green board.')}</div>
    <div class="tally">${WG.dims===3?'3D · 27 CELLS · 49 LINES':'2D · 9 CELLS · 8 LINES'} · GAMES ${T.games} · X ${T.X} · O ${T.O} · DRAW ${T.D}</div>
    <div class="row"><button class="hi" data-a="new">New game</button><button data-a="addx">+ X brick</button>${G.status==='hold'?'<button class="hi" data-a="go">WOPR go</button>':''}<button data-a="first" class="${WG.woprFirst?'on':''}">WOPR first</button><button data-a="dims">${WG.dims===3?'Play 2D':'Play 3D'}</button><button data-a="learn" class="${G.learn?'on':''}">${G.learn?'Stop':'Zero players'}</button></div>
-   <div class="row"><button data-a="scene:wg-lastmove">Game room</button><button data-a="scene:wg-cut">Cut room</button><button data-a="grip">${gripPlane()==='xz'?'Grip: floor':'Grip: upright'}</button></div>
+   <div class="row"><button data-a="scene:wg-lastmove">Load the room</button><button data-a="grip">${gripPlane()==='xz'?'Grip: floor':'Grip: upright'}</button></div>
    <div class="help">The same controls stand in the room as four monitors behind the board: tap one to run it. Carry a red brick over a column; it rides on top of the stack there. Let go to drop it. WOPR answers with a green round brick.</div>`;}
   else if(t==='screens'){const groups=['LAST MOVE','CONTROLS','MILESTONES',...[...new Set(DATA.screens.map(s=>s.g))]];const items=this.items();
    body.innerHTML=`<div class="row"><select id="wgGroup" aria-label="Screen group">${groups.map(g=>`<option ${g===this.group?'selected':''}>${esc(g)}</option>`).join('')}</select><button class="hi" data-a="addscreen" ${this.preview?'':'disabled'}>+ Screen brick</button></div>
-   <div class="cards">${items.map(src=>{const i=srcInfo(src);return `<button class="card ${this.preview===src?'on':''}" data-src="${src}"><div class="im" style="${i.img?`background-image:url('${i.img}')`:''}">${i.kind==='lm'?esc(i.label.split(' · ')[1]):''}</div><small>${i.video?'<i>▶ </i>':''}${esc(i.label)}</small></button>`;}).join('')}</div>
+   <div class="cards">${items.map(src=>{const i=srcInfo(src);return `<button class="card ${this.preview===src?'on':''}" data-src="${src}"><div class="im" style="${i.img?`background-image:url('${i.img}')`:''}">${i.kind==='lm'?esc(i.label.split(' · ')[1]):''}</div><small>${i.video?'<i>CLIP </i>':''}${esc(i.label)}</small></button>`;}).join('')}</div>
    <div class="help">${this.preview?esc(srcInfo(this.preview).title||''):'Tap a screen to preview it on the back wall, then add it as a brick. '+items.length+' screens in this group.'}</div>`;}
   else{const edges=WG.flow.edges.filter(edgeOK);
    body.innerHTML=`<div class="row"><button class="${LINK.armed?'on':''}" data-a="link">${LINK.armed?(LINK.from?'Select target…':'Select source…'):'Link →'}</button><select id="wgInput" aria-label="Input on the link">${INPUTS.map(i=>`<option ${i===(this.lastInput||'CLICK')?'selected':''}>${i}</option>`).join('')}</select><button data-a="start">Start here</button><button data-a="unlink">Unlink</button></div>
-   <div class="row"><button data-a="chain">Chain by position</button><button class="hi" data-a="run">${RUN.on?'■ Stop':'▶ Run'}</button></div>
+   <div class="row"><button data-a="chain">Chain by position</button><button class="hi" data-a="run">${RUN.on?'Stop':'Run'}</button></div>
    ${RUN.on?`<div class="status">${esc(srcInfo(RUN.src()).label)}</div><div class="row go">${RUN.out().map((e,k)=>`<button data-go="${k}">${esc(e.i)} → ${esc(srcInfo(WG.meta[e.b].src).label.split(' · ').pop())}</button>`).join('')||'<span class="help">End of flow.</span>'}</div>`:''}
    <div class="row"><button data-a="undolink">Undo link</button><button data-a="table">Copy state table</button><button data-a="record">Copy run record</button></div>
    <div class="edges">${edges.length?edges.map(e=>`<div>${esc(srcInfo(WG.meta[e.a].src).label)} —${esc(e.i)}→ ${esc(srcInfo(WG.meta[e.b].src).label)}</div>`).join(''):'No links yet. Select a screen brick, tap Link, then select the next one. While running, selecting the next brick takes that link.'}</div>`;}
@@ -20026,17 +20158,16 @@ function frame(now){
  if(!S.ready&&!S.parts)return;
  try{
   if(now-(frame.lastAdopt||0)>500){frame.lastAdopt=now;adoptPresetFlow();}
-  if(now-(frame.lastMode||0)>400){frame.lastMode=now;const m=S.parts.some(p=>metaOf(p)?.src==='c:play')?'cut':'game';if(m!==WG.mode){WG.mode=m;dirty();if(m!=='cut'){pauseProg();CV.src.pause();}}}
   const CUTON=cutMode();
   adoptCopies();decorate();watchLink();watchCtl(now);
-  boardMesh.visible=trayMesh.visible=!CUTON;railMesh.visible=CUTON;
-  if(CUTON){adoptTakeCopies();decorateTakes();handTick(now);cutTick(now);saveCutRoom(now);}
-  if(!CUTON&&!S.tx&&!G.drop&&!G.learn){const cells=readBoard(),key=cells.join(',');if(key!==G.seen){G.seen=key;G.since=now;}else if(now-G.since>450&&key!==G.cells.join(','))judge(cells,now);}
+  syncOrder();adoptTakeCopies();decorateTakes();
+  if(CUTON){handTick(now);cutTick(now);}
+  if(!S.tx&&!G.drop&&!G.learn){const cells=readBoard(),key=cells.join(',');if(key!==G.seen){G.seen=key;G.since=now;}else if(now-G.since>450&&key!==G.cells.join(','))judge(cells,now);}
   if(G.status==='thinking'&&G.thinking&&!G.drop){if(G.peek===undefined||G.peek<0)G.peek=bestFor(G.cells,'O');if(now>=G.thinking){G.thinking=null;const i=G.peek;G.peek=-1;if(i!==undefined&&i>=0&&!G.cells[i])dropO(i);}boardDirty=true;}
   if(G.drop){const d=G.drop,k=Math.min(1,(now-d.t0)/560),e=1-Math.pow(1-k,3);d.mesh.position.set(d.x,d.y+(1-e)*230,d.z);d.mesh.rotation.y=(1-e)*1.6;if(k>=1)finishDrop();}
   if(G.lastMove>=0&&now-(G.flash||0)<200){const pool=G.lastKind==='X'?CLIPS.x:CLIPS.o;playVideo(VID.tile,LAB+'clips/'+pool[G.lastMove%pool.length]+'.mp4',false);}
   if(G.learn){for(let k=0;k<6&&G.learn&&G.learn.phase!=='end'&&now>=G.learn.next;k++)stepLearn(now);}
-  RUN.tick(now);updateFocus(now);drawFlow();updateBeam();lattice.visible=WG.dims===3&&!CUTON;if(CUTON)beam.visible=false;
+  RUN.tick(now);updateFocus(now);drawFlow();updateBeam();lattice.visible=WG.dims===3;
   if(now-(frame.lastCtl||0)>250){frame.lastCtl=now;refreshCtlTextures();}
   const lmKey=G.cells.join('')+G.status+WG.tally.games+WG.dims;if(lmKey!==lastLM){lastLM=lmKey;refreshLMTextures();}
   if(boardDirty||G.status==='thinking'){boardDirty=false;drawBoard(now);}
@@ -20047,9 +20178,9 @@ function frame(now){
  }catch(err){console.error('[WAR GAMES]',err);}
 }
 requestAnimationFrame(frame);
-window.WarGames={CUT,CV,edit,editLength,makeTake,pickSource,playProg,pauseProg,scrubProg,edlText,editJSON,renderEdit,zoneAt,press,hover,release,CUTLIB,switchRoom,G,WG,RUN,PANEL,loadScene,newGame,addX,addScreen,readBoard,stateTable,runRecord,startLearn,stopLearn,cellCenter,placePiece,bestFor,LINES3,setDims,runCtl,columnTop,cam:()=>CAM,camSource};
+window.WarGames={CUT,CV,edit,editLength,makeTake,pickSource,playProg,pauseProg,scrubProg,edlText,editJSON,renderEdit,zoneAt,press,hover,release,CUTLIB,setFace,setFree,ANIMS:()=>ANIMS,anim,newSheet,deleteSheet,undoDraw,frameToSheet,depthStep,runOp,program,syncOrder,boardPieces,G,WG,RUN,PANEL,loadScene,newGame,addX,addScreen,readBoard,stateTable,runRecord,startLearn,stopLearn,cellCenter,placePiece,bestFor,LINES3,setDims,runCtl,columnTop,cam:()=>CAM,camSource};
 document.title='WAG / HAND BUTTER · WAR GAMES';
-{const q=new URLSearchParams(location.search);if(q.has('cut'))setTimeout(()=>{if(!S.parts.some(p=>metaOf(p)?.src==='c:play'))loadScene('wg-cut');},500);else if(q.has('wargames'))setTimeout(()=>{if(!S.parts.some(isCtl))loadScene('wg-lastmove');},500);}
+{const q=new URLSearchParams(location.search);if(q.has('cut'))setTimeout(()=>{if(!S.parts.some(p=>metaOf(p)?.src==='c:wall'))loadScene('wg-cut');else setFace('cut');},500);else if(q.has('wargames'))setTimeout(()=>{if(!S.parts.some(isCtl))loadScene('wg-lastmove');},500);}
 })();
 
 </script>
