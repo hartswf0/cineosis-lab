@@ -59,6 +59,18 @@ ul,ol{padding-left:20px;max-width:76ch}li{margin:4px 0}code{background:var(--pan
 <h3>Registration</h3>
 <p>Calibrate asks for a pinch held 0.7 s over each of four corners, then the centre as a check the fit did not use. Both cameras record what they saw at each corner. B gets an affine map from its size-scaled image coordinates to the bed. A gets left/right from its image, depth from apparent size, and height relative to the calibration plane, corrected for its tilt. Simulated result: corner residual A 9 mm, B 0 mm; centre check A 6 mm, B 0 mm, combined 1–2 mm. The calibration has a revision number and is saved on the laptop.</p>
 
+<h2>A palm as a command: pick the camera, constrain the move</h2>
+<p>The two cameras see a palm differently, and that difference is the command. A hand lying flat over the phone shows camera B its whole palm (0.31 of a full palm in the simulation), while camera A sees it edge-on (0.02). A hand standing up with the palm toward the laptop shows the reverse (A 0.31, B 0.03). When the free hand holds either shape still for 0.3 s, the other hand's carry is constrained:</p>
+<div class="wrap"><table>
+<tr><th>Free hand</th><th>Read as</th><th>The carrying hand</th></tr>
+<tr><td>flat over the phone</td><td>palm seen whole by B, edge-on by A</td><td>works in the floor plane: its position is read by camera B, and its height is held</td></tr>
+<tr><td>standing, palm to the laptop</td><td>palm seen whole by A, edge-on by B</td><td>works in the laptop camera's plane: its position is read by camera A, and its depth is held (the brick slides along its row)</td></tr>
+<tr><td>lowered, closed, or moving</td><td>no command</td><td>both cameras, every axis</td></tr>
+</table></div>
+<p>Measured with simulated cameras: one hand carried the red brick while the other lay flat over the phone. The carrying hand rose and fell 100 mm, and the brick's height stayed fixed (0 mm range), read by B only, while left/right still followed the hand. Then the other hand stood up facing the laptop. The carrying hand moved 34 mm toward and away from the laptop, and the brick stayed in its row (one row), read by A only, while it slid five columns with the hand. One place command at the end. Script: <a href="source/palms-measure.py">palms-measure.py</a>.</p>
+<h3>Seeing the space you are working in</h3>
+<p>A small view in the corner of the laptop screen shows the shared space: the bed; each camera as a cone, A in lime and B in orange; the joint hand as a white sphere; each camera's own estimate of the hand as a small dot, with its line of sight from the camera, brighter for the camera with more weight; and the plane a palm command has chosen. The caption gives how closely the two cameras agree about the hand, for example "A and B agree within 6 mm in plan, 13 mm in height". If the gap grows, the calibration has drifted or a device has moved. The camera positions in this view are assumed, not measured.</p>
+<figure><img src="shots/palm-top.jpg" alt="Palm to the laptop"><figcaption>Palm to the laptop: the banner says the carrying hand now works in camera A's plane with depth held. The free hand is a blue disc standing toward the laptop, and the space view at top left shows the same thing in the cameras' frame.</figcaption></figure>
 <h2>Hand-off, blackout, crossing hands, gestures</h2>
 <div class="wrap"><table>
 <tr><th>Run (simulated cameras)</th><th>Measured result</th><th></th></tr>
@@ -112,7 +124,8 @@ ul,ol{padding-left:20px;max-width:76ch}li{margin:4px 0}code{background:var(--pan
 <li>The phone camera sees a cone above its lens. At the far end of a phone held sideways, an open hand is out of its view below about 25 cm, and only the laptop camera counts there.</li>
 <li>Bricks snap to studs in plan, and the height of a stack comes from what is under the footprint. Hand height is shown, but it does not set the level.</li>
 <li>The relay is public: anyone with the room code can read and send in that room.</li>
-<li>The film editor's Floor still uses its earlier, simpler hand-off. This model is the one to move into it next.</li>
+<li>The film editor's Floor still uses its earlier, simpler hand-off; the palm commands and this hand model are not in it yet. The natural mapping: the floor plane is the shot's ground (position and depth), and the laptop plane is the picture (x and y on screen).</li>
+<li>A palm command assumes the hand is held flat or upright; a tilted palm reads as neither, and nothing is constrained.</li>
 </ul>
 </main>
 </body>
