@@ -33,6 +33,10 @@ nav.modes button[aria-pressed=true]{background:var(--ink);color:var(--bg);border
 nav.modes kbd{font-size:10px;opacity:.6;margin-left:4px}
 main{flex:1 1 auto;display:grid;grid-template-columns:minmax(0,1fr) 350px;min-height:0}
 body.film main{grid-template-columns:1fr}
+body.floorb header,body.floorb aside,body.floorb .strip,body.floorb .chips,body.floorb .line,body.floorb .heard,body.floorb .srcbar,body.floorb .mode-tag{display:none!important}
+body.floorb main{grid-template-columns:1fr}body.floorb .col{padding:0}body.floorb .screen{border-radius:0}
+#floorUI{position:fixed;right:14px;bottom:14px;display:flex;gap:8px;z-index:20}#floorUI button{font-size:16px;padding:10px 18px;border-radius:22px;border:1px solid var(--rule);background:#14120fdd;color:var(--ink)}#floorUI button.go{background:#efa13a;color:#111;border-color:#efa13a}
+#qrBox{position:fixed;inset:0;z-index:92;background:#000c;display:grid;place-items:center}#qrBox>div{background:#f3eee4;color:#111;padding:18px;border-radius:8px;text-align:center;max-width:90vw}#qrBox p{font-size:12px;max-width:300px}
 body.film aside,body.film .strip,body.film .chips,body.film .line,body.film .heard,body.film .srcbar{display:none!important}
 .col{display:flex;flex-direction:column;padding:10px 14px 10px;min-width:0;min-height:0}
 .screen{position:relative;flex:1 1 auto;min-height:140px;background:#000;border-radius:4px;overflow:hidden}
@@ -52,6 +56,7 @@ body.film aside,body.film .strip,body.film .chips,body.film .line,body.film .hea
 .tile.lift{opacity:.35}
 .tile small{display:block;font-size:10.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
 .tile small b{color:var(--ink);font-weight:500}
+.tile .wb{position:absolute;right:4px;top:4px;background:#0b0a09cc;color:var(--blue,#85bdff);border:1px solid #85bdff;border-radius:3px;font-size:10px;padding:1px 6px}
 .tins{position:absolute;width:3px;background:var(--lime);border-radius:2px;pointer-events:none;z-index:5}
 .ghost{position:fixed;z-index:80;pointer-events:none;background:#14120fee;border:1px solid var(--lime);color:var(--ink);font-size:11.5px;padding:4px 8px;border-radius:4px;white-space:nowrap}
 .srcbar{flex:0 0 auto;margin-top:8px}
@@ -59,6 +64,9 @@ body.film aside,body.film .strip,body.film .chips,body.film .line,body.film .hea
 .band canvas{position:absolute;inset:0;width:100%;height:100%}
 .srcrow{display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}
 .srcrow .tc{margin-left:auto}
+.shut{position:relative;width:150px;height:30px;border:1px solid var(--rule);border-radius:15px;background:linear-gradient(90deg,transparent 46%,#2e2a26 46% 54%,transparent 54%);touch-action:none;cursor:ew-resize}
+.shut i{position:absolute;top:4px;bottom:4px;width:6px;margin-left:-3px;left:50%;background:var(--dim);border-radius:3px}
+.shut.on i{background:var(--lime)}
 .strip{position:relative;height:64px;margin-top:8px;background:var(--panel);border-radius:3px;flex:0 0 auto;touch-action:none;overflow:hidden}
 .strip .sh{position:absolute;top:0;bottom:0;border-right:2px solid var(--bg);cursor:grab;opacity:.78;overflow:hidden;background:#1a1815}
 .strip .sh.sel{opacity:1;box-shadow:inset 0 0 0 2px var(--lime)}
@@ -158,11 +166,11 @@ h3 button{background:none;border:0;color:var(--dim);font-size:11px;letter-spacin
 </header>
 <main>
   <section class="col">
-    <div class="screen" id="screen"><canvas id="cv" tabindex="0" aria-label="The picture"></canvas><span class="mode-tag" id="tag"></span><div class="table" id="table" hidden></div></div>
+    <div class="screen" id="screen"><canvas id="cv" tabindex="0" aria-label="The picture"></canvas><span class="mode-tag" id="tag"></span><div class="table" id="table" hidden></div><div class="table" id="wall" hidden></div></div>
     <div class="srcbar" id="srcbar" hidden>
       <div class="band" id="band"><canvas id="bandc"></canvas></div>
       <div class="srcrow"><button class="hb" id="sPlay">Play source</button><button class="hb" id="sIn" title="Mark in (I)">Mark in</button><button class="hb" id="sOut" title="Mark out (O)">Mark out</button>
-        <button class="hb pri" id="sIns" title="Put the marked take into the film after the selected shot">Insert after shot</button><button class="hb" id="sRep" title="The selected shot takes the marked interval instead">Replace shot</button><button class="hb" id="sTab" title="Keep the take on the table, outside the film">To table</button><span class="tc" id="sTc"></span></div>
+        <button class="hb pri" id="sIns" title="Put the marked take into the film after the selected shot">Insert after shot</button><button class="hb" id="sRep" title="The selected shot takes the marked interval instead">Replace shot</button><button class="hb" id="sTab" title="Keep the take on the table, outside the film">To table</button><button class="hb" id="sB" title="Keep this footage as B, to compare with the next one you open">Keep as B</button><div class="shut" id="shut" title="Shuttle: drag from the middle to play backward or forward; let go to stop. Keys J, K, L"><i id="shutK"></i></div><span class="tc" id="sTc"></span></div>
     </div>
     <div class="strip" id="strip" aria-label="The sequence"><div class="ph" id="ph"></div><div class="ins" id="ins" hidden></div></div>
     <div class="chips" id="chips"></div>
@@ -187,7 +195,7 @@ h3 button{background:none;border:0;color:var(--dim);font-size:11px;letter-spacin
 </main>
 <div id="pop" class="pop" hidden></div>
 <div id="prog" hidden><div><b id="progT">Rendering</b><i><b id="progB"></b></i><small id="progS" style="color:var(--dim)"></small><div style="margin-top:12px;text-align:right"><button class="hb" id="progX">Stop</button></div></div></div>
-<canvas id="hand"></canvas><video id="handVid" playsinline muted></video><canvas id="handPrev" hidden></canvas><div id="toast" hidden></div>
+<canvas id="hand"></canvas><video id="handVid" playsinline muted></video><canvas id="handPrev" hidden></canvas><div id="toast" hidden></div><div id="floorUI" hidden><button class="go" id="flPlace">Place</button><button id="flCancel">Cancel</button></div><div id="qrBox" hidden><div><b>Scan to use this phone as the Floorboard</b><div id="qrC" style="margin:12px auto;width:220px;height:220px"></div><p id="qrT"></p><button class="hb" id="qrX" style="color:#111">Close</button></div></div>
 <script src="thumbfix.js"></script>
 <script src="markov/engine.js?v=6"></script>
 <script src="markov/clip-text.js?v=5"></script>
@@ -207,7 +215,7 @@ const uid=()=>Math.random().toString(36).slice(2,8);
 const FPS=30,snapF=t=>Math.round(t*FPS)/FPS;
 let toastT=0;function toast(t,ms){const e=$('#toast');e.textContent=t;e.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>e.hidden=true,ms||3200);}
 function heard(t){$('#heard').innerHTML=t?esc(t).replace(/^(hearing:|reading|looking|waiting|undid|redid|audition|cancelled)/i,'<b>$1</b>'):'';}
-const MODES=[{k:'source',t:'Source'},{k:'shot',t:'Shot'},{k:'table',t:'Table'},{k:'film',t:'Film'}];
+const MODES=[{k:'archive',t:'Archive'},{k:'source',t:'Source'},{k:'shot',t:'Shot'},{k:'table',t:'Table'},{k:'film',t:'Film'}];
 
 /* ================= the archive ================= */
 let SAM=null,EMB=null,EXT='.png',LIB=null,BYID=new Map();const FI=new Map();
@@ -225,7 +233,12 @@ async function embed(texts){await libP;return SH.embed(texts);}
 const readerReady=()=>!!(SH.server||(window.ClipText&&ClipText.state==='ready'));
 /* an asset: a source of moving pictures and sound. 'w:wg_003' is a WarGames clip on this site; 'arch:<id>' an archive shot */
 const DUR={};
-function A(src){if(!src)return null;if(src.startsWith('w:')){const id=src.slice(2);return {src,video:'clips/'+id+'.mp4',thumb:'thumbs/clips/'+id+'.jpg',title:'WarGames '+id.slice(3),in:0,dur:DUR[src]??null,local:true};}
+const sdir=slug=>(SHN[slug]&&SHN[slug].dir)||slug+'-gwp';
+const fIdx=(S,t)=>clamp(Math.floor(t*S.fps+1e-6),0,S.footage.length-1);
+const fUrl=(slug,S,k)=>{const f=S.footage[k];return f.startsWith('data:')?f:SHM+sdir(slug)+'/'+f;};
+function A(src){if(!src)return null;
+ if(src.startsWith('shm:')){const slug=src.slice(4),m=SHN[slug],S=SHD[slug];if(!S)doodle(slug);if(S)DUR[src]=S.footage.length/S.fps;
+  return {src,seq:true,title:(m?m.title:slug),thumb:S?fUrl(slug,S,0):SHM+sdir(slug)+'/cover.png',in:0,dur:S?S.footage.length/S.fps:null,local:true,silent:true,S,figs:!!(S&&S.masks&&S.masks.some(q=>q&&q.length))};}if(src.startsWith('w:')){const id=src.slice(2);return {src,video:'clips/'+id+'.mp4',thumb:'thumbs/clips/'+id+'.jpg',title:'WarGames '+id.slice(3),in:0,dur:DUR[src]??null,local:true};}
  const id=src.replace(/^arch:/,''),i=BYID.get(id),s=i!=null&&LIB.shots[i];return s?{src,video:s.video,thumb:s.thumb,title:s.title+(s.year?' ('+s.year+')':''),in:s.in||0,dur:DUR[src]??null,film:s.src}:{src,video:null,thumb:'',title:'archive shot',in:0,dur:null};}
 const R2='https://pub-075ff01374c04555b51c9bc50f258b42.r2.dev/';let TIX=null;const tix=()=>TIX||(TIX=fetch('aspect/thumbs.json').then(r=>r.json()).catch(()=>null));
 const foreign=u=>/^https?:/.test(u)&&!u.startsWith(location.origin);
@@ -248,6 +261,8 @@ let film=null,ver=0,saveT=0;const MEMO=new Map();
 const len=s=>Math.max(.1,s.take.out-s.take.in);
 const bump=()=>{ver++;dirty=true;};
 function upgrade(f){if(!f||!f.shots)return f;f.table=f.table||[];for(const s of [...f.shots,...f.table]){if(!s.take){const src=s.g?(s.g.k==='wg'?'w:'+s.g.id:'arch:'+s.g.id):null;s.take={src,in:0,out:s.len||4};delete s.g;delete s.len;}if(s.gain==null)s.gain=1;delete s.cands;delete s.alts;delete s.wait;delete s.rough;}f.v=3;return f;}
+function saveNow(){if(!film||FLOOR)return;film.ui={shot:SHOT,t:+T.toFixed(3)};const i=FILMS.findIndex(f=>f.id===film.id);if(i<0&&!film.shots.length)return;const o=JSON.parse(JSON.stringify(film));if(i>=0)FILMS[i]=o;else FILMS.unshift(o);try{localStorage.setItem(STORE,JSON.stringify(FILMS));}catch(e){}}
+addEventListener('pagehide',saveNow);addEventListener('visibilitychange',()=>{if(document.hidden)saveNow();});
 function save(){bump();clearTimeout(saveT);saveT=setTimeout(()=>{if(!film)return;film.updated=Date.now();film.ui={shot:SHOT,t:+T.toFixed(3)};film.title=(film.shots[0]&&film.shots[0].text)||film.title||'untitled';const i=FILMS.findIndex(f=>f.id===film.id);const o=JSON.parse(JSON.stringify(film));if(i>=0)FILMS[i]=o;else FILMS.unshift(o);FILMS.sort((a,b)=>b.updated-a.updated);FILMS=FILMS.slice(0,24);try{localStorage.setItem(STORE,JSON.stringify(FILMS));}catch(e){toast('This browser is full; download the project file to keep it.');}},250);}
 /* editorial history: every manipulation is begun, then committed as one step, or cancelled and restored */
 const H={undo:[],redo:[]};
@@ -256,7 +271,7 @@ function commit(tok){if(!tok)return false;const now=JSON.stringify(film);if(now=
 function cancel(tok){if(!tok)return;film=JSON.parse(tok.before);[SHOT,SEL]=tok.sel;stripKey=tableKey=chipKey=panelKey='';bump();heard('cancelled: '+tok.label);}
 function act(label,fn){const tok=begin(label);const r=fn();commit(tok);return r;}
 function restore(json,sel){film=JSON.parse(json);if(!film.shots.some(s=>s.id===SHOT)&&!film.table.some(s=>s.id===SHOT))SHOT=sel&&sel[0]||film.shots[0]&&film.shots[0].id;if(SEL&&SEL!=='ground'&&!findEl(SEL))SEL=null;T=clamp(T,0,Math.max(0,total()-.001));stripKey=tableKey=chipKey=panelKey='';save();}
-function undo(){const h=H.undo.pop();if(!h)return toast('Nothing to undo.');H.redo.push(h);restore(h.before,h.sel);heard('undid: '+h.label);$('#lastAct').textContent='';}
+function undo(){const h=H.undo.pop();if(!h)return toast('Nothing to undo.');PLACED=null;H.redo.push(h);restore(h.before,h.sel);heard('undid: '+h.label);$('#lastAct').textContent='';}
 function redo(){const h=H.redo.pop();if(!h)return toast('Nothing to redo.');H.undo.push(h);restore(h.after,h.sel);heard('redid: '+h.label);}
 function newFilm(){film={v:3,id:uid(),title:'',shots:[],table:[],cap:true,grade:true,updated:Date.now()};H.undo.length=H.redo.length=0;T=0;SHOT=null;SEL=null;bump();}
 const starts=()=>{let t=0;return film.shots.map(s=>{const a=t;t+=len(s);return a;});};
@@ -267,8 +282,8 @@ function findEl(id){for(const s of [...film.shots,...film.table])for(const e of 
 const shotOf=e=>[...film.shots,...film.table].find(s=>s.figs.includes(e));
 const nameShot=s=>{const i=film.shots.indexOf(s);return i>=0?'shot '+(i+1):'the table take';};
 function at(e,t){const k=e.keys;if(k.length===1||t<=k[0].t)return k[0];if(t>=k[k.length-1].t)return k[k.length-1];for(let i=1;i<k.length;i++)if(t<k[i].t){const a=k[i-1],b=k[i],u=(t-a.t)/(b.t-a.t||1);return {t,x:a.x+(b.x-a.x)*u,y:a.y+(b.y-a.y)*u,s:a.s+(b.s-a.s)*u};}return k[k.length-1];}
-function nameOf(e){if(!e)return '';if(e.kind==='fig'){const F=SAM&&SAM.figs[FI.get(e.ref)];return F?F.desc:'figure';}return 'drawing of '+e.word;}
-function fromOf(e){if(e.kind==='fig'){const F=SAM&&SAM.figs[FI.get(e.ref)];return F?'cut out of '+(F.title||'an archive film')+(F.year?' ('+F.year+')':''):'';}return 'a Secondhand Motion doodle';}
+function nameOf(e){if(!e)return '';if(e.kind==='mfig'){const a=A(e.src);return 'figure from '+(a?a.title:'a film');}if(e.kind==='fig'){const F=SAM&&SAM.figs[FI.get(e.ref)];return F?F.desc:'figure';}return 'drawing of '+e.word;}
+function fromOf(e){if(e.kind==='mfig'){const a=A(e.src);return 'lifted from '+(a?a.title:'?')+' '+tcf(e.in)+'–'+tcf(e.out)+', with its mask in every frame';}if(e.kind==='fig'){const F=SAM&&SAM.figs[FI.get(e.ref)];return F?'cut out of '+(F.title||'an archive film')+(F.year?' ('+F.year+')':''):'';}return 'a Secondhand Motion doodle';}
 function newShot(take,text){return {id:uid(),text:text||'',take:{src:take.src,in:snapF(take.in),out:snapF(take.out)},gain:1,figs:[]};}
 function fitFigs(s,old){const n=len(s);for(const f of s.figs){if(f.t1>=old-.01)f.t1=n;f.t0=Math.min(f.t0,n-.1);}}
 function setOut(s,out){const old=len(s);s.take.out=Math.max(s.take.in+.1,snapF(out));fitFigs(s,old);}
@@ -324,7 +339,7 @@ function syncVideos(t,run){const c=shotAt(t),on=new Set();
  const nx=c&&film.shots[c.i+1];if(nx&&nx.take.src){const u=urlOf(nx.take.src);if(u){const v=vidFor('g:'+nx.id,u);on.add(v);if(!v.paused)v.pause();if(v.duration&&Math.abs(v.currentTime-nx.take.in)>.03&&!v.seeking)v.currentTime=nx.take.in;}}
  if(MODE==='source'&&SRC.src){const u=urlOf(SRC.src);if(u){const v=vidFor('s:'+SRC.src,u);on.add(v);syncOne(v,SRC.t,SRC.playing,1);}}
  for(const k in VID){const v=VID[k];if(!on.has(v)&&!k.startsWith('tr')&&!v.paused)v.pause();}}
-function groundImg(sh,still){const a=A(sh.take.src);if(!a)return null;const v=VID['g:'+sh.id];if(!still&&v&&v._ever&&v.videoWidth&&(still!==0||!v.taint))return v;return a.thumb?img(a.thumb):null;}
+function groundImg(sh,still,lt){const a=A(sh.take.src);if(!a)return null;if(a.seq){if(!a.S)return null;return img(fUrl(sh.take.src.slice(4),a.S,fIdx(a.S,sh.take.in+(lt||0))));}const v=VID['g:'+sh.id];if(!still&&v&&v._ever&&v.videoWidth&&(still!==0||!v.taint))return v;return a.thumb?img(a.thumb):null;}
 function cover(x,src,dx,dy,dw,dh,zoom=1){const w=src.videoWidth||src.naturalWidth,h=src.videoHeight||src.naturalHeight;if(!w||!h)return false;const s=Math.max(dw/w,dh/h)*zoom,sw=dw/s,sh=dh/s;x.drawImage(src,(w-sw)/2,(h-sh)/2,sw,sh,dx,dy,dw,dh);return true;}
 
 /* ================= drawing a shot at a time inside it ================= */
@@ -338,11 +353,19 @@ function closedSt(st){if(st.length<4)return false;const a=st[0],b=st[st.length-1
 function drawDoodle(x,e,lt,W,H,p){const S=SHD[e.slug];if(!S){doodle(e.slug);return null;}const n=S.cast.frames.length,k=((Math.floor(lt*(S.fps||8))%n)+n)%n,b=S.fb[k]||(S.fb[k]=bbox(S.cast.frames[k])||S.bb),b0=S.bb,sc=p.s*W/(b0.x1-b0.x0||1),cx=(b.x0+b.x1)/2,cy=(b.y0+b.y1)/2,fw=(b.x1-b.x0)*sc,fh=(b.y1-b.y0)*sc;
  x.save();x.translate(p.x*W,p.y*H);x.scale(sc*(e.flip?-1:1),sc);x.translate(-cx,-cy);x.fillStyle='#fff';const mk=(S.masks&&S.masks[k]&&S.masks[k].length)?S.masks[k]:(S.cast.frames[k]||[]).filter(closedSt);for(const m of mk){if(m.length<3)continue;poly(x,m);x.closePath();x.fill();}
  x.strokeStyle='#161412';x.lineWidth=Math.max(1.4,W/360)/sc;x.lineCap=x.lineJoin='round';for(const s of S.cast.frames[k]||[]){if(!s||s.length<2)continue;poly(x,s);x.stroke();}x.restore();return [p.x*W-fw/2,p.y*H-fh/2,fw,fh];}
-function drawEl(x,e,lt,W,H,still){const p=at(e,lt);let r=null;x.save();if(!still)x.filter='brightness('+(.72+.28*Math.min(1,(e.z??.5)*1.8)).toFixed(2)+')';
- if(e.kind==='fig'){const F=SAM&&SAM.figs[FI.get(e.ref)];if(F)r=drawFig(x,e,F,lt,W,H,p,still);}else r=drawDoodle(x,e,lt,W,H,p);x.restore();return r;}
-function drawGround(x,sh,lt,W,H,still,clean){x.fillStyle='#0c0b0a';x.fillRect(0,0,W,H);if(!sh||!sh.take.src)return;const f=groundImg(sh,still);
+function drawEl(x,e,lt,W,H,still){const p=at(e,lt);let r=null;x.save();const gr=e.kind==='mfig'&&film&&film.grade?' grayscale(1) contrast(1.06)':'';if(!still)x.filter='brightness('+(.72+.28*Math.min(1,(e.z??.5)*1.8)).toFixed(2)+')'+gr;else if(gr)x.filter=gr.trim();
+ if(e.kind==='fig'){const F=SAM&&SAM.figs[FI.get(e.ref)];if(F)r=drawFig(x,e,F,lt,W,H,p,still);}else if(e.kind==='mfig')r=drawMfig(x,e,lt,W,H,p);else r=drawDoodle(x,e,lt,W,H,p);x.restore();return r;}
+function maskBox(S,k){S.mb=S.mb||[];if(S.mb[k]!==undefined)return S.mb[k];return S.mb[k]=bbox(S.masks[k]||[]);}
+/* source time inside the lifted interval loops; the anchor is the bottom middle of the figure's own outline in that frame */
+function mfigFrame(e,lt){const a=A(e.src);if(!a||!a.S)return null;const S=a.S,L=Math.max(1/S.fps,e.out-e.in),st=e.in+(((lt-e.t0)%L)+L)%L;return {S,k:fIdx(S,st),st};}
+/* a frame not yet decoded is drawn from the nearest decoded frame of the same interval, so the figure never blinks out */
+function mfigReady(e,S,k){const sl=e.src.slice(4),u=fUrl(sl,S,k),im=img(u);if(im.ok&&(S.masks[k]||[]).length)return k;const n=S.masks.length,a=fIdx(S,e.in),z=fIdx(S,e.out);for(let d=1;d<n;d++)for(const j of [k-d,k+d]){if(j<a||j>z||j<0||j>=n)continue;const q=IM[fUrl(sl,S,j)];if(q&&q.ok&&(S.masks[j]||[]).length)return j;}return -1;}
+function mfigPreload(e){const a=A(e.src);if(!a||!a.S)return [];const S=a.S,sl=e.src.slice(4),o=[];for(let j=fIdx(S,e.in);j<=fIdx(S,e.out);j++)o.push(img(fUrl(sl,S,j)));return o;}
+function drawMfig(x,e,lt,W,H,p){const f=mfigFrame(e,lt);if(!f)return null;const S=f.S,k=mfigReady(e,S,f.k);if(k<0)return null;const P=S.masks[k]||[],b=maskBox(S,k);if(!b||!P.length)return null;const im=img(fUrl(e.src.slice(4),S,k));
+ const sc=p.s*W/(e.rw||(b.x1-b.x0)),cx=(b.x0+b.x1)/2,bw=(b.x1-b.x0)*sc,bh=(b.y1-b.y0)*sc;x.save();x.translate(p.x*W,p.y*H);x.scale(sc*(e.flip?-1:1),sc);x.translate(-cx,-b.y1);x.beginPath();for(const q of P){if(q.length<3)continue;q.forEach(([u,v],i)=>i?x.lineTo(u,v):x.moveTo(u,v));x.closePath();}x.clip();x.drawImage(im,0,0,S.W,S.H);x.restore();return [p.x*W-bw/2,p.y*H-bh,bw,bh];}
+function drawGround(x,sh,lt,W,H,still,clean){x.fillStyle='#0c0b0a';x.fillRect(0,0,W,H);if(!sh||!sh.take.src)return;const f=groundImg(sh,still,lt),aq=A(sh.take.src);
  if(clean&&f&&f.taint){x.fillStyle='#1a1815';x.fillRect(0,0,W,H);x.fillStyle='#6b645b';x.font=Math.round(W/60)+'px IBM Plex Mono, monospace';x.fillText(A(sh.take.src).title,W*.03,H*.07);return;}
- if(f&&(f.ok||f.videoWidth)){x.save();if(film.grade)x.filter='grayscale(1) contrast(1.06)';cover(x,f,0,0,W,H,f.videoWidth?1:1+.05*lt/Math.max(1,len(sh)));x.restore();}}
+ if(f&&(f.ok||f.videoWidth)){x.save();if(film.grade)x.filter='grayscale(1) contrast(1.06)';cover(x,f,0,0,W,H,f.videoWidth||aq.seq?1:1+.05*lt/Math.max(1,len(sh)));x.restore();}}
 const byZ=(a,b)=>(a.z??.5)-(b.z??.5);
 function drawShot(x,sh,lt,W,H,o={}){if(!o.noGround)drawGround(x,sh,lt,W,H,o.still,o.clean);const boxes=[];if(!sh)return boxes;for(const e of [...sh.figs].sort(byZ)){if(lt<e.t0||lt>=e.t1)continue;const r=drawEl(x,e,lt,W,H,o.still);if(r)boxes.push({e,r});}
  if(o.cap&&film.cap&&sh.text){const fs=Math.round(W/30);x.save();const gr=x.createLinearGradient(0,H*.7,0,H);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,.75)');x.fillStyle=gr;x.fillRect(0,H*.7,W,H*.3);x.font='300 '+fs+'px Fraunces, Georgia, serif';x.fillStyle='#f3eee4';x.textAlign='center';x.shadowColor='#000';x.shadowBlur=fs/3;
@@ -355,16 +378,17 @@ function frameAt(x,t,W,H,o={}){const c=shotAt(t);if(!c){x.fillStyle='#0c0b0a';x.
 const cv=$('#cv'),g=cv.getContext('2d');let dpr=1,box={x:0,y:0,w:1,h:1},BOXES=[],PTR=null,yaw=.4,SHEETS=[],APART=false,THAT=null;
 function fit(){dpr=Math.min(2,devicePixelRatio||1);const r=cv.getBoundingClientRect(),w=Math.round(r.width*dpr),h=Math.round(r.height*dpr);if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;}const bw=Math.min(w,h*16/9),bh=bw*9/16;box={x:(w-bw)/2,y:(h-bh)/2,w:bw,h:bh};}
 const pool={};function buf(id,w,h){let c=pool[id];if(!c)c=pool[id]=document.createElement('canvas');w=Math.round(w);h=Math.round(h);if(c.width!==w||c.height!==h){c.width=w;c.height=h;}return c;}
-function label(t,x,y,col){if(!t)return;g.font=(11*dpr)+'px IBM Plex Mono, monospace';const w=g.measureText(t).width;g.fillStyle='rgba(11,10,9,.85)';g.fillRect(x-4*dpr,y-13*dpr,w+8*dpr,18*dpr);g.fillStyle=col||'#ece6da';g.fillText(t,x,y);}
-function draw(){fit();g.setTransform(1,0,0,1,0,0);g.fillStyle='#000';g.fillRect(0,0,cv.width,cv.height);
- if(TRIM)drawTrim();else if(MODE==='source')drawSource();else if(MODE==='shot'&&APART)drawLayers();else if(MODE!=='table')drawPlay();drawHands();}
+function label(t,x,y,col,mw){if(!t)return;g.font=(11*dpr)+'px IBM Plex Mono, monospace';if(mw&&g.measureText(t).width>mw){while(t.length>4&&g.measureText(t+'…').width>mw)t=t.slice(0,-1);t+='…';}const w=g.measureText(t).width;g.fillStyle='rgba(11,10,9,.85)';g.fillRect(x-4*dpr,y-13*dpr,w+8*dpr,18*dpr);g.fillStyle=col||'#ece6da';g.fillText(t,x,y);}
+const LAT={p:null,list:[]};
+function draw(){fit();g.setTransform(1,0,0,1,0,0);g.fillStyle='#000';g.fillRect(0,0,cv.width,cv.height);if(FLOOR){drawFloorb();return;}
+ if(TRIM)drawTrim();else if(MODE==='source')drawSource();else if(MODE==='shot'&&APART)drawLayers();else if(MODE!=='table')drawPlay();drawHands();if(LAT.p!=null){LAT.list.push(+(performance.now()-LAT.p).toFixed(1));if(LAT.list.length>400)LAT.list.shift();LAT.p=null;}}
 function drawPlay(){const c=shotAt(T);g.save();g.translate(box.x,box.y);g.beginPath();g.rect(0,0,box.w,box.h);g.clip();BOXES=c?drawShot(g,c.s,T-c.a,box.w,box.h,{cap:true}):[];
  if(!c){g.fillStyle='#b3ab9e';g.font='300 '+Math.round(box.w/28)+'px Fraunces, Georgia, serif';g.textAlign='center';g.fillText('The film is empty.',box.w/2,box.h*.42);g.font=(12*dpr)+'px IBM Plex Mono';g.fillText('Source (1): pick a clip and mark a take · or write a line below · or Films: the demonstration',box.w/2,box.h*.42+26*dpr);g.textAlign='left';}
  if(MODE==='shot'){const e=findEl(SEL);if(e&&c&&c.s.figs.includes(e)){if(e.keys.length>1){g.strokeStyle='rgba(239,185,74,.85)';g.lineWidth=1.5*dpr;g.setLineDash([3*dpr,4*dpr]);g.beginPath();for(let u=0;u<=40;u++){const p=at(e,e.t0+(e.t1-e.t0)*u/40);u?g.lineTo(p.x*box.w,p.y*box.h):g.moveTo(p.x*box.w,p.y*box.h);}g.stroke();g.setLineDash([]);g.fillStyle='#efb94a';for(const k of e.keys)g.fillRect(k.x*box.w-2*dpr,k.y*box.h-2*dpr,4*dpr,4*dpr);}
    const b=BOXES.find(b=>b.e===e);if(b){const [x,y,w,h]=b.r;g.setLineDash([6*dpr,4*dpr]);g.strokeStyle='#c4f46a';g.lineWidth=2*dpr;g.strokeRect(x-4*dpr,y-4*dpr,w+8*dpr,h+8*dpr);g.setLineDash([]);}}
   if(THAT&&performance.now()-THAT.t<1800){const b=BOXES.find(b=>b.e.id===THAT.id);if(b){const [x,y,w,h]=b.r;g.strokeStyle='#efb94a';g.lineWidth=3*dpr;g.strokeRect(x-7*dpr,y-7*dpr,w+14*dpr,h+14*dpr);label('THAT',x,y-10*dpr,'#efb94a');}}
   if(THERE&&(rec||HND||performance.now()-THERE.t<2500)){const r=(12+3*Math.sin(performance.now()/220))*dpr;g.strokeStyle='#efb94a';g.lineWidth=2*dpr;g.beginPath();g.arc(THERE.x*box.w,THERE.y*box.h,r,0,7);g.stroke();label('THERE',THERE.x*box.w+r+6*dpr,THERE.y*box.h+4*dpr,'#efb94a');}
-  if(GRAB&&GRAB.rec&&playing)label('RECORDING ITS PATH',10*dpr,22*dpr,'#e0483a');}
+  if(GRAB&&GRAB.rec&&playing)label('RECORDING ITS PATH',10*dpr,22*dpr,'#e0483a');else if(GRAB&&GRAB.moved)label(GRAB.pose!=null?'POSE AT '+GRAB.pose.toFixed(2)+' s · Shift moves the whole path':'MOVING THE WHOLE PATH',10*dpr,22*dpr,'#efb94a');}
  g.restore();}
 /* trimming a join: the outgoing frame and the incoming frame, side by side, at the new boundary */
 function drawTrim(){const R=TRIM,W=box.w,hw=W/2-3*dpr,hh=hw*9/16,y=box.y+(box.h-hh)/2;
@@ -372,10 +396,59 @@ function drawTrim(){const R=TRIM,W=box.w,hw=W/2-3*dpr,hh=hw*9/16,y=box.y+(box.h-
   if(!s){g.fillStyle='#6b645b';g.font=(12*dpr)+'px IBM Plex Mono';g.fillText(i?'end of the film':'start of the film',x+12*dpr,y+hh/2);}
   label(s?(k==='OUT'?'last frame of '+nameShot(s):'first frame of '+nameShot(s))+' · source '+tcf(t):'',x+8*dpr,y+18*dpr,i?'#c4f46a':'#efb94a');});
  const s=R.s;label(nameShot(s)+': in '+tcf(s.take.in)+' · out '+tcf(s.take.out)+' · '+len(s).toFixed(2)+' s · film '+tcf(total())+(R.over?' · past the end of its source: its last frame holds':''),box.x+8*dpr,y+hh+24*dpr,R.over?'#e0483a':'#ece6da');}
-function drawSource(){const a=A(SRC.src);if(!a){label('Pick footage on the right.',box.x+12*dpr,box.y+24*dpr);return;}const v=VID['s:'+SRC.src];
- if(FAIL[SRC.src]){g.fillStyle='#1a1210';g.fillRect(box.x,box.y,box.w,box.h);const im=a.thumb&&img(a.thumb);if(im&&im.ok){g.globalAlpha=.35;cover(g,im,box.x,box.y,box.w,box.h);g.globalAlpha=1;}label(a.title+': '+FAIL[SRC.src]+'. Pick other footage.',box.x+12*dpr,box.y+box.h/2,'#e0483a');return;}
- g.fillStyle='#0c0b0a';g.fillRect(box.x,box.y,box.w,box.h);if(v&&v._ever&&v.videoWidth)cover(g,v,box.x,box.y,box.w,box.h);else{const im=a.thumb&&img(a.thumb);if(im&&im.ok)cover(g,im,box.x,box.y,box.w,box.h);label(v&&!v._ever?(performance.now()-(v._born||0)>8000?'still loading the footage: its length is not known yet':'loading the footage…'):'',box.x+12*dpr,box.y+box.h-16*dpr);}
- label(a.title+' · '+tcf(SRC.t)+(a.dur?' / '+tcf(a.dur):''),box.x+10*dpr,box.y+46*dpr);if(SRC.mi!=null||SRC.mo!=null)label('IN '+(SRC.mi!=null?tcf(SRC.mi):'–')+'  OUT '+(SRC.mo!=null?tcf(SRC.mo):'–')+(SRC.mi!=null&&SRC.mo!=null?'  '+(SRC.mo-SRC.mi).toFixed(2)+' s':''),box.x+10*dpr,box.y+68*dpr,'#c4f46a');}
+/* the source and the film side by side (stacked on a tall screen): the left holds a moment, the right is the shot it goes into */
+let SB={x:0,y:0,w:1,h:1},FB={x:0,y:0,w:1,h:1},HOLD=null,SRCDRAG=null,HOVERF=false,PLACED=null;
+const fitR=(x,y,w,h)=>{const bw=Math.min(w,h*16/9),bh=bw*9/16;return {x:x+(w-bw)/2,y:y+(h-bh)/2,w:bw,h:bh};};
+const inR=(r,X,Y)=>X>=r.x&&X<=r.x+r.w&&Y>=r.y&&Y<=r.y+r.h;
+function srcLayout(){const W=cv.width,H=cv.height,gp=10*dpr;if(W>H*1.3){const sw=W*.6-gp/2;SB=fitR(0,0,sw,H);FB=fitR(sw+gp,0,W-sw-gp,H);}else{const sh=H*.56-gp/2;SB=fitR(0,0,W,sh);FB=fitR(0,sh+gp,W,H-sh-gp);}}
+function fitPic(w,h,R){const s=Math.max(R.w/w,R.h/h);return {s,dx:R.x+(R.w-w*s)/2,dy:R.y+(R.h-h*s)/2};}
+function srcPic(src,t,useVid){const a=A(src);if(!a)return null;if(a.seq){if(!a.S)return null;const im=img(fUrl(src.slice(4),a.S,fIdx(a.S,t)));return im.ok?im:null;}const v=useVid&&VID['s:'+src];if(v&&v._ever&&v.videoWidth)return v;const im=a.thumb&&img(a.thumb);return im&&im.ok?im:null;}
+function inPoly(x,y,p){let c=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const [xi,yi]=p[i],[xj,yj]=p[j];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)c=!c;}return c;}
+function figAtSource(px,py){const a=A(SRC.src);if(!a||!a.seq||!a.S||!a.figs)return false;const k=fIdx(a.S,SRC.t),P=a.S.masks[k]||[];if(!P.length)return false;const m=fitPic(a.S.W,a.S.H,SB),X=(px*dpr-m.dx)/m.s,Y=(py*dpr-m.dy)/m.s,b=maskBox(a.S,k),pad=10*dpr/m.s;return P.some(q=>q.length>2&&inPoly(X,Y,q))||(b&&X>b.x0-pad&&X<b.x1+pad&&Y>b.y0-pad&&Y<b.y1+pad);}
+const PB=()=>({x:SB.x+SB.w*.71,y:SB.y+8*dpr,w:SB.w*.27,h:SB.h*.27});
+function floorShot(){const s=curShot();if(s&&film.shots.includes(s))return s;const c=shotAt(T);return c&&c.s;}
+function drawSource(){srcLayout();const a=A(SRC.src),R=SB;g.fillStyle='#0c0b0a';g.fillRect(R.x,R.y,R.w,R.h);g.save();g.beginPath();g.rect(R.x,R.y,R.w,R.h);g.clip();
+ if(!a)label('Pick footage on the right, or in Archive (1).',R.x+12*dpr,R.y+24*dpr);
+ else if(FAIL[SRC.src]){const im=a.thumb&&img(a.thumb);if(im&&im.ok){g.globalAlpha=.35;cover(g,im,R.x,R.y,R.w,R.h);g.globalAlpha=1;}label(a.title+': '+FAIL[SRC.src]+'. Pick other footage.',R.x+12*dpr,R.y+R.h/2,'#e0483a');}
+ else{const pic=srcPic(SRC.src,SRC.t,true);if(pic){const w=pic.videoWidth||pic.naturalWidth,h=pic.videoHeight||pic.naturalHeight,m=fitPic(w,h,R);g.drawImage(pic,m.dx,m.dy,w*m.s,h*m.s);}else label('loading the footage…',R.x+12*dpr,R.y+R.h-16*dpr);
+  /* the figures this footage carries: faint until the pointer is on one, orange while held */
+  if(a.seq&&a.S&&a.figs){const k=fIdx(a.S,SRC.t),P=a.S.masks[k]||[],m=fitPic(a.S.W,a.S.H,R),held=HOLD&&HOLD.src===SRC.src;
+   if(P.length){g.save();g.translate(m.dx,m.dy);g.scale(m.s,m.s);g.beginPath();for(const q of P){if(q.length<3)continue;q.forEach(([u,v],i)=>i?g.lineTo(u,v):g.moveTo(u,v));g.closePath();}
+    if(held){g.strokeStyle='#efa13a';g.lineWidth=3*dpr/m.s;g.shadowColor='#efa13a';g.shadowBlur=12;}else if(HOVERF){g.strokeStyle='#efb94a';g.lineWidth=2.2*dpr/m.s;}else{g.strokeStyle='rgba(239,185,74,.45)';g.lineWidth=1.2*dpr/m.s;g.setLineDash([5/m.s*dpr,5/m.s*dpr]);}g.stroke();g.restore();
+    const b=maskBox(a.S,k);if(b){const lx=m.dx+b.x1*m.s+8*dpr,ly=m.dy+b.y0*m.s+16*dpr;label(held?(HOLD.state==='paused'?'TRACKING PAUSED':'HELD'):HOVERF?'LIFT':'',lx,ly,held?'#efa13a':'#efb94a');}}}
+  label(a.title+' · '+tcf(SRC.t)+(a.dur?' / '+tcf(a.dur):'')+(a.silent?' · silent':''),R.x+10*dpr,R.y+46*dpr);if(SRC.mi!=null||SRC.mo!=null)label('IN '+(SRC.mi!=null?tcf(SRC.mi):'–')+'  OUT '+(SRC.mo!=null?tcf(SRC.mo):'–')+(SRC.mi!=null&&SRC.mo!=null?'  '+(SRC.mo-SRC.mi).toFixed(2)+' s':''),R.x+10*dpr,R.y+68*dpr,'#c4f46a');
+  /* the shuttle: rate control with a visible neutral middle */
+  const sw=Math.min(200*dpr,R.w*.34),sx=R.x+12*dpr,sy=R.y+R.h-14*dpr;g.fillStyle='rgba(11,10,9,.8)';g.fillRect(sx-6*dpr,sy-12*dpr,sw+12*dpr,20*dpr);g.fillStyle='#2e2a26';g.fillRect(sx,sy-3*dpr,sw,6*dpr);g.fillStyle='#4a443d';g.fillRect(sx+sw/2-9*dpr,sy-5*dpr,18*dpr,10*dpr);
+  const kx=sx+sw/2+clamp(SRC.rate/4,-1,1)*sw/2;g.fillStyle=SRC.rate?'#c4f46a':'#8c8378';g.fillRect(kx-2*dpr,sy-8*dpr,4*dpr,16*dpr);g.font=(10*dpr)+'px IBM Plex Mono';g.fillStyle=SRC.rate?'#c4f46a':'#8c8378';g.fillText(SRC.rate?(SRC.rate>0?'+':'')+SRC.rate.toFixed(2)+'×':'SHUTTLE · J K L',sx+sw+10*dpr,sy+4*dpr);
+  /* B: a second candidate kept for comparison */
+  if(SRC.b&&SRC.b!==SRC.src){const r=PB(),bp=srcPic(SRC.b,SRC.bt,false),ab=A(SRC.b);g.fillStyle='#0c0b0a';g.fillRect(r.x,r.y,r.w,r.h);if(bp)cover(g,bp,r.x,r.y,r.w,r.h);g.strokeStyle='#85bdff';g.lineWidth=2*dpr;g.strokeRect(r.x,r.y,r.w,r.h);label('B · '+(ab?ab.title:'')+' · click to swap',r.x+4*dpr,r.y+r.h-6*dpr,'#85bdff');}}
+ g.restore();
+ /* the film side */
+ const sh=floorShot(),F=FB;g.fillStyle='#0c0b0a';g.fillRect(F.x,F.y,F.w,F.h);
+ if(!sh){label('The film is empty.',F.x+10*dpr,F.y+F.h/2-10*dpr,null,F.w-20*dpr);label('Mark an interval, then Insert.',F.x+10*dpr,F.y+F.h/2+10*dpr,null,F.w-20*dpr);}
+ else{const i=film.shots.indexOf(sh),a0=starts()[i],lt=T>=a0&&T<a0+len(sh)?T-a0:0;g.save();g.translate(F.x,F.y);g.beginPath();g.rect(0,0,F.w,F.h);g.clip();drawShot(g,sh,lt,F.w,F.h,{cap:false});
+  if(HOLD&&HOLD.prev){const e={kind:'mfig',src:HOLD.src,in:HOLD.in,out:HOLD.out,rw:HOLD.rw,z:.6,flip:0,t0:0,t1:99,keys:[{t:0,x:HOLD.prev.x,y:HOLD.prev.y,s:HOLD.s0}]};g.globalAlpha=HOLD.state==='paused'?.35:.6;drawEl(g,e,(performance.now()-HOLD.t0)/1000,F.w,F.h,false);g.globalAlpha=1;
+   g.strokeStyle='#efa13a';g.lineWidth=2.5*dpr;g.beginPath();g.ellipse(HOLD.prev.x*F.w,HOLD.prev.y*F.h,22*dpr,6*dpr,0,0,7);g.stroke();}
+  g.restore();g.strokeStyle=HOLD?'#efa13a':'#2e2a26';g.lineWidth=(HOLD?2:1)*dpr;g.strokeRect(F.x,F.y,F.w,F.h);
+  label('FILM · '+nameShot(sh)+(HOLD?(HOLD.state==='paused'?' · TRACKING PAUSED · Place or Cancel':HOLD.prev?' · let go to PLACE here':(performance.now()-FL.linked<5000?' · place it here or on the Floorboard':' · bring it here to place it')):PLACED&&performance.now()-PLACED.t<2500?' · PLACED · Z undoes':' · a lifted figure goes into this shot'),F.x+8*dpr,F.y+18*dpr,HOLD?'#efa13a':PLACED&&performance.now()-PLACED.t<2500?'#c4f46a':'#b3ab9e',F.w-16*dpr);}
+ if(HOLD&&!HOLD.prev&&HOLD.ptr&&HOLD.state==='held'){g.strokeStyle='#efa13a';g.setLineDash([4*dpr,5*dpr]);g.lineWidth=2*dpr;g.beginPath();g.moveTo(HOLD.ptr.x,HOLD.ptr.y);g.lineTo(F.x+F.w/2,F.y+F.h*.8);g.stroke();g.setLineDash([]);}}
+function liftInterval(a){if(SRC.mi!=null&&SRC.mo!=null&&SRC.mo-SRC.mi>=.2)return [SRC.mi,SRC.mo];return [0,a.dur||0];}
+function startHold(by){const a=A(SRC.src),[i0,i1]=liftInterval(a),k=fIdx(a.S,SRC.t),b=maskBox(a.S,k);HOLD={state:'held',src:SRC.src,in:i0,out:i1,rw:b.x1-b.x0,s0:clamp((b.x1-b.x0)/a.S.W,.05,1),by,prev:null,moved:false,t0:performance.now()};SRC.rate=0;SRC.playing=false;heard('held: the figure from '+a.title+' with frames '+tcf(i0)+'–'+tcf(i1)+' · carry it to the film · Esc cancels');panelKey='';bump();}
+function holdPreview(px,py){const X=px*dpr,Y=py*dpr;HOLD.prev=inR(FB,X,Y)?{x:(X-FB.x)/FB.w,y:(Y-FB.y)/FB.h}:null;HOLD.ptr={x:X,y:Y};dirty=true;}
+function placeHold(pt){const H0=HOLD;if(!H0)return;const sh=floorShot();if(!sh){toast('Insert a take first: the figure needs a shot to go into.');return;}const p=pt||H0.prev||{x:.5,y:.88};const a=A(H0.src);
+ act('lift the figure from '+a.title+' into '+nameShot(sh),()=>{const e={id:uid(),kind:'mfig',src:H0.src,in:+H0.in.toFixed(3),out:+H0.out.toFixed(3),rw:+H0.rw.toFixed(2),z:.62,flip:0,t0:0,t1:len(sh),keys:[{t:0,x:+clamp(p.x,0,1).toFixed(4),y:+clamp(p.y,0,1).toFixed(4),s:+H0.s0.toFixed(4)}]};sh.figs.push(e);SEL=e.id;SHOT=sh.id;});
+ HOLD=null;PLACED={t:performance.now()};heard('placed in '+nameShot(sh)+' · Z undoes · Shot (3) to pose or play it');panelKey='';bump();}
+function cancelHold(why){if(!HOLD)return;HOLD=null;heard(why||'cancelled: the figure stays in its film');panelKey='';bump();}
+function swapAB(){const a=SRC.src,t=SRC.t;SRC.src=SRC.b;SRC.t=SRC.bt||0;SRC.b=a;SRC.bt=t;SRC.mi=SRC.mo=null;const u=urlOf(SRC.src);if(u)vidFor('s:'+SRC.src,u);peaks(SRC.src);panelKey='';trayDraw();bump();heard('swapped: now holding '+A(SRC.src).title+' · B keeps '+A(SRC.b).title);}
+function srcDown(px,py){const X=px*dpr,Y=py*dpr;
+ if(HOLD){if(inR(FB,X,Y))placeHold({x:(X-FB.x)/FB.w,y:(Y-FB.y)/FB.h});else if(HOLD.state==='paused'&&inR(SB,X,Y)){HOLD.state='held';heard('held again');bump();}return;}
+ if(SRC.b&&SRC.b!==SRC.src&&inR(PB(),X,Y)){swapAB();return;}
+ if(inR(SB,X,Y)){if(figAtSource(px,py)){startHold('pointer');HOLD.down={x:X,y:Y};return;}SRCDRAG={x:X,t0:SRC.t};SRC.playing=false;SRC.rate=0;$('#sPlay').textContent='Play source';return;}}
+function srcMove(px,py){const X=px*dpr,Y=py*dpr;if(HOLD){if(HOLD.down&&Math.hypot(X-HOLD.down.x,Y-HOLD.down.y)>8*dpr)HOLD.moved=true;if(HOLD.state==='held')holdPreview(px,py);return;}
+ if(SRCDRAG){const a=A(SRC.src),D=a&&a.dur||0;SRC.t=snapF(clamp(SRCDRAG.t0+(X-SRCDRAG.x)/SB.w*D,0,D));dirty=true;return;}
+ const h=inR(SB,X,Y)&&figAtSource(px,py);if(h!==HOVERF){HOVERF=h;dirty=true;}cv.style.cursor=h?'grab':inR(SB,X,Y)?'ew-resize':'';}
+/* release rule: let go over the film places; let go anywhere else returns the figure; a tap without moving locks it (tap the film to place) */
+function srcUp(){if(HOLD&&HOLD.down){HOLD.down=null;if(HOLD.moved){if(HOLD.prev)placeHold(HOLD.prev);else cancelHold('returned: you let go outside the film, so nothing changed');}else heard('held and locked: tap the film to place it there · Esc cancels');}SRCDRAG=null;}
 function drawLayers(){const c=shotAt(T);if(!c)return;const sh=c.s,lt=T-c.a,L=[{ground:true},...[...sh.figs].filter(e=>lt>=e.t0&&lt<e.t1).sort(byZ).map(e=>({e}))],n=L.length,W=cv.width,H=cv.height,a=.62+.3*(1-Math.abs(yaw)),bb=.3*yaw;
  let pw=Math.min(W*.5,H*.62*16/9),span=Math.min(W*.42,(n-1)*W*.08),sy=Math.min(H*.2,(n-1)*H*.035);const q=Math.min(1,W*.9/(a*pw+span),H*.86/(pw*9/16+sy+Math.abs(bb)*pw));pw*=q;span*=q;sy*=q;const s=pw/1000,sx=n>1?span/(n-1):0,syy=n>1?sy/(n-1):0,x0=(W-(a*pw+span))/2,y0=(H-(pw*9/16+sy+Math.abs(bb)*pw))/2+(bb<0?Math.abs(bb)*pw:0);SHEETS=[];
  L.forEach((l,i)=>{const b=buf('d'+i,640,360),bg=b.getContext('2d');bg.setTransform(1,0,0,1,0,0);bg.clearRect(0,0,640,360);if(l.ground)drawGround(bg,sh,lt,640,360,false);else drawEl(bg,l.e,lt,640,360,false);const m=[a*s,bb*s,0,s,x0+i*sx,y0+i*syy];SHEETS.push({m,l});
@@ -387,21 +460,22 @@ function hitAt(px,py){const X=px*dpr-box.x,Y=py*dpr-box.y;for(let i=BOXES.length
 
 /* ================= picking up figures: drag moves the path; dragging while the film plays records it ================= */
 let GRAB=null,turn=null,THERE=null;
-function down(px,py){if(MODE==='film'){setPlay(!playing);return;}
+function down(px,py){if(FLOOR){const p=toStage(px,py);FL.ptr={x:clamp(p.x,0,1),y:clamp(p.y,0,1)};if(FL.hold)fsend({type:'place',x:FL.ptr.x,y:FL.ptr.y});return;}if(MODE==='source')return srcDown(px,py);if(MODE==='film'){setPlay(!playing);return;}
  if(MODE==='shot'&&APART){for(let k=SHEETS.length-1;k>=0;k--){const m=SHEETS[k].m,det=m[0]*m[3]-m[1]*m[2],X=px*dpr-m[4],Y=py*dpr-m[5],u=(m[3]*X-m[2]*Y)/det,v=(-m[1]*X+m[0]*Y)/det;if(u>=0&&u<=1000&&v>=0&&v<=562.5){SEL=SHEETS[k].l.e?SHEETS[k].l.e.id:'ground';bump();break;}}turn={x:px,y0:yaw};return;}
  if(MODE!=='shot')return;const c=shotAt(T),p=toStage(px,py),e=hitAt(px,py);
- if(e){SEL=e.id;SHOT=c.s.id;GRAB={tok:begin(playing?'record the path of '+nameOf(e):'move '+nameOf(e)),e,p,k0:JSON.parse(JSON.stringify(e.keys)),moved:false,rec:playing};bump();return;}
+ if(e){SEL=e.id;SHOT=c.s.id;const sh=!!window.__shift;const lt0=T-c.a,pz=!sh&&(e.keys.length>1||Math.abs(lt0-(e.keys[0]?e.keys[0].t:0))>.1);GRAB={tok:begin(playing?'record the path of '+nameOf(e):pz?'set the pose of '+nameOf(e)+' at '+lt0.toFixed(2)+' s':'move '+nameOf(e)),e,p,k0:JSON.parse(JSON.stringify(e.keys)),moved:false,rec:playing,shift:sh,lt0};bump();return;}
  THERE={x:clamp(p.x,0,1),y:clamp(p.y,0,1),t:performance.now()};if(SEL){SEL=null;bump();}}
-function move(px,py){if(MODE==='shot')PTR=toStage(px,py);if(turn){yaw=clamp(turn.y0+(px-turn.x)/220,-1,1);dirty=true;return;}if(!GRAB)return;
+function move(px,py){if(FLOOR){const p=toStage(px,py);FL.ptr={x:clamp(p.x,0,1),y:clamp(p.y,0,1)};dirty=true;return;}if(MODE==='source')return srcMove(px,py);if(MODE==='shot')PTR=toStage(px,py);if(turn){yaw=clamp(turn.y0+(px-turn.x)/220,-1,1);dirty=true;return;}if(!GRAB)return;
  const p=toStage(px,py),dx=p.x-GRAB.p.x,dy=p.y-GRAB.p.y,e=GRAB.e,c=shotAt(T);if(Math.hypot(dx,dy)>.003)GRAB.moved=true;
  if(GRAB.rec){if(!(playing&&c&&c.s.figs.includes(e))){if(GRAB.r0!=null&&!GRAB.ended){GRAB.ended=1;heard('the shot ended: the path is recorded up to its last frame');}return;}/* the path recorded so far in this drag replaces the old path over the same span of time */const lt=+(T-c.a).toFixed(3);if(GRAB.r0==null){GRAB.r0=lt;GRAB.recd=[];}const last=GRAB.recd[GRAB.recd.length-1];if(!last||lt>last.t+.02)GRAB.recd.push({t:lt,x:+clamp(p.x,-.2,1.2).toFixed(4),y:+clamp(p.y,-.2,1.2).toFixed(4),s:at({keys:GRAB.k0},lt).s});
   const end=GRAB.recd[GRAB.recd.length-1].t;e.keys=[...GRAB.k0.filter(k=>k.t<GRAB.r0-.001),...GRAB.recd,...GRAB.k0.filter(k=>k.t>end+.001)];}
- else e.keys=GRAB.k0.map(k=>({...k,x:+(k.x+dx).toFixed(4),y:+(k.y+dy).toFixed(4)}));dirty=true;}
-function up(){turn=null;if(GRAB){commit(GRAB.tok);GRAB=null;bump();}}
+ else if(GRAB.shift||(GRAB.k0.length<2&&Math.abs(GRAB.lt0-GRAB.k0[0].t)<=.1))e.keys=GRAB.k0.map(k=>({...k,x:+(k.x+dx).toFixed(4),y:+(k.y+dy).toFixed(4)}));
+ else{const sh=shotOf(e),i=film.shots.indexOf(sh),lt=+(T-(i>=0?starts()[i]:0)).toFixed(3),q=at({keys:GRAB.k0},lt);GRAB.pose=lt;e.keys=[...GRAB.k0.filter(k=>Math.abs(k.t-lt)>.1),{t:lt,x:+(q.x+dx).toFixed(4),y:+(q.y+dy).toFixed(4),s:q.s}].sort((a,b)=>a.t-b.t);}dirty=true;}
+function up(){if(FLOOR)return;if(MODE==='source')return srcUp();turn=null;if(GRAB){commit(GRAB.tok);GRAB=null;bump();}}
 function cancelGrab(){if(GRAB){cancel(GRAB.tok);GRAB=null;}}
-cv.addEventListener('pointerdown',e=>{const r=cv.getBoundingClientRect();try{cv.setPointerCapture(e.pointerId);}catch(x){}down(e.clientX-r.left,e.clientY-r.top);});
-cv.addEventListener('pointermove',e=>{const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;move(x,y);cv.style.cursor=GRAB?'grabbing':MODE==='shot'&&!APART&&e.pointerType==='mouse'&&hitAt(x,y)?'grab':'';});
-cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',()=>{cancelGrab();turn=null;});
+cv.addEventListener('pointerdown',e=>{window.__shift=e.shiftKey;LAT.p=e.timeStamp;const r=cv.getBoundingClientRect();try{cv.setPointerCapture(e.pointerId);}catch(x){}down(e.clientX-r.left,e.clientY-r.top);});
+cv.addEventListener('pointermove',e=>{if(e.buttons)LAT.p=e.timeStamp;const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;move(x,y);if(MODE==='source'||FLOOR)return;cv.style.cursor=GRAB?'grabbing':MODE==='shot'&&!APART&&e.pointerType==='mouse'&&hitAt(x,y)?'grab':'';});
+cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',()=>{if(MODE==='source'){if(HOLD&&HOLD.down)cancelHold('cancelled: the pointer was lost');SRCDRAG=null;return;}cancelGrab();turn=null;});
 let wheelTok=null,wheelT=0;cv.addEventListener('wheel',e=>{e.preventDefault();const s=findEl(SEL);if(MODE==='shot'&&s){if(!wheelTok)wheelTok=begin('size '+nameOf(s));const f=e.deltaY>0?1/1.07:1.07;s.keys.forEach(k=>k.s=clamp(k.s*f,.02,2));clearTimeout(wheelT);wheelT=setTimeout(()=>{commit(wheelTok);wheelTok=null;},350);dirty=true;return;}
  if(MODE==='source'&&SRC.src){SRC.t=clamp(SRC.t+(e.deltaY>0?1:-1)/FPS,0,A(SRC.src).dur||999);dirty=true;return;}seek(T+(e.deltaY>0?1:-1)/FPS);},{passive:false});
 
@@ -427,7 +501,7 @@ $('#strip').addEventListener('pointermove',e=>{
  const joinT=k===0?0:(()=>{const o=others[k-1],i=film.shots.indexOf(o);return S[i]+len(o);})();const ins=$('#ins');ins.hidden=false;ins.style.left='clamp(2px,'+(joinT/D*100)+'%,calc(100% - 3px))';
  const was=film.shots.indexOf(SD.s);ghost(e.clientX,e.clientY,k===was?'stays where it is':nameShot(SD.s)+' → '+(k===0?'the start':k===others.length?'the end':'between shots '+(film.shots.indexOf(others[k-1])+1)+' and '+(film.shots.indexOf(others[k])+1)));bump();});
 function sEnd(e,cancelled){$('#ins').hidden=true;ghost();if(TRIM){const R=TRIM;TRIM=null;if(cancelled)cancel(R.tok);else if(commit(R.tok)){const i=film.shots.indexOf(R.s),S=starts(),j=R.edge==='b'?S[i]+len(R.s):S[i];audition(j);}bump();return;}
- if(!SD)return;const d=SD;SD=null;if(!d.moved){SHOT=d.s.id;SEL=null;seek(starts()[film.shots.indexOf(d.s)]+.001);bump();return;}
+ if(!SD)return;const d=SD;SD=null;if(!d.moved){SHOT=d.s.id;{const se=findEl(SEL);if(!se||!d.s.figs.includes(se))SEL=null;}const i=film.shots.indexOf(d.s),a=starts()[i];seek(e?clamp(stripX(e.clientX)*total(),a+.001,a+len(d.s)-.01):a+.001);bump();return;}
  if(cancelled||d.to==null){cancel(d.tok);return;}const was=film.shots.indexOf(d.s);film.shots.splice(was,1);film.shots.splice(d.to,0,d.s);SHOT=d.s.id;if(commit(d.tok)){const S=starts(),i=film.shots.indexOf(d.s);audition(S[i]);}bump();}
 $('#strip').addEventListener('pointerup',e=>sEnd(e,false));$('#strip').addEventListener('pointercancel',e=>sEnd(e,true));
 function ghost(x,y,t){let g0=$('#ghost');if(!t){if(g0)g0.remove();return;}if(!g0){g0=document.createElement('div');g0.id='ghost';g0.className='ghost';document.body.append(g0);}g0.textContent=t;g0.style.left=(x+14)+'px';g0.style.top=(y-34)+'px';}
@@ -436,7 +510,7 @@ function audition(t){if(!film.shots.length)return;T=clamp(t-1.5,0,total()-.01);A
 function seek(t){T=clamp(t,0,Math.max(0,total()-.001));dirty=true;}
 
 /* ================= the source: pick footage, scrub it, mark an interval, take it ================= */
-const SRC={src:null,t:0,mi:null,mo:null,playing:false};let bandDrag=null;
+const SRC={src:null,t:0,mi:null,mo:null,playing:false,rate:0,b:null,bt:0};let bandDrag=null;
 function openSource(src,mi,mo,t){SRC.src=src;SRC.mi=mi??null;SRC.mo=mo??null;SRC.t=t??mi??0;SRC.playing=false;$('#sPlay').textContent='Play source';const u=urlOf(src);if(u)vidFor('s:'+src,u);peaks(src);setMode('source');}
 function bandDraw(){const c=$('#bandc'),W=c.width=Math.max(1,c.clientWidth*dpr),H=c.height=Math.max(1,c.clientHeight*dpr),x=c.getContext('2d'),a=A(SRC.src);x.fillStyle='#12100e';x.fillRect(0,0,W,H);if(!a)return;
  if(!a.dur){x.fillStyle=FAIL[SRC.src]?'#e0483a':'#6b645b';x.font=(11*dpr)+'px IBM Plex Mono';x.fillText(FAIL[SRC.src]?'cannot be played here: nothing to mark':'waiting for the footage to say how long it is',8*dpr,H/2+4*dpr);['#sIns','#sRep','#sTab','#sIn','#sOut','#sPlay'].forEach(k=>$(k).disabled=true);$('#sTc').textContent='';return;}
@@ -459,6 +533,11 @@ function takeFromSource(where){const D0=A(SRC.src)&&A(SRC.src).dur;if(!D0)return
  if(where==='replace'){const sh=curShot();if(!sh||!film.shots.includes(sh))return;act('replace the take of '+nameShot(sh),()=>{const old=len(sh);sh.take={src:SRC.src,in:SRC.mi,out:SRC.mo};fitFigs(sh,old);});toast(nameShot(sh)+' now takes '+tcf(SRC.mi)+'–'+tcf(SRC.mo)+' of '+a.title+'.');return;}
  const s=newShot({src:SRC.src,in:SRC.mi,out:SRC.mo},'');if(where==='table'){act('put a take on the table',()=>film.table.push(s));toast('On the table: '+a.title+' '+tcf(SRC.mi)+'–'+tcf(SRC.mo)+'. It plays only once you place it in the film (Table, 3).');return;}
  act('insert a take of '+a.title,()=>{const cur=film.shots.findIndex(x=>x.id===SHOT),i=cur>=0?cur+1:film.shots.length;film.shots.splice(i,0,s);SHOT=s.id;});const i=film.shots.indexOf(s);toast('Inserted as '+nameShot(s)+': '+a.title+' '+tcf(SRC.mi)+'–'+tcf(SRC.mo)+'.');T=starts()[i]+.001;SRC.mi=SRC.mo=null;}
+$('#sB').onclick=()=>{if(!SRC.src)return;SRC.b=SRC.src;SRC.bt=SRC.t;heard('kept as B: open other footage, then click B in the corner to compare or swap');dirty=true;};
+let SHUT=null;const shutEl=$('#shut');
+shutEl.addEventListener('pointerdown',e=>{shutEl.setPointerCapture(e.pointerId);const r=shutEl.getBoundingClientRect();SHUT={c:r.left+r.width/2,h:r.width/2};shutMove(e);});
+function shutMove(e){if(!SHUT)return;const dx=e.clientX-SHUT.c,dead=10;SRC.rate=Math.abs(dx)<dead?0:Math.sign(dx)*+Math.min(4,(Math.abs(dx)-dead)/(SHUT.h-dead)*4).toFixed(2);SRC.playing=false;$('#shutK').style.left=clamp(50+dx/SHUT.h*50,0,100)+'%';shutEl.classList.toggle('on',!!SRC.rate);dirty=true;}
+shutEl.addEventListener('pointermove',shutMove);const shutUp=()=>{SHUT=null;SRC.rate=0;$('#shutK').style.left='50%';shutEl.classList.remove('on');};shutEl.addEventListener('pointerup',shutUp);shutEl.addEventListener('pointercancel',shutUp);
 $('#sIns').onclick=()=>takeFromSource('insert');$('#sRep').onclick=()=>takeFromSource('replace');$('#sTab').onclick=()=>takeFromSource('table');
 
 /* ================= the table: the film in order above, takes kept aside below; the drop point shows before release ================= */
@@ -487,23 +566,61 @@ $('#table').addEventListener('pointerup',e=>{const d=TD;TD=null;ghost();const mk
  if(commit(d.tok)){if(d.target.row==='f'){toast(nameShot(s)+' now. Press Space to hear it in place.');T=starts()[film.shots.indexOf(s)]+.001;}else toast('On the table; the film no longer plays it.');}tableKey='';bump();});
 $('#table').addEventListener('dblclick',e=>{const t=e.target.closest('.tile');if(!t)return;const s=film.shots.find(x=>x.id===t.dataset.id);if(!s)return;SHOT=s.id;T=starts()[film.shots.indexOf(s)]+.001;setMode('shot');});
 
+/* ================= the Floorboard: a second surface (another window, or a paired phone) that shows the shot and takes the placing touch =================
+   Messages: state {data, shot, T, hold}, hello, place {x,y}, cancel. Two windows in one browser use a BroadcastChannel; a phone uses a PeerJS link. */
+const FLOOR=/[?&]floor\b/.test(location.search);let BC=null;try{BC=new BroadcastChannel('wg-stack-floor');}catch(e){}
+const CONNS=[];let FL={hold:null,shot:0,T:0,data:'',ptr:null,linked:0,sig:''};
+function fsend(m){try{BC&&BC.postMessage(m);}catch(e){}for(const c of CONNS)try{c.open&&c.send(m);}catch(e){}}
+function fstate(force){if(FLOOR||!film)return;const sh=floorShot(),i=sh?film.shots.indexOf(sh):-1,hold=HOLD?{src:HOLD.src,in:HOLD.in,out:HOLD.out,rw:HOLD.rw,s0:HOLD.s0,state:HOLD.state}:null,sig=ver+'|'+i+'|'+(hold?hold.state+hold.src:'')+'|'+(playing?Math.round(T*8):Math.round(T*100));if(!force&&sig===FL.sig)return;FL.sig=sig;
+ const a0=i>=0?starts()[i]:0,lt=sh&&T>=a0&&T<a0+len(sh)?T-a0:0;fsend({type:'state',data:filmData(),shot:i,lt,hold});}
+function fmsg(m){if(!m||!m.type)return;
+ if(FLOOR){if(m.type==='state'){const d=JSON.stringify(m.data);if(d!==FL.data){FL.data=d;film=filmFrom(m.data);}FL.shot=m.shot;FL.lt=m.lt;T=(m.shot>=0&&film.shots[m.shot]?starts()[m.shot]:0)+(m.lt||0);FL.hold=m.hold;FL.linked=performance.now();$('#floorUI').hidden=!m.hold;dirty=true;}return;}
+ if(m.type==='hello'){FL.linked=performance.now();fstate(true);toast('The Floorboard is connected: carry a held figure there and touch to place it.');}
+ else if(m.type==='place'&&HOLD){placeHold({x:m.x,y:m.y});heard('placed from the Floorboard');}else if(m.type==='cancel'&&HOLD)cancelHold('cancelled on the Floorboard');}
+if(BC)BC.onmessage=e=>fmsg(e.data);
+function drawFloorb(){const sh=film&&film.shots[FL.shot];g.save();g.translate(box.x,box.y);g.beginPath();g.rect(0,0,box.w,box.h);g.clip();g.fillStyle='#0c0b0a';g.fillRect(0,0,box.w,box.h);
+ if(sh){drawShot(g,sh,FL.lt||0,box.w,box.h,{cap:false});if(FL.hold&&FL.ptr){const e={kind:'mfig',src:FL.hold.src,in:FL.hold.in,out:FL.hold.out,rw:FL.hold.rw,z:.6,flip:0,t0:0,t1:99,keys:[{t:0,x:FL.ptr.x,y:FL.ptr.y,s:FL.hold.s0}]};g.globalAlpha=.6;drawEl(g,e,performance.now()/1000,box.w,box.h,false);g.globalAlpha=1;g.strokeStyle='#efa13a';g.lineWidth=3*dpr;g.beginPath();g.ellipse(FL.ptr.x*box.w,FL.ptr.y*box.h,26*dpr,7*dpr,0,0,7);g.stroke();}}
+ g.restore();const on=performance.now()-FL.linked<3000;label('FLOORBOARD · '+(on?(sh?'shot '+(FL.shot+1):'no shot yet')+(FL.hold?(FL.hold.state==='paused'?' · TRACKING PAUSED':' · touch to PLACE'):''):'waiting for the editor'),box.x+10*dpr,box.y+22*dpr,FL.hold?'#efa13a':'#b3ab9e');}
+async function loadScript(u){if(document.querySelector(`script[src="${u}"]`))return;await new Promise((ok,no)=>{const e=document.createElement('script');e.src=u;e.onload=ok;e.onerror=()=>no(Error('could not load '+u));document.head.append(e);});}
+async function pairPhone(){try{await loadScript('https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js');await loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');}catch(e){return toast('Pairing needs the network: '+e.message);}
+ const peer=new Peer();peer.on('open',id=>{const u=location.origin+location.pathname+'?floor&peer='+id;$('#qrC').innerHTML='';new QRCode($('#qrC'),{text:u,width:220,height:220});$('#qrT').textContent='Or open on the phone: '+u;$('#qrBox').hidden=false;});
+ peer.on('connection',c=>{CONNS.push(c);c.on('data',fmsg);c.on('open',()=>{$('#qrBox').hidden=true;fstate(true);toast('A phone is the Floorboard now.');});});peer.on('error',e=>toast('Pairing: '+e.type));}
+$('#qrX').onclick=()=>{$('#qrBox').hidden=true;};
+async function floorJoin(){const m=location.search.match(/peer=([\w-]+)/);if(m){try{await loadScript('https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js');const peer=new Peer();peer.on('open',()=>{const c=peer.connect(m[1],{reliable:true});c.on('open',()=>{CONNS.push(c);c.send({type:'hello'});});c.on('data',fmsg);});}catch(e){toast('Could not reach the editor: '+e.message);}}
+ fsend({type:'hello'});setInterval(()=>fsend({type:'hello'}),2500);}
+$('#flPlace').onclick=()=>{fsend({type:'place',x:FL.ptr?FL.ptr.x:.5,y:FL.ptr?FL.ptr.y:.88});};$('#flCancel').onclick=()=>fsend({type:'cancel'});
+
+/* ================= the archive wall: every source, to find, audition, hold, or keep for comparison ================= */
+let wallBuilt=false,wallQ=null;
+function wallTile(src){const a=A(src),n=film.shots.filter(s=>s.take.src===src).length;return `<div class="tile wt" data-s="${esc(src)}" title="${esc(a.title)}"><img loading="lazy" src="${esc(a.thumb)}" alt="" style="width:160px;height:90px;object-fit:cover;display:block;border-radius:2px;background:#111"><small><b>${esc(a.title)}</b>${n?' · '+n+' in the film':''}${src==='shm:giraffe-walks-past'?' · figure':''}</small><button class="wb" data-b="${esc(src)}" title="Keep as B, to compare">B</button></div>`;}
+function wallBuild(){if(wallBuilt&&!wallQ)return;wallBuilt=true;const w=$('#wall');
+ w.innerHTML=`<form id="wallF" style="display:flex;gap:6px;margin-bottom:6px"><input id="wallQ" placeholder="search 16,153 archive shots by what they show" style="flex:1;background:#12100e;border:1px solid #2e2a26;border-radius:16px;padding:6px 12px;color:inherit;font:inherit"><button class="hb">Search</button></form>
+ ${wallQ?`<h4>Archive · “${esc(wallQ.q)}”<span>${wallQ.r.length} found · click to hold in Source</span></h4><div class="trow">${wallQ.r.map(wallTile).join('')}</div>`:''}
+ <h4>A figure that can leave its film<span>its mask is known in every frame</span></h4><div class="trow">${wallTile('shm:giraffe-walks-past')}</div>
+ <h4>WarGames<span>${WG.length} clips with sound · hover to watch · click to hold in Source · B keeps it for comparison</span></h4><div class="trow">${WG.map(x=>wallTile('w:'+x.id)).join('')}</div>
+ <h4>Secondhand Motion<span>${DATA.sh.length} shots · silent footage</span></h4><div class="trow">${DATA.sh.filter(x=>x.slug!=='giraffe-walks-past').map(x=>wallTile('shm:'+x.slug)).join('')}</div>`;
+ $('#wallF').onsubmit=async e=>{e.preventDefault();const q=$('#wallQ').value.trim();if(!q)return;heard('looking for “'+q+'”');const r=await findGrounds(q);heard('');wallQ={q,r};wallBuilt=false;wallBuild();wallQ=null;};}
+$('#wall').addEventListener('click',e=>{const b=e.target.closest('.wb');if(b){SRC.b=b.dataset.b;SRC.bt=0;toast('Kept as B: '+A(SRC.b).title+'.');return;}const t=e.target.closest('.wt');if(t){openSource(t.dataset.s,null,null,0);}});
+$('#wall').addEventListener('pointerover',e=>{const t=e.target.closest('.wt');if(!t||t._v)return;const a=A(t.dataset.s);if(!a.video)return;const v=document.createElement('video');v.muted=true;v.loop=true;v.playsInline=true;v.src=a.video;v.style.cssText='position:absolute;left:0;top:0;width:160px;height:90px;object-fit:cover;border-radius:2px;pointer-events:none';t.append(v);t._v=v;v.play().catch(()=>{});t.addEventListener('pointerleave',()=>{v.remove();t._v=null;},{once:true});});
+
 /* ================= the layers of the selected shot, as chips ================= */
 let chipKey='',cDrag=null;
 function chipsBuild(){const sh=curShot(),key=sh?sh.id+sh.take.src+[...sh.figs].sort(byZ).map(e=>e.id+(e.ref||e.slug)).join()+SEL+(SAM?1:0)+APART:'none';if(key===chipKey)return;chipKey=key;
  if(!sh){$('#chips').innerHTML='';return;}const a=A(sh.take.src);
- $('#chips').innerHTML=`<span class="lb">BACK</span><button class="g${SEL==='ground'?' sel':''}" data-k="ground" title="${esc(a?a.title:'no source')}">${a&&a.thumb?`<img src="${esc(a.thumb)}" alt="">`:''}<span>${esc(a?a.title:'no source')}</span></button>`+[...sh.figs].sort(byZ).map(e=>{const th=e.kind==='fig'&&SAM?furl(SAM.figs[FI.get(e.ref)].png):SHM+((SHN[e.slug]&&SHN[e.slug].dir)||e.slug+'-gwp')+'/cover.png';return `<button data-k="${e.id}" class="${e.id===SEL?'sel':''}" title="${esc(nameOf(e))}"><img src="${esc(th)}" alt=""><span>${esc(nameOf(e))}</span></button>`;}).join('')+`<span class="lb">FRONT</span><button class="add" data-k="add">+ figure</button><button class="add" data-k="apart" aria-pressed="${APART}" title="Take the layers apart in depth (A)">apart</button>`;}
+ $('#chips').innerHTML=`<span class="lb">BACK</span><button class="g${SEL==='ground'?' sel':''}" data-k="ground" title="${esc(a?a.title:'no source')}">${a&&a.thumb?`<img src="${esc(a.thumb)}" alt="">`:''}<span>${esc(a?a.title:'no source')}</span></button>`+[...sh.figs].sort(byZ).map(e=>{const th=e.kind==='mfig'?(A(e.src)||{}).thumb:e.kind==='fig'&&SAM?furl(SAM.figs[FI.get(e.ref)].png):SHM+((SHN[e.slug]&&SHN[e.slug].dir)||e.slug+'-gwp')+'/cover.png';return `<button data-k="${e.id}" class="${e.id===SEL?'sel':''}" title="${esc(nameOf(e))}"><img src="${esc(th)}" alt=""><span>${esc(nameOf(e))}</span></button>`;}).join('')+`<span class="lb">FRONT</span><button class="add" data-k="add">+ figure</button><button class="add" data-k="apart" aria-pressed="${APART}" title="Take the layers apart in depth (A)">apart</button>`;}
 $('#chips').addEventListener('pointerdown',e=>{const b=e.target.closest('button');if(!b)return;const k=b.dataset.k;if(k==='apart'){APART=!APART;bump();return;}if(k==='add'){SEL=null;bump();showTray('figs','');$('#q').focus();return;}SEL=k;bump();if(k!=='ground'){cDrag={id:k,x:e.clientX,moved:false};b.setPointerCapture(e.pointerId);}});
 $('#chips').addEventListener('pointermove',e=>{const d=cDrag;if(!d)return;if(Math.abs(e.clientX-d.x)<24)return;const sh=curShot(),L=[...sh.figs].sort(byZ),i=L.findIndex(x=>x.id===d.id),j=i+(e.clientX>d.x?1:-1);if(j<0||j>=L.length)return;if(!d.moved){d.tok=begin('reorder layers');d.moved=true;}const zi=L[i].z??.5,zj=L[j].z??.5;L[i].z=zj===zi?zj+(j>i?.01:-.01):zj;L[j].z=zi;d.x=e.clientX;bump();});
 $('#chips').addEventListener('pointerup',()=>{if(cDrag){if(cDrag.moved)commit(cDrag.tok);cDrag=null;}});
 
 /* ================= the panel ================= */
 let TRAY='figs',trayQ='',trayList=null,panelKey='';
-function panel(){const sh=curShot(),e=findEl(SEL),m=sh&&MEMO.get(sh.id);const key=MODE+'|'+(sh?sh.id+sh.text+sh.take.src+sh.take.in+sh.take.out+sh.gain+(m?1:0)+film.shots.indexOf(sh):'')+'|'+SEL+'|'+(e?e.ref+e.z+e.flip+e.keys.length:'')+'|'+(SAM?1:0)+(LIB?1:0)+film.cap+film.grade+film.shots.length+SRC.src+(DUR[SRC.src]||0);if(key===panelKey)return;panelKey=key;
+function panel(){const sh=curShot(),e=findEl(SEL),m=sh&&MEMO.get(sh.id);const key=MODE+'|'+(HOLD?HOLD.state+HOLD.src:'')+(A(SRC.src)?.figs?1:0)+'|'+(sh?sh.id+sh.text+sh.take.src+sh.take.in+sh.take.out+sh.gain+(m?1:0)+film.shots.indexOf(sh):'')+'|'+SEL+'|'+(e?e.ref+e.z+e.flip+e.keys.length:'')+'|'+(SAM?1:0)+(LIB?1:0)+film.cap+film.grade+film.shots.length+SRC.src+(DUR[SRC.src]||0);if(key===panelKey)return;panelKey=key;
  const B=(a,l,c)=>`<button data-a="${a}"${c?' class="'+c+'"':''}>${l}</button>`;
- if(MODE==='source'){$('#whatH').textContent='Footage';const a=A(SRC.src);$('#what').innerHTML=a?`<b>${esc(a.title)}</b><small>${a.dur?tcf(a.dur)+' long · ':''}${film.shots.filter(s=>s.take.src===SRC.src).length} takes of it in the film${a.local?' · with sound':''}</small>`:'<small>Pick footage below. WarGames clips have sound.</small>';$('#acts').innerHTML='';
+ if(MODE==='source'){const a=A(SRC.src);if(HOLD){const ha=A(HOLD.src);$('#whatH').textContent=HOLD.state==='paused'?'Tracking paused':'Held';$('#what').innerHTML=`<b>figure from ${esc(ha.title)}</b><small>frames ${tcf(HOLD.in)}–${tcf(HOLD.out)} · goes into ${esc(nameShot(floorShot())||'')}</small>`;$('#acts').innerHTML=B('place','Place','go')+B('cancel','Cancel');return;}
+  $('#whatH').textContent='Footage';$('#what').innerHTML=a?`<b>${esc(a.title)}</b><small>${a.dur?tcf(a.dur)+' long · ':''}${film.shots.filter(s=>s.take.src===SRC.src).length} takes of it in the film · ${a.silent?'silent':'with sound'}${a.figs?' · it carries a figure you can lift':''}</small>`:'<small>Pick footage below. WarGames clips have sound.</small>';$('#acts').innerHTML='';
   if(TRAY!=='src')showTray('src','');return;}
  if(e){$('#whatH').textContent='Figure in '+nameShot(shotOf(e));$('#what').innerHTML=`<b title="${esc(nameOf(e))}">${esc(nameOf(e))}</b><small>${esc(fromOf(e))} · depth ${(e.z??.5).toFixed(2)}${e.keys.length>1?' · moves ('+e.keys.length+' keys)':''}</small>`;
-  $('#acts').innerHTML=B('lg','Bigger')+B('sm','Smaller')+B('near','Nearer')+B('far','Farther')+B('flip','Flip')+B('copy','Copy')+B('cloud','Cloud of these')+B('cross','Walk across')+(e.keys.length>1?B('still','Hold still'):'')+B('rm','Remove');
+  $('#acts').innerHTML=B('pose','Pose at this moment','go')+(e.kind==='mfig'?B('osrc','Its source'):'')+B('lg','Bigger')+B('sm','Smaller')+B('near','Nearer')+B('far','Farther')+B('flip','Flip')+B('copy','Copy')+B('cloud','Cloud of these')+B('cross','Walk across')+(e.keys.length>1?B('still','Hold still'):'')+B('rm','Remove');
   if(TRAY!=='swapf'||trayQ!==e.id)showTray('swapf',e.id);return;}
  if(SEL==='ground'&&sh){const a=A(sh.take.src);$('#whatH').textContent='Footage of '+nameShot(sh);$('#what').innerHTML=`<b>${esc(a?a.title:'no source')}</b><small>${tcf(sh.take.in)}–${tcf(sh.take.out)} of the source · tap footage below to swap it</small>`;
   $('#acts').innerHTML=B('src','Open in Source','go')+B('grade',film.grade?'Colour':'Black and white')+B('nog','No footage');if(TRAY!=='grounds')showTray('grounds','',m?m.alts.map(id=>'arch:'+id):WG.map(w=>'w:'+w.id));return;}
@@ -515,7 +632,7 @@ function panel(){const sh=curShot(),e=findEl(SEL),m=sh&&MEMO.get(sh.id);const ke
   const lr=$('#lenR');lr.onpointerdown=()=>{lr._tok=begin('change the length of '+nameShot(sh));};lr.oninput=()=>{if(!lr._tok)lr._tok=begin('change the length of '+nameShot(sh));setOut(sh,sh.take.in+ +lr.value);$('#lenV').textContent=len(sh).toFixed(2)+' s';bump();};lr.onchange=()=>{commit(lr._tok);lr._tok=null;};
   if(TRAY==='swapf'||TRAY==='src'||!trayQ)showTray(TRAY==='grounds'&&!trayQ?'grounds':'figs','',TRAY==='grounds'&&!trayQ?(m?m.alts.map(id=>'arch:'+id):WG.map(w=>'w:'+w.id)):(m?m.cands:null));if(m===undefined)remember(sh);return;}
  $('#whatH').textContent='No shot selected';$('#what').innerHTML='<small>Source (1): pick footage, mark a take, insert it. Or write a line below.</small>';$('#acts').innerHTML='';}
-$('#acts').onclick=async ev=>{const b=ev.target.closest('button');if(!b)return;const a=b.dataset.a,sh=curShot(),e=findEl(SEL);
+$('#acts').onclick=async ev=>{const b=ev.target.closest('button');if(!b)return;const a=b.dataset.a,sh=curShot(),e=findEl(SEL);if(a==='place'){placeHold(HOLD&&HOLD.prev);return;}if(a==='cancel'){cancelHold();return;}if(a==='pose'&&e){const s=shotOf(e),i=film.shots.indexOf(s),lt=+(T-(i>=0?starts()[i]:0)).toFixed(3);act('add a pose of '+nameOf(e)+' at '+lt.toFixed(2)+' s',()=>{const q=at(e,lt);e.keys=[...e.keys.filter(k=>Math.abs(k.t-lt)>.1),{t:lt,x:q.x,y:q.y,s:q.s}].sort((x,y)=>x.t-y.t);});toast('A pose at '+lt.toFixed(2)+' s: drag the figure now to set where it is at this moment.');return;}if(a==='osrc'&&e&&e.kind==='mfig'){openSource(e.src,e.in,e.out,e.in);return;}
  if(a==='src'){if(sh)openSource(sh.take.src||'w:'+WG[0].id,sh.take.src?sh.take.in:null,sh.take.src?sh.take.out:null);return;}
  if(e){const s=shotOf(e);act({lg:'make '+nameOf(e)+' bigger',sm:'make '+nameOf(e)+' smaller',near:'bring '+nameOf(e)+' nearer',far:'push '+nameOf(e)+' back',flip:'flip '+nameOf(e),copy:'copy '+nameOf(e),cloud:'a cloud like '+nameOf(e),cross:nameOf(e)+' walks across',still:nameOf(e)+' holds still',rm:'remove '+nameOf(e)}[a]||a,()=>{
   if(a==='lg')e.keys.forEach(k=>k.s*=1.2);else if(a==='sm')e.keys.forEach(k=>k.s/=1.2);else if(a==='near'){e.z=clamp((e.z??.5)+.15,0,1);e.keys.forEach(k=>k.s*=1.12);}else if(a==='far'){e.z=clamp((e.z??.5)-.15,0,1);e.keys.forEach(k=>k.s/=1.12);}
@@ -534,8 +651,8 @@ function dupEl(e,dx,dy){const c=JSON.parse(JSON.stringify(e));c.id=uid();c.keys.
 
 /* the tray: footage to open (Source), figures to add or swap, footage to swap in */
 function showTray(kind,q,list){TRAY=kind;trayQ=q||'';trayList=list===undefined?trayList:list;
- if(kind==='src'){$('#trayH').textContent=trayQ?'Footage for “'+trayQ+'”':'WarGames clips · with sound';$('#trayT').textContent='';$('#q').placeholder='find archive footage: a road at night';if(!trayQ)trayList=WG.map(w=>'w:'+w.id);}
- else if(kind==='swapf'){const e=findEl(q);trayList=e&&e.kind==='fig'&&SAM?nearFigs(FI.get(e.ref),36):[];$('#trayH').textContent='Swap for';$('#trayT').textContent='';$('#q').placeholder='find another figure for this place';}
+ if(kind==='src'){$('#trayH').textContent=trayQ?'Footage for “'+trayQ+'”':'Footage · WarGames with sound, then Secondhand Motion';$('#trayT').textContent='';$('#q').placeholder='find archive footage: a road at night';if(!trayQ)trayList=['shm:giraffe-walks-past',...WG.map(w=>'w:'+w.id),...DATA.sh.filter(x=>x.slug!=='giraffe-walks-past').map(x=>'shm:'+x.slug)];}
+ else if(kind==='swapf'){const e=findEl(q);trayList=e&&e.kind==='fig'&&SAM?nearFigs(FI.get(e.ref),36):[];$('#trayH').textContent=e&&e.kind==='mfig'?'Its source':'Swap for';$('#trayT').textContent='';$('#q').placeholder='find another figure for this place';}
  else if(kind==='figs'){const sh=curShot(),m=sh&&MEMO.get(sh.id);$('#trayH').textContent=trayQ?'Figures for “'+trayQ+'”':m?'Figures for this line':'Figures';$('#trayT').textContent='footage';$('#q').placeholder='find a figure: a dog, hands, smoke';if(!trayQ&&m)trayList=m.cands;else if(!trayQ)trayList=null;}
  else{$('#trayH').textContent=trayQ?'Footage for “'+trayQ+'”':'Footage for this shot';$('#trayT').textContent='figures';$('#q').placeholder='find footage: a road at night, war games';}
  $('#q').value=kind==='swapf'?'':trayQ;trayDraw();}
@@ -543,7 +660,7 @@ $('#trayT').onclick=()=>{if(TRAY==='grounds'){if(SEL==='ground')SEL=null;showTra
 function trayDraw(){const t=$('#tray');let h='';t.classList.toggle('g',TRAY==='grounds'||TRAY==='src');
  if(TRAY==='grounds'||TRAY==='src'){const L=trayList||[];h=L.length?L.slice(0,160).map(src=>{const x=A(src),cur=TRAY==='src'?SRC.src===src:(curShot()&&curShot().take.src===src);return `<button data-s="${esc(src)}" class="${cur?'on':''}" title="${esc(x.title)+(FAIL[src]?': '+FAIL[src]:'')}"${FAIL[src]?' style="opacity:.4"':''}><img loading="lazy" src="${esc(x.thumb)}" alt=""><small>${esc(x.title)}</small></button>`;}).join(''):'<div class="note">Type what the footage should show, then Return. “war games” lists the WarGames clips.</div>';
   if(TRAY==='src')h='<div class="note">Tap to open it here: scrub, mark, take.</div>'+h;else h='<div class="note">Tap to swap this shot’s footage; its length stays.</div>'+h;}
- else{if(!SAM){t.innerHTML='<div class="note">Loading the figures…</div>';return;}const L=(trayList||SAM.figs.map((_,i)=>i)).slice(0,90);h=(TRAY==='swapf'?'<div class="note">Tap one to take the picked figure’s place.</div>':'<div class="note">Tap: into the shot at THERE. Drag: onto the picture where you let go.</div>')+L.map(i=>{const F=SAM.figs[i];return `<button data-f="${i}" title="${esc(F.desc)} · ${esc(F.title||'')} ${F.year||''}"><img loading="lazy" src="${esc(furl(F.png))}" alt=""><small>${esc(F.desc)}</small></button>`;}).join('');}
+ else{if(!SAM){t.innerHTML='<div class="note">Loading the figures…</div>';return;}const L=(trayList||SAM.figs.map((_,i)=>i)).slice(0,90);h=(TRAY==='swapf'&&findEl(trayQ)?.kind==='mfig'?'<div class="note">This figure carries its own frames and mask from its film. To lift a different interval, open Its source, mark the interval, and lift it again.</div>':TRAY==='swapf'?'<div class="note">Tap one to take the picked figure’s place.</div>':'<div class="note">Tap: into the shot at THERE. Drag: onto the picture where you let go.</div>')+L.map(i=>{const F=SAM.figs[i];return `<button data-f="${i}" title="${esc(F.desc)} · ${esc(F.title||'')} ${F.year||''}"><img loading="lazy" src="${esc(furl(F.png))}" alt=""><small>${esc(F.desc)}</small></button>`;}).join('');}
  t.innerHTML=h;t.scrollTop=0;}
 $('#findF').onsubmit=async ev=>{ev.preventDefault();const q=$('#q').value.trim();$('#q').blur();if(!q){if(TRAY==='src')showTray('src','');return;}
  if(TRAY==='grounds'||TRAY==='src'){heard('looking for “'+q+'”');const r=await findGrounds(q);heard('');showTray(TRAY,q,r);}else{heard('reading “'+q+'”');const r=await findFigs(q);heard('');if(TRAY==='swapf'){trayList=r;trayDraw();}else showTray('figs',q,r);}};
@@ -637,7 +754,21 @@ let HND=null;const HS={grip:null,cmd:{},tracks:[],prev:{},lost:0};
 $('#hands').onclick=async()=>{const b=$('#hands');if(HND){HND.stop();HND=null;b.setAttribute('aria-pressed','false');$('#handPrev').hidden=true;HS.tracks=[];return;}if(!window.MPHands)return toast('The hand tracker did not load.');b.textContent='Starting';
  try{HND=await MPHands.start({view:$('#handVid'),preview:$('#handPrev'),on:{frame:onHands,error:m=>toast('Hands: '+m),state:()=>{},step:(k,ok,t)=>{if(ok===false)toast(t);}}});b.textContent='Hands';b.setAttribute('aria-pressed','true');$('#handPrev').hidden=false;if(MODE!=='shot')setMode('shot');toast('Pinch a figure to hold it; pinch empty ground to mark THERE. A second pinched hand sizes it. V copies, thumb down removes, thumb up plays, a held fist undoes. Losing the hand cancels the move.',5500);}
  catch(e){b.textContent='Hands';toast('Hands did not start: '+(e.message||e));}};
-function onHands(tracks){HS.tracks=tracks;const now=performance.now(),r=cv.getBoundingClientRect();
+const HR={own:null,time:null,tx0:0};
+function srcHands(tracks,now){HS.tracks=tracks;const r=cv.getBoundingClientRect(),byId=Object.fromEntries(tracks.map(t=>[t.id,t]));
+ if(HOLD&&HOLD.by&&HOLD.by!=='pointer'&&HOLD.by!=='key'){if(!byId[HOLD.by]){if(!HS.lost)HS.lost=now;else if(now-HS.lost>300&&HOLD.state!=='paused'){HOLD.state='paused';HOLD.down=null;heard('tracking paused: the figure waits · Place or Cancel, or pinch it again');panelKey='';bump();}}else HS.lost=0;}
+ for(const t of tracks){const lx=t.x-r.left,ly=t.y-r.top,was=HS.prev[t.id];HS.prev[t.id]=t.closed;
+  if(t.closed&&!was){
+   if(HOLD&&HOLD.state==='paused'){HOLD.state='held';HOLD.by=t.id;HOLD.down={x:lx*dpr,y:ly*dpr};HOLD.moved=false;heard('held again: carry it to the film');panelKey='';bump();continue;}
+   if(HOLD)continue;
+   if(HR.own&&HR.own!==t.id){HR.time=t.id;HR.tx0=t.x;SRCDRAG=null;continue;}
+   srcDown(lx,ly);if(HOLD)HOLD.by=t.id;else if(SRCDRAG)HR.own=t.id;}
+  else if(t.closed&&was){if(HOLD&&HOLD.by===t.id&&HOLD.state==='held')srcMove(lx,ly);else if(HR.time===t.id){const dx=t.x-HR.tx0,dead=24;SRC.rate=Math.abs(dx)<dead?0:Math.sign(dx)*+Math.min(4,(Math.abs(dx)-dead)/60).toFixed(2);SRC.playing=false;dirty=true;}else if(HR.own===t.id&&SRCDRAG)srcMove(lx,ly);}
+  else if(!t.closed&&was){if(HOLD&&HOLD.by===t.id&&HOLD.state==='held'){HOLD.down=HOLD.down||{x:lx*dpr,y:ly*dpr};HOLD.moved=true;srcUp();}if(HR.time===t.id){HR.time=null;SRC.rate=0;}if(HR.own===t.id){HR.own=null;HR.time=null;SRC.rate=0;SRCDRAG=null;}}}
+ if(HR.own&&!byId[HR.own]){HR.own=null;HR.time=null;SRC.rate=0;SRCDRAG=null;}if(HR.time&&!byId[HR.time]){HR.time=null;SRC.rate=0;}
+ const t0=tracks.find(t=>t.id!==HR.time);if(t0&&!(HOLD&&HOLD.state==='paused'))srcMove(t0.x-r.left,t0.y-r.top);dirty=true;}
+function roleOf(id,pose){if(MODE==='source'){if(HOLD&&HOLD.by===id)return HOLD.state==='paused'?'PAUSED':'HOLDING THE FIGURE';if(HR.own===id)return 'HOLDING THE SOURCE';if(HR.time===id)return 'TIME '+(SRC.rate?(SRC.rate>0?'+':'')+SRC.rate+'×':'· NEUTRAL');return HOLD&&HOLD.state==='paused'?'PINCH TO HOLD AGAIN':'';}return HS.grip===id?'HOLD':({V:'COPY',down:'REMOVE',up:'PLAY',fist:'UNDO'})[pose]||'';}
+function onHands(tracks){if(MODE==='source')return srcHands(tracks,performance.now());HS.tracks=tracks;const now=performance.now(),r=cv.getBoundingClientRect();
  if(!tracks.length){if(HS.grip){if(!HS.lost)HS.lost=now;else if(now-HS.lost>500){cancelGrab();HS.grip=null;HS.lost=0;toast('Hand lost: the move was cancelled.');}}return;}HS.lost=0;
  const t=tracks.find(x=>x.id===HS.grip)||tracks[0],lx=t.x-r.left,ly=t.y-r.top,inside=lx>=0&&ly>=0&&lx<=r.width&&ly<=r.height;if(inside&&MODE==='shot')PTR=toStage(lx,ly);
  const was=HS.prev[t.id];HS.prev[t.id]=t.closed;
@@ -647,9 +778,9 @@ function onHands(tracks){HS.tracks=tracks;const now=performance.now(),r=cv.getBo
  if(!GRAB)for(const x of tracks){const c=HS.cmd[x.id]||(HS.cmd[x.id]={}),ms={V:260,down:420,up:300,fist:600}[x.pose];if(!ms||x.closed){c.p=null;continue;}if(c.p!==x.pose){c.p=x.pose;c.t0=now;c.done=false;}if(!c.done&&now-c.t0>ms){c.done=true;handCmd(x.pose);}}dirty=true;}
 function handCmd(p){if(p==='fist')return undo();if(p==='up')return setPlay(!playing);const e=findEl(SEL);if(!e)return;const s=shotOf(e);if(p==='V')act('copy '+nameOf(e),()=>{const c=dupEl(e,.07,.03);s.figs.push(c);SEL=c.id;});else if(p==='down')act('remove '+nameOf(e),()=>{s.figs.splice(s.figs.indexOf(e),1);SEL=null;});}
 const hc=$('#hand'),hg=hc.getContext('2d');
-function drawHands(){const w=innerWidth,h=innerHeight,r=devicePixelRatio||1;if(hc.width!==Math.round(w*r)){hc.width=Math.round(w*r);hc.height=Math.round(h*r);}hg.setTransform(r,0,0,r,0,0);hg.clearRect(0,0,w,h);if(!HND)return;
- for(const t of HS.tracks){const col=HS.grip&&t.id!==HS.grip?'#85bdff':'#c4f46a';hg.strokeStyle=hg.fillStyle=col;hg.lineWidth=2;hg.beginPath();hg.arc(t.x,t.y,t.closed?7:13,0,7);t.closed?hg.fill():hg.stroke();const c=HS.cmd[t.id],ms={V:260,down:420,up:300,fist:600}[t.pose];
-  if(c&&c.p===t.pose&&!c.done&&ms){hg.lineWidth=3;hg.beginPath();hg.arc(t.x,t.y,19,-Math.PI/2,-Math.PI/2+Math.min(1,(performance.now()-c.t0)/ms)*Math.PI*2);hg.stroke();}hg.font='500 10px IBM Plex Mono, monospace';hg.fillText(HS.grip===t.id?'HOLD':({V:'COPY',down:'REMOVE',up:'PLAY',fist:'UNDO'})[t.pose]||'',t.x+18,t.y-10);}}
+function drawHands(){const w=innerWidth,h=innerHeight,r=devicePixelRatio||1;if(hc.width!==Math.round(w*r)){hc.width=Math.round(w*r);hc.height=Math.round(h*r);}hg.setTransform(r,0,0,r,0,0);hg.clearRect(0,0,w,h);if(!HND&&!HS.sim)return;
+ for(const t of HS.tracks){const col=(MODE==='source'?HR.time===t.id:HS.grip&&t.id!==HS.grip)?'#85bdff':(HOLD&&HOLD.by===t.id?'#efa13a':'#c4f46a');hg.strokeStyle=hg.fillStyle=col;hg.lineWidth=2;hg.beginPath();hg.arc(t.x,t.y,t.closed?7:13,0,7);t.closed?hg.fill():hg.stroke();const c=HS.cmd[t.id],ms={V:260,down:420,up:300,fist:600}[t.pose];
+  if(c&&c.p===t.pose&&!c.done&&ms){hg.lineWidth=3;hg.beginPath();hg.arc(t.x,t.y,19,-Math.PI/2,-Math.PI/2+Math.min(1,(performance.now()-c.t0)/ms)*Math.PI*2);hg.stroke();}hg.font='500 10px IBM Plex Mono, monospace';hg.fillText(roleOf(t.id,t.pose),t.x+18,t.y-10);}}
 
 /* ================= out: the film with its sound, a link, the project file, the shot list ================= */
 const b64u=u8=>{let s='';u8.forEach(c=>s+=String.fromCharCode(c));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');};
@@ -657,10 +788,10 @@ const ub64=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.c
 async function pack(o){const s=new Blob([JSON.stringify(o)]).stream().pipeThrough(new CompressionStream('deflate-raw'));return b64u(new Uint8Array(await new Response(s).arrayBuffer()));}
 async function unpack(s){const st=new Blob([ub64(s)]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return JSON.parse(await new Response(st).text());}
 const r3=v=>+(+v).toFixed(4);
-const shotData=s=>[s.text,s.take.src,r3(s.take.in),r3(s.take.out),r3(s.gain),s.figs.map(e=>[e.kind==='fig'?e.ref:'d:'+e.slug+':'+e.word,r3(e.z??.5),e.flip?1:0,r3(e.t0),r3(e.t1),e.keys.map(k=>[r3(k.t),r3(k.x),r3(k.y),r3(k.s)])])];
+const shotData=s=>[s.text,s.take.src,r3(s.take.in),r3(s.take.out),r3(s.gain),s.figs.map(e=>[e.kind==='fig'?e.ref:e.kind==='mfig'?'m:'+e.src+'|'+r3(e.in)+'|'+r3(e.out)+'|'+r3(e.rw):'d:'+e.slug+':'+e.word,r3(e.z??.5),e.flip?1:0,r3(e.t0),r3(e.t1),e.keys.map(k=>[r3(k.t),r3(k.x),r3(k.y),r3(k.s)])])];
 const filmData=()=>({v:3,c:film.cap?1:0,g:film.grade?1:0,s:film.shots.map(shotData),t:film.table.map(shotData)});
 function shotFrom(a,v){let text,src,inn,out,gain,figs;if(v>=3)[text,src,inn,out,gain,figs]=a;else{let L,gid;[text,L,gid,figs]=a;src=gid?(gid.startsWith('w:')?gid:'arch:'+gid):null;inn=0;out=L;gain=1;}
- return {id:uid(),text,take:{src,in:inn,out},gain,figs:figs.map(([ref,z,flip,t0,t1,keys])=>{const d=ref.startsWith('d:')?ref.split(':'):null;if(d)doodle(d[1]);const k=keys.map(([t,x,y,s])=>({t,x,y,s}));return d?{id:uid(),kind:'doodle',slug:d[1],word:d[2],z,flip,t0,t1,keys:k}:{id:uid(),kind:'fig',ref,z,flip,t0,t1,keys:k};})};}
+ return {id:uid(),text,take:{src,in:inn,out},gain,figs:figs.map(([ref,z,flip,t0,t1,keys])=>{const d=ref.startsWith('d:')?ref.split(':'):null;if(d)doodle(d[1]);const k=keys.map(([t,x,y,s])=>({t,x,y,s}));if(ref.startsWith('m:')){const [src,i0,i1,rw]=ref.slice(2).split('|');return {id:uid(),kind:'mfig',src,in:+i0,out:+i1,rw:+rw,z,flip,t0,t1,keys:k};}return d?{id:uid(),kind:'doodle',slug:d[1],word:d[2],z,flip,t0,t1,keys:k}:{id:uid(),kind:'fig',ref,z,flip,t0,t1,keys:k};})};}
 function filmFrom(o){const v=o.v||2;return {v:3,id:uid(),title:'',cap:!!o.c,grade:o.g!==0,updated:Date.now(),shots:o.s.map(a=>shotFrom(a,v)),table:(o.t||[]).map(a=>shotFrom(a,v))};}
 async function shareLink(){const u=location.origin+location.pathname+'#f='+await pack(filmData());try{if(navigator.share&&/Mobi|Android|iP(hone|ad)/.test(navigator.userAgent))await navigator.share({title:film.title||'A film',url:u});else{await navigator.clipboard.writeText(u);toast('Link copied. It opens this film, ready to play and change.');}}catch(e){prompt('Copy this link',u);}}
 function shotList(){const S=starts(),L=[(film.title||'A film')+' · '+film.shots.length+' shots · '+tcf(total()),''];film.shots.forEach((s,i)=>{const a=A(s.take.src);L.push((i+1)+'. '+tcf(S[i])+'–'+tcf(S[i]+len(s))+(s.text?'  “'+s.text+'”':''));L.push('   source: '+(a?a.title+' '+tcf(s.take.in)+'–'+tcf(s.take.out):'none')+(s.gain!==1?' · sound '+Math.round(s.gain*100)+'%':''));for(const e of [...s.figs].sort(byZ)){const p=at(e,e.t0);L.push('   '+nameOf(e)+' · '+fromOf(e)+' · '+(p.x*100|0)+'% across, '+(p.y*100|0)+'% down, depth '+(e.z??.5).toFixed(2)+(e.keys.length>1?' · moves':''));}});if(film.table.length)L.push('','On the table: '+film.table.length+' takes');return L.join('\n');}
@@ -672,6 +803,8 @@ async function renderFilm(){if(!film.shots.length)return toast('The film is empt
  const atr=RECDEST&&RECDEST.stream.getAudioTracks()[0];if(atr)stream.addTrack(atr);
  const rr=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:6e6}:{}),ch=[];rr.ondataavailable=e=>{if(e.data.size)ch.push(e.data);};const done=new Promise(r=>rr.onstop=r);
  for(const s of film.shots){const a=A(s.take.src);if(a&&a.thumb)img(a.thumb);for(const e of s.figs)if(e.kind==='fig'){const F=SAM&&SAM.figs[FI.get(e.ref)];if(F){img(furl(F.png));if(F.sprite)img(furl(F.sprite));}}}
+ /* every frame of every lifted figure decoded before the clock starts */
+ {const ims=[];for(const s of film.shots)for(const e of s.figs)if(e.kind==='mfig')ims.push(...mfigPreload(e));const t2=performance.now();while(ims.some(i=>!i.ok&&!i.bad)&&performance.now()-t2<8000)await new Promise(r=>setTimeout(r,50));}
  /* the first source ready at its in point before the clock starts */
  syncVideos(0,false);const t1=performance.now();while(performance.now()-t1<5000){const c0=shotAt(0),v=c0&&VID['g:'+c0.s.id];if(!c0||!c0.s.take.src||(v&&v.readyState>=3&&!v.seeking))break;await new Promise(r=>setTimeout(r,100));}
  rendering={stop:false,t:0};rr.start(250);const t0=performance.now();
@@ -683,11 +816,12 @@ function popAt(btn,html){const p=$('#pop');p.innerHTML=html;p.hidden=false;const
 addEventListener('pointerdown',e=>{if(!$('#pop').hidden&&!e.target.closest('#pop,#sendB,#filmsB'))$('#pop').hidden=true;});
 $('#sendB').onclick=()=>popAt($('#sendB'),`<button data-o="video">Download the film<small>a video file with its sound, ${tcf(total())}</small></button><button data-o="link">Send a link<small>opens this film, ready to play and change</small></button><hr><button data-o="json">Save the project file<small>every take with its in and out, the order, layers and sound; Films opens it again</small></button><button data-o="list">Copy the shot list<small>each shot: its source interval, its line, its figures</small></button>`);
 let DATA_STARTERS=[];
-$('#filmsB').onclick=()=>popAt($('#filmsB'),`<button data-o="new">New film<small>an empty film; this one stays in the list</small></button><button data-o="open">Open a project file</button><button data-o="demo">The WarGames demonstration<small>three clips, with sound, marked into takes</small></button>${DATA_STARTERS.map((s,i)=>`<button data-o="st${i}">${esc(s[0])}<small>example from lines · ${s.length} shots</small></button>`).join('')}<hr><div class="hl">History of this film: ${H.undo.length} steps${H.redo.length?' · '+H.redo.length+' to redo':''}</div>${H.undo.slice(-8).reverse().map(h=>`<div class="hl">· ${esc(h.label)}</div>`).join('')}<hr>${FILMS.filter(f=>f.shots&&f.shots.length).slice(0,12).map(f=>`<button data-o="f:${f.id}"${film&&f.id===film.id?' style="color:var(--lime)"':''}>${esc(f.title||'untitled')}<small>${f.shots.length} shots · ${new Date(f.updated).toLocaleString()}</small></button>`).join('')}`);
+$('#filmsB').onclick=()=>popAt($('#filmsB'),`<button data-o="new">New film<small>an empty film; this one stays in the list</small></button><button data-o="open">Open a project file</button><button data-o="floor">Open the Floorboard<small>a second window (another screen): it shows the shot, and a touch there places a held figure</small></button><button data-o="pair">Pair a phone as the Floorboard<small>scan a code; needs the network (not tested yet)</small></button><button data-o="demo">The WarGames demonstration<small>three clips, with sound, marked into takes</small></button>${DATA_STARTERS.map((s,i)=>`<button data-o="st${i}">${esc(s[0])}<small>example from lines · ${s.length} shots</small></button>`).join('')}<hr><div class="hl">History of this film: ${H.undo.length} steps${H.redo.length?' · '+H.redo.length+' to redo':''}</div>${H.undo.slice(-8).reverse().map(h=>`<div class="hl">· ${esc(h.label)}</div>`).join('')}<hr>${FILMS.filter(f=>f.shots&&f.shots.length).slice(0,12).map(f=>`<button data-o="f:${f.id}"${film&&f.id===film.id?' style="color:var(--lime)"':''}>${esc(f.title||'untitled')}<small>${f.shots.length} shots · ${new Date(f.updated).toLocaleString()}</small></button>`).join('')}`);
 $('#pop').onclick=async e=>{const b=e.target.closest('button');if(!b)return;const o=b.dataset.o;$('#pop').hidden=true;
  if(o==='video')renderFilm();else if(o==='link')shareLink();else if(o==='list'){try{await navigator.clipboard.writeText(shotList());toast('Shot list copied.');}catch(x){download(new Blob([shotList()],{type:'text/plain'}),'shot-list.txt');}}
  else if(o==='json')download(new Blob([JSON.stringify(filmData())],{type:'application/json'}),(film.title||'film').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,40)+'.stack.json');
  else if(o==='new'){newFilm();save();setMode('source');}else if(o==='open'){const i=document.createElement('input');i.type='file';i.accept='.json,application/json';i.onchange=async()=>{try{openFilm(filmFrom(JSON.parse(await i.files[0].text())));}catch(x){toast('That file is not a Stack project.');}};i.click();}
+ else if(o==='floor')window.open(location.pathname+'?floor','wg-floorboard','width=900,height=560');else if(o==='pair')pairPhone();
  else if(o==='demo')openFilm(filmFrom(DEMO));else if(o.startsWith('st'))startExample(+o.slice(2));else if(o.startsWith('f:')){const f=FILMS.find(x=>x.id===o.slice(2));if(f)openFilm(upgrade(JSON.parse(JSON.stringify(f))));}};
 function openFilm(f){film=f;H.undo.length=H.redo.length=0;const u=f.ui||{};SHOT=(u.shot&&[...f.shots,...(f.table||[])].some(s=>s.id===u.shot))?u.shot:film.shots[0]&&film.shots[0].id;T=0;T=clamp(u.t||0,0,Math.max(0,total()-.001));SEL=null;for(const s of [...film.shots,...film.table])for(const e of s.figs)if(e.kind==='doodle')doodle(e.slug);stripKey=tableKey=chipKey=panelKey='';save();}
 /* the demonstration project: three WarGames clips marked into takes */
@@ -697,10 +831,10 @@ async function startExample(i){await libP;const s=DATA_STARTERS[i];if(!s)return;
 /* ================= views, the clock, keys ================= */
 $('#modes').innerHTML=MODES.map((m,i)=>`<button class="hb" data-m="${m.k}" aria-pressed="false">${m.t}<kbd>${i+1}</kbd></button>`).join('');
 $('#modes').onclick=e=>{const b=e.target.closest('button');if(b)setMode(b.dataset.m);};
-const TAGS={source:'SOURCE · the footage before it is cut',shot:'SHOT · the picture at the playhead; drag figures',table:'',film:'FILM · click to play or pause · Esc to edit'};
+const TAGS={archive:'',source:'SOURCE · hold a moment, lift a figure, carry it to the film',shot:'SHOT · the picture at the playhead; drag figures',table:'',film:'FILM · click to play or pause · Esc to edit'};
 function setMode(m){if(m==='source'&&!SRC.src){const sh=curShot();if(sh&&sh.take.src){SRC.src=sh.take.src;SRC.mi=sh.take.in;SRC.mo=sh.take.out;SRC.t=sh.take.in;}else SRC.src='w:'+WG[0].id;urlOf(SRC.src);peaks(SRC.src);}
  if(m!=='source')SRC.playing=false;MODE=m;document.body.classList.toggle('film',m==='film');document.querySelectorAll('#modes button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.m===m)));
- $('#table').hidden=m!=='table';$('#srcbar').hidden=m!=='source';$('#chips').hidden=m!=='shot';$('#tag').textContent=TAGS[m];$('#tag').hidden=!TAGS[m];if(m==='table'){tableKey='';tableBuild();}panelKey='';bump();}
+ if(m!=='source'&&HOLD)cancelHold('cancelled: you left the source with the figure still held');$('#wall').hidden=m!=='archive';if(m==='archive')wallBuild();$('#table').hidden=m!=='table';$('#srcbar').hidden=m!=='source';$('#chips').hidden=m!=='shot';$('#tag').textContent=TAGS[m];$('#tag').hidden=!TAGS[m];if(m==='table'){tableKey='';tableBuild();}panelKey='';bump();}
 function setPlay(on,aud){if(on&&!film.shots.length)return;if(!aud)AUD=null;playing=on;$('#play').textContent=on?'Pause':'Play';last=performance.now();if(on&&T>=total()-.05)T=0;if(on)unlockAudio();}
 $('#play').onclick=()=>setPlay(!playing);$('#undoH').onclick=undo;$('#redoH').onclick=redo;$('#undoP').onclick=undo;$('#redoP').onclick=redo;
 $('#snd').onclick=()=>{SOUND=!SOUND;$('#snd').setAttribute('aria-pressed',String(SOUND));unlockAudio();};
@@ -708,19 +842,23 @@ $('#lineF').onsubmit=e=>{e.preventDefault();const v=$('#line').value.trim();if(!
 addEventListener('keydown',e=>{if(e.target.closest('input,textarea,select')){if(e.key==='Escape')e.target.blur();return;}
  if((e.metaKey||e.ctrlKey)&&(e.key==='z'||e.key==='Z')){e.preventDefault();e.shiftKey?redo():undo();return;}if(e.metaKey||e.ctrlKey||e.altKey)return;
  const k=e.key,s=findEl(SEL),c=shotAt(T);
- if(k==='Escape'){if(TRIM||SD){sEnd(null,true);return;}if(GRAB){cancelGrab();return;}if(MODE==='film'){setMode('shot');return;}if(SEL){SEL=null;bump();}return;}
- if(MODE==='source'){if(k==='i'||k==='I'){$('#sIn').click();return;}if(k==='o'||k==='O'){$('#sOut').click();return;}if(k===' '){e.preventDefault();$('#sPlay').click();return;}if(k==='ArrowRight'||k==='ArrowLeft'){e.preventDefault();SRC.t=clamp(SRC.t+(k==='ArrowRight'?1:-1)*(e.shiftKey?1:1/FPS),0,A(SRC.src)?.dur||999);dirty=true;return;}if(k==='Enter'){takeFromSource('insert');return;}}
+ if(k==='Escape'){if(HOLD){cancelHold();return;}if(TRIM||SD){sEnd(null,true);return;}if(GRAB){cancelGrab();return;}if(MODE==='film'){setMode('shot');return;}if(SEL){SEL=null;bump();}return;}
+ if(MODE==='source'){if(k==='j'||k==='J'){SRC.playing=false;SRC.rate=SRC.rate<0?Math.max(-4,SRC.rate*2):-1;return;}if(k==='k'||k==='K'){SRC.rate=0;SRC.playing=false;return;}if(k==='l'||k==='L'){SRC.playing=false;SRC.rate=SRC.rate>0?Math.min(4,SRC.rate*2):1;return;}
+  if(k==='Enter'&&HOLD){placeHold(HOLD.prev);return;}if(k==='Enter'&&!HOLD&&A(SRC.src)?.figs&&(A(SRC.src).S.masks[fIdx(A(SRC.src).S,SRC.t)]||[]).length&&e.shiftKey){startHold('key');HOLD.prev={x:.5,y:.88};return;}
+  if(k==='i'||k==='I'){$('#sIn').click();return;}if(k==='o'||k==='O'){$('#sOut').click();return;}if(k===' '){e.preventDefault();$('#sPlay').click();return;}if(k==='ArrowRight'||k==='ArrowLeft'){e.preventDefault();SRC.t=clamp(SRC.t+(k==='ArrowRight'?1:-1)*(e.shiftKey?1:1/FPS),0,A(SRC.src)?.dur||999);dirty=true;return;}if(k==='Enter'){takeFromSource('insert');return;}}
  if(k===' '){e.preventDefault();setPlay(!playing);}else if(k==='ArrowRight'){e.preventDefault();if(e.shiftKey&&c&&film.shots[c.i+1])seek(starts()[c.i+1]+.001);else seek(T+1/FPS);}else if(k==='ArrowLeft'){e.preventDefault();if(e.shiftKey&&c)seek(starts()[Math.max(0,c.i-(T-c.a<.3?1:0))]+.001);else seek(T-1/FPS);}
- else if('1234'.includes(k))setMode(MODES[+k-1].k);else if(k==='/'){e.preventDefault();$('#line').focus();}else if(k==='z')undo();else if(k==='Z')redo();else if(k==='Home')seek(0);else if(k==='m'||k==='M')$('#snd').click();else if(k==='a'||k==='A'){APART=!APART;bump();}
+ else if('12345'.includes(k))setMode(MODES[+k-1].k);else if(k==='/'){e.preventDefault();$('#line').focus();}else if(k==='z')undo();else if(k==='Z')redo();else if(k==='Home')seek(0);else if(k==='m'||k==='M')$('#snd').click();else if(k==='a'||k==='A'){APART=!APART;bump();}
  else if(k==='['&&c){const sh=c.s;act('trim the in point of '+nameShot(sh)+' to the playhead',()=>setIn(sh,sh.take.in+(T-c.a)));}else if(k===']'&&c){const sh=c.s;act('trim the out point of '+nameShot(sh)+' to the playhead',()=>setOut(sh,sh.take.in+(T-c.a)));}
  else if(s&&(k==='Delete'||k==='Backspace')){e.preventDefault();const sh=shotOf(s);act('remove '+nameOf(s),()=>{sh.figs.splice(sh.figs.indexOf(s),1);SEL=null;});}
  else if(s&&(k==='v'||k==='V'||k==='d')){act('copy '+nameOf(s),()=>{const d=dupEl(s,.07,.03);shotOf(s).figs.push(d);SEL=d.id;});}else if(s&&k==='f')act('flip '+nameOf(s),()=>{s.flip=s.flip?0:1;});});
 function loop(now){requestAnimationFrame(loop);const dt=Math.min(.25,(now-last)/1000);last=now;
  if(playing&&!rendering){T+=dt;const D=total();if(GRAB&&GRAB.rec){const sh=shotOf(GRAB.e),i=film.shots.indexOf(sh);if(i>=0){const end=starts()[i]+len(sh)-.001;if(T>=end){T=end;setPlay(false);heard('the shot ended: the path is recorded to its last frame; let go to keep it');}}}if(AUD&&T>=AUD.stop){T=AUD.stop-.001;setPlay(false);AUD=null;heard('');}else if(T>=D){T=D-.001;setPlay(false);}}
- if(SRC.playing&&MODE==='source'){const v=VID['s:'+SRC.src];if(v&&!v.paused&&v.currentTime)SRC.t=v.currentTime;else SRC.t+=dt;const end=SRC.mo!=null&&SRC.mi!=null&&SRC.mo>SRC.mi?SRC.mo:(A(SRC.src)?.dur||999);if(SRC.t>=end){SRC.t=end;SRC.playing=false;$('#sPlay').textContent='Play source';}}
+ if(SRC.rate&&MODE==='source'){const D=A(SRC.src)?.dur||0;SRC.t=clamp(SRC.t+SRC.rate*dt,0,D);if(SRC.t<=0||SRC.t>=D)SRC.rate=0;}
+ if(SRC.playing&&MODE==='source'){const v=VID['s:'+SRC.src];if(v&&!v.paused&&v.currentTime&&!A(SRC.src).seq)SRC.t=v.currentTime;else SRC.t+=dt;const end=SRC.mo!=null&&SRC.mi!=null&&SRC.mo>SRC.mi?SRC.mo:(A(SRC.src)?.dur||999);if(SRC.t>=end){SRC.t=end;SRC.playing=false;$('#sPlay').textContent='Play source';}}
  if(!rendering)syncVideos(T,playing);if(MODE==='shot'||MODE==='film'||MODE==='source')dirty=true;
  stripBuild();if(MODE==='shot')chipsBuild();panel();if(MODE==='table')tableBuild();if(MODE==='source')bandDraw();
  if(MODE==='film'){const c=shotAt(T);$('#tag').textContent='FILM · '+tcf(T)+' / '+tcf(total())+(c?' · shot '+(c.i+1)+' of '+film.shots.length:'')+' · click to play or pause · Esc to edit';}$('#ph').style.transform='translateX('+($('#strip').clientWidth*T/(total()||1))+'px)';$('#tc').textContent=tcf(T)+' / '+tcf(total());
+ if(!FLOOR)fstate();
  $('#undoH').disabled=!H.undo.length;$('#redoH').disabled=!H.redo.length;if(dirty){dirty=false;draw();}}
 new ResizeObserver(()=>{dirty=true;stripKey='';}).observe($('#screen'));
 SH.onStatus(s=>{$('#sys').textContent=s.text||'';});
@@ -728,12 +866,12 @@ document.addEventListener('error',e=>{const i=e.target;if(i&&i.tagName==='IMG'&&
 if(window.ClipText)setInterval(()=>{if(!readerReady()&&ClipText.frac)$('#sys').textContent='word reader '+Math.round(ClipText.frac*100)+'%';},1500);
 /* a test surface: the same actions, reachable from a script */
 window.STK={get film(){return film;},get H(){return H;},say,addLine,setMode,setPlay,undo,redo,seek,get T(){return T;},set T(v){seek(v);},get SEL(){return SEL;},set SEL(v){SEL=v;bump();},get SHOT(){return SHOT;},set SHOT(v){SHOT=v;bump();},
- renderFilm,pack,unpack,filmData,filmFrom,openFilm,shotList,starts,total,len,openSource,SRC,takeFromSource,frameAt,syncVideos,get playing(){return playing;},get AC(){return AC;},get MODE(){return MODE;},DEMO,DUR,get VID(){return VID;},toStage,get box(){return box;},get dpr(){return dpr;},PEAKS,get MASTER(){return MASTER;},at,get BOXES(){return BOXES;}};
+ renderFilm,pack,unpack,filmData,filmFrom,openFilm,shotList,starts,total,len,openSource,SRC,takeFromSource,frameAt,syncVideos,get playing(){return playing;},get AC(){return AC;},get MODE(){return MODE;},DEMO,DUR,get VID(){return VID;},toStage,get box(){return box;},get dpr(){return dpr;},PEAKS,get MASTER(){return MASTER;},at,get BOXES(){return BOXES;},get HOLD(){return HOLD;},get SB(){return SB;},get FB(){return FB;},onHands,simHands:t=>{HS.sim=true;onHands(t);},LAT,swapAB,get HR(){return HR;},get FL(){return FL;}};
 
 /* ================= start: a link, the last film, or an empty film open on the source ================= */
-(async()=>{newFilm();const h=location.hash.match(/#f=([\w-]+)/);let m='shot';
+(async()=>{newFilm();if(FLOOR){document.body.classList.add('floorb');MODE='floorb';requestAnimationFrame(loop);floorJoin();return;}const h=location.hash.match(/#f=([\w-]+)/);let m='shot';
  if(h){try{openFilm(filmFrom(await unpack(h[1])));history.replaceState(null,'',location.pathname);toast('Opened a film sent to you. Play it, change it, send it back.');}catch(e){toast('That link could not be opened.');}}
- else if(FILMS.length&&FILMS[0].shots&&FILMS[0].shots.length)openFilm(upgrade(JSON.parse(JSON.stringify(FILMS[0]))));else m='source';
+ else if(FILMS.length&&FILMS[0].shots&&FILMS[0].shots.length)openFilm(upgrade(JSON.parse(JSON.stringify(FILMS[0]))));else{m='source';SRC.src='shm:giraffe-walks-past';SRC.b='w:wg_024';}
  setMode(m);showTray(m==='source'?'src':'figs','');requestAnimationFrame(loop);
  const d=await libP;DATA_STARTERS=(d.starters||[]).slice(0,6);bump();await castP;bump();})();
 </script>
