@@ -56,7 +56,7 @@ blockquote{margin:10px 0;padding:10px 14px;border-left:3px solid var(--rule);bac
 <a href="export.webm">The exported film</a>
 <a href="project.stack.json">The project file</a>
 </div>
-<p class="note">Desktop browser for the editor. The Floor button shows a QR code: the phone becomes the Floor, a second surface with its own camera, where a held figure can be caught and placed.</p>
+<p class="note">Desktop browser for the editor. The Floor button shows a five-letter room code and a QR code. A phone that joins the room becomes a Floor: a second surface with its own camera, where a held figure can be caught and placed.</p>
 
 <h2>The instrument</h2>
 <p>Source (key 2) shows two surfaces side by side. On the left is the source: picture A, large, with picture B in its top-right corner. On the right is the film: the selected shot of the film, which is where a lifted figure lands. The film strip runs underneath both, so the order and length of the film are always visible.</p>
@@ -75,6 +75,34 @@ blockquote{margin:10px 0;padding:10px 14px;border-left:3px solid var(--rule);bac
 <figure><img src="shots/f4-placed.png" alt="Floor: placed"><figcaption>Opened: placed as one undo step.</figcaption></figure>
 </div>
 <figure><img src="shots/e2-on-floor.png" alt="Editor while the Floor holds the figure"><figcaption>The laptop at the same moment: "ON THE FLOOR", and the preview on the film side moves with the hand on the phone.</figcaption></figure>
+<h3>Linking devices: one room, one code</h3>
+<p>The first phone link did not work on real devices. It needed a direct peer-to-peer connection (WebRTC through PeerJS), and that kind of connection is often blocked on campus Wi-Fi and between Wi-Fi and cellular. The QR code also depended on two outside scripts and gave no code to type. Even when the link worked, the phone showed nothing of what its camera saw or of the tracker downloading, so tracking looked dead.</p>
+<p>The link now works like this:</p>
+<ul>
+<li>The Floor button on the editor opens a room with a five-letter code, such as <code>K4RHW</code>. It shows the code, a QR code when one can be drawn, the address, and who is in the room. The editor keeps the same room across reloads.</li>
+<li>On the phone, open <code>wg-stack.html?floor</code> and type the code, or scan the QR, which carries the code. No scan is needed.</li>
+<li>Messages go through public MQTT relays over a secure WebSocket (EMQX, HiveMQ and Mosquitto, all three at once), so no direct connection between devices is needed. Each message carries its sender and an id, so one that arrives twice is used once. A second window in the same browser still links directly.</li>
+<li>Any number of Floors can join. Each shows the editor's selected shot, and swiping on a Floor moves every screen to the next shot. The first Floor to catch a figure owns it; another Floor sees "ON ANOTHER FLOOR" and cannot take it.</li>
+<li>Once its camera is on, the Floor shows a corner view of what its camera sees from below, mirrored, with the tracked hand drawn on it. Under the view is the tracker's state: starting, loading the tracker, no hand, hand, pinch.</li>
+<li>The editor's film side has an orange edge and "FLOOR · same shot" while a Floor is in the room.</li>
+</ul>
+<figure><img src="shots/phones.png" alt="Phone screens"><figcaption>The phone: code screen; linked; the figure waiting; caught and carried; a second phone sees "ON ANOTHER FLOOR"; placed.</figcaption></figure>
+<div class="grid">
+<figure><img src="shots/l1-room.png" alt="Room panel"><figcaption>The editor's Floor panel. The QR code is missing here because the test machine cannot load the QR script.</figcaption></figure>
+<figure><img src="shots/l4-carry.png" alt="Editor during carry"><figcaption>The editor while the phone carries the figure: "ON THE FLOOR", the preview following the phone, and the orange Floor edge.</figcaption></figure>
+</div>
+<div class="wrap"><table>
+<tr><th>Across separate browsers, through a relay (SIMULATED hands)</th><th>Measured result</th><th></th></tr>
+<tr><td>Editor: Floor button.</td><td>Room code shown, relay connected, "no Floor yet".</td><td class="ok">done</td></tr>
+<tr><td>Phone: the code screen appears; typed the code with the keyboard and pressed Join.</td><td>Linked in 59 ms. The editor reads "Floor 1"; the phone has the film's 3 shots.</td><td class="ok">done</td></tr>
+<tr><td>Phone: swiped left.</td><td>Both screens moved from shot 1 to shot 2.</td><td class="ok">done</td></tr>
+<tr><td>Editor: pinched the giraffe, then the hand left its camera.</td><td>Editor paused with "catch it on the Floor"; the phone showed the figure waiting.</td><td class="ok">done</td></tr>
+<tr><td>Phone: a pinched hand arrived and moved.</td><td>Caught (owner is the phone); the editor's preview followed the hand.</td><td class="ok">done</td></tr>
+<tr><td>A second phone joined from the QR address and touched.</td><td>2 Floors in the room; the owner did not change; the second phone showed "ON ANOTHER FLOOR"; no history step.</td><td class="ok">done</td></tr>
+<tr><td>Phone 1 opened the hand.</td><td>Placed in shot 2, the shot the phone showed, as one undo step.</td><td class="ok">done</td></tr>
+<tr><td>Z on the editor.</td><td>The figure disappeared from every Floor.</td><td class="ok">done</td></tr>
+</table></div>
+<p class="note">Data: <a href="rooms.json">rooms.json</a>. Script: <a href="source/rooms.py">rooms.py</a>. Each device was a separate browser context, so nothing could pass between them except through the relay. The relay was a local MQTT broker (<a href="source/relay-test-broker.py">relay-test-broker.py</a>), because this machine cannot reach the public relays. The times are local; through a public relay, expect tens to a few hundred milliseconds more.</p>
 <h3>Lifting states</h3>
 <div class="states">
 <span class="st">Ready · outline on hover, cursor "grab"</span><span class="arr">→ press</span>
@@ -255,14 +283,17 @@ blockquote{margin:10px 0;padding:10px 14px;border-left:3px solid var(--rule);bac
 <tr><td>Hands</td><td><span class="tag sim">simulated</span></td><td>Synthetic hand tracks were fed to the handler a camera feeds: pinch, open, loss, two roles. Not tested with a camera.</td></tr>
 <tr><td>Floor in a second window, touch or pointer</td><td><span class="tag ok">verified</span></td><td>BroadcastChannel between two windows of the same browser.</td></tr>
 <tr><td>Floor camera hands</td><td><span class="tag sim">simulated</span></td><td>Synthetic tracks fed to the Floor's hand handler: catch, carry, loss, place. No camera was used.</td></tr>
-<tr><td>Floorboard on a phone</td><td><span class="tag no">untested</span></td><td>Pairing by QR code goes through PeerJS. The test machine has no outside network.</td></tr>
+<tr><td>Rooms through a relay, separate browsers</td><td><span class="tag ok">verified</span></td><td>Against a local MQTT broker; code typed with the keyboard.</td></tr>
+<tr><td>The public relays, real phones</td><td><span class="tag no">untested</span></td><td>This machine cannot reach the public brokers, and no phone was used.</td></tr>
 <tr><td>Voice</td><td><span class="tag no">untested</span></td><td>No microphone.</td></tr>
 </table></div>
 
 <h2>Limits</h2>
 <ul>
 <li>The hands were never tested with a camera. Their rules (neutral zone, roles, tracking loss) are tested only with simulated tracks.</li>
-<li>Phone pairing (QR code, PeerJS) and the Floorboard on a real phone are untested.</li>
+<li>The public relays and real phones are untested. The relay code was tested only against a local broker.</li>
+<li>The relays are public: anyone who knows a room code can read that room's messages (the film's shot list and figure positions) and send into it. The codes are random, five characters from 31 (about 29 million). Do not use the Floor for footage that must stay private.</li>
+<li>The Floor's camera view and tracker state were not seen with a real camera.</li>
 <li>The Floor's front camera assumes the phone lies flat, screen up, with you at its bottom edge. It mirrors left and right. Other orientations were not handled or tested.</li>
 <li>On a portrait phone the shot fills the screen by cropping its sides, so placements are limited to the middle of the picture.</li>
 <li>Only footage with masks can be lifted. Here that is the Secondhand Motion giraffe. WarGames footage has no masks.</li>
