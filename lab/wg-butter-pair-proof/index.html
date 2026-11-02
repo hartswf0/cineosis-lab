@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Butter Pair Proof</title>
+<meta name="description" content="Two cameras, one hand: how the laptop camera and the phone camera feed one shared hand model, measured with simulated cameras, and the LEGO bed it drives.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0a09;--panel:#12100e;--ink:#ece6da;--dim:#b3ab9e;--faint:#7a7368;--rule:#2e2a26;--lime:#c4f46a;--orange:#efa13a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 "IBM Plex Mono",ui-monospace,monospace}
+main{max-width:1060px;margin:0 auto;padding:28px 16px 80px}a{color:var(--lime)}
+h1{font:700 clamp(28px,5vw,44px)/1.1 Fraunces,Georgia,serif;margin:6px 0 10px}h2{font:400 24px/1.25 Fraunces,Georgia,serif;margin:44px 0 10px;border-top:1px solid var(--rule);padding-top:22px}
+h3{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:22px 0 8px;font-weight:500}p{max-width:74ch;margin:8px 0}
+.lead{font:300 19px/1.45 Fraunces,Georgia,serif;color:#d8d2c6;max-width:62ch}.kick{font-size:11px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.btns a{border:1px solid var(--rule);border-radius:4px;padding:10px 14px;text-decoration:none;color:var(--ink)}.btns a.pri{background:var(--lime);color:#111;border-color:var(--lime)}
+.wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px;min-width:560px}th,td{text-align:left;vertical-align:top;padding:8px;border-bottom:1px solid var(--rule)}th{font-weight:500;color:var(--dim);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+td.n{text-align:right;white-space:nowrap}td.good{color:var(--lime)}td.ok{color:var(--lime);white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin:12px 0}figure{margin:0}figure img{width:100%;display:block;border-radius:3px;border:1px solid var(--rule)}figcaption{font-size:12px;color:var(--dim);margin-top:5px}
+ul,ol{padding-left:20px;max-width:76ch}li{margin:4px 0}code{background:var(--panel);padding:1px 5px;border-radius:3px;font-size:12.5px}.note{color:var(--faint);font-size:12.5px}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:12px 0}.flow span{border:1px solid var(--rule);border-radius:4px;padding:6px 10px;font-size:12.5px}.flow i{color:var(--faint);font-style:normal}
+</style>
+</head>
+<body>
+<main>
+<div class="kick">BUTTER PAIR · two cameras, one hand · proof · 2 November 2026</div>
+<h1>Two cameras watch one hand, and one model holds the brick</h1>
+<p class="lead">The laptop's camera faces you. The phone's camera lies on the table and faces up. Each sees the same hand differently, and each is good at different things. One model on the laptop combines what both see into hands that keep their identity, whichever camera can see them. The grasp belongs to the hand, not to a camera: a brick held while camera A sees you is still held when only camera B does. If neither sees you, it waits.</p>
+<div class="btns"><a class="pri" href="../wg-butter-pair.html">Open Butter Pair</a><a href="../wg-butter-pair.html?demo">Run the demo (simulated cameras)</a><a href="pair.json">Measurements</a><a href="../wg-lego-two-screens/">The wireframes it came from</a></div>
+<p class="note">On the laptop, press Camera A, then Floor; on the phone open <code>wg-butter-pair.html?floor</code> and type the code. Lay the phone flat, screen up, in front of the laptop. Press Calibrate and pinch the four corners on the phone, then the centre.</p>
+
+<h2>What was wrong before</h2>
+<p>The LEGO page was wireframes, so nothing could be built on it. The film editor passed a held figure from one device to the other, but the two cameras never made one model of the hand. Each camera's hand was a separate cursor, and the hand-off was a message saying "the Floor caught it". Nothing chose the camera with the better view, and nothing combined the two views to see the hand better than either one does alone.</p>
+
+<h2>The shared hand model</h2>
+<div class="flow"><span>observe</span><i>→</i><span>map into the bed frame</span><i>→</i><span>match to a hand</span><i>→</i><span>combine per axis</span><i>→</i><span>intent: target, lift, carry, pause, place</span><i>→</i><span>one command</span></div>
+<ol>
+<li><b>Observe.</b> Each device runs its own hand detector (21 points per hand). The phone sends its points to the laptop. The phone's timestamps are moved onto the laptop's clock using the smallest delay seen recently. Points older than 220 ms do not count.</li>
+<li><b>Map.</b> Both cameras' points go into one frame: the bed, in millimetres. The pinch point is divided by the hand's apparent size, so it doesn't depend on how far the hand is from the camera. That size comes from whichever is least foreshortened: wrist to middle knuckle, or palm width. A flat hand pointing at the laptop camera hides the first but not the second.</li>
+<li><b>Match.</b> Each observation joins the nearest hand in all three axes, each scaled by how uncertain that camera is on it. The detector's "left" and "right" labels are not used, because detectors swap them. A hand that no camera has seen lately is a poor match; a hand still holding a brick stays easy to pick up again.</li>
+<li><b>Combine.</b> Each axis is a weighted average of the cameras that see the hand. The weight is the camera's precision on that axis times its view quality: how much of the hand is in frame, its size, whether the palm faces it, and how fresh the view is. The panel shows each axis's share from A and from B, live.</li>
+<li><b>Teach each other.</b> While both see the hand, B learns height from A, and A learns depth from B. Each camera's offset from the joint estimate is also learned, so the position does not jump when one camera drops out.</li>
+<li><b>Intent.</b> The pinch is a vote of the cameras that see the hand. Foreshortening can hide a gap but never invent one, so an open reading counts fully. A closed reading counts only as far as that camera can see the index finger. With too little evidence either way, the hand keeps the state it had. Lift, carry and place are a state machine on the hand. Losing both cameras pauses the carry; it never places. Coming back open does not place either; you pinch again.</li>
+<li><b>One command.</b> Only commands change the bricks: place, double, undo, redo. Each has an id and is applied once, whether it comes from a hand, the mouse, a finger on the Floor, or arrives twice over the relay.</li>
+</ol>
+
+<h3>What each camera is good at (measured, simulated cameras)</h3>
+<p>One open hand traced a figure of eight over the bed for 8 s, at 18–28 cm above the phone. Errors are the root mean square, in millimetres, against the true pinch point. "Where both see it" counts only the frames where both cameras saw the hand.</p>
+<div class="wrap"><table>
+<tr><th>Who sees the hand</th><th>left / right</th><th>toward the laptop</th><th>height</th></tr>
+<tr><td>A only (laptop, facing you)</td><td class="n">6.7</td><td class="n">17.2 → 14.9 after learning from B</td><td class="n">7.9</td></tr>
+<tr><td>B only (phone, facing up)</td><td class="n">9.6</td><td class="n">2.5</td><td class="n">21.5 → 7.3 after learning from A</td></tr>
+<tr><td>Both, combined, where both see it</td><td class="n good">4.8</td><td class="n good">4.1</td><td class="n good">6.9</td></tr>
+</table></div>
+<p>Camera A is good at left/right and height, and weak at depth. Camera B is good at left/right and depth, and weak at height. Combined, every axis is close to the better camera's figure, or better. Each camera's weak axis improves after it has been taught by the other. B's view is a cone above its lens, so at the far end of the phone it cannot see an open hand. There only A counts, and the panel shows A as the lead camera.</p>
+
+<h3>Registration</h3>
+<p>Calibrate asks for a pinch held 0.7 s over each of four corners, then the centre as a check the fit did not use. Both cameras record what they saw at each corner. B gets an affine map from its size-scaled image coordinates to the bed. A gets left/right from its image, depth from apparent size, and height relative to the calibration plane, corrected for its tilt. Simulated result: corner residual A 9 mm, B 0 mm; centre check A 6 mm, B 0 mm, combined 1–2 mm. The calibration has a revision number and is saved on the laptop.</p>
+
+<h2>Hand-off, blackout, crossing hands, gestures</h2>
+<div class="wrap"><table>
+<tr><th>Run (simulated cameras)</th><th>Measured result</th><th></th></tr>
+<tr><td><b>Hand-off.</b> Pinch the butter brick while only A sees the hand (B blocked), carry it while both see it, then A is blocked and only B sees it; open to place.</td><td>One hand id throughout. One command: "place the butter brick … (seen by B)". Errors: A-only stretch 3.4 / 6.9 / 2.6 mm; both 2.3 / 2.2 / 8.3; B-only 7.6 / 0.8 / 22. Largest jump at a camera change: 13 mm.</td><td class="ok">done</td></tr>
+<tr><td><b>Blackout.</b> Carrying the red brick, both cameras lose the hand for 0.9 s. It comes back open, then pinches again, then opens.</td><td>States: carrying → paused → carrying. Nothing was placed while it was out of view or when it came back open. One place command after the final open.</td><td class="ok">done</td></tr>
+<tr><td><b>Crossing hands.</b> Two hands cross the bed. Halfway, the detector swaps their left/right labels.</td><td>Identity switches: 0 and 0. Hands are matched by where they are, not by their labels.</td><td class="ok">done</td></tr>
+<tr><td><b>Gestures by camera.</b> Two fingers shown to B (under the hand) over the red brick. Lift the copy. The other hand shows two fingers up to A (B cannot see that hand). Place, then a held fist.</td><td>"double the red 2x4 (V seen by B)", then "place a copy … turned 90° (seen by A+B)", then one undo. The same two-finger shape meant different things to the two cameras.</td><td class="ok">done</td></tr>
+<tr><td><b>An open hand moving for 8 s</b> (the measurement run above), with one camera, the other, and both.</td><td>No false pinch: no command was issued in any of the five runs.</td><td class="ok">done</td></tr>
+</table></div>
+<p class="note">Script: <a href="source/pair.py">pair.py</a>. Data: <a href="pair.json">pair.json</a>. The cameras are two pinhole models. The laptop camera is 28 cm behind the phone and 27 cm up, with a 62° field. The phone camera is at the phone's short end, facing up, with a 78° field. They watch a 21-point hand with 2.5 px-equivalent noise. The page runs these scripts through exactly the code real cameras use.</p>
+
+<h2>The instrument</h2>
+<div class="grid">
+<figure><img src="shots/u3-demo-handoff-A.jpg" alt="Laptop, early hand-off"><figcaption>Lifted while only A (lime) sees the hand: the panel shows every axis from A.</figcaption></figure>
+<figure><img src="shots/u4-demo-handoff-B.jpg" alt="Laptop, both cameras"><figcaption>Both cameras see the hand: each axis bar shows the share from A and from B. B has learned height from A, and A has learned depth from B.</figcaption></figure>
+</div>
+<figure><img src="shots/pair-blackout.jpg" alt="Laptop and Floor at the same moment"><figcaption>The laptop (perspective) and the Floor (plan, the phone) at the same moment: the same hand over the red brick, "seen by A+B" on both.</figcaption></figure>
+<div class="grid">
+<figure><img src="shots/u1-mouse-carry.jpg" alt="Mouse carry"><figcaption>The mouse is a hand too: the brick under the pointer is picked by a ray, carried with a drop line and a ghost where it will land.</figcaption></figure>
+<figure><img src="shots/u2-floor-touch-carry.jpg" alt="Floor touch"><figcaption>A finger on the Floor is the same: press, carry, hold still (it stays held), lift to place.</figcaption></figure>
+</div>
+<h3>Interface checks (real mouse and touch input; the phone through a relay)</h3>
+<div class="wrap"><table>
+<tr><th>What was done</th><th>Result</th><th></th></tr>
+<tr><td>Floor opened in a second window.</td><td>Linked in about 10 ms, with the 5 bricks.</td><td class="ok">done</td></tr>
+<tr><td>Mouse: hover the red brick, press, drag, release; then Z.</td><td>Hover found the red brick; carrying while dragging; placed at 10,6; Z put it back at 5,2.</td><td class="ok">done</td></tr>
+<tr><td>Floor: press the butter brick, drag, hold still 0.6 s, lift; then Undo on the Floor.</td><td>Still held after 0.6 s without moving; placed when lifted; Undo on the Floor reached the laptop in under 0.2 s.</td><td class="ok">done</td></tr>
+<tr><td>Demo: calibrate, hand-off, blackout, gestures, in real time with both screens open.</td><td>Calibration revision 1 (A 9 mm, B 0 mm; centre combined 2 mm). The butter-brick lesson ticked: hold it, other camera takes over, place, undo.</td><td class="ok">done</td></tr>
+<tr><td>Phone in a separate browser; typed the room code. Simulated camera B on the phone, camera A on the laptop, through a local MQTT relay.</td><td>Joined in about 40 ms. The phone's observations crossed the relay and joined the laptop's on one hand, which lifted and placed the red brick. Which observation arrives first decides whether there are briefly two hands before they merge.</td><td class="ok">done</td></tr>
+</table></div>
+<p class="note">Script: <a href="source/pairui.py">pairui.py</a>. Data: <a href="pairui.json">pairui.json</a>. Test relay: <a href="source/relay-test-broker.py">relay-test-broker.py</a>. The test machine cannot load the page's fonts, so the screenshots use fallback fonts.</p>
+
+<h2>How the brief's rules are met</h2>
+<div class="wrap"><table>
+<tr><th>Rule</th><th>Where it is</th></tr>
+<tr><td>Observation is not pose; pose is not intent; intent is not an edit.</td><td>Separate stages: observations per camera, combined hand per track, a state machine per hand, commands on the bricks.</td></tr>
+<tr><td>Camera ownership never decides object ownership.</td><td>The grasp is on the hand track. The panel says which cameras see the hand while it holds the brick.</td></tr>
+<tr><td>Tracking loss cannot imply release.</td><td>Losing both cameras pauses the carry. Coming back open does not place. Measured in the blackout run.</td></tr>
+<tr><td>Changing viewpoint cannot change the scene.</td><td>The laptop and the Floor draw the same bricks and hands from one document.</td></tr>
+<tr><td>One completed manipulation is one undoable edit, applied once.</td><td>Command ids; a relay delivering twice changes nothing.</td></tr>
+<tr><td>Do not average unrelated camera coordinates.</td><td>Each camera is mapped into the bed frame by its own registration first, then combined with per-axis weights.</td></tr>
+<tr><td>Choose the camera with the better view.</td><td>View quality per frame (completeness, size, palm facing, freshness). The lead camera is shown. A closed pinch counts only as far as the camera can see the index finger.</td></tr>
+<tr><td>Hand-centred landmarks are not room coordinates; planar registration is not full depth.</td><td>Height is relative to the calibration plane, and depth from apparent size is called a weak axis. Both are marked as such, and both are taught by the other camera.</td></tr>
+</table></div>
+
+<h2>Limits</h2>
+<ul>
+<li>Every number here is from simulated cameras. No real camera was used. Real detectors add their own errors, delays and dropouts, so these figures are what the model does with clean input, not what a person will see.</li>
+<li>The public relays (EMQX, HiveMQ, Mosquitto) and real phones are untested. The relay was a local broker. Through a public relay, expect tens to a few hundred milliseconds of delay. B's observations then count for less, because they are older.</li>
+<li>Hand size is assumed adult: 8.5 cm wrist to middle knuckle. Height is metric only through that assumption. It is relative to the calibration plane.</li>
+<li>The phone camera sees a cone above its lens. At the far end of a phone held sideways, an open hand is out of its view below about 25 cm, and only the laptop camera counts there.</li>
+<li>Bricks snap to studs in plan, and the height of a stack comes from what is under the footprint. Hand height is shown, but it does not set the level.</li>
+<li>The relay is public: anyone with the room code can read and send in that room.</li>
+<li>The film editor's Floor still uses its earlier, simpler hand-off. This model is the one to move into it next.</li>
+</ul>
+</main>
+</body>
+</html>
