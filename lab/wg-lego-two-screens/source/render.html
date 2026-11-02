@@ -1,0 +1,335 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>lego render</title>
+<style>html,body{margin:0;background:#000}</style>
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+</head><body>
+<script type="module">
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+// LEGO units in millimetres
+const P = 8, BRICK = 9.6, PLATE = 3.2, STUD_R = 2.4, STUD_H = 1.7, GAP = 0.2;
+const COL = { red:0xC91A09, yellow:0xF2CD37, blue:0x0055BF, green:0x237841, white:0xF4F4F4,
+  lbg:0xA0A5A9, dbg:0x6C6E68, black:0x1B2A34, skin:0xE8B98F };
+
+const studGeo = new THREE.CylinderGeometry(STUD_R, STUD_R, STUD_H, 28);
+const geoCache = {};
+function boxGeo(w, h, d){
+  const k = w+'_'+h+'_'+d;
+  if(!geoCache[k]) geoCache[k] = new RoundedBoxGeometry(w, h, d, 2, 0.35);
+  return geoCache[k];
+}
+function mat(color, ghost){
+  const m = new THREE.MeshStandardMaterial({ color, roughness:0.32, metalness:0.0 });
+  if(ghost){ m.transparent = true; m.opacity = 0.32; m.depthWrite = false; }
+  return m;
+}
+
+// a brick or plate: w x d studs, h in plates
+function brick({ w=2, d=4, h=3, color='red', ghost=false, studs=true }){
+  const g = new THREE.Group();
+  const m = mat(COL[color], ghost);
+  const W = w*P - GAP, D = d*P - GAP, H = h*PLATE;
+  const body = new THREE.Mesh(boxGeo(W, H, D), m);
+  body.position.y = H/2; body.castShadow = !ghost; body.receiveShadow = true;
+  g.add(body);
+  if(studs){
+    for(let i=0;i<w;i++) for(let j=0;j<d;j++){
+      const s = new THREE.Mesh(studGeo, m);
+      s.position.set((i - w/2 + 0.5)*P, H + STUD_H/2, (j - d/2 + 0.5)*P);
+      s.castShadow = !ghost; s.receiveShadow = true;
+      g.add(s);
+    }
+  }
+  if(ghost){
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(W, H, D)),
+      new THREE.LineBasicMaterial({ color:0xffffff, transparent:true, opacity:0.75 }));
+    e.position.y = H/2; g.add(e);
+  }
+  g.userData.size = [W, H + STUD_H, D];
+  return g;
+}
+
+// place by grid cell (i,j) on a 16x16 baseplate, level in plates
+function at(obj, i, j, w, d, level, lift=0){
+  obj.position.set((i + w/2 - 8)*P, level*PLATE + lift, (j + d/2 - 8)*P);
+  return obj;
+}
+
+function baseplate(n=16){
+  const g = new THREE.Group();
+  const m = mat(COL.lbg);
+  const t = 1.6;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(n*P, t, n*P), m);
+  body.position.y = -t/2; body.receiveShadow = true; g.add(body);
+  const inst = new THREE.InstancedMesh(studGeo, m, n*n);
+  const M = new THREE.Matrix4(); let k=0;
+  for(let i=0;i<n;i++) for(let j=0;j<n;j++){
+    M.makeTranslation((i-n/2+0.5)*P, STUD_H/2, (j-n/2+0.5)*P); inst.setMatrixAt(k++, M);
+  }
+  inst.castShadow = true; inst.receiveShadow = true; g.add(inst);
+  return g;
+}
+
+function minifig(){
+  const g = new THREE.Group();
+  const add = (geo, color, x, y, z, rx=0) => {
+    const m = new THREE.Mesh(geo, mat(COL[color])); m.position.set(x,y,z); m.rotation.x = rx;
+    m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+  };
+  // legs (blue) 2 x 1 studs footprint
+  add(new RoundedBoxGeometry(7.4, 12, 7.6, 2, 0.6), 'blue', -3.9, 6, 0);
+  add(new RoundedBoxGeometry(7.4, 12, 7.6, 2, 0.6), 'blue',  3.9, 6, 0);
+  add(new RoundedBoxGeometry(15.6, 3.2, 7.6, 2, 0.5), 'blue', 0, 13.6, 0); // hips
+  // torso (red), trapezoid
+  const shape = new THREE.Shape();
+  shape.moveTo(-7.8,0); shape.lineTo(7.8,0); shape.lineTo(6,12); shape.lineTo(-6,12); shape.closePath();
+  const tgeo = new THREE.ExtrudeGeometry(shape, { depth:7.8, bevelEnabled:true, bevelSize:0.4, bevelThickness:0.4, bevelSegments:2 });
+  tgeo.translate(0, 0, -3.9);
+  const t = new THREE.Mesh(tgeo, mat(COL.red)); t.position.y = 15.2; t.castShadow = true; g.add(t);
+  // arms (red) and hands (yellow)
+  for(const s of [-1,1]){
+    const arm = add(new THREE.CylinderGeometry(2.1, 2.4, 10, 16), 'red', s*8.6, 21.5, 1.2, -0.35);
+    arm.rotation.z = s*0.12;
+    add(new THREE.CylinderGeometry(1.5, 1.5, 3, 16), 'yellow', s*9.2, 15.8, 4.2, -0.9);
+  }
+  // neck + head (yellow) + cap (grey)
+  add(new THREE.CylinderGeometry(2.5, 2.5, 1.6, 16), 'yellow', 0, 28, 0);
+  add(new THREE.CylinderGeometry(4.9, 4.9, 8.6, 32), 'yellow', 0, 33.1, 0);
+  add(new THREE.CylinderGeometry(3.2, 3.2, 1.7, 24), 'yellow', 0, 38.2, 0);
+  const capM = mat(COL.dbg);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(5.5, 32, 16, 0, Math.PI*2, 0, Math.PI/2), capM);
+  cap.position.y = 37; cap.castShadow = true; g.add(cap);
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(5.6, 5.6, 0.9, 32, 1, false, -Math.PI/2.2, Math.PI/1.1), capM);
+  brim.position.set(0, 37.2, 2.2); brim.scale.z = 1.4; brim.castShadow = true; g.add(brim);
+  // face: two eyes and a smile
+  const black = new THREE.MeshBasicMaterial({ color:0x111111 });
+  for(const s of [-1,1]){ const e = new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 8), black); e.position.set(s*1.7, 34.2, 4.75); g.add(e); }
+  const smile = new THREE.Mesh(new THREE.TorusGeometry(1.8, 0.28, 8, 20, Math.PI*0.8), black);
+  smile.position.set(0, 32.6, 4.7); smile.rotation.z = Math.PI*1.1; g.add(smile);
+  return g;
+}
+
+// --- the scene for each state ------------------------------------------
+const YELLOW_HELD_Y = BRICK + 18; // bottom of the held brick: 18 mm above the red brick's top
+function buildLego(state){
+  const scene = new THREE.Scene();
+  const named = {};
+  scene.add(baseplate());
+  const put = (name, spec, i, j, level, lift=0) => {
+    const b = at(brick(spec), i, j, spec.w, spec.d, level, lift); scene.add(b); if(name) named[name] = b; return b;
+  };
+  // fixed set
+  put('red',   { w:4, d:2, color:'red' }, 6, 7, 0);
+  put(null,    { w:2, d:4, color:'blue' }, 1, 2, 0);
+  put(null,    { w:1, d:4, color:'white' }, 1, 2, 3);
+  put(null,    { w:2, d:2, color:'green' }, 12, 2, 0);
+  put(null,    { w:2, d:2, color:'green' }, 12, 2, 3);
+  put(null,    { w:2, d:2, color:'white' }, 12, 2, 6);
+  put(null,    { w:2, d:2, color:'blue' }, 10, 13, 0);
+  put(null,    { w:4, d:1, color:'white' }, 5, 12, 0);
+  put(null,    { w:2, d:2, h:1, color:'green' }, 3, 6, 0);
+  const fig = minifig(); fig.position.set(40, 0, 28); fig.rotation.y = -0.45; scene.add(fig); named.fig = fig;
+
+  const Y = { w:4, d:2, color:'yellow' };
+  if(state === 'calibrate' || state === 'target'){
+    put('yellow', Y, 1, 10, 0);
+  } else if(state === 'lift'){
+    put('yellow', Y, 6, 7, 0, YELLOW_HELD_Y);
+  } else if(state === 'snap' || state === 'beauty'){
+    put('yellow', Y, 6, 7, 3);
+  } else if(state === 'paused'){
+    put('yellow', { ...Y, ghost:true }, 6, 7, 0, YELLOW_HELD_Y);
+  } else if(state === 'duplicate'){
+    put('yellow', Y, 6, 7, 3);
+    put('copy', Y, 6, 4, 0, 14);
+  } else if(state === 'rotate'){
+    put('ghostOld', { ...Y, ghost:true }, 6, 7, 0, YELLOW_HELD_Y);
+    const r = brick({ w:2, d:4, color:'yellow' });
+    at(r, 7, 6, 2, 4, 0, YELLOW_HELD_Y); scene.add(r); named.yellow = r;
+  }
+  return { scene, named };
+}
+
+function light(scene, beauty){
+  scene.add(new THREE.HemisphereLight(0xfff6ea, beauty ? 0x9a9488 : 0x3a3833, beauty ? 1.25 : 1.1));
+  const d = new THREE.DirectionalLight(0xffffff, beauty ? 2.0 : 2.2);
+  d.position.set(-70, 240, 100);
+  d.castShadow = true;
+  d.shadow.mapSize.set(2048, 2048);
+  const c = d.shadow.camera; c.left=-110; c.right=110; c.top=110; c.bottom=-110; c.near=10; c.far=500;
+  d.shadow.bias = -0.0004; d.shadow.normalBias = 0.3; d.shadow.radius = 4;
+  scene.add(d);
+  const fill = new THREE.DirectionalLight(0xdfe8ff, 0.35); fill.position.set(140, 80, -60); scene.add(fill);
+}
+
+const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+document.body.appendChild(renderer.domElement);
+
+function proj(v, cam){ const p = v.clone().project(cam); return [ +( (p.x+1)/2 ).toFixed(4), +( (1-p.y)/2 ).toFixed(4) ]; }
+function hull(pts){
+  pts = pts.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+  const lo=[],up=[];
+  for(const p of pts){ while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],p)<=0) lo.pop(); lo.push(p); }
+  for(const p of pts.slice().reverse()){ while(up.length>=2&&cr(up[up.length-2],up[up.length-1],p)<=0) up.pop(); up.push(p); }
+  return lo.slice(0,-1).concat(up.slice(0,-1));
+}
+function objHull(obj, cam){
+  obj.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(obj);
+  const pts=[];
+  for(const x of [b.min.x,b.max.x]) for(const y of [b.min.y,b.max.y]) for(const z of [b.min.z,b.max.z]) pts.push(proj(new THREE.Vector3(x,y,z), cam));
+  return hull(pts);
+}
+
+function makeCam(view, W, H){
+  if(view === 'plan'){
+    const half = 68, aspect = W/H;
+    const cam = new THREE.OrthographicCamera(-half*aspect, half*aspect, half, -half, 1, 1000);
+    cam.position.set(0, 400, 0); cam.up.set(0,0,-1); cam.lookAt(0,0,0);
+    return cam;
+  }
+  if(view === 'beauty'){
+    const cam = new THREE.PerspectiveCamera(30, W/H, 5, 2000);
+    cam.position.set(-150, 150, 210); cam.lookAt(4, 8, 4);
+    return cam;
+  }
+  const cam = new THREE.PerspectiveCamera(28, W/H, 5, 2000);
+  cam.position.set(0, 88, 222); cam.lookAt(0, 12, 0);
+  return cam;
+}
+
+window.renderLego = async function({ state, view, W, H, bg }){
+  renderer.setSize(W, H, false);
+  renderer.setPixelRatio(1);
+  const { scene, named } = buildLego(state === 'beauty' ? 'beauty' : state);
+  scene.background = new THREE.Color(bg);
+  light(scene, view === 'beauty');
+  if(view === 'beauty'){
+    // light floor under the baseplate to catch its shadow
+    const f = new THREE.Mesh(new THREE.PlaneGeometry(2000,2000), new THREE.ShadowMaterial({ opacity:0.18 }));
+    f.rotation.x = -Math.PI/2; f.position.y = -1.7; f.receiveShadow = true; scene.add(f);
+  }
+  const cam = makeCam(view, W, H);
+  renderer.render(scene, cam);
+  // anchors for the overlays
+  const A = {}, Hl = {};
+  const top = 0.0, s = 64;
+  A.c_fl = proj(new THREE.Vector3(-s, top, s), cam);   // front-left (near the person)
+  A.c_fr = proj(new THREE.Vector3( s, top, s), cam);
+  A.c_bl = proj(new THREE.Vector3(-s, top, -s), cam);  // back-left (toward the laptop)
+  A.c_br = proj(new THREE.Vector3( s, top, -s), cam);
+  for(const [k,o] of Object.entries(named)){
+    Hl[k] = objHull(o, cam);
+    const b = new THREE.Box3().setFromObject(o), c = b.getCenter(new THREE.Vector3());
+    A[k+'_top'] = proj(new THREE.Vector3(c.x, b.max.y, c.z), cam);
+    A[k+'_bot'] = proj(new THREE.Vector3(c.x, b.min.y, c.z), cam);
+    A[k+'_hand'] = proj(new THREE.Vector3(c.x, b.max.y + 22, c.z), cam);
+  }
+  A.red_land = proj(new THREE.Vector3(0, BRICK, 0), cam);
+  A.copy_land = proj(new THREE.Vector3(0, 0, -24), cam);
+  // hull of the landing footprint on top of the red brick
+  const fp = []; for(const x of [-16,16]) for(const z of [-8,8]) fp.push(proj(new THREE.Vector3(x, BRICK, z), cam));
+  Hl.land = hull(fp);
+  const fp2 = []; for(const x of [-16,16]) for(const z of [-32,-16]) fp2.push(proj(new THREE.Vector3(x, 0, z), cam));
+  Hl.copyLand = hull(fp2);
+  // scale reference: pixels per stud near the red brick (normalised to width)
+  const a = proj(new THREE.Vector3(-16, BRICK, 0), cam), b = proj(new THREE.Vector3(16, BRICK, 0), cam);
+  A.stud = +(((b[0]-a[0]))/4).toFixed(4);
+  const png = renderer.domElement.toDataURL('image/png');
+  scene.traverse(o => { if(o.geometry && !Object.values(geoCache).includes(o.geometry) && o.geometry!==studGeo) o.geometry.dispose(); });
+  return { png, anchors:A, hulls:Hl };
+};
+
+// --- the system view: laptop, tablet, two cameras, a hand ----------------
+function edgeBox(w,h,d,color,op=1){
+  const l = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w,h,d)), new THREE.LineBasicMaterial({ color, transparent:op<1, opacity:op }));
+  return l;
+}
+function frustum(apex, dir, up, fovDeg, aspect, len, color){
+  const g = new THREE.Group();
+  const f = dir.clone().normalize(), u = up.clone().normalize(), r = new THREE.Vector3().crossVectors(f,u).normalize();
+  const u2 = new THREE.Vector3().crossVectors(r,f).normalize();
+  const hh = Math.tan(THREE.MathUtils.degToRad(fovDeg/2))*len, hw = hh*aspect;
+  const c = apex.clone().addScaledVector(f,len);
+  const corners = [[1,1],[-1,1],[-1,-1],[1,-1]].map(([x,y]) => c.clone().addScaledVector(r,x*hw).addScaledVector(u2,y*hh));
+  const pts = [];
+  for(const k of corners){ pts.push(apex, k); }
+  for(let i=0;i<4;i++){ pts.push(corners[i], corners[(i+1)%4]); }
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  g.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color, transparent:true, opacity:0.9 })));
+  const tri = new THREE.BufferGeometry().setFromPoints([apex, corners[0], corners[1], apex, corners[1], corners[2], apex, corners[2], corners[3], apex, corners[3], corners[0]]);
+  g.add(new THREE.Mesh(tri, new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.07, side:THREE.DoubleSide, depthWrite:false })));
+  return g;
+}
+const HAND3 = [ // x right, y up (height), z toward person; palm down, flat-ish (mm)
+ [0,0,0],[-22,2,-8],[-36,4,-22],[-46,4,-34],[-54,3,-44],
+ [-17,4,-46],[-20,2,-66],[-22,-2,-79],[-23,-7,-89],
+ [-2,4,-48],[-2,2,-71],[-2,-2,-85],[-2,-7,-96],
+ [13,3,-45],[16,1,-65],[18,-3,-78],[19,-8,-87],
+ [26,2,-38],[31,0,-53],[34,-3,-63],[36,-7,-71]];
+const BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+
+window.renderSystem = async function({ W, H, laptopTex, bedTex }){
+  renderer.setSize(W, H, false); renderer.setPixelRatio(1);
+  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0f0e0c);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x333333, 1.0));
+  const dl = new THREE.DirectionalLight(0xffffff, 1.2); dl.position.set(-200,400,300); scene.add(dl);
+  const loader = new THREE.TextureLoader();
+  const load = u => new Promise(r => loader.load(u, t => { t.colorSpace = THREE.SRGBColorSpace; r(t); }));
+  const [tA, tB] = await Promise.all([load(laptopTex), load(bedTex)]);
+  // table grid
+  const grid = new THREE.GridHelper(900, 18, 0x2e2a26, 0x221f1c); grid.position.y = -0.5; scene.add(grid);
+  // laptop: base 320 x 220, at the back; screen tilted back
+  const lap = new THREE.Group(); lap.position.set(0, 0, -260); scene.add(lap);
+  const base = edgeBox(320, 12, 220, 0xece6da); base.position.set(0, 6, 0); lap.add(base);
+  const scr = new THREE.Group(); scr.position.set(0, 12, -110); scr.rotation.x = -0.18; lap.add(scr);
+  const sframe = edgeBox(320, 210, 6, 0xece6da); sframe.position.set(0, 105, 0); scr.add(sframe);
+  const sImg = new THREE.Mesh(new THREE.PlaneGeometry(296, 185), new THREE.MeshBasicMaterial({ map:tA, toneMapped:false }));
+  sImg.position.set(0, 106, 3.2); scr.add(sImg);
+  const camA = new THREE.Mesh(new THREE.SphereGeometry(3, 12, 8), new THREE.MeshBasicMaterial({ color:0xc4f46a }));
+  camA.position.set(0, 203, 3.5); scr.add(camA);
+  // tablet lying flat in front: 250 x 175
+  const tab = new THREE.Group(); tab.position.set(0, 0, 0); scene.add(tab);
+  const tframe = edgeBox(250, 8, 175, 0xece6da); tframe.position.y = 4; tab.add(tframe);
+  const tImg = new THREE.Mesh(new THREE.PlaneGeometry(232, 160), new THREE.MeshBasicMaterial({ map:tB, toneMapped:false }));
+  tImg.rotation.x = -Math.PI/2; tImg.position.y = 8.2; tab.add(tImg);
+  const camB = new THREE.Mesh(new THREE.SphereGeometry(3, 12, 8), new THREE.MeshBasicMaterial({ color:0xefa13a }));
+  camB.position.set(0, 9, -82); tab.add(camB);
+  scene.updateMatrixWorld(true);
+  const pA = camA.getWorldPosition(new THREE.Vector3()), pB = camB.getWorldPosition(new THREE.Vector3());
+  // hand over the tablet, palm down
+  const handC = new THREE.Vector3(0, 140, 75);
+  const hand = new THREE.Group(); hand.position.copy(handC); scene.add(hand);
+  const hm = new THREE.MeshStandardMaterial({ color:COL.skin, transparent:true, opacity:0.55, roughness:0.6, depthWrite:false });
+  const jv = HAND3.map(p => new THREE.Vector3(...p));
+  for(const v of jv){ const s = new THREE.Mesh(new THREE.SphereGeometry(4.2, 14, 10), hm); s.position.copy(v); hand.add(s); }
+  for(const [a,b] of BONES){
+    const va = jv[a], vb = jv[b], len = va.distanceTo(vb);
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.6, len, 12), hm);
+    c.position.copy(va).add(vb).multiplyScalar(0.5);
+    c.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), vb.clone().sub(va).normalize());
+    hand.add(c);
+  }
+  const palm = new THREE.Mesh(new THREE.CylinderGeometry(26, 22, 8, 24), hm); palm.position.set(2, 2, -26); palm.scale.z = 1.05; hand.add(palm);
+  const lines = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(BONES.flatMap(([a,b]) => [jv[a], jv[b]])), new THREE.LineBasicMaterial({ color:0xffffff }));
+  hand.add(lines);
+  // frustums
+  const target = handC.clone().add(new THREE.Vector3(0, 0, -40));
+  scene.add(frustum(pA, target.clone().sub(pA), new THREE.Vector3(0,1,0), 46, 16/10, 300, 0xc4f46a));
+  scene.add(frustum(pB, new THREE.Vector3(0,1,0.55), new THREE.Vector3(0,0,-1), 56, 4/3, 190, 0xefa13a));
+  const cam = new THREE.PerspectiveCamera(32, W/H, 10, 5000);
+  cam.position.set(700, 330, 330); cam.lookAt(-20, 90, -90);
+  renderer.render(scene, cam);
+  const A = { camA: proj(pA, cam), camB: proj(pB, cam), hand: proj(handC.clone().add(new THREE.Vector3(30,10,-60)), cam),
+    laptop: proj(new THREE.Vector3(160, 12, -150), cam), tablet: proj(new THREE.Vector3(125, 8, 88), cam) };
+  return { png: renderer.domElement.toDataURL('image/png'), anchors:A, hulls:{} };
+};
+window.ready = true;
+</script>
+</body></html>
