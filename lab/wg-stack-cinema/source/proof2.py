@@ -20,7 +20,7 @@ with sync_playwright() as p:
         c=cv(); return J("""(()=>{const S=STK.SB,d=STK.dpr,s=Math.max(S.w/480,S.h/360),dx=S.x+(S.w-480*s)/2,dy=S.y+(S.h-360*s)/2;return [(dx+90*s)/d,(dy+210*s)/d]})()"""), c
     def band(u,lower):
         r=pg.locator('#band').bounding_box(); return r['x']+u*r['width'], r['y']+r['height']*(.78 if lower else .22)
-    def tray(src): pg.locator(f'#tray button[data-s="{src}"]').scroll_into_view_if_needed(); pg.click(f'#tray button[data-s="{src}"]'); pg.wait_for_timeout(1200)
+    def tray(src): pg.keyboard.press('1'); pg.wait_for_timeout(400); pg.locator(f'#wall .wt[data-s="{src}"]').scroll_into_view_if_needed(); pg.click(f'#wall .wt[data-s="{src}"] img'); pg.wait_for_timeout(1500)
     log('open on an empty project',mode=J('STK.MODE'),A=J('STK.SRC.src'),B=J('STK.SRC.b'),shots=len(takes())); shot('00-empty')
     # 1 · find in the archive, hold one, keep another for comparison
     pg.keyboard.press('1'); pg.wait_for_timeout(1200); shot('01-archive-wall')
@@ -77,7 +77,7 @@ with sync_playwright() as p:
     for i in range(1,8): H([{'id':'Right','x':gx+(fx-gx)*i/8,'y':gy+(fy-gy)*i/8,'closed':True,'pose':'pinch'}]); pg.wait_for_timeout(40)
     H([]); pg.wait_for_timeout(200); H([]); pg.wait_for_timeout(250); H([]); h2=J('STK.HOLD&&STK.HOLD.state'); shot('10-tracking-paused')
     n=J('STK.H.undo.length'); H([{'id':'Right','x':fx,'y':fy,'closed':False,'pose':'open'}]); pg.wait_for_timeout(200); H([{'id':'Right','x':fx,'y':fy,'closed':False,'pose':'open'}]); h3=[J('STK.HOLD&&STK.HOLD.state'),J('STK.H.undo.length')==n]
-    pg.click('#acts button[data-a="cancel"]'); h4=[J('STK.HOLD'),J('STK.H.undo.length')==n]
+    pg.click('#hCancel'); h4=[J('STK.HOLD'),J('STK.H.undo.length')==n]
     log('SIMULATED hands: lift by pinch, tracking lost while held, reacquired, cancelled',held_by=h1,after_loss=h2,after_reacquire_open_hand=h3,after_cancel=h4)
     sx,sy=at('SB',.75,.5); H([{'id':'Left','x':sx,'y':sy,'closed':True,'pose':'pinch'}]); H([{'id':'Left','x':sx,'y':sy,'closed':True,'pose':'pinch'},{'id':'Right','x':900,'y':500,'closed':True,'pose':'pinch'}])
     H([{'id':'Left','x':sx,'y':sy,'closed':True,'pose':'pinch'},{'id':'Right','x':915,'y':500,'closed':True,'pose':'pinch'}]); n0=J('STK.SRC.rate')
@@ -91,7 +91,7 @@ with sync_playwright() as p:
     log('Floorboard window places the held figure',placed=J('STK.H.undo.length')==n+1,label=J("STK.H.undo.slice(-1)[0].label"),floor_shot=J("STK.film.shots.indexOf(STK.film.shots.find(s=>s.id===STK.SHOT))")); f.close()
     pg.keyboard.press('z'); pg.wait_for_timeout(300)
     # repeated source instance: duplicate shot 1 and trim one copy; the other is unchanged
-    pg.keyboard.press('3'); t1=pg.locator('#strip .sh').nth(0).bounding_box(); pg.mouse.click(t1['x']+t1['width']/2,t1['y']+30); pg.click('#acts button[data-a="dup"]'); pg.wait_for_timeout(300)
+    pg.keyboard.press('3'); pg.wait_for_timeout(300); pg.screenshot(path=f'{OUT}/dbg-before-dup.png'); print('MODE',J('STK.MODE'),J('document.activeElement.id'),J("document.querySelectorAll('#strip .sh').length")); t1=pg.locator('#strip .sh').nth(0).bounding_box(); pg.mouse.click(t1['x']+t1['width']/2,t1['y']+30); pg.click('#acts button[data-a="dup"]'); pg.wait_for_timeout(300)
     h=pg.locator('#strip .sh').nth(1).locator('i.b').bounding_box(); pg.mouse.move(h['x']+6,h['y']+20); pg.mouse.down(); pg.mouse.move(h['x']-40,h['y']+20,steps=6); pg.mouse.up(); pg.wait_for_timeout(3300)
     tk=takes(); log('two instances of one source, one trimmed',shot1=tk[0][:3],shot2=tk[1][:3]); pg.keyboard.press('z'); pg.wait_for_timeout(300); pg.keyboard.press('z'); pg.wait_for_timeout(300)
     lat=J('STK.LAT.list'); log('latency from input event to the end of the frame that shows it (headless, software drawing)',n=len(lat),median=sorted(lat)[len(lat)//2] if lat else None,p90=sorted(lat)[int(len(lat)*.9)] if lat else None,max=max(lat) if lat else None)
