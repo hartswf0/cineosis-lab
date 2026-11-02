@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stack Editor Proof</title>
+<meta name="description" content="The WarGames Stack film editor: the proof scene run with real clips, recorded; the exported film compared with the preview; an independent critic's attempt and the repairs that followed.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0a09;--panel:#12100e;--ink:#ece6da;--dim:#b3ab9e;--faint:#6b645b;--rule:#2e2a26;--red:#e0483a;--lime:#c4f46a;--amber:#efb94a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 "IBM Plex Mono",ui-monospace,Menlo,monospace}
+main{max-width:1060px;margin:0 auto;padding:28px 16px 80px}
+a{color:var(--lime)}
+h1{font:700 clamp(28px,5vw,44px)/1.1 Fraunces,Georgia,serif;margin:6px 0 10px}
+h2{font:400 24px/1.25 Fraunces,Georgia,serif;margin:44px 0 10px;border-top:1px solid var(--rule);padding-top:22px}
+h3{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:22px 0 8px;font-weight:500}
+p{max-width:72ch;margin:8px 0}
+.lead{font:300 19px/1.45 Fraunces,Georgia,serif;color:#d8d2c6;max-width:60ch}
+.kick{font-size:11px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}
+.btns a{border:1px solid var(--rule);border-radius:4px;padding:8px 14px;text-decoration:none;color:var(--ink)}
+.btns a.pri{background:var(--lime);color:#111;border-color:var(--lime)}
+.verdict{display:inline-block;background:var(--lime);color:#111;padding:2px 10px;border-radius:3px;font-weight:500}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}
+th,td{text-align:left;vertical-align:top;padding:8px 8px;border-bottom:1px solid var(--rule)}
+th{font-weight:500;color:var(--dim);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+td.ok{color:var(--lime);white-space:nowrap}td.fix{color:var(--amber);white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin:12px 0}
+figure{margin:0}figure img,figure video{width:100%;display:block;border-radius:3px;background:#000;border:1px solid var(--rule)}
+figcaption{font-size:12px;color:var(--dim);margin-top:5px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+ul{padding-left:20px;max-width:76ch}li{margin:4px 0}
+code{background:var(--panel);padding:1px 5px;border-radius:3px;font-size:12.5px}
+.note{color:var(--faint);font-size:12.5px}
+@media (max-width:640px){td,th{padding:6px 4px}.pair{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<div class="kick">WAR GAMES · Stack · proof of the editor · 2 November 2026</div>
+<h1>Touch the material, change the film, see what changed</h1>
+<p class="lead">Stack is now a film editor. You mark takes in footage, put them in order, trim the joins while seeing both frames, place figures in a shot and record their movement, hear it, undo anything, and download the film with its sound. This page records the proof: the whole task done through the interface with real WarGames clips, the exported film checked against the preview, and an independent critic's attempt.</p>
+<div class="btns"><a class="pri" href="../wg-stack.html">Open the editor</a><a id="demo" href="../wg-stack.html">Open the proof film in the editor</a><a href="proof-recording.webm">The proof recording</a><a href="export.webm">The exported film</a><a href="project.stack.json" download>The project file</a></div>
+
+<h2>What the editor is made of</h2>
+<p>One film document holds everything, and every view shows it.</p>
+<ul>
+<li><b>A shot is a take of a source.</b> It has a source clip, an in point and an out point (in the source's own seconds), a sound level, its line of words, and its figures. A figure's times count from the shot's first frame. A shot's length is its out point minus its in point; nothing else stores a length.</li>
+<li><b>The film is the shots in order.</b> Film time is the sum of the lengths before a shot. The table holds takes kept aside; they keep the same form and do not play.</li>
+<li><b>Trimming has one rule.</b> Moving an out point moves every later shot. Figures that ran to the old end run to the new end, and recorded movements keep their shot times. A take that runs past the end of its footage is hatched red and holds its last frame.</li>
+<li><b>Every edit is one step.</b> Pointer, touch, keyboard, voice and camera hands all go through the same actions, and each has a preview, a commit and a cancel (Escape). Each finished manipulation is one undo step with a name; redo is Shift Z. Losing the hand mid-move cancels the move.</li>
+<li><b>One clock, one evaluator.</b> The preview and the exporter use the same function to decide which shot is under a given time and which source frame to show. Sound runs through one mixer that also feeds the recorder.</li>
+</ul>
+<table>
+<tr><th>View</th><th>What it is for</th></tr>
+<tr><td>Source (1)</td><td>See and hear footage. Drag the top half of the band to scrub, drag the lower half to mark a take, or use I and O. Takes already in the film are shown on the band with their shot numbers. Then Insert, Replace, or To table.</td></tr>
+<tr><td>Shot (2)</td><td>The picture at the playhead. Pick up figures, drag them, size them with the wheel, and drag while it plays to record a path. Layers are shown back to front as chips; "apart" separates them in depth.</td></tr>
+<tr><td>Table (3)</td><td>The film's shots in order, and takes kept aside. Click a tile to audition it. Drag a tile and a green mark shows where it will land before you let go.</td></tr>
+<tr><td>Film (4)</td><td>Only the picture, with the time and shot number. Click to play or pause; Esc returns to editing.</td></tr>
+<tr><td>The strip</td><td>The sequence, always under the picture. Each shot is as wide as it is long and has its waveform. Drag a shot to reorder it (the insertion bar and a label show the result first). Drag either edge to trim, which shows the last outgoing frame beside the first incoming frame. After every move or trim the changed join plays from 1.5 s before to 1.5 s after.</td></tr>
+</table>
+
+<h2>The proof scene, run through the interface</h2>
+<p>A script drove the editor with real mouse and keyboard input on three WarGames clips that have sound, and recorded the session on video. Results are measured from the editor's state or from the exported file. The rows below come from the final run, after the critic's repairs.</p>
+<table>
+<tr><th>Step</th><th>What was done</th><th>Measured result</th><th></th></tr>
+<tr><td>1</td><td>Opened three clips. Marked a take from 003 by dragging the band, from 009 by scrubbing and pressing I and O, and from 289 by dragging. Inserted each.</td><td>Takes 003 0.60–3.60, 009 1.13–4.13, 289 0.77–3.57. Film 8.80 s.</td><td class="ok">done</td></tr>
+<tr><td>2</td><td>Played the sequence with sound.</td><td>Mixer running. 52 of 76 samples taken during playback carried sound (RMS up to 0.096).</td><td class="ok">done</td></tr>
+<tr><td>3</td><td>Dragged the middle take to the end.</td><td>Before release the insertion bar and "shot 2 → the end" were shown. Order changed from 003, 009, 289 to 003, 289, 009, and the new join played.</td><td class="ok">done</td></tr>
+<tr><td>4</td><td>Dragged shot 1's out point to the left.</td><td>The last frame of shot 1 and the first frame of shot 2 were shown side by side with source times. Out point 3.60 → 2.97; film 8.80 → 8.17 s; the join played.</td><td class="ok">done</td></tr>
+<tr><td>4b</td><td>Started a trim and pressed Escape.</td><td>Unchanged; no history step added.</td><td class="ok">done</td></tr>
+<tr><td>5</td><td>Added a figure to shot 2 and dragged it while the film played.</td><td>16 keys recorded. Recording stops at the shot's last frame.</td><td class="ok">done</td></tr>
+<tr><td>6</td><td>Went to the Table view and back. Undid, then redid.</td><td>The selected shot, the selected figure and the playhead were the same before and after. Undo took the path from 16 keys to 1; redo restored 16. The status line named the step undone.</td><td class="ok">done</td></tr>
+<tr><td>7</td><td>Saved the project file, reloaded the page, replayed, exported.</td><td>The film after reload was identical to the film before it, and to the project file. The export is VP9 video with Opus sound, 7.93 s against the editor's 8.17 s, mean level −26.7 dB.</td><td class="ok">done</td></tr>
+</table>
+<h3>Does the exported film agree with the preview?</h3>
+<p>At six times inside the three shots, the preview frame drawn by the paused editor was compared with the nearest exported frame. The difference to the matching preview was 0.6–3.3 grey levels out of 255. The difference to frames from other shots was at least 9.1. Exported frames land within two frames of the preview's timing.</p>
+<div class="grid">
+<figure><div class="pair"><img src="shots/prev_0.828.png" alt="Preview frame of shot 1"><img src="shots/exp_0.828.png" alt="The same moment in the export"></div><figcaption>0.83 s: preview, then export</figcaption></figure>
+<figure><div class="pair"><img src="shots/prev_3.347.png" alt="Preview frame of shot 2 with the figure"><img src="shots/exp_3.347.png" alt="The same moment in the export"></div><figcaption>3.35 s, shot 2 with its moving figure: preview, then export</figcaption></figure>
+<figure><div class="pair"><img src="shots/prev_6.217.png" alt="Preview frame of shot 3"><img src="shots/exp_6.217.png" alt="The same moment in the export"></div><figcaption>6.22 s, shot 3: preview, then export</figcaption></figure>
+</div>
+<div class="grid">
+<figure><video src="proof-recording.webm" controls preload="metadata"></video><figcaption>The proof run, recorded (1 min 45 s, no sound). The test browser draws slowly, so movement is jerky.</figcaption></figure>
+<figure><video src="export.webm" controls preload="metadata"></video><figcaption>The film the editor exported, with its sound</figcaption></figure>
+</div>
+<div class="grid">
+<figure><img src="shots/03-reorder-preview.png" alt="Reordering: the label shows where the shot will go"><figcaption>Reorder: where the shot will land is shown before release</figcaption></figure>
+<figure><img src="shots/04-trim-two-frames.png" alt="Trim: outgoing and incoming frames side by side"><figcaption>Trim: outgoing and incoming frames, source times, length</figcaption></figure>
+<figure><img src="shots/06-recording-path.png" alt="Recording a figure's path while playing"><figcaption>Dragging a figure while it plays records its path</figcaption></figure>
+<figure><img src="shots/07-table.png" alt="The table view"><figcaption>Table: the film in order, takes kept aside, audition</figcaption></figure>
+</div>
+
+<h2>Independent critic</h2>
+<p>A separate agent was given the editor and the seven-step task and no explanation of the controls. It drove the page with mouse and keyboard and read state only to check results. Its verdict: <span class="verdict">PASS</span>. Its account, shortened:</p>
+<ul>
+<li>It marked takes with the band and with I and O, which it found from the tooltips. It played the film; sound was measured at the mixer and in the export (mean −36.0 dB, max −6.2 dB).</li>
+<li>Reorder showed a green insertion bar and "shot 2 → the end". Escape cancelled the drag with "cancelled: move shot 2". The new join played.</li>
+<li>Trim showed "the last frame of shot 1 at source 0:02.27 beside the first frame of shot 2 at 0:01.13, plus in 0:00.90 · out 0:02.30 · 1.40 s · film 0:05.27". It called this "excellent".</li>
+<li>Selection and playhead survived the Table view. Undo and redo named the action. Order, trim and figure path survived a reload. The export frames matched the preview in order, trim and moving figure.</li>
+</ul>
+<h3>What it found wrong, and what was done</h3>
+<table>
+<tr><th>Finding</th><th>Repair</th><th></th></tr>
+<tr><td><b>Largest failure.</b> Footage that fails to load fails silently: "loading the footage…" stays forever, the ruler assumes 10 seconds, and you can mark a take past the clip's real end.</td><td>Footage that cannot play now says so on the picture and on its tile. The band shows no length until the footage reports one. Marking and inserting are disabled until then. Out points are held to the real length. The critic's repair condition was checked on an unplayable clip: the message appears, the buttons are disabled, and no length is invented.</td><td class="fix">repaired</td></tr>
+<tr><td>Recording a path carried on into the next shot, so the figure disappeared mid-gesture.</td><td>The clock now stops at the shot's last frame while the hand is still down, and the status line says the path is recorded to the end.</td><td class="fix">repaired</td></tr>
+<tr><td>On a phone, Undo and Redo were not shown at all.</td><td>Undo and redo buttons are shown in the panel on phones.</td><td class="fix">repaired</td></tr>
+<tr><td>After a reload the playhead went to 0 and the selection to shot 1.</td><td>The selected shot and the playhead are saved with the film and restored. Undo history still starts empty after a reload.</td><td class="fix">repaired</td></tr>
+<tr><td>The Film view showed no time or shot position.</td><td>It now shows the time, the length and "shot N of M".</td><td class="fix">repaired</td></tr>
+<tr><td>A disabled main button still looked active.</td><td>Disabled buttons are grey.</td><td class="fix">repaired</td></tr>
+<tr><td>Saving the project file sits under Download / Send; Ctrl S does nothing. The film also saves itself in the browser.</td><td>Not changed.</td><td>open</td></tr>
+<tr><td>The Shot and Film views are black and white while Source, the trim view and the strip are in colour.</td><td>Not changed. Black and white is a setting of the film ("Colour" on the footage chip). Source and trim show the footage as it is.</td><td>open</td></tr>
+</table>
+<p>After the repairs the whole proof was run again, and every row in the table above passed.</p>
+<div class="grid">
+<figure><img src="shots/repair-unplayable.png" alt="An unplayable clip is reported and cannot be marked"><figcaption>After the repair: a clip the browser cannot play</figcaption></figure>
+<figure><img src="shots/critic-24_trim_mid.png" alt="The critic's view of a trim"><figcaption>The critic's screenshot of a trim</figcaption></figure>
+</div>
+
+<h2>Running it, formats, limits</h2>
+<ul>
+<li><b>Launch.</b> Open <a href="../wg-stack.html">wg-stack.html</a> in a desktop browser (Chrome, Edge or Firefox). It opens on Source with the WarGames clips. Films → "The WarGames demonstration" loads a three-shot film. The editor is a single page built from <code>source/film.template.html</code> with <code>python3 build.py</code>.</li>
+<li><b>Formats verified.</b> The project file is JSON (format 3, which also reads the earlier format 2). A link carries the whole project in its address. The export is WebM with VP9 video and Opus sound at 1280×720, recorded in real time while the film plays.</li>
+<li><b>Tested.</b> Headless Chromium at 1280×800 and 390×844, using VP9 copies of the WarGames clips, because the test browser cannot decode H.264. The scripts are in <code>source/</code>: <code>proof.py</code> runs the scene and <code>compare.py</code> checks the export.</li>
+<li><b>Frame rate of the export.</b> In the test browser the export reached about 10–19 frames a second, because that browser draws in software. On a normal computer it records at the display's rate; this was not measured here.</li>
+<li><b>Not tested.</b> The microphone and camera hands (no devices here). Archive footage and the word reader, which need network access this test did not have. "Send a link" on a phone. H.264 playback, which real browsers do. Nobody has listened to the sound; it was measured.</li>
+<li><b>Archive footage.</b> Clips from the archive's video host play, but if that host does not allow a page to record its pictures, the export shows the shot's still or its title in its place. The editor says so when you export.</li>
+<li><b>Still to do.</b> Sound is cut hard at every join (no fades, no separate sound track). Takes cannot overlap, and there is no retiming.</li>
+</ul>
+<p class="note">Source: <a href="source/film.template.html">film.template.html</a>, <a href="source/build.py">build.py</a>, <a href="source/proof.py">proof.py</a>, <a href="source/compare.py">compare.py</a> · steps measured: <a href="steps.json">steps.json</a> · frame comparison: <a href="compare.json">compare.json</a></p>
+</main>
+<script>
+document.getElementById('demo').href='../wg-stack.html#f='+'TdJRbsMgDAbgu_BMmY1tsHOVKJq6busBNq0P0-4-Y1rRREoCX_7YIvymn7RRTpe0YU7XuH6lbd9Tyum23a6vAJQylJZrsdZ6xrwfR15e1Yb3YVTk_sqeLtiQoNqJ0eAk-NlPZ9O3EwGfP94FHfsLjKjVDH7Wop7zpyKjnk8Wrl7Jx9B9ULtSgNmizjjISIPoidQGEVikUB-CBeJ7VDlCWHERShADD4LVBXqRISIWArSEZ6jjCIkxL-qTtI2UqMoiiy4YaqS0tgfVMuc4ehZf2SWzPyaSoPmJSTQHHJUa6xKOReLGERK1RW2GopDQmu-zA5NRW7jfl2gc-Xlv-L_3RSOizPMW2-PI6ds30fH3Dw';
+</script>
+</body>
+</html>
