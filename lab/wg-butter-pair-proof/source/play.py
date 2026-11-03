@@ -50,7 +50,7 @@ with sync_playwright() as p:
     log('phone tap asks for the whole screen',{'fullscreen_supported':fl.evaluate("fsOK()"),'fullscreen_now':fl.evaluate("!!document.fullscreenElement")})
     # tray taps on the phone add bricks on the laptop
     pg.bring_to_front();E("BP.playStart(null,'free')");pg.wait_for_timeout(300);n0=E("BP.SCENE.bricks.length")
-    fl.evaluate("FV.cam=true;FV.everHand=true;document.exitFullscreen&&document.fullscreenElement&&document.exitFullscreen()");fl.wait_for_timeout(400);r=fl.evaluate("FV.tray&&FV.tray[1]&&[FV.tray[1].x/Math.min(2,devicePixelRatio||1)+10,FV.tray[1].y/Math.min(2,devicePixelRatio||1)+10]")
+    fl.evaluate("BP.PSET.done=true;FV.cam=true;FV.everHand=true;document.exitFullscreen&&document.fullscreenElement&&document.exitFullscreen()");fl.wait_for_timeout(400);r=fl.evaluate("FV.tray&&FV.tray[1]&&[FV.tray[1].x/Math.min(2,devicePixelRatio||1)+10,FV.tray[1].y/Math.min(2,devicePixelRatio||1)+10]")
     if r:fl.mouse.click(r[0],r[1]);pg.wait_for_timeout(600)
     log('a tap on the phone\'s tray',{'tray_slots':fl.evaluate("(FV.tray||[]).length"),'bricks_before':n0,'after':E("BP.SCENE.bricks.length"),'added':E("BP.SCENE.bricks.slice(-1)[0]")})
     fl.screenshot(path=OUT+'/game-floor-free.png')
