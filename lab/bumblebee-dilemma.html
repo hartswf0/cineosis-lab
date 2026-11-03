@@ -538,6 +538,7 @@ select.tui-sel, input.tui-inp {
     <a href="found-wargames-museum.html">08:MUSEUM</a>
     <a href="vj-wargames.html">09:VJ</a>
     <a href="wg-studio-reas.html">10:REAS</a>
+    <a href="wg-studio-stgl.html" style="color:var(--accent);border-color:var(--accent);">11:4D-STGL(u,v,d,tau)</a>
   </div>
   <div class="bus-links">
     <span style="color:var(--fg-dim)">CRT PHOSPHOR:</span>
@@ -556,6 +557,7 @@ select.tui-sel, input.tui-inp {
     <select class="tui-sel" id="bookSelect" aria-label="Book"></select>
     <select class="tui-sel" id="beatSelect" aria-label="Beat"></select>
     <button class="tui-btn" id="nextBeatBtn">[NEXT &gt;]</button>
+    <button class="tui-btn on" id="btnToggleStgl" onclick="toggleBeatStglOverlay()">[4D STGL GRID: ON]</button>
   </div>
 
   <div class="ctrl-group">
@@ -603,6 +605,7 @@ select.tui-sel, input.tui-inp {
       </div>
       <div class="crt-vp">
         <video id="vid1983" playsinline preload="auto" muted></video>
+        <svg id="vid1983StglSvg" viewBox="0 0 1000 562.5" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:12;"></svg>
         <div class="crt-hud">
           <span id="leftHudSpeaker" style="color:var(--fg-hi)">JOHN MCKITTRICK</span>
           <span id="leftHudTime">0.00s / 18.00s</span>
@@ -887,6 +890,57 @@ function syncMonitorsToTurn(turnIdx) {
 
   const sceneDur = Math.max(1, Number(curBeat.e || (curBeat.a1 - curBeat.a0) || 15));
   setPlayheadPct((Number(tr.s || 0) / sceneDur) * 100);
+  renderBeatStglOverlay(curBeat, curTurnIdx);
+}
+
+let showBeatStgl = true;
+function toggleBeatStglOverlay() {
+  showBeatStgl = !showBeatStgl;
+  const btn = document.getElementById("btnToggleStgl");
+  if (btn) {
+    btn.classList.toggle("on", showBeatStgl);
+    btn.textContent = showBeatStgl ? "[4D STGL GRID: ON]" : "[4D STGL GRID: OFF]";
+  }
+  if (curBeat) renderBeatStglOverlay(curBeat, curTurnIdx);
+}
+
+function renderBeatStglOverlay(bt, turnIdx) {
+  const svg = document.getElementById("vid1983StglSvg");
+  if (!svg) return;
+  if (!showBeatStgl || !bt || !bt.stgl) {
+    svg.innerHTML = "";
+    return;
+  }
+  const W = 1000, H = 562.5;
+  const stgl = bt.stgl;
+  const frames = stgl.frames_8 || [];
+  const fIdx = Math.min(Math.max(0, turnIdx), Math.max(0, frames.length - 1));
+  const f = frames[fIdx] || frames[0] || {
+    f: 1, u: 0.5, v: 0.5, tau: stgl.span_start || "b(1,1,0)",
+    primary_armature: stgl.armature || "golden_spiral",
+    jev_box: stgl.jev_box || [0.25, 0.2, 0.5, 0.5],
+    s_curve_bezier: [[0.3,0.1],[0.6,0.35],[0.4,0.65],[0.6,0.9]]
+  };
+  const [bx, by, bw, bh] = f.jev_box || [0.25, 0.2, 0.5, 0.5];
+  const ux = f.u * W, uy = f.v * H;
+  const tc = stgl.camera_toric || {};
+  const cue = stgl.audio_sync || {};
+  const b = f.s_curve_bezier || [[0.3,0.1],[0.6,0.35],[0.4,0.65],[0.6,0.9]];
+  const bezPath = `M ${b[0][0]*W} ${b[0][1]*H} C ${b[1][0]*W} ${b[1][1]*H}, ${b[2][0]*W} ${b[2][1]*H}, ${b[3][0]*W} ${b[3][1]*H}`;
+
+  svg.innerHTML = `
+    <line x1="${W/3}" y1="0" x2="${W/3}" y2="${H}" stroke="rgba(51,255,153,0.28)" stroke-width="1"/>
+    <line x1="${2*W/3}" y1="0" x2="${2*W/3}" y2="${H}" stroke="rgba(51,255,153,0.28)" stroke-width="1"/>
+    <line x1="0" y1="${H/3}" x2="${W}" y2="${H/3}" stroke="rgba(51,255,153,0.28)" stroke-width="1"/>
+    <line x1="0" y1="${2*H/3}" x2="${W}" y2="${2*H/3}" stroke="rgba(51,255,153,0.28)" stroke-width="1"/>
+    <path d="${bezPath}" fill="none" stroke="rgba(0,229,255,0.58)" stroke-width="1.5"/>
+    <rect x="${bx*W}" y="${by*H}" width="${bw*W}" height="${bh*H}" fill="rgba(255,176,0,0.06)" stroke="#ffb000" stroke-width="1.8"/>
+    <line x1="${ux-9}" y1="${uy}" x2="${ux+9}" y2="${uy}" stroke="#b8ffd0" stroke-width="1.8"/>
+    <line x1="${ux}" y1="${uy-9}" x2="${ux}" y2="${uy+9}" stroke="#b8ffd0" stroke-width="1.8"/>
+    <text x="10" y="18" fill="#ffb000" font-family="monospace" font-size="12.5" font-weight="bold">
+      STGL[${(f.primary_armature || stgl.armature || "golden_spiral").toUpperCase()}] f${f.f} // tau=${f.tau} // (u=${f.u.toFixed(2)}, v=${f.v.toFixed(2)}) // TORIC(${tc.alpha_deg ?? 45}d) // SYNC +${cue.offset_ms ?? 0}ms
+    </text>
+  `;
 }
 
 function play1983TurnSlice(turnIdx, onDone) {

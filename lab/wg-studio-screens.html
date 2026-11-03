@@ -664,6 +664,7 @@ body::after {
     <a href="found-wargames-museum.html">08:MUSEUM</a>
     <a href="vj-wargames.html">09:VJ</a>
     <a href="wg-studio-reas.html">10:REAS</a>
+    <a href="wg-studio-stgl.html" style="color:var(--accent);border-color:var(--accent);">11:4D-STGL(u,v,d,tau)</a>
   </div>
   <div class="bus-links">
     <span style="color:var(--fg-dim)">CRT PHOSPHOR:</span>
@@ -687,6 +688,7 @@ body::after {
     <button class="tui-btn" onclick="stepScreen(-1)">[&lt; PREV SCREEN]</button>
     <span id="execCounter" style="color:var(--fg-hi);font-weight:700;padding:0 6px">STATE 01 / 68</span>
     <button class="tui-btn" onclick="stepScreen(1)">[NEXT SCREEN &gt;]</button>
+    <button class="tui-btn on" id="btnStglOverlay" onclick="toggleStglOverlay()">[4D STGL GRID: ON]</button>
     <button class="tui-btn on" id="btnViewMatrix" onclick="setViewMode('matrix')">[MATRIX VIEW]</button>
     <button class="tui-btn" id="btnViewTable" onclick="setViewMode('table')">[TUI REGISTER TABLE]</button>
   </div>
@@ -711,6 +713,7 @@ body::after {
         </div>
         <div class="crt-screen">
           <video id="vidCrtA" playsinline preload="auto" muted loop></video>
+          <svg id="crtAStglSvg" viewBox="0 0 1000 562.5" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:12;"></svg>
           <div class="crt-overlay-tag" id="crtAOcr">WOPR EXECUTION ORDER</div>
         </div>
       </div>
@@ -853,7 +856,9 @@ const STUDIO_ROUTES = {
   "09": ["vj-wargames.html", "09 / TV LIVE VJ"],
   "VJ": ["vj-wargames.html", "09 / TV LIVE VJ"],
   "10": ["wg-studio-reas.html", "10 / CASEY REAS TISSUE"],
-  "REAS": ["wg-studio-reas.html", "10 / CASEY REAS TISSUE"]
+  "REAS": ["wg-studio-reas.html", "10 / CASEY REAS TISSUE"],
+  "11": ["wg-studio-stgl.html", "11 / 4D STGL GRID VERIFIER"],
+  "STGL": ["wg-studio-stgl.html", "11 / 4D STGL GRID VERIFIER"]
 };
 
 const CPE_TARGET = "CPE1704TKS";
@@ -863,6 +868,8 @@ let SUBS = [];
 let curIdx = 0;
 let curSubFilter = "ALL";
 let curViewMode = "matrix"; // "matrix" | "table"
+let showStglOverlay = true;
+let curSubframeIdx = 0;
 let seqTimer = null;
 let seqToken = 0;
 
@@ -1019,6 +1026,56 @@ function stopHoverVideo(cellEl) {
   }
 }
 
+function toggleStglOverlay() {
+  showStglOverlay = !showStglOverlay;
+  const btn = document.getElementById("btnStglOverlay");
+  if (btn) {
+    btn.classList.toggle("on", showStglOverlay);
+    btn.textContent = showStglOverlay ? "[4D STGL GRID: ON]" : "[4D STGL GRID: OFF]";
+  }
+  const st = SCREENS[curIdx];
+  if (st) renderCrtStglOverlay(st, curSubframeIdx);
+}
+
+function renderCrtStglOverlay(st, fIdx) {
+  const svg = document.getElementById("crtAStglSvg");
+  if (!svg) return;
+  if (!showStglOverlay || !st || !st.stgl) {
+    svg.innerHTML = "";
+    return;
+  }
+  const W = 1000, H = 562.5;
+  const sg = st.stgl.spatial_grid || {};
+  const tc = st.stgl.camera_toric || {};
+  const frames = st.stgl.frames_8 || [];
+  const f = frames[fIdx] || frames[0] || {
+    f: 1, u: 0.5, v: 0.5, tau: "b(1,1,0)",
+    primary_armature: sg.armature || "centered",
+    focal_node: sg.focal_node || [0.5, 0.5],
+    jev_box: [0.25, 0.25, 0.5, 0.5],
+    s_curve_bezier: [[0.3, 0.1], [0.6, 0.35], [0.4, 0.65], [0.6, 0.9]]
+  };
+
+  const [bx, by, bw, bh] = f.jev_box || [0.25, 0.25, 0.5, 0.5];
+  const ux = f.u * W, uy = f.v * H;
+  const b = f.s_curve_bezier || [[0.3,0.1],[0.6,0.35],[0.4,0.65],[0.6,0.9]];
+  const bezPath = `M ${b[0][0]*W} ${b[0][1]*H} C ${b[1][0]*W} ${b[1][1]*H}, ${b[2][0]*W} ${b[2][1]*H}, ${b[3][0]*W} ${b[3][1]*H}`;
+
+  svg.innerHTML = `
+    <line x1="${W/3}" y1="0" x2="${W/3}" y2="${H}" stroke="rgba(51,255,153,0.28)" stroke-width="1"/>
+    <line x1="${2*W/3}" y1="0" x2="${2*W/3}" y2="${H}" stroke="rgba(51,255,153,0.28)" stroke-width="1"/>
+    <line x1="0" y1="${H/3}" x2="${W}" y2="${H/3}" stroke="rgba(51,255,153,0.28)" stroke-width="1"/>
+    <line x1="0" y1="${2*H/3}" x2="${W}" y2="${2*H/3}" stroke="rgba(51,255,153,0.28)" stroke-width="1"/>
+    <path d="${bezPath}" fill="none" stroke="rgba(0,229,255,0.6)" stroke-width="1.5"/>
+    <rect x="${bx*W}" y="${by*H}" width="${bw*W}" height="${bh*H}" fill="rgba(255,176,0,0.06)" stroke="#ffb000" stroke-width="1.8"/>
+    <line x1="${ux-9}" y1="${uy}" x2="${ux+9}" y2="${uy}" stroke="#b8ffd0" stroke-width="1.8"/>
+    <line x1="${ux}" y1="${uy-9}" x2="${ux}" y2="${uy+9}" stroke="#b8ffd0" stroke-width="1.8"/>
+    <text x="10" y="18" fill="#ffb000" font-family="monospace" font-size="13" font-weight="bold">
+      STGL[${(f.primary_armature || "centered").toUpperCase()}] f${f.f} // tau=${f.tau} // (u=${f.u.toFixed(2)}, v=${f.v.toFixed(2)}) // TORIC(${tc.alpha_deg ?? 45}d,${tc.theta_deg ?? 0}d)
+    </text>
+  `;
+}
+
 function render8FrameStrip(st) {
   const img = document.getElementById("strip8Img");
   img.src = `strips/${st.shot_id}.jpg`;
@@ -1027,21 +1084,26 @@ function render8FrameStrip(st) {
   const grid = document.getElementById("strip8Grid");
   grid.querySelectorAll(".sf-slot").forEach(n => n.remove());
   const deltas = st.subframe_deltas || [];
+  curSubframeIdx = 0;
   deltas.forEach((d, k) => {
     const slot = document.createElement("div");
     slot.className = "sf-slot" + (k === 0 ? " on" : "");
-    slot.innerHTML = `<span>f${k + 1}</span><span>Δ${Number(d.delta || 0).toFixed(2)}</span>`;
+    const uStr = d.u != null ? `${Number(d.u).toFixed(2)},${Number(d.v).toFixed(2)}` : `Δ${Number(d.delta || 0).toFixed(2)}`;
+    slot.innerHTML = `<span>f${k + 1}</span><span>${uStr}</span>`;
     slot.onclick = () => {
+      curSubframeIdx = k;
       grid.querySelectorAll(".sf-slot").forEach(x => x.classList.remove("on"));
       slot.classList.add("on");
       document.getElementById("sfDeltaLbl").textContent =
-        `f${k + 1} // ${d.op || "RASTER"} // LUM:${d.lum} // Δ:${d.delta}`;
+        `f${k + 1} // ${d.armature || d.op || "RASTER"} // tau=${d.tau || "b(1,1,0)"} // (u=${d.u ?? 0.5}, v=${d.v ?? 0.5})`;
+      renderCrtStglOverlay(st, k);
       if (vidCrtA.duration) {
         try { vidCrtA.currentTime = (k / 8) * vidCrtA.duration; } catch (e) {}
       }
     };
     grid.appendChild(slot);
   });
+  renderCrtStglOverlay(st, 0);
 }
 
 function selectScreen(idx, autoPlayVideo) {
