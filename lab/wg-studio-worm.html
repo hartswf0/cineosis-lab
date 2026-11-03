@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WOPR // 3D SPATIOTEMPORAL WORM &amp; VIDEO CUBISM ANALYZER V(u, v, tau)</title>
+<style>
+  :root {
+    --bg: #000000;
+    --bg-sub: #020704;
+    --fg: #33ff77;
+    --fg-bright: #c2ffd6;
+    --fg-dim: #197a3a;
+    --fg-dark: #0a3016;
+    --amber: #ffb000;
+    --cyan: #00e5ff;
+    --red: #ff3344;
+    --mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Courier New', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--fg);
+    font-family: var(--mono); font-size: 11px; line-height: 1.32;
+    -webkit-font-smoothing: none;
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,18,7,0.22) 3px);
+  }
+  a { color: var(--fg); text-decoration: none; }
+  button, input, select {
+    font-family: var(--mono); font-size: 10px;
+    background: #000; color: var(--fg);
+    border: 1px solid var(--fg-dim); padding: 2px 6px;
+    cursor: pointer; text-transform: uppercase;
+  }
+  button:hover, button.on { background: var(--fg); color: #000; border-color: var(--fg); font-weight: 700; }
+  button.amber { color: var(--amber); border-color: #664400; }
+  button.amber:hover, button.amber.on { background: var(--amber); color: #000; border-color: var(--amber); }
+  button.cyan { color: var(--cyan); border-color: #005566; }
+  button.cyan:hover, button.cyan.on { background: var(--cyan); color: #000; border-color: var(--cyan); }
+
+  .app {
+    display: grid;
+    grid-template-rows: 26px 26px 1fr 22px;
+    width: 100vw; height: 100vh;
+  }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 8px; border-bottom: 1px solid var(--fg-dim); background: #000;
+    white-space: nowrap; overflow-x: auto;
+  }
+  .brand { font-weight: 700; letter-spacing: 0.06em; color: var(--fg-bright); }
+  .nav-links { display: flex; gap: 4px; align-items: center; }
+  .nav-link { padding: 2px 6px; border: 1px solid var(--fg-dark); color: var(--fg-dim); font-size: 10px; }
+  .nav-link.active, .nav-link:hover { border-color: var(--fg); color: #000; background: var(--fg); font-weight: 700; }
+
+  .filterbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 8px; border-bottom: 1px solid var(--fg-dim); background: #020604;
+    overflow-x: auto; gap: 6px; white-space: nowrap;
+  }
+  .topo-pills { display: flex; gap: 3px; align-items: center; }
+
+  .workspace {
+    display: grid;
+    grid-template-columns: 270px 1fr 410px;
+    min-height: 0; overflow: hidden;
+  }
+
+  /* LEFT PANE: 105 BEATS + 68 SCREENS WORM TOPOLOGY INDEX */
+  .left-pane {
+    border-right: 1px solid var(--fg-dim);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  .pane-head {
+    padding: 4px 8px; border-bottom: 1px solid var(--fg-dark);
+    color: var(--amber); font-weight: 700; font-size: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+    background: #030805; flex-shrink: 0;
+  }
+  .shot-list { flex: 1; overflow-y: auto; }
+  .shot-row {
+    padding: 5px 7px; border-bottom: 1px solid #061b0d;
+    cursor: pointer; display: flex; flex-direction: column; gap: 2px;
+  }
+  .shot-row:hover { background: #04150a; }
+  .shot-row.active { background: #082a14; border-left: 3px solid var(--fg-bright); }
+  .sr-top { display: flex; justify-content: space-between; font-size: 10px; }
+  .sr-id { color: var(--fg-bright); font-weight: 700; }
+  .sr-frac { font-size: 8.5px; color: var(--cyan); }
+  .sr-mid { display: flex; justify-content: space-between; font-size: 9px; align-items: center; }
+  .sr-topo { color: var(--amber); font-weight: 700; }
+  .sr-pal { display: flex; gap: 1px; }
+  .sr-sw { width: 8px; height: 8px; border: 1px solid #111; }
+  .sr-line { font-size: 9px; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.85; }
+
+  /* CENTER PANE: 3D GLASS-PRISM WORM VOLUME + TOMOGRAPHY + CINEMETRICS + MANOVICH GRID */
+  .center-pane {
+    border-right: 1px solid var(--fg-dim);
+    display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  }
+  .stage-toolbar {
+    padding: 4px 8px; border-bottom: 1px solid var(--fg-dark);
+    display: flex; justify-content: space-between; align-items: center; gap: 6px;
+    background: #020604; flex-wrap: wrap;
+  }
+  .prism-wrap {
+    position: relative; flex: 1; min-height: 250px;
+    display: grid; grid-template-columns: 1.35fr 1fr;
+    border-bottom: 1px solid var(--fg-dim); background: #000; overflow: hidden;
+  }
+  .prism-box {
+    position: relative; border-right: 1px solid var(--fg-dark);
+    background: #000; overflow: hidden; display: flex; flex-direction: column;
+  }
+  #prismCanvas {
+    width: 100%; height: 100%; flex: 1; cursor: grab; display: block;
+  }
+  #prismCanvas:active { cursor: grabbing; }
+  .prism-hud {
+    position: absolute; top: 6px; left: 8px; pointer-events: none;
+    background: rgba(0,0,0,0.82); border: 1px solid var(--fg-dim); padding: 3px 6px; font-size: 9.5px;
+  }
+  .prism-controls {
+    padding: 3px 6px; border-top: 1px solid var(--fg-dark); background: #020603;
+    display: flex; gap: 8px; align-items: center; font-size: 9.5px; flex-wrap: wrap;
+  }
+
+  /* LIVE CRT VIDEO + BOULEAU 14-LINE ARMATURE + ACTION TUBE CROSS-SECTION */
+  .crt-side {
+    display: flex; flex-direction: column; background: #000; min-height: 0;
+  }
+  .crt-vp {
+    position: relative; width: 100%; aspect-ratio: 16 / 9;
+    background: #000; border-bottom: 1px solid var(--fg-dark); overflow: hidden;
+  }
+  #wormVideo { width: 100%; height: 100%; object-fit: fill; display: block; }
+  #wormVideoSvg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 12; }
+
+  /* TOMOGRAPHIC SLIT-SCAN SLICES (u-tau & v-tau) + KALMUS CORE/SHELL STRATIGRAPHY */
+  .tomo-box {
+    flex: 1; display: flex; flex-direction: column; padding: 5px 7px; gap: 4px; overflow-y: auto;
+  }
+  .tomo-canvas {
+    width: 100%; height: 54px; border: 1px solid var(--fg-dark); background: #000; display: block; cursor: pointer;
+  }
+
+  /* LOWER DECK: MANOVICH ENTRY/MID/EXIT UNROLL + 10-CUT WORM COMPARATOR + BRODBECK TORUS */
+  .lower-deck {
+    height: 215px; display: grid; grid-template-columns: 1.25fr 1fr;
+    background: #000; min-height: 0;
+  }
+  .manovich-pane {
+    border-right: 1px solid var(--fg-dim); display: flex; flex-direction: column; min-height: 0;
+  }
+  .manovich-body {
+    flex: 1; padding: 5px 7px; display: flex; flex-direction: column; gap: 5px; overflow-y: auto;
+  }
+  .unroll-3grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+  }
+  .unroll-card {
+    border: 1px solid var(--fg-dark); background: #020603; padding: 2px;
+    cursor: pointer;
+  }
+  .unroll-card:hover { border-color: var(--amber); }
+  .unroll-hdr {
+    display: flex; justify-content: space-between; font-size: 8.5px; padding: 1px 3px; color: var(--fg-bright);
+  }
+  .unroll-vp {
+    position: relative; height: 48px; overflow: hidden; background: #000;
+  }
+  .unroll-strip-img {
+    position: absolute; top: 0; height: 100%; width: 800%; max-width: none;
+  }
+
+  /* BRODBECK RADIAL CINEMETRICS TORUS PANE */
+  .torus-pane {
+    display: flex; flex-direction: column; min-height: 0; background: #000;
+  }
+  .torus-wrap {
+    flex: 1; display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 8px; gap: 8px; min-height: 0;
+  }
+  #torusCanvas {
+    width: 165px; height: 165px; flex-shrink: 0; cursor: pointer; border: 1px solid var(--fg-dark);
+  }
+  .torus-legend {
+    flex: 1; font-size: 9px; display: flex; flex-direction: column; gap: 3px; overflow-y: auto; max-height: 170px;
+  }
+
+  /* RIGHT PANE: TELEMETRY (TOPOLOGY, KALMUS/ITTEN, BOULEAU/ARNHEIM, FRENET-SERRET DIFF GEOM, 10-CUT WORMS) */
+  .right-pane {
+    display: flex; flex-direction: column; min-height: 0; overflow-y: auto; background: #000;
+  }
+  .sec-block { border-bottom: 1px solid var(--fg-dim); padding: 6px 8px; }
+  .sec-title {
+    color: var(--amber); font-weight: 700; font-size: 10px;
+    margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .kv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 9.5px; }
+  .kv-box { border: 1px solid var(--fg-dark); padding: 3px 5px; background: #020704; }
+  .kv-k { color: var(--fg-dim); font-size: 8.5px; }
+  .kv-v { color: var(--fg-bright); font-weight: 700; }
+
+  .kalmus-bar {
+    display: grid; grid-template-columns: repeat(8, 1fr); height: 14px;
+    border: 1px solid var(--fg-dark); margin-top: 2px;
+  }
+  .curve-canvas {
+    width: 100%; height: 86px; border: 1px solid var(--fg-dark); background: #010502; display: block;
+  }
+
+  .cuts10-table {
+    width: 100%; border-collapse: collapse; font-size: 9px;
+  }
+  .cuts10-table th, .cuts10-table td {
+    border: 1px solid var(--fg-dark); padding: 2px 4px; text-align: left;
+  }
+  .cuts10-table th { color: var(--amber); background: #030905; }
+
+  .statusbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 8px; border-top: 1px solid var(--fg-dim);
+    background: #000; font-size: 10px; color: var(--fg-dim);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- TOP SYSTEM BUS -->
+  <div class="topbar">
+    <div class="brand">WOPR // 3D SPATIOTEMPORAL VOLUME V(u, v, tau) &amp; ACTION-TUBE WORM ANALYZER // 4,736 FRAMES EXTRUDED</div>
+    <div class="nav-links">
+      <a class="nav-link" href="wargames-studio.html">00: ROOT SHELL</a>
+      <a class="nav-link" href="wg-studio-screens.html">01: WOPR SCREEN EMULATOR (68)</a>
+      <a class="nav-link" href="bumblebee-dilemma.html">04: DIALOGUE &amp; SEMIOSIS (105)</a>
+      <a class="nav-link" href="wg-studio-stgl.html">11: 4D STGL GRID</a>
+      <a class="nav-link active" href="wg-studio-worm.html">12: 3D WORM &amp; VIDEO CUBISM</a>
+    </div>
+  </div>
+
+  <!-- 7 WORM TOPOLOGIES + CORPUS SWITCH BAR -->
+  <div class="filterbar">
+    <div class="topo-pills" id="topoFilterBar">
+      <span style="color:var(--amber);font-weight:700;margin-right:4px;">3D WORM TOPOLOGY:</span>
+      <button class="on" data-topo="ALL">ALL (105)</button>
+      <button data-topo="HELICAL_CORKSCREW">HELICAL CORKSCREW</button>
+      <button data-topo="SHEARED_DIAGONAL_RIBBON">SHEARED PAN RIBBON</button>
+      <button data-topo="EXPANDING_CONE_FUNNEL">DOLLY CONE/FUNNEL</button>
+      <button data-topo="DOUBLE_HELIX_BRAID">DOUBLE-HELIX BRAID</button>
+      <button data-topo="VERTICAL_PILLAR">VERTICAL PILLAR</button>
+      <button class="cyan" data-topo="EYE_TRACE_FRACTURE_TUBE">MURCH EYE-TRACE TUBE</button>
+      <button class="amber" data-topo="EISENSTEIN_COLLISION_FRACTURE">EISENSTEIN COLLISION</button>
+    </div>
+    <div style="display:flex;gap:4px;align-items:center;">
+      <button id="btnModeBeats" class="amber on" onclick="setCorpus('beats')">105 SCENE BEATS (x10 CUTS)</button>
+      <button id="btnModeScreens" class="amber" onclick="setCorpus('screens')">68 PURE SCREENS</button>
+    </div>
+  </div>
+
+  <!-- MAIN 3-COLUMN WORKSPACE -->
+  <div class="workspace">
+    <!-- LEFT: 105 BEATS / 68 SCREENS WORM TOPOLOGY LIST -->
+    <div class="left-pane">
+      <div class="pane-head">
+        <span id="leftListTitle">3D ACTION-TUBE VOLUMES (105)</span>
+        <span style="color:var(--fg);">V(u,v,tau)</span>
+      </div>
+      <div class="shot-list" id="wormShotList"></div>
+    </div>
+
+    <!-- CENTER: 3D GLASS-PRISM VOLUME + LIVE CRT + TOMOGRAPHY + MANOVICH + BRODBECK TORUS -->
+    <div class="center-pane">
+      <div class="stage-toolbar">
+        <div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;">
+          <span style="color:var(--amber);font-weight:700;">3D PRISM FILAMENTS:</span>
+          <button class="on" id="togBouleau" onclick="toggleFilament('bouleau')">BOULEAU 14-LINE ARMATURE</button>
+          <button class="on" id="togThirds" onclick="toggleFilament('thirds')">THIRDS TUNNEL</button>
+          <button class="on" id="togSpiral" onclick="toggleFilament('spiral')">HELICAL SPIRAL</button>
+          <button class="on" id="togBraid" onclick="toggleFilament('braid')">RABATMENT DOUBLE-HELIX</button>
+          <button class="cyan" id="tog10Cuts" onclick="toggleFilament('cuts10')">ALL 10 MONTAGE CUT WORMS</button>
+        </div>
+        <div style="display:flex;gap:4px;">
+          <button class="cyan" id="btnPlayVid" onclick="togglePlayVideo()">[SPACE] PLAY VOLUME</button>
+          <button onclick="stepTauFrame(-1)">[&lt;] f-1</button>
+          <button onclick="stepTauFrame(1)">[&gt;] f+1</button>
+        </div>
+      </div>
+
+      <!-- UPPER SPLIT: 3D GLASS-PRISM RENDERER (LEFT) + LIVE CRT & TOMOGRAPHIC SLICER (RIGHT) -->
+      <div class="prism-wrap">
+        <div class="prism-box">
+          <canvas id="prismCanvas" width="620" height="360"></canvas>
+          <div class="prism-hud" id="prismHud">3D PRISM V(u, v, tau) // DRAG TO ORBIT</div>
+          <div class="prism-controls">
+            <span>TAU SLICE: <input type="range" id="tauSlider" min="0" max="7" step="1" value="3" oninput="onTauSlider(this.value)" style="width:75px;vertical-align:middle;"></span>
+            <span id="tauLabel" style="color:var(--cyan);">f4 (tau=0.43)</span>
+            <span>YAW: <input type="range" id="yawSlider" min="-80" max="80" step="1" value="-32" oninput="onOrbitSlider()" style="width:65px;vertical-align:middle;"></span>
+            <span>PITCH: <input type="range" id="pitchSlider" min="-45" max="45" step="1" value="20" oninput="onOrbitSlider()" style="width:65px;vertical-align:middle;"></span>
+          </div>
+        </div>
+
+        <div class="crt-side">
+          <div class="pane-head">
+            <span>CRT CROSS-SECTION AT TAU + BOULEAU 14-LINE ARMATURE</span>
+            <span id="crtShotLabel" style="color:var(--cyan);">wg_001</span>
+          </div>
+          <div class="crt-vp">
+            <video id="wormVideo" playsinline preload="auto" muted></video>
+            <svg id="wormVideoSvg" viewBox="0 0 1000 562.5" preserveAspectRatio="none"></svg>
+          </div>
+
+          <!-- FELS & MASE TOMOGRAPHIC SLIT-SCAN SLICES (u-tau & v-tau) -->
+          <div class="tomo-box">
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--amber);">
+              <span>TOMOGRAPHIC SLIT-SCAN SLICES: HORIZONTAL (u-tau) &amp; VERTICAL (v-tau) [CLICK TO SLICE]</span>
+              <span id="tomoMeta">FELS &amp; MASE CUBISM</span>
+            </div>
+            <canvas class="tomo-canvas" id="tomoUTauCanvas" width="420" height="52" onclick="onTomoClick(event)"></canvas>
+            <canvas class="tomo-canvas" id="tomoVTauCanvas" width="420" height="52" onclick="onTomoClick(event)"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOWER SPLIT: LEV MANOVICH CULTURAL ANALYTICS UNROLL (LEFT) + BRODBECK CINEMETRICS TORUS (RIGHT) -->
+      <div class="lower-deck">
+        <div class="manovich-pane">
+          <div class="pane-head">
+            <span>LEV MANOVICH CULTURAL ANALYTICS UNROLL (ENTRY f1 / MID f4 / EXIT f8) + KALMUS STRATIGRAPHY</span>
+            <span id="manovichTopoBadge" style="color:var(--fg-bright);">--</span>
+          </div>
+          <div class="manovich-body">
+            <div class="unroll-3grid" id="manovichUnrollGrid"></div>
+            <div style="font-size:9px;color:var(--fg-dim);display:flex;justify-content:space-between;margin-top:2px;">
+              <span>KALMUS CORE WORM PALETTE (f1..f8):</span>
+              <span id="kalmusCoreText" style="color:var(--fg-bright);">--</span>
+            </div>
+            <div class="kalmus-bar" id="kalmusCoreBar"></div>
+            <div style="font-size:9px;color:var(--fg-dim);display:flex;justify-content:space-between;margin-top:2px;">
+              <span>KALMUS OUTER SHELL BACKGROUND PALETTE (f1..f8):</span>
+              <span id="kalmusShellText" style="color:var(--cyan);">--</span>
+            </div>
+            <div class="kalmus-bar" id="kalmusShellBar"></div>
+          </div>
+        </div>
+
+        <div class="torus-pane">
+          <div class="pane-head">
+            <span>FREDERIC BRODBECK 360-DEG RADIAL CINEMETRICS TORUS</span>
+            <span style="color:var(--cyan);">CLICK RING SEGMENT</span>
+          </div>
+          <div class="torus-wrap">
+            <canvas id="torusCanvas" width="170" height="170"></canvas>
+            <div class="torus-legend" id="torusLegend"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: TOPOLOGY GRAMMAR, ITTEN 7 COLOR CONTRASTS, BOULEAU/ARNHEIM, FRENET-SERRET DIFF GEOM, 10-CUT WORMS -->
+    <div class="right-pane">
+      <!-- 1. 3D WORM TOPOLOGY & CUT FRACTURE -->
+      <div class="sec-block">
+        <div class="sec-title">
+          <span>1. 3D WORM TOPOLOGY &amp; CUT FRACTURE PLANE</span>
+          <span id="rightTopoBadge" style="color:var(--fg-bright);">--</span>
+        </div>
+        <div id="topoGrammarText" style="font-size:9.5px;color:var(--fg);margin-bottom:5px;padding:3px 5px;border:1px solid var(--fg-dark);background:#020804;"></div>
+        <div class="kv-grid" id="topoKvGrid"></div>
+      </div>
+
+      <!-- 2. KALMUS & JOHANNES ITTEN'S 7 COLOR CONTRASTS -->
+      <div class="sec-block">
+        <div class="sec-title">
+          <span>2. KALMUS &amp; ITTEN 7 COLOR CONTRASTS (CORE vs SHELL)</span>
+          <span id="ittenSummaryBadge" style="color:var(--cyan);">--</span>
+        </div>
+        <div class="kv-grid" id="ittenKvGrid"></div>
+      </div>
+
+      <!-- 3. BOULEAU 14-LINE ARMATURE & ARNHEIM ECCENTRIC TENSION -->
+      <div class="sec-block">
+        <div class="sec-title">
+          <span>3. BOULEAU 14-LINE ARMATURE &amp; ARNHEIM TORQUE</span>
+          <span id="bouleauStateBadge" style="color:var(--amber);">--</span>
+        </div>
+        <div class="kv-grid" id="bouleauKvGrid"></div>
+      </div>
+
+      <!-- 4. FRENET-SERRET 3D SPACE-CURVE (CURVATURE kappa, TORSION tau, JERK ||c'''||) & BRUCE BLOCK -->
+      <div class="sec-block">
+        <div class="sec-title">
+          <span>4. CURVATURE kappa(tau), TORSION, JERK &amp; BRUCE BLOCK</span>
+          <span id="jerkPeakBadge" style="color:var(--fg-bright);">--</span>
+        </div>
+        <canvas class="curve-canvas" id="diffGeomCanvas" width="380" height="86"></canvas>
+        <div class="kv-grid" id="diffGeomKvGrid" style="margin-top:4px;"></div>
+      </div>
+
+      <!-- 5. 10 SIMULTANEOUS MONTAGE CUTS: 3D WORM COMPARISON -->
+      <div class="sec-block" style="border-bottom:none;">
+        <div class="sec-title">
+          <span>5. ALL 10 SIMULTANEOUS CUTS // 3D WORM COMPARISON</span>
+          <span style="color:var(--cyan);">10 PARALLEL TUBES</span>
+        </div>
+        <table class="cuts10-table">
+          <thead>
+            <tr>
+              <th>CUT LENS</th>
+              <th>SHOT</th>
+              <th>3D WORM TOPOLOGY</th>
+              <th>CORE/SHELL</th>
+              <th>dL*</th>
+              <th>BLOCK</th>
+            </tr>
+          </thead>
+          <tbody id="cuts10Tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="statusbar">
+    <div id="statusLeft">3D SPATIOTEMPORAL WORM ANALYZER READY // 592 8-FRAME VOLUMES (4,736 FRAMES)</div>
+    <div>DRAG 3D PRISM TO ORBIT // [UP/DOWN] SHOT // [LEFT/RIGHT] TAU SLICE f1..f8 // [SPACE] PLAY VIDEO</div>
+  </div>
+</div>
+
+<script>
+// Bouleau's 14-Line Harmonic Armature segments in [0,1]^2
+const RAB_L = 9.0 / 16.0;
+const RAB_R = 1.0 - RAB_L;
+const BOULEAU_14 = [
+  [[0,0],[1,1]], [[0,1],[1,0]],
+  [[0.5,0],[0.5,1]], [[0,0.5],[1,0.5]],
+  [[RAB_R,0],[RAB_R,1]], [[RAB_L,0],[RAB_L,1]],
+  [[0,0],[RAB_L,1]], [[0,1],[RAB_L,0]],
+  [[RAB_R,0],[1,1]], [[RAB_R,1],[1,0]],
+  [[0.5,0],[1,0.5]], [[1,0.5],[0.5,1]],
+  [[0.5,1],[0,0.5]], [[0,0.5],[0.5,0]]
+];
+
+let WORM_VOL = null;
+let SCREENS_DATA = null;
+let CORPUS = 'beats'; // 'beats' | 'screens'
+let TOPO_FILTER = 'ALL';
+let SHOTS = [];
+let CUR_IDX = 0;
+let CUR_TAU_IDX = 3; // f4 (0..7)
+
+// 3D Prism Camera Orbit State
+let PRISM_YAW = -32 * Math.PI / 180;
+let PRISM_PITCH = 20 * Math.PI / 180;
+let IS_DRAGGING = false;
+let LAST_MOUSE = { x: 0, y: 0 };
+
+const FILAMENTS = {
+  bouleau: true,
+  thirds: true,
+  spiral: true,
+  braid: true,
+  cuts10: false
+};
+
+async function initWormConsole() {
+  const [volRes, scrRes] = await Promise.all([
+    fetch('wargames-worm-volume.json'),
+    fetch('wargames-screens-program.json')
+  ]);
+  WORM_VOL = await volRes.json();
+  SCREENS_DATA = await scrRes.json();
+
+  setupTopoFilters();
+  setupPrismMouse();
+  setupKeys();
+  applyTopoFilter();
+}
+
+function setupTopoFilters() {
+  const btns = document.querySelectorAll('#topoFilterBar button');
+  btns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      btns.forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      TOPO_FILTER = btn.getAttribute('data-topo');
+      applyTopoFilter();
+    });
+  });
+}
+
+function setCorpus(mode) {
+  CORPUS = mode;
+  document.getElementById('btnModeBeats').classList.toggle('on', mode === 'beats');
+  document.getElementById('btnModeScreens').classList.toggle('on', mode === 'screens');
+  applyTopoFilter();
+}
+
+function getAllItems() {
+  if (CORPUS === 'beats') {
+    return WORM_VOL.beats || [];
+  }
+  return (SCREENS_DATA.screen_states || []).map((st, idx) => {
+    const w = st.worm_3d || {};
+    return {
+      id: `SCR-${String(idx + 1).padStart(2, '0')}`,
+      shot_id: st.shot_id,
+      book_title: st.system_node || 'WOPR_SCREEN',
+      start_sec: st.start,
+      end_sec: st.end,
+      dur_sec: st.dur,
+      who: (st.trigger_line && st.trigger_line.speaker) || 'WOPR',
+      fulcrum_line: (st.trigger_line && st.trigger_line.text) || st.inferred_command || st.ocr_text || '',
+      thumb: st.thumb,
+      strip: st.strip,
+      video: st.video,
+      topology: w.topology || 'VERTICAL_PILLAR',
+      topology_grammar: w.topology_grammar || '',
+      pan_shear_angle_deg: w.pan_shear_angle_deg || 0,
+      cone_flare_dr: w.cone_flare_dr || 0,
+      mean_rabatment_gap: w.mean_rabatment_gap || 0.5,
+      mean_bilateral_balance: w.mean_bilateral_balance || 0.5,
+      cut_fracture: w.cut_fracture || { type: 'EYE_TRACE_FRACTURE_TUBE', jump_dist_uv: 0.05, velocity_dot: 0.0 },
+      kalmus_summary: w.kalmus_summary,
+      bouleau_summary: w.bouleau_summary,
+      diff_geom_summary: w.diff_geom_summary,
+      tomography: w.tomography,
+      worm_frames: w.worm_frames || [],
+      cuts_10_worms: []
+    };
+  });
+}
+
+function applyTopoFilter() {
+  const raw = getAllItems();
+  SHOTS = raw.filter(item => {
+    if (TOPO_FILTER === 'ALL') return true;
+    if (TOPO_FILTER === 'EYE_TRACE_FRACTURE_TUBE' || TOPO_FILTER === 'EISENSTEIN_COLLISION_FRACTURE') {
+      return item.cut_fracture && item.cut_fracture.type === TOPO_FILTER;
+    }
+    return item.topology === TOPO_FILTER;
+  });
+
+  document.getElementById('leftListTitle').textContent =
+    `${CORPUS === 'beats' ? '105 SCENE BEATS' : '68 PURE SCREENS'} (${SHOTS.length})`;
+
+  renderShotList();
+  renderBrodbeckTorus();
+  if (SHOTS.length > 0) selectShot(0);
+}
+
+function renderShotList() {
+  const el = document.getElementById('wormShotList');
+  el.innerHTML = SHOTS.map((sh, i) => {
+    const pal = (sh.kalmus_summary && sh.kalmus_summary.core_palette_8) || [];
+    const swatches = pal.slice(0, 6).map(hex => `<span class="sr-sw" style="background:${hex};"></span>`).join('');
+    const fracShort = (sh.cut_fracture && sh.cut_fracture.type === 'EYE_TRACE_FRACTURE_TUBE') ? 'EYE-LOCK' : 'COLLISION';
+    return `
+      <div class="shot-row ${i === CUR_IDX ? 'active' : ''}" onclick="selectShot(${i})">
+        <div class="sr-top">
+          <span class="sr-id">${sh.id} // ${sh.shot_id}</span>
+          <span class="sr-frac">${fracShort} (d=${(sh.cut_fracture?.jump_dist_uv ?? 0).toFixed(2)})</span>
+        </div>
+        <div class="sr-mid">
+          <span class="sr-topo">${sh.topology.replace(/_/g, ' ')}</span>
+          <span class="sr-pal">${swatches}</span>
+        </div>
+        <div class="sr-line">${sh.who ? sh.who + ': ' : ''}${sh.fulcrum_line || ''}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectShot(idx) {
+  if (idx < 0 || idx >= SHOTS.length) return;
+  CUR_IDX = idx;
+  const rows = document.querySelectorAll('#wormShotList .shot-row');
+  rows.forEach((r, i) => r.classList.toggle('active', i === idx));
+  if (rows[idx]) rows[idx].scrollIntoView({ block: 'nearest' });
+
+  const sh = SHOTS[idx];
+  const vid = document.getElementById('wormVideo');
+  vid.pause();
+  document.getElementById('btnPlayVid').textContent = '[SPACE] PLAY VOLUME';
+  vid.src = sh.video;
+  document.getElementById('crtShotLabel').textContent = `${sh.id} // ${sh.shot_id} (${sh.dur_sec}s)`;
+
+  const pkF = (sh.diff_geom_summary && sh.diff_geom_summary.peak_jerk_subframe) ? (sh.diff_geom_summary.peak_jerk_subframe - 1) : 3;
+  setTauSubframe(Math.max(0, Math.min(7, pkF)));
+  renderManovichUnroll(sh);
+  renderBrodbeckTorus();
+}
+
+function setTauSubframe(k) {
+  const sh = SHOTS[CUR_IDX];
+  if (!sh || !sh.worm_frames || !sh.worm_frames[k]) return;
+  CUR_TAU_IDX = k;
+  document.getElementById('tauSlider').value = k;
+  const wf = sh.worm_frames[k];
+  document.getElementById('tauLabel').textContent = `f${wf.f} (tau=${wf.tau_norm.toFixed(2)})`;
+
+  const vid = document.getElementById('wormVideo');
+  if (vid.paused && vid.readyState >= 1 && vid.duration) {
+    vid.currentTime = Math.min(vid.duration - 0.04, ((k + 0.4) / 8.0) * vid.duration);
+  }
+
+  render3DPrism(sh, k);
+  renderCrtCrossSectionSvg(sh, wf);
+  renderTomographicSlices(sh, k);
+  renderRightTelemetry(sh, wf);
+}
+
+function onTauSlider(val) {
+  setTauSubframe(parseInt(val, 10));
+}
+
+function stepTauFrame(dir) {
+  const next = (CUR_TAU_IDX + dir + 8) % 8;
+  setTauSubframe(next);
+}
+
+function toggleFilament(key) {
+  FILAMENTS[key] = !FILAMENTS[key];
+  const mapIds = {
+    bouleau: 'togBouleau',
+    thirds: 'togThirds',
+    spiral: 'togSpiral',
+    braid: 'togBraid',
+    cuts10: 'tog10Cuts'
+  };
+  document.getElementById(mapIds[key]).classList.toggle('on', FILAMENTS[key]);
+  const sh = SHOTS[CUR_IDX];
+  if (sh) {
+    render3DPrism(sh, CUR_TAU_IDX);
+    if (sh.worm_frames[CUR_TAU_IDX]) renderCrtCrossSectionSvg(sh, sh.worm_frames[CUR_TAU_IDX]);
+  }
+}
+
+function onOrbitSlider() {
+  PRISM_YAW = parseFloat(document.getElementById('yawSlider').value) * Math.PI / 180;
+  PRISM_PITCH = parseFloat(document.getElementById('pitchSlider').value) * Math.PI / 180;
+  const sh = SHOTS[CUR_IDX];
+  if (sh) render3DPrism(sh, CUR_TAU_IDX);
+}
+
+function setupPrismMouse() {
+  const canvas = document.getElementById('prismCanvas');
+  canvas.addEventListener('mousedown', e => {
+    IS_DRAGGING = true;
+    LAST_MOUSE = { x: e.clientX, y: e.clientY };
+  });
+  window.addEventListener('mousemove', e => {
+    if (!IS_DRAGGING) return;
+    const dx = e.clientX - LAST_MOUSE.x;
+    const dy = e.clientY - LAST_MOUSE.y;
+    LAST_MOUSE = { x: e.clientX, y: e.clientY };
+    PRISM_YAW = Math.max(-1.4, Math.min(1.4, PRISM_YAW + dx * 0.008));
+    PRISM_PITCH = Math.max(-0.85, Math.min(0.85, PRISM_PITCH + dy * 0.008));
+    document.getElementById('yawSlider').value = Math.round(PRISM_YAW * 180 / Math.PI);
+    document.getElementById('pitchSlider').value = Math.round(PRISM_PITCH * 180 / Math.PI);
+    const sh = SHOTS[CUR_IDX];
+    if (sh) render3DPrism(sh, CUR_TAU_IDX);
+  });
+  window.addEventListener('mouseup', () => { IS_DRAGGING = false; });
+}
+
+// Project 3D normalized coordinates (u in [0,1], v in [0,1], tau in [0,1]) onto 2D Prism Canvas
+function project3D(u, v, tau, W, H) {
+  // Center around (0, 0, 0) with aspect ratio scaling: u -> x in [-0.8, 0.8], v -> y in [-0.45, 0.45], tau -> z in [-0.9, 0.9]
+  const x0 = (u - 0.5) * 1.55;
+  const y0 = (v - 0.5) * 0.92;
+  const z0 = (tau - 0.5) * 1.85;
+
+  // Rotate around Y (yaw = tau/u angle)
+  const cosY = Math.cos(PRISM_YAW), sinY = Math.sin(PRISM_YAW);
+  const x1 = x0 * cosY + z0 * sinY;
+  const z1 = -x0 * sinY + z0 * cosY;
+
+  // Rotate around X (pitch)
+  const cosP = Math.cos(PRISM_PITCH), sinP = Math.sin(PRISM_PITCH);
+  const y2 = y0 * cosP - z1 * sinP;
+  const z2 = y0 * sinP + z1 * cosP;
+
+  const fovScale = 240.0 / (2.9 + z2 * 0.45);
+  return {
+    x: W * 0.5 + x1 * fovScale,
+    y: H * 0.52 + y2 * fovScale,
+    scale: fovScale,
+    z: z2
+  };
+}
+
+function render3DPrism(sh, activeK) {
+  const canvas = document.getElementById('prismCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, W, H);
+
+  const wFrames = sh.worm_frames || [];
+  if (!wFrames.length) return;
+
+  document.getElementById('prismHud').innerHTML =
+    `<span style="color:var(--fg-bright);font-weight:700;">${sh.id} (${sh.shot_id})</span> // TOPOLOGY: <span style="color:var(--amber);font-weight:700;">${sh.topology}</span> // CUT: <span style="color:var(--cyan);">${sh.cut_fracture?.type || ''}</span>`;
+
+  // 1. Draw 3D Glass-Prism Wireframe Box V(u, v, tau) in [0,1]^3
+  const corners = [
+    [0,0,0],[1,0,0],[1,1,0],[0,1,0],
+    [0,0,1],[1,0,1],[1,1,1],[0,1,1]
+  ].map(c => project3D(c[0], c[1], c[2], W, H));
+
+  const edges = [
+    [0,1],[1,2],[2,3],[3,0], // tau=0 entry face
+    [4,5],[5,6],[6,7],[7,4], // tau=1 exit face
+    [0,4],[1,5],[2,6],[3,7]  // temporal tau rails
+  ];
+  ctx.strokeStyle = '#145228';
+  ctx.lineWidth = 1;
+  edges.forEach(([i, j]) => {
+    ctx.beginPath();
+    ctx.moveTo(corners[i].x, corners[i].y);
+    ctx.lineTo(corners[j].x, corners[j].y);
+    ctx.stroke();
+  });
+
+  // 2. Draw Active Tau Cut-Plane Slice inside the 3D Prism
+  const tauCur = activeK / 7.0;
+  const sliceCorners = [[0,0,tauCur],[1,0,tauCur],[1,1,tauCur],[0,1,tauCur]].map(c => project3D(c[0], c[1], c[2], W, H));
+  ctx.fillStyle = 'rgba(0, 229, 255, 0.05)';
+  ctx.strokeStyle = 'rgba(0, 229, 255, 0.65)';
+  ctx.lineWidth = 1.3;
+  ctx.beginPath();
+  sliceCorners.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // 3. Draw Bouleau's 14-Line Armature on the active Tau Slice + extruded 3D filaments
+  if (FILAMENTS.bouleau) {
+    ctx.strokeStyle = 'rgba(255, 176, 0, 0.22)';
+    ctx.lineWidth = 0.8;
+    BOULEAU_14.forEach(([pA, pB]) => {
+      const a = project3D(pA[0], pA[1], tauCur, W, H);
+      const b = project3D(pB[0], pB[1], tauCur, W, H);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    });
+  }
+
+  // 4. Draw Rule of Thirds 3D Magnetic Filaments along tau in [0..1]
+  if (FILAMENTS.thirds) {
+    ctx.strokeStyle = 'rgba(51, 255, 119, 0.26)';
+    ctx.setLineDash([3, 3]);
+    [[1/3,1/3],[2/3,1/3],[1/3,2/3],[2/3,2/3]].forEach(([tu, tv]) => {
+      const p0 = project3D(tu, tv, 0, W, H);
+      const p1 = project3D(tu, tv, 1, W, H);
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(p1.x, p1.y);
+      ctx.stroke();
+    });
+    ctx.setLineDash([]);
+  }
+
+  // 5. Draw Golden Spiral Helical Filament around (0.618, 0.382)
+  if (FILAMENTS.spiral) {
+    ctx.strokeStyle = 'rgba(255, 176, 0, 0.42)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let s = 0; s <= 40; s++) {
+      const t = s / 40.0;
+      const ang = t * 3.0 * Math.PI;
+      const rad = 0.28 * (1.0 - 0.65 * t);
+      const su = 0.618 + rad * Math.cos(ang);
+      const sv = 0.382 + rad * Math.sin(ang);
+      const pt = project3D(su, sv, t, W, H);
+      if (s === 0) ctx.moveTo(pt.x, pt.y);
+      else ctx.lineTo(pt.x, pt.y);
+    }
+    ctx.stroke();
+  }
+
+  // 6. Optional: Draw all 10 Simultaneous Montage Cut Worms inside the Prism
+  if (FILAMENTS.cuts10 && sh.cuts_10_worms) {
+    sh.cuts_10_worms.forEach(cw => {
+      ctx.strokeStyle = cw.core_hex || '#00e5ff';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      (cw.pts_uvr || []).forEach((pt, k) => {
+        const p = project3D(pt[0], pt[1], k / 7.0, W, H);
+        if (k === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      ctx.stroke();
+    });
+  }
+
+  // 7. Draw Secondary Rabatment Double-Helix Counterpoint Worms (c_left & c_right)
+  if (FILAMENTS.braid) {
+    ['c_left', 'c_right'].forEach((sideKey, sIdx) => {
+      ctx.strokeStyle = sIdx === 0 ? 'rgba(0, 229, 255, 0.55)' : 'rgba(255, 176, 0, 0.55)';
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      wFrames.forEach((wf, k) => {
+        const c = wf[sideKey] || [0.5, 0.5];
+        const p = project3D(c[0], c[1], wf.tau_norm, W, H);
+        if (k === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      ctx.stroke();
+    });
+  }
+
+  // 8. Draw Extruded Primary 3D Spatiotemporal Worm (Action Tube with KALMUS Core Color & Radius r(tau))
+  const projWorm = wFrames.map(wf => ({
+    wf,
+    p: project3D(wf.u, wf.v, wf.tau_norm, W, H),
+    rPx: Math.max(8, wf.r * 95.0)
+  }));
+
+  // Draw outer tube ribs connecting f_k to f_{k+1}
+  for (let k = 0; k < projWorm.length - 1; k++) {
+    const a = projWorm[k], b = projWorm[k + 1];
+    ctx.fillStyle = a.wf.core_color?.hex || '#33ff77';
+    ctx.globalAlpha = 0.28;
+    ctx.beginPath();
+    ctx.moveTo(a.p.x, a.p.y - a.rPx);
+    ctx.lineTo(b.p.x, b.p.y - b.rPx);
+    ctx.lineTo(b.p.x, b.p.y + b.rPx);
+    ctx.lineTo(a.p.x, a.p.y + a.rPx);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+  }
+
+  // Draw cross-sectional Action Tube rings at each sub-frame f1..f8
+  projWorm.forEach((item, k) => {
+    const isAct = k === activeK;
+    ctx.beginPath();
+    ctx.ellipse(item.p.x, item.p.y, item.rPx, item.rPx * 0.72, 0, 0, Math.PI * 2);
+    ctx.fillStyle = item.wf.core_color?.hex || '#33ff77';
+    ctx.globalAlpha = isAct ? 0.65 : 0.35;
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+    ctx.lineWidth = isAct ? 2.4 : 1.2;
+    ctx.strokeStyle = isAct ? '#ffb000' : '#33ff77';
+    ctx.stroke();
+  });
+
+  // Draw 3D space-curve centerline c(tau)
+  ctx.beginPath();
+  ctx.strokeStyle = '#c2ffd6';
+  ctx.lineWidth = 2.4;
+  projWorm.forEach((item, k) => {
+    if (k === 0) ctx.moveTo(item.p.x, item.p.y);
+    else ctx.lineTo(item.p.x, item.p.y);
+  });
+  ctx.stroke();
+}
+
+function renderCrtCrossSectionSvg(sh, wf) {
+  const svg = document.getElementById('wormVideoSvg');
+  const W = 1000, H = 562.5;
+  const parts = [];
+
+  // 1. Bouleau's 14-Line Harmonic Armature
+  if (FILAMENTS.bouleau) {
+    BOULEAU_14.forEach(([a, b]) => {
+      parts.push(`<line x1="${a[0]*W}" y1="${a[1]*H}" x2="${b[0]*W}" y2="${b[1]*H}" stroke="rgba(255,176,0,0.26)" stroke-width="1"/>`);
+    });
+  }
+
+  // 2. Left & Right Rabatment Counterpoint Pillars (Double-Helix Braid)
+  if (FILAMENTS.braid && wf.c_left && wf.c_right) {
+    const [lu, lv] = wf.c_left;
+    const [ru, rv] = wf.c_right;
+    parts.push(`
+      <line x1="${lu*W}" y1="${lv*H}" x2="${ru*W}" y2="${rv*H}" stroke="#00e5ff" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <circle cx="${lu*W}" cy="${lv*H}" r="6" fill="none" stroke="#00e5ff" stroke-width="1.6"/>
+      <circle cx="${ru*W}" cy="${rv*H}" r="6" fill="none" stroke="#ffb000" stroke-width="1.6"/>
+      <text x="${((lu+ru)*0.5)*W - 45}" y="${((lv+rv)*0.5)*H - 8}" fill="#00e5ff" font-family="monospace" font-size="11">
+        RABATMENT GAP du=${wf.rabatment_gap_du.toFixed(2)}
+      </text>
+    `);
+  }
+
+  // 3. Extruded Worm Cross-Sectional Tube at tau + Arnheim Torque Vector from Center (0.5, 0.5)
+  const ux = wf.u * W, uy = wf.v * H;
+  const rx = wf.r * W, ry = wf.r * H;
+  parts.push(`
+    <line x1="${W*0.5}" y1="${H*0.5}" x2="${ux}" y2="${uy}" stroke="#ff3344" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <ellipse cx="${ux}" cy="${uy}" rx="${rx}" ry="${ry}" fill="rgba(51,255,119,0.08)" stroke="${wf.core_color?.hex || '#33ff77'}" stroke-width="2.4"/>
+    <circle cx="${ux}" cy="${uy}" r="4.5" fill="#ffb000"/>
+    <text x="10" y="18" fill="#ffb000" font-family="monospace" font-size="12.5" font-weight="bold">
+      WORM[${sh.topology}] f${wf.f} // c=(${wf.u.toFixed(2)},${wf.v.toFixed(2)}) r=${wf.r.toFixed(2)} // dL*=${wf.itten.chiaroscuro_dL} // kappa=${wf.diff_geom.curvature_kappa}
+    </text>
+  `);
+
+  svg.innerHTML = parts.join('');
+}
+
+function renderTomographicSlices(sh, activeK) {
+  const tomo = sh.tomography || {};
+  const uRows = tomo.u_tau_horizon_slice || [];
+  const vRows = tomo.v_tau_meridian_slice || [];
+  const wFrames = sh.worm_frames || [];
+
+  // 1. Horizontal u-tau Tomogram
+  const cU = document.getElementById('tomoUTauCanvas');
+  const ctxU = cU.getContext('2d');
+  const W = cU.width, H = cU.height;
+  ctxU.fillStyle = '#000';
+  ctxU.fillRect(0, 0, W, H);
+  if (uRows.length) {
+    const nT = uRows.length;
+    const nU = uRows[0].length;
+    const cw = W / nT;
+    const ch = H / nU;
+    for (let t = 0; t < nT; t++) {
+      for (let u = 0; u < nU; u++) {
+        ctxU.fillStyle = uRows[t][u];
+        ctxU.fillRect(t * cw, u * ch, Math.ceil(cw), Math.ceil(ch));
+      }
+    }
+    // Overlay worm trajectory u(tau) on the u-tau tomogram
+    ctxU.strokeStyle = '#33ff77';
+    ctxU.lineWidth = 2;
+    ctxU.beginPath();
+    wFrames.forEach((wf, k) => {
+      const x = (k + 0.5) * cw;
+      const y = wf.u * H;
+      if (k === 0) ctxU.moveTo(x, y);
+      else ctxU.lineTo(x, y);
+    });
+    ctxU.stroke();
+    // Active tau playhead
+    ctxU.strokeStyle = '#ffb000';
+    ctxU.strokeRect(activeK * cw, 0, cw, H);
+  }
+
+  // 2. Vertical v-tau Tomogram
+  const cV = document.getElementById('tomoVTauCanvas');
+  const ctxV = cV.getContext('2d');
+  ctxV.fillStyle = '#000';
+  ctxV.fillRect(0, 0, W, H);
+  if (vRows.length) {
+    const nT = vRows.length;
+    const nV = vRows[0].length;
+    const cw = W / nT;
+    const ch = H / nV;
+    for (let t = 0; t < nT; t++) {
+      for (let v = 0; v < nV; v++) {
+        ctxV.fillStyle = vRows[t][v];
+        ctxV.fillRect(t * cw, v * ch, Math.ceil(cw), Math.ceil(ch));
+      }
+    }
+    ctxV.strokeStyle = '#00e5ff';
+    ctxV.lineWidth = 2;
+    ctxV.beginPath();
+    wFrames.forEach((wf, k) => {
+      const x = (k + 0.5) * cw;
+      const y = wf.v * H;
+      if (k === 0) ctxV.moveTo(x, y);
+      else ctxV.lineTo(x, y);
+    });
+    ctxV.stroke();
+    ctxV.strokeStyle = '#ffb000';
+    ctxV.strokeRect(activeK * cw, 0, cw, H);
+  }
+}
+
+function onTomoClick(e) {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(0.99, (e.clientX - rect.left) / rect.width));
+  setTauSubframe(Math.floor(pct * 8));
+}
+
+function renderManovichUnroll(sh) {
+  document.getElementById('manovichTopoBadge').textContent = sh.topology;
+  const grid = document.getElementById('manovichUnrollGrid');
+  const wFrames = sh.worm_frames || [];
+  const indices = [
+    [0, 'ENTRY (f1)'],
+    [3, 'MIDPOINT (f4)'],
+    [7, 'EXIT (f8)']
+  ];
+  grid.innerHTML = indices.map(([k, label]) => {
+    const wf = wFrames[k] || wFrames[0] || { u: 0.5, v: 0.5, r: 0.2 };
+    return `
+      <div class="unroll-card" onclick="setTauSubframe(${k})">
+        <div class="unroll-hdr">
+          <span>${label}</span>
+          <span style="color:var(--amber);">u=${wf.u.toFixed(2)} r=${wf.r.toFixed(2)}</span>
+        </div>
+        <div class="unroll-vp">
+          <img class="unroll-strip-img" src="${sh.strip}" style="left:-${k * 100}%;">
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const ks = sh.kalmus_summary || {};
+  const core8 = ks.core_palette_8 || [];
+  const shell8 = ks.shell_palette_8 || [];
+  document.getElementById('kalmusCoreText').textContent = `dL*=${ks.mean_chiaroscuro_dL ?? 0} // dH=${ks.mean_hue_polarity_deg ?? 0} deg`;
+  document.getElementById('kalmusShellText').textContent = `WARM-COOL=${ks.mean_cold_warm_delta ?? 0} // AREA=${((ks.mean_extension_ratio ?? 0)*100).toFixed(0)}%`;
+  document.getElementById('kalmusCoreBar').innerHTML = core8.map((c, k) => `<div style="background:${c};" onclick="setTauSubframe(${k})" title="Core f${k+1}: ${c}"></div>`).join('');
+  document.getElementById('kalmusShellBar').innerHTML = shell8.map((c, k) => `<div style="background:${c};" onclick="setTauSubframe(${k})" title="Shell f${k+1}: ${c}"></div>`).join('');
+}
+
+function renderBrodbeckTorus() {
+  const canvas = document.getElementById('torusCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cx = W * 0.5, cy = H * 0.5;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  if (!SHOTS.length) return;
+  const N = SHOTS.length;
+  const dAng = (Math.PI * 2) / N;
+
+  SHOTS.forEach((sh, i) => {
+    const a0 = -Math.PI * 0.5 + i * dAng;
+    const a1 = a0 + dAng * 0.92;
+    const coreHex = (sh.kalmus_summary && sh.kalmus_summary.core_palette_8 && sh.kalmus_summary.core_palette_8[3]) || '#33ff77';
+    const shellHex = (sh.kalmus_summary && sh.kalmus_summary.shell_palette_8 && sh.kalmus_summary.shell_palette_8[3]) || '#0a2916';
+    const jerkNorm = Math.min(1.0, ((sh.diff_geom_summary && sh.diff_geom_summary.max_jerk_mag) || 5) / 35.0);
+
+    // Inner Shell Ring (r = 34..46)
+    ctx.beginPath();
+    ctx.arc(cx, cy, 40, a0, a1);
+    ctx.strokeStyle = shellHex;
+    ctx.lineWidth = 10;
+    ctx.stroke();
+
+    // Middle Core Worm Ring (r = 48..62)
+    ctx.beginPath();
+    ctx.arc(cx, cy, 55, a0, a1);
+    ctx.strokeStyle = i === CUR_IDX ? '#ffb000' : coreHex;
+    ctx.lineWidth = i === CUR_IDX ? 14 : 11;
+    ctx.stroke();
+
+    // Outer Motion/Jerk Spike (r = 64 .. 64 + 18*jerkNorm)
+    const am = 0.5 * (a0 + a1);
+    const rOut = 64 + 18 * jerkNorm;
+    ctx.beginPath();
+    ctx.moveTo(cx + 63 * Math.cos(am), cy + 63 * Math.sin(am));
+    ctx.lineTo(cx + rOut * Math.cos(am), cy + rOut * Math.sin(am));
+    ctx.strokeStyle = i === CUR_IDX ? '#00e5ff' : '#33ff77';
+    ctx.lineWidth = i === CUR_IDX ? 2.2 : 1.1;
+    ctx.stroke();
+  });
+
+  canvas.onclick = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const dx = e.clientX - rect.left - cx;
+    const dy = e.clientY - rect.top - cy;
+    let ang = Math.atan2(dy, dx) + Math.PI * 0.5;
+    if (ang < 0) ang += Math.PI * 2;
+    const idx = Math.min(SHOTS.length - 1, Math.floor((ang / (Math.PI * 2)) * SHOTS.length));
+    selectShot(idx);
+  };
+
+  // Update Torus Legend
+  const sh = SHOTS[CUR_IDX];
+  if (sh) {
+    document.getElementById('torusLegend').innerHTML = `
+      <div><strong style="color:var(--fg-bright);">RING SEGMENT ${CUR_IDX + 1}/${SHOTS.length}</strong></div>
+      <div>SHOT: <span style="color:var(--amber);">${sh.id} (${sh.shot_id})</span></div>
+      <div>TOPOLOGY: <span style="color:var(--cyan);">${sh.topology}</span></div>
+      <div>INNER RING: KALMUS OUTER SHELL</div>
+      <div>MIDDLE RING: KALMUS CORE WORM</div>
+      <div>OUTER SPIKES: KINETIC JERK ||c'''||</div>
+      <div>BRUCE BLOCK INTENSITY: <strong style="color:var(--fg-bright);">${sh.diff_geom_summary?.mean_bruce_block_intensity ?? 0}</strong></div>
+    `;
+  }
+}
+
+function renderRightTelemetry(sh, wf) {
+  // 1. Topology & Cut Fracture
+  const cf = sh.cut_fracture || {};
+  document.getElementById('rightTopoBadge').textContent = sh.topology;
+  document.getElementById('topoGrammarText').textContent = sh.topology_grammar || '';
+  document.getElementById('topoKvGrid').innerHTML = `
+    <div class="kv-box"><div class="kv-k">PAN SHEAR ANGLE (theta)</div><div class="kv-v">${sh.pan_shear_angle_deg >= 0 ? '+' : ''}${sh.pan_shear_angle_deg} deg</div></div>
+    <div class="kv-box"><div class="kv-k">CONE FLARE (dr)</div><div class="kv-v">${sh.cone_flare_dr >= 0 ? '+' : ''}${sh.cone_flare_dr}</div></div>
+    <div class="kv-box"><div class="kv-k">RABATMENT GAP (Delta_u)</div><div class="kv-v">${wf.rabatment_gap_du} (bal=${wf.bilateral_balance})</div></div>
+    <div class="kv-box"><div class="kv-k">CUT FRACTURE JUMP</div><div class="kv-v" style="color:${cf.type === 'EYE_TRACE_FRACTURE_TUBE' ? 'var(--fg)' : 'var(--amber)'};">${cf.jump_dist_uv ?? 0} (${cf.type === 'EYE_TRACE_FRACTURE_TUBE' ? 'MURCH LOCK' : 'EISENSTEIN'})</div></div>
+  `;
+
+  // 2. KALMUS & Itten's 7 Color Contrasts
+  const it = wf.itten || {};
+  document.getElementById('ittenSummaryBadge').textContent = `CORE ${wf.core_color?.hex || ''} vs SHELL ${wf.shell_color?.hex || ''}`;
+  document.getElementById('ittenKvGrid').innerHTML = `
+    <div class="kv-box"><div class="kv-k">LIGHT-DARK CHIAROSCURO (dL*)</div><div class="kv-v">${it.chiaroscuro_dL} (L*=${wf.core_color?.L_star}/${wf.shell_color?.L_star})</div></div>
+    <div class="kv-box"><div class="kv-k">COMPLEMENTARY HUE (dH)</div><div class="kv-v">${it.hue_polarity_deg} deg</div></div>
+    <div class="kv-box"><div class="kv-k">COLD-WARM POLARITY</div><div class="kv-v">${it.cold_warm_delta >= 0 ? '+' : ''}${it.cold_warm_delta}</div></div>
+    <div class="kv-box"><div class="kv-k">EXTENSION AREA RATIO</div><div class="kv-v">${(it.extension_area_ratio * 100).toFixed(1)}% OF FRAME</div></div>
+  `;
+
+  // 3. Bouleau 14-Line Armature & Arnheim Torque
+  const b14 = wf.bouleau_14 || {};
+  document.getElementById('bouleauStateBadge').textContent = b14.grid_state || 'HARMONIC_LOCK';
+  document.getElementById('bouleauKvGrid').innerHTML = `
+    <div class="kv-box"><div class="kv-k">FILAMENT DISTANCE d_grid</div><div class="kv-v">${b14.d_grid}</div></div>
+    <div class="kv-box"><div class="kv-k">NEAREST 14-LINE FILAMENT</div><div class="kv-v" style="color:var(--cyan);">${b14.nearest_filament}</div></div>
+    <div class="kv-box"><div class="kv-k">ARNHEIM ECCENTRIC TORQUE</div><div class="kv-v">${b14.arnheim_torque}</div></div>
+    <div class="kv-box"><div class="kv-k">TUBE RADIUS r(tau)</div><div class="kv-v">${wf.r}</div></div>
+  `;
+
+  // 4. Frenet-Serret Differential Geometry Curve Plot + Readout
+  const dg = wf.diff_geom || {};
+  const dgs = sh.diff_geom_summary || {};
+  document.getElementById('jerkPeakBadge').textContent = `PEAK JERK AT f${dgs.peak_jerk_subframe || 1}`;
+  document.getElementById('diffGeomKvGrid').innerHTML = `
+    <div class="kv-box"><div class="kv-k">CURVATURE kappa(tau)</div><div class="kv-v">${dg.curvature_kappa}</div></div>
+    <div class="kv-box"><div class="kv-k">TORSION tau_torsion(tau)</div><div class="kv-v">${dg.torsion_tau}</div></div>
+    <div class="kv-box"><div class="kv-k">KINETIC JERK ||c'''(tau)||</div><div class="kv-v" style="color:var(--amber);">${dg.jerk_mag}</div></div>
+    <div class="kv-box"><div class="kv-k">BRUCE BLOCK INTENSITY</div><div class="kv-v" style="color:var(--cyan);">${dg.bruce_block_intensity}</div></div>
+  `;
+  drawDiffGeomCurves(sh.worm_frames || [], CUR_TAU_IDX);
+
+  // 5. 10 Simultaneous Montage Cuts Table
+  const cuts10 = sh.cuts_10_worms || [];
+  const tbody = document.getElementById('cuts10Tbody');
+  if (!cuts10.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="color:var(--fg-dim);">SWITCH TO '105 SCENE BEATS' TO INSPECT ALL 10 PARALLEL MONTAGE WORMS</td></tr>`;
+  } else {
+    tbody.innerHTML = cuts10.map(cw => `
+      <tr>
+        <td style="color:var(--fg-bright);font-weight:700;">${cw.cut_lens.toUpperCase()}</td>
+        <td>${cw.id} (${cw.year || 1983})</td>
+        <td style="color:var(--amber);">${cw.topology.replace(/_/g, ' ')}</td>
+        <td>
+          <span style="display:inline-block;width:10px;height:10px;background:${cw.core_hex};border:1px solid #222;vertical-align:middle;"></span>
+          <span style="display:inline-block;width:10px;height:10px;background:${cw.shell_hex};border:1px solid #222;vertical-align:middle;"></span>
+        </td>
+        <td>${cw.chiaroscuro_dL}</td>
+        <td style="color:var(--cyan);">${cw.bruce_block}</td>
+      </tr>
+    `).join('');
+  }
+}
+
+function drawDiffGeomCurves(wFrames, activeK) {
+  const canvas = document.getElementById('diffGeomCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = '#010502';
+  ctx.fillRect(0, 0, W, H);
+  if (!wFrames.length) return;
+
+  // Grid lines
+  ctx.strokeStyle = '#092612';
+  ctx.lineWidth = 1;
+  for (let k = 0; k < 8; k++) {
+    const x = (k / 7.0) * (W - 20) + 10;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+
+  const plotTrace = (vals, maxV, color) => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    vals.forEach((v, k) => {
+      const x = (k / 7.0) * (W - 20) + 10;
+      const y = H - 8 - Math.max(0, Math.min(1, v / maxV)) * (H - 16);
+      if (k === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  };
+
+  plotTrace(wFrames.map(f => f.diff_geom.curvature_kappa), 25.0, '#33ff77');
+  plotTrace(wFrames.map(f => f.diff_geom.jerk_mag), 50.0, '#ffb000');
+  plotTrace(wFrames.map(f => f.diff_geom.bruce_block_intensity), 1.0, '#00e5ff');
+
+  // Active sub-frame marker
+  const ax = (activeK / 7.0) * (W - 20) + 10;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(ax, 0); ctx.lineTo(ax, H); ctx.stroke();
+}
+
+function togglePlayVideo() {
+  const vid = document.getElementById('wormVideo');
+  const btn = document.getElementById('btnPlayVid');
+  if (vid.paused) {
+    vid.play().catch(() => {});
+    btn.textContent = '[SPACE] PAUSE VOLUME';
+    requestAnimationFrame(syncVideoLoop);
+  } else {
+    vid.pause();
+    btn.textContent = '[SPACE] PLAY VOLUME';
+  }
+}
+
+function syncVideoLoop() {
+  const vid = document.getElementById('wormVideo');
+  if (vid.paused || vid.ended) {
+    document.getElementById('btnPlayVid').textContent = '[SPACE] PLAY VOLUME';
+    return;
+  }
+  if (vid.duration) {
+    const k = Math.min(7, Math.floor((vid.currentTime / vid.duration) * 8));
+    if (k !== CUR_TAU_IDX) {
+      setTauSubframe(k);
+    }
+  }
+  requestAnimationFrame(syncVideoLoop);
+}
+
+function setupKeys() {
+  window.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); selectShot(Math.min(SHOTS.length - 1, CUR_IDX + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); selectShot(Math.max(0, CUR_IDX - 1)); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); stepTauFrame(1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); stepTauFrame(-1); }
+    else if (e.key === ' ') { e.preventDefault(); togglePlayVideo(); }
+  });
+}
+
+initWormConsole();
+</script>
+</body>
+</html>
