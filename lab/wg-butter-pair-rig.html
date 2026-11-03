@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Butter Pair Rig</title>
+<meta name="description" content="The physical setup of the two cameras, to scale: where the laptop camera is and which way it points, what each camera can see, and the space where both see a hand.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+:root{--bg:#0b0a09;--panel:#12100e;--ink:#ece6da;--dim:#b3ab9e;--faint:#6b645b;--rule:#2e2a26;--lime:#c4f46a;--orange:#efa13a;--blue:#85bdff;--red:#e0483a}
+[hidden]{display:none!important}*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.5 "IBM Plex Mono",ui-monospace,monospace}
+button{font:inherit;cursor:pointer}
+header{height:48px;display:flex;align-items:center;gap:10px;padding:0 12px;border-bottom:1px solid var(--rule)}
+header h1{font:700 18px Fraunces,Georgia,serif;margin:0}header small{font:400 12px Fraunces,Georgia,serif;color:var(--dim);margin-left:8px}header .sp{flex:1}
+.hb{background:none;border:1px solid var(--rule);color:var(--dim);border-radius:6px;padding:6px 10px;min-height:32px;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center}.hb:hover{color:var(--ink);border-color:var(--dim)}.hb.on{background:var(--lime);color:#111;border-color:var(--lime)}
+main{height:calc(100% - 48px);display:grid;grid-template-columns:minmax(0,1fr) 360px}
+#view{position:relative;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto}
+#cv{width:100%;height:100%;display:block;touch-action:none}
+#views{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px;border-top:1px solid var(--rule)}
+.pv{position:relative;aspect-ratio:4/3;max-height:30vh;background:#000;border:1px solid var(--rule);border-radius:6px;overflow:hidden;justify-self:center;width:100%}
+.pv video,.pv canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:fill}.pv video{opacity:.75}.pv .mir{transform:scaleX(-1)}
+.pv .lab{position:absolute;left:6px;top:4px;font-size:10.5px;letter-spacing:.1em;background:#0b0a09cc;padding:2px 6px;border-radius:3px;z-index:2}
+.pv .st{position:absolute;left:6px;bottom:4px;right:6px;font-size:10.5px;color:var(--dim);background:#0b0a09cc;padding:2px 6px;border-radius:3px;z-index:2}
+#legend{position:absolute;left:10px;top:8px;font-size:11px;color:var(--dim);background:#0b0a09cc;padding:6px 8px;border-radius:4px;pointer-events:none;max-width:560px}
+#legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 5px 0 0;vertical-align:-1px}
+aside{border-left:1px solid var(--rule);overflow:auto;padding:12px 14px 30px}
+aside h3{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:16px 0 8px;font-weight:500}aside h3:first-child{margin-top:0}
+.seg{display:flex;gap:6px;flex-wrap:wrap}.seg .hb{flex:1;justify-content:center}
+.row{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;margin:8px 0}.row label{color:var(--dim)}.row output{color:var(--ink);font-variant-numeric:tabular-nums}
+.row input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--lime)}.row .hint{grid-column:1/-1;font-size:11px;color:var(--faint)}
+#verdict{border:1px solid var(--rule);border-radius:6px;padding:8px 10px;font-size:12px;line-height:1.6}#verdict b{font-weight:500}#verdict .good{color:var(--lime)}#verdict .bad{color:var(--orange)}
+#fix{margin-top:8px}#fix button{display:block;width:100%;text-align:left;margin:6px 0;padding:8px 10px;border-radius:6px;border:1px solid var(--orange);background:#efa13a14;color:var(--ink)}
+.note{font-size:11.5px;color:var(--faint)}
+#link{font-size:12px;color:var(--dim)}#link b{color:var(--ink);letter-spacing:.15em}#qr{width:132px;height:132px;background:#e6e0d4;margin:8px 0;display:grid;place-items:center;color:#111;font-size:10px}
+#meas{font-size:12px;color:var(--dim)}
+/* the phone as a measuring tool */
+body.phone header .hb:not(#backB){display:none}body.phone main{display:none}#ph{display:none}body.phone #ph{display:grid;height:calc(100% - 48px);grid-template-rows:auto 1fr auto;gap:10px;padding:14px}
+#tilt{font:700 min(26vw,140px)/1 Fraunces,Georgia,serif;text-align:center;align-self:center}#tilt small{display:block;font:400 13px "IBM Plex Mono";color:var(--dim);margin-top:6px}
+#ph .big{display:block;width:100%;margin:6px 0;padding:14px;border-radius:8px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);text-align:left}#ph .big b{display:block;font-weight:500}#ph .big span{color:var(--dim);font-size:12px}
+#phStatus{font-size:12px;color:var(--dim)}#phRoom{display:flex;gap:6px}#phRoom input{flex:1;background:var(--panel);border:1px solid var(--rule);color:var(--ink);padding:10px;border-radius:6px;font:inherit;letter-spacing:.2em;text-transform:uppercase}
+@media (max-width:820px){main{grid-template-columns:1fr;grid-template-rows:52vh minmax(0,1fr)}aside{border-left:0;border-top:1px solid var(--rule)}#views{display:none}#legend{max-width:70vw}header small{display:none}}
+</style>
+</head>
+<body>
+<header>
+ <a class="hb" id="backB" href="wg-butter-pair.html">← Butter Pair</a>
+ <h1>Rig<small>the two cameras, to scale</small></h1><span class="sp"></span>
+ <button class="hb" id="camB" title="Show this laptop's camera under the model's view of it, to line them up">Camera A</button>
+ <button class="hb" id="saveB" title="Butter Pair uses this model to place camera A">Use in Butter Pair</button>
+</header>
+<main>
+ <section id="view"><canvas id="cv"></canvas>
+  <div id="legend"></div>
+  <div id="views">
+   <div class="pv"><video id="vid" class="mir" muted playsinline hidden></video><canvas id="cvA" class="mir"></canvas><span class="lab" style="color:var(--lime)">WHAT CAMERA A SEES (model)</span><span class="st" id="stA"></span></div>
+   <div class="pv"><canvas id="cvB"></canvas><span class="lab" style="color:var(--orange)">WHAT THE FLOOR CAMERA SEES (model)</span><span class="st" id="stB"></span></div>
+  </div>
+ </section>
+ <aside>
+  <h3>How it is</h3>
+  <div id="verdict"></div><div id="fix"></div>
+  <h3>Camera A is</h3>
+  <div class="seg" id="setup"><button class="hb" data-s="laptop">the laptop's camera</button><button class="hb" data-s="wall">on a wall or stand</button></div>
+  <div id="pLaptop">
+   <div class="row"><label for="gap">Floor to laptop's front edge</label><output id="gapO"></output><input type="range" id="gap" min="0" max="80" step="1"><span class="hint" id="gapH"></span></div>
+   <div class="row"><label for="open">Screen opened to</label><output id="openO"></output><input type="range" id="open" min="80" max="140" step="1"><span class="hint">90° is upright. Measure it with a phone: see below.</span></div>
+   <div class="row"><label for="scr">Screen</label><output id="scrO"></output><input type="range" id="scr" min="11" max="17" step="1"><span class="hint">diagonal in inches; sets where the camera sits</span></div>
+   <div class="row"><label for="base">Keyboard depth</label><output id="baseO"></output><input type="range" id="base" min="14" max="30" step="1"></div>
+  </div>
+  <div id="pWall" hidden>
+   <div class="row"><label for="wh">Camera height above the table</label><output id="whO"></output><input type="range" id="wh" min="10" max="120" step="1"></div>
+   <div class="row"><label for="wd">Floor to the camera, across the table</label><output id="wdO"></output><input type="range" id="wd" min="5" max="120" step="1"></div>
+   <div class="row"><label for="wt">Camera tilted down</label><output id="wtO"></output><input type="range" id="wt" min="0" max="90" step="1"><span class="hint">0° looks straight across; 90° straight down</span></div>
+  </div>
+  <div class="row"><label for="off">Sideways offset</label><output id="offO"></output><input type="range" id="off" min="-40" max="40" step="1"></div>
+  <div class="row"><label for="fov">Camera A field of view</label><output id="fovO"></output><input type="range" id="fov" min="45" max="90" step="1"><span class="hint">most laptop cameras 60–70°, side to side</span></div>
+  <h3>The Floor</h3>
+  <div class="seg" id="turn"><button class="hb" data-t="0">camera end left</button><button class="hb" data-t="180">camera end right</button></div>
+  <p class="note">The Floor lies flat, screen up, long side facing the laptop. Its camera is at one short end.</p>
+  <h3>Measure with a phone</h3>
+  <div id="link"></div>
+  <div id="meas"></div>
+  <h3>View</h3>
+  <div class="seg"><button class="hb" data-v="side">side</button><button class="hb" data-v="three">three-quarter</button><button class="hb" data-v="top">top</button><button class="hb" data-v="A">from A</button></div>
+  <p class="note">Drag to turn the model. Grey: the table and the laptop. The Floor: the phone. Points: where a hand would be seen. White by both cameras, lime by the laptop camera only, orange by the Floor camera only.</p>
+ </aside>
+</main>
+<div id="ph">
+ <div id="phStatus">Measure angles with this phone. Tap Start sensor first.</div>
+ <div id="tilt">--°<small>this phone's screen, from level</small></div>
+ <div>
+  <button class="big" id="sensB"><b>Start sensor</b><span>the browser asks for permission to read motion</span></button>
+  <button class="big" data-m="screen"><b>Laptop screen angle</b><span>hold this phone flat against the back of the laptop's screen, then tap</span></button>
+  <button class="big" data-m="wall"><b>Wall camera tilt</b><span>hold this phone flat against the front of the camera, then tap</span></button>
+  <button class="big" data-m="floor"><b>Floor level</b><span>lay this phone where the Floor goes, then tap</span></button>
+  <form id="phRoom"><input id="phCode" maxlength="8" placeholder="ROOM CODE" autocomplete="off"><button class="hb">Join</button></form>
+ </div>
+</div>
+<script>
+'use strict';
+const $=s=>document.querySelector(s),clamp=(x,a,b)=>Math.max(a,Math.min(b,x)),uid=()=>Math.random().toString(36).slice(2,9);
+const PHONE=/[?&]phone\b/.test(location.search);
+/* the bed is the phone's screen, as in Butter Pair: U along its long side, V toward the laptop, H up; metres */
+const W=.15,D=.075,DEG=Math.PI/180;
+const KEY='butter-pair-rig';
+const DEF={setup:'laptop',gap:20,open:110,scr:14,base:22,wh:45,wd:45,wt:30,off:0,fov:62,turn:0,floorTilt:null};
+let P=Object.assign({},DEF);try{Object.assign(P,JSON.parse(localStorage.getItem(KEY)||'{}').params||{});}catch(e){}
+
+/* ---------------- geometry: each camera as a pinhole in the bed's frame ---------------- */
+const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],nrm=a=>{const l=Math.hypot(...a)||1;return a.map(x=>x/l);},add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],mul=(a,k)=>a.map(x=>x*k);
+function look(pos,fwd,up,hfov){const f=nrm(fwd),r=nrm(cross(f,up)),d=cross(f,r);return {pos,f,r,d,fx:.5/Math.tan(hfov/2),asp:4/3,hfov};}
+/* the room frame has the phone's centre at the origin, its long side along x; the bed frame turns with the phone */
+function toBed(p){const c=[W/2,D/2,0];if(P.turn===180)return [c[0]-p[0],c[1]-p[1],p[2]];return [c[0]+p[0],c[1]+p[1],p[2]];}
+function dirToBed(v){return P.turn===180?[-v[0],-v[1],v[2]]:v;}
+function screenSize(inch){const dg=inch*2.54,h=dg*9/Math.hypot(16,9)*1.08;return h/100;}/* 16:9-ish panel, plus a little for the bezel above it */
+function laptopParts(){const lean=(P.open-90)*DEG,sh=screenSize(P.scr),x=P.off/100;
+ const hinge=[x,D/2+P.gap/100+P.base/100,.015],up=[0,Math.sin(lean),Math.cos(lean)],top=add(hinge,mul(up,sh));return {lean,sh,hinge,up,top,x};}
+function camA(){if(P.setup==='wall'){const pos=[P.off/100,P.wd/100,P.wh/100],t=P.wt*DEG,fwd=[0,-Math.cos(t),-Math.sin(t)];return look(toBed(pos),dirToBed(fwd),[0,0,1],P.fov*DEG);}
+ const L=laptopParts(),pos=add(L.top,[0,0,-.008]),fwd=[0,-Math.cos(L.lean),Math.sin(L.lean)];/* the camera looks straight out of the screen: a screen leaning back looks up */return look(toBed(pos),dirToBed(fwd),[0,0,1],P.fov*DEG);}
+function camB(){return look([-.004,D/2,0],[0,0,1],[0,1,0],78*DEG);}
+function proj(c,p){const v=sub(p,c.pos),z=dot(v,c.f);if(z<.03)return null;return {x:.5+c.fx*dot(v,c.r)/z,y:.5+c.fx*c.asp*dot(v,c.d)/z,z};}
+/* can this camera see a whole hand at p: in the picture with the hand's own size as a margin, and not so close that it overfills it */
+const HAND=.09;
+function seesHand(c,p){const q=proj(c,p);if(!q)return false;const rh=c.fx*c.asp*HAND/q.z;if(rh>.6)return false;const my=.55*rh,mx=my/c.asp;return q.x>mx&&q.x<1-mx&&q.y>my&&q.y<1-my;}
+/* the pose Butter Pair uses: bed axes in camera coordinates (rows), the bed origin in camera coordinates, the focal length in picture heights */
+function poseOf(c){const R=[0,1,2].map(i=>[c.r[i],c.d[i],c.f[i]]),t=[-dot(c.r,c.pos),-dot(c.d,c.pos),-dot(c.f,c.pos)];return {R,t,f:c.fx*c.asp,C:c.pos.slice(),asp:c.asp,src:'rig'};}
+
+/* ---------------- coverage: a grid of hand positions over the Floor; who sees each ---------------- */
+let COV=null;
+function coverage(A,B){const pts=[];for(let H=.04;H<=.401;H+=.02)for(let U=-.03;U<=W+.031;U+=.015)for(let V=-.02;V<=D+.021;V+=.015){const p=[U,V,H],a=seesHand(A,p),b=seesHand(B,p);if(a||b)pts.push({p,a,b,over:U>=0&&U<=W&&V>=0&&V<=D});}
+ /* per height: the share of the Floor (points above it) seen by both */
+ const by={};for(const q of pts){if(!q.over)continue;const k=Math.round(q.p[2]*100);(by[k]||(by[k]={both:0,a:0,b:0}));if(q.a&&q.b)by[k].both++;if(q.a)by[k].a++;if(q.b)by[k].b++;}
+ let n=0;for(let U=-.03;U<=W+.031;U+=.015)for(let V=-.02;V<=D+.021;V+=.015)if(U>=0&&U<=W&&V>=0&&V<=D)n++;
+ const rows=Object.keys(by).map(Number).sort((a,b)=>a-b).map(h=>({h,both:by[h].both/n,a:by[h].a/n,b:by[h].b/n}));
+ const good=rows.filter(r=>r.both>=.5),best=rows.slice().sort((a,b)=>b.both-a.both)[0]||{h:0,both:0};
+ const corners=[[0,0],[W,0],[W,D],[0,D]].map(([u,v])=>{const q=proj(A,[u,v,0]);return !!(q&&q.x>0&&q.x<1&&q.y>0&&q.y<1);}).filter(Boolean).length;
+ return {pts,rows,band:good.length?[good[0].h,good[good.length-1].h]:null,best,corners,n};}
+function judge(A,B){const c=coverage(A,B);return c;}
+
+/* what to change, found by trying: the smallest change that gives both cameras at least half the Floor at some height */
+function suggestions(){const save=JSON.stringify(P),out=[];const ok=()=>{const c=coverage(camA(),camB());return c.best.both>=.5?c:null;};
+ const tryP=(key,vals,fmt)=>{const orig=P[key];for(const v of vals){P[key]=v;const c=ok();if(c){out.push({key,v,text:fmt(v,c)});break;}}P[key]=orig;};
+ if(!ok()){if(P.setup==='laptop'){tryP('open',range(P.open-1,80,-1),(v,c)=>'Bring the screen upright to '+v+'°: both then see a hand '+band(c));tryP('gap',range(P.gap+2,80,2),(v,c)=>'Move the Floor to '+v+' cm from the laptop: both then see a hand '+band(c));}
+  else{tryP('wt',range(P.wt+2,90,2),(v,c)=>'Tilt the camera down to '+v+'°: both then see a hand '+band(c));tryP('wh',range(P.wh+3,120,3),(v,c)=>'Raise the camera to '+v+' cm: both then see a hand '+band(c));tryP('wd',range(P.wd+3,120,3),(v,c)=>'Move the camera back to '+v+' cm: both then see a hand '+band(c));}}
+ P=JSON.parse(save);return out;}
+function range(a,b,s){const o=[];for(let v=a;s>0?v<=b:v>=b;v+=s)o.push(v);return o;}
+function band(c){return c.band?c.band[0]+'–'+c.band[1]+' cm above the Floor':'best at '+c.best.h+' cm ('+Math.round(c.best.both*100)+'% of the Floor)';}
+
+/* ---------------- the model in 3D, in centimetres ---------------- */
+const S=v=>new THREE.Vector3(v[0]*100,v[2]*100,-v[1]*100);
+let R3=null;
+function init3(){const cv=$('#cv'),r=new THREE.WebGLRenderer({canvas:cv,antialias:true,preserveDrawingBuffer:true});r.setPixelRatio(Math.min(2,devicePixelRatio));
+ const sc=new THREE.Scene();sc.background=new THREE.Color(0x0b0a09);const cam=new THREE.PerspectiveCamera(40,1,1,2000);sc.add(new THREE.AmbientLight(0xffffff,.75));const dl=new THREE.DirectionalLight(0xffffff,.5);dl.position.set(-40,90,60);sc.add(dl);
+ const grid=new THREE.GridHelper(200,40,0x2e2a26,0x1d1a17);grid.position.set(W*50,0,-30);sc.add(grid);
+ const dyn=new THREE.Group();sc.add(dyn);R3={r,sc,cam,dyn,orbit:{az:-.9,el:.42,dist:130,tgt:new THREE.Vector3(W*50,10,-25)}};
+ /* the two small views: what each camera sees, rendered from where the model puts it */
+ R3.rA=new THREE.WebGLRenderer({canvas:$('#cvA'),antialias:true,alpha:true});R3.rB=new THREE.WebGLRenderer({canvas:$('#cvB'),antialias:true});R3.cA=new THREE.PerspectiveCamera(48,4/3,.5,2000);R3.cB=new THREE.PerspectiveCamera(48,4/3,.5,2000);
+ let drag=null;cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};cv.setPointerCapture(e.pointerId);});cv.addEventListener('pointermove',e=>{if(!drag)return;const o=R3.orbit;o.az-=(e.clientX-drag.x)*.008;o.el=clamp(o.el+(e.clientY-drag.y)*.006,-.1,1.5);drag={x:e.clientX,y:e.clientY};VIEW='free';});cv.addEventListener('pointerup',()=>drag=null);
+ cv.addEventListener('wheel',e=>{e.preventDefault();R3.orbit.dist=clamp(R3.orbit.dist*(1+e.deltaY*.001),40,400);},{passive:false});}
+const M=(c,o)=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.8},o||{}));
+function box(w,h,d,mat){return new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);}
+function frustum(c,col,len){const g=new THREE.Group(),tv=.5/c.fx,tvv=tv/c.asp,o=S(c.pos),pts=[];for(const [a,b] of [[1,1],[1,-1],[-1,-1],[-1,1]]){const dir=[0,1,2].map(i=>c.f[i]+a*tv*c.r[i]+b*tvv*c.d[i]);pts.push(S(add(c.pos,mul(dir,len))));}
+ g.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([o,pts[0],o,pts[1],o,pts[2],o,pts[3],pts[0],pts[1],pts[1],pts[2],pts[2],pts[3],pts[3],pts[0]]),new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.6})));
+ const ax=new THREE.Line(new THREE.BufferGeometry().setFromPoints([o,S(add(c.pos,mul(c.f,len*.6)))]),new THREE.LineDashedMaterial({color:col,dashSize:1.5,gapSize:1}));ax.computeLineDistances();g.add(ax);
+ const m=new THREE.Mesh(new THREE.SphereGeometry(1,14,10),new THREE.MeshBasicMaterial({color:col}));m.position.copy(o);g.add(m);return g;}
+function build(){const {dyn}=R3;dyn.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();});dyn.clear();
+ const A=camA(),B=camB();
+ /* the Floor: a phone, screen up, with its bed */
+ const ph=box(W*100+1.4,.8,D*100+1.4,M(0x1b1a18));ph.position.set(W*50,.4,-D*50);dyn.add(ph);const bed=new THREE.Mesh(new THREE.PlaneGeometry(W*100,D*100),new THREE.MeshBasicMaterial({color:0x8f8f8f}));bed.rotation.x=-Math.PI/2;bed.position.set(W*50,.85,-D*50);dyn.add(bed);
+ const lens=new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,.2,12),new THREE.MeshBasicMaterial({color:0xefa13a}));lens.position.copy(S(B.pos)).add(new THREE.Vector3(0,.9,0));dyn.add(lens);R3.lens=lens;
+ /* camera A's body: the laptop, or a small camera on a post */
+ if(P.setup==='laptop'){const L=laptopParts(),hb=toBed(L.hinge),bw=32,bd=P.base,s=P.turn===180?-1:1;
+  const base=box(bw,1.5,bd,M(0x55504a));const bc=toBed([L.x,L.hinge[1]-P.base/200,0]);base.position.set(bc[0]*100,.75,-bc[1]*100);dyn.add(base);
+  const scr=box(bw,L.sh*100,.7,M(0x3b3733));const mid=toBed(add(L.hinge,mul(L.up,L.sh/2)));scr.position.set(mid[0]*100,mid[2]*100,-mid[1]*100);scr.rotation.x=-s*L.lean;dyn.add(scr);
+}
+ else{const post=box(1.2,P.wh,1.2,M(0x55504a));const b=toBed([P.off/100,P.wd/100+.02,0]);post.position.set(b[0]*100,P.wh/2,-b[1]*100);dyn.add(post);const body=box(5,3,3,M(0x3b3733));body.position.copy(S(A.pos));dyn.add(body);}
+ dyn.add(frustum(A,0xc4f46a,.6));dyn.add(frustum(B,0xefa13a,.45));
+ /* where a hand is seen */
+ COV=coverage(A,B);const pos=[],col=[];for(const q of COV.pts){const v=S(q.p);pos.push(v.x,v.y,v.z);const c=q.a&&q.b?[1,1,1]:q.a?[.77,.96,.42]:[.94,.63,.23],k=q.a&&q.b?1:.45;col.push(c[0]*k,c[1]*k,c[2]*k);}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));dyn.add(new THREE.Points(g,new THREE.PointsMaterial({size:3,sizeAttenuation:false,vertexColors:true})));
+ /* a hand at the best height over the middle of the Floor */
+ const hh=(COV.band?(COV.band[0]+COV.band[1])/2:COV.best.h||18)/100,hp=S([W/2,D/2,hh]);const hand=new THREE.Mesh(new THREE.SphereGeometry(1.8,16,12),new THREE.MeshBasicMaterial({color:0xece6da,wireframe:true}));hand.position.copy(hp);dyn.add(hand);
+ dyn.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([hp,S([W/2,D/2,0])]),new THREE.LineDashedMaterial({color:0xece6da,dashSize:1,gapSize:1})).computeLineDistances());
+ R3.A=A;R3.B=B;report();}
+let VIEW='three';
+function setView(v){VIEW=v;const o=R3.orbit;if(v==='side'){o.az=-Math.PI/2;o.el=.05;o.dist=150;}else if(v==='top'){o.az=-Math.PI/2;o.el=1.5;o.dist=150;}else if(v==='three'){o.az=-.9;o.el=.42;o.dist=140;}document.querySelectorAll('[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===v));}
+function placeCam(cam,c){cam.position.copy(S(c.pos));cam.up.copy(S(mul(c.d,-1)).sub(S([0,0,0])));cam.lookAt(S(add(c.pos,c.f)));cam.fov=2*Math.atan(.5/(c.fx*c.asp))/DEG;cam.aspect=c.asp;cam.updateProjectionMatrix();}
+function draw(){requestAnimationFrame(draw);if(!R3)return;const {r,sc,cam}=R3,cv=r.domElement,w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return;if(cv.width!==Math.round(w*r.getPixelRatio())||cv.height!==Math.round(h*r.getPixelRatio())){r.setSize(w,h,false);}
+ cam.aspect=w/h;cam.updateProjectionMatrix();if(VIEW==='A'&&R3.A){placeCam(cam,R3.A);cam.aspect=w/h;cam.updateProjectionMatrix();}else{const o=R3.orbit;cam.position.set(o.tgt.x+o.dist*Math.cos(o.el)*Math.cos(o.az),o.tgt.y+o.dist*Math.sin(o.el),o.tgt.z-o.dist*Math.cos(o.el)*Math.sin(o.az));cam.up.set(0,1,0);cam.lookAt(o.tgt);}
+ r.render(sc,cam);
+ for(const [k,rr,cc,el] of [['A',R3.rA,R3.cA,$('#cvA')],['B',R3.rB,R3.cB,$('#cvB')]]){const ww=el.clientWidth,hh=el.clientHeight;if(!ww)continue;if(el.width!==ww||el.height!==hh)rr.setSize(ww,hh,false);placeCam(cc,R3[k]);if(k==='A')rr.setClearColor(0x000000,CAMON?0:1);if(R3.lens)R3.lens.visible=k!=='B';rr.render(sc,cc);if(R3.lens)R3.lens.visible=true;}}
+
+/* ---------------- the verdict, in words ---------------- */
+function report(){const c=COV,A=R3.A,el=$('#verdict'),pos=A.pos,dist=Math.hypot(pos[0]-W/2,pos[1]-D/2,pos[2]),down=Math.asin(-A.f[2])/DEG;
+ const rows=[];
+ rows.push('Camera A is <b>'+Math.round(dist*100)+' cm</b> from the middle of the Floor, <b>'+Math.round(pos[2]*100)+' cm</b> above the table, looking <b>'+(down>=0?Math.round(down)+'° down':Math.round(-down)+'° up')+'</b>.');
+ rows.push(c.corners===4?'<span class="good">Camera A can see the whole Floor</span> (it can find it by the flash).':c.corners?'<span class="bad">Camera A sees '+c.corners+' of the Floor\'s 4 corners.</span>':'<span class="bad">Camera A cannot see the Floor at all.</span> That is all right if it can see your hand above it.');
+ rows.push(c.band?'<span class="good">Both cameras see a hand '+c.band[0]+'–'+c.band[1]+' cm above the Floor</span> over at least half of it. Best: '+c.best.h+' cm ('+Math.round(c.best.both*100)+'%).':c.best.both>0?'<span class="bad">Both cameras see a hand over at most '+Math.round(c.best.both*100)+'% of the Floor</span> (at '+c.best.h+' cm).':'<span class="bad">There is no place where both cameras see a hand.</span>');
+ const bmin=c.rows.find(r=>r.b>=.5);rows.push('The Floor camera sees a whole hand from about <b>'+(bmin?bmin.h:'?')+' cm</b> up: lower, the hand is too big for its picture.');
+ el.innerHTML=rows.join('<br>');
+ const fx=suggestions();$('#fix').innerHTML=fx.map((s,i)=>'<button data-i="'+i+'">'+s.text+'</button>').join('');$('#fix').querySelectorAll('button').forEach(b=>b.onclick=()=>{const s=fx[+b.dataset.i];P[s.key]=s.v;sync();});
+ $('#legend').innerHTML='<i style="background:#fff"></i>both cameras see a hand here &nbsp; <i style="background:#c4f46a"></i>camera A only &nbsp; <i style="background:#efa13a"></i>Floor camera only';
+ $('#stA').textContent=c.corners===4?'the Floor is in view':c.corners+' of 4 Floor corners in view';$('#stB').textContent='looks straight up from the Floor';}
+
+/* ---------------- controls ---------------- */
+const fmt={gap:v=>v+' cm',open:v=>v+'°',scr:v=>v+'"',base:v=>v+' cm',wh:v=>v+' cm',wd:v=>v+' cm',wt:v=>v+'°',off:v=>(v>0?'+':'')+v+' cm',fov:v=>v+'°'};
+function sync(){for(const k of Object.keys(fmt)){const el=$('#'+k);if(!el)continue;el.value=P[k];$('#'+k+'O').textContent=fmt[k](P[k]);}
+ $('#gapH').textContent='about '+(P.gap/15).toFixed(1)+' phone lengths (a phone is about 15 cm)';
+ document.querySelectorAll('#setup .hb').forEach(b=>b.classList.toggle('on',b.dataset.s===P.setup));document.querySelectorAll('#turn .hb').forEach(b=>b.classList.toggle('on',+b.dataset.t===P.turn));
+ $('#pLaptop').hidden=P.setup!=='laptop';$('#pWall').hidden=P.setup!=='wall';
+ if(R3)build();try{const o=JSON.parse(localStorage.getItem(KEY)||'{}');localStorage.setItem(KEY,JSON.stringify({params:P,pose:poseOf(camA()),band:COV&&COV.band,at:Date.now(),use:!!o.use}));}catch(e){}}
+function wire(){for(const k of Object.keys(fmt)){const el=$('#'+k);if(el)el.oninput=()=>{P[k]=+el.value;sync();};}
+ document.querySelectorAll('#setup .hb').forEach(b=>b.onclick=()=>{P.setup=b.dataset.s;sync();});document.querySelectorAll('#turn .hb').forEach(b=>b.onclick=()=>{P.turn=+b.dataset.t;sync();});
+ document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>setView(b.dataset.v));
+ $('#saveB').onclick=()=>{const pose=poseOf(camA()),band=COV&&COV.band;try{localStorage.setItem(KEY,JSON.stringify({params:P,pose,band,at:Date.now(),use:true}));}catch(e){}fsend({type:'rig',pose,band,params:P});$('#saveB').textContent='Sent to Butter Pair';setTimeout(()=>$('#saveB').textContent='Use in Butter Pair',2000);};
+ $('#camB').onclick=async()=>{const v=$('#vid');if(CAMON){v.srcObject.getTracks().forEach(t=>t.stop());v.srcObject=null;v.hidden=true;CAMON=false;$('#camB').classList.remove('on');return;}
+  try{const s=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480},facingMode:'user'},audio:false});v.srcObject=s;v.hidden=false;await v.play();CAMON=true;$('#camB').classList.add('on');$('#stA').textContent='live picture under the model: change the numbers until the drawn Floor sits on the real one';}catch(e){$('#stA').textContent='camera did not start: '+(e.message||e.name);}};}
+let CAMON=false;
+
+/* ---------------- the link: the same rooms as Butter Pair, so a phone can send measurements ---------------- */
+let BC=null;try{BC=new BroadcastChannel('butter-pair');}catch(e){}
+const DEV=uid(),SEEN=new Set();let MID=0;const TE=new TextEncoder(),TDC=new TextDecoder();
+const RELAYS=(new URLSearchParams(location.search).get('relay')||'wss://broker.emqx.io:8084/mqtt,wss://broker.hivemq.com:8884/mqtt,wss://test.mosquitto.org:8081/mqtt').split(',');
+let ROOM=((location.search.match(/[?&]room=([A-Za-z0-9]{4,8})/)||[])[1]||'').toUpperCase()||null;if(!ROOM&&!PHONE)try{ROOM=localStorage.getItem('butter-pair-room');}catch(e){}
+const MQ={socks:[],urls:new Set()};
+const cat=(...ps)=>{const o=new Uint8Array(ps.reduce((a,p)=>a+p.length,0));let i=0;for(const p of ps){o.set(p,i);i+=p.length;}return o;};
+const mqStr=s=>{const b=TE.encode(s);return cat(new Uint8Array([b.length>>8,b.length&255]),b);};
+const mqPkt=(h,body)=>{const r=[];let n=body.length;do{let d=n%128;n=Math.floor(n/128);if(n)d|=128;r.push(d);}while(n);return cat(new Uint8Array([h,...r]),body);};
+const topic=()=>'butter-pair/v1/'+ROOM;
+function mqOpen(url){if(MQ.urls.has(url))return;MQ.urls.add(url);let ws;try{ws=new WebSocket(url,'mqtt');}catch(e){MQ.urls.delete(url);return;}ws.binaryType='arraybuffer';const S_={ws,ok:false,buf:new Uint8Array(0)};MQ.socks.push(S_);
+ ws.onopen=()=>ws.send(mqPkt(0x10,cat(mqStr('MQTT'),new Uint8Array([4,2,0,60]),mqStr('bpr-'+DEV+'-'+uid().slice(0,4)))));
+ ws.onmessage=e=>{S_.buf=cat(S_.buf,new Uint8Array(e.data));for(;;){const b=S_.buf;if(b.length<2)return;let m=1,len=0,i=1,d;do{if(i>=b.length)return;d=b[i++];len+=(d&127)*m;m*=128;}while(d&128);if(b.length<i+len)return;const h=b[0],body=b.subarray(i,i+len);S_.buf=b.slice(i+len);
+  if(h>>4===2){S_.ok=true;ws.send(mqPkt(0x82,cat(new Uint8Array([0,1]),mqStr(topic()),new Uint8Array([0]))));linkText();}else if(h>>4===3){const tl=(body[0]<<8)|body[1],off=2+tl+(((h>>1)&3)?2:0);try{recv(JSON.parse(TDC.decode(body.subarray(off))));}catch(x){}}}};
+ ws.onclose=()=>{MQ.socks=MQ.socks.filter(x=>x!==S_);MQ.urls.delete(url);if(ROOM)setTimeout(()=>mqOpen(url),3000);linkText();};ws.onerror=()=>{};}
+setInterval(()=>{for(const s of MQ.socks)if(s.ok)try{s.ws.send(new Uint8Array([0xC0,0]));}catch(e){}},25000);
+const relayOn=()=>MQ.socks.some(s=>s.ok);
+function joinRoom(c){ROOM=c;for(const u of RELAYS)mqOpen(u);linkText();}
+function fsend(m){m.from=DEV;m.mid=DEV+':'+(++MID);m.st=performance.now();try{BC&&BC.postMessage(m);}catch(e){}if(ROOM&&MQ.socks.length){const p=mqPkt(0x30,cat(mqStr(topic()),TE.encode(JSON.stringify(m))));for(const s of MQ.socks)if(s.ok)try{s.ws.send(p);}catch(e){}}}
+function recv(m){if(!m||!m.type||m.from===DEV||SEEN.has(m.mid))return;SEEN.add(m.mid);if(m.type==='rigm'&&!PHONE)measured(m);if(m.type==='rigm-ack'&&PHONE)$('#phStatus').textContent='The laptop took it: '+m.text;}
+if(BC)BC.onmessage=e=>recv(e.data);
+/* a measurement from the phone: the angle of its screen from level */
+function measured(m){let text='';if(m.what==='screen'){P.setup='laptop';P.open=Math.round(clamp(180-m.tilt,80,140));text='screen opened to '+P.open+'°';}else if(m.what==='wall'){P.setup='wall';P.wt=Math.round(clamp(90-m.tilt,0,90));text='camera tilted down '+P.wt+'°';}else if(m.what==='floor'){P.floorTilt=Math.round(m.tilt);text='the Floor is '+P.floorTilt+'° from level'+(P.floorTilt>4?': lay it flatter':'');}
+ sync();$('#meas').innerHTML='From the phone: <b style="color:var(--ink)">'+text+'</b>';fsend({type:'rigm-ack',text});}
+function linkText(){if(PHONE){$('#phStatus').textContent=ROOM?(relayOn()?'Room '+ROOM+': connected. ':'Room '+ROOM+': reaching the relay. ')+'Hold this phone as the button says, then tap it.':'Type the room code from the laptop, or use this phone in the same browser as the laptop page.';return;}
+ const u=location.origin+location.pathname+'?phone'+(ROOM?'&room='+ROOM:'');$('#link').innerHTML='Open this on any phone to measure angles with it:<br><span style="word-break:break-all;color:var(--ink)">'+u+'</span>'+(ROOM?'<br>room <b>'+ROOM+'</b>'+(relayOn()?' · connected':' · reaching the relay'):'<br>No room yet: press Floor in Butter Pair once to make one.')+'<div id="qr">QR</div>';
+ if(window.QRCode){$('#qr').innerHTML='';new QRCode($('#qr'),{text:u,width:132,height:132});}}
+
+/* ---------------- phone mode: this phone as an inclinometer ---------------- */
+let TILT=null;
+function phoneStart(){document.body.classList.add('phone');$('#sensB').onclick=async()=>{try{if(window.DeviceOrientationEvent&&DeviceOrientationEvent.requestPermission)await DeviceOrientationEvent.requestPermission();}catch(e){}
+  addEventListener('deviceorientation',e=>{if(e.beta==null)return;TILT=Math.acos(clamp(Math.cos(e.beta*DEG)*Math.cos(e.gamma*DEG),-1,1))/DEG;$('#tilt').innerHTML=Math.round(TILT)+'°<small>this phone\'s screen, from level</small>';});$('#sensB').hidden=true;};
+ document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{if(TILT==null){$('#phStatus').textContent='Tap Start sensor first.';return;}fsend({type:'rigm',what:b.dataset.m,tilt:TILT});$('#phStatus').textContent='Sent '+Math.round(TILT)+'°. Waiting for the laptop…';});
+ $('#phRoom').onsubmit=e=>{e.preventDefault();const c=$('#phCode').value.trim().toUpperCase();if(c.length>=4)joinRoom(c);};if(ROOM){$('#phRoom').hidden=true;joinRoom(ROOM);}linkText();}
+
+if(PHONE)phoneStart();
+else{init3();wire();setView('three');sync();build();draw();if(ROOM)joinRoom(ROOM);linkText();
+ const q=document.createElement('script');q.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';q.onload=linkText;document.head.append(q);}
+window.RIG={get P(){return P;},set P(v){P=v;sync();},camA,camB,poseOf,coverage,suggestions,seesHand,proj,sync,setView,measured};
+</script>
+</body>
+</html>

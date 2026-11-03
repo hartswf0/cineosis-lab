@@ -66,6 +66,7 @@ body.flashing #flStart,body.flashing #flU,body.flashing #flX{visibility:hidden}#
   <button class="hb" id="camB" title="Track your hand with this laptop's camera (camera A)">Camera A</button>
   <button class="hb" id="floorB" title="Link a phone laid flat as the Floor (camera B)">Floor</button>
   <button class="hb" id="calB" title="The Floor flashes five dots so camera A can find it; then touch three dots and lift">Calibrate</button>
+  <a class="hb" id="rigB" href="wg-butter-pair-rig.html" title="Model the setup: where the laptop camera is, which way it points, and where both cameras see a hand" style="text-decoration:none;display:inline-flex;align-items:center">Rig</a>
   <button class="hb" id="scopeB" title="See both cameras large, what each reads from your hand, and run calibration and gesture tests">Scope</button>
   <button class="hb" id="demoB" title="Run both cameras as a simulation">Demo</button>
   <button class="hb" id="undoB" title="Undo (Z)">Undo</button><button class="hb" id="redoB" title="Redo (Shift Z)">Redo</button>
@@ -178,7 +179,7 @@ function ingest(cam,hands,asp,tObs,now){const used=new Set();
 /* a pointer (mouse on the laptop, a finger on the Floor) is a hand that is always seen and always certain */
 function pointerHand(name,U,V,down,now){let t=TR.find(x=>x.ptr===name);if(!t){t=newTrack(now);t.ptr=name;}t.src.T={t:now,e:{U,V,H:0,sd:{U:.0005,V:.0005,H:1},cal:true},q:1,closed:down,pose:'',f:null};}
 function fuse(now){for(const t of TR){const live=Object.keys(t.src).filter(c=>now-t.src[c].t<(c==='T'?700:STALE));
-  if(!live.length){if(t.lostAt===null)t.lostAt=now;if(t.state==='carrying'&&now-t.lostAt>LOSS){t.state='suspended';t.closed=false;log('hand '+t.id+' is out of both views: the brick waits (pinch again to go on)');}continue;}
+  if(!live.length){t.palm=null;if(t.lostAt===null)t.lostAt=now;if(t.state==='carrying'&&now-t.lostAt>LOSS){t.state='suspended';t.closed=false;log('hand '+t.id+' is out of both views: the brick waits (pinch again to go on)');}continue;}
   if(t.lostAt!==null&&t.state==='suspended')log('hand '+t.id+' is back, seen by '+live.join('+'));t.lostAt=null;
   const X={},sd={},share={};for(const ax of ['U','V','H']){let sw=0,sx=0;const ws={};for(const c of live){const s=t.src[c],b=live.length===1&&BIAS[c]?BIAS[c][ax]:0,w=Math.max(.02,s.q)/(s.e.sd[ax]*s.e.sd[ax]);ws[c]=w;sw+=w;sx+=w*(s.e[ax]-b);}X[ax]=sx/sw;sd[ax]=Math.sqrt(1/sw);share[ax]=Object.fromEntries(Object.entries(ws).map(([c,w])=>[c,w/sw]));}
   /* with both cameras: each teaches the other its weak axis, and each camera's offset from the joint estimate is learned so a switch to one camera does not jump */
@@ -202,7 +203,7 @@ function pickAt(t){const c=t.cell;if(inBed(c)){const top=topAt(c.i,c.j,null).top
  if(!best)return null;const f=fp(best);let top=best;for(let i=best.i;i<best.i+f.w;i++)for(let j=best.j;j<best.j+f.d;j++){const q=topAt(i,j,null).top;if(q&&q.l>top.l)top=q;}return top;}
 /* a still, open, free hand: if camera B sees its whole palm and A sees it edge-on, it lies flat over the Floor; the reverse, it stands facing the laptop */
 let CONSTR=null;
-function palmRead(t,now){if(t.ptr){t.palm=null;return;}const A=t.src.A&&now-t.src.A.t<STALE?t.src.A:null,B=t.src.B&&now-t.src.B.t<STALE?t.src.B:null,pa=A?A.f.palm:null,pb=B?B.f.palm:null,spd=Math.hypot(t.vel.U,t.vel.V);
+function palmRead(t,now){if(t.ptr){t.palm=null;return;}const PW=450,A=t.src.A&&now-t.src.A.t<PW?t.src.A:null,B=t.src.B&&now-t.src.B.t<PW?t.src.B:null,/* a camera that drops the hand for a frame or two still counts for the palm */pa=A?A.f.palm:null,pb=B?B.f.palm:null,spd=Math.hypot(t.vel.U,t.vel.V);
  let k=null;if(t.state==='free'&&!t.closed&&spd<.08&&!(A&&(A.pose==='V'||A.pose==='fist'))&&!(B&&(B.pose==='V'||B.pose==='fist'))){if(pb!=null&&pb>.18&&(pa==null||pa<.1))k='floor';else if(pa!=null&&pa>.18&&(pb==null||pb<.1))k='top';}
  const d=t.pd||(t.pd={k:null,t0:0});if(k!==d.k){d.k=k;d.t0=now;}t.palm=k&&now-d.t0>300?k:null;}
 function pickConstraint(now){const carrying=TR.some(x=>x.state==='carrying'),t=TR.filter(x=>!x.ptr).length>1?TR.find(x=>x.palm&&x.lostAt===null):null;if(!t){if(CONSTR&&carrying)log('palm lowered: both cameras again');return null;}if((!CONSTR||CONSTR.kind!==t.palm)&&carrying)log(t.palm==='floor'?'palm flat over the Floor: the other hand moves in the floor plane, read by B, height held':'palm toward the laptop: the other hand moves in the laptop camera\'s plane, read by A, depth held');return {kind:t.palm,by:t.id};}
@@ -282,6 +283,14 @@ function setGeo(g,why){GEO.A=g;GEO.rev++;if(g){g.stale=false;log('camera A found
 /* camera A with a pose: the pinch's ray, and the hand's size gives the distance along it */
 function estAg(f){const g=GEO.A,x=f.nx*f.span,y=f.ny*f.span,z=g.f*GEO.L/f.span,q=[x/g.f,y/g.f,1],d=v3.sub(v3.mul(q,z),g.t),P=g.R.map(r=>v3.dot(r,d)),ray=v3.nrm(q),dir=g.R.map(r=>v3.dot(r,ray)),sl=.004+.008*z,sz=(GEO.Ln>=2?.05:.1)*z*(g.stale?3:1);
  const ag=XF.Ag.ok;return {U:P[0],V:ag?XF.Ag.pred(P[1]):P[1],Vraw:P[1],H:P[2]-HREF,sd:{U:Math.hypot(sl,dir[0]*sz),V:ag?Math.max(.012,sl):Math.hypot(sl,dir[1]*sz),H:Math.hypot(sl,dir[2]*sz)},cal:true,geo:true,z};}
+
+/* ---------------- the rig: the setup as measured by hand (wg-butter-pair-rig.html). It places camera A when A cannot see the phone ---------------- */
+let RIGBAND=null;
+function rigLoad(pose,why,band){if(band)RIGBAND=band;if(!pose||!pose.R)return false;if(GEO.A&&GEO.A.src!=='rig'&&!GEO.A.stale)return false;/* a flash measurement wins over a measured-by-hand one */
+ GEO.A=Object.assign({},pose,{src:'rig',stale:false,n:0,res:null});GEO.rev++;log('camera A placed from the rig model: '+Math.round(Math.hypot(pose.C[0]-W/2,pose.C[1]-D/2,pose.C[2])*100)+' cm from the Floor, '+Math.round(pose.C[2]*100)+' cm up'+(why?' · '+why:''));return true;}
+function rigFromStore(why){try{const r=JSON.parse(localStorage.getItem('butter-pair-rig')||'null');if(r&&r.use)return rigLoad(r.pose,why,r.band);}catch(e){}return false;}
+if(!FLOOR&&!/[?&]sim/.test(location.search))setTimeout(()=>rigFromStore('saved'),0);
+addEventListener('storage',e=>{if(e.key==='butter-pair-rig'&&!FLOOR)rigFromStore('changed in the Rig page');});
 
 /* ---------------- the Floor flashes; camera A compares the frames before and after each dot ---------------- */
 const FL={busy:false,ack:-2,last:null,miss:0};const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -468,7 +477,7 @@ const floors=()=>[...PEERS.values()].filter(q=>q.role==='floor'&&performance.now
 /* clock: a Floor's observation times are moved onto the coordinator's clock by the smallest delay seen recently */
 const OFF=new Map();function toLocal(m,now){let o=OFF.get(m.from);const d=now-m.t;if(!o||d<o.min||now-o.at>4000)o={min:d,at:now};OFF.set(m.from,o);return m.t+o.min;}
 function onMsg(m){const now=performance.now();
- if(m.type==='rtc'){rtcMsg(m);return;}if(m.type==='rtcwant'){RTC.want=1;return;}
+ if(m.type==='rtc'){rtcMsg(m);return;}if(m.type==='rig'){if(!FLOOR)rigLoad(m.pose,'from the Rig page',m.band);return;}if(m.type==='rtcwant'){RTC.want=1;return;}
  if(FLOOR){if(m.type==='scene'||m.type==='view'||m.role==='coord'){FV.linked=now;$('#flRoom').hidden=true;}if(m.type==='thumb'){FV.thA={img:loadImg(m.img),bed:m.bed,found:m.found,hands:m.hands,at:now};return;}if(m.type==='flash'){FV.flash=m.k;FV.flashSent=undefined;FV.flashAt=now;return;}if(m.type==='scene'){FV.scene=m.scene;FV.rev=m.rev;}else if(m.type==='view'){FV.view=m;FV.at=now;}else if(m.type==='hello'&&m.role==='coord'&&!FV.rev)hello();return;}
  if(m.type==='hello'&&m.role==='floor'){sceneOut();if(m.need)hello();return;}
  if(m.type==='thumb'){TH.B=loadImg(m.img);TH.Bat=now;if(REC.on&&now-TH.recAt>1000){TH.recAt=now;rec({k:'thumb',cam:'B',img:m.img});}return;}if(m.type==='flashed'){FL.ack=m.k;return;}if(m.type==='imu'){imuIn(m,now);return;}
@@ -478,7 +487,7 @@ function onMsg(m){const now=performance.now();
 const packLm=lm=>lm.map(p=>[Math.round(p.x*1e4)/1e4,Math.round(p.y*1e4)/1e4]).flat(),unpackLm=a=>{const o=[];for(let i=0;i<a.length;i+=2)o.push({x:a[i],y:a[i+1]});return o;};
 function sceneOut(){if(!FLOOR)fsend({type:'scene',rev:SCENE.rev,scene:SCENE.bricks});}
 const RX={A:0,B:0,An:0,Bn:0};
-setInterval(()=>{if(FLOOR||(!ROOM&&!BC))return;fsend({type:'view',t:performance.now(),tracks:TR.map(t=>({id:t.id,ptr:!!t.ptr,X:t.X,live:t.live||[],lead:t.lead,state:t.state,closed:t.closed,grasp:t.grasp&&{brick:t.grasp.brick,pv:t.grasp.pv,from:t.grasp.from},target:t.target&&t.target.id})),cal:{on:CALF.on,k:CALF.k,ticks:CALF.ticks},rev:SCENE.rev,les:LDONE,constr:CONSTR&&CONSTR.kind,palms:TR.filter(t=>t.palm&&t.X).map(t=>({X:t.X,k:t.palm})),tcal:TCAL.on?{k:TCAL.k,dots:TCAL.dots}:null,test:TEST.on&&TEST.steps[TEST.i]?{prompt:TEST.steps[TEST.i].prompt,dot:TEST.steps[TEST.i].dot||null,phase:TEST.phase,n:TEST.i+1,of:TEST.steps.length}:null,alearn:!GEO.A&&CAL.B&&CAL.B.src==='touch'&&(!CAL.A||CAL.A.src==='B')?(CAL.A?'done':Math.round(aProgress()*100)):null,geo:GEO.A?(GEO.A.stale?'stale':'ok'):null,flashing:FL.busy});},70);
+setInterval(()=>{if(FLOOR||(!ROOM&&!BC))return;fsend({type:'view',t:performance.now(),tracks:TR.map(t=>({id:t.id,ptr:!!t.ptr,X:t.X,live:t.live||[],lead:t.lead,state:t.state,closed:t.closed,grasp:t.grasp&&{brick:t.grasp.brick,pv:t.grasp.pv,from:t.grasp.from},target:t.target&&t.target.id})),cal:{on:CALF.on,k:CALF.k,ticks:CALF.ticks},rev:SCENE.rev,les:LDONE,constr:CONSTR&&CONSTR.kind,palms:TR.filter(t=>t.palm&&t.X).map(t=>({X:t.X,k:t.palm})),tcal:TCAL.on?{k:TCAL.k,dots:TCAL.dots}:null,test:TEST.on&&TEST.steps[TEST.i]?{prompt:TEST.steps[TEST.i].prompt,dot:TEST.steps[TEST.i].dot||null,phase:TEST.phase,n:TEST.i+1,of:TEST.steps.length}:null,alearn:!GEO.A&&CAL.B&&CAL.B.src==='touch'&&(!CAL.A||CAL.A.src==='B')?(CAL.A?'done':Math.round(aProgress()*100)):null,geo:GEO.A?(GEO.A.stale?'stale':'ok'):null,band:RIGBAND,aCam:GEO.A?{U:GEO.A.C[0],V:GEO.A.C[1],H:GEO.A.C[2],src:GEO.A.src||'flash'}:null,flashing:FL.busy});},70);
 setInterval(()=>{if(ROOM||BC)hello();},2500);
 
 /* ---------------- camera A on the laptop, camera B on the Floor: the same detector, the observations go to one model ---------------- */
@@ -616,7 +625,7 @@ function inspect(now){if(FLOOR||now-INSP<90)return;INSP=now;const t=TR.find(x=>!
 
 function regText(now){const g=GEO.A,tl=floorTilt(),rows=[];
  rows.push(FL.busy?'<b style="color:var(--orange)">the Floor is flashing: keep it in camera A\'s view</b>':TCAL.on?'<b style="color:var(--orange)">touch dot '+(TCAL.k+1)+' of '+TCAL.dots.length+' on the Floor with a pinch, then lift straight up</b>':'');
- rows.push(g?'A: '+(g.stale?'<b style="color:var(--orange)">the Floor moved, A\'s place is out of date</b>':'found the Floor, '+g.n+' dots, '+g.res+' mm')+' · '+Math.round(g.C[2]*100)+' cm up, '+Math.round(Math.hypot(g.C[0]-W/2,g.C[1]-D/2)*100)+' cm away':'A: has not found the Floor');
+ rows.push(g&&g.src==='rig'?'A: placed from the rig model'+(g.stale?' (<b style="color:var(--orange)">the Floor moved: check the Rig</b>)':'')+' · '+Math.round(g.C[2]*100)+' cm up, '+Math.round(Math.hypot(g.C[0]-W/2,g.C[1]-D/2)*100)+' cm away':g?'A: '+(g.stale?'<b style="color:var(--orange)">the Floor moved, A\'s place is out of date</b>':'found the Floor, '+g.n+' dots, '+g.res+' mm')+' · '+Math.round(g.C[2]*100)+' cm up, '+Math.round(Math.hypot(g.C[0]-W/2,g.C[1]-D/2)*100)+' cm away':'A: has not found the Floor');
  if(!g&&CAL.A&&CAL.A.src==='B')rows.push('A: map learned from B');else if(!g&&CAL.B&&CAL.B.src==='touch'&&!CAL.A)rows.push('<b style="color:var(--orange)">A: move your open hand over the Floor so both cameras see it ('+Math.round(aProgress()*100)+'%)</b>');
  rows.push('B: '+(CAL.B?(CAL.B.src==='touch'?'map from your touch-and-lifts':CAL.B.src==='A'?'map learned from A':'map from corner pinches'):'no map yet')+(XF.Bh.ok?' · height learned from A':' · height from hand size'));
  if(g&&XF.Ag.ok)rows.push('A: depth corrected by B');
@@ -645,6 +654,11 @@ function drawFloor(now){const cv=$('#cvF'),dpr=Math.min(2,devicePixelRatio||1),w
  if(v&&v.test){const T=v.test;if(T.dot){const x=X(T.dot.U),y=Y(T.dot.V);g.lineWidth=5*dpr;g.strokeStyle=T.phase==='cap'?'#c4f46a':'#efa13a';g.beginPath();g.arc(x,y,(T.phase==='cap'?22:30+5*Math.sin(now/160))*dpr,0,7);g.stroke();g.fillStyle=g.strokeStyle;g.beginPath();g.arc(x,y,6*dpr,0,7);g.fill();}
   g.font='500 '+(13*dpr)+'px IBM Plex Mono';g.fillStyle=T.phase==='cap'?'#c4f46a':'#efa13a';g.textAlign='center';g.fillText(T.n+'/'+T.of+' · '+(T.phase==='cap'?'HOLD · ':'GET READY · ')+T.prompt.toUpperCase(),w/2,oy-10*dpr);g.textAlign='left';}
  else if(v&&typeof v.alearn==='number'&&!v.tcal){g.font='500 '+(13*dpr)+'px IBM Plex Mono';g.fillStyle='#efa13a';g.textAlign='center';g.fillText('MOVE YOUR OPEN HAND OVER THE FLOOR · THE LAPTOP CAMERA LEARNS FROM THIS ONE · '+v.alearn+'%',w/2,oy-10*dpr);g.textAlign='left';}
+ if(v&&v.band&&!v.test&&!v.tcal&&typeof v.alearn!=='number'){g.font='500 '+(12*dpr)+'px IBM Plex Mono';g.fillStyle='#ece6da';g.textAlign='center';g.fillText('BOTH CAMERAS SEE YOUR HAND '+v.band[0]+'–'+v.band[1]+' CM ABOVE THIS PHONE',w/2,oy-10*dpr);g.textAlign='left';}
+ /* where camera A is: an arrow on the edge of the bed pointing at it, with its distance and height */
+ if(v&&v.aCam){const a=v.aCam,cx=X(W/2),cy=Y(D/2),dx=X(a.U)-cx,dy=Y(a.V)-cy,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,hw=cs*COLS/2,hh=cs*ROWS/2,k=Math.min(Math.abs(ux)>1e-6?hw/Math.abs(ux):1e9,Math.abs(uy)>1e-6?hh/Math.abs(uy):1e9),ex=cx+ux*k,ey=cy+uy*k;
+  g.strokeStyle='#c4f46a';g.fillStyle='#c4f46a';g.lineWidth=3*dpr;g.beginPath();g.moveTo(ex-ux*26*dpr,ey-uy*26*dpr);g.lineTo(ex,ey);g.stroke();g.beginPath();g.moveTo(ex+ux*4*dpr,ey+uy*4*dpr);g.lineTo(ex-ux*10*dpr-uy*7*dpr,ey-uy*10*dpr+ux*7*dpr);g.lineTo(ex-ux*10*dpr+uy*7*dpr,ey-uy*10*dpr-ux*7*dpr);g.closePath();g.fill();
+  const t='CAMERA A · '+Math.round(Math.hypot(a.U-W/2,a.V-D/2)*100)+' cm away, '+Math.round(a.H*100)+' cm up'+(a.src==='rig'?' (rig)':'');g.font='500 '+(11*dpr)+'px IBM Plex Mono';const tw=g.measureText(t).width;g.fillStyle='#0b0a09cc';const tx=clamp(ex-tw/2,4*dpr,w-tw-4*dpr),ty=clamp(ey+(uy<0?30:-30)*dpr,14*dpr,h-6*dpr);g.fillRect(tx-4*dpr,ty-12*dpr,tw+8*dpr,16*dpr);g.fillStyle='#c4f46a';g.fillText(t,tx,ty);}
  /* witness: what the laptop's camera sees, and where it found this Floor */
  const ta0=FV.thA&&now-FV.thA.at<2500?FV.thA:null,live=rtcLive(),ta=live?{img:RTC.vid,bed:ta0&&ta0.bed,hands:ta0&&ta0.hands}:ta0,iw=ta&&(ta.img.videoWidth||ta.img.naturalWidth);if(ta&&iw){const vw=(live?Math.min(260,w/dpr*.3):128)*dpr,vh=vw*(ta.img.videoHeight||ta.img.naturalHeight)/iw,x0=w-vw-12*dpr,y0=72*dpr,MX=x=>x0+(1-x)*vw,MY=y=>y0+y*vh;g.save();g.translate(x0+vw,y0);g.scale(-1,1);g.globalAlpha=.8;g.drawImage(ta.img,0,0,vw,vh);g.restore();
   if(ta.bed){g.strokeStyle='#c4f46a';g.lineWidth=2*dpr;g.beginPath();ta.bed.forEach((p,k)=>k?g.lineTo(MX(p.x),MY(p.y)):g.moveTo(MX(p.x),MY(p.y)));g.closePath();g.stroke();}
@@ -707,7 +721,7 @@ if(!FLOOR){
  $('#flRoomF').onsubmit=e=>{e.preventDefault();const c=$('#flCode').value.trim().toUpperCase();if(c.length<4)return;$('#flRoom').hidden=true;joinRoom(c);hello();};
  hello();}
 requestAnimationFrame(loop);
-window.BP={get CONSTR(){return CONSTR;},get R3(){return R3;},get LOG(){return LOG;},get MQ(){return MQ;},get TR(){return TR;},get SCENE(){return SCENE;},get CAL(){return CAL;},CALF,XF,BIAS,HIST,SIM,measure,resetModel,calStart,simStep,ingest,fuse,pointerHand,command,apply,cancelAll,feat,estA,estB,get RUN(){return RUN;},set RUN(v){RUN=v;},LDONE,floors,joinRoom,fsend,get FV(){return FV;},packLm,startBricks,get GEO(){return GEO;},TEST,SCOPE,APAIRS,RTC,testStart,scopeToggle,fitAfromB,rtcLive,get HND(){return HND;},set HND(v){HND=v;},set GEO(v){GEO=v;},TCAL,BPAIRS,FLR,FL,TH,REC,get REPLAY(){return REPLAY;},geoFromImage,setGeo,projA,rayToPlane,findDot,floorTouch,imuIn,replay,recToggle,startTcal,fitB,regText,floorTilt,
+window.BP={get CONSTR(){return CONSTR;},get R3(){return R3;},get LOG(){return LOG;},get MQ(){return MQ;},get TR(){return TR;},get SCENE(){return SCENE;},get CAL(){return CAL;},CALF,XF,BIAS,HIST,SIM,measure,resetModel,calStart,simStep,ingest,fuse,pointerHand,command,apply,cancelAll,feat,estA,estB,get RUN(){return RUN;},set RUN(v){RUN=v;},LDONE,floors,joinRoom,fsend,get FV(){return FV;},packLm,startBricks,get GEO(){return GEO;},rigLoad,rigFromStore,TEST,SCOPE,APAIRS,RTC,testStart,scopeToggle,fitAfromB,rtcLive,get HND(){return HND;},set HND(v){HND=v;},set GEO(v){GEO=v;},TCAL,BPAIRS,FLR,FL,TH,REC,get REPLAY(){return REPLAY;},geoFromImage,setGeo,projA,rayToPlane,findDot,floorTouch,imuIn,replay,recToggle,startTcal,fitB,regText,floorTilt,
  setCal(c){CAL=c;},reset(){SCENE={rev:SCENE.rev+1,bricks:startBricks()};HIST.length=0;REDO.length=0;sceneOut();}};
 </script>
 </body>

@@ -23,7 +23,7 @@ with sync_playwright() as p:
     def runtest(kind):
         E("""(kind=>{BP.resetModel();BP.reset();BP.scopeToggle(true);BP.testStart(kind);const W=.15,D=.075,H0=BP.SIM.H0,st=1.8+2.0,K=[],pc=[];
           BP.TEST.steps.forEach((s,k)=>{const t0=k*st;let P=[W/2,D/2,H0],closed=false,pose,orient;if(s.dot){P=[s.dot.U,s.dot.V,H0];closed=true;}
-            if(s.id==='pinch')closed=true;if(s.id==='Vflat'||s.id==='Vup'){pose='V';pc.push([t0,t0+st,s.id==='Vflat'?'B':'A']);}if(s.id==='fist')pose='fist';if(s.id==='palmTop'){orient='wall';P=[W*.55,D*.95,.30];}
+            if(s.id==='pinch')closed=true;if(s.id==='Vflat'||s.id==='Vup'){pose='V';pc.push([t0,t0+st,s.id==='Vflat'?'B':'A']);}if(s.id==='fist')pose='fist';if(s.id==='palmTop'){orient='wall';P=[W*.55,D*.95,.26];}
             K.push({t:t0+.05,P:k?K[K.length-1].P:P,closed:false,pose:k?K[K.length-1].pose:pose,orient:k?K[K.length-1].orient:orient});K.push({t:t0+.8,P,closed,pose,orient});K.push({t:t0+st-.02,P,closed,pose,orient});});
           BP.RUN={sc:{dur:BP.TEST.steps.length*st+.5,hands:[K],poseCam:{V:pc}},t0:performance.now(),name:'test-'+kind,next:[],last:null};})('"""+kind+"""')""")
         shot=False
