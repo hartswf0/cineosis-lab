@@ -11,9 +11,10 @@ SETUP="""(o=>{const W=.15,D=.075,S=BP.SIM,d=Math.PI/180;BP.resetModel();BP.reset
  /* the true laptop camera, and the system's starting belief about it */
  S.setA([W/2,D+.40,.27],[W/2,D*.4,.12],o.afov||62);const t=BP.geoFromImage(S.flash(0),4/3);
  if(o.prior==='rig'){const a=3*d,c=Math.cos(a),s=Math.sin(a),g=JSON.parse(JSON.stringify(t));g.R=g.R.map(r=>[r[0],c*r[1]-s*r[2],s*r[1]+c*r[2]]);g.t=[g.t[0],c*g.t[1]-s*g.t[2],s*g.t[1]+c*g.t[2]];g.C=[0,1,2].map(i=>-(g.R[i][0]*g.t[0]+g.R[i][1]*g.t[1]+g.R[i][2]*g.t[2]));g.C[1]-=.02;g.t=[0,1,2].map(j=>-(g.R[0][j]*g.C[0]+g.R[1][j]*g.C[1]+g.R[2][j]*g.C[2]));if(o.afov&&o.afov!==62)g.f=4/3*.5/Math.tan(31*d);BP.GEO.A=null;BP.rigLoad(g,'test');}
+ else if(o.prior==='none'){BP.GEO.A=null;BP.GEO.rev++;}
  else{S.reseed(3);BP.setGeo(BP.geoFromImage(S.flash(.0015),4/3),'test');}
  window._truth=t;BP.SIM.SCRIPTS.wobble=o.wobble||0;BP.TCAL.check={U:.47*W,V:D/2};BP.startTcal();BP.measure('tapcal');BP.TCAL.check=null;BP.TCAL.on=false;
- const rep=BP.calibSolve();const g=BP.GEO.A,tr=window._truth,ang=Math.acos(Math.min(1,g.R[0][2]*tr.R[0][2]+g.R[1][2]*tr.R[1][2]+g.R[2][2]*tr.R[2][2]))*180/Math.PI;
+ const rep=BP.calibSolve();if(!BP.GEO.A)return {report:rep,used:false};const g=BP.GEO.A,tr=window._truth,ang=Math.acos(Math.min(1,g.R[0][2]*tr.R[0][2]+g.R[1][2]*tr.R[1][2]+g.R[2][2]*tr.R[2][2]))*180/Math.PI;
  const out={report:rep,used:BP.BCAM.on,A_position_error_mm:Math.round(1000*Math.hypot(g.C[0]-tr.C[0],g.C[1]-tr.C[1],g.C[2]-tr.C[2])),A_axis_error_deg:+ang.toFixed(2),B_lens_true_mm:[-7,Math.round((D/2-.003)*1000)]};
  const run=(s,m)=>{BP.resetModel();BP.reset();const r=BP.measure(s,{mask:m||null});return r.rms_mm;};
  BP.resetModel();BP.reset();const pb=BP.measure('path');out.path_both=pb.rms_mm;out.path_by_view=pb.by_view;out.path_B_only=run('path',{A:false,B:true});out.path_A_only=run('path',{A:true,B:false});
@@ -30,5 +31,6 @@ with sync_playwright() as p:
     log('rig, wobbly lifts (8 mm sideways)',E("(%s)({prior:'rig',wobble:.008})"%SETUP))
     log('rig, Floor picture turned 90 deg and mirrored',E("(%s)({prior:'rig',byaw:90,mir:true})"%SETUP))
     log('rig, laptop camera 70 deg (system assumes 62), Floor camera 80 deg',E("(%s)({prior:'rig',afov:70,bfov:80})"%SETUP))
+    log('nothing locates the laptop camera: found from the lifts alone',E("(%s)({prior:'none'})"%SETUP))
     log('errors',errs)
     json.dump(R,open(OUT+'/calib.json','w'),indent=1);b.close()

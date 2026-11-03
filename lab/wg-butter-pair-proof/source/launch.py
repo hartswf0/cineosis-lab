@@ -5,7 +5,7 @@ serve.start(8833);U='http://127.0.0.1:8833/cineosis-lab/lab/wg-butter-pair.html'
 T128='/tmp/claude-0/-home-claude/5dcbf124-08aa-5357-a87a-ec1f490e8f81/scratchpad/t128/node_modules/three/build/three.min.js'
 R={};errs=[]
 def log(k,v):R[k]=v;print(k,json.dumps(v)[:700])
-GEST="""(()=>{const W=.15,D=.075,H0=BP.SIM.H0,st=1.8+2.0,K=[],pc=[];
+GEST="""(()=>{const W=.15,D=.075,H0=BP.SIM.H0,st=2.6+2.0,K=[],pc=[];
  BP.TEST.steps.forEach((s,k)=>{const t0=k*st;let P=[W/2,D/2,H0],closed=false,pose,orient;if(s.id==='pinch')closed=true;if(s.id==='Vflat'||s.id==='Vup'){pose='V';pc.push([t0,t0+st,s.id==='Vflat'?'B':'A']);}if(s.id==='fist')pose='fist';if(s.id==='palmTop'){orient='wall';P=[W*.55,D*.9,.23];}
   K.push({t:t0+.05,P:k?K[K.length-1].P:P,closed:false,pose:k?K[K.length-1].pose:pose,orient:k?K[K.length-1].orient:orient});K.push({t:t0+.8,P,closed,pose,orient});K.push({t:t0+st-.02,P,closed,pose,orient});});
  BP.RUN={sc:{dur:BP.TEST.steps.length*st+.5,hands:[K],poseCam:{V:pc}},t0:performance.now(),name:'launch-gest',next:[],last:null};})()"""
@@ -13,6 +13,7 @@ with sync_playwright() as p:
     b=p.chromium.launch(args=['--use-angle=swiftshader','--enable-unsafe-swiftshader']);ctx=b.new_context(viewport={'width':1280,'height':860})
     ctx.route('**/three.min.js',lambda r:r.fulfill(path=T128,content_type='text/javascript'))
     pg=ctx.new_page();pg.on('pageerror',lambda e:errs.append(str(e)));pg.goto(U+'?sim');pg.wait_for_timeout(1800);E=lambda s:pg.evaluate(s)
+    fl=ctx.new_page();fl.set_viewport_size({'width':844,'height':390});fl.on('pageerror',lambda e:errs.append('floor: '+str(e)));fl.goto(U+'?floor');fl.wait_for_timeout(1500);pg.bring_to_front()
     # 1. Launch, end to end
     E("(()=>{BP.resetModel();BP.reset();BP.CAL.B=null;BP.BPAIRS.length=0;window._imu=setInterval(()=>BP.imuIn({mov:false,b:1,g:1},performance.now()),100);document.querySelector('#launchB').click();BP.launchRun();})()")
     seen=set();shots=0;t0=time.time()
@@ -22,9 +23,9 @@ with sync_playwright() as p:
         k=st.split(':')[1]
         if k in seen:continue
         seen.add(k)
-        if k=='floor':pg.wait_for_timeout(200);E("BP.RUN={sc:BP.SIM.SCRIPTS.tapcal(),t0:performance.now(),name:'tapcal',next:[],last:null}")
+        if k=='floor':pg.wait_for_timeout(200);E("BP.RUN={sc:BP.SIM.SCRIPTS.tapcal(),t0:performance.now(),name:'tapcal',next:[],last:null}");pg.wait_for_timeout(2600);pg.screenshot(path=OUT+'/cue-lift.png');fl.screenshot(path=OUT+'/cue-lift-floor.png')
         if k=='palms':E("BP.RUN={sc:BP.SIM.SCRIPTS.twopalms(),t0:performance.now(),name:'twopalms',next:[],last:null}");pg.wait_for_timeout(1500);pg.screenshot(path=OUT+'/launch-palms.png')
-        if k=='gest':pg.wait_for_timeout(300);E(GEST);pg.wait_for_timeout(5000);pg.screenshot(path=OUT+'/launch-gest.png')
+        if k=='gest':pg.wait_for_timeout(300);E(GEST);pg.wait_for_timeout(5000);pg.screenshot(path=OUT+'/launch-gest.png');pg.wait_for_timeout(7500);pg.screenshot(path=OUT+'/cue-vup.png');fl.screenshot(path=OUT+'/cue-vup-floor.png')
     E("BP.RUN=null;clearInterval(window._imu)");pg.wait_for_timeout(400);pg.screenshot(path=OUT+'/launch-done.png')
     log('launch, end to end (simulated hand)',E("({seconds:null,done:BP.LAUNCH.done,rows:BP.LAUNCH.rows.map(r=>r&&[r.id,r.st,r.text]),baseline_hands:BP.LAUNCH.baseline&&BP.LAUNCH.baseline.hands.length})"))
     # 2. the agreement check: no false alarms when the pose is right

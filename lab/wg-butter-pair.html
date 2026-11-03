@@ -22,9 +22,15 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 360px;height:calc(100% - 4
 #stage{position:relative;min-width:0;min-height:0}#stage.h-nominal{box-shadow:inset 0 0 0 3px #c4f46a}#stage.h-floor,#stage.h-laptop,#stage.h-moved{box-shadow:inset 0 0 0 3px #efa13a}#stage.h-safe{box-shadow:inset 0 0 0 3px #e0483a}
 #more{position:absolute;right:0;top:38px;z-index:20;display:flex;flex-direction:column;gap:4px;background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:6px}
 #health{border:1px solid var(--rule);border-radius:6px;padding:8px 10px;margin-bottom:10px}#health b{display:block;font-weight:500;letter-spacing:.12em;font-size:12px}#health span{font-size:12px;color:var(--dim)}#health .src{display:block;font-size:11px;color:var(--faint);margin-top:4px}
-#launch{position:absolute;inset:0;z-index:4;background:#0b0a09f2;display:grid;place-items:center;padding:16px;overflow:auto}#launch .lbox{width:min(620px,100%)}#launch h2{font:700 26px Fraunces,Georgia,serif;margin:0 0 4px}#launch p{color:var(--dim);font-size:12.5px;margin:4px 0 12px}
-.lr{display:grid;grid-template-columns:18px 1fr;gap:10px;padding:9px 0;border-bottom:1px solid var(--rule)}.lr i{width:12px;height:12px;border-radius:50%;margin-top:4px;border:2px solid var(--faint)}.lr b{display:block;font-weight:500}.lr span{font-size:12px;color:var(--dim)}
-.lr.ok i{background:var(--lime);border-color:var(--lime)}.lr.warn i{background:var(--orange);border-color:var(--orange)}.lr.fail i{background:var(--red);border-color:var(--red)}.lr.run i{border-color:var(--orange);animation:pulse 1s infinite}.lr.run span{color:var(--orange)}@keyframes pulse{50%{opacity:.3}}
+#launch{position:absolute;inset:0;z-index:4;pointer-events:none}
+#lsteps{position:absolute;left:50%;top:10px;transform:translateX(-50%);display:flex;gap:6px;pointer-events:auto;background:#0b0a09d9;border:1px solid var(--rule);border-radius:20px;padding:4px 8px}
+.ls{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;border:1.5px solid transparent}.ls.run{border-color:var(--ink);animation:pulse 1.2s infinite}.ls.ok{border-color:#c4f46a55}.ls.warn{border-color:#efa13a77}.ls.fail{border-color:#e0483a99}@keyframes pulse{50%{opacity:.45}}
+#cue{position:absolute;left:12px;bottom:12px;width:min(380px,calc(100% - 24px));pointer-events:auto;background:#0b0a09eb;border:1px solid var(--rule);border-radius:10px;padding:12px;display:grid;grid-template-columns:88px 1fr;gap:4px 14px}
+#cueIc{grid-row:span 2;display:grid;place-items:center}#cueWhere{display:flex;gap:6px;align-items:center;font-size:11px;letter-spacing:.08em;text-transform:uppercase;min-height:20px}
+#cueMain{display:block;font:500 17px/1.25 "IBM Plex Mono";margin:2px 0}#cueSub{display:block;font-size:12px;color:var(--dim)}#cueSub .bad{display:flex;gap:6px;align-items:center;margin:3px 0;color:var(--ink)}
+#cueBar{grid-column:1/-1;height:4px;background:#2e2a26;border-radius:2px;overflow:hidden}#cueProg{display:block;height:100%;width:0;background:var(--ink);transition:width .15s}
+#cueCams{grid-column:1/-1;display:flex;gap:6px}.cc{flex:1;display:flex;gap:6px;align-items:center;border:1px solid var(--rule);border-radius:6px;padding:5px 8px;font-size:11.5px;color:var(--faint)}.cc b{font-weight:500}.cc.on{color:var(--ink)}.cc.need{border-color:var(--c)}
+#cue .tb{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}#lGo{background:var(--lime);color:#111;border-color:var(--lime)}
 #launch .tb{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}#lGo{background:var(--lime);color:#111;border-color:var(--lime)}#lSum{color:var(--ink)!important}
 aside details{border-top:1px solid var(--rule);margin-top:12px;padding-top:6px}aside summary{cursor:pointer;color:var(--dim);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase}
 #scope{position:absolute;inset:0;z-index:3;background:var(--bg);display:grid;grid-template-rows:minmax(300px,1fr) auto 120px auto;gap:8px;padding:10px;overflow:auto}
@@ -81,8 +87,9 @@ body.flashing #flStart,body.flashing #flU,body.flashing #flX{visibility:hidden}#
 </header>
 <main>
   <section id="stage"><canvas id="cv3"></canvas><span id="tag">LAPTOP · PERSPECTIVE</span><span id="spaceL" style="position:absolute;left:18px;top:40px;max-width:330px;font-size:10.5px;color:var(--dim);pointer-events:none"></span><span id="constr" hidden style="position:absolute;left:50%;top:10px;transform:translateX(-50%);font-size:11.5px;letter-spacing:.08em;color:#111;background:var(--blue);padding:4px 10px;border-radius:4px"></span><span id="sim" hidden>SIMULATED CAMERAS</span><div id="hold" hidden><button class="hb warn" id="cancelB">Cancel (Esc)</button></div>
-  <div id="launch" hidden><div class="lbox"><h2>Launch</h2><p>About a minute. Each line turns green only on evidence. The results are kept, and the system checks against them while you work.</p><div id="lRows"></div>
-   <div class="tb"><button class="hb" id="lGo">Start</button><button class="hb" id="lSkip" hidden>Skip this step</button><button class="hb" id="lOne" hidden>One hand only</button><button class="hb" id="lSave">Save record</button><button class="hb" id="lClose">Close</button></div><p id="lSum"></p></div></div>
+  <div id="launch" hidden><div id="lsteps"></div>
+   <div id="cue"><div id="cueIc"></div><div><div id="cueWhere"></div><b id="cueMain"></b><span id="cueSub"></span></div><div id="cueBar"><i id="cueProg"></i></div><div id="cueCams"></div>
+    <div class="tb"><button class="hb" id="lGo">Start</button><button class="hb" id="lSkip" hidden>Skip</button><button class="hb" id="lOne" hidden>One hand</button><a class="hb" id="lRig" href="wg-butter-pair-rig.html" hidden style="text-decoration:none">Open Rig</a><button class="hb" id="lSave" hidden>Save record</button><button class="hb" id="lClose" title="Close">Close</button></div></div></div>
   <div id="scope" hidden>
    <div class="cams2"><div class="sc"><div class="pic"><video id="svA" muted playsinline></video><canvas id="soA"></canvas><span class="lab" style="color:var(--lime)">A · LAPTOP CAMERA</span><span class="st" id="svAst"></span></div><div class="rd" id="srA"></div></div>
     <div class="sc"><div class="pic"><video id="svB" muted playsinline></video><canvas id="soB"></canvas><span class="lab" style="color:var(--orange)">B · FLOOR CAMERA</span><span class="st" id="svBst"></span></div><div class="rd" id="srB"></div></div></div>
@@ -432,7 +439,7 @@ function scopeToggle(on){SCOPE.on=on==null?!SCOPE.on:on;$('#scope').hidden=!SCOP
 
 /* ---------------- tests: hold a pinch over lit dots (each camera's error in mm), and make each gesture (what each camera read) ---------------- */
 const TEST={on:false,suite:'',steps:[],i:0,phase:'',t0:0,samples:[],results:[],report:null};
-const READY=1800,CAP=2000;
+const CAP=2000;let READY=1800;
 const SUITES={
  positions:()=>FLASHPTS.map((d,k)=>({id:'dot'+(k+1),prompt:'Hold a pinch over dot '+(k+1)+', a hand above the Floor',dot:d})),
  gestures:()=>[
@@ -509,9 +516,20 @@ function lm(x0,free,mir,lifts,pr,iters){let x=x0.slice();while(x.length<NP+2*lif
   if(!improved||improved==='flat')break;}
  return {x,cost,n:r.length};}
 /* the solve: B's turn and mirror are discrete unknowns (how the phone hands its picture to the browser), so try each, then solve everything together */
-function calibSolve(opt){opt=opt||{};const lifts=LIFTS.filter(L=>!L.check&&L.frames.length>=4);if(lifts.length<3||lifts.filter(L=>L.frames.filter(s=>s.A&&s.B).length>=8).length<2||!GEO.A)return null;const t0=performance.now();
- const g0=BCAM.prior&&BCAM.prior.g0||JSON.parse(JSON.stringify(GEO.A));BCAM.prior={g0};const fromRig=g0.src==='rig',tl=floorTilt();
- const pr={g0,sw:fromRig?.07:.05,sc:fromRig?.04:.03,sfA:fromRig?.12:.06,/* the flash places camera A to about 3 cm and 3 degrees (measured): the lifts do the rest */stilt:FLR.at&&tl<3?.035:.06,cu0:B0.cu,cv0:B0.cv};
+/* camera A from the lifts alone: each lift is a known vertical line; the Floor camera's view of the hand's size gives a rough height along it;
+   a direct linear fit of A's projection to those points (and to the touches, at height 0) gives a starting pose for the joint solve */
+function bootstrapA(lifts){const rows=[],ys=[];const add=(X,x,y)=>{rows.push([X[0],X[1],X[2],1,0,0,0,0,-x*X[0],-x*X[1],-x*X[2]]);ys.push(x);rows.push([0,0,0,0,X[0],X[1],X[2],1,-y*X[0],-y*X[1],-y*X[2]]);ys.push(y);};
+ for(const L of lifts){for(const s of L.touch)if(s.A)add([L.U,L.V,0],s.A[0],s.A[1]);for(const s of L.frames)if(s.A&&s.Bi)add([L.U,L.V,FB0*GEO.L*s.Bi],s.A[0],s.A[1]);}
+ if(rows.length<24)return null;const q=lsq(rows,ys,1e-10),m=[[q[0],q[1],q[2]],[q[4],q[5],q[6]],[q[8],q[9],q[10]]],p4=[q[3],q[7],1];
+ let lam=1/Math.hypot(...m[2]);const X0=lifts[0].touch.length?[lifts[0].U,lifts[0].V,0]:[lifts[0].U,lifts[0].V,.2];if(lam*(v3.dot(m[2],X0)+1)<0)lam=-lam;/* the points are in front of the camera */
+ const r3=v3.mul(m[2],lam),fx=Math.hypot(...v3.sub(v3.mul(m[0],lam),v3.mul(r3,v3.dot(v3.mul(m[0],lam),r3)))),fy=Math.hypot(...v3.sub(v3.mul(m[1],lam),v3.mul(r3,v3.dot(v3.mul(m[1],lam),r3)))),f=clamp((fx+fy)/2,.6,2);
+ let r1=v3.nrm(v3.sub(v3.mul(m[0],lam),v3.mul(r3,v3.dot(v3.mul(m[0],lam),r3)))),r2=v3.cross(r3,r1);if(v3.dot(r2,v3.mul(m[1],lam))<0){r1=v3.mul(r1,-1);r2=v3.cross(r3,r1);}
+ const t=[lam*p4[0]/f,lam*p4[1]/f,lam],R=[0,1,2].map(i=>[r1[i],r2[i],r3[i]]),C=[0,1,2].map(i=>-(r1[i]*t[0]+r2[i]*t[1]+r3[i]*t[2]));
+ return {R,t,f,C,asp:4/3,src:'lifts',n:0,res:null,stale:false};}
+function calibSolve(opt){opt=opt||{};const lifts=LIFTS.filter(L=>!L.check&&L.frames.length>=4);if(lifts.length<3||lifts.filter(L=>L.frames.filter(s=>s.A&&s.B).length>=8).length<2)return null;const t0=performance.now();
+ let boot=false;if(!GEO.A&&!(BCAM.prior&&BCAM.prior.g0)){const b=bootstrapA(lifts);if(!b)return null;BCAM.prior={g0:b};boot=true;}
+ const g0=BCAM.prior&&BCAM.prior.g0||JSON.parse(JSON.stringify(GEO.A));BCAM.prior={g0};const fromRig=g0.src==='rig'||g0.src==='lifts',tl=floorTilt();
+ const pr={g0,sw:g0.src==='lifts'?.15:fromRig?.07:.05,sc:g0.src==='lifts'?.08:fromRig?.04:.03,sfA:g0.src==='lifts'?.2:fromRig?.12:.06,/* the flash places camera A to about 3 cm and 3 degrees (measured): the lifts do the rest */stilt:FLR.at&&tl<3?.035:.06,cu0:B0.cu,cv0:B0.cv};
  const base=[0,0,0,0,0,0,g0.f,FB0,0,0,0,B0.cu,B0.cv];let best=null;
  /* hypotheses: which end of the phone the lens is at, how the picture is turned, mirrored or not. First the Floor camera's turn, tilt and field alone; then the best three with everything free */
  const cands=[];for(const end of [B0.cu,W-B0.cu])for(const mir of [1,-1])for(let k=0;k<8;k++){const x=base.slice();x[8]=k*Math.PI/4-Math.PI;x[11]=end;const pe=Object.assign({},pr,{cu0:end,cv0:B0.cv});const r=lm(x,[7,8,9,10],mir,lifts,pe,10);cands.push(Object.assign(r,{mir,pe}));}
@@ -527,8 +545,8 @@ function calibSolve(opt){opt=opt||{};const lifts=LIFTS.filter(L=>!L.check&&L.fra
   B_fov_deg:+(2*Math.atan(.5*(4/3)/p.fB)*180/Math.PI).toFixed(1),B_turn_deg:Math.round(((p.yaw*180/Math.PI)%360+360)%360),B_mirrored:p.mir<0,B_tilt_deg:+(Math.hypot(p.tx,p.ty)*180/Math.PI).toFixed(1),B_lens_mm:[Math.round(p.cu*1000),Math.round(p.cv*1000)],
   fit_mm:{A:mmed(miss.A),B:mmed(miss.B),height:mmed(miss.H)},lean_pct:lean,check_mm:check,ms:Math.round(performance.now()-t0)};
  const good=rep.fit_mm.A!=null&&rep.fit_mm.A<6&&rep.fit_mm.B!=null&&rep.fit_mm.B<6&&(check==null||check<=12);
- if(good||opt.force){GEO.A=Object.assign(g,{src:(g0.src==='rig'?'rig':'flash')+'+lifts',stale:false});GEO.rev++;BCAM.p=p;BCAM.on=true;}
- BCAM.report=Object.assign(rep,{used:good||!!opt.force});
+ if(good||opt.force){GEO.A=Object.assign(g,{src:(g0.src==='lifts'?'':g0.src==='rig'?'rig+':'flash+')+'lifts',stale:false});GEO.rev++;BCAM.p=p;BCAM.on=true;}
+ BCAM.report=Object.assign(rep,{used:good||!!opt.force,bootstrap:boot});
  log('calibration from '+rep.lifts+' lifts ('+rep.frames+' frames): laptop camera moved '+rep.A_moved_mm+' mm and turned '+rep.A_turned_deg+'°; Floor camera '+rep.B_fov_deg+'° field, turned '+rep.B_turn_deg+'°'+(rep.B_mirrored?' mirrored':'')+'; fit '+rep.fit_mm.A+'/'+rep.fit_mm.B+' mm, height '+rep.fit_mm.height+' mm'+(check!=null?'; check '+check+' mm':'')+(good?'':' · not used: the lifts do not agree well enough'));
  saveCal();return rep;}
 /* the point where two lines of sight come closest, and how far apart they pass */
@@ -539,7 +557,7 @@ v3.add3=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
 function liftTouch(U,V,down,now,check){if(down){if(!LCUR||LCUR.phase!=='touch')LCUR={U,V,touch:[],frames:[],phase:'touch',check:!!check};LCUR.U=U;LCUR.V=V;const t=TR.find(x=>!x.ptr&&x.src.A&&now-x.src.A.t<STALE);if(t&&t.src.A.f){const s=t.src.A,P=s.closed?s.f.P:s.lm[8];LCUR.touch.push({A:[(P.x-.5)*s.asp,P.y-.5]});}}
  else if(LCUR&&LCUR.phase==='touch'){LCUR.phase='lift';LCUR.t=now;}}
 function liftTick(now){if(!LCUR||LCUR.phase!=='lift')return;if(now-LCUR.t>1500){LCUR.phase='done';if(LCUR.frames.length>=4){LIFTS.push(LCUR);/* kept even if only camera A saw it: it still pins camera A */const keep=LIFTS.filter(L=>!L.check).slice(-12);const ch=LIFTS.filter(L=>L.check).slice(-1);LIFTS.length=0;LIFTS.push(...keep,...ch);if(!TCAL.on&&GEO.A&&!BCAM.noauto&&!LAUNCH.on)calibSolve();}LCUR=null;return;}
- const t=TR.find(x=>!x.ptr&&x.lostAt===null);if(!t)return;/* the lift ends when the pinch opens: after that the hand moves on, off the vertical line */if(LCUR.frames.length>3&&!t.closed){LCUR.t=-1e9;return;}if(!t.closed)return;const fr={};for(const c of ['A','B']){const s=t.src[c];if(s&&now-s.t<STALE&&s.f&&s.f.comp>.75)fr[c]=[s.f.nx*s.f.span,s.f.ny*s.f.span];}if(fr.A||fr.B)LCUR.frames.push(fr);}
+ const t=TR.find(x=>!x.ptr&&x.lostAt===null);if(!t)return;/* the lift ends when the pinch opens: after that the hand moves on, off the vertical line */if(LCUR.frames.length>3&&!t.closed){LCUR.t=-1e9;return;}if(!t.closed)return;const fr={};for(const c of ['A','B']){const s=t.src[c];if(s&&now-s.t<STALE&&s.f&&s.f.comp>.75){fr[c]=[s.f.nx*s.f.span,s.f.ny*s.f.span];if(c==='B')fr.Bi=s.f.inv;}}if(fr.A||fr.B)LCUR.frames.push(fr);}
 
 /* =====================================================================================================
    BUILD 1 (engineering review): roles, not averaging.
@@ -589,6 +607,60 @@ function healthOf(now){const t=TR.find(x=>!x.ptr&&(x.grasp||x.lostAt===null))||n
 const HCOL={nominal:'#c4f46a',floor:'#efa13a',laptop:'#efa13a',moved:'#efa13a',safe:'#e0483a',idle:'#6b645b'};
 const HNAME={nominal:'NOMINAL',floor:'FLOOR ONLY',laptop:'LAPTOP ONLY',moved:'FLOOR MOVED',safe:'SAFE',idle:'IDLE'};
 
+
+/* ---------------- icons: drawn marks, no glyphs. One set for the laptop's cue card and the Floor ---------------- */
+const IC={
+ palm:'<rect x="14" y="22" width="20" height="19" rx="7"/>',
+ open:'<rect x="14" y="22" width="20" height="19" rx="7"/><path d="M17 23 16 9M22 22 22 6M27 22 28 7M32 24 35 12M15 31 7 24"/>',
+ pinch:'<rect x="16" y="22" width="18" height="19" rx="7"/><path d="M27 22 28 15M31 24 34 18M20 23 13 12M17 33 9 15"/><circle cx="11" cy="13" r="2.6"/>',
+ V:'<rect x="15" y="22" width="19" height="19" rx="7"/><path d="M20 22 13 5M26 22 32 5M30 24 32 19M33 28 36 24M16 32 21 28"/>',
+ fist:'<rect x="13" y="18" width="22" height="23" rx="7"/><path d="M17 18c0-4 5-4 5 0M22 18c0-4 5-4 5 0M27 18c0-4 5-4 5 0M15 30h15"/>',
+ two:'<g transform="translate(-6 4) scale(.62)"><rect x="14" y="22" width="20" height="19" rx="7"/><path d="M17 23 16 9M22 22 22 6M27 22 28 7M32 24 35 12M15 31 7 24"/></g><g transform="translate(22 4) scale(.62)"><rect x="14" y="22" width="20" height="19" rx="7"/><path d="M17 23 16 9M22 22 22 6M27 22 28 7M32 24 35 12M33 31 41 24"/></g>',
+ touch:'<circle cx="24" cy="38" r="5"/><circle cx="24" cy="38" r="1.5"/><path d="M24 6v22M18 22l6 6 6-6"/>',
+ lift:'<circle cx="24" cy="41" r="3"/><path d="M24 36V8" stroke-dasharray="3 3"/><path d="M17 14l7-7 7 7"/>',
+ level:'<rect x="6" y="18" width="36" height="12" rx="6"/><circle cx="24" cy="24" r="3.5"/><path d="M18 14v-3M30 14v-3M18 34v3M30 34v3"/>',
+ floor:'<path d="M6 34h28l8-12H14z"/><circle cx="11" cy="31" r="1.4"/>',
+ laptop:'<rect x="11" y="7" width="26" height="19" rx="2"/><path d="M5 34h38l-5-8H10z"/><circle cx="24" cy="10" r="1.4"/>',
+ camera:'<rect x="8" y="14" width="32" height="22" rx="4"/><circle cx="24" cy="25" r="7"/><path d="M17 14l3-5h8l3 5"/>',
+ up:'<path d="M24 40V9M14 19l10-10 10 10"/>',
+ down:'<path d="M24 8v31M14 29l10 10 10-10"/>',
+ check:'<path d="M10 25l9 9 19-20"/>',
+ cross:'<path d="M13 13l22 22M35 13 13 35"/>'};
+const icon=(k,col,sz)=>'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="'+(sz||24)+'" height="'+(sz||24)+'" fill="none" stroke="'+(col||'currentColor')+'" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(IC[k]||'')+'</svg>';
+const ICIMG={};function iconImg(k,col){const key=k+col;if(!ICIMG[key]){const im=new Image();im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(icon(k,col,96));ICIMG[key]=im;}return ICIMG[key];}
+const GMAP={open:{ic:'open',where:'floor',main:'Open hand, flat',cam:'both'},pinch:{ic:'pinch',where:'floor',main:'Pinch',cam:'both'},Vflat:{ic:'V',where:'floor',main:'Two fingers, flat',cam:'B'},Vup:{ic:'V',where:'laptop',main:'Two fingers up',cam:'A'},
+ fist:{ic:'fist',where:'floor',main:'Fist',cam:'either'},palmFloor:{ic:'open',where:'floor',main:'Flat palm, still',cam:'both'},palmTop:{ic:'open',where:'laptop',main:'Palm standing, facing the laptop',cam:'A'}};
+const STEPIC={level:'level',camA:'laptop',floor:'lift',palms:'two',gest:'V'};
+/* what to do now: one icon, one line, where to do it, how far along */
+function cueOf(now){const step=LAUNCH.on?LSTEPS[LAUNCH.step]:null;if(!step)return null;const id=step.id;
+ if(id==='level'){const tl=floorTilt(),fresh=FLR.at&&now-FLR.at<1500;return {ic:'level',where:'floor',main:'Lay the Floor flat and still',sub:fresh?(tl>=4?'tilted '+tl+'°':FLR.mov?'moving':'level'):'waiting for the Floor\'s motion sensors',prog:LAUNCH.lv?Math.min(1,(now-LAUNCH.lv)/1000):0};}
+ if(id==='camA')return {ic:'laptop',where:'floor',main:'Finding the laptop camera',sub:FL.busy?'the Floor is flashing: keep it in the laptop camera\'s view':'',prog:0};
+ if(id==='floor'){const n=TCAL.dots.length,k=TCAL.checking?n:TCAL.k,lifting=LCUR&&LCUR.phase==='lift';return {ic:lifting?'lift':'touch',where:'floor',main:lifting?'Lift, still pinched; open at the top':TCAL.checking?'Check: touch the last dot':'Touch the lit dot with a pinch',sub:'dot '+Math.min(k+1,n+1)+' of '+(n+1),prog:k/(n+1)};}
+ if(id==='palms'){const band=RIGBAND||[18,30];return {ic:'two',where:'floor',main:'Both palms flat, still',sub:'about '+Math.round((band[0]+band[1])/2)+' cm above the Floor',prog:LAUNCH.held?Math.min(1,(now-LAUNCH.held)/2000):0};}
+ if(id==='gest'&&TEST.on&&TEST.steps[TEST.i]){const st=TEST.steps[TEST.i],g=GMAP[st.id]||{ic:'open',where:'floor',main:st.prompt},el=now-TEST.t0;
+  return {ic:g.ic,where:g.where,main:g.main,sub:(TEST.i+1)+' of '+TEST.steps.length+' · '+(TEST.phase==='ready'?'get ready':'hold'),prog:TEST.phase==='ready'?0:Math.min(1,el/CAP),cam:g.cam};}
+ return {ic:STEPIC[id]||'check',where:'floor',main:step.name,sub:'',prog:0};}
+/* what each camera reads right now */
+function camRead(c,now){const t=TR.find(x=>!x.ptr&&x.src[c]&&now-x.src[c].t<STALE);if(!t)return null;const s=t.src[c];return s.closed?'pinch':s.pose||'open';}
+let CUE=null;
+function drawCue(now){const box=$('#launch');if(!box||box.hidden)return;CUE=cueOf(now);
+ /* the five steps, as icons */
+ $('#lsteps').innerHTML=LSTEPS.map((s,k)=>{const r=LAUNCH.rows[k],cur=LAUNCH.on&&LAUNCH.step===k,st=r?r.st:cur?'run':'wait',col=st==='ok'?'#c4f46a':st==='warn'?'#efa13a':st==='fail'?'#e0483a':cur?'#ece6da':'#6b645b';return '<span class="ls '+st+'" title="'+s.name+(r?': '+r.text:'')+'">'+icon(STEPIC[s.id],col,22)+'</span>';}).join('');
+ const c=CUE,cardIc=$('#cueIc'),main=$('#cueMain'),sub=$('#cueSub'),wh=$('#cueWhere'),pr=$('#cueProg');
+ if(c){cardIc.innerHTML=icon(c.ic,'#ece6da',84);main.textContent=c.main;sub.textContent=c.sub||'';
+  wh.innerHTML=c.where==='laptop'?icon('laptop','#c4f46a',20)+'<span style="color:#c4f46a">toward the laptop camera</span>':icon('floor','#efa13a',20)+'<span style="color:#efa13a">over the Floor</span>';pr.style.width=Math.round((c.prog||0)*100)+'%';}
+ else{/* not running: either the start, or what happened */const bad=LAUNCH.rows.map((r,k)=>r&&r.st!=='ok'?{r,s:LSTEPS[k]}:null).filter(Boolean);
+  cardIc.innerHTML=icon(LAUNCH.rows.length?(bad.length?'cross':'check'):'lift',LAUNCH.rows.length?(bad.length?'#efa13a':'#c4f46a'):'#ece6da',84);
+  main.textContent=!LAUNCH.rows.length?'Launch':bad.length?bad.length+' step'+(bad.length>1?'s':'')+' to look at':'Launched';
+  sub.innerHTML=!LAUNCH.rows.length?'About a minute. Follow the big icon.':bad.map(({r,s})=>'<span class="bad">'+icon(STEPIC[s.id],r.st==='fail'?'#e0483a':'#efa13a',16)+' '+shortWhy(s.id,r)+'</span>').join('');
+  wh.innerHTML='';pr.style.width='0%';}
+ /* the two cameras: is the hand seen, and as what; the one this gesture needs is outlined */
+ const ra=camRead('A',now),rb=camRead('B',now),need=c&&c.cam;
+ $('#cueCams').innerHTML=[['A','laptop','#c4f46a',ra],['B','floor','#efa13a',rb]].map(([k,ic,col,r])=>'<span class="cc'+(need==='both'||need===k||need==='either'?' need':'')+(r?' on':'')+'" style="--c:'+col+'">'+icon(ic,r?col:'#6b645b',18)+'<b>'+(r?r.toUpperCase():'no hand')+'</b></span>').join('');
+ $('#lGo').hidden=LAUNCH.on;$('#lGo').textContent=LAUNCH.rows.length?'Again':'Start';$('#lSkip').hidden=!LAUNCH.on;$('#lOne').hidden=!(LAUNCH.on&&c&&LSTEPS[LAUNCH.step].id==='palms');$('#lSave').hidden=LAUNCH.on||!LAUNCH.rows.length;$('#lRig').hidden=LAUNCH.on||!LAUNCH.rows.some(r=>r&&r.id==='camA'&&r.st!=='ok');}
+function shortWhy(id,r){const t=r.text||'';if(id==='camA')return t.includes('lifts')?'laptop camera: found from lifts':'laptop camera: not found';if(id==='floor'){const m=t.match(/check touch (\d+) mm/);return 'lifts: check '+(m?m[1]+' mm':'not seen');}
+ if(id==='palms')return 'palms: '+(t.includes('did not')?'not seen by both':'recorded with gaps');if(id==='gest'){const m=t.match(/(\d+) of (\d+)/);return 'gestures: '+(m?m[1]+' of '+m[2]:'');}if(id==='level')return 'Floor: '+t.split(':')[0];return t;}
+
 /* ---------------- Launch: one checklist, about a minute; each line turns green only on evidence ---------------- */
 const LAUNCH={on:false,step:-1,rows:[],done:false,baseline:null,when:null,skip:false};
 const LSTEPS=[
@@ -612,16 +684,16 @@ const LRUN={
  async camA(){if(/[?&]sim\b/.test(location.search)||RUN){const g=geoFromImage(SIM.flash(.0015),4/3);setGeo(g,'simulated flash');lrow('camA','ok','found by the flash, '+g.res+' mm');return;}
   if(HND&&floors()){const ok=await flashReg({quiet:true});if(ok){lrow('camA','ok','found by the flash: '+GEO.A.res+' mm, '+Math.round(GEO.A.C[2]*100)+' cm up');return;}}
   if(rigFromStore('launch')||GEO.A&&GEO.A.src==='rig'){lrow('camA','warn','from the Rig, measured by hand: height is less certain');return;}
-  lrow('camA','fail',HND?'camera A cannot see the Floor and there is no Rig: open Rig, set the setup, press Use in Butter Pair':'camera A is off: press Camera A, then Launch');},
+  if(!HND&&!RUN){lrow('camA','fail','camera A is off: press Camera A, then Launch');return;}lrow('camA','warn','not seen by the flash and no Rig: it will be found from your lifts');},
  async floor(){TCAL.check=CENTER;TCAL.checkErr=null;LIFTS.length=0;BCAM.prior=null;startTcal();const r=await waitFor(()=>!TCAL.on&&!(LCUR&&LCUR.phase==='lift')?'done':null,RUN?40000:120000);TCAL.on=false;const e0=TCAL.checkErr;TCAL.check=null;
-  const cr=GEO.A&&r!=='skip'?calibSolve():null,e=cr&&cr.used&&cr.check_mm!=null?Math.round(cr.check_mm):e0;
+  const cr=r!=='skip'?calibSolve():null;if(cr&&cr.used&&cr.bootstrap)lrow('camA','ok','found from your lifts');const e=cr&&cr.used&&cr.check_mm!=null?Math.round(cr.check_mm):e0;
   if(r==='skip'){lrow('floor','warn','skipped'+(CAL.B?': using the map from before':''));return;}
   if(!(CAL.B&&CAL.B.src==='touch'))lrow('floor','fail','the Floor camera did not see the lifts: lift straight up, higher, still pinched');
   else if(e==null)lrow('floor','warn','map fitted; the check touch was not seen');
   else lrow('floor',e<=10?'ok':e<=20?'warn':'fail',(cr&&cr.used?'both cameras solved from '+cr.lifts+' lifts (fit '+cr.fit_mm.A+'/'+cr.fit_mm.B+' mm); laptop camera corrected '+cr.A_moved_mm+' mm, '+cr.A_turned_deg+'°':'map from '+TCAL.dots.length+' touches')+'; check touch '+e+' mm off',{checkErr:e,calib:cr});},
- async palms(){const band=RIGBAND||[18,30],hh=Math.round((band[0]+band[1])/2);LAUNCH.prompt='both hands flat, palms down, about '+hh+' cm above the Floor, still';LAUNCH.held=0;
+ async palms(){const band=RIGBAND||[18,30],hh=Math.round((band[0]+band[1])/2);LAUNCH.prompt='both hands flat, palms down, about '+hh+' cm above the Floor, still';LAUNCH.held=0;LAUNCH.pt0=performance.now();LAUNCH.oneHand=false;
   const r=await waitFor(()=>{const now=performance.now(),hs=TR.filter(t=>!t.ptr&&t.lostAt===null&&t.X&&t.src.A&&t.src.B&&now-t.src.A.t<450&&now-t.src.B.t<450&&/* a dropped frame or two does not restart the hold */!t.closed&&Math.hypot(t.vel.U,t.vel.V)<.06);
-   if(hs.length>=2||hs.length===1&&LAUNCH.oneHand){if(!LAUNCH.held)LAUNCH.held=now;if(now-LAUNCH.held>2000)return hs;}else LAUNCH.held=0;return null;},RUN?20000:40000);LAUNCH.prompt=null;
+   if(hs.length>=2||hs.length===1&&(LAUNCH.oneHand||performance.now()-LAUNCH.pt0>12000)){if(!LAUNCH.held)LAUNCH.held=now;if(now-LAUNCH.held>2000)return hs;}else LAUNCH.held=0;return null;},RUN?20000:40000);LAUNCH.prompt=null;
   if(r==='skip'||!r){lrow('palms',r==='skip'?'warn':'fail',r==='skip'?'skipped: no baseline recorded':'both cameras did not see two still flat hands');return;}
   const sig=c=>{const s=c.f;return {span:+s.span.toFixed(3),palm:+s.palm.toFixed(2),points:Math.round(s.comp*21),pose:c.pose};};
   const hands=r.sort((a,b)=>a.src.B.e.U-b.src.B.e.U).map(t=>({U:+t.X.U.toFixed(3),V:+t.X.V.toFixed(3),H:+t.X.H.toFixed(3),A:sig(t.src.A),B:sig(t.src.B),gate:t.gate!=null?Math.round(t.gate*1000):null,Aunder:t.src.A.e.U}));
@@ -630,9 +702,9 @@ const LRUN={
   LAUNCH.baseline={when:new Date().toISOString(),hands,gate_mm:hands.map(h=>h.gate).filter(x=>x!=null)};
   const gm=LAUNCH.baseline.gate_mm.length?Math.max(...LAUNCH.baseline.gate_mm):null;
   lrow('palms',!agree?'fail':gm!=null&&gm>gateTol()*1000?'warn':'ok',hands.length+' hand'+(hands.length>1?'s':'')+' recorded'+(gm!=null?'; laptop camera within '+gm+' mm of the Floor camera':'')+(agree?'':'; the cameras disagree which hand is left'),LAUNCH.baseline);},
- async gest(){testStart('gestures');const r=await waitFor(()=>!TEST.on?'done':null,60000);if(r==='skip'){TEST.on=false;lrow('gest','warn','skipped');return;}
+ async gest(){READY=2600;testStart('gestures');const r=await waitFor(()=>!TEST.on?'done':null,60000);READY=1800;if(r==='skip'){TEST.on=false;lrow('gest','warn','skipped');return;}
   const R=TEST.results||[],ok=R.filter(x=>x.ok).map(x=>x.id),bad=R.filter(x=>!x.ok).map(x=>x.id);lrow('gest',bad.length===0&&R.length===7?'ok':ok.length>=5?'warn':'fail',ok.length+' of '+R.length+' read by their camera'+(bad.length?'; not: '+bad.join(', '):''),{results:R.map(x=>({id:x.id,ok:x.ok,A:x.A&&x.A.reads,B:x.B&&x.B.reads}))});}};
-function drawLaunch(){const el=$('#lRows');if(!el)return;el.innerHTML=LSTEPS.map((s,k)=>{const r=LAUNCH.rows[k],cur=LAUNCH.on&&LAUNCH.step===k,st=r?r.st:cur?'run':'wait';
+function drawLaunch(){drawCue(performance.now());return;const el=$('#lRows');if(!el)return;el.innerHTML=LSTEPS.map((s,k)=>{const r=LAUNCH.rows[k],cur=LAUNCH.on&&LAUNCH.step===k,st=r?r.st:cur?'run':'wait';
   return '<div class="lr '+st+'"><i></i><div><b>'+s.name+'</b><span>'+(r?r.text:cur?(s.id==='palms'&&LAUNCH.prompt?LAUNCH.prompt:s.id==='floor'?'on the Floor: touch each dot with a pinch, lift straight up about a forearm, still pinched, open at the top; the last dot is the check':s.id==='gest'&&TEST.on&&TEST.steps[TEST.i]?(TEST.i+1)+'/7 · '+TEST.steps[TEST.i].prompt:'checking: '+s.owner):s.owner)+'</span></div></div>';}).join('');
  $('#lSkip').hidden=!LAUNCH.on;$('#lOne').hidden=!(LAUNCH.on&&LSTEPS[LAUNCH.step]&&LSTEPS[LAUNCH.step].id==='palms');$('#lGo').textContent=LAUNCH.on?'Running':LAUNCH.rows.length?'Launch again':'Start';$('#lGo').disabled=LAUNCH.on;
  $('#lSum').textContent=LAUNCH.on?'':LAUNCH.done?'Launched'+(LAUNCH.when?' at '+LAUNCH.when.slice(11,16):'')+': the system watches these checks from now on.':LAUNCH.rows.length?'Not every check passed: the system works, but says where it is unsure.':'';}
@@ -679,7 +751,7 @@ function onMsg(m){const now=performance.now();
 const packLm=lm=>lm.map(p=>[Math.round(p.x*1e4)/1e4,Math.round(p.y*1e4)/1e4]).flat(),unpackLm=a=>{const o=[];for(let i=0;i<a.length;i+=2)o.push({x:a[i],y:a[i+1]});return o;};
 function sceneOut(){if(!FLOOR)fsend({type:'scene',rev:SCENE.rev,scene:SCENE.bricks});}
 const RX={A:0,B:0,An:0,Bn:0};
-setInterval(()=>{if(FLOOR||(!ROOM&&!BC))return;fsend({type:'view',t:performance.now(),tracks:TR.map(t=>({id:t.id,ptr:!!t.ptr,X:t.X,live:t.live||[],lead:t.lead,state:t.state,closed:t.closed,grasp:t.grasp&&{brick:t.grasp.brick,pv:t.grasp.pv,from:t.grasp.from},target:t.target&&t.target.id})),cal:{on:CALF.on,k:CALF.k,ticks:CALF.ticks},rev:SCENE.rev,les:LDONE,constr:CONSTR&&CONSTR.kind,palms:TR.filter(t=>t.palm&&t.X).map(t=>({X:t.X,k:t.palm})),tcal:TCAL.on?(TCAL.checking?{k:0,dots:[TCAL.check],check:true}:{k:TCAL.k,dots:TCAL.dots}):null,health:HEALTH,lprompt:LAUNCH.on&&LAUNCH.prompt?LAUNCH.prompt:null,test:TEST.on&&TEST.steps[TEST.i]?{prompt:TEST.steps[TEST.i].prompt,dot:TEST.steps[TEST.i].dot||null,phase:TEST.phase,n:TEST.i+1,of:TEST.steps.length}:null,geo:GEO.A?(GEO.A.stale?'stale':'ok'):null,band:RIGBAND,aCam:GEO.A?{U:GEO.A.C[0],V:GEO.A.C[1],H:GEO.A.C[2],src:GEO.A.src||'flash'}:null,flashing:FL.busy});},70);
+setInterval(()=>{if(FLOOR||(!ROOM&&!BC))return;fsend({type:'view',t:performance.now(),tracks:TR.map(t=>({id:t.id,ptr:!!t.ptr,X:t.X,live:t.live||[],lead:t.lead,state:t.state,closed:t.closed,grasp:t.grasp&&{brick:t.grasp.brick,pv:t.grasp.pv,from:t.grasp.from},target:t.target&&t.target.id})),cal:{on:CALF.on,k:CALF.k,ticks:CALF.ticks},rev:SCENE.rev,les:LDONE,constr:CONSTR&&CONSTR.kind,palms:TR.filter(t=>t.palm&&t.X).map(t=>({X:t.X,k:t.palm})),cue:CUE&&LAUNCH.on?{ic:CUE.ic,where:CUE.where,main:CUE.main,sub:CUE.sub,prog:CUE.prog||0}:null,tcal:TCAL.on?(TCAL.checking?{k:0,dots:[TCAL.check],check:true}:{k:TCAL.k,dots:TCAL.dots}):null,health:HEALTH,lprompt:LAUNCH.on&&LAUNCH.prompt?LAUNCH.prompt:null,test:TEST.on&&TEST.steps[TEST.i]?{prompt:TEST.steps[TEST.i].prompt,dot:TEST.steps[TEST.i].dot||null,phase:TEST.phase,n:TEST.i+1,of:TEST.steps.length}:null,geo:GEO.A?(GEO.A.stale?'stale':'ok'):null,band:RIGBAND,aCam:GEO.A?{U:GEO.A.C[0],V:GEO.A.C[1],H:GEO.A.C[2],src:GEO.A.src||'flash'}:null,flashing:FL.busy});},70);
 setInterval(()=>{if(ROOM||BC)hello();},2500);
 
 /* ---------------- camera A on the laptop, camera B on the Floor: the same detector, the observations go to one model ---------------- */
@@ -847,15 +919,19 @@ function drawFloor(now){const cv=$('#cvF'),dpr=Math.min(2,devicePixelRatio||1),w
     if(!t.ptr){g.font=(11*dpr)+'px IBM Plex Mono';g.fillStyle=col;g.fillText((lost?'no camera':'seen by '+t.live.join('+')),x+22*dpr,y-8*dpr);}}}
   if(v.cal&&v.cal.on)[...CORN,CENTER].forEach((c,k)=>{const tk=v.cal.ticks&&v.cal.ticks[k],cur=k===v.cal.k;g.strokeStyle=tk&&(tk.A||tk.B)?'#c4f46a':cur?'#efa13a':'#ece6da';g.lineWidth=4*dpr;g.beginPath();g.arc(X(c.U),Y(c.V),24*dpr,0,7);g.stroke();g.fillStyle=g.strokeStyle;g.font='500 '+(14*dpr)+'px IBM Plex Mono';g.fillText(k<4?String(k+1):'C',X(c.U)-5*dpr,Y(c.V)+5*dpr);if(tk){g.font=(10*dpr)+'px IBM Plex Mono';g.fillText((tk.A?'A':'·')+(tk.B?'B':'·'),X(c.U)-8*dpr,Y(c.V)+40*dpr);}});}
  if(v&&v.tcal){v.tcal.dots.forEach((c,k)=>{const done=k<v.tcal.k,cur=k===v.tcal.k,x=X(c.U),y=Y(c.V);g.lineWidth=5*dpr;g.strokeStyle=done?'#c4f46a':cur?'#efa13a':'#6b645b';g.beginPath();g.arc(x,y,(cur?30+5*Math.sin(now/180):20)*dpr,0,7);g.stroke();if(done||cur){g.fillStyle=g.strokeStyle;g.beginPath();g.arc(x,y,7*dpr,0,7);g.fill();}});
-  g.font='500 '+(13*dpr)+'px IBM Plex Mono';g.fillStyle='#efa13a';g.textAlign='center';g.fillText(v.tcal.check?'CHECK: TOUCH THIS DOT WITH A PINCH · LIFT STRAIGHT UP · OPEN AT THE TOP':'TOUCH THE DOT WITH A PINCH · LIFT STRAIGHT UP, STILL PINCHED · OPEN AT THE TOP',w/2,oy-10*dpr);g.textAlign='left';}
- if(v&&v.test){const T=v.test;if(T.dot){const x=X(T.dot.U),y=Y(T.dot.V);g.lineWidth=5*dpr;g.strokeStyle=T.phase==='cap'?'#c4f46a':'#efa13a';g.beginPath();g.arc(x,y,(T.phase==='cap'?22:30+5*Math.sin(now/160))*dpr,0,7);g.stroke();g.fillStyle=g.strokeStyle;g.beginPath();g.arc(x,y,6*dpr,0,7);g.fill();}
+  g.font='500 '+(13*dpr)+'px IBM Plex Mono';g.fillStyle='#efa13a';g.textAlign='center';if(!v.cue)g.fillText(v.tcal.check?'CHECK: TOUCH THIS DOT WITH A PINCH · LIFT STRAIGHT UP · OPEN AT THE TOP':'TOUCH THE DOT WITH A PINCH · LIFT STRAIGHT UP, STILL PINCHED · OPEN AT THE TOP',w/2,oy-10*dpr);g.textAlign='left';}
+ if(v&&v.test&&!v.cue){const T=v.test;if(T.dot){const x=X(T.dot.U),y=Y(T.dot.V);g.lineWidth=5*dpr;g.strokeStyle=T.phase==='cap'?'#c4f46a':'#efa13a';g.beginPath();g.arc(x,y,(T.phase==='cap'?22:30+5*Math.sin(now/160))*dpr,0,7);g.stroke();g.fillStyle=g.strokeStyle;g.beginPath();g.arc(x,y,6*dpr,0,7);g.fill();}
   g.font='500 '+(13*dpr)+'px IBM Plex Mono';g.fillStyle=T.phase==='cap'?'#c4f46a':'#efa13a';g.textAlign='center';g.fillText(T.n+'/'+T.of+' · '+(T.phase==='cap'?'HOLD · ':'GET READY · ')+T.prompt.toUpperCase(),w/2,oy-10*dpr);g.textAlign='left';}
  else if(false){g.font='500 '+(13*dpr)+'px IBM Plex Mono';g.fillStyle='#efa13a';g.textAlign='center';g.fillText('MOVE YOUR OPEN HAND OVER THE FLOOR · THE LAPTOP CAMERA LEARNS FROM THIS ONE · '+v.alearn+'%',w/2,oy-10*dpr);g.textAlign='left';}
- if(v&&v.health){const hc=HCOL[v.health.k]||'#6b645b';g.strokeStyle=hc;g.lineWidth=6*dpr;g.strokeRect(3*dpr,3*dpr,w-6*dpr,h-6*dpr);g.font='500 '+(11.5*dpr)+'px IBM Plex Mono';g.fillStyle=hc;g.textAlign='center';g.fillText(HNAME[v.health.k]+' · '+v.health.text.toUpperCase(),w/2,h-12*dpr);g.textAlign='left';}
- if(v&&v.lprompt){g.font='500 '+(13*dpr)+'px IBM Plex Mono';g.fillStyle='#efa13a';g.textAlign='center';g.fillText('LAUNCH · '+v.lprompt.toUpperCase(),w/2,oy-10*dpr);g.textAlign='left';}
+ if(v&&v.health&&!v.cue){const hc=HCOL[v.health.k]||'#6b645b';g.strokeStyle=hc;g.lineWidth=6*dpr;g.strokeRect(3*dpr,3*dpr,w-6*dpr,h-6*dpr);g.font='500 '+(11.5*dpr)+'px IBM Plex Mono';g.fillStyle=hc;g.textAlign='center';g.fillText(HNAME[v.health.k]+' · '+v.health.text.toUpperCase(),w/2,h-12*dpr);g.textAlign='left';}
+ if(v&&v.cue){const c=v.cue,big=Math.min(96*dpr,h*.24),cx=w/2,dot=v.tcal?v.tcal.dots[v.tcal.k]:v.test&&v.test.dot,aUp=dot?Y(dot.V)<h/2:(!v.aCam||Y(v.aCam.V)<Y(D/2)),top=aUp?h-big-58*dpr-10*dpr:10*dpr,/* away from the lit dot first, then away from camera A */col=c.where==='laptop'?'#c4f46a':'#ece6da';g.fillStyle='#0b0a09d9';const bw=Math.min(w-20*dpr,520*dpr),bh=big+58*dpr;g.fillRect(cx-bw/2,top,bw,bh);g.strokeStyle=c.where==='laptop'?'#c4f46a':'#efa13a';g.lineWidth=2*dpr;g.strokeRect(cx-bw/2,top,bw,bh);
+  const im=iconImg(c.ic,col);if(im.complete&&im.naturalWidth)g.drawImage(im,cx-bw/2+12*dpr,top+8*dpr,big,big);const tx=cx-bw/2+big+28*dpr;g.textAlign='left';g.fillStyle=c.where==='laptop'?'#c4f46a':'#efa13a';g.font='500 '+(11*dpr)+'px IBM Plex Mono';g.fillText(c.where==='laptop'?'TOWARD THE LAPTOP CAMERA':'OVER THIS PHONE',tx,top+24*dpr);
+  g.fillStyle='#ece6da';g.font='500 '+(17*dpr)+'px IBM Plex Mono';g.fillText(c.main,tx,top+50*dpr,bw-big-40*dpr);g.fillStyle='#b3ab9e';g.font=(12*dpr)+'px IBM Plex Mono';g.fillText(c.sub||'',tx,top+72*dpr,bw-big-40*dpr);g.fillStyle='#2e2a26';g.fillRect(cx-bw/2,top+bh-4*dpr,bw,4*dpr);g.fillStyle='#ece6da';g.fillRect(cx-bw/2,top+bh-4*dpr,bw*(c.prog||0),4*dpr);
+  if(c.where==='laptop'&&v.aCam){const a=v.aCam,dx=X(a.U)-X(W/2),dy=Y(a.V)-Y(D/2),L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,ax=cx+ux*(Math.min(w,h)*.3),ay=h/2+uy*(Math.min(w,h)*.3);const ui=iconImg('up','#c4f46a');if(ui.complete&&ui.naturalWidth){g.save();g.translate(ax,ay);g.rotate(Math.atan2(uy,ux)+Math.PI/2);g.drawImage(ui,-40*dpr,-40*dpr,80*dpr,80*dpr);g.restore();}}}
+ else if(v&&v.lprompt){g.font='500 '+(13*dpr)+'px IBM Plex Mono';g.fillStyle='#efa13a';g.textAlign='center';g.fillText('LAUNCH · '+v.lprompt.toUpperCase(),w/2,oy-10*dpr);g.textAlign='left';}
  else if(v&&v.band&&!v.test&&!v.tcal){g.font='500 '+(12*dpr)+'px IBM Plex Mono';g.fillStyle='#ece6da';g.textAlign='center';g.fillText('BOTH CAMERAS SEE YOUR HAND '+v.band[0]+'–'+v.band[1]+' CM ABOVE THIS PHONE',w/2,oy-10*dpr);g.textAlign='left';}
  /* where camera A is: an arrow on the edge of the bed pointing at it, with its distance and height */
- if(v&&v.aCam){const a=v.aCam,cx=X(W/2),cy=Y(D/2),dx=X(a.U)-cx,dy=Y(a.V)-cy,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,hw=cs*COLS/2,hh=cs*ROWS/2,k=Math.min(Math.abs(ux)>1e-6?hw/Math.abs(ux):1e9,Math.abs(uy)>1e-6?hh/Math.abs(uy):1e9),ex=cx+ux*k,ey=cy+uy*k;
+ if(v&&v.aCam&&!v.cue){const a=v.aCam,cx=X(W/2),cy=Y(D/2),dx=X(a.U)-cx,dy=Y(a.V)-cy,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,hw=cs*COLS/2,hh=cs*ROWS/2,k=Math.min(Math.abs(ux)>1e-6?hw/Math.abs(ux):1e9,Math.abs(uy)>1e-6?hh/Math.abs(uy):1e9),ex=cx+ux*k,ey=cy+uy*k;
   g.strokeStyle='#c4f46a';g.fillStyle='#c4f46a';g.lineWidth=3*dpr;g.beginPath();g.moveTo(ex-ux*26*dpr,ey-uy*26*dpr);g.lineTo(ex,ey);g.stroke();g.beginPath();g.moveTo(ex+ux*4*dpr,ey+uy*4*dpr);g.lineTo(ex-ux*10*dpr-uy*7*dpr,ey-uy*10*dpr+ux*7*dpr);g.lineTo(ex-ux*10*dpr+uy*7*dpr,ey-uy*10*dpr-ux*7*dpr);g.closePath();g.fill();
   const t='CAMERA A · '+Math.round(Math.hypot(a.U-W/2,a.V-D/2)*100)+' cm away, '+Math.round(a.H*100)+' cm up'+(a.src==='rig'?' (rig)':'');g.font='500 '+(11*dpr)+'px IBM Plex Mono';const tw=g.measureText(t).width;g.fillStyle='#0b0a09cc';const tx=clamp(ex-tw/2,4*dpr,w-tw-4*dpr),ty=clamp(ey+(uy<0?30:-30)*dpr,14*dpr,h-6*dpr);g.fillRect(tx-4*dpr,ty-12*dpr,tw+8*dpr,16*dpr);g.fillStyle='#c4f46a';g.fillText(t,tx,ty);}
  /* witness: what the laptop's camera sees, and where it found this Floor */
@@ -884,7 +960,7 @@ function imuStart(){if(IMU.on)return;IMU.on=true;addEventListener('deviceorienta
 /* ---------------- wiring ---------------- */
 function loop(){const now=performance.now();
  if(!FLOOR){if(RUN){const t=(now-RUN.t0)/1000;if(t>RUN.sc.dur){const nx=RUN.next.shift();if(nx){RUN={sc:SIM.SCRIPTS[nx](),t0:now,name:nx,next:RUN.next,last:null};SCENE={rev:SCENE.rev+1,bricks:startBricks()};sceneOut();if(nx==='calibrate')calStart();if(nx==='tapcal')startTcal();log('demo: '+nx);}else{RUN=null;$('#sim').hidden=true;log('demo finished');}}else{const dt=1/30;RUN.last=RUN.last==null?-dt:RUN.last;while(RUN.last+dt<=t){RUN.last+=dt;simStep(RUN.sc,RUN.last);}}}
-  else{liftTick(now);if(REPLAY){const t=now-REPLAY.t0;while(REPLAY.i<REPLAY.ev.length&&REPLAY.ev[REPLAY.i].t<=t)play(REPLAY.ev[REPLAY.i++],now);if(REPLAY.i>=REPLAY.ev.length){REPLAY=null;log('replay finished');}}fuse(now);calTick(now);}HEALTH=healthOf(now);if(TCAL.waitCheck&&TCAL.on&&now-TCAL.waitCheck>1800){TCAL.on=false;TCAL.checking=false;}draw3();inspect(now);scopeTick(now);drawHealth();if(LAUNCH.on&&now-(LAUNCH.drawn||0)>250){LAUNCH.drawn=now;drawLaunch();}}
+  else{liftTick(now);if(REPLAY){const t=now-REPLAY.t0;while(REPLAY.i<REPLAY.ev.length&&REPLAY.ev[REPLAY.i].t<=t)play(REPLAY.ev[REPLAY.i++],now);if(REPLAY.i>=REPLAY.ev.length){REPLAY=null;log('replay finished');}}fuse(now);calTick(now);}HEALTH=healthOf(now);if(TCAL.waitCheck&&TCAL.on&&now-TCAL.waitCheck>1800){TCAL.on=false;TCAL.checking=false;}draw3();inspect(now);scopeTick(now);drawHealth();if(!$('#launch').hidden&&now-(LAUNCH.drawn||0)>120){LAUNCH.drawn=now;drawCue(now);}}
  else drawFloor(now);requestAnimationFrame(loop);}
 function newCode(){const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789',r=crypto.getRandomValues(new Uint8Array(5));return [...r].map(x=>A[x%A.length]).join('');}
 async function loadScript(u){await new Promise((ok,no)=>{const e=document.createElement('script');e.src=u;e.onload=ok;e.onerror=no;document.head.append(e);});}
@@ -894,7 +970,7 @@ if(!FLOOR){
  $('#camB').onclick=async()=>{if(HND){HND.stop();HND=null;return;}try{$('#camB').textContent='Starting';HND=await startCam(onFrameA);if(SCOPE.on)scopeToggle(true);RTC.want=1;}catch(e){toast('Camera A did not start: '+(e.message||e),5000);}$('#camB').textContent='Camera A';};
  $('#floorB').onclick=()=>{if(!ROOM){let c=null;try{c=localStorage.getItem('butter-pair-room');}catch(e){}joinRoom(c||newCode());try{localStorage.setItem('butter-pair-room',ROOM);}catch(e){}}const u=location.origin+location.pathname+'?floor&room='+ROOM;$('#roomC').textContent=ROOM;$('#qrU').textContent=u;$('#pop').hidden=false;
   loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js').then(()=>{$('#qrC').innerHTML='';new QRCode($('#qrC'),{text:u,width:180,height:180});}).catch(()=>{$('#qrC').textContent='no QR here: type the code';});};
- $('#popX').onclick=()=>$('#pop').hidden=true;$('#scopeB').onclick=()=>scopeToggle();$('#tPos').onclick=()=>{if(!floors()&&!RUN)toast('The position test lights dots on the Floor: link a Floor first');testStart('positions');};$('#tGes').onclick=()=>testStart('gestures');$('#tSave').onclick=testSave;$('#tStop').onclick=()=>{TEST.on=false;$('#tMsg').textContent='';};$('#launchB').onclick=()=>{$('#launch').hidden=false;drawLaunch();};$('#lGo').onclick=()=>launchRun();$('#lSkip').onclick=()=>{LAUNCH.skip=true;};$('#lOne').onclick=()=>{LAUNCH.oneHand=true;};$('#lSave').onclick=launchSave;$('#lClose').onclick=()=>{$('#launch').hidden=true;};
+ $('#popX').onclick=()=>$('#pop').hidden=true;$('#scopeB').onclick=()=>scopeToggle();$('#tPos').onclick=()=>{if(!floors()&&!RUN)toast('The position test lights dots on the Floor: link a Floor first');testStart('positions');};$('#tGes').onclick=()=>testStart('gestures');$('#tSave').onclick=testSave;$('#tStop').onclick=()=>{TEST.on=false;$('#tMsg').textContent='';};$('#launchB').onclick=()=>{const l=$('#launch');l.hidden=!l.hidden;drawCue(performance.now());};$('#lGo').onclick=()=>launchRun();$('#lSkip').onclick=()=>{LAUNCH.skip=true;};$('#lOne').onclick=()=>{LAUNCH.oneHand=true;};$('#lSave').onclick=launchSave;$('#lClose').onclick=()=>{$('#launch').hidden=true;};
  $('#moreB').onclick=()=>{const m=$('#more');m.hidden=!m.hidden;$('#moreB').setAttribute('aria-expanded',String(!m.hidden));};
  const calOld=async()=>{if(floors()){if(HND)await flashReg({quiet:true});startTcal();}else{if(!floors())toast('No Floor linked: calibrating by pinching the corners instead. With a Floor, it flashes and you touch.',5000);calStart();}};
  $('#recB').onclick=()=>{recToggle();$('#recB').textContent=REC.on?'Stop and save':'Record';$('#recB').classList.toggle('warn',REC.on);};
@@ -922,7 +998,7 @@ if(!FLOOR){
  $('#flRoomF').onsubmit=e=>{e.preventDefault();const c=$('#flCode').value.trim().toUpperCase();if(c.length<4)return;$('#flRoom').hidden=true;joinRoom(c);hello();};
  hello();}
 requestAnimationFrame(loop);
-window.BP={get CONSTR(){return CONSTR;},get R3(){return R3;},get LOG(){return LOG;},get MQ(){return MQ;},get TR(){return TR;},get SCENE(){return SCENE;},get CAL(){return CAL;},CALF,XF,BIAS,HIST,SIM,measure,resetModel,calStart,simStep,ingest,fuse,pointerHand,command,apply,cancelAll,feat,estA,estB,get RUN(){return RUN;},set RUN(v){RUN=v;},LDONE,floors,joinRoom,fsend,get FV(){return FV;},packLm,startBricks,get GEO(){return GEO;},BCAM,LIFTS,calibSolve,_cal:{calRes:(...a)=>calRes(...a),lm:(...a)=>lm(...a),bAxes:(...a)=>bAxes(...a)},meet,rayA,rayB,LAUNCH,LRUN,launchRun,get HEALTH(){return HEALTH;},healthOf,triH,ROLES,rigLoad,rigFromStore,TEST,SCOPE,APAIRS,RTC,testStart,scopeToggle,fitAfromB,rtcLive,get HND(){return HND;},set HND(v){HND=v;},set GEO(v){GEO=v;},TCAL,BPAIRS,FLR,FL,TH,REC,get REPLAY(){return REPLAY;},geoFromImage,setGeo,projA,rayToPlane,findDot,floorTouch,imuIn,replay,recToggle,startTcal,fitB,regText,floorTilt,
+window.BP={get CONSTR(){return CONSTR;},get R3(){return R3;},get LOG(){return LOG;},get MQ(){return MQ;},get TR(){return TR;},get SCENE(){return SCENE;},get CAL(){return CAL;},CALF,XF,BIAS,HIST,SIM,measure,resetModel,calStart,simStep,ingest,fuse,pointerHand,command,apply,cancelAll,feat,estA,estB,get RUN(){return RUN;},set RUN(v){RUN=v;},LDONE,floors,joinRoom,fsend,get FV(){return FV;},packLm,startBricks,get GEO(){return GEO;},cueOf,bootstrapA,get CUE(){return CUE;},BCAM,LIFTS,calibSolve,_cal:{calRes:(...a)=>calRes(...a),lm:(...a)=>lm(...a),bAxes:(...a)=>bAxes(...a)},meet,rayA,rayB,LAUNCH,LRUN,launchRun,get HEALTH(){return HEALTH;},healthOf,triH,ROLES,rigLoad,rigFromStore,TEST,SCOPE,APAIRS,RTC,testStart,scopeToggle,fitAfromB,rtcLive,get HND(){return HND;},set HND(v){HND=v;},set GEO(v){GEO=v;},TCAL,BPAIRS,FLR,FL,TH,REC,get REPLAY(){return REPLAY;},geoFromImage,setGeo,projA,rayToPlane,findDot,floorTouch,imuIn,replay,recToggle,startTcal,fitB,regText,floorTilt,
  setCal(c){CAL=c;},reset(){SCENE={rev:SCENE.rev+1,bricks:startBricks()};HIST.length=0;REDO.length=0;sceneOut();}};
 </script>
 </body>
