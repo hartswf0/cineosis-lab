@@ -20,7 +20,7 @@ with sync_playwright() as p:
     L=lambda s:lap.evaluate(s);F=lambda s:fl.evaluate(s)
     L(FAKE);lap.wait_for_timeout(800)
     log('linked',floors=L("BP.floors()"),video=L("document.querySelector('#vidA').videoWidth"))
-    t0=time.time();lap.click('#calB')
+    t0=time.time();lap.evaluate("(async()=>{await BP.LRUN.camA();BP.startTcal();})()")
     # watch the Floor go dark and light its dots
     shots=0
     for i in range(80):

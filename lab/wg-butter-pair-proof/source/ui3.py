@@ -9,10 +9,7 @@ with sync_playwright() as p:
     b=p.chromium.launch(args=['--use-angle=swiftshader','--enable-unsafe-swiftshader','--autoplay-policy=no-user-gesture-required']);ctx=b.new_context(viewport={'width':1280,'height':860})
     ctx.route('**/three.min.js',lambda r:r.fulfill(path=T128,content_type='text/javascript'))
     pg=ctx.new_page();pg.on('pageerror',lambda e:errs.append(str(e)));pg.goto(U+'?sim');pg.wait_for_timeout(1800);E=lambda s:pg.evaluate(s)
-    # 1. small space: no flash. Touch-and-lift gives B its map; then the hand moves about and A learns from B
-    log('small space calibration',**E("""(()=>{BP.resetModel();BP.reset();BP.CAL.A=null;BP.CAL.B=null;BP.CAL.rev=0;BP.GEO={A:null,rev:BP.GEO.rev+1,L:.09,Ln:0,Lsum:0};BP.BPAIRS.length=0;BP.APAIRS.length=0;
-      BP.startTcal();BP.measure('tapcal');const Bmap=BP.CAL.B&&BP.CAL.B.src;BP.resetModel();BP.measure('path');BP.resetModel();BP.measure('path',{seed:11});const Amap=BP.CAL.A&&BP.CAL.A.src;
-      const r={B_map:Bmap,A_map:Amap,pairs:BP.APAIRS.length};BP.resetModel();r.A_only=BP.measure('path',{mask:{A:true,B:false}}).rms_mm;BP.resetModel();r.B_only=BP.measure('path',{mask:{A:false,B:true}}).rms_mm;BP.resetModel();r.both=BP.measure('path').rms_mm;BP.resetModel();const h=BP.measure('handoff');r.handoff={tracks:h.track_ids,commands:h.commands,max_jump_mm:h.max_jump_mm};BP.resetModel();BP.reset();const g=BP.measure('gestures');r.gestures=g.commands;r.reg=BP.regText(performance.now());return r;})()"""))
+    E("(()=>{BP.resetModel();BP.reset();BP.CAL.B=null;BP.BPAIRS.length=0;BP.setGeo(BP.geoFromImage(BP.SIM.flash(.0015),4/3),'test');BP.startTcal();BP.measure('tapcal');})()")
     # 2. the tests, with a simulated hand acting out each prompt in real time
     def script(kind):
         return E("""(kind=>{const W=.15,D=.075,H0=BP.SIM.H0,st=1.8+2.0,K=[],pc=[];const steps=BP.TEST.steps;let t=0;
@@ -23,7 +20,7 @@ with sync_playwright() as p:
     def runtest(kind):
         E("""(kind=>{BP.resetModel();BP.reset();BP.scopeToggle(true);BP.testStart(kind);const W=.15,D=.075,H0=BP.SIM.H0,st=1.8+2.0,K=[],pc=[];
           BP.TEST.steps.forEach((s,k)=>{const t0=k*st;let P=[W/2,D/2,H0],closed=false,pose,orient;if(s.dot){P=[s.dot.U,s.dot.V,H0];closed=true;}
-            if(s.id==='pinch')closed=true;if(s.id==='Vflat'||s.id==='Vup'){pose='V';pc.push([t0,t0+st,s.id==='Vflat'?'B':'A']);}if(s.id==='fist')pose='fist';if(s.id==='palmTop'){orient='wall';P=[W*.55,D*.95,.26];}
+            if(s.id==='pinch')closed=true;if(s.id==='Vflat'||s.id==='Vup'){pose='V';pc.push([t0,t0+st,s.id==='Vflat'?'B':'A']);}if(s.id==='fist')pose='fist';if(s.id==='palmTop'){orient='wall';P=[W*.55,D*.9,.23];}
             K.push({t:t0+.05,P:k?K[K.length-1].P:P,closed:false,pose:k?K[K.length-1].pose:pose,orient:k?K[K.length-1].orient:orient});K.push({t:t0+.8,P,closed,pose,orient});K.push({t:t0+st-.02,P,closed,pose,orient});});
           BP.RUN={sc:{dur:BP.TEST.steps.length*st+.5,hands:[K],poseCam:{V:pc}},t0:performance.now(),name:'test-'+kind,next:[],last:null};})('"""+kind+"""')""")
         shot=False
@@ -34,7 +31,7 @@ with sync_playwright() as p:
         pg.wait_for_timeout(300);pg.screenshot(path=OUT+'/scope-'+kind+'-report.png')
         rs=E("BP.TEST.report&&BP.TEST.report.results")
         return [{k:r[k] for k in ('id','ok')}|{'A':r['A'],'B':r['B'],'one':r['one']} for r in rs] if rs else None
-    log('position test (small-space calibration)',results=runtest('positions'))
+    log('position test',results=runtest('positions'))
     log('gesture test',results=runtest('gestures'))
     E("BP.RUN=null")
     # 3. live video both ways: two windows, each with a synthetic camera

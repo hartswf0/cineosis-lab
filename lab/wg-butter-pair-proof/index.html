@@ -29,10 +29,36 @@ ul,ol{padding-left:20px;max-width:76ch}li{margin:4px 0}code{background:var(--pan
 <h1>Two cameras watch one hand, and one model holds the brick</h1>
 <p class="lead">The laptop's camera faces you. The phone's camera lies on the table and faces up. Each sees the same hand differently, and each is good at different things. One model on the laptop combines what both see into hands that keep their identity, whichever camera can see them. The grasp belongs to the hand, not to a camera: a brick held while camera A sees you is still held when only camera B does. If neither sees you, it waits.</p>
 <div class="btns"><a class="pri" href="../wg-butter-pair.html">Open Butter Pair</a><a href="../wg-butter-pair-rig.html">Model your setup (Rig)</a><a href="../wg-butter-pair-review/">Engineering review: making the cameras see each other</a><a href="../wg-butter-pair.html?demo">Run the demo (simulated cameras)</a><a href="pair.json">Measurements</a><a href="../wg-lego-two-screens/">The wireframes it came from</a></div>
-<p class="note">On the laptop, press Camera A, then Floor. On the phone, open <code>wg-butter-pair.html?floor</code>, type the code and press Start. Lay the phone flat, screen up, in front of the laptop. Press Calibrate: if the laptop camera can see the phone it flashes; then touch three dots and lift; then move your open hand over the Floor until it says 100%. Press Scope to see both cameras and run the tests.</p>
+<p class="note">On the laptop, press Camera A, then Floor. On the phone, open <code>wg-butter-pair.html?floor</code>, type the code and press Start. Lay the phone flat, screen up, in front of the laptop. Press Launch and follow the five lines. Press Scope to see both cameras and run the tests.</p>
 
+<div class="note" style="border:1px solid #efa13a;border-radius:6px;padding:10px 12px;color:#ece6da;margin:18px 0">Every number on this page comes from simulated cameras or synthetic pictures. There are no results from real devices yet. The acceptance tests in the <a href="../wg-butter-pair-review/#tests">review</a> are the first real ones.</div>
 <h2>What was wrong before</h2>
 <p>The LEGO page was wireframes, so nothing could be built on it. The film editor passed a held figure from one device to the other, but the two cameras never made one model of the hand. Each camera's hand was a separate cursor, and the hand-off was a message saying "the Floor caught it". Nothing chose the camera with the better view, and nothing combined the two views to see the hand better than either one does alone.</p>
+
+<h2>Build 1: roles, one health state, Launch</h2>
+<p>From the <a href="../wg-butter-pair-review/">engineering review</a>. Nothing is averaged across a disagreement, and the hand is never the ruler.</p>
+<ul>
+<li><b>Roles per axis.</b> Depth (toward the laptop) comes from the Floor camera only: the laptop camera looks along that axis and sees it worst. Height comes from the laptop camera's line of sight to the pinch, cut by the vertical line above the Floor camera's point: no guess about hand size. Left/right is across both cameras' lines of sight, so both are combined, but only while the check passes.</li>
+<li><b>The check.</b> The laptop camera's line of sight must pass within 30 mm of the Floor camera's point (45 mm when camera A is placed from the Rig). Outside that for 0.3 s, the laptop camera is set aside and the state says by how much; back inside for 1 s, it returns.</li>
+<li><b>One health state</b> on both screens, as a coloured frame and one line: NOMINAL, FLOOR ONLY, LAPTOP ONLY, FLOOR MOVED, SAFE.</li>
+<li><b>Laptop camera only: a confirming pinch.</b> Opening the pinch where only the laptop camera sees the hand holds the brick; a second pinch and open there places it.</li>
+<li><b>Launch</b> replaces Calibrate: Floor level and still; camera A located (flash, else the Rig); Floor camera map from three touches plus a fourth check touch not used in the fit; both palms flat, recorded as the baseline, with a check that both cameras agree which hand is left; each gesture by its camera. Each line is green, orange or red on evidence, kept, and can be saved.</li>
+<li><b>Cut:</b> camera A learning its map from camera B; camera B learning its map from camera A; corner pinches in the interface; Demo, Redo and Reset moved under More; the camera panels folded under the health state.</li>
+</ul>
+<div class="wrap"><table><tr><th>Check (simulated)</th><th>Result</th></tr>
+<tr><td>Launch end to end, a simulated hand acting out each step</td><td class="good">all five lines green; check touch 3 mm; two palms recorded; 7 of 7 gestures</td></tr>
+<tr><td>The check with a correct pose, five scripts</td><td class="good">0 false alarms</td></tr>
+<tr><td>Camera A believed 5° off</td><td class="good">set aside ("misses by 63 mm"); state FLOOR ONLY</td></tr>
+<tr><td>Camera A from a Rig 3° and 2 cm off</td><td>0 false alarms; height error about 20.8 mm (left/right 6.8, depth 8.3)</td></tr>
+<tr><td>Health states: both / laptop only / Floor only</td><td class="good">NOMINAL / LAPTOP ONLY / FLOOR ONLY, each with its reason</td></tr>
+<tr><td>Laptop camera only: open the pinch</td><td class="good">held, not placed; a second pinch and open placed it</td></tr>
+</table></div>
+<div class="wrap"><table><tr><th>Script, correct pose (simulated)</th><th>left/right / depth / height</th></tr><tr><td>path</td><td>4.5 / 8.6 / 5.4 mm</td></tr><tr><td>handoff</td><td>8.1 / 4.7 / 19.6 mm</td></tr><tr><td>blackout</td><td>3.1 / 1 / 4.9 mm</td></tr><tr><td>gestures</td><td>2.5 / 2 / 5.8 mm</td></tr><tr><td>palms</td><td>3.3 / 1.8 / 5.2 mm</td></tr></table></div>
+<p class="note">The check's threshold was set from measurement: with a correct pose the two cameras' pinch points sit 6–17 mm apart (each sees the thumb-index gap from its own side), up to 27 mm; a 5° error misses by 46–64 mm. Script: <a href="source/launch.py">launch.py</a>. Data: <a href="launch.json">launch.json</a>.</p>
+<div class="grid">
+<figure><img src="shots/launch-done.jpg" alt="Launch checklist, all green"><figcaption>Launch, all five lines green.</figcaption></figure>
+<figure><img src="shots/launch-palms.jpg" alt="Launch at the palms step with the health state NOMINAL"><figcaption>The palms step running; the health state on the right.</figcaption></figure>
+</div>
 
 <h2>The rig: the setup, modelled to scale</h2>
 <p>Neither device knew where the other was, or which way the laptop camera pointed, so the working space could not be pictured. The <a href="../wg-butter-pair-rig.html">Rig page</a> models the physical setup in 3D: the Floor phone, the laptop with its screen angle and the camera at the top of it, or a camera on a wall or stand instead. It draws each camera's field of view and a grid of hand positions, coloured by who would see a whole hand there: white for both cameras, lime for the laptop camera only, orange for the Floor camera only. Below it are what each camera sees from where the model puts it. Press Camera A to put the laptop's live picture under its modelled view; when the drawn Floor sits on the real one, the model is right.</p>
