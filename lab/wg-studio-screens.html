@@ -17,13 +17,15 @@
   }
   * {
     box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important;
-    scrollbar-width: thin;
-    scrollbar-color: #33ff77 #020804;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
   }
-  *::-webkit-scrollbar { height: 5px; width: 5px; background: #020804; }
-  *::-webkit-scrollbar-track { background: #020804; border-top: 1px solid #0f381d; }
-  *::-webkit-scrollbar-thumb { background: #269952; }
-  *::-webkit-scrollbar-thumb:hover { background: #33ff77; }
+  *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+  }
 
   html, body {
     width: 100%; height: 100%; overflow: hidden;
@@ -310,11 +312,15 @@ slitCanvas.width = 360; slitCanvas.height = 36;
 const slitCtx = slitCanvas.getContext('2d');
 
 async function init() {
-  const res = await fetch('wargames-screens-program.json');
+  const res = await fetch('wargames-screens-program.json?v=3');
   const data = await res.json();
   SCREENS = data.screen_states || [];
   renderWall();
   setupScrub();
+  const w = document.getElementById('wall68');
+  w.addEventListener('wheel', e => {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { e.preventDefault(); w.scrollLeft += e.deltaY; }
+  }, { passive: false });
   if (SCREENS.length) selectScreen(0);
   requestAnimationFrame(loop);
 }
