@@ -13,13 +13,17 @@
   }
   .app {
     display: grid;
-    grid-template-rows: 1fr 42px 58px;
+    grid-template-rows: 1fr 78px 66px;
     width: 100vw; height: 100vh;
     background: #061c0d; gap: 1px;
   }
-  .stage {
+
+  /* ROW 1: 12 SIMULTANEOUS WATCHABLE SCREENS
+     - LEFT: 1983 MASTER + 3D WORM PRISM
+     - RIGHT: 5x2 WALL OF ALL 10 MONTAGE CUTS PLAYING AT ONCE */
+  .top-stage {
     display: grid;
-    grid-template-columns: 1fr 1.25fr 1fr;
+    grid-template-columns: 1fr 1.1fr 1.75fr;
     gap: 1px; background: #061c0d;
     min-height: 0; overflow: hidden;
   }
@@ -41,75 +45,111 @@
   }
   #prismCanvas:active { cursor: grabbing; }
 
-  /* 10-CUT VISUAL DOT SWITCHER */
-  .cut-dots {
-    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
-    z-index: 20; display: flex; gap: 6px; padding: 4px 8px;
-    background: rgba(0,0,0,0.65); border: 1px solid #19522b;
+  /* 5x2 SIMULTANEOUS 10-CUT VIDEO WALL */
+  .wall-10 {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 1px; background: #061c0d;
+    min-height: 0; overflow: hidden;
   }
-  .dot {
-    width: 11px; height: 11px; background: #0d381b; border: 1px solid #33ff77;
-    cursor: pointer;
+  .cut-cell {
+    position: relative; background: #000; overflow: hidden;
+    cursor: pointer; border: 1px solid transparent;
   }
-  .dot.on { background: #ffb000; border-color: #ffb000; transform: scale(1.2); }
+  .cut-cell.active {
+    border: 2px solid #ffb000;
+    z-index: 5;
+  }
+  .cut-cell video, .cut-cell img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .cut-cell svg {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 6;
+  }
 
-  /* TINY SOUND ICON DOT */
+  /* TINY SOUND ICON */
   .snd-dot {
     position: absolute; top: 8px; right: 8px; z-index: 25;
-    width: 24px; height: 24px; background: rgba(0,0,0,0.7);
+    width: 26px; height: 26px; background: rgba(0,0,0,0.75);
     border: 1px solid #33ff77; display: flex; align-items: center; justify-content: center;
     cursor: pointer;
   }
-  .snd-dot.on { border-color: #00e5ff; background: rgba(0,229,255,0.2); }
+  .snd-dot.on { border-color: #00e5ff; background: rgba(0,229,255,0.22); }
 
-  /* TOMOGRAPHY + KALMUS ROW */
-  .tomo-row {
-    display: grid; grid-template-columns: 1fr 1fr 1fr;
+  /* ROW 2: 8 WATCHABLE SUB-FRAMES (f1..f8) OF THE CURRENT SHOT */
+  .strip-8 {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
     gap: 1px; background: #061c0d;
+    min-height: 0; overflow: hidden;
   }
-  .tomo-cell { position: relative; background: #000; overflow: hidden; cursor: pointer; }
-  .tomo-cell canvas { width: 100%; height: 100%; display: block; }
-  .kalmus-stack { display: flex; flex-direction: column; width: 100%; height: 100%; }
-  .kalmus-bar { flex: 1; display: grid; grid-template-columns: repeat(8, 1fr); }
+  .f-cell {
+    position: relative; background: #000; overflow: hidden; cursor: pointer;
+  }
+  .f-cell.active { outline: 2px solid #00e5ff; outline-offset: -2px; z-index: 4; }
+  .f-strip-img {
+    position: absolute; top: 0; height: 100%; width: 800%; max-width: none;
+    opacity: 0.78;
+  }
+  .f-cell.active .f-strip-img { opacity: 1; }
+  .f-cell svg {
+    position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
+  }
 
-  /* BOTTOM THUMBNAIL RIBBON + RADIAL TORUS */
+  /* ROW 3: RADIAL TORUS + SLIT-SCANS + 105-SHOT VISUAL FILMSTRIP */
   .bottom-row {
-    display: grid; grid-template-columns: 58px 1fr;
-    background: #000; gap: 1px; min-height: 0;
+    display: grid;
+    grid-template-columns: 66px 150px 1fr;
+    gap: 1px; background: #061c0d;
+    min-height: 0; overflow: hidden;
   }
-  .torus-box { width: 58px; height: 58px; background: #000; cursor: pointer; }
+  .torus-box { width: 66px; height: 66px; background: #000; cursor: pointer; }
   .torus-box canvas { width: 100%; height: 100%; display: block; }
+  .tomo-pair {
+    display: grid; grid-template-rows: 1fr 1fr; gap: 1px; background: #061c0d;
+  }
+  .tomo-pair canvas { width: 100%; height: 100%; display: block; background: #000; cursor: pointer; }
   .filmstrip {
     display: flex; align-items: center; gap: 2px;
     overflow-x: auto; overflow-y: hidden; padding: 2px;
     background: #000; scroll-behavior: smooth;
   }
   .tile {
-    position: relative; height: 54px; width: 92px; flex-shrink: 0;
+    position: relative; height: 62px; width: 104px; flex-shrink: 0;
     border: 1px solid #092612; background: #000; cursor: pointer; overflow: hidden;
   }
-  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.6; }
+  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.62; }
   .tile.active { border: 2px solid #ffb000; }
   .tile.active img { opacity: 1; }
   .tile-sw { position: absolute; top: 0; left: 0; right: 0; height: 3px; }
 
-  @media (max-width: 900px) {
-    .app { grid-template-rows: 1fr 36px 52px; }
-    .stage { grid-template-columns: 1fr; grid-template-rows: 1fr 1.2fr 1fr; }
-    .bottom-row { grid-template-columns: 52px 1fr; }
-    .torus-box { width: 52px; height: 52px; }
-    .tile { height: 48px; width: 80px; }
+  @media (max-width: 960px) {
+    .app { grid-template-rows: 1fr 56px 54px; }
+    .top-stage {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 44% 56%;
+    }
+    .wall-10 {
+      grid-column: 1 / -1;
+      grid-template-columns: repeat(5, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+    }
+    .bottom-row { grid-template-columns: 54px 96px 1fr; }
+    .torus-box { width: 54px; height: 54px; }
+    .tile { height: 50px; width: 84px; }
   }
 </style>
 </head>
 <body>
 <div class="app">
-  <div class="stage">
-    <!-- 1983 MASTER -->
+  <!-- TOP: 1983 MASTER + 3D WORM + ALL 10 CUTS WATCHABLE SIMULTANEOUSLY -->
+  <div class="top-stage">
     <div class="vp" onclick="togglePlay()">
       <video id="vidMaster" autoplay muted playsinline webkit-playsinline preload="auto"></video>
       <svg id="svgMaster" viewBox="0 0 1000 562.5" preserveAspectRatio="none"></svg>
-      <div class="snd-dot" id="sndBtn" onclick="event.stopPropagation();toggleSound()" title="Audio">
+      <div class="snd-dot" id="sndBtn" onclick="event.stopPropagation();toggleSound()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#33ff77" stroke-width="2">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
           <path id="sndWaves" d="M15.54 8.46a5 5 0 0 1 0 7.07 M19.07 4.93a10 10 0 0 1 0 14.14" style="display:none;" stroke="#00e5ff"/>
@@ -117,35 +157,24 @@
       </div>
     </div>
 
-    <!-- 3D SPATIOTEMPORAL WORM PRISM -->
     <div class="vp">
-      <canvas id="prismCanvas" width="800" height="500"></canvas>
+      <canvas id="prismCanvas" width="760" height="480"></canvas>
     </div>
 
-    <!-- SIMULTANEOUS ARCHIVAL CUT -->
-    <div class="vp" onclick="nextLens()">
-      <video id="vidCut" autoplay muted playsinline webkit-playsinline preload="auto"></video>
-      <img id="imgCutFb" class="fb" style="display:none;position:absolute;inset:0;" alt="">
-      <svg id="svgCut" viewBox="0 0 1000 562.5" preserveAspectRatio="none"></svg>
-      <div class="cut-dots" id="cutDots" onclick="event.stopPropagation()"></div>
-    </div>
+    <!-- ALL 10 SIMULTANEOUS CUTS WATCHABLE AT ONCE -->
+    <div class="wall-10" id="wall10"></div>
   </div>
 
-  <!-- SLIT-SCANS + KALMUS -->
-  <div class="tomo-row">
-    <div class="tomo-cell" onclick="scrubTomo(event)"><canvas id="uTauCanvas" width="480" height="42"></canvas></div>
-    <div class="tomo-cell" onclick="scrubTomo(event)"><canvas id="vTauCanvas" width="480" height="42"></canvas></div>
-    <div class="tomo-cell" onclick="stepShot(1)">
-      <div class="kalmus-stack">
-        <div class="kalmus-bar" id="kalmusCore"></div>
-        <div class="kalmus-bar" id="kalmusShell"></div>
-      </div>
-    </div>
-  </div>
+  <!-- MIDDLE: 8 WATCHABLE SUB-FRAME SLICES (f1..f8) -->
+  <div class="strip-8" id="strip8"></div>
 
-  <!-- VISUAL FILMSTRIP -->
+  <!-- BOTTOM: RADIAL TORUS + SLIT-SCANS + 105-SHOT VISUAL FILMSTRIP -->
   <div class="bottom-row">
-    <div class="torus-box" onclick="onTorusTap(event)"><canvas id="torusCanvas" width="116" height="116"></canvas></div>
+    <div class="torus-box" onclick="onTorusTap(event)"><canvas id="torusCanvas" width="132" height="132"></canvas></div>
+    <div class="tomo-pair">
+      <canvas id="uTauCanvas" width="300" height="33" onclick="scrubTomo(event)"></canvas>
+      <canvas id="vTauCanvas" width="300" height="33" onclick="scrubTomo(event)"></canvas>
+    </div>
     <div class="filmstrip" id="filmstrip"></div>
   </div>
 </div>
@@ -170,7 +199,7 @@ async function init() {
   const res = await fetch('wargames-worm-volume.json');
   const data = await res.json();
   SHOTS = data.beats || [];
-  renderDots();
+  buildWall10();
   renderFilmstrip();
   renderTorus();
   setupPointerOrbit();
@@ -179,20 +208,25 @@ async function init() {
   requestAnimationFrame(loop);
 }
 
-function renderDots() {
-  const el = document.getElementById('cutDots');
-  el.innerHTML = LENSES.map((l, i) =>
-    `<div class="dot ${i === LENS_IDX ? 'on' : ''}" onclick="setLens(${i})" title="${l}"></div>`
-  ).join('');
+function buildWall10() {
+  const wall = document.getElementById('wall10');
+  wall.innerHTML = LENSES.map((l, i) => `
+    <div class="cut-cell ${i === LENS_IDX ? 'active' : ''}" id="cc_${i}" onclick="selectLens(${i})">
+      <img id="cimg_${i}" alt="">
+      <video id="cvid_${i}" autoplay muted loop playsinline webkit-playsinline preload="metadata" style="position:absolute;inset:0;display:none;"></video>
+      <svg id="csvg_${i}" viewBox="0 0 100 56.25" preserveAspectRatio="none"></svg>
+    </div>
+  `).join('');
 }
 
-function setLens(i) {
+function selectLens(i) {
   LENS_IDX = (i + LENSES.length) % LENSES.length;
-  document.querySelectorAll('#cutDots .dot').forEach((d, idx) => d.classList.toggle('on', idx === LENS_IDX));
-  if (SHOTS[CUR]) syncCutVideo(SHOTS[CUR], TAU);
+  document.querySelectorAll('.cut-cell').forEach((c, idx) => c.classList.toggle('active', idx === LENS_IDX));
+  if (SHOTS[CUR]) {
+    syncWall10(SHOTS[CUR], TAU, true);
+    renderPrism(SHOTS[CUR], TAU);
+  }
 }
-
-function nextLens() { setLens(LENS_IDX + 1); }
 
 function toggleSound() {
   SOUND_ON = !SOUND_ON;
@@ -214,14 +248,12 @@ function syncAudio(sh) {
 function togglePlay() {
   PLAYING = !PLAYING;
   const vA = document.getElementById('vidMaster');
-  const vB = document.getElementById('vidCut');
   const aud = document.getElementById('sceneAudio');
   if (PLAYING) {
     vA.play().catch(() => {});
-    vB.play().catch(() => {});
     if (SHOTS[CUR]) syncAudio(SHOTS[CUR]);
   } else {
-    vA.pause(); vB.pause(); aud.pause();
+    vA.pause(); aud.pause();
   }
 }
 
@@ -236,6 +268,26 @@ function renderFilmstrip() {
       </div>
     `;
   }).join('');
+}
+
+function renderStrip8(sh) {
+  const el = document.getElementById('strip8');
+  const frames = sh.worm_frames || [];
+  el.innerHTML = frames.map((wf, k) => `
+    <div class="f-cell ${k === TAU ? 'active' : ''}" id="fc_${k}" onclick="onTapSubframe(${k})">
+      <img class="f-strip-img" src="${sh.strip}" style="left:${-(k*100)}%;">
+      <svg viewBox="0 0 100 56.25" preserveAspectRatio="none">
+        <ellipse cx="${wf.u*100}" cy="${wf.v*56.25}" rx="${wf.r*100}" ry="${wf.r*56.25}"
+                 fill="none" stroke="${wf.core_color.hex}" stroke-width="1.8"/>
+        <circle cx="${wf.u*100}" cy="${wf.v*56.25}" r="2.5" fill="#00e5ff"/>
+      </svg>
+    </div>
+  `).join('');
+}
+
+function onTapSubframe(k) {
+  setTau(k);
+  if (SHOTS[CUR]) syncWall10(SHOTS[CUR], k, false);
 }
 
 function selectShot(idx) {
@@ -258,13 +310,9 @@ function selectShot(idx) {
   vA.currentTime = 0;
   if (PLAYING) vA.play().catch(() => {});
 
-  const c8 = (sh.kalmus_summary && sh.kalmus_summary.core_palette_8) || [];
-  const s8 = (sh.kalmus_summary && sh.kalmus_summary.shell_palette_8) || [];
-  document.getElementById('kalmusCore').innerHTML = c8.map(h => `<div style="background:${h};"></div>`).join('');
-  document.getElementById('kalmusShell').innerHTML = s8.map(h => `<div style="background:${h};"></div>`).join('');
-
+  renderStrip8(sh);
   setTau(0);
-  syncCutVideo(sh, 0);
+  syncWall10(sh, 0, true);
   syncAudio(sh);
   renderTorus();
 }
@@ -275,53 +323,62 @@ function setTau(k) {
   const sh = SHOTS[CUR];
   if (!sh || !sh.worm_frames || !sh.worm_frames[k]) return;
   TAU = k;
+  document.querySelectorAll('.f-cell').forEach((c, idx) => c.classList.toggle('active', idx === k));
   renderMasterOverlay(sh, sh.worm_frames[k]);
   renderPrism(sh, k);
   renderTomo(sh, k);
 }
 
-function syncCutVideo(sh, k) {
-  const lens = LENSES[LENS_IDX];
-  const cw = (sh.cuts_10_worms || []).find(c => c.cut_lens === lens) || (sh.cuts_10_worms || [])[0];
-  const vB = document.getElementById('vidCut');
-  const fb = document.getElementById('imgCutFb');
-  const svgB = document.getElementById('svgCut');
+function syncWall10(sh, k, reloadVideo) {
+  const cuts = sh.cuts_10_worms || [];
+  LENSES.forEach((lens, i) => {
+    const cw = cuts.find(c => c.cut_lens === lens);
+    const imgEl = document.getElementById(`cimg_${i}`);
+    const vidEl = document.getElementById(`cvid_${i}`);
+    const svgEl = document.getElementById(`csvg_${i}`);
+    if (!cw || !cw.subshots || !cw.subshots.length) {
+      imgEl.src = sh.thumb;
+      vidEl.style.display = 'none';
+      svgEl.innerHTML = '';
+      return;
+    }
+    const sIdx = Math.min(cw.subshots.length - 1, Math.floor((k / 8.0) * cw.subshots.length));
+    const sub = cw.subshots[sIdx];
+    if (sub.thumb && imgEl.dataset.src !== sub.thumb) {
+      imgEl.dataset.src = sub.thumb;
+      imgEl.src = sub.thumb;
+    }
 
-  if (!cw || !cw.subshots || !cw.subshots.length) {
-    vB.src = sh.video;
-    fb.style.display = 'none';
-    if (PLAYING) vB.play().catch(() => {});
-    svgB.innerHTML = '';
-    return;
-  }
+    // Play live video on the selected cut + top 3 cuts simultaneously
+    const shouldPlayVid = (i === LENS_IDX || i < 4);
+    if (shouldPlayVid && sub.media_url) {
+      if (vidEl.dataset.src !== sub.media_url) {
+        vidEl.dataset.src = sub.media_url;
+        vidEl.src = sub.media_url;
+        vidEl.onloadeddata = () => {
+          vidEl.style.display = 'block';
+          if (sub.t0) { try { vidEl.currentTime = sub.t0; } catch(e) {} }
+          if (PLAYING) vidEl.play().catch(() => {});
+        };
+        vidEl.onerror = () => { vidEl.style.display = 'none'; };
+      } else if (PLAYING && vidEl.paused) {
+        vidEl.play().catch(() => {});
+      }
+    } else {
+      vidEl.pause();
+      vidEl.style.display = 'none';
+    }
 
-  const sIdx = Math.min(cw.subshots.length - 1, Math.floor((k / 8.0) * cw.subshots.length));
-  const sub = cw.subshots[sIdx];
-
-  if (sub.thumb) { fb.src = sub.thumb; fb.style.display = 'block'; }
-  const url = sub.media_url || '';
-  if (url && vB.dataset.src !== url) {
-    vB.dataset.src = url;
-    vB.src = url;
-    vB.onloadeddata = () => {
-      fb.style.display = 'none';
-      if (sub.t0) { try { vB.currentTime = sub.t0; } catch(e) {} }
-      if (PLAYING) vB.play().catch(() => {});
-    };
-    vB.onerror = () => { fb.style.display = 'block'; };
-  } else if (PLAYING) {
-    vB.play().catch(() => {});
-  }
-
-  const W = 1000, H = 562.5;
-  const pt = (cw.pts_uvr && cw.pts_uvr[k]) || [sub.u || 0.5, sub.v || 0.5, sub.r || 0.22];
-  const allPts = (cw.pts_uvr || []).map(p => `${p[0]*W},${p[1]*H}`).join(' ');
-  svgB.innerHTML = `
-    <polyline points="${allPts}" fill="none" stroke="${cw.core_hex || '#ffb000'}" stroke-width="2.2" opacity="0.75"/>
-    <ellipse cx="${pt[0]*W}" cy="${pt[1]*H}" rx="${pt[2]*W}" ry="${pt[2]*H}"
-             fill="none" stroke="${cw.core_hex || '#ffb000'}" stroke-width="2.8"/>
-    <circle cx="${pt[0]*W}" cy="${pt[1]*H}" r="5.5" fill="#00e5ff"/>
-  `;
+    // Draw worm spine + active cross-section on each of the 10 cells
+    const pt = (cw.pts_uvr && cw.pts_uvr[k]) || [sub.u || 0.5, sub.v || 0.5, sub.r || 0.22];
+    const allPts = (cw.pts_uvr || []).map(p => `${p[0]*100},${p[1]*56.25}`).join(' ');
+    svgEl.innerHTML = `
+      <polyline points="${allPts}" fill="none" stroke="${cw.core_hex || '#ffb000'}" stroke-width="1.2" opacity="0.8"/>
+      <ellipse cx="${pt[0]*100}" cy="${pt[1]*56.25}" rx="${pt[2]*100}" ry="${pt[2]*56.25}"
+               fill="none" stroke="${cw.core_hex || '#ffb000'}" stroke-width="1.6"/>
+      <circle cx="${pt[0]*100}" cy="${pt[1]*56.25}" r="2.2" fill="#00e5ff"/>
+    `;
+  });
 }
 
 function renderMasterOverlay(sh, wf) {
@@ -366,7 +423,6 @@ function renderPrism(sh, activeK) {
   const wFrames = sh.worm_frames || [];
   if (!wFrames.length) return;
 
-  // Wireframe Volume Cage
   const corners = [
     [0,0,0],[1,0,0],[1,1,0],[0,1,0],
     [0,0,1],[1,0,1],[1,1,1],[0,1,1]
@@ -388,7 +444,7 @@ function renderPrism(sh, activeK) {
       const tl = proj(0, 0, wf.tau_norm, W, H);
       const br = proj(1, 1, wf.tau_norm, W, H);
       ctx.save();
-      ctx.globalAlpha = isAct ? 0.56 : 0.15;
+      ctx.globalAlpha = isAct ? 0.58 : 0.16;
       ctx.drawImage(stripImg, k * fw, 0, fw, fh, tl.x, tl.y, br.x - tl.x, br.y - tl.y);
       ctx.restore();
     });
@@ -402,7 +458,7 @@ function renderPrism(sh, activeK) {
       const pts = (cw.pts_uvr || []).map((pt, k) => proj(pt[0], pt[1], k / 7.0, W, H));
       if (pts.length > 1) {
         ctx.strokeStyle = isSel ? '#ffb000' : (cw.core_hex || '#33ff77');
-        ctx.globalAlpha = isSel ? 0.95 : 0.24;
+        ctx.globalAlpha = isSel ? 0.95 : 0.25;
         ctx.lineWidth = isSel ? 3.0 : 1.1;
         ctx.beginPath();
         pts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
@@ -482,7 +538,7 @@ function renderTomo(sh, activeK) {
         ctx.fillRect(k * cw, b * ch, Math.ceil(cw), Math.ceil(ch));
       });
     });
-    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 2;
+    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 1.8;
     ctx.beginPath();
     wFrames.forEach((wf, k) => {
       const x = (k + 0.5) * cw, y = (isU ? wf.u : wf.v) * H;
@@ -490,7 +546,7 @@ function renderTomo(sh, activeK) {
     });
     ctx.stroke();
     const ax = (activeK + 0.5) * cw;
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.6;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(ax, 0); ctx.lineTo(ax, H); ctx.stroke();
   };
   draw('uTauCanvas', uRows, true);
@@ -501,12 +557,12 @@ function scrubTomo(e) {
   const r = e.currentTarget.getBoundingClientRect();
   const k = Math.max(0, Math.min(7, Math.floor(((e.clientX - r.left) / r.width) * 8)));
   setTau(k);
-  if (SHOTS[CUR]) syncCutVideo(SHOTS[CUR], k);
+  if (SHOTS[CUR]) syncWall10(SHOTS[CUR], k, false);
 }
 
 function renderTorus() {
   const c = document.getElementById('torusCanvas'), ctx = c.getContext('2d');
-  const W = c.width, H = c.height, cx = W/2, cy = H/2, rOut = 52, rIn = 20;
+  const W = c.width, H = c.height, cx = W/2, cy = H/2, rOut = 58, rIn = 22;
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
   const N = SHOTS.length;
   if (!N) return;
@@ -565,7 +621,7 @@ function loop() {
       const k = Math.min(7, Math.floor((vA.currentTime / vA.duration) * 8));
       if (k !== TAU) {
         setTau(k);
-        syncCutVideo(sh, k);
+        syncWall10(sh, k, false);
       }
     }
   }
@@ -576,8 +632,8 @@ function setupKeys() {
   window.addEventListener('keydown', e => {
     if (e.key === 'ArrowRight') { e.preventDefault(); stepShot(1); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); stepShot(-1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setLens(LENS_IDX - 1); }
-    else if (e.key === 'ArrowDown') { e.preventDefault(); setLens(LENS_IDX + 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); selectLens(LENS_IDX - 1); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); selectLens(LENS_IDX + 1); }
     else if (e.key === ' ') { e.preventDefault(); togglePlay(); }
   });
 }

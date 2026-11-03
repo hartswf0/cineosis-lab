@@ -1,1387 +1,223 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>01 / WOPR // IMSAI-8080 TUI COMPUTER EMULATOR &amp; 68-SCREEN VIDEO EXECUTION ENGINE</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>68 PURE SCREENS CINEMA</title>
 <style>
-:root {
-  --bg: #000000;
-  --bg-alt: #040806;
-  --fg: #33ff99;
-  --fg-dim: #1b8c54;
-  --fg-hi: #b8ffe0;
-  --accent: #ffb000;
-  --cyan: #33ccff;
-  --alert: #ff3b30;
-  --rule: #164d32;
-  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-[data-phosphor="amber"] {
-  --bg: #000000;
-  --bg-alt: #090600;
-  --fg: #ffb000;
-  --fg-dim: #8c6200;
-  --fg-hi: #ffe49e;
-  --accent: #33ff99;
-  --rule: #4d3600;
-}
-[data-phosphor="cyan"] {
-  --bg: #000000;
-  --bg-alt: #02070a;
-  --fg: #33ccff;
-  --fg-dim: #196b88;
-  --fg-hi: #c4f0ff;
-  --accent: #ffb000;
-  --rule: #144459;
-}
-[data-phosphor="red"] {
-  --bg: #000000;
-  --bg-alt: #0a0202;
-  --fg: #ff453a;
-  --fg-dim: #8c241e;
-  --fg-hi: #ffc4c0;
-  --accent: #ffb000;
-  --rule: #521612;
-}
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-}
-html, body {
-  width: 100%;
-  height: 100%;
-  background: var(--bg);
-  color: var(--fg);
-  font: 12px/1.38 var(--mono);
-  overflow: hidden;
-  -webkit-font-smoothing: none;
-}
-a { color: inherit; text-decoration: none; }
-button, input, select {
-  font: inherit;
-  color: inherit;
-  background: transparent;
-  border: 1px solid var(--rule);
-  cursor: pointer;
-}
-button:hover, select:hover {
-  border-color: var(--fg);
-  color: var(--fg-hi);
-}
-
-/* Subtle CRT horizontal scanline mask */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 999;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(0, 0, 0, 0.22) 0px,
-    rgba(0, 0, 0, 0.22) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-}
-
-/* TUI TOP SYSTEM BUS BAR */
-.tui-topbar {
-  height: 28px;
-  border-bottom: 1px solid var(--fg);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 8px;
-  background: var(--bg);
-  font-size: 11px;
-  white-space: nowrap;
-  overflow-x: auto;
-}
-.tui-topbar .bus-links {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.tui-topbar a, .tui-topbar button {
-  padding: 1px 6px;
-  border: 1px solid var(--rule);
-  font-size: 10.5px;
-  text-transform: uppercase;
-}
-.tui-topbar a.active, .tui-topbar button.active {
-  background: var(--fg);
-  color: #000;
-  border-color: var(--fg);
-  font-weight: 700;
-}
-
-/* TUI COMMAND & EXECUTION BAR */
-.tui-execbar {
-  height: 32px;
-  border-bottom: 1px solid var(--rule);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 8px;
-  background: var(--bg-alt);
-  gap: 8px;
-  font-size: 11px;
-  overflow-x: auto;
-  white-space: nowrap;
-}
-.exec-group {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.tui-btn {
-  padding: 2px 8px;
-  border: 1px solid var(--fg-dim);
-  color: var(--fg);
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.tui-btn:hover {
-  background: var(--fg);
-  color: #000;
-}
-.tui-btn.on {
-  background: var(--fg);
-  color: #000;
-  border-color: var(--fg);
-  font-weight: 700;
-}
-.tui-btn.amber {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.tui-btn.amber:hover, .tui-btn.amber.on {
-  background: var(--accent);
-  color: #000;
-}
-.tui-btn.red {
-  border-color: var(--alert);
-  color: var(--alert);
-}
-.tui-btn.red:hover, .tui-btn.red.on {
-  background: var(--alert);
-  color: #000;
-}
-
-/* 3-COLUMN SPARSE TUI GRID */
-.tui-main {
-  position: fixed;
-  top: 60px;
-  left: 0;
-  right: 0;
-  bottom: 34px;
-  display: grid;
-  grid-template-columns: 420px 1fr 410px;
-}
-@media (max-width: 1240px) {
-  .tui-main {
-    grid-template-columns: 360px 1fr 340px;
+  * { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: #000; color: #33ff77;
+    user-select: none; -webkit-user-select: none;
   }
-}
-.tui-pane {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-  border-right: 1px solid var(--rule);
-}
-.tui-pane:last-child {
-  border-right: none;
-}
-.pane-hdr {
-  height: 24px;
-  border-bottom: 1px solid var(--rule);
-  padding: 0 8px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  background: var(--bg-alt);
-  color: var(--fg-hi);
-  flex-shrink: 0;
-}
+  .app {
+    display: grid;
+    grid-template-rows: 46% 64px 1fr;
+    width: 100vw; height: 100vh;
+    background: #061c0d; gap: 1px;
+  }
+  .top-row {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    gap: 1px; background: #061c0d;
+    min-height: 0; overflow: hidden;
+  }
+  .vp {
+    position: relative; background: #000; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .vp video { width: 100%; height: 100%; object-fit: contain; background: #000; display: block; }
+  .vp svg, #prismCanvas { width: 100%; height: 100%; display: block; }
+  .vp svg { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
 
-/* PANE 1: LIVE CRT VIDEO EMULATOR + 8-FRAME RASTER REGISTER + SUBROUTINE TRACE */
-.crt-stack {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  border-bottom: 1px solid var(--rule);
-  background: #000;
-  flex-shrink: 0;
-}
-.crt-cell {
-  border-right: 1px solid var(--rule);
-  display: flex;
-  flex-direction: column;
-}
-.crt-cell:last-child {
-  border-right: none;
-}
-.crt-hdr {
-  padding: 2px 6px;
-  font-size: 9.5px;
-  border-bottom: 1px solid var(--rule);
-  display: flex;
-  justify-content: space-between;
-  color: var(--fg);
-  background: #020403;
-}
-.crt-screen {
-  position: relative;
-  aspect-ratio: 16 / 9;
-  width: 100%;
-  background: #000;
-  overflow: hidden;
-}
-.crt-screen video, .crt-screen img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.crt-overlay-tag {
-  position: absolute;
-  bottom: 3px;
-  left: 3px;
-  right: 3px;
-  background: rgba(0, 0, 0, 0.86);
-  border: 1px solid var(--rule);
-  padding: 1px 4px;
-  font-size: 9px;
-  color: var(--fg-hi);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  pointer-events: none;
-}
+  .strip-8 {
+    display: grid; grid-template-columns: repeat(8, 1fr);
+    gap: 1px; background: #061c0d;
+  }
+  .f-cell { position: relative; background: #000; overflow: hidden; cursor: pointer; }
+  .f-cell.active { outline: 2px solid #00e5ff; outline-offset: -2px; z-index: 4; }
+  .f-strip-img { position: absolute; top: 0; height: 100%; width: 800%; max-width: none; opacity: 0.8; }
+  .f-cell.active .f-strip-img { opacity: 1; }
+  .f-cell svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
-/* CPE-1704-TKS + TELEMETRY REGISTER ROW */
-.reg-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 8px;
-  border-bottom: 1px solid var(--rule);
-  font-size: 10px;
-  background: #020503;
-  flex-shrink: 0;
-}
-.cpe-bank {
-  display: flex;
-  gap: 2px;
-}
-.cpe-digit {
-  width: 17px;
-  height: 19px;
-  border: 1px solid var(--rule);
-  text-align: center;
-  line-height: 17px;
-  font-weight: 700;
-  font-size: 11px;
-  color: var(--alert);
-}
-.cpe-digit.locked {
-  border-color: var(--fg);
-  color: var(--fg-hi);
-  background: rgba(51, 255, 153, 0.14);
-}
+  /* 68-SCREEN VISUAL WALL */
+  .wall-68 {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    grid-auto-rows: 72px;
+    gap: 2px; padding: 2px;
+    background: #000; overflow-y: auto;
+  }
+  .sc-tile {
+    position: relative; background: #000; border: 1px solid #092612;
+    overflow: hidden; cursor: pointer;
+  }
+  .sc-tile img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.68; }
+  .sc-tile:hover img { opacity: 0.95; }
+  .sc-tile.active { border: 2px solid #ffb000; }
+  .sc-tile.active img { opacity: 1; }
 
-/* 8-FRAME STRIP REGISTER */
-.strip-register {
-  padding: 5px 8px;
-  border-bottom: 1px solid var(--rule);
-  flex-shrink: 0;
-}
-.strip-lbl {
-  display: flex;
-  justify-content: space-between;
-  font-size: 9.5px;
-  color: var(--fg-dim);
-  margin-bottom: 3px;
-}
-.strip-8grid {
-  position: relative;
-  height: 36px;
-  border: 1px solid var(--rule);
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  background: #000;
-  overflow: hidden;
-}
-.strip-8grid img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0.88;
-  pointer-events: none;
-}
-.sf-slot {
-  position: relative;
-  z-index: 2;
-  border-right: 1px solid rgba(51, 255, 153, 0.22);
-  font-size: 8px;
-  padding: 1px 2px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  cursor: pointer;
-}
-.sf-slot:hover, .sf-slot.on {
-  outline: 1px solid var(--fg-hi);
-  background: rgba(51, 255, 153, 0.22);
-}
-.sf-slot span {
-  background: rgba(0, 0, 0, 0.85);
-  padding: 0 2px;
-  width: max-content;
-}
-
-/* SUBROUTINE ASM TRACE */
-.asm-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 6px 8px;
-  font-size: 10.5px;
-}
-.asm-block {
-  border: 1px solid var(--rule);
-  margin-bottom: 6px;
-  background: #010302;
-}
-.asm-block.active {
-  border-color: var(--fg);
-}
-.asm-hdr {
-  padding: 3px 6px;
-  border-bottom: 1px solid var(--rule);
-  display: flex;
-  justify-content: space-between;
-  font-weight: 700;
-  font-size: 10px;
-  cursor: pointer;
-  background: var(--bg-alt);
-}
-.asm-block.active .asm-hdr {
-  background: var(--fg);
-  color: #000;
-}
-.asm-code {
-  padding: 4px 6px;
-  font-size: 10px;
-  color: var(--fg);
-}
-.asm-line {
-  padding: 1px 2px;
-  white-space: pre-wrap;
-}
-.asm-line.active {
-  background: rgba(51, 255, 153, 0.18);
-  color: var(--fg-hi);
-  font-weight: 700;
-}
-
-/* PANE 2: 68 PURE SCREENS — SPARSE TUI MATRIX OR REGISTER TABLE */
-.subfilter-bar {
-  padding: 4px 8px;
-  border-bottom: 1px solid var(--rule);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  flex-wrap: wrap;
-  flex-shrink: 0;
-  font-size: 10px;
-}
-.subfilter-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-}
-.sf-btn {
-  padding: 2px 6px;
-  border: 1px solid var(--rule);
-  font-size: 9.5px;
-  text-transform: uppercase;
-  color: var(--fg-dim);
-}
-.sf-btn:hover {
-  color: var(--fg);
-  border-color: var(--fg);
-}
-.sf-btn.on {
-  background: var(--fg);
-  color: #000;
-  border-color: var(--fg);
-  font-weight: 700;
-}
-
-.matrix-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 6px;
-  background: #000;
-}
-.tui-screen-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
-  gap: 5px;
-}
-.tui-sc-cell {
-  border: 1px solid var(--rule);
-  background: #020403;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-}
-.tui-sc-cell:hover {
-  border-color: var(--fg);
-}
-.tui-sc-cell.active {
-  border-color: var(--accent);
-  outline: 1px solid var(--accent);
-}
-.tui-sc-top {
-  padding: 2px 4px;
-  font-size: 9px;
-  border-bottom: 1px solid var(--rule);
-  display: flex;
-  justify-content: space-between;
-  color: var(--fg);
-}
-.tui-sc-cell.active .tui-sc-top {
-  background: var(--accent);
-  color: #000;
-  font-weight: 700;
-}
-.tui-sc-vp {
-  position: relative;
-  aspect-ratio: 16 / 9;
-  background: #000;
-  overflow: hidden;
-}
-.tui-sc-vp img, .tui-sc-vp video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.tui-sc-btm {
-  padding: 3px 4px;
-  font-size: 9px;
-  border-top: 1px solid var(--rule);
-  color: var(--fg-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* SPARSE TUI TABLE VIEW FOR 68 SCREENS */
-.tui-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 10.5px;
-}
-.tui-table th, .tui-table td {
-  border: 1px solid var(--rule);
-  padding: 3px 6px;
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 240px;
-}
-.tui-table th {
-  background: var(--bg-alt);
-  color: var(--fg-hi);
-  text-transform: uppercase;
-  font-size: 9.5px;
-  position: sticky;
-  top: 0;
-}
-.tui-table tr {
-  cursor: pointer;
-}
-.tui-table tr:hover {
-  background: rgba(51, 255, 153, 0.08);
-}
-.tui-table tr.active {
-  background: rgba(255, 176, 0, 0.18);
-  color: var(--accent);
-  font-weight: 700;
-}
-
-/* PANE 3: INTERACTIVE WOPR // IMSAI-8080 COMMAND SHELL */
-.shell-log {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px;
-  font-size: 11px;
-  line-height: 1.45;
-  background: #000;
-}
-.sh-ln {
-  margin-bottom: 4px;
-  word-break: break-word;
-}
-.sh-ln.cmd { color: var(--accent); font-weight: 700; }
-.sh-ln.sys { color: var(--cyan); }
-.sh-ln.alert { color: var(--alert); font-weight: 700; }
-.sh-ln.box {
-  border: 1px solid var(--rule);
-  padding: 4px 6px;
-  margin: 4px 0;
-  background: #020503;
-  color: var(--fg-hi);
-}
-.sh-chip {
-  display: inline-block;
-  border: 1px solid var(--fg-dim);
-  padding: 1px 5px;
-  margin: 2px 3px 2px 0;
-  font-size: 10px;
-  cursor: pointer;
-  color: var(--fg);
-}
-.sh-chip:hover {
-  background: var(--fg);
-  color: #000;
-}
-
-.macro-deck {
-  padding: 5px 8px;
-  border-top: 1px solid var(--rule);
-  background: var(--bg-alt);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex-shrink: 0;
-}
-.macro-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  align-items: center;
-}
-.macro-lbl {
-  font-size: 9px;
-  color: var(--fg-dim);
-  margin-right: 4px;
-}
-.m-key {
-  padding: 2px 5px;
-  border: 1px solid var(--rule);
-  font-size: 9.5px;
-  text-transform: uppercase;
-}
-.m-key:hover {
-  background: var(--fg);
-  color: #000;
-}
-.m-key.amber {
-  border-color: rgba(255, 176, 0, 0.5);
-  color: var(--accent);
-}
-.m-key.amber:hover {
-  background: var(--accent);
-  color: #000;
-}
-
-.shell-form {
-  height: 32px;
-  border-top: 1px solid var(--fg);
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  background: #000;
-  flex-shrink: 0;
-}
-.shell-prompt {
-  color: var(--fg);
-  font-weight: 700;
-  margin-right: 6px;
-  font-size: 11.5px;
-}
-.shell-input {
-  flex: 1;
-  border: none;
-  outline: none;
-  color: var(--fg-hi);
-  font: 700 11.5px/1 var(--mono);
-  text-transform: uppercase;
-}
-
-/* BOTTOM TUI STATUS / TELEMETRY BAR */
-.tui-status {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 34px;
-  border-top: 1px solid var(--fg);
-  background: #000;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 10px;
-  font-size: 10.5px;
-  gap: 10px;
-  white-space: nowrap;
-  overflow-x: auto;
-}
+  @media (max-width: 900px) {
+    .app { grid-template-rows: 42% 52px 1fr; }
+    .wall-68 { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); grid-auto-rows: 56px; }
+  }
 </style>
 </head>
-<body data-phosphor="green">
-
-<!-- TUI TOP SYSTEM BUS BAR -->
-<header class="tui-topbar">
-  <div class="bus-links">
-    <strong style="color:var(--fg-hi);margin-right:6px">[WOPR // IMSAI-8080 TUI EMULATOR]</strong>
-    <a href="wargames-studios.html">00:INDEX</a>
-    <a href="wg-studio-screens.html" class="active">01:SCREENS(TUI)</a>
-    <a href="wg-studio-whitney.html">02:WHITNEY</a>
-    <a href="wg-studio-knowlton.html">03:KNOWLTON</a>
-    <a href="bumblebee-dilemma.html">04:SEMIOSIS/SOUND</a>
-    <a href="wg-studio-nake.html">05:NAKE</a>
-    <a href="wg-studio-mohr.html">06:MOHR</a>
-    <a href="found-wargames.html">07:MONTAGE</a>
-    <a href="found-wargames-museum.html">08:MUSEUM</a>
-    <a href="vj-wargames.html">09:VJ</a>
-    <a href="wg-studio-reas.html">10:REAS</a>
-    <a href="wg-studio-stgl.html" style="color:var(--accent);border-color:var(--accent);">11:4D-STGL(u,v,d,tau)</a>
-    <a href="wg-studio-worm.html" style="color:var(--cyan);border-color:var(--cyan);">12:3D-WORM(V)</a>
+<body>
+<div class="app">
+  <div class="top-row">
+    <div class="vp" onclick="togglePlay()">
+      <video id="scrVid" autoplay muted playsinline webkit-playsinline preload="auto"></video>
+      <svg id="scrSvg" viewBox="0 0 1000 562.5" preserveAspectRatio="none"></svg>
+    </div>
+    <div class="vp">
+      <canvas id="prismCanvas" width="600" height="400"></canvas>
+    </div>
   </div>
-  <div class="bus-links">
-    <span style="color:var(--fg-dim)">CRT PHOSPHOR:</span>
-    <button onclick="setPhosphor('green')" id="ph-green" class="active">P1:GREEN</button>
-    <button onclick="setPhosphor('amber')" id="ph-amber">P3:AMBER</button>
-    <button onclick="setPhosphor('cyan')" id="ph-cyan">NORAD:CYAN</button>
-    <button onclick="setPhosphor('red')" id="ph-red">DEFCON1:RED</button>
-  </div>
-</header>
-
-<!-- TUI VIDEO EXECUTION & PROGRAM CONTROL BAR -->
-<div class="tui-execbar">
-  <div class="exec-group">
-    <span style="color:var(--fg-dim)">VIDEO EMULATION:</span>
-    <button class="tui-btn on" id="btnRunSingle" onclick="runSingleScreenVideo()">[RUN CURRENT SCREEN VIDEO]</button>
-    <button class="tui-btn amber" id="btnRunSub" onclick="runActiveSubroutineVideos()">[RUN SUBROUTINE SEQUENCE]</button>
-    <button class="tui-btn amber" id="btnRunAll" onclick="runAll68ScreenVideos()">[RUN ALL 68 SCREEN VIDEOS (01..68)]</button>
-    <button class="tui-btn red" id="btnHalt" onclick="haltEmulator()">[HALT / STOP]</button>
-  </div>
-  <div class="exec-group">
-    <button class="tui-btn" onclick="stepScreen(-1)">[&lt; PREV SCREEN]</button>
-    <span id="execCounter" style="color:var(--fg-hi);font-weight:700;padding:0 6px">STATE 01 / 68</span>
-    <button class="tui-btn" onclick="stepScreen(1)">[NEXT SCREEN &gt;]</button>
-    <button class="tui-btn on" id="btnStglOverlay" onclick="toggleStglOverlay()">[4D STGL GRID: ON]</button>
-    <button class="tui-btn on" id="btnViewMatrix" onclick="setViewMode('matrix')">[MATRIX VIEW]</button>
-    <button class="tui-btn" id="btnViewTable" onclick="setViewMode('table')">[TUI REGISTER TABLE]</button>
-  </div>
+  <div class="strip-8" id="strip8"></div>
+  <div class="wall-68" id="wall68"></div>
 </div>
 
-<!-- 3-COLUMN SPARSE TUI WORKSPACE -->
-<main class="tui-main">
-
-  <!-- PANE 1: DUAL LIVE CRT VIDEO EMULATORS + 8-FRAME STRIP + INFERRED SUBROUTINE -->
-  <section class="tui-pane">
-    <div class="pane-hdr">
-      <span>┌─[ CRT-A: 1983 SCREEN VIDEO // CRT-B: ARCHIVAL TWIN ]</span>
-      <span id="pane1Defcon">DEFCON 5</span>
-    </div>
-
-    <!-- DUAL LIVE VIDEO VIEWPORTS -->
-    <div class="crt-stack">
-      <div class="crt-cell">
-        <div class="crt-hdr">
-          <span>CRT-A // 1983 HARDWARE RASTER</span>
-          <span id="crtAShot">sbd_0059</span>
-        </div>
-        <div class="crt-screen">
-          <video id="vidCrtA" playsinline preload="auto" muted loop></video>
-          <svg id="crtAStglSvg" viewBox="0 0 1000 562.5" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:12;"></svg>
-          <div class="crt-overlay-tag" id="crtAOcr">WOPR EXECUTION ORDER</div>
-        </div>
-      </div>
-      <div class="crt-cell">
-        <div class="crt-hdr">
-          <span style="color:var(--accent)">CRT-B // ARCHIVAL TWIN VIDEO</span>
-          <span id="crtBYear" style="color:var(--accent)">ARCHIVE</span>
-        </div>
-        <div class="crt-screen">
-          <video id="vidCrtB" playsinline preload="auto" muted loop></video>
-          <div class="crt-overlay-tag" id="crtBTitle" style="color:var(--accent)">ARCHIVAL COUNTER-SCREEN</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- LAUNCH CODE & RGB/LUM TELEMETRY REGISTER -->
-    <div class="reg-row">
-      <div>
-        <div style="font-size:9px;color:var(--fg-dim)">LAUNCH RELAY REGISTER [CPE-1704-TKS]</div>
-        <div id="rgbTelemetry" style="color:var(--fg-hi)">RGB(40,44,48) · LUM:0.18 · PURITY:2.00</div>
-      </div>
-      <div class="cpe-bank" id="cpeBank"></div>
-    </div>
-
-    <!-- 8-FRAME SUB-STATE RASTER STRIP -->
-    <div class="strip-register">
-      <div class="strip-lbl">
-        <span>8-FRAME RASTER DELTA BUFFER (CLICK f1..f8 TO STEP)</span>
-        <span id="sfDeltaLbl" style="color:var(--fg-hi)">f1 // INIT_BUFFER</span>
-      </div>
-      <div class="strip-8grid" id="strip8Grid">
-        <img id="strip8Img" src="" alt="8-frame strip">
-      </div>
-    </div>
-
-    <!-- INFERRED MACHINE PROGRAM (8 SUBROUTINES) -->
-    <div class="pane-hdr">
-      <span>├─[ INFERRED MACHINE PROGRAM // 8 SUBROUTINES ]</span>
-      <span id="activeSubAddr">0x0010</span>
-    </div>
-    <div class="asm-scroll" id="asmScroll"></div>
-  </section>
-
-  <!-- PANE 2: 68 VERIFIED PURE COMPUTER SCREENS (MATRIX OR TUI REGISTER TABLE) -->
-  <section class="tui-pane">
-    <div class="pane-hdr">
-      <span>┌─[ 68 VERIFIED 100%-PURE COMPUTER SCREENS // ZERO HUMAN SHOTS ]</span>
-      <span id="filterCountLbl">68 / 68 ACTIVE</span>
-    </div>
-    <div class="subfilter-bar">
-      <div class="subfilter-group" id="subFilterGroup">
-        <button class="sf-btn on" data-sub="ALL" onclick="filterScreens('ALL')">ALL (68)</button>
-        <button class="sf-btn" data-sub="SILO_EXEC_ORDER" onclick="filterScreens('SILO_EXEC_ORDER')">0x10:SILO</button>
-        <button class="sf-btn" data-sub="IMSAI_GRADES_DB" onclick="filterScreens('IMSAI_GRADES_DB')">0x50:GRADES</button>
-        <button class="sf-btn" data-sub="WARDIALER_311" onclick="filterScreens('WARDIALER_311')">0x70:DIAL</button>
-        <button class="sf-btn" data-sub="JOSHUA_PROMPT" onclick="filterScreens('JOSHUA_PROMPT')">0x90:JOSHUA</button>
-        <button class="sf-btn" data-sub="NORAD_VECTOR_MAP" onclick="filterScreens('NORAD_VECTOR_MAP')">0xC0:MAP</button>
-        <button class="sf-btn" data-sub="GAME_CLOCK_LOCKOUT" onclick="filterScreens('GAME_CLOCK_LOCKOUT')">0x100:LOCK</button>
-        <button class="sf-btn" data-sub="CPE_CODE_CRACKER" onclick="filterScreens('CPE_CODE_CRACKER')">0x140:CPE</button>
-        <button class="sf-btn" data-sub="TICTACTOE_SIOP" onclick="filterScreens('TICTACTOE_SIOP')">0x180:TTT</button>
-      </div>
-    </div>
-    <div class="matrix-scroll" id="matrixContainer"></div>
-  </section>
-
-  <!-- PANE 3: INTERACTIVE WOPR // IMSAI-8080 TUI COMMAND CONSOLE -->
-  <section class="tui-pane">
-    <div class="pane-hdr">
-      <span>┌─[ WOPR // IMSAI-8080 INTERACTIVE COMMAND SHELL ]</span>
-      <span>TTY:212A</span>
-    </div>
-    <div class="shell-log" id="shellLog"></div>
-
-    <div class="macro-deck">
-      <div class="macro-row">
-        <span class="macro-lbl">EXEC:</span>
-        <button class="m-key" onclick="execCommand('RUN ALL')">RUN ALL (68)</button>
-        <button class="m-key" onclick="execCommand('SILO')">SILO</button>
-        <button class="m-key" onclick="execCommand('PASSWORD PENCIL')">PENCIL</button>
-        <button class="m-key" onclick="execCommand('DIAL 408-311')">DIAL 311</button>
-        <button class="m-key" onclick="execCommand('LIST GAMES')">LIST GAMES</button>
-        <button class="m-key" onclick="execCommand('LOGON JOSHUA')">JOSHUA</button>
-        <button class="m-key" onclick="execCommand('RUN GTW')">RUN GTW</button>
-        <button class="m-key" onclick="execCommand('CRACK CPE')">CRACK CPE</button>
-        <button class="m-key" onclick="execCommand('PLAY TICTACTOE 0')">TTT 0</button>
-      </div>
-      <div class="macro-row">
-        <span class="macro-lbl">OPEN:</span>
-        <button class="m-key amber" onclick="execCommand('OPEN 00')">00:INDEX</button>
-        <button class="m-key amber" onclick="execCommand('OPEN 02')">02:WHITNEY</button>
-        <button class="m-key amber" onclick="execCommand('OPEN 03')">03:KNOWLTON</button>
-        <button class="m-key amber" onclick="execCommand('OPEN 04')">04:SEMIOSIS</button>
-        <button class="m-key amber" onclick="execCommand('OPEN 05')">05:NAKE</button>
-        <button class="m-key amber" onclick="execCommand('OPEN 06')">06:MOHR</button>
-        <button class="m-key amber" onclick="execCommand('OPEN 07')">07:MONTAGE</button>
-        <button class="m-key amber" onclick="execCommand('OPEN 10')">10:REAS</button>
-      </div>
-    </div>
-
-    <form class="shell-form" onsubmit="onShellSubmit(event)">
-      <span class="shell-prompt" id="shellPrompt">WOPR&gt;</span>
-      <input class="shell-input" id="shellInput" type="text" placeholder="TYPE COMMAND (RUN ALL, RUN 24, LIST GAMES, LOGON JOSHUA, OPEN 04...)" autocomplete="off" spellcheck="false">
-      <button type="submit" class="tui-btn on">[EXEC]</button>
-    </form>
-  </section>
-
-</main>
-
-<!-- BOTTOM TUI TELEMETRY STATUS BAR -->
-<footer class="tui-status">
-  <span id="stLeft">PC: 0x0010 // STATE 01/68 (sbd_0059) // OPCODE: RECV_EAM_K36_948_3</span>
-  <span id="stCenter" style="color:var(--accent)">1983 LINE: "Stand by for EAM emergency war order!"</span>
-  <span id="stRight">VIDEO ENGINE: LOCAL MP4 READY (68/68)</span>
-</footer>
-
-<audio id="aud1983" preload="auto"></audio>
-<audio id="audArch" preload="auto"></audio>
-
 <script>
-const STUDIO_ROUTES = {
-  "00": ["wargames-studios.html", "00 / STUDIO INDEX"],
-  "INDEX": ["wargames-studios.html", "00 / STUDIO INDEX"],
-  "01": ["wg-studio-screens.html", "01 / SCREEN STATES (TUI EMULATOR)"],
-  "SCREENS": ["wg-studio-screens.html", "01 / SCREEN STATES (TUI EMULATOR)"],
-  "02": ["wg-studio-whitney.html", "02 / JOHN WHITNEY SLIT-SCAN"],
-  "WHITNEY": ["wg-studio-whitney.html", "02 / JOHN WHITNEY SLIT-SCAN"],
-  "03": ["wg-studio-knowlton.html", "03 / KEN KNOWLTON STILLS"],
-  "KNOWLTON": ["wg-studio-knowlton.html", "03 / KEN KNOWLTON STILLS"],
-  "04": ["bumblebee-dilemma.html", "04 / SOUND & SEMIOSIS BENCH"],
-  "SOUND": ["bumblebee-dilemma.html", "04 / SOUND & SEMIOSIS BENCH"],
-  "SEMIOSIS": ["bumblebee-dilemma.html", "04 / SOUND & SEMIOSIS BENCH"],
-  "05": ["wg-studio-nake.html", "05 / FRIEDER NAKE MATRIX"],
-  "NAKE": ["wg-studio-nake.html", "05 / FRIEDER NAKE MATRIX"],
-  "06": ["wg-studio-mohr.html", "06 / MANFRED MOHR HYPERCUBE"],
-  "MOHR": ["wg-studio-mohr.html", "06 / MANFRED MOHR HYPERCUBE"],
-  "07": ["found-wargames.html", "07 / PARALLEL MONTAGE"],
-  "PARALLEL": ["found-wargames.html", "07 / PARALLEL MONTAGE"],
-  "08": ["found-wargames-museum.html", "08 / MUSEUM GALLERY"],
-  "MUSEUM": ["found-wargames-museum.html", "08 / MUSEUM GALLERY"],
-  "09": ["vj-wargames.html", "09 / TV LIVE VJ"],
-  "VJ": ["vj-wargames.html", "09 / TV LIVE VJ"],
-  "10": ["wg-studio-reas.html", "10 / CASEY REAS TISSUE"],
-  "REAS": ["wg-studio-reas.html", "10 / CASEY REAS TISSUE"],
-  "11": ["wg-studio-stgl.html", "11 / 4D STGL GRID VERIFIER"],
-  "STGL": ["wg-studio-stgl.html", "11 / 4D STGL GRID VERIFIER"]
-};
-
-const CPE_TARGET = "CPE1704TKS";
-let PROG = null;
-let SCREENS = [];
-let SUBS = [];
-let curIdx = 0;
-let curSubFilter = "ALL";
-let curViewMode = "matrix"; // "matrix" | "table"
-let showStglOverlay = true;
-let curSubframeIdx = 0;
-let seqTimer = null;
-let seqToken = 0;
-
-const vidCrtA = document.getElementById("vidCrtA");
-const vidCrtB = document.getElementById("vidCrtB");
-const aud1983 = document.getElementById("aud1983");
-const audArch = document.getElementById("audArch");
-
-function esc(s) {
-  return String(s == null ? "" : s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-function setPhosphor(mode) {
-  document.body.setAttribute("data-phosphor", mode);
-  ["green", "amber", "cyan", "red"].forEach(m => {
-    const el = document.getElementById("ph-" + m);
-    if (el) el.classList.toggle("active", m === mode);
-  });
-}
-
-function setViewMode(mode) {
-  curViewMode = mode;
-  document.getElementById("btnViewMatrix").classList.toggle("on", mode === "matrix");
-  document.getElementById("btnViewTable").classList.toggle("on", mode === "table");
-  renderScreenCollection();
-}
-
-function filterScreens(sub) {
-  curSubFilter = sub;
-  document.querySelectorAll(".sf-btn").forEach(b => {
-    b.classList.toggle("on", b.dataset.sub === sub);
-  });
-  renderScreenCollection();
-}
-
-function getFilteredScreens() {
-  return SCREENS.map((s, idx) => ({ s, idx })).filter(item =>
-    curSubFilter === "ALL" || item.s.subsystem === curSubFilter
-  );
-}
-
-function renderCpeBank(stateIdx) {
-  const bank = document.getElementById("cpeBank");
-  const st = SCREENS[stateIdx];
-  const lockedCount = st && st.subsystem === "CPE_CODE_CRACKER"
-    ? Math.min(9, Math.max(2, Math.floor((stateIdx / SCREENS.length) * 10)))
-    : (st && st.subsystem === "TICTACTOE_SIOP" ? 9 : Math.floor((stateIdx / SCREENS.length) * 8));
-  bank.innerHTML = CPE_TARGET.split("").map((ch, i) => {
-    const locked = i < lockedCount;
-    return `<span class="cpe-digit ${locked ? "locked" : ""}">${locked ? ch : "_"}</span>`;
-  }).join("");
-}
-
-function renderAsmSubroutines(activeSubId) {
-  const wrap = document.getElementById("asmScroll");
-  wrap.innerHTML = SUBS.map(sub => {
-    const isAct = sub.id === activeSubId;
-    const linesHtml = (sub.pseudo_code || []).map(ln =>
-      `<div class="asm-line ${isAct ? "active" : ""}">${esc(ln)}</div>`
-    ).join("");
-    return `
-      <div class="asm-block ${isAct ? "active" : ""}">
-        <div class="asm-hdr" onclick="runSubroutineById('${esc(sub.id)}')">
-          <span>${esc(sub.id)} (${sub.screen_count} SCREENS)</span>
-          <span>[RUN ${esc(sub.cmd)}]</span>
-        </div>
-        <div class="asm-code">${linesHtml}</div>
-      </div>
-    `;
-  }).join("");
-}
-
-function renderScreenCollection() {
-  const container = document.getElementById("matrixContainer");
-  const list = getFilteredScreens();
-  document.getElementById("filterCountLbl").textContent = `${list.length} / ${SCREENS.length} SCREENS`;
-
-  if (curViewMode === "table") {
-    container.innerHTML = `
-      <table class="tui-table">
-        <thead>
-          <tr>
-            <th>ST#</th>
-            <th>SHOT_ID</th>
-            <th>TIME</th>
-            <th>SUBROUTINE</th>
-            <th>OPCODE</th>
-            <th>CRT_OCR_TELEMETRY</th>
-            <th>EXEC</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${list.map(({ s, idx }) => `
-            <tr class="${idx === curIdx ? "active" : ""}" onclick="selectScreen(${idx}, true)">
-              <td>#${String(s.state_index).padStart(2, "0")}</td>
-              <td>${esc(s.shot_id)}</td>
-              <td>${Number(s.start).toFixed(1)}s</td>
-              <td>${esc((s.subroutine || "").split(" ")[0])}</td>
-              <td>${esc(s.opcode)}</td>
-              <td>${esc(s.terminal_prompt)}</td>
-              <td>[RUN VIDEO]</td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
-    `;
-    return;
-  }
-
-  container.innerHTML = `
-    <div class="tui-screen-grid">
-      ${list.map(({ s, idx }) => `
-        <div class="tui-sc-cell ${idx === curIdx ? "active" : ""}"
-             onclick="selectScreen(${idx}, true)"
-             onmouseenter="previewHoverVideo(this, '${esc(s.clip)}')"
-             onmouseleave="stopHoverVideo(this)">
-          <div class="tui-sc-top">
-            <span>#${String(s.state_index).padStart(2, "0")} · ${esc(s.shot_id)}</span>
-            <span>D${s.defcon}</span>
-          </div>
-          <div class="tui-sc-vp">
-            <img src="${esc(s.screen_thumb || s.thumb)}" alt="${esc(s.shot_id)}" loading="lazy">
-          </div>
-          <div class="tui-sc-btm">${esc(s.opcode)} // ${esc(s.terminal_prompt)}</div>
-        </div>
-      `).join("")}
-    </div>
-  `;
-}
-
-// Live video preview inside any grid cell on mouse hover
-function previewHoverVideo(cellEl, clipUrl) {
-  const vp = cellEl.querySelector(".tui-sc-vp");
-  if (!vp || vp.querySelector("video")) return;
-  const v = document.createElement("video");
-  v.src = clipUrl.startsWith("clips/") ? clipUrl : `clips/${cellEl.textContent.match(/(wg_\d+|sbd_\d+)/)?.[1] || "wg_024"}.mp4`;
-  v.muted = true;
-  v.loop = true;
-  v.playsInline = true;
-  v.style.position = "absolute";
-  v.style.inset = "0";
-  vp.appendChild(v);
-  v.play().catch(() => {});
-}
-
-function stopHoverVideo(cellEl) {
-  const v = cellEl.querySelector("video");
-  if (v) {
-    try { v.pause(); } catch (e) {}
-    v.remove();
-  }
-}
-
-function toggleStglOverlay() {
-  showStglOverlay = !showStglOverlay;
-  const btn = document.getElementById("btnStglOverlay");
-  if (btn) {
-    btn.classList.toggle("on", showStglOverlay);
-    btn.textContent = showStglOverlay ? "[4D STGL GRID: ON]" : "[4D STGL GRID: OFF]";
-  }
-  const st = SCREENS[curIdx];
-  if (st) renderCrtStglOverlay(st, curSubframeIdx);
-}
-
-function renderCrtStglOverlay(st, fIdx) {
-  const svg = document.getElementById("crtAStglSvg");
-  if (!svg) return;
-  if (!showStglOverlay || !st || !st.stgl) {
-    svg.innerHTML = "";
-    return;
-  }
-  const W = 1000, H = 562.5;
-  const sg = st.stgl.spatial_grid || {};
-  const tc = st.stgl.camera_toric || {};
-  const frames = st.stgl.frames_8 || [];
-  const f = frames[fIdx] || frames[0] || {
-    f: 1, u: 0.5, v: 0.5, tau: "b(1,1,0)",
-    primary_armature: sg.armature || "centered",
-    focal_node: sg.focal_node || [0.5, 0.5],
-    jev_box: [0.25, 0.25, 0.5, 0.5],
-    s_curve_bezier: [[0.3, 0.1], [0.6, 0.35], [0.4, 0.65], [0.6, 0.9]]
-  };
-
-  const [bx, by, bw, bh] = f.jev_box || [0.25, 0.25, 0.5, 0.5];
-  const ux = f.u * W, uy = f.v * H;
-  const b = f.s_curve_bezier || [[0.3,0.1],[0.6,0.35],[0.4,0.65],[0.6,0.9]];
-  const bezPath = `M ${b[0][0]*W} ${b[0][1]*H} C ${b[1][0]*W} ${b[1][1]*H}, ${b[2][0]*W} ${b[2][1]*H}, ${b[3][0]*W} ${b[3][1]*H}`;
-
-  svg.innerHTML = `
-    <line x1="${W/3}" y1="0" x2="${W/3}" y2="${H}" stroke="rgba(51,255,153,0.28)" stroke-width="1"/>
-    <line x1="${2*W/3}" y1="0" x2="${2*W/3}" y2="${H}" stroke="rgba(51,255,153,0.28)" stroke-width="1"/>
-    <line x1="0" y1="${H/3}" x2="${W}" y2="${H/3}" stroke="rgba(51,255,153,0.28)" stroke-width="1"/>
-    <line x1="0" y1="${2*H/3}" x2="${W}" y2="${2*H/3}" stroke="rgba(51,255,153,0.28)" stroke-width="1"/>
-    <path d="${bezPath}" fill="none" stroke="rgba(0,229,255,0.6)" stroke-width="1.5"/>
-    <rect x="${bx*W}" y="${by*H}" width="${bw*W}" height="${bh*H}" fill="rgba(255,176,0,0.06)" stroke="#ffb000" stroke-width="1.8"/>
-    <line x1="${ux-9}" y1="${uy}" x2="${ux+9}" y2="${uy}" stroke="#b8ffd0" stroke-width="1.8"/>
-    <line x1="${ux}" y1="${uy-9}" x2="${ux}" y2="${uy+9}" stroke="#b8ffd0" stroke-width="1.8"/>
-    <text x="10" y="18" fill="#ffb000" font-family="monospace" font-size="13" font-weight="bold">
-      STGL[${(f.primary_armature || "centered").toUpperCase()}] f${f.f} // tau=${f.tau} // (u=${f.u.toFixed(2)}, v=${f.v.toFixed(2)}) // TORIC(${tc.alpha_deg ?? 45}d,${tc.theta_deg ?? 0}d)
-    </text>
-  `;
-}
-
-function render8FrameStrip(st) {
-  const img = document.getElementById("strip8Img");
-  img.src = `strips/${st.shot_id}.jpg`;
-  img.onerror = () => { img.src = st.screen_thumb || st.thumb; };
-
-  const grid = document.getElementById("strip8Grid");
-  grid.querySelectorAll(".sf-slot").forEach(n => n.remove());
-  const deltas = st.subframe_deltas || [];
-  curSubframeIdx = 0;
-  deltas.forEach((d, k) => {
-    const slot = document.createElement("div");
-    slot.className = "sf-slot" + (k === 0 ? " on" : "");
-    const uStr = d.u != null ? `${Number(d.u).toFixed(2)},${Number(d.v).toFixed(2)}` : `Δ${Number(d.delta || 0).toFixed(2)}`;
-    slot.innerHTML = `<span>f${k + 1}</span><span>${uStr}</span>`;
-    slot.onclick = () => {
-      curSubframeIdx = k;
-      grid.querySelectorAll(".sf-slot").forEach(x => x.classList.remove("on"));
-      slot.classList.add("on");
-      document.getElementById("sfDeltaLbl").textContent =
-        `f${k + 1} // ${d.armature || d.op || "RASTER"} // tau=${d.tau || "b(1,1,0)"} // (u=${d.u ?? 0.5}, v=${d.v ?? 0.5})`;
-      renderCrtStglOverlay(st, k);
-      if (vidCrtA.duration) {
-        try { vidCrtA.currentTime = (k / 8) * vidCrtA.duration; } catch (e) {}
-      }
-    };
-    grid.appendChild(slot);
-  });
-  renderCrtStglOverlay(st, 0);
-}
-
-function selectScreen(idx, autoPlayVideo) {
-  if (!SCREENS.length) return;
-  curIdx = (idx + SCREENS.length) % SCREENS.length;
-  const st = SCREENS[curIdx];
-
-  document.getElementById("execCounter").textContent =
-    `STATE ${String(st.state_index).padStart(2, "0")} / ${SCREENS.length}`;
-  document.getElementById("pane1Defcon").textContent = `DEFCON ${st.defcon}`;
-  document.getElementById("activeSubAddr").textContent = (st.subroutine || "").split(" ")[0];
-
-  // Always prefer local pre-extracted clips/{shot_id}.mp4 so all 68 screens run natively!
-  const localClip = `clips/${st.shot_id}.mp4`;
-  document.getElementById("crtAShot").textContent = `${st.shot_id} [${Number(st.start).toFixed(1)}s]`;
-  document.getElementById("crtAOcr").textContent = st.terminal_prompt || st.opcode;
-  if (vidCrtA.dataset.src !== localClip) {
-    vidCrtA.dataset.src = localClip;
-    vidCrtA.src = localClip;
-  }
-  if (autoPlayVideo !== false) {
-    vidCrtA.currentTime = 0;
-    vidCrtA.play().catch(() => {});
-  }
-
-  // CRT-B Archival Twin Video
-  const twin = st.arch_twin || (st.trigger_line && st.trigger_line.arch_take) || {};
-  const twinUrl = twin.media_url || twin.video || "";
-  document.getElementById("crtBYear").textContent = `${twin.year || 1960} · ${twin.id || "ARCHIVE"}`;
-  document.getElementById("crtBTitle").textContent = `${twin.title || "Archival Machine Twin"} // "${(twin.spoken || "").slice(0, 48)}"`;
-  if (twinUrl && vidCrtB.dataset.src !== twinUrl) {
-    vidCrtB.dataset.src = twinUrl;
-    vidCrtB.src = twinUrl;
-  }
-  if (autoPlayVideo !== false && twinUrl) {
-    try { vidCrtB.currentTime = Number(twin.clip_t0 || twin.t0 || 0); } catch (e) {}
-    vidCrtB.play().catch(() => {});
-  }
-
-  const rgb = st.rgb || [40, 44, 48];
-  document.getElementById("rgbTelemetry").textContent =
-    `RGB(${rgb.join(",")}) · LUM:${st.lum} · PURITY:${st.purity}`;
-
-  renderCpeBank(curIdx);
-  render8FrameStrip(st);
-  renderAsmSubroutines(st.subroutine);
-  renderScreenCollection();
-
-  const trig = st.trigger_line || {};
-  document.getElementById("stLeft").textContent =
-    `PC: ${(st.subroutine || "").split(" ")[0]} // STATE ${String(st.state_index).padStart(2, "0")}/68 (${st.shot_id}) // OP: ${st.opcode}`;
-  document.getElementById("stCenter").textContent =
-    `${trig.speaker || st.speaker || "WOPR"}: "${(trig.text || st.spoken_1983 || "").slice(0, 68)}"`;
-}
-
-function haltEmulator() {
-  seqToken++;
-  if (seqTimer) {
-    clearTimeout(seqTimer);
-    seqTimer = null;
-  }
-  try { vidCrtA.pause(); } catch (e) {}
-  try { vidCrtB.pause(); } catch (e) {}
-  try { aud1983.pause(); } catch (e) {}
-  try { audArch.pause(); } catch (e) {}
-  document.getElementById("stRight").textContent = "EMULATOR HALTED";
-}
-
-function runSingleScreenVideo() {
-  haltEmulator();
-  selectScreen(curIdx, true);
-  const st = SCREENS[curIdx];
-  const trig = st.trigger_line || {};
-  // Also play the 1983 spoken trigger slice for this screen state
-  const beatAudio = `cache/wg_sound/${st.beat_id}_orig.m4a`;
-  aud1983.src = beatAudio;
-  const s0 = Number(trig.s || 0);
-  const dur = Math.max(2.0, Number(trig.dur || st.dur || 3.0));
-  aud1983.onloadedmetadata = () => {
-    aud1983.onloadedmetadata = null;
-    try { aud1983.currentTime = s0; } catch (e) {}
-    aud1983.play().catch(() => {});
-  };
-  document.getElementById("stRight").textContent = `RUNNING STATE #${st.state_index} (${st.shot_id}.mp4)`;
-}
-
-function runSequenceOfIndices(indices, label) {
-  haltEmulator();
-  if (!indices.length) return;
-  const myTok = ++seqToken;
-  let pos = 0;
-
-  const step = () => {
-    if (myTok !== seqToken) return;
-    if (pos >= indices.length) {
-      document.getElementById("stRight").textContent = `COMPLETED ${label} (${indices.length} SCREENS)`;
-      appendShellLine("sys", `[EXEC COMPLETE] ${label} — ${indices.length} screen states executed.`);
-      return;
-    }
-    const sIdx = indices[pos++];
-    selectScreen(sIdx, true);
-    const st = SCREENS[sIdx];
-    document.getElementById("stRight").textContent =
-      `EXEC ${label}: [${pos}/${indices.length}] ${st.shot_id}.mp4`;
-    const waitMs = Math.max(2200, Math.min(4200, Number(st.dur || 2.8) * 950));
-    seqTimer = setTimeout(step, waitMs);
-  };
-  step();
-}
-
-function runActiveSubroutineVideos() {
-  const st = SCREENS[curIdx];
-  if (!st) return;
-  runSubroutineById(st.subroutine);
-}
-
-function runSubroutineById(subId) {
-  const indices = SCREENS.map((s, i) => ({ s, i }))
-    .filter(x => x.s.subroutine === subId)
-    .map(x => x.i);
-  appendShellLine("sys", `EXEC SUBROUTINE ${subId} -> RUNNING ${indices.length} SCREEN VIDEOS...`);
-  runSequenceOfIndices(indices, subId.split(" ")[0]);
-}
-
-function runAll68ScreenVideos() {
-  const allIndices = SCREENS.map((_, i) => i);
-  appendShellLine("alert", `EXEC FULL MACHINE PROGRAM -> RUNNING ALL ${allIndices.length} PURE SCREEN VIDEOS (01..68)...`);
-  runSequenceOfIndices(allIndices, "FULL_PROGRAM_68");
-}
-
-function stepScreen(delta) {
-  haltEmulator();
-  selectScreen(curIdx + delta, true);
-}
-
-function appendShellLine(cls, html) {
-  const log = document.getElementById("shellLog");
-  const div = document.createElement("div");
-  div.className = "sh-ln " + (cls || "");
-  div.innerHTML = html;
-  log.appendChild(div);
-  log.scrollTop = log.scrollHeight;
-}
-
-function execCommand(rawCmd) {
-  const cmd = String(rawCmd || "").trim().toUpperCase();
-  if (!cmd) return;
-  appendShellLine("cmd", `WOPR&gt; ${esc(cmd)}`);
-
-  if (cmd === "CLEAR" || cmd === "CLS") {
-    document.getElementById("shellLog").innerHTML = "";
-    return;
-  }
-  if (cmd === "HALT" || cmd === "STOP") {
-    haltEmulator();
-    appendShellLine("alert", "PROGRAM EXECUTION HALTED BY OPERATOR.");
-    return;
-  }
-  if (cmd === "RUN ALL" || cmd === "PLAY ALL" || cmd === "EXEC ALL") {
-    runAll68ScreenVideos();
-    return;
-  }
-  if (cmd === "HELP" || cmd === "?") {
-    appendShellLine("box",
-      `WOPR // IMSAI-8080 TUI COMMAND SET:<br>` +
-      `&middot; <b>RUN ALL</b> : Sequentially execute all 68 pure screen videos (01..68)<br>` +
-      `&middot; <b>RUN [1..68]</b> : Execute screen state #N video &amp; archival twin<br>` +
-      `&middot; <b>SILO</b> | <b>PASSWORD PENCIL</b> | <b>DIAL 408-311</b> | <b>LIST GAMES</b><br>` +
-      `&middot; <b>LOGON JOSHUA</b> | <b>RUN GTW</b> | <b>LOCKOUT</b> | <b>CRACK CPE</b> | <b>PLAY TICTACTOE 0</b><br>` +
-      `&middot; <b>OPEN [00..10]</b> : Launch any studio in the WarGames Studio Set`
-    );
-    return;
-  }
-  if (cmd === "STUDIOS" || cmd === "LS") {
-    const links = Object.entries(STUDIO_ROUTES)
-      .filter(([k]) => /^\d\d$/.test(k))
-      .map(([k, [url, title]]) => `<span class="sh-chip" onclick="location.href='${url}'">[${k}] ${esc(title)}</span>`)
-      .join("");
-    appendShellLine("box", `STUDIO SET DIRECTORY:<br>${links}`);
-    return;
-  }
-  if (cmd.startsWith("OPEN ")) {
-    const key = cmd.replace(/^OPEN\s+/, "").trim();
-    const route = STUDIO_ROUTES[key];
-    if (route) {
-      appendShellLine("sys", `OPENING ${route[1]} (${route[0]})...`);
-      setTimeout(() => { location.href = route[0]; }, 220);
-      return;
-    }
-  }
-  const runNumMatch = cmd.match(/^(?:RUN|STATE|SCREEN)\s+#?(\d+)$/);
-  if (runNumMatch) {
-    const n = Math.max(1, Math.min(SCREENS.length, parseInt(runNumMatch[1], 10)));
-    selectScreen(n - 1, true);
-    runSingleScreenVideo();
-    const st = SCREENS[n - 1];
-    appendShellLine("box",
-      `STATE #${n} (${esc(st.shot_id)}) // ${esc(st.opcode)}<br>` +
-      `OCR: ${esc(st.terminal_prompt)}`
-    );
-    return;
-  }
-
-  // Match subroutine commands (SILO, PENCIL, DIAL, LIST GAMES, JOSHUA, GTW, LOCKOUT, CRACK CPE, TICTACTOE)
-  const subMap = [
-    [["SILO", "EAM"], "0x0010 SUB_SILO_EAM_DECODE"],
-    [["PENCIL", "GRADES", "SCHOOL"], "0x0050 SUB_SEATTLE_SCHOOLS_DB"],
-    [["DIAL", "311", "WARDIAL"], "0x0070 SUB_IMSAI_WARDIALER"],
-    [["LIST GAMES", "HELP GAMES", "JOSHUA", "LOGON"], "0x0090 SUB_WOPR_JOSHUA_SHELL"],
-    [["GTW", "MAP", "THERMONUCLEAR"], "0x00C0 SUB_GTW_TRAJECTORY_SIM"],
-    [["LOCKOUT", "CLOCK", "DEFCON"], "0x0100 SUB_GAME_CLOCK_LOCKOUT"],
-    [["CPE", "CRACK", "1704"], "0x0140 SUB_CPE_BRUTE_FORCE"],
-    [["TICTACTOE", "TTT", "NONE"], "0x0180 SUB_ZERO_PLAYER_STALEMATE"]
-  ];
-  for (const [keys, subId] of subMap) {
-    if (keys.some(k => cmd.includes(k))) {
-      runSubroutineById(subId);
-      const subObj = SUBS.find(s => s.id === subId);
-      if (subObj) {
-        appendShellLine("box",
-          `<b>${esc(subObj.id)} — ${esc(subObj.title)}</b><br>` +
-          (subObj.pseudo_code || []).map(l => esc(l)).join("<br>")
-        );
-      }
-      return;
-    }
-  }
-
-  // Search OCR / spoken line across the 68 screens
-  const hits = SCREENS.map((s, i) => ({ s, i })).filter(({ s }) =>
-    (s.terminal_prompt || "").toUpperCase().includes(cmd) ||
-    (s.opcode || "").toUpperCase().includes(cmd) ||
-    (s.shot_id || "").toUpperCase().includes(cmd)
-  );
-  if (hits.length) {
-    selectScreen(hits[0].i, true);
-    runSequenceOfIndices(hits.map(h => h.i), `QUERY:${cmd}`);
-    return;
-  }
-
-  appendShellLine("alert", `** IDENTIFICATION NOT RECOGNIZED ** TYPE 'HELP' OR 'RUN ALL'.`);
-}
-
-function onShellSubmit(e) {
-  e.preventDefault();
-  const inp = document.getElementById("shellInput");
-  const val = inp.value;
-  inp.value = "";
-  execCommand(val);
-}
+let SCREENS = [], CUR = 0, SUB = 0, PLAYING = true, YAW = -0.45, PITCH = 0.28;
+let STRIP_CACHE = {};
 
 async function init() {
-  const res = await fetch("wargames-screens-program.json");
-  PROG = await res.json();
-  SCREENS = PROG.screen_states || [];
-  SUBS = (PROG.inferred_program && PROG.inferred_program.subroutines) || [];
+  const res = await fetch('wargames-screens-program.json');
+  const data = await res.json();
+  SCREENS = data.screen_states || [];
+  renderWall();
+  if (SCREENS.length) selectScreen(0);
+  requestAnimationFrame(loop);
+}
 
-  appendShellLine("sys", "WOPR // IMSAI-8080 TUI EMULATOR ONLINE.");
-  appendShellLine("box",
-    `LOADED <b>${SCREENS.length} VERIFIED 100%-PURE COMPUTER SCREENS</b> (${PROG.total_subframe_states} 8-FRAME STATES).<br>` +
-    `ALL ${SCREENS.length} LOCAL MP4 HARDWARE SCREEN CLIPS READY.<br>` +
-    `TYPE <b>RUN ALL</b> TO EXECUTE ALL 68 SCREEN VIDEOS OR CLICK ANY SCREEN.`
-  );
+function togglePlay() {
+  PLAYING = !PLAYING;
+  const v = document.getElementById('scrVid');
+  if (PLAYING) v.play().catch(() => {}); else v.pause();
+}
 
-  selectScreen(0, true);
+function renderWall() {
+  const w = document.getElementById('wall68');
+  w.innerHTML = SCREENS.map((s, i) => `
+    <div class="sc-tile ${i === CUR ? 'active' : ''}" id="sct_${i}" onclick="selectScreen(${i})">
+      <img src="${s.thumb}" loading="lazy" alt="">
+    </div>
+  `).join('');
+}
 
-  window.addEventListener("keydown", (e) => {
-    if (document.activeElement === document.getElementById("shellInput")) return;
-    if (e.key === "ArrowRight" || e.key === "]") stepScreen(1);
-    else if (e.key === "ArrowLeft" || e.key === "[") stepScreen(-1);
-    else if (e.key === " ") {
-      e.preventDefault();
-      runSingleScreenVideo();
+function selectScreen(idx) {
+  if (!SCREENS.length) return;
+  CUR = (idx + SCREENS.length) % SCREENS.length;
+  const st = SCREENS[CUR];
+  document.querySelectorAll('.sc-tile').forEach((t, i) => t.classList.toggle('active', i === CUR));
+  const tile = document.getElementById(`sct_${CUR}`);
+  if (tile) tile.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  if (st.strip && !STRIP_CACHE[st.strip]) {
+    const im = new Image(); im.src = st.strip; STRIP_CACHE[st.strip] = im;
+  }
+
+  const v = document.getElementById('scrVid');
+  v.src = st.video;
+  v.currentTime = 0;
+  if (PLAYING) v.play().catch(() => {});
+
+  renderStrip8(st);
+  setSub(0);
+}
+
+function renderStrip8(st) {
+  const wFrames = (st.worm_3d && st.worm_3d.worm_frames) || [];
+  const el = document.getElementById('strip8');
+  el.innerHTML = wFrames.map((wf, k) => `
+    <div class="f-cell ${k === SUB ? 'active' : ''}" onclick="setSub(${k})">
+      <img class="f-strip-img" src="${st.strip}" style="left:${-(k*100)}%;">
+      <svg viewBox="0 0 100 56.25" preserveAspectRatio="none">
+        <ellipse cx="${wf.u*100}" cy="${wf.v*56.25}" rx="${wf.r*100}" ry="${wf.r*56.25}" fill="none" stroke="${wf.core_color.hex}" stroke-width="1.6"/>
+      </svg>
+    </div>
+  `).join('');
+}
+
+function setSub(k) {
+  const st = SCREENS[CUR];
+  const wFrames = (st && st.worm_3d && st.worm_3d.worm_frames) || [];
+  if (!wFrames[k]) return;
+  SUB = k;
+  document.querySelectorAll('.f-cell').forEach((c, idx) => c.classList.toggle('active', idx === k));
+  const wf = wFrames[k];
+  const svg = document.getElementById('scrSvg');
+  const W = 1000, H = 562.5;
+  const spine = wFrames.map(f => `${f.u*W},${f.v*H}`).join(' ');
+  svg.innerHTML = `
+    <polyline points="${spine}" fill="none" stroke="#00e5ff" stroke-width="2.2"/>
+    <ellipse cx="${wf.u*W}" cy="${wf.v*H}" rx="${wf.r*W}" ry="${wf.r*H}" fill="none" stroke="#ffb000" stroke-width="2.6"/>
+    <circle cx="${wf.u*W}" cy="${wf.v*H}" r="5" fill="#00e5ff"/>
+  `;
+  renderPrism(st, k);
+}
+
+function proj(u, v, tau, W, H) {
+  const x0 = (u - 0.5) * 1.6, y0 = (v - 0.5) * 0.95, z0 = (tau - 0.5) * 1.9;
+  const cY = Math.cos(YAW), sY = Math.sin(YAW);
+  const x1 = x0 * cY + z0 * sY, z1 = -x0 * sY + z0 * cY;
+  const cP = Math.cos(PITCH), sP = Math.sin(PITCH);
+  const y2 = y0 * cP - z1 * sP, z2 = y0 * sP + z1 * cP;
+  const sc = Math.min(W, H) * 0.65 / (2.85 + z2 * 0.45);
+  return { x: W * 0.5 + x1 * sc, y: H * 0.5 + y2 * sc };
+}
+
+function renderPrism(st, activeK) {
+  const c = document.getElementById('prismCanvas'), ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  const wFrames = (st.worm_3d && st.worm_3d.worm_frames) || [];
+  if (!wFrames.length) return;
+
+  const stripImg = st.strip ? STRIP_CACHE[st.strip] : null;
+  if (stripImg && stripImg.complete && stripImg.naturalWidth > 0) {
+    const fw = stripImg.naturalWidth / 8, fh = stripImg.naturalHeight;
+    wFrames.forEach((wf, k) => {
+      const isAct = k === activeK;
+      if (!isAct && k % 2 !== 0) return;
+      const tl = proj(0, 0, wf.tau_norm, W, H), br = proj(1, 1, wf.tau_norm, W, H);
+      ctx.save(); ctx.globalAlpha = isAct ? 0.6 : 0.16;
+      ctx.drawImage(stripImg, k * fw, 0, fw, fh, tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+      ctx.restore();
+    });
+  }
+
+  wFrames.forEach((wf, k) => {
+    const isAct = k === activeK;
+    ctx.beginPath();
+    for (let s = 0; s < 16; s++) {
+      const ang = (s / 16) * 2 * Math.PI;
+      const p = proj(wf.u + wf.r * Math.cos(ang), wf.v + wf.r * Math.sin(ang), wf.tau_norm, W, H);
+      if (s === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
     }
+    ctx.closePath();
+    ctx.fillStyle = wf.core_color.hex + (isAct ? '66' : '22'); ctx.fill();
+    ctx.strokeStyle = isAct ? '#ffffff' : wf.core_color.hex; ctx.lineWidth = isAct ? 2.5 : 1.2; ctx.stroke();
   });
 }
 
+function loop() {
+  const st = SCREENS[CUR];
+  const v = document.getElementById('scrVid');
+  YAW += 0.0045; if (YAW > 1.2) YAW = -1.2;
+  if (st) renderPrism(st, SUB);
+  if (PLAYING && st) {
+    if (v.ended) selectScreen(CUR + 1);
+    else if (v.duration > 0) {
+      const k = Math.min(7, Math.floor((v.currentTime / v.duration) * 8));
+      if (k !== SUB) setSub(k);
+    }
+  }
+  requestAnimationFrame(loop);
+}
 init();
 </script>
 </body>
