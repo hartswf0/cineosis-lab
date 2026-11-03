@@ -286,7 +286,8 @@
   <!-- CONTINUOUS MOBILE / LEAN-BACK STREAM TRANSPORT BAR -->
   <div class="watchbar">
     <div class="watch-group">
-      <button class="amber on" id="btnStreamAll" onclick="toggleContinuousStream()">[PLAY CONTINUOUS FILM STREAM]</button>
+      <button class="amber on" id="btnStreamAll" onclick="toggleContinuousStream()">[PAUSE FILM STREAM]</button>
+      <button class="cyan on" id="btnUnmuteMobile" onclick="unlockAudioOnTap()" style="font-weight:700;">[TAP TO UNMUTE DIALOGUE AUDIO]</button>
       <button onclick="stepShot(-1)">[&lt; PREV BEAT]</button>
       <span id="streamBeatCounter" style="color:var(--fg-bright);font-weight:700;padding:0 4px;">01 / 105</span>
       <button onclick="stepShot(1)">[NEXT BEAT &gt;]</button>
@@ -371,7 +372,7 @@
                 <span id="crtShotLabel" style="color:var(--cyan);">wg_001</span>
               </div>
               <div class="crt-vp">
-                <video id="wormVideo" playsinline preload="auto" muted></video>
+                <video id="wormVideo" autoplay playsinline webkit-playsinline preload="auto" muted></video>
                 <svg id="wormVideoSvg" viewBox="0 0 1000 562.5" preserveAspectRatio="none"></svg>
               </div>
             </div>
@@ -381,7 +382,7 @@
                 <span id="crtCutLabel" style="color:var(--amber);">SYNTHESIS</span>
               </div>
               <div class="crt-vp">
-                <video id="cutVideo" playsinline preload="auto" muted></video>
+                <video id="cutVideo" autoplay playsinline webkit-playsinline preload="auto" muted></video>
                 <img id="cutThumbFallback" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" alt="">
                 <svg id="cutVideoSvg" viewBox="0 0 1000 562.5" preserveAspectRatio="none"></svg>
               </div>
@@ -543,8 +544,9 @@ let SHOTS = [];
 let CUR_IDX = 0;
 let CUR_TAU_IDX = 0;
 let ACTIVE_CUT_LENS = 'synthesis';
-let STREAM_PLAYING = false;
+let STREAM_PLAYING = true;
 let AUDIO_MODE = 'orig'; // 'orig' | 'aligned' | 'mute'
+let AUDIO_UNLOCKED = false;
 let SUBSHOT_TIMER = null;
 
 // 3D Prism Camera Orbit State
@@ -580,6 +582,24 @@ async function initWormConsole() {
 function toggleMobileWatchLayout() {
   document.body.classList.toggle('mobile-watch');
   document.getElementById('btnMobileLayout').classList.toggle('on', document.body.classList.contains('mobile-watch'));
+}
+
+function unlockAudioOnTap() {
+  AUDIO_UNLOCKED = true;
+  const btn = document.getElementById('btnUnmuteMobile');
+  if (btn) {
+    btn.textContent = '[AUDIO LIVE]';
+    btn.classList.remove('on');
+  }
+  const vidB = document.getElementById('cutVideo');
+  const sh = SHOTS[CUR_IDX];
+  if (sh) {
+    if (AUDIO_MODE === 'mute') setAudioMode('orig');
+    else startBeatAudio(sh);
+  }
+  if (vidB && AUDIO_MODE === 'aligned') {
+    vidB.muted = false;
+  }
 }
 
 function setAudioMode(mode) {

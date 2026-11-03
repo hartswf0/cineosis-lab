@@ -429,11 +429,17 @@ def analyze_cut_sequence_worm(seq_list, cut_lens, dur_sec=3.5, strip_cache=None,
             else:
                 internal_collisions += 1
         prev_uv = cur_uv
+        vid_url = item.get("video") or item.get("media_url") or ""
+        if vid_url.startswith("/media/"):
+            raw_id = vid_url.replace("/media/", "").replace(".mp4", "")
+            if os.path.exists(os.path.join(LAB, "clips", f"{raw_id}.mp4")):
+                vid_url = f"clips/{raw_id}.mp4"
         subshot_details.append({
             "id": sid,
             "title": item.get("title", sid),
             "year": item.get("year", 1960),
-            "media_url": item.get("media_url") or item.get("video") or f"/media/{sid}.mp4",
+            "media_url": vid_url,
+            "video": vid_url,
             "thumb": f"thumbs/{sid}.jpg" if os.path.exists(os.path.join(LAB, "thumbs", f"{sid}.jpg")) else item.get("thumb", ""),
             "t0": round(float(item.get("clip_t0", item.get("t0", 0.0))), 2),
             "dur": round(float(item.get("slot_dur", item.get("dur", 1.0))), 2),
@@ -595,7 +601,7 @@ def build_all_spatiotemporal_worms():
                             "title": tk.get("title", "Archival Take"),
                             "year": tk.get("year", 1960),
                             "spoken": tk.get("spoken", ""),
-                            "media_url": tk.get("media_url") or tk.get("video") or f"/media/{tsid}.mp4",
+                            "media_url": tk.get("video") or (tk.get("media_url") if not str(tk.get("media_url", "")).startswith("/media/") else "") or f"clips/{tsid}.mp4",
                             "t0": round(float(tk.get("clip_t0", tk.get("t0", 0.0))), 2),
                             "dur": round(float(tk.get("dur", 2.5)), 2),
                             "u": u_tk,
