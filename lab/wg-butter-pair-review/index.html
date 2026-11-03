@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Butter Pair Review</title>
+<meta name="description" content="Why two cameras could not see each other, which physical signals can tie them together, what the system must never do, and one redesign with tests real hardware must pass.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0a09;--panel:#12100e;--ink:#ece6da;--dim:#b3ab9e;--faint:#7a7368;--rule:#2e2a26;--lime:#c4f46a;--orange:#efa13a;--blue:#85bdff;--red:#e0483a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 "IBM Plex Mono",ui-monospace,monospace}
+main{max-width:1060px;margin:0 auto;padding:28px 16px 90px}a{color:var(--lime)}
+h1{font:700 clamp(28px,5vw,44px)/1.1 Fraunces,Georgia,serif;margin:6px 0 10px}h2{font:400 24px/1.25 Fraunces,Georgia,serif;margin:46px 0 10px;border-top:1px solid var(--rule);padding-top:22px}
+h3{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:24px 0 8px;font-weight:500}p{max-width:76ch;margin:8px 0}
+.lead{font:300 19px/1.45 Fraunces,Georgia,serif;color:#d8d2c6;max-width:64ch}.kick{font-size:11px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase}
+.wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px;min-width:640px}th,td{text-align:left;vertical-align:top;padding:7px 8px;border-bottom:1px solid var(--rule)}th{font-weight:500;color:var(--dim);font-size:11px;letter-spacing:.06em}
+.go{color:var(--lime)}.nogo{color:var(--red)}.risk{color:var(--orange)}
+.sev-CRITICAL{color:var(--red)}.sev-HIGH{color:var(--orange)}.sev-MEDIUM{color:var(--ink)}.sev-LOW{color:var(--dim)}
+ul,ol{padding-left:20px;max-width:78ch}li{margin:5px 0}code{background:var(--panel);padding:1px 5px;border-radius:3px;font-size:12.5px}.note{color:var(--faint);font-size:12.5px}
+.box{border:1px solid var(--rule);border-radius:6px;padding:12px 14px;margin:12px 0;background:var(--panel)}.box b{font-weight:500}
+.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin:12px 0}figure{margin:0;border:1px solid var(--rule);border-radius:6px;padding:8px;background:#0e0c0b}figure svg{width:100%;height:auto;display:block}figcaption{font-size:12px;color:var(--dim);margin-top:6px}
+.ns{border-left:3px solid var(--red);padding-left:14px}
+.toc{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0}.toc a{border:1px solid var(--rule);border-radius:4px;padding:6px 10px;text-decoration:none;color:var(--ink);font-size:12.5px}
+.state{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11.5px;letter-spacing:.06em}.s-nom{background:#c4f46a22;color:var(--lime)}.s-deg{background:#efa13a22;color:var(--orange)}.s-safe{background:#e0483a22;color:var(--red)}
+</style>
+</head>
+<body>
+<main>
+<div class="kick">BUTTER PAIR · engineering review · 2 November 2026</div>
+<h1>Making two cameras see each other</h1>
+<p class="lead">Four rounds of changes made the two-camera system harder to use, not easier. This review says why, surveys every physical signal that could tie a laptop and a phone together (light, sound, motion, touch, the hand itself), names what the system must never do, and proposes one redesign with tests your real hardware must pass before anything else is added.</p>
+<div class="toc"><a href="#why">Why it got worse</a><a href="#space">The space</a><a href="#signals">Signal ledger</a><a href="#ns">Negative space report</a><a href="#redesign">The redesign</a><a href="#fdir">Fault states</a><a href="#tests">Acceptance tests</a><a href="#plan">Build order</a><a href="#sources">Sources</a></div>
+
+<h2 id="why">Why it got worse</h2>
+<ol>
+<li><b>Everything was tuned on a simulator, none of it on your cameras.</b> Every number in the proof pages comes from two ideal pinhole cameras and a perfect 21-point hand. Each fix made the simulator better and moved further from the room you are in.</li>
+<li><b>The laptop camera's position was never measured, only guessed.</b> Corner pinches, then flashes, then hand learning, then a hand-entered model. Each is a different guess, and no two were checked against each other.</li>
+<li><b>The hand was used to calibrate the cameras that are supposed to measure the hand.</b> A hand is soft, changes shape, and its size varies by person by about 15%. Using it as the ruler makes every error circular.</li>
+<li><b>The geometry was wrong for the work, and nothing said so.</b> A laptop screen opened to 110° points its camera about 20° up. From 50 cm away it cannot see the table near the phone, and the phone camera cannot fit a whole hand in its picture below about 16 cm. The only place both see a hand is 20 to 40 cm above the phone. A hand held low over the Floor, where it feels natural, is seen by neither camera properly.</li>
+<li><b>The system never says when it is wrong.</b> When the two cameras disagree, it averages them and draws one confident cursor. A disagreement of 5 cm looks the same on screen as agreement.</li>
+<li><b>Each round added a feature instead of a test.</b> Scope, Rig, flash, touch, record: each is useful, but without a pass/fail test on real hardware, none of them can show that the system works.</li>
+</ol>
+
+<h2 id="space">The space, drawn to scale</h2>
+<div class="figs">
+<figure>
+<svg viewBox="0 0 520 300" role="img" aria-label="Side view of a laptop and a phone on a table, with each camera's field of view">
+ <rect x="0" y="0" width="520" height="300" fill="#0e0c0b"/>
+ <!-- scale: 1 cm = 6 px; table at y=260; Floor centre at x=80 -->
+ <line x1="10" y1="260" x2="510" y2="260" stroke="#3b3733" stroke-width="2"/>
+ <!-- B cone: straight up, half-angle 31 deg in this plane -->
+ <polygon points="80,256 -28,76 188,76" fill="#efa13a14" stroke="#efa13a" stroke-width="1"/>
+ <!-- A: camera at 52.5 cm, 19.9 cm up; looks 20 deg up; vertical half-angle 24.3 deg -->
+ <polygon points="395,141 80,164 80,-166" fill="#c4f46a10" stroke="#c4f46a" stroke-width="1"/>
+ <!-- overlap band 20-40 cm over the Floor -->
+ <rect x="52" y="20" width="56" height="120" fill="#ffffff26" stroke="#ece6da" stroke-dasharray="4 3"/>
+ <text x="114" y="84" fill="#ece6da" font-size="11" font-family="IBM Plex Mono">both see a hand</text><text x="114" y="98" fill="#ece6da" font-size="11" font-family="IBM Plex Mono">20–40 cm up</text>
+ <rect x="58" y="236" width="44" height="20" fill="none" stroke="#e0483a" stroke-dasharray="3 3"/><text x="108" y="250" fill="#e0483a" font-size="11" font-family="IBM Plex Mono">a hand here: neither camera</text>
+ <!-- phone -->
+ <rect x="58" y="256" width="45" height="4" fill="#8f8f8f"/><circle cx="58" cy="256" r="2.5" fill="#efa13a"/>
+ <!-- laptop: base and leaning screen -->
+ <rect x="222" y="251" width="132" height="9" fill="#55504a"/><line x1="354" y1="251" x2="395" y2="141" stroke="#8a847c" stroke-width="5"/>
+ <circle cx="395" cy="141" r="4" fill="#c4f46a"/><text x="402" y="134" fill="#c4f46a" font-size="11" font-family="IBM Plex Mono">A: 20° up</text>
+ <text x="10" y="284" fill="#7a7368" font-size="10.5" font-family="IBM Plex Mono">scale: grid 10 cm · screen opened to 110°, Floor 20 cm in front</text>
+ <g stroke="#2e2a26" stroke-width="1">
+  <line x1="80" y1="260" x2="80" y2="266"/><line x1="140" y1="260" x2="140" y2="266"/><line x1="200" y1="260" x2="200" y2="266"/><line x1="260" y1="260" x2="260" y2="266"/><line x1="320" y1="260" x2="320" y2="266"/><line x1="380" y1="260" x2="380" y2="266"/><line x1="440" y1="260" x2="440" y2="266"/>
+ </g>
+</svg>
+<figcaption>A typical laptop. The phone's camera (orange) looks straight up; the laptop's (lime) looks slightly up. They overlap only well above the phone. Neither can see the other device.</figcaption>
+</figure>
+<figure>
+<svg viewBox="0 0 520 300" role="img" aria-label="Side view of a camera on a stand above and behind the phone, the two cameras facing each other">
+ <rect x="0" y="0" width="520" height="300" fill="#0e0c0b"/>
+ <line x1="10" y1="260" x2="510" y2="260" stroke="#3b3733" stroke-width="2"/>
+ <!-- B cone -->
+ <polygon points="200,256 92,76 308,76" fill="#efa13a14" stroke="#efa13a" stroke-width="1"/>
+ <!-- A on a stand: 20 cm back, 45 cm up => (320,-10)? use 1 cm = 5px: x=200+100=300, y=260-225=35 -->
+ <line x1="330" y1="260" x2="330" y2="30" stroke="#55504a" stroke-width="3"/><line x1="330" y1="35" x2="300" y2="35" stroke="#55504a" stroke-width="3"/>
+ <rect x="290" y="28" width="16" height="12" fill="#3b3733" stroke="#c4f46a"/>
+ <!-- A cone aimed at the Floor -->
+ <polygon points="298,40 120,240 250,262" fill="#c4f46a10" stroke="#c4f46a" stroke-width="1"/>
+ <!-- mutual sight lines -->
+ <line x1="200" y1="254" x2="296" y2="42" stroke="#ece6da" stroke-dasharray="5 4"/>
+ <text x="218" y="150" fill="#ece6da" font-size="11" font-family="IBM Plex Mono" transform="rotate(-66 218 150)">each sees the other's screen</text>
+ <rect x="178" y="256" width="45" height="4" fill="#8f8f8f"/>
+ <rect x="172" y="120" width="56" height="80" fill="#ffffff26" stroke="#ece6da" stroke-dasharray="4 3"/><text x="40" y="160" fill="#ece6da" font-size="11" font-family="IBM Plex Mono">hand space,</text><text x="40" y="174" fill="#ece6da" font-size="11" font-family="IBM Plex Mono">both see it</text>
+ <text x="340" y="40" fill="#c4f46a" font-size="11" font-family="IBM Plex Mono">A: phone on a stand</text><text x="340" y="54" fill="#c4f46a" font-size="11" font-family="IBM Plex Mono">45 cm up, 20 cm back</text><text x="340" y="68" fill="#c4f46a" font-size="11" font-family="IBM Plex Mono">66° above the Floor</text>
+ <text x="10" y="284" fill="#7a7368" font-size="10.5" font-family="IBM Plex Mono">scale: 1 cm = 5 px · the Floor's camera sees down to about 59° above the horizon</text>
+</svg>
+<figcaption>A camera on a stand, high and close. It sees the Floor's screen, and the Floor's camera sees its screen. Each can flash dots for the other to find. The two views are about 24° from facing each other, enough to triangulate height.</figcaption>
+</figure>
+</div>
+<p class="note">Fields of view used: laptop 62° side to side; phone front camera 78° side to side, about 63° across its short side. The phone's camera sees a direction only if it is within about 31° of straight up across the short side, 39° along the long side. Turning the Floor so its long side points at camera A widens that.</p>
+
+<h2 id="signals">Signal ledger: everything that could tie the two devices together</h2>
+<p>Each signal is judged by what it physically measures, the accuracy reachable in a browser on consumer devices, and how it fails. "Use" says what role it should play. A signal is only worth having if its failure can be detected.</p>
+<div class="wrap"><table>
+<tr><th>Signal</th><th>What it measures</th><th>Reachable accuracy</th><th>How it fails</th><th>Use</th></tr>
+<tr><td>Floor screen flashes dots, camera A finds them</td><td>Camera A's full pose over the phone</td><td>about 1 cm in position when A sees the phone (measured in a two-window test)</td><td>A cannot see the phone (typical laptop); glare; phone moved</td><td class="go">Primary, when A can see the phone</td></tr>
+<tr><td>Camera A's screen flashes, Floor camera finds it</td><td>Direction from the Floor to camera A</td><td>under 1° of direction</td><td>Only possible if A is high above the Floor (more than about 59° above its horizon). A laptop never is.</td><td class="go">Primary for a camera on a stand; impossible for a laptop</td></tr>
+<tr><td>A third device held in the shared space, showing a dot pattern</td><td>The same physical points seen by both cameras at once: the pose of A relative to B, directly</td><td>about 1 cm, improving with more held positions</td><td>needs a third device (another phone or tablet), held still; screen glare at steep angles</td><td class="go">Primary when A cannot see the Floor. This is the standard way to calibrate two cameras.</td></tr>
+<tr><td>A printed two-sided card: marks on top for A, on the bottom for B</td><td>The same as above, without a third device</td><td>about 1 cm</td><td>needs printing; static mark detection is harder than flashing (a detector library)</td><td class="risk">Later; a fallback to the third device</td></tr>
+<tr><td>Sound: each device beeps, both record both (two-way ranging)</td><td>Distance between the laptop and the phone; their clock offset</td><td>1–2 cm in published work; one audio sample is 7 mm at 48 kHz</td><td>room echo; speaker and microphone positions are not the camera positions (offset of a few cm, known per model); audio processing must be off</td><td class="go">Cross-check of camera A's distance; clock sync. Not a position source on its own: it is one number, a distance.</td></tr>
+<tr><td>Sound: a finger snap heard by both</td><td>A shared instant; the difference of the snap's distances to the two microphones</td><td>timing within about a millisecond once clocks are synced; position: one surface (a hyperboloid), not a point</td><td>other loud sounds; two microphones cannot locate a point</td><td class="risk">A sync event: the same moment in both cameras' streams. Not a locator.</td></tr>
+<tr><td>Infrared dots</td><td>Would add a pattern the eye cannot see</td><td>not reachable</td><td>Browser cameras deliver colour pictures through an infrared-blocking filter; infrared face-login cameras are not offered to web pages as ordinary cameras.</td><td class="nogo">No</td></tr>
+<tr><td>Phone motion sensors</td><td>Tilt from level; whether the phone is moving</td><td>about 1° of tilt; motion detected within a tenth of a second</td><td>heading drifts; position cannot be integrated from acceleration</td><td class="go">Floor level and moved/still. A second phone as an angle gauge for the laptop screen.</td></tr>
+<tr><td>Touch on the Floor</td><td>A point at exactly zero height, known to the millimetre</td><td>about 1 mm</td><td>only at the glass; the touching hand is hard for the Floor camera to see</td><td class="go">Ground truth for the Floor camera's map, and for checks</td></tr>
+<tr><td>The hand, seen by both</td><td>Continuous correspondences</td><td>landmark jitter about 0.5–1% of the picture: 3–5 mm at 50 cm; hand size varies about 15% between people</td><td>pose changes the shape; fingers hide each other; fast motion drops frames</td><td class="risk">A running consistency check. Not the ruler.</td></tr>
+<tr><td>Both palms flat, recorded</td><td>How each camera sees a known pose: a baseline signature (size, palm area, landmark spread)</td><td>good for noticing change, not for measuring position</td><td>a different person or posture changes the signature</td><td class="go">Drift detection: "camera A sees your hand 20% smaller than at launch: it has moved".</td></tr>
+</table></div>
+<div class="box"><b>The principle that falls out:</b> light gives position, sound gives time and one distance, motion sensors give tilt and moved-or-still, touch gives ground truth at one height, and the hand only gives a check. The current system asks the hand to do the first job. That is the root fault.</div>
+
+<h2 id="ns">Negative space report</h2>
+<div class="ns">
+<h3>Report header</h3>
+<div class="wrap"><table>
+<tr><th>Field</th><th>Value</th></tr>
+<tr><td>report_id</td><td>NSPTR-BP-0411</td></tr>
+<tr><td>payload_type</td><td>Two-camera hand-tracking instrument (Butter Pair) with a LEGO bed and a film editor downstream</td></tr>
+<tr><td>mission_context</td><td>One person, a laptop and one phone on a table, a small space. Goal: move bricks and film material by hand across two devices without guessing where the hand is.</td></tr>
+<tr><td>review_posture</td><td>flight-rule strict; fault-aware; negative-space first</td></tr>
+</table></div>
+<h3>Mission figure</h3>
+<ul>
+<li><b>Central figure:</b> one hand, one position, one grasp, known to both devices.</li>
+<li><b>Load-bearing claim:</b> the two cameras' views can be put in one frame accurately enough (about 1 cm) that a hand seen by either is the same hand in the same place.</li>
+<li><b>Mission objective:</b> a person can pick up, carry and place without looking at a debug panel, and the system says plainly when it cannot.</li>
+</ul>
+<h3>False neighbours</h3>
+<div class="wrap"><table>
+<tr><th>Must not become</th><th>Why it looks close</th><th>Corruption if absorbed</th></tr>
+<tr><td>A motion-capture studio</td><td>Two cameras, markers, calibration wands</td><td>Rituals and hardware that a person at a table will not perform twice</td></tr>
+<tr><td>A gesture demo</td><td>Pinch, V, fist, palm</td><td>Success measured by whether a gesture fires once on camera, not whether it fires only when meant</td></tr>
+<tr><td>A simulator</td><td>Every test so far</td><td>Accuracy that exists only for ideal pinholes and perfect hands</td></tr>
+<tr><td>A dashboard</td><td>Scope, telemetry, charts</td><td>Showing more numbers instead of making fewer of them necessary</td></tr>
+<tr><td>A sensor-fusion averager</td><td>Inverse-variance weighting</td><td>Averaging two disagreeing cameras into one confident wrong answer</td></tr>
+</table></div>
+<h3>Not in scope</h3>
+<ul>
+<li><b>Not users:</b> more than one person's hands at once; people who will not do a one-minute setup.</li>
+<li><b>Not cases:</b> hands below the Floor camera's minimum height; rooms where the laptop camera sees only a ceiling; moving the laptop during a carry.</li>
+<li><b>Not contexts:</b> infrared, depth sensors, native apps, paid relays.</li>
+<li><b>Not problems:</b> recognising arbitrary gestures; tracking objects other than hands and the devices themselves.</li>
+<li><b>Not deliverables:</b> new gestures, new panels, or new calibration methods before the acceptance tests pass on real hardware.</li>
+</ul>
+<h3>Forbidden operations</h3>
+<div class="wrap"><table>
+<tr><th>Operation</th><th>Danger</th><th>Blocked transition</th><th>Repair principle</th></tr>
+<tr><td>MUST NOT calibrate a camera from the hand alone</td><td>Circular error; hand size varies 15%</td><td>uncalibrated → "calibrated" via hand pairs only</td><td>Light, touch or a held target sets the frame; the hand only checks it</td></tr>
+<tr><td>MUST NOT fuse two cameras that disagree beyond their stated uncertainty</td><td>One confident wrong cursor</td><td>both seen, disagree → fused</td><td>Disagreement isolates a camera and drops to the degraded state</td></tr>
+<tr><td>MUST NOT change a camera's registration during a carry</td><td>The held brick jumps</td><td>carrying → re-registered</td><td>Queue the new registration; apply when the hand is free</td></tr>
+<tr><td>MUST NOT fire a command from a pose read by the camera it was not assigned to</td><td>A fist read as a palm (found in testing)</td><td>pose seen by B → command reserved for A</td><td>Each command names its camera, its pose, its dwell</td></tr>
+<tr><td>MUST NOT report "calibrated" without a held-out check</td><td>Confidence without evidence</td><td>fit done → green</td><td>Green only after a point not used in the fit is checked within tolerance</td></tr>
+<tr><td>MUST NOT claim a result from simulation as a result</td><td>Four rounds of this</td><td>sim pass → shipped claim</td><td>Every claim carries "sim" or "real" and the device it ran on</td></tr>
+</table></div>
+<h3>Forbidden states</h3>
+<div class="wrap"><table>
+<tr><th>State</th><th>Meaning</th><th>Corruption prevented</th><th>Detection signal</th></tr>
+<tr><td>Two tracks, one hand</td><td>The same hand is two cursors</td><td>Double commands, lost grasps</td><td>Two tracks within 3 cm of each other for 200 ms</td></tr>
+<tr><td>Confident and unverified</td><td>Small error bars, no check passed</td><td>Silent misplacement</td><td>Registration age and last held-out residual shown with every estimate</td></tr>
+<tr><td>Release by loss</td><td>A brick drops because a camera lost the hand</td><td>Bricks placed where no one put them</td><td>A place command without a seen pinch opening</td></tr>
+<tr><td>Stale world</td><td>The Floor moved and A's registration did not</td><td>Every position off by the move</td><td>Floor motion sensors; flash residual; baseline signature change</td></tr>
+<tr><td>Hand outside the shared space, treated as inside</td><td>Positions from one camera presented as joint</td><td>Height and depth guesses shown as measurements</td><td>Coverage map from the rig; per-axis source shown</td></tr>
+</table></div>
+<h3>Anti-metrics</h3>
+<div class="wrap"><table>
+<tr><th>Do not measure</th><th>Bad incentive</th><th>Safer signal</th></tr>
+<tr><td>RMS error in simulation</td><td>Tune the model to the simulator</td><td>Position test error on real hardware, by dot and by camera</td></tr>
+<tr><td>Frames with a hand detected</td><td>Accept bad detections</td><td>Frames where both cameras agree within tolerance</td></tr>
+<tr><td>Gestures recognised</td><td>Loose thresholds that fire often</td><td>Unintended commands per minute while doing ordinary work</td></tr>
+<tr><td>Calibrations completed</td><td>A ritual that finishes but proves nothing</td><td>Held-out residual at a point not used in the fit</td></tr>
+<tr><td>Features shipped</td><td>Panels that need explaining</td><td>Minutes from opening the page to the first correct placement</td></tr>
+</table></div>
+<h3>Dangerous dissent</h3>
+<div class="wrap"><table>
+<tr><th>Claim</th><th>Threat</th><th>Why it hurts</th><th>Required response</th><th>Scar if accepted</th></tr>
+<tr><td>Camera A is not needed for position at all. The Floor camera sees left/right and depth best of the two (2–3 mm in simulation); touch gives exact ground truth. Use A only for height and for its own gestures.</td><td class="nogo">structural</td><td>Most of the registration machinery exists to fuse A's position, which is A's worst output.</td><td>Accept for the first build: split roles, fuse nothing positional from A. Bring A's position back only when triangulation passes the tests.</td><td>Hands outside the Floor camera's view cannot place bricks.</td></tr>
+<tr><td>A laptop camera is the wrong camera. It points at faces, not tables.</td><td class="nogo">structural</td><td>The shared space is 20–40 cm above the phone, where hands are not comfortable.</td><td>Offer a second phone on a stand as camera A, 45 cm up, close to the Floor; the cameras then see each other.</td><td>An extra device and a stand.</td></tr>
+<tr><td>A consumer hand detector cannot be a measuring instrument.</td><td class="risk">practical</td><td>Jitter of 3–5 mm and dropouts under motion set a floor no calibration beats.</td><td>Set tolerances at 10 mm, not 2 mm; place bricks on studs (8 mm) so this floor is enough.</td><td>No sub-stud precision, ever.</td></tr>
+<tr><td>Nobody will do a setup ritual.</td><td class="risk">practical</td><td>Every calibration step so far is a ritual.</td><td>One launch checklist, under a minute, recorded; re-run only when a check fails.</td><td>The first session is slower.</td></tr>
+<tr><td>Sound is a distraction.</td><td>minor</td><td>One distance does not locate anything.</td><td>Use it only as a check and for clock sync; never as a position source.</td><td>Beeps at launch.</td></tr>
+</table></div>
+<h3>Subtraction ledger</h3>
+<div class="wrap"><table>
+<tr><th>What is cut</th><th>Why</th><th>Visible scar</th><th>Corruption prevented</th></tr>
+<tr><td>Camera A learning its map from camera B's hand estimates</td><td>Circular</td><td>The "move your hand over the Floor, 0–100%" step disappears</td><td>Error that agrees with itself</td></tr>
+<tr><td>Corner pinches as calibration</td><td>The hand as ruler</td><td>No corner targets on the bed</td><td>15% hand-size error baked into the frame</td></tr>
+<tr><td>Positional fusion from camera A (first build)</td><td>A's worst axis dominates disagreements</td><td>The per-axis share bars show A at 0% for left/right and depth</td><td>Cursor pulled off by A's depth guess</td></tr>
+<tr><td>Simulation numbers on the proof pages as headline results</td><td>They are not results</td><td>Every table labelled "simulated"; real tables start empty</td><td>False confidence</td></tr>
+<tr><td>The Scope panel as the place you look while working</td><td>A debug view, not an instrument</td><td>Scope only on request; the work view shows one health state</td><td>Working by reading numbers</td></tr>
+</table></div>
+<h3>What stays human judgment</h3>
+<ul>
+<li><b>Where the devices go.</b> The table, the light and the posture are yours; the system can only say whether the result has a shared space. Owner: you.</li>
+<li><b>What counts as "meant".</b> Whether a gesture was intended is decided by the person; the system only counts commands you undo. Owner: you, by undoing.</li>
+<li><b>When good enough is good enough.</b> The tolerance (10 mm, one stud) is a design decision, not a measurement. Owner: you.</li>
+</ul>
+<h3>Critique log</h3>
+<div class="wrap"><table>
+<tr><th>Severity</th><th>Finding</th><th>Evidence</th><th>Violation</th><th>Required repair</th></tr>
+<tr><td class="sev-CRITICAL">CRITICAL</td><td>No real-hardware verification</td><td>All proof tables are simulated; the four "worse" reports came from real use</td><td>Simulation claimed as result</td><td>Acceptance tests on your devices before any new feature</td></tr>
+<tr><td class="sev-CRITICAL">CRITICAL</td><td>Silent fusion of disagreeing cameras</td><td>Inverse-variance average with no disagreement gate</td><td>Confident and unverified state</td><td>Consistency check with isolation and a degraded state</td></tr>
+<tr><td class="sev-HIGH">HIGH</td><td>Geometry with no shared space near the phone</td><td>Rig: laptop camera 20° up; overlap 20–40 cm up</td><td>Hand outside the shared space treated as inside</td><td>Show the band on the Floor (done); offer the stand mount</td></tr>
+<tr><td class="sev-HIGH">HIGH</td><td>Hand used as calibration object</td><td>Corner pinches; A learns from B</td><td>Hand as ruler</td><td>Light, touch and held targets only</td></tr>
+<tr><td class="sev-MEDIUM">MEDIUM</td><td>Command reserved for one camera fired by the other's misreading</td><td>Fist read as palm (found and fixed)</td><td>Command from the wrong camera</td><td>Each command bound to camera, pose and dwell, with a test</td></tr>
+<tr><td class="sev-MEDIUM">MEDIUM</td><td>Clock offset between devices estimated from message delay</td><td>Smallest-delay estimate over a public relay</td><td>A moving hand at 50 cm/s shifts 5 cm per 100 ms of offset</td><td>Acoustic clock sync at launch</td></tr>
+<tr><td class="sev-LOW">LOW</td><td>Too many controls in the header</td><td>Eleven buttons</td><td>Dashboard, not instrument</td><td>One launch button; the rest behind it</td></tr>
+</table></div>
+<h3>Prompt pack (to continue the critique, not to build)</h3>
+<ul>
+<li><b>Anti-theory deepening:</b> For the role-split design, name three ways the Floor camera alone could mislead a placement, and the state that would detect each.</li>
+<li><b>Dissent stress:</b> Argue that one camera plus touch beats two cameras for this table. Name the first task that would fail.</li>
+<li><b>Scar ledger:</b> For each cut above, show where a user would notice it in the first minute.</li>
+<li><b>Anti-metric:</b> Which number on the Scope panel would a person start optimising for, and what would they stop doing?</li>
+<li><b>Go/no-go:</b> Given only the acceptance test results from your devices, decide go or no-go for adding the film editor link.</li>
+</ul>
+<h3>Go / no-go</h3>
+<div class="wrap"><table>
+<tr><th>Item</th><th>Status</th><th>Required repair</th></tr>
+<tr><td>Current Butter Pair, for real use</td><td class="nogo">NO-GO</td><td>No real-hardware acceptance test has passed; disagreement is not detected</td></tr>
+<tr><td>The redesign below, first build (role split, health states, launch checklist)</td><td class="risk">GO-WITH-RESIDUAL-RISK</td><td>Residual risk: hand detector jitter and dropouts; height is A's only job and A's height is the least tested</td></tr>
+<tr><td>Triangulation and mutual flashing (second build)</td><td class="risk">GO after the first build passes</td><td>Needs a known camera A pose: flash, held target, or stand mount</td></tr>
+<tr><td>Infrared</td><td class="nogo">NO-GO</td><td>Not reachable from a browser</td></tr>
+</table></div>
+</div>
+
+<h2 id="redesign">The redesign: one launch checklist, three references, one health state</h2>
+<p><b>Component:</b> calibration and registration. <b>Current behaviour:</b> several separate rituals (Calibrate, Rig, Scope, touch, flash, hand learning). Each hides what it found. None checks the others. The working view shows a confident cursor whether or not the cameras agree.</p>
+<div class="box">
+<b>Launch</b> replaces Calibrate, Rig and Scope as the way in. It is a flight checklist on both screens at once, about a minute long. Each line turns green only on evidence, and the results are recorded as a baseline.
+<ol>
+<li><b>Floor level and still.</b> Motion sensors. Green under 3° and not moving.</li>
+<li><b>Clocks and distance.</b> Each device beeps once; both record both. Gives the clock offset and the laptop-to-phone distance. Green when the distance agrees with the rig within 3 cm.</li>
+<li><b>Camera A finds the Floor.</b> The Floor flashes five dots. If A cannot see them, the line says so and offers two routes: hold a third device showing dots in the shared space, or use the rig model, marked as measured by hand.</li>
+<li><b>Floor camera map.</b> Touch three dots and lift. Green when a fourth touch, not used in the fit, lands within 10 mm.</li>
+<li><b>Both palms flat.</b> Hold both hands flat, palms down, at the height the Floor shows (inside the shared band), for two seconds. Both cameras record what they see: size, palm area, landmark spread. This is the baseline. The two hands also check left and right: A and B must agree which hand is which.</li>
+<li><b>Gestures.</b> Pinch, V flat, V up, fist, palm to the laptop: each once, with the camera that owns it named on screen. Green when the owning camera reads it and no other command fires.</li>
+</ol>
+After launch, the working view shows the bricks and one health state, not numbers. The baseline is compared all the time: if A sees your flat palm 20% smaller than at launch, A has moved, and the state says so.
+</div>
+<h3>How the six principles shape it</h3>
+<div class="wrap"><table>
+<tr><th>Principle</th><th>In this redesign</th></tr>
+<tr><td>Surface the invisible</td><td>The shared space is drawn on the Floor as the band where both cameras see you. Every estimate carries its source per axis (B for plan, A for height) and the age of the last passed check.</td></tr>
+<tr><td>Overcome cognitive limits</td><td>One health state instead of panels. The checklist is the only setup; it remembers its baseline, so the next session starts with a check, not a ritual.</td></tr>
+<tr><td>Support multiple modes</td><td>Three views of the same model: the bricks (work), the rig (space, to scale), the scope (evidence, on request). Same numbers, different purpose.</td></tr>
+<tr><td>Direct manipulation</td><td>Moving the Floor is an action: its sensors pause it, set-down re-checks it. Dragging the rig's screen angle moves the shared band live, and the band shows on the Floor.</td></tr>
+<tr><td>Semantic zoom</td><td>Health state → per-camera state → per-axis source and residual → raw landmarks. Each level says the same thing in more detail.</td></tr>
+<tr><td>Constrained play</td><td>Nothing irreversible happens in a degraded state: bricks can be lifted and carried, but placing asks for a confirming pinch when only one camera sees the hand. Undo always works.</td></tr>
+</table></div>
+
+<h2 id="fdir">Fault states: detect, isolate, recover</h2>
+<div class="wrap"><table>
+<tr><th>State</th><th>Entered when</th><th>What still works</th><th>Shown as</th><th>Recovery</th></tr>
+<tr><td><span class="state s-nom">NOMINAL</span></td><td>Launch passed; both cameras see the hand; they agree within 10 mm in plan</td><td>Everything</td><td>a lime edge on both screens</td><td>none needed</td></tr>
+<tr><td><span class="state s-deg">FLOOR ONLY</span></td><td>Camera A lost the hand, or disagrees with B beyond tolerance for 300 ms</td><td>Lift, carry, place in plan; height frozen; A's gestures off</td><td>orange edge, "laptop camera isolated: why"</td><td>agreement for 1 s restores it</td></tr>
+<tr><td><span class="state s-deg">LAPTOP ONLY</span></td><td>The Floor camera lost the hand (too low, too close, covered)</td><td>Carry continues; placing needs a confirming pinch; plan precision shown as wider</td><td>orange edge, "hand too low for the Floor camera: raise it to the band"</td><td>Floor camera sees the hand again</td></tr>
+<tr><td><span class="state s-deg">FLOOR MOVED</span></td><td>Floor motion sensors, or a flash residual over 10 mm, or the baseline palm signature off by 15%</td><td>The Floor's own camera (it moves with the bed); touch</td><td>"the Floor moved: set it down to re-check"</td><td>automatic flash, or a touch check</td></tr>
+<tr><td><span class="state s-safe">SAFE</span></td><td>No camera sees a hand for 250 ms, or both disagree with touch</td><td>Nothing moves. A held brick stays held, never dropped.</td><td>red edge, "holding: show your hand"</td><td>pinch again where the brick is drawn</td></tr>
+</table></div>
+
+<h2 id="tests">Acceptance tests on your devices</h2>
+<p>Nothing is added until these pass on the real laptop and phone, in your space. Each test already exists in the Scope panel or the recorder; the pass criteria are new.</p>
+<div class="wrap"><table>
+<tr><th>Test</th><th>How</th><th>Pass</th></tr>
+<tr><td>T1 Shared space</td><td>Rig with your measured screen angle and distances; the band shows on the Floor</td><td>The band includes a height you can hold your hand at comfortably for a minute</td></tr>
+<tr><td>T2 Floor camera map</td><td>Test positions, five dots, at the band's middle height</td><td>Floor camera error at or under 10 mm on all five dots, three runs</td></tr>
+<tr><td>T3 Height</td><td>Hold a pinch at the band's low and high edge over the centre dot (a box or book as a guide)</td><td>Reported heights differ by the box height within 15 mm</td></tr>
+<tr><td>T4 Gestures</td><td>Test gestures, seven prompts</td><td>Seven of seven, three runs</td></tr>
+<tr><td>T5 Unintended commands</td><td>Five minutes of ordinary building, recorded</td><td>At most one command you undo because you did not mean it</td></tr>
+<tr><td>T6 Hand-off and loss</td><td>Carry a brick from the Floor camera's view into the laptop camera's only, then out of both, then back</td><td>One track throughout; the brick never drops; it places where you open the pinch</td></tr>
+<tr><td>T7 Moving the Floor</td><td>Pick up the Floor, put it down 10 cm away</td><td>The state goes to FLOOR MOVED and back to NOMINAL without a full re-launch</td></tr>
+</table></div>
+<p class="note">Send the saved Scope reports and one Record file from T5. Those files are the first real data this system will have been tuned on.</p>
+
+<h2 id="plan">Build order</h2>
+<div class="wrap"><table>
+<tr><th>Build</th><th>Contents</th><th>Exit criterion</th></tr>
+<tr><td>0. Real data</td><td>No code. You run T1, T2, T4 as they stand and send the reports and one recording.</td><td>Files received; failures named by test</td></tr>
+<tr><td>1. Role split and health</td><td>Floor camera owns plan position; laptop camera owns height (one-dimensional, from its vertical) and its own gestures. Disagreement gate, the five states, the launch checklist with the palm baseline. Cuts from the ledger made.</td><td>T2, T4, T5, T6 pass on your devices</td></tr>
+<tr><td>2. Seeing each other</td><td>Two-way acoustic ranging and clock sync. Third-device target for when the laptop camera cannot see the Floor. Triangulating the hand from both cameras' rays instead of averaging guesses.</td><td>T3 passes; acoustic distance within 3 cm of the rig</td></tr>
+<tr><td>3. The stand mount</td><td>A second phone as camera A, high and close. Both screens flash; both cameras find each other.</td><td>All tests pass with the hand 12–25 cm above the Floor</td></tr>
+</table></div>
+
+<h2 id="sources">Sources</h2>
+<ul>
+<li><a href="https://www.microsoft.com/en-us/research/?p=155459">BeepBeep: A High Accuracy Acoustic Ranging System using COTS Mobile Devices</a> (Microsoft Research, 2007): two-way acoustic ranging between phones, about 1–2 cm, no clock synchronisation needed.</li>
+<li><a href="https://www.cs.purdue.edu/homes/chunyi/pubs/sensys106-beepbeep.pdf">BeepBeep paper (SenSys 2007)</a>.</li>
+<li><a href="https://learn.microsoft.com/en-us/windows-hardware/drivers/stream/windows-hello-camera-driver-bring-up-guide">Windows Hello camera driver bring-up guide</a>: infrared face-login cameras are a separate class of device from ordinary colour cameras.</li>
+<li>Field-of-view and shared-space figures: the <a href="../wg-butter-pair-rig.html">Rig page</a> model, with the inputs stated under each figure. Detection figures from the <a href="../wg-butter-pair-proof/">proof page</a> are simulated.</li>
+</ul>
+</main>
+</body>
+</html>
