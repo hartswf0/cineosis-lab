@@ -406,31 +406,31 @@
   <div class="taxbar">
     <div class="bar-group" id="speciesBar">
       <span style="color:var(--fg-bright);font-weight:700;font-size:9px;margin-right:2px;">WORM TAXONOMY (FILTER BY 3D SPECIES):</span>
-      <button class="sp-btn on" data-sp="ALL" onclick="setSpeciesFilter('ALL')">ALL WORMS (105)</button>
-      <button class="sp-btn" data-sp="HELICAL_CORKSCREW" onclick="setSpeciesFilter('HELICAL_CORKSCREW')">
-        <span class="sp-dot" style="background:#ff44cc;"></span>HELIX · SPIRAL (30)
+      <button class="sp-btn on" data-sp="ALL" onclick="setSpeciesFilter('ALL')">ALL WORMS</button>
+      <button class="sp-btn" data-sp="VERTICAL_PILLAR" onclick="setSpeciesFilter('VERTICAL_PILLAR')">
+        <span class="sp-dot" style="background:#33ff77;"></span>PILLAR · LOCKED
       </button>
       <button class="sp-btn" data-sp="SHEARED_DIAGONAL_RIBBON" onclick="setSpeciesFilter('SHEARED_DIAGONAL_RIBBON')">
-        <span class="sp-dot" style="background:#00e5ff;"></span>RIBBON · PAN SHEAR (29)
+        <span class="sp-dot" style="background:#00e5ff;"></span>RIBBON · PAN SHEAR
       </button>
       <button class="sp-btn" data-sp="EXPANDING_CONE_FUNNEL" onclick="setSpeciesFilter('EXPANDING_CONE_FUNNEL')">
-        <span class="sp-dot" style="background:#ffb000;"></span>CONE · ZOOM/DOLLY (22)
+        <span class="sp-dot" style="background:#ffb000;"></span>CONE · ZOOM/DOLLY
+      </button>
+      <button class="sp-btn" data-sp="HELICAL_CORKSCREW" onclick="setSpeciesFilter('HELICAL_CORKSCREW')">
+        <span class="sp-dot" style="background:#ff44cc;"></span>HELIX · SPIRAL
       </button>
       <button class="sp-btn" data-sp="DOUBLE_HELIX_BRAID" onclick="setSpeciesFilter('DOUBLE_HELIX_BRAID')">
-        <span class="sp-dot" style="background:#ff5544;"></span>BRAID · DIALOGUE (19)
-      </button>
-      <button class="sp-btn" data-sp="VERTICAL_PILLAR" onclick="setSpeciesFilter('VERTICAL_PILLAR')">
-        <span class="sp-dot" style="background:#33ff77;"></span>PILLAR · LOCKED (5)
+        <span class="sp-dot" style="background:#ff5544;"></span>BRAID · DIALOGUE
       </button>
     </div>
     <div class="bar-group" style="font-size:8.5px;color:#99e6b3;">
       <span style="color:var(--amber);font-weight:700;">RENDER PATTERN:</span>
       <button class="sp-btn on" data-rm="TUBE" onclick="setRenderMode('TUBE')" title="Horizontal Side-Scroll Action Tube (f1..f8)">[1. TUBE]</button>
-      <button class="sp-btn" data-rm="HEATMAP" onclick="setRenderMode('HEATMAP')" title="Cumulative Phosphor Burn-In Heatmap on 16:9 Grid (Shot + Species Corpus)">[2. BURN-IN HEATMAP]</button>
-      <button class="sp-btn" data-rm="DEW" onclick="setRenderMode('DEW')" title="Afterlight 02d Dew Worms: wet video trail in 16:9 space where each point keeps its moment">[3. DEW TRAIL]</button>
-      <button class="sp-btn" data-rm="DELTA" onclick="setRenderMode('DELTA')" title="Afterlight 03 Stone That Remembered: Cyan/Crimson for NOW, Gold for what the picture just let go">[4. GOLD AFTERIMAGE]</button>
-      <button class="sp-btn" data-rm="RIPPLE" onclick="setRenderMode('RIPPLE')" title="Afterlight 01 Borrowed Light: concentric time-lag rings around focus (u,v)">[5. BORROWED LIGHT]</button>
-      <a class="sp-btn" href="wg-screening-room.html" style="border-color:var(--amber);color:var(--amber);text-decoration:none;">[SCREENING ROOM &amp; CANS]</a>
+      <button class="sp-btn" data-rm="HEATMAP" onclick="setRenderMode('HEATMAP')" title="Pre-Rendered Optical-Flow & Phosphor Burn-In Heatmap (patterns/burn/)">[2. BURN-IN HEATMAP]</button>
+      <button class="sp-btn" data-rm="DEW" onclick="setRenderMode('DEW')" title="Pre-Rendered Chronophotographic Dew Trail + Grid (patterns/dew/)">[3. DEW TRAIL]</button>
+      <button class="sp-btn" data-rm="DELTA" onclick="setRenderMode('DELTA')" title="Pre-Rendered Oxblood & Gold Two-Block Registration (patterns/stone/)">[4. GOLD AFTERIMAGE]</button>
+      <button class="sp-btn" data-rm="RIPPLE" onclick="setRenderMode('RIPPLE')" title="Pre-Rendered X-T Slit-Scan Tomography + Optical Flow Vectors (patterns/slit/)">[5. X-T SLIT-SCAN]</button>
+      <a class="sp-btn" href="wg-screening-room.html" style="border-color:var(--amber);color:var(--amber);text-decoration:none;">[ALL 692 IMAGES &amp; CLIP ATLAS]</a>
     </div>
   </div>
 
@@ -582,12 +582,37 @@ let WORM_B_MODE = 'screen';
 let DOCK_MODE = 'scenes';
 let SPECIES_FILTER = 'ALL';
 let RENDER_MODE = 'TUBE'; // 'TUBE' | 'HEATMAP' | 'DEW' | 'DELTA' | 'RIPPLE'
+const patImgA = new Image();
+const patImgScreen = new Image();
+
+function getPatternKeyForMode(rm) {
+  if (rm === 'HEATMAP') return 'burn';
+  if (rm === 'DEW') return 'dew';
+  if (rm === 'DELTA') return 'stone';
+  if (rm === 'RIPPLE') return 'slit';
+  return null;
+}
+
+function updateActivePatternImages() {
+  const pk = getPatternKeyForMode(RENDER_MODE);
+  if (!pk) return;
+  const sh = SHOTS[CUR];
+  if (sh && sh.patterns && sh.patterns[pk]) {
+    patImgA.src = sh.patterns[pk] + '?v=4';
+  }
+  const st = SCREENS[CUR_SCR];
+  if (st && st.patterns && st.patterns[pk]) {
+    patImgScreen.src = st.patterns[pk] + '?v=4';
+  }
+}
 
 function setRenderMode(rm) {
   RENDER_MODE = rm;
   document.querySelectorAll('button[data-rm]').forEach(b => {
     b.classList.toggle('on', b.getAttribute('data-rm') === rm);
   });
+  updateActivePatternImages();
+  renderDock();
 }
 
 const stripImgA = new Image();
@@ -603,8 +628,8 @@ const slitCtxB = slitCanvasB.getContext('2d');
 
 async function init() {
   const [resWorm, resScr] = await Promise.all([
-    fetch('wargames-worm-volume.json?v=3'),
-    fetch('wargames-screens-program.json?v=3')
+    fetch('wargames-worm-volume.json?v=4'),
+    fetch('wargames-screens-program.json?v=4')
   ]);
   const dataWorm = await resWorm.json();
   const dataScr = await resScr.json();
@@ -771,12 +796,15 @@ function renderDock() {
     );
     stat.textContent = `SCENE ${String(CUR+1).padStart(3,'0')}/${SHOTS.length} (${filtered.length} SHOWN)`;
 
+    const pk = getPatternKeyForMode(RENDER_MODE);
     strip.innerHTML = filtered.map(({ s, i }) => {
       const sp = getSpeciesMeta(s.topology);
       const wFrames = s.worm_frames || [];
       const pts = wFrames.map(f => `${(f.u*100).toFixed(1)},${(f.v*56).toFixed(1)}`).join(' ');
       const mid = wFrames[3] || { u: 0.5, v: 0.5, r: 0.14 };
-      const cap = `${s.who ? s.who + ': ' : ''}${s.fulcrum_line || s.book_title || ''}`;
+      const imgUrl = (pk && s.patterns && s.patterns[pk]) ? `${s.patterns[pk]}?v=4` : `${s.thumb}?v=4`;
+      const gTag = s.clip_signature ? `[${s.clip_signature.geom_class.split('_')[0]}] ` : '';
+      const cap = `${gTag}${s.who ? s.who + ': ' : ''}${s.fulcrum_line || s.book_title || ''}`;
       return `
         <div class="sc-card ${i === CUR ? 'active' : ''}" id="dockcard_${i}" onclick="selectShot(${i})">
           <div class="sc-card-top">
@@ -784,7 +812,7 @@ function renderDock() {
             <span class="sp-pill" style="background:${sp.col};">${sp.short}</span>
           </div>
           <div class="sc-card-mid">
-            <img src="${s.thumb}" loading="lazy" alt="">
+            <img src="${imgUrl}" loading="lazy" alt="">
             <svg viewBox="0 0 100 56" preserveAspectRatio="none">
               <polyline points="${pts}" fill="none" stroke="#00e5ff" stroke-width="1.8"/>
               <ellipse cx="${mid.u*100}" cy="${mid.v*56}" rx="${mid.r*100}" ry="${mid.r*56}"
@@ -813,13 +841,16 @@ function renderDock() {
     });
     stat.textContent = `SCREEN ${String(CUR_SCR+1).padStart(2,'0')}/${SCREENS.length} (${filtered.length} SHOWN)`;
 
+    const pk = getPatternKeyForMode(RENDER_MODE);
     strip.innerHTML = filtered.map(({ st, i }) => {
       const topo = (st.worm_3d && st.worm_3d.topology) || 'EXPANDING_CONE_FUNNEL';
       const sp = getSpeciesMeta(topo);
       const wFrames = (st.worm_3d && st.worm_3d.worm_frames) || [];
       const pts = wFrames.map(f => `${(f.u*100).toFixed(1)},${(f.v*56).toFixed(1)}`).join(' ');
       const mid = wFrames[3] || { u: 0.5, v: 0.5, r: 0.14 };
-      const cap = `${st.subsystem || 'WOPR'} // ${st.shell_cmd || st.opcode || st.shot_id}`;
+      const imgUrl = (pk && st.patterns && st.patterns[pk]) ? `${st.patterns[pk]}?v=4` : `${st.thumb || st.screen_thumb}?v=4`;
+      const gTag = st.clip_signature ? `[${st.clip_signature.geom_class.split('_')[0]}] ` : '';
+      const cap = `${gTag}${st.subsystem || 'WOPR'} // ${st.shell_cmd || st.opcode || st.shot_id}`;
       return `
         <div class="sc-card ${i === CUR_SCR ? 'active-cyan' : ''}" id="dockscr_${i}" onclick="selectScreen(${i}, true)">
           <div class="sc-card-top">
@@ -827,7 +858,7 @@ function renderDock() {
             <span class="sp-pill" style="background:${sp.col};">${sp.short}</span>
           </div>
           <div class="sc-card-mid">
-            <img src="${st.thumb || st.screen_thumb}" loading="lazy" alt="">
+            <img src="${imgUrl}" loading="lazy" alt="">
             <svg viewBox="0 0 100 56" preserveAspectRatio="none">
               <polyline points="${pts}" fill="none" stroke="#00e5ff" stroke-width="1.8"/>
               <ellipse cx="${mid.u*100}" cy="${mid.v*56}" rx="${mid.r*100}" ry="${mid.r*56}"
@@ -895,11 +926,12 @@ function selectScreen(idx, manualClick) {
   }
 
   if (st.strip) {
-    stripImgScreen.src = st.strip;
+    stripImgScreen.src = st.strip + '?v=4';
     stripImgScreen.onload = () => {
       slitCtxB.drawImage(stripImgScreen, 0, Math.floor(stripImgScreen.height*0.35), stripImgScreen.width, Math.floor(stripImgScreen.height*0.3), 0, 0, 320, 24);
     };
   }
+  updateActivePatternImages();
 
   const topo = (st.worm_3d && st.worm_3d.topology) || 'EXPANDING_CONE_FUNNEL';
   const sp = getSpeciesMeta(topo);
@@ -923,7 +955,7 @@ function renderStrip8(sh) {
     return `
       <div class="f-card ${k === TAU ? 'active' : ''}" id="fc_${k}" onclick="onTapSubframe(${k})"
            title="f${k+1}/8: Focus Dot=(${wf.u.toFixed(2)}, ${wf.v.toFixed(2)}), Tight Radius r=${wf.r.toFixed(2)}">
-        <img class="f-strip-img" src="${sh.strip}" style="left:${-(k*100)}%;">
+        <img class="f-strip-img" src="${sh.strip}?v=4" style="left:${-(k*100)}%;">
         <svg viewBox="0 0 160 90" preserveAspectRatio="none">
           <line x1="${prev.u*W}" y1="${prev.v*H}" x2="${ux}" y2="${uy}" stroke="#00e5ff" stroke-width="2"/>
           <ellipse cx="${ux}" cy="${uy}" rx="${rx}" ry="${ry}"
@@ -977,11 +1009,12 @@ function selectShot(idx) {
   if (PLAYING) vA.play().catch(() => {});
 
   if (sh.strip) {
-    stripImgA.src = sh.strip;
+    stripImgA.src = sh.strip + '?v=4';
     stripImgA.onload = () => {
       slitCtxA.drawImage(stripImgA, 0, Math.floor(stripImgA.height*0.35), stripImgA.width, Math.floor(stripImgA.height*0.3), 0, 0, 320, 24);
     };
   }
+  updateActivePatternImages();
 
   if (SCREENS.length) {
     const matchIdx = SCREENS.findIndex(s => s.beat_id === sh.id || s.shot_id === sh.shot_id);
@@ -1230,7 +1263,7 @@ function drawActualVideoTimeWorm(canvas, videoEl, stripImg, wFrames, tauNow, acc
   const slitY = CH - 24;
   const volH = slitY - 4;
 
-  // For 16:9 spatial field modes (HEATMAP, DEW, DELTA, RIPPLE), draw a centered 16:9 stage + side corpus heatmap!
+  // For 16:9 spatial field modes (HEATMAP, DEW, DELTA, RIPPLE), draw the pre-rendered optical-flow pattern image + live reticle + CLIP telemetry!
   if (RENDER_MODE !== 'TUBE') {
     const boxH = volH - 8;
     const boxW = Math.round(boxH * (16 / 9));
@@ -1238,124 +1271,26 @@ function drawActualVideoTimeWorm(canvas, videoEl, stripImg, wFrames, tauNow, acc
     const sideX = bx + boxW + 12;
     const sideW = CW - sideX - 12;
 
-    // 1. Base 16:9 video frame (dimmed)
     const lw = interpWormAt(wFrames, tauNow);
-    ctx.save();
-    ctx.globalAlpha = (RENDER_MODE === 'HEATMAP') ? 0.25 : 0.35;
-    if (hasLiveVid) { try { ctx.drawImage(videoEl, bx, by, boxW, boxH); } catch (e) {} }
-    else if (hasStrip) { ctx.drawImage(stripImg, lw.k * fw, 0, fw, fh, bx, by, boxW, boxH); }
-    ctx.restore();
-
-    // Bouleau / Rule of Thirds Grid overlay on the 16:9 stage
-    ctx.strokeStyle = 'rgba(51, 255, 119, 0.18)';
-    ctx.lineWidth = 0.8;
-    ctx.strokeRect(bx, by, boxW, boxH);
-    [1/3, 2/3].forEach(f => {
-      ctx.beginPath(); ctx.moveTo(bx + f*boxW, by); ctx.lineTo(bx + f*boxW, by + boxH); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(bx, by + f*boxH); ctx.lineTo(bx + boxW, by + f*boxH); ctx.stroke();
-    });
-
-    if (RENDER_MODE === 'HEATMAP') {
-      // MODE 2: PHOSPHOR BURN-IN HEATMAP (M2 Screen Burn-In)
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      for (let s = 0; s <= 40; s++) {
-        const t = s / 40;
-        const w = interpWormAt(wFrames, t);
-        const cx = bx + w.u * boxW, cy = by + w.v * boxH;
-        const rad = Math.max(18, w.r * boxW * 1.35);
-        const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, rad);
-        grad.addColorStop(0, accentColor === '#00e5ff' ? 'rgba(0, 255, 200, 0.22)' : 'rgba(255, 160, 0, 0.22)');
-        grad.addColorStop(0.45, 'rgba(255, 68, 136, 0.10)');
-        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = grad;
-        ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2); ctx.fill();
-      }
-      // Live hot focus core
-      const lcx = bx + lw.u * boxW, lcy = by + lw.v * boxH;
-      const lrad = Math.max(22, lw.r * boxW * 1.4);
-      const lgrad = ctx.createRadialGradient(lcx, lcy, 2, lcx, lcy, lrad);
-      lgrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-      lgrad.addColorStop(0.35, accentColor === '#00e5ff' ? 'rgba(0, 229, 255, 0.65)' : 'rgba(255, 176, 0, 0.65)');
-      lgrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = lgrad;
-      ctx.beginPath(); ctx.arc(lcx, lcy, lrad, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-    } else if (RENDER_MODE === 'DEW') {
-      // MODE 3: AFTERLIGHT 02d DEW WORMS ("Each point along the wet track runs the moment the drop passed")
-      for (let s = 0; s <= 24; s++) {
-        const t = (s / 24) * tauNow;
-        const w = interpWormAt(wFrames, t);
-        const cx = bx + w.u * boxW, cy = by + w.v * boxH;
-        const rx = Math.max(14, w.r * boxW * 0.95 * (0.55 + 0.45 * (s / 24)));
-        const ry = Math.max(12, w.r * boxH * 0.95 * (0.55 + 0.45 * (s / 24)));
-        if (hasStrip) {
-          ctx.save();
-          ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.clip();
-          ctx.globalAlpha = 0.35 + 0.65 * (s / 24);
-          ctx.drawImage(stripImg, w.k * fw, 0, fw, fh, bx, by, boxW, boxH);
-          ctx.restore();
-        }
-        ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-        ctx.strokeStyle = s === 24 ? '#00e5ff' : 'rgba(0, 229, 255, 0.28)';
-        ctx.lineWidth = s === 24 ? 2.2 : 0.9;
-        ctx.stroke();
-      }
-    } else if (RENDER_MODE === 'DELTA') {
-      // MODE 4: AFTERLIGHT 03 STONE THAT REMEMBERED ("Oxblood/Cyan for NOW, Gold for what the picture just let go")
-      const tauPast = Math.max(0, tauNow - 0.18);
-      const pw = interpWormAt(wFrames, tauPast);
-      const pcx = bx + pw.u * boxW, pcy = by + pw.v * boxH;
-      const prx = Math.max(16, pw.r * boxW * 1.15), pry = Math.max(14, pw.r * boxH * 1.15);
-
-      // Gold block: What the picture just let go (tau - d_tau)
-      if (hasStrip) {
-        ctx.save();
-        ctx.beginPath(); ctx.ellipse(pcx, pcy, prx, pry, 0, 0, Math.PI * 2); ctx.clip();
-        ctx.drawImage(stripImg, pw.k * fw, 0, fw, fh, bx, by, boxW, boxH);
-        ctx.fillStyle = 'rgba(255, 176, 0, 0.42)';
-        ctx.fillRect(bx, by, boxW, boxH);
-        ctx.restore();
-      }
-      ctx.beginPath(); ctx.ellipse(pcx, pcy, prx, pry, 0, 0, Math.PI * 2);
-      ctx.strokeStyle = '#ffb000'; ctx.lineWidth = 2.2; ctx.stroke();
-
-      // Oxblood/Cyan block: NOW (tauNow)
-      const lcx = bx + lw.u * boxW, lcy = by + lw.v * boxH;
-      const lrx = Math.max(16, lw.r * boxW * 1.15), lry = Math.max(14, lw.r * boxH * 1.15);
-      ctx.save();
-      ctx.beginPath(); ctx.ellipse(lcx, lcy, lrx, lry, 0, 0, Math.PI * 2); ctx.clip();
-      if (hasLiveVid) { try { ctx.drawImage(videoEl, bx, by, boxW, boxH); } catch (e) {} }
-      else if (hasStrip) { ctx.drawImage(stripImg, lw.k * fw, 0, fw, fh, bx, by, boxW, boxH); }
-      ctx.fillStyle = 'rgba(255, 50, 90, 0.25)';
-      ctx.fillRect(bx, by, boxW, boxH);
-      ctx.restore();
-      ctx.beginPath(); ctx.ellipse(lcx, lcy, lrx, lry, 0, 0, Math.PI * 2);
-      ctx.strokeStyle = '#ff3366'; ctx.lineWidth = 2.4; ctx.stroke();
-
-      // Motion displacement arrow from Gold (past) to Oxblood (now)
-      ctx.beginPath(); ctx.moveTo(pcx, pcy); ctx.lineTo(lcx, lcy);
-      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
-    } else if (RENDER_MODE === 'RIPPLE') {
-      // MODE 5: AFTERLIGHT 01 BORROWED LIGHT ("Each ring shows the shot a little earlier the farther it sits from focus")
-      const lcx = bx + lw.u * boxW, lcy = by + lw.v * boxH;
-      if (hasStrip) {
-        for (let ring = 7; ring >= 0; ring--) {
-          const kFrame = Math.max(0, Math.min(7, lw.k - ring));
-          const rad = (ring + 1) * (boxW * 0.11);
-          ctx.save();
-          ctx.beginPath(); ctx.arc(lcx, lcy, rad, 0, Math.PI * 2); ctx.clip();
-          ctx.drawImage(stripImg, kFrame * fw, 0, fw, fh, bx, by, boxW, boxH);
-          ctx.restore();
-          ctx.beginPath(); ctx.arc(lcx, lcy, rad, 0, Math.PI * 2);
-          ctx.strokeStyle = ring === 0 ? '#00e5ff' : 'rgba(0, 229, 255, 0.28)';
-          ctx.lineWidth = ring === 0 ? 2.2 : 0.9;
-          ctx.stroke();
-        }
-      }
+    const patImg = (canvas.id === 'cvWormA') ? patImgA : patImgScreen;
+    if (patImg && patImg.complete && patImg.naturalWidth > 0) {
+      ctx.drawImage(patImg, bx, by, boxW, boxH);
+    } else if (hasLiveVid) {
+      try { ctx.drawImage(videoEl, bx, by, boxW, boxH); } catch (e) {}
+    } else if (hasStrip) {
+      ctx.drawImage(stripImg, lw.k * fw, 0, fw, fh, bx, by, boxW, boxH);
     }
 
-    // Side Corpus Heatmap (Shows cumulative burn-in of all shots in the current Species Filter!)
+    // Live playhead reticle at (u(tauNow), v(tauNow))
+    const lcx = bx + lw.u * boxW, lcy = by + lw.v * boxH;
+    const lrad = Math.max(12, lw.r * boxW * 0.55);
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(lcx, lcy, lrad, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(lcx, lcy, 3.5, 0, Math.PI * 2); ctx.fill();
+
+    // Side Corpus Heatmap + LAION CLIP Signature Telemetry
     if (sideW > 60) {
       ctx.fillStyle = '#030a05';
       ctx.fillRect(sideX, by, sideW, boxH);
@@ -1378,9 +1313,20 @@ function drawActualVideoTimeWorm(canvas, videoEl, stripImg, wFrames, tauNow, acc
         });
       });
       ctx.restore();
+
+      const activeItem = (canvas.id === 'cvWormA') ? SHOTS[CUR] : SCREENS[CUR_SCR];
+      const clipSig = activeItem && activeItem.clip_signature;
       ctx.fillStyle = '#d0ffe4';
-      ctx.font = '8px monospace';
-      ctx.fillText(`CORPUS HEATMAP (${SPECIES_FILTER === 'ALL' ? 'ALL' : getSpeciesMeta(SPECIES_FILTER).short})`, sideX + 5, by + 11);
+      ctx.font = 'bold 8.5px monospace';
+      ctx.fillText(`LAION CLIP ViT-B/32 + CORPUS`, sideX + 5, by + 12);
+      if (clipSig) {
+        ctx.fillStyle = '#00e5ff';
+        ctx.fillText(`GEOM: ${clipSig.geom_class}`, sideX + 5, by + 26);
+        ctx.fillStyle = '#ffb000';
+        ctx.fillText(`COL : ${clipSig.color_class}`, sideX + 5, by + 38);
+        ctx.fillStyle = '#33ff77';
+        ctx.fillText(`MOT : ${clipSig.motion_class}`, sideX + 5, by + 50);
+      }
     }
 
     // Bottom Slit-Scan Ribbon
