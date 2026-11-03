@@ -2,38 +2,37 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WOPR // 4D SPATIOTEMPORAL GRID LANGUAGE (STGL) VERIFIER (u, v, d, tau)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>WOPR // 4D GRID CINEMA (u,v,d,tau)</title>
 <style>
   :root {
     --bg: #000000;
-    --bg-sub: #030906;
     --fg: #33ff77;
     --fg-bright: #b8ffd0;
     --fg-dim: #197a3a;
     --fg-dark: #0a3318;
     --amber: #ffb000;
     --cyan: #00e5ff;
-    --red: #ff3344;
     --mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Courier New', monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important; }
   html, body {
     width: 100%; height: 100%; overflow: hidden;
-    background: var(--bg); color: var(--fg);
-    font-family: var(--mono); font-size: 11px; line-height: 1.35;
+    background: #000; color: var(--fg);
+    font-family: var(--mono); font-size: 10px;
     -webkit-font-smoothing: none;
+    user-select: none;
   }
   body::after {
     content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
-    background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,20,8,0.22) 3px);
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,18,6,0.18) 3px);
   }
   a { color: var(--fg); text-decoration: none; }
-  button, input, select {
+  button {
     font-family: var(--mono); font-size: 10px;
     background: #000; color: var(--fg);
-    border: 1px solid var(--fg-dim); padding: 2px 6px;
-    cursor: pointer; text-transform: uppercase;
+    border: 1px solid var(--fg-dim); padding: 3px 7px;
+    cursor: pointer; text-transform: uppercase; white-space: nowrap;
   }
   button:hover, button.on { background: var(--fg); color: #000; border-color: var(--fg); font-weight: 700; }
   button.amber { color: var(--amber); border-color: #664400; }
@@ -43,84 +42,25 @@
 
   .app {
     display: grid;
-    grid-template-rows: 26px 26px 1fr 22px;
+    grid-template-rows: 28px 1fr 86px 68px;
     width: 100vw; height: 100vh;
   }
+
   .topbar {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 8px; border-bottom: 1px solid var(--fg-dim); background: #000;
-  }
-  .brand { font-weight: 700; letter-spacing: 0.08em; color: var(--fg-bright); }
-  .nav-links { display: flex; gap: 4px; align-items: center; }
-  .nav-link {
-    padding: 2px 6px; border: 1px solid var(--fg-dark); color: var(--fg-dim); font-size: 10px;
-  }
-  .nav-link.active, .nav-link:hover {
-    border-color: var(--fg); color: #000; background: var(--fg); font-weight: 700;
-  }
-
-  .filterbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 8px; border-bottom: 1px solid var(--fg-dim); background: #020604;
+    padding: 0 6px; border-bottom: 1px solid var(--fg-dark); background: #000;
     overflow-x: auto; gap: 6px;
   }
-  .rule-pills { display: flex; gap: 3px; align-items: center; flex-wrap: nowrap; }
+  .bar-group { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
 
-  .workspace {
-    display: grid;
-    grid-template-columns: 285px 1fr 390px;
-    min-height: 0; overflow: hidden;
-  }
-
-  /* LEFT PANE: 105 BEATS + 68 PURE SCREENS STGL LIST */
-  .left-pane {
-    border-right: 1px solid var(--fg-dim);
-    display: flex; flex-direction: column; min-height: 0;
-  }
-  .pane-head {
-    padding: 4px 8px; border-bottom: 1px solid var(--fg-dark);
-    color: var(--amber); font-weight: 700; font-size: 10px;
-    display: flex; justify-content: space-between; align-items: center;
-    background: #030805;
-  }
-  .beat-list {
-    flex: 1; overflow-y: auto;
-  }
-  .beat-row {
-    padding: 5px 7px; border-bottom: 1px solid #061b0d;
-    cursor: pointer; display: flex; flex-direction: column; gap: 2px;
-  }
-  .beat-row:hover { background: #04150a; }
-  .beat-row.active { background: #082a14; border-left: 3px solid var(--fg-bright); }
-  .br-top { display: flex; justify-content: space-between; align-items: center; font-size: 10px; }
-  .br-id { color: var(--fg-bright); font-weight: 700; }
-  .br-tau { color: var(--cyan); font-size: 9px; }
-  .br-mid { display: flex; justify-content: space-between; align-items: center; font-size: 9px; }
-  .br-arm { color: var(--amber); font-weight: 700; text-transform: uppercase; }
-  .br-sac { color: var(--fg-dim); }
-  .br-line { color: var(--fg); font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.85; }
-
-  /* CENTER PANE: CRT VIEWPORT + SVG 4D ARMATURE OVERLAY + 8-FRAME MATRIX */
-  .center-pane {
-    display: flex; flex-direction: column; min-height: 0; overflow: hidden;
-    border-right: 1px solid var(--fg-dim);
-  }
-  .crt-toolbar {
-    padding: 4px 8px; border-bottom: 1px solid var(--fg-dark);
-    display: flex; justify-content: space-between; align-items: center; gap: 6px;
-    background: #020604; flex-wrap: wrap;
-  }
-  .overlay-toggles { display: flex; gap: 3px; flex-wrap: wrap; align-items: center; }
-
-  .stage-wrap {
-    position: relative; flex: 1; min-height: 0;
-    background: #000; display: flex; align-items: center; justify-content: center;
-    overflow: hidden; border-bottom: 1px solid var(--fg-dim);
+  /* FULL-BLEED 16:9 VIEWPORT WITH PURE GEOMETRIC OVERLAYS */
+  .stage {
+    position: relative; background: #000; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
   }
   .viewport-box {
     position: relative; width: 100%; height: 100%;
-    max-width: 100%; max-height: 100%;
-    aspect-ratio: 16 / 9;
+    max-width: 177.78vh; max-height: 56.25vw;
     background: #000; overflow: hidden;
   }
   #stglVideo {
@@ -134,753 +74,474 @@
     position: absolute; inset: 0; width: 100%; height: 100%;
     pointer-events: none; z-index: 15;
   }
-  .hud-corner {
+  .tag {
     position: absolute; top: 6px; left: 8px; z-index: 20;
-    background: rgba(0, 0, 0, 0.82); border: 1px solid var(--fg-dim);
-    padding: 3px 6px; font-size: 10px; pointer-events: none;
+    background: rgba(0,0,0,0.72); border: 1px solid var(--fg-dark);
+    padding: 2px 6px; font-size: 9.5px; color: var(--fg-bright); pointer-events: none;
   }
-  .hud-corner-right {
+  .tag-right {
     position: absolute; top: 6px; right: 8px; z-index: 20;
-    background: rgba(0, 0, 0, 0.82); border: 1px solid var(--amber);
-    padding: 3px 6px; font-size: 10px; color: var(--amber); pointer-events: none;
+    background: rgba(0,0,0,0.72); border: 1px solid #553800;
+    padding: 2px 6px; font-size: 9.5px; color: var(--amber); pointer-events: none;
   }
+  .layer-pills {
+    position: absolute; bottom: 6px; left: 8px; right: 8px; z-index: 25;
+    display: flex; gap: 3px; justify-content: center; flex-wrap: wrap;
+    background: rgba(0,0,0,0.72); padding: 3px; border: 1px solid var(--fg-dark);
+  }
+  .layer-pills button { padding: 2px 6px; font-size: 8.5px; }
 
-  /* 8-FRAME STRIP MATRIX */
-  .strip-panel {
-    height: 178px; display: flex; flex-direction: column; background: #000;
-  }
-  .strip-grid {
-    flex: 1; display: grid; grid-template-columns: repeat(8, 1fr);
-    gap: 2px; padding: 4px; background: #000; min-height: 0;
+  /* 8-FRAME VISUAL STRIP MATRIX (PURE IMAGE + MINI GEOMETRY OVERLAY) */
+  .strip-bar {
+    display: grid; grid-template-columns: repeat(8, 1fr);
+    gap: 2px; padding: 2px; background: #000;
+    border-top: 1px solid var(--fg-dark);
   }
   .f-cell {
-    border: 1px solid var(--fg-dark); background: #020604;
-    display: flex; flex-direction: column; cursor: pointer; overflow: hidden;
+    position: relative; border: 1px solid #092612; background: #000;
+    cursor: pointer; overflow: hidden;
   }
-  .f-cell:hover { border-color: var(--fg); }
-  .f-cell.active { border: 1px solid var(--amber); background: #0b1c0e; }
-  .f-head {
-    display: flex; justify-content: space-between; padding: 2px 4px;
-    font-size: 9px; border-bottom: 1px solid var(--fg-dark); color: var(--fg-bright);
-  }
-  .f-thumb-wrap {
-    position: relative; flex: 1; min-height: 48px; overflow: hidden; background: #000;
-  }
-  .f-thumb-strip {
+  .f-cell.active { border: 2px solid var(--amber); }
+  .f-strip-img {
     position: absolute; top: 0; height: 100%; width: 800%; max-width: none;
-    image-rendering: auto;
+    opacity: 0.82;
   }
-  .f-meta {
-    padding: 2px 4px; font-size: 8.5px; line-height: 1.25;
-    border-top: 1px solid var(--fg-dark); color: var(--fg);
+  .f-cell.active .f-strip-img { opacity: 1; }
+  .f-mini-svg {
+    position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
   }
-
-  /* RIGHT PANE: 4-AXIS TELEMETRY + TORIC MANIFOLD + TIMELINE IR JSON */
-  .right-pane {
-    display: flex; flex-direction: column; min-height: 0; overflow-y: auto;
-    background: #000;
-  }
-  .sec-block {
-    border-bottom: 1px solid var(--fg-dim); padding: 6px 8px;
-  }
-  .sec-title {
-    color: var(--amber); font-weight: 700; font-size: 10px;
-    margin-bottom: 5px; display: flex; justify-content: space-between;
-  }
-  .rule-bars { display: flex; flex-direction: column; gap: 3px; }
-  .rb-row {
-    display: grid; grid-template-columns: 112px 1fr 38px;
-    align-items: center; gap: 5px; font-size: 9.5px; cursor: pointer;
-  }
-  .rb-row:hover { color: var(--fg-bright); }
-  .rb-row.win { color: var(--amber); font-weight: 700; }
-  .rb-track { height: 7px; border: 1px solid var(--fg-dark); background: #020804; position: relative; }
-  .rb-fill { height: 100%; background: var(--fg); }
-  .rb-row.win .rb-fill { background: var(--amber); }
-
-  .kv-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 9.5px;
-  }
-  .kv-box {
-    border: 1px solid var(--fg-dark); padding: 3px 5px; background: #020704;
-  }
-  .kv-k { color: var(--fg-dim); font-size: 8.5px; }
-  .kv-v { color: var(--fg-bright); font-weight: 700; }
-
-  .ir-pre {
-    font-family: var(--mono); font-size: 9px; line-height: 1.3;
-    color: var(--fg); background: #020603; border: 1px solid var(--fg-dark);
-    padding: 6px; max-height: 240px; overflow: auto; white-space: pre;
+  .f-badge {
+    position: absolute; bottom: 2px; left: 3px;
+    background: rgba(0,0,0,0.75); padding: 0 3px; font-size: 8px; color: var(--cyan);
   }
 
-  .statusbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 8px; border-top: 1px solid var(--fg-dim);
-    background: #000; font-size: 10px; color: var(--fg-dim);
+  /* BOTTOM 105-BEAT FILMSTRIP */
+  .filmstrip {
+    display: flex; align-items: center; gap: 2px;
+    overflow-x: auto; overflow-y: hidden; padding: 3px 4px;
+    border-top: 1px solid var(--fg-dim); background: #000;
+    scroll-behavior: smooth;
+  }
+  .thumb-tile {
+    position: relative; height: 58px; width: 96px; flex-shrink: 0;
+    border: 1px solid #092612; background: #000; cursor: pointer; overflow: hidden;
+  }
+  .thumb-tile img {
+    width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.65;
+  }
+  .thumb-tile.active { border: 2px solid var(--amber); }
+  .thumb-tile.active img { opacity: 1; }
+  .thumb-tile .t-idx {
+    position: absolute; bottom: 2px; left: 3px;
+    background: rgba(0,0,0,0.8); padding: 0 3px; font-size: 8px; color: var(--fg-bright);
+  }
+
+  @media (max-width: 900px) {
+    .app { grid-template-rows: 32px 1fr 68px 58px; }
+    .viewport-box { max-width: 100%; max-height: 100%; }
   }
 </style>
 </head>
 <body>
 <div class="app">
-  <!-- TOP TERMINAL BUS -->
+  <!-- SPARSE BAR -->
   <div class="topbar">
-    <div class="brand">WOPR // 4D SPATIOTEMPORAL GRID LANGUAGE (STGL): (u, v, d, tau) // 4,736 FRAMES MEASURED</div>
-    <div class="nav-links">
-      <a class="nav-link" href="wargames-studio.html">00: ROOT SHELL</a>
-      <a class="nav-link" href="wg-studio-screens.html">01: WOPR SCREEN EMULATOR (68)</a>
-      <a class="nav-link" href="bumblebee-dilemma.html">04: DIALOGUE &amp; SEMIOSIS (105)</a>
-      <a class="nav-link active" href="wg-studio-stgl.html">11: 4D STGL GRID VERIFIER</a>
-      <a class="nav-link" href="wg-studio-worm.html" style="color:var(--amber);border-color:var(--amber);">12: 3D WORM &amp; VIDEO CUBISM</a>
+    <div class="bar-group">
+      <a href="wargames-studios.html"><button>[00:OS]</button></a>
+      <a href="wg-studio-worm.html"><button class="amber">[12:3D-WORM]</button></a>
+      <button class="amber on" id="btnPlay" onclick="toggleStream()">[PAUSE]</button>
+      <button class="cyan on" id="btnSound" onclick="cycleAudio()">[TAP SOUND: MUTE]</button>
+      <button onclick="stepShot(-1)">[&lt;]</button>
+      <span id="shotCounter" style="color:var(--fg-bright);font-weight:700;padding:0 3px;">001/105</span>
+      <button onclick="stepShot(1)">[&gt;]</button>
+    </div>
+    <div class="bar-group" id="ruleBar">
+      <button class="on" data-rule="ALL" onclick="setRule('ALL')">ALL</button>
+      <button data-rule="golden_spiral" onclick="setRule('golden_spiral')">SPIRAL</button>
+      <button data-rule="rule_of_thirds" onclick="setRule('rule_of_thirds')">THIRDS</button>
+      <button data-rule="s_curve" onclick="setRule('s_curve')">S-CURVE</button>
+      <button data-rule="symmetry" onclick="setRule('symmetry')">SYMMETRY</button>
+      <button data-rule="frame_in_frame" onclick="setRule('frame_in_frame')">APERTURE</button>
+      <button data-rule="v_shape" onclick="setRule('v_shape')">V-WEDGE</button>
+      <button class="cyan" id="btnScreens" onclick="toggleCorpus()">[68 SCREENS]</button>
     </div>
   </div>
 
-  <!-- 8 COMPOSITION RULES + CORPUS MODE BAR -->
-  <div class="filterbar">
-    <div class="rule-pills" id="ruleFilterBar">
-      <span style="color:var(--amber);font-weight:700;margin-right:4px;">ARMATURE FILTER:</span>
-      <button class="on" data-rule="ALL">ALL (105)</button>
-      <button data-rule="golden_spiral">GOLDEN SPIRAL</button>
-      <button data-rule="rule_of_thirds">RULE OF THIRDS</button>
-      <button data-rule="s_curve">S-CURVE</button>
-      <button data-rule="symmetry">SYMMETRY</button>
-      <button data-rule="centered">CENTERED</button>
-      <button data-rule="frame_in_frame">FRAME-IN-FRAME</button>
-      <button data-rule="v_shape">V-SHAPE</button>
-      <button data-rule="negative_space">NEGATIVE SPACE</button>
-      <button class="cyan" data-rule="SHOCK">SHOCK CUTS (&gt;0.25)</button>
-    </div>
-    <div style="display:flex;gap:4px;align-items:center;">
-      <button id="btnCorpusBeats" class="amber on" onclick="setCorpusMode('beats')">105 SCENE BEATS</button>
-      <button id="btnCorpusScreens" class="amber" onclick="setCorpusMode('screens')">68 PURE SCREENS</button>
-    </div>
-  </div>
-
-  <!-- MAIN 3-COLUMN WORKSPACE -->
-  <div class="workspace">
-    <!-- LEFT: SHOT / BEAT LIST -->
-    <div class="left-pane">
-      <div class="pane-head">
-        <span id="listHeaderTitle">TIMELINE IR SHOTS (105)</span>
-        <span id="lintBadge" style="color:var(--fg);">GATE: 105/105 PASS</span>
-      </div>
-      <div class="beat-list" id="shotList"></div>
-    </div>
-
-    <!-- CENTER: LIVE 16:9 VIEWPORT + SVG 4D ARMATURE + 8-FRAME STEPPER -->
-    <div class="center-pane">
-      <div class="crt-toolbar">
-        <div class="overlay-toggles">
-          <span style="color:var(--amber);font-weight:700;">4D OVERLAYS:</span>
-          <button class="on" id="togSpiral" onclick="toggleLayer('spiral')">SPIRAL (phi)</button>
-          <button class="on" id="togThirds" onclick="toggleLayer('thirds')">THIRDS (3x3)</button>
-          <button class="on" id="togSCurve" onclick="toggleLayer('scurve')">S-CURVE B(s)</button>
-          <button class="on" id="togFrame" onclick="toggleLayer('frame')">d=0 APERTURE</button>
-          <button class="on" id="togSym" onclick="toggleLayer('sym')">SYMMETRY</button>
-          <button class="on" id="togVShape" onclick="toggleLayer('vshape')">V-WEDGE</button>
-          <button class="on" id="togNeg" onclick="toggleLayer('neg')">NEG SPACE</button>
-          <button class="on" id="togJev" onclick="toggleLayer('jev')">JEV BOX + EYE TRACE</button>
-        </div>
-        <div style="display:flex;gap:4px;">
-          <button id="btnPlayClip" class="cyan" onclick="playLiveClip()">[SPACE] PLAY VIDEO</button>
-          <button onclick="stepSubframe(-1)">[&lt;] PREV f</button>
-          <button onclick="stepSubframe(1)">[&gt;] NEXT f</button>
-        </div>
-      </div>
-
-      <div class="stage-wrap">
-        <div class="viewport-box" id="viewportBox">
-          <video id="stglVideo" playsinline preload="auto"></video>
-          <canvas id="frameCanvas" width="640" height="360"></canvas>
-          <svg id="stglSvg" viewBox="0 0 1000 562.5" preserveAspectRatio="none"></svg>
-          <div class="hud-corner" id="hudTopLeft">LOADING STGL-4D...</div>
-          <div class="hud-corner-right" id="hudTopRight">tau = b(1,1,0)</div>
-        </div>
-      </div>
-
-      <!-- 8-FRAME SUB-FRAME MEASUREMENT MATRIX -->
-      <div class="strip-panel">
-        <div class="pane-head">
-          <span>8-FRAME SUB-LATTICE STEPPER (f1..f8) // CLICK ANY SUB-FRAME TO LOCK &amp; MEASURE (u, v, d, tau)</span>
-          <span id="activeSubframeLabel" style="color:var(--cyan);">LOCKED: f4</span>
-        </div>
-        <div class="strip-grid" id="stripGrid"></div>
-      </div>
-    </div>
-
-    <!-- RIGHT: 4-AXIS STGL TELEMETRY & TIMELINE IR -->
-    <div class="right-pane">
-      <!-- AXIS 1: SPATIAL ARMATURE (u, v) -->
-      <div class="sec-block">
-        <div class="sec-title">
-          <span>1. SPATIAL ARMATURE (u, v) IN [0,1]^2</span>
-          <span id="winRuleLabel" style="color:var(--fg-bright);">--</span>
-        </div>
-        <div class="rule-bars" id="ruleBars"></div>
-      </div>
-
-      <!-- AXIS 2: 3D-TO-2D TORIC CAMERA MANIFOLD (alpha, theta, phi) -->
-      <div class="sec-block">
-        <div class="sec-title">
-          <span>2. TORIC CAMERA MANIFOLD (alpha, theta, phi)</span>
-          <span id="toricModeLabel" style="color:var(--cyan);">--</span>
-        </div>
-        <div class="kv-grid" id="toricGrid"></div>
-      </div>
-
-      <!-- AXIS 3 & 4: TEMPORAL BEAT LATTICE (tau) & EARSHOT MICRO-SYNC (Delta_t) -->
-      <div class="sec-block">
-        <div class="sec-title">
-          <span>3/4. BEAT LATTICE (tau) &amp; EARSHOT SYNC (Delta_t)</span>
-          <span id="syncStatusLabel" style="color:var(--fg);">LOCKED</span>
-        </div>
-        <div class="kv-grid" id="syncGrid"></div>
-      </div>
-
-      <!-- CLOSED-LOOP PRE-FLIGHT GATE & CONTINUITY -->
-      <div class="sec-block">
-        <div class="sec-title">
-          <span>CLOSED-LOOP PRE-FLIGHT LINT GATE</span>
-          <span id="gatePassLabel" style="color:var(--fg-bright);">PASS</span>
-        </div>
-        <div class="kv-grid" id="lintGrid"></div>
-      </div>
-
-      <!-- DECLARATIVE TIMELINE IR JSON -->
-      <div class="sec-block" style="border-bottom:none;flex:1;display:flex;flex-direction:column;">
-        <div class="sec-title">
-          <span>DECLARATIVE TIMELINE IR (JSON SCHEMA)</span>
-          <button onclick="copyTimelineIR()">COPY IR JSON</button>
-        </div>
-        <pre class="ir-pre" id="irJsonPre"></pre>
+  <!-- FULL-BLEED 16:9 STAGE -->
+  <div class="stage">
+    <div class="viewport-box" onclick="stepSubframe(1)">
+      <video id="stglVideo" autoplay muted playsinline webkit-playsinline preload="auto"></video>
+      <canvas id="frameCanvas" width="960" height="540"></canvas>
+      <svg id="stglSvg" viewBox="0 0 1000 562.5" preserveAspectRatio="none"></svg>
+      <div class="tag" id="tagLeft">S01-B01 // wg_001</div>
+      <div class="tag-right" id="tagRight">GOLDEN SPIRAL</div>
+      <div class="layer-pills" onclick="event.stopPropagation()">
+        <button class="on" id="togSpiral" onclick="toggleLayer('spiral')">SPIRAL</button>
+        <button class="on" id="togThirds" onclick="toggleLayer('thirds')">THIRDS</button>
+        <button class="on" id="togSCurve" onclick="toggleLayer('scurve')">S-CURVE</button>
+        <button class="on" id="togFrame" onclick="toggleLayer('frame')">APERTURE</button>
+        <button class="on" id="togSym" onclick="toggleLayer('sym')">SYMMETRY</button>
+        <button class="on" id="togVShape" onclick="toggleLayer('vshape')">V-WEDGE</button>
+        <button class="on" id="togNeg" onclick="toggleLayer('neg')">NEG-SPACE</button>
+        <button class="on" id="togJev" onclick="toggleLayer('jev')">JEV + TRACE</button>
       </div>
     </div>
   </div>
 
-  <!-- BOTTOM STATUS BAR -->
-  <div class="statusbar">
-    <div id="statusLeft">STGL-4D VERIFIER READY // 592 8-FRAME STRIPS (4,736 FRAMES) MEASURED</div>
-    <div>KEYS: [UP/DOWN] SHOT // [LEFT/RIGHT] SUB-FRAME f1..f8 // [SPACE] PLAY VIDEO // [1-8] TOGGLE OVERLAYS</div>
-  </div>
+  <!-- 8-FRAME VISUAL SUB-LATTICE STRIP -->
+  <div class="strip-bar" id="stripGrid"></div>
+
+  <!-- 105-BEAT VISUAL FILMSTRIP -->
+  <div class="filmstrip" id="filmstrip"></div>
 </div>
 
-<script>
-let STGL_IR = null;
-let SCREENS_DATA = null;
-let CORPUS_MODE = 'beats'; // 'beats' | 'screens'
-let ACTIVE_RULE_FILTER = 'ALL';
-let FILTERED_SHOTS = [];
-let CURRENT_SHOT_IDX = 0;
-let CURRENT_SUBFRAME_IDX = 3; // f4 default
-let STRIP_IMG_CACHE = {};
+<audio id="sceneAudio" preload="auto"></audio>
 
-const OVERLAY_STATE = {
-  spiral: true,
-  thirds: true,
-  scurve: true,
-  frame: true,
-  sym: true,
-  vshape: true,
-  neg: true,
-  jev: true
+<script>
+let STGL_IR = null, SCREENS_DATA = null;
+let CORPUS = 'beats', RULE = 'ALL';
+let SHOTS = [], CUR = 0, SUB = 0;
+let PLAYING = true, SOUND_MODE = 0;
+let STRIP_CACHE = {};
+
+const LAYERS = {
+  spiral: true, thirds: true, scurve: true, frame: true,
+  sym: true, vshape: true, neg: true, jev: true
 };
 
-async function initSTGL() {
-  const [irRes, scrRes] = await Promise.all([
+async function init() {
+  const [r1, r2] = await Promise.all([
     fetch('wargames-stgl-ir.json'),
     fetch('wargames-screens-program.json')
   ]);
-  STGL_IR = await irRes.json();
-  SCREENS_DATA = await scrRes.json();
-
-  setupFilterButtons();
-  applyFilters();
-  setupKeyboard();
+  STGL_IR = await r1.json();
+  SCREENS_DATA = await r2.json();
+  setupKeys();
+  filterShots();
+  requestAnimationFrame(loop);
 }
 
-function setupFilterButtons() {
-  const btns = document.querySelectorAll('#ruleFilterBar button');
-  btns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      btns.forEach(b => b.classList.remove('on'));
-      btn.classList.add('on');
-      ACTIVE_RULE_FILTER = btn.getAttribute('data-rule');
-      applyFilters();
-    });
+function getSource() {
+  if (CORPUS === 'beats') return STGL_IR.shots || [];
+  return (SCREENS_DATA.screen_states || []).map((st, idx) => {
+    const s = st.stgl || {};
+    return {
+      id: `S${String(idx+1).padStart(2,'0')}`,
+      shot_id: st.shot_id,
+      thumb: st.thumb,
+      strip: st.strip,
+      video: st.video,
+      audio_orig: `cache/wg_sound/${st.beat_id || 'S01-B01'}_orig.m4a`,
+      spatial_grid: s.spatial_grid,
+      frames_8: s.frames_8 || []
+    };
   });
 }
 
-function setCorpusMode(mode) {
-  CORPUS_MODE = mode;
-  document.getElementById('btnCorpusBeats').classList.toggle('on', mode === 'beats');
-  document.getElementById('btnCorpusScreens').classList.toggle('on', mode === 'screens');
-  applyFilters();
+function filterShots() {
+  SHOTS = getSource().filter(sh => {
+    if (RULE === 'ALL') return true;
+    return sh.spatial_grid && sh.spatial_grid.armature === RULE;
+  });
+  renderFilmstrip();
+  if (SHOTS.length) selectShot(0);
 }
 
-function getSourceShots() {
-  if (CORPUS_MODE === 'beats') {
-    return STGL_IR.shots || [];
+function setRule(r) {
+  RULE = r;
+  document.querySelectorAll('#ruleBar button[data-rule]').forEach(b => {
+    b.classList.toggle('on', b.getAttribute('data-rule') === r);
+  });
+  filterShots();
+}
+
+function toggleCorpus() {
+  CORPUS = CORPUS === 'beats' ? 'screens' : 'beats';
+  document.getElementById('btnScreens').classList.toggle('on', CORPUS === 'screens');
+  filterShots();
+}
+
+function toggleLayer(k) {
+  LAYERS[k] = !LAYERS[k];
+  const ids = {
+    spiral:'togSpiral', thirds:'togThirds', scurve:'togSCurve', frame:'togFrame',
+    sym:'togSym', vshape:'togVShape', neg:'togNeg', jev:'togJev'
+  };
+  document.getElementById(ids[k]).classList.toggle('on', LAYERS[k]);
+  const sh = SHOTS[CUR];
+  if (sh && sh.frames_8 && sh.frames_8[SUB]) renderSVG(sh, sh.frames_8[SUB]);
+}
+
+function cycleAudio() {
+  SOUND_MODE = (SOUND_MODE + 1) % 2;
+  const btn = document.getElementById('btnSound');
+  btn.textContent = SOUND_MODE ? '[SOUND: ON]' : '[TAP SOUND: MUTE]';
+  btn.classList.toggle('on', SOUND_MODE > 0);
+  if (SHOTS[CUR]) syncAudio(SHOTS[CUR]);
+}
+
+function syncAudio(sh) {
+  const aud = document.getElementById('sceneAudio');
+  if (!SOUND_MODE || !PLAYING) { aud.pause(); return; }
+  const bId = sh.id.startsWith('S') && sh.id.includes('-B') ? sh.id : 'S01-B01';
+  const src = sh.audio_orig || `cache/wg_sound/${bId}_orig.m4a`;
+  if (aud.dataset.src !== src) { aud.dataset.src = src; aud.src = src; }
+  aud.currentTime = 0;
+  aud.play().catch(() => {});
+}
+
+function toggleStream() {
+  PLAYING = !PLAYING;
+  const btn = document.getElementById('btnPlay');
+  btn.textContent = PLAYING ? '[PAUSE]' : '[PLAY]';
+  btn.classList.toggle('on', PLAYING);
+  const vid = document.getElementById('stglVideo');
+  const canvas = document.getElementById('frameCanvas');
+  const aud = document.getElementById('sceneAudio');
+  if (PLAYING) {
+    canvas.style.display = 'none';
+    vid.play().catch(() => {});
+    if (SHOTS[CUR]) syncAudio(SHOTS[CUR]);
   } else {
-    return (SCREENS_DATA.screen_states || []).map((st, idx) => {
-      const s = st.stgl || {};
-      return {
-        id: `SCR-${String(idx + 1).padStart(2, '0')} (${st.shot_id})`,
-        shot_id: st.shot_id,
-        book_title: st.system_node || 'WOPR_TERMINAL',
-        bpm: s.span ? 110 : 110,
-        who: (st.trigger_line && st.trigger_line.speaker) || 'WOPR',
-        fulcrum_line: (st.trigger_line && st.trigger_line.text) || st.inferred_command || st.ocr_text || '',
-        thumb: st.thumb,
-        strip: st.strip,
-        video: st.video,
-        span: s.span || { start: 'b(1,1,0)', end: 'b(2,1,0)', start_sec: st.start, end_sec: st.end, dur_sec: st.dur },
-        spatial_grid: s.spatial_grid,
-        depth_layers: s.depth_layers,
-        camera_toric: s.camera_toric,
-        audio_sync: {
-          cue: {
-            at: s.span ? s.span.start : 'b(1,1,0)',
-            speaker: (st.trigger_line && st.trigger_line.speaker) || 'WOPR',
-            earshot_role: 'tty.carrier_lock',
-            offset_ms: 12,
-            sync_locked: true
-          }
-        },
-        transition_out: s.transition_out || { type: 'eye_trace_match', carry_node: [0.5, 0.5], saccade_dist: 0.08, continuity_status: 'EYE_TRACE_LOCK' },
-        lint_gate: {
-          valid_armature: true,
-          eye_trace_saccade_d: (s.transition_out && s.transition_out.saccade_from_prev) || 0.08,
-          eye_trace_pass: true,
-          caption_in_negative_space: true,
-          jev_box_err: s.depth_layers ? s.depth_layers.d1_subject.jev_convergence_err : 0.04,
-          noul_face_clear: true,
-          earshot_sync_ms: 12,
-          status: 'PASS'
-        },
-        frames_8: s.frames_8 || []
-      };
-    });
+    vid.pause();
+    aud.pause();
+    if (SHOTS[CUR]) drawSubframe(SHOTS[CUR].strip, SUB);
   }
 }
 
-function applyFilters() {
-  const all = getSourceShots();
-  FILTERED_SHOTS = all.filter(sh => {
-    if (ACTIVE_RULE_FILTER === 'ALL') return true;
-    if (ACTIVE_RULE_FILTER === 'SHOCK') {
-      const d = (sh.transition_out && (sh.transition_out.saccade_dist ?? sh.transition_out.saccade_from_prev)) || 0;
-      return d > 0.25;
-    }
-    return sh.spatial_grid && sh.spatial_grid.armature === ACTIVE_RULE_FILTER;
-  });
-
-  document.getElementById('listHeaderTitle').textContent =
-    `${CORPUS_MODE === 'beats' ? '105 SCENE BEATS' : '68 PURE SCREENS'} (${FILTERED_SHOTS.length})`;
-
-  renderShotList();
-  if (FILTERED_SHOTS.length > 0) {
-    selectShot(0);
-  }
-}
-
-function renderShotList() {
-  const el = document.getElementById('shotList');
-  el.innerHTML = FILTERED_SHOTS.map((sh, i) => {
-    const arm = sh.spatial_grid ? sh.spatial_grid.armature : 'centered';
-    const sac = (sh.transition_out && (sh.transition_out.saccade_dist ?? sh.transition_out.saccade_from_prev)) ?? 0;
-    const tauSpan = sh.span ? `${sh.span.start} -> ${sh.span.end}` : '';
-    return `
-      <div class="beat-row ${i === CURRENT_SHOT_IDX ? 'active' : ''}" onclick="selectShot(${i})">
-        <div class="br-top">
-          <span class="br-id">${sh.id} // ${sh.shot_id}</span>
-          <span class="br-tau">${tauSpan}</span>
-        </div>
-        <div class="br-mid">
-          <span class="br-arm">[${arm}]</span>
-          <span class="br-sac">d_sac=${Number(sac).toFixed(2)}</span>
-        </div>
-        <div class="br-line">${sh.who ? sh.who + ': ' : ''}${sh.fulcrum_line || ''}</div>
-      </div>
-    `;
-  }).join('');
+function renderFilmstrip() {
+  const el = document.getElementById('filmstrip');
+  el.innerHTML = SHOTS.map((s, i) => `
+    <div class="thumb-tile ${i === CUR ? 'active' : ''}" id="ftile_${i}" onclick="selectShot(${i})">
+      <img src="${s.thumb}" loading="lazy" alt="">
+      <div class="t-idx">${s.id}</div>
+    </div>
+  `).join('');
 }
 
 function selectShot(idx) {
-  if (idx < 0 || idx >= FILTERED_SHOTS.length) return;
-  CURRENT_SHOT_IDX = idx;
-  const rows = document.querySelectorAll('#shotList .beat-row');
-  rows.forEach((r, i) => r.classList.toggle('active', i === idx));
-  if (rows[idx]) rows[idx].scrollIntoView({ block: 'nearest' });
+  if (!SHOTS.length) return;
+  CUR = (idx + SHOTS.length) % SHOTS.length;
+  const sh = SHOTS[CUR];
+  document.getElementById('shotCounter').textContent =
+    `${String(CUR+1).padStart(3,'0')}/${String(SHOTS.length).padStart(3,'0')}`;
 
-  const sh = FILTERED_SHOTS[idx];
+  document.querySelectorAll('.thumb-tile').forEach((t, i) => t.classList.toggle('active', i === CUR));
+  const tile = document.getElementById(`ftile_${CUR}`);
+  if (tile) tile.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+
   const vid = document.getElementById('stglVideo');
-  vid.pause();
   vid.src = sh.video;
   vid.currentTime = 0;
+  if (PLAYING) {
+    document.getElementById('frameCanvas').style.display = 'none';
+    vid.play().catch(() => {});
+  }
 
-  // Choose peak kinematic subframe by default or keep current
-  const pk = (sh.peak_kinematic_frame && sh.peak_kinematic_frame.f) ? (sh.peak_kinematic_frame.f - 1) : 3;
-  CURRENT_SUBFRAME_IDX = Math.max(0, Math.min(7, pk));
-
-  renderStripMatrix(sh);
-  selectSubframe(CURRENT_SUBFRAME_IDX);
+  renderStrip8(sh);
+  selectSubframe(0);
+  syncAudio(sh);
 }
 
-function renderStripMatrix(sh) {
+function stepShot(d) { selectShot(CUR + d); }
+function stepSubframe(d) {
+  PLAYING = false;
+  document.getElementById('btnPlay').textContent = '[PLAY]';
+  document.getElementById('btnPlay').classList.remove('on');
+  document.getElementById('stglVideo').pause();
+  document.getElementById('sceneAudio').pause();
+  selectSubframe((SUB + d + 8) % 8);
+}
+
+function renderStrip8(sh) {
   const grid = document.getElementById('stripGrid');
   const frames = sh.frames_8 || [];
   grid.innerHTML = frames.map((f, k) => {
-    const pctLeft = -(k * 100);
+    const [bx, by, bw, bh] = f.jev_box || [0.3, 0.3, 0.4, 0.4];
     return `
-      <div class="f-cell ${k === CURRENT_SUBFRAME_IDX ? 'active' : ''}" id="fCell_${k}" onclick="selectSubframe(${k})">
-        <div class="f-head">
-          <span>f${f.f}</span>
-          <span style="color:var(--cyan);">${f.tau}</span>
-        </div>
-        <div class="f-thumb-wrap">
-          <img class="f-thumb-strip" src="${sh.strip}" style="left:${pctLeft}%;">
-        </div>
-        <div class="f-meta">
-          <div>u=${f.u.toFixed(2)} v=${f.v.toFixed(2)}</div>
-          <div style="color:var(--amber);text-transform:uppercase;">${f.primary_armature.replace(/_/g, ' ')}</div>
-          <div style="color:var(--fg-dim);">H=${f.entropy.toFixed(2)} dl=${f.delta_lum.toFixed(3)}</div>
-        </div>
+      <div class="f-cell ${k === SUB ? 'active' : ''}" id="fCell_${k}" onclick="onTapSubframe(${k})">
+        <img class="f-strip-img" src="${sh.strip}" style="left:${-(k*100)}%;">
+        <svg class="f-mini-svg" viewBox="0 0 100 56.25" preserveAspectRatio="none">
+          <rect x="${bx*100}" y="${by*56.25}" width="${bw*100}" height="${bh*56.25}" fill="none" stroke="#ffb000" stroke-width="1.2"/>
+          <circle cx="${f.u*100}" cy="${f.v*56.25}" r="2.5" fill="#00e5ff"/>
+        </svg>
+        <div class="f-badge">f${f.f}</div>
       </div>
     `;
   }).join('');
 }
 
-function selectSubframe(k) {
-  const sh = FILTERED_SHOTS[CURRENT_SHOT_IDX];
-  if (!sh || !sh.frames_8 || !sh.frames_8[k]) return;
-  CURRENT_SUBFRAME_IDX = k;
+function onTapSubframe(k) {
+  PLAYING = false;
+  document.getElementById('btnPlay').textContent = '[PLAY]';
+  document.getElementById('btnPlay').classList.remove('on');
+  document.getElementById('stglVideo').pause();
+  document.getElementById('sceneAudio').pause();
+  selectSubframe(k);
+}
 
+function selectSubframe(k) {
+  const sh = SHOTS[CUR];
+  if (!sh || !sh.frames_8 || !sh.frames_8[k]) return;
+  SUB = k;
   document.querySelectorAll('.f-cell').forEach((c, idx) => c.classList.toggle('active', idx === k));
   const f = sh.frames_8[k];
-  document.getElementById('activeSubframeLabel').textContent =
-    `LOCKED: f${f.f} // t=${f.t_sec}s // tau=${f.tau} // (u=${f.u}, v=${f.v})`;
 
-  // Draw the exact sub-frame from the 8-frame strip onto frameCanvas AND seek video
-  drawSubframeToCanvas(sh.strip, k);
-  const vid = document.getElementById('stglVideo');
-  if (vid.readyState >= 1 && vid.duration) {
-    vid.currentTime = Math.min(vid.duration - 0.05, ((k + 0.5) / 8.0) * vid.duration);
-  }
-
-  renderSVGArmature(sh, f);
-  renderRightTelemetry(sh, f);
+  if (!PLAYING) drawSubframe(sh.strip, k);
+  renderSVG(sh, f);
 }
 
-function drawSubframeToCanvas(stripUrl, k) {
+function drawSubframe(stripUrl, k) {
   const canvas = document.getElementById('frameCanvas');
   const ctx = canvas.getContext('2d');
-  const vid = document.getElementById('stglVideo');
-  if (!vid.paused) {
-    canvas.style.display = 'none';
-    return;
-  }
-  let img = STRIP_IMG_CACHE[stripUrl];
-  if (!img) {
-    img = new Image();
-    img.onload = () => {
-      STRIP_IMG_CACHE[stripUrl] = img;
-      if (vid.paused) paintCrop(img, k, canvas, ctx);
-    };
-    img.src = stripUrl;
-  } else if (img.complete) {
-    paintCrop(img, k, canvas, ctx);
-  }
-}
-
-function paintCrop(img, k, canvas, ctx) {
-  const fw = img.naturalWidth / 8;
-  const fh = img.naturalHeight;
-  canvas.style.display = 'block';
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(img, k * fw, 0, fw, fh, 0, 0, canvas.width, canvas.height);
-}
-
-function playLiveClip() {
-  const vid = document.getElementById('stglVideo');
-  const canvas = document.getElementById('frameCanvas');
-  const btn = document.getElementById('btnPlayClip');
-  if (vid.paused) {
-    canvas.style.display = 'none';
-    vid.play().catch(() => {});
-    btn.textContent = '[SPACE] PAUSE VIDEO';
-  } else {
-    vid.pause();
-    btn.textContent = '[SPACE] PLAY VIDEO';
-    const sh = FILTERED_SHOTS[CURRENT_SHOT_IDX];
-    if (sh) drawSubframeToCanvas(sh.strip, CURRENT_SUBFRAME_IDX);
-  }
-}
-
-function stepSubframe(dir) {
-  const sh = FILTERED_SHOTS[CURRENT_SHOT_IDX];
-  if (!sh || !sh.frames_8) return;
-  const vid = document.getElementById('stglVideo');
-  vid.pause();
-  document.getElementById('btnPlayClip').textContent = '[SPACE] PLAY VIDEO';
-  const next = (CURRENT_SUBFRAME_IDX + dir + 8) % 8;
-  selectSubframe(next);
-}
-
-function toggleLayer(name) {
-  OVERLAY_STATE[name] = !OVERLAY_STATE[name];
-  const mapBtn = {
-    spiral: 'togSpiral',
-    thirds: 'togThirds',
-    scurve: 'togSCurve',
-    frame: 'togFrame',
-    sym: 'togSym',
-    vshape: 'togVShape',
-    neg: 'togNeg',
-    jev: 'togJev'
+  let im = STRIP_CACHE[stripUrl];
+  const paint = (img) => {
+    const fw = img.naturalWidth / 8, fh = img.naturalHeight;
+    canvas.style.display = 'block';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, k * fw, 0, fw, fh, 0, 0, canvas.width, canvas.height);
   };
-  document.getElementById(mapBtn[name]).classList.toggle('on', OVERLAY_STATE[name]);
-  const sh = FILTERED_SHOTS[CURRENT_SHOT_IDX];
-  if (sh && sh.frames_8) renderSVGArmature(sh, sh.frames_8[CURRENT_SUBFRAME_IDX]);
+  if (!im) {
+    im = new Image();
+    im.onload = () => { STRIP_CACHE[stripUrl] = im; if (!PLAYING) paint(im); };
+    im.src = stripUrl;
+  } else if (im.complete) {
+    paint(im);
+  }
 }
 
-function renderSVGArmature(sh, f) {
+function renderSVG(sh, f) {
   const svg = document.getElementById('stglSvg');
   const W = 1000, H = 562.5;
   const parts = [];
-
   const sg = sh.spatial_grid || {};
   const winArm = f.primary_armature || sg.armature || 'golden_spiral';
 
-  document.getElementById('hudTopLeft').innerHTML =
-    `<span style="color:var(--fg-bright);font-weight:700;">${sh.id}</span> // SHOT: ${sh.shot_id} // FRAME f${f.f}/8 // WINNING ARMATURE: <span style="color:var(--amber);font-weight:700;">${winArm.toUpperCase()}</span>`;
-  document.getElementById('hudTopRight').innerHTML =
-    `tau = ${f.tau} // (u=${f.u.toFixed(3)}, v=${f.v.toFixed(3)}) // JEV ERR=${f.jev_convergence_err.toFixed(3)}`;
+  document.getElementById('tagLeft').textContent = `${sh.id} // f${f.f} // ${f.tau}`;
+  document.getElementById('tagRight').textContent = winArm.replace(/_/g, ' ').toUpperCase();
 
-  // 1. NEGATIVE SPACE SAFE POLYGON + CAPTION HUD ZONE
-  if (OVERLAY_STATE.neg && f.negative_space_zone && f.negative_space_zone.polygon) {
-    const poly = f.negative_space_zone.polygon.map(pt => `${pt[0] * W},${pt[1] * H}`).join(' ');
-    const p0 = f.negative_space_zone.polygon[0];
-    parts.push(`
-      <polygon points="${poly}" fill="rgba(0, 229, 255, 0.06)" stroke="#00e5ff" stroke-width="1" stroke-dasharray="4 4"/>
-      <text x="${p0[0] * W + 10}" y="${p0[1] * H + 16}" fill="#00e5ff" font-family="monospace" font-size="11">
-        NEG_SPACE_ZONE [${f.negative_space_zone.region.toUpperCase()}] // AREA=${(f.neg_area_pct * 100).toFixed(0)}% // H=${f.entropy.toFixed(2)}
-      </text>
-    `);
+  // 1. Negative Space Polygon (Pure geometry, no text)
+  if (LAYERS.neg && f.negative_space_zone && f.negative_space_zone.polygon) {
+    const poly = f.negative_space_zone.polygon.map(pt => `${pt[0]*W},${pt[1]*H}`).join(' ');
+    parts.push(`<polygon points="${poly}" fill="rgba(0, 229, 255, 0.06)" stroke="#00e5ff" stroke-width="1" stroke-dasharray="4 4"/>`);
   }
 
-  // 2. FRAME-IN-FRAME FOREGROUND APERTURE (d = 0)
-  if (OVERLAY_STATE.frame) {
-    const ap = [0.12, 0.12, 0.76, 0.76];
+  // 2. Frame-in-Frame Aperture
+  if (LAYERS.frame) {
     const isWin = winArm === 'frame_in_frame';
-    parts.push(`
-      <rect x="${ap[0] * W}" y="${ap[1] * H}" width="${ap[2] * W}" height="${ap[3] * H}"
-            fill="none" stroke="${isWin ? '#ffb000' : 'rgba(51,255,119,0.32)'}"
-            stroke-width="${isWin ? 2 : 1}" stroke-dasharray="8 4"/>
-      <text x="${ap[0] * W + 6}" y="${ap[1] * H - 5}" fill="${isWin ? '#ffb000' : '#197a3a'}" font-family="monospace" font-size="10">
-        d0_FOREGROUND APERTURE [0.12, 0.12, 0.76, 0.76]
-      </text>
-    `);
+    parts.push(`<rect x="${0.12*W}" y="${0.12*H}" width="${0.76*W}" height="${0.76*H}" fill="none" stroke="${isWin ? '#ffb000' : 'rgba(51,255,119,0.28)'}" stroke-width="${isWin ? 2.4 : 1}" stroke-dasharray="8 4"/>`);
   }
 
-  // 3. RULE OF THIRDS 3x3 LATTICE + 4 POWER NODES
-  if (OVERLAY_STATE.thirds) {
+  // 3. Rule of Thirds 3x3 + 4 Power Nodes
+  if (LAYERS.thirds) {
     const isWin = winArm === 'rule_of_thirds';
-    const col = isWin ? '#ffb000' : 'rgba(51,255,119,0.35)';
-    const w = isWin ? 1.8 : 1;
+    const col = isWin ? '#ffb000' : 'rgba(51,255,119,0.32)';
+    const w = isWin ? 2 : 1;
     parts.push(`
-      <line x1="${W / 3}" y1="0" x2="${W / 3}" y2="${H}" stroke="${col}" stroke-width="${w}"/>
-      <line x1="${2 * W / 3}" y1="0" x2="${2 * W / 3}" y2="${H}" stroke="${col}" stroke-width="${w}"/>
-      <line x1="0" y1="${H / 3}" x2="${W}" y2="${H / 3}" stroke="${col}" stroke-width="${w}"/>
-      <line x1="0" y1="${2 * H / 3}" x2="${W}" y2="${2 * H / 3}" stroke="${col}" stroke-width="${w}"/>
+      <line x1="${W/3}" y1="0" x2="${W/3}" y2="${H}" stroke="${col}" stroke-width="${w}"/>
+      <line x1="${2*W/3}" y1="0" x2="${2*W/3}" y2="${H}" stroke="${col}" stroke-width="${w}"/>
+      <line x1="0" y1="${H/3}" x2="${W}" y2="${H/3}" stroke="${col}" stroke-width="${w}"/>
+      <line x1="0" y1="${2*H/3}" x2="${W}" y2="${2*H/3}" stroke="${col}" stroke-width="${w}"/>
     `);
     [[1/3,1/3],[2/3,1/3],[1/3,2/3],[2/3,2/3]].forEach(([tu, tv]) => {
-      parts.push(`<circle cx="${tu * W}" cy="${tv * H}" r="4" fill="none" stroke="${col}" stroke-width="1.2"/>`);
+      parts.push(`<circle cx="${tu*W}" cy="${tv*H}" r="5" fill="none" stroke="${col}" stroke-width="1.4"/>`);
     });
   }
 
-  // 4. SYMMETRY AXES (u = 0.5, v = 0.5)
-  if (OVERLAY_STATE.sym) {
+  // 4. Symmetry Axes
+  if (LAYERS.sym) {
     const isWin = winArm === 'symmetry' || winArm === 'centered';
-    const col = isWin ? '#ffb000' : 'rgba(51,255,119,0.28)';
+    const col = isWin ? '#ffb000' : 'rgba(51,255,119,0.24)';
     parts.push(`
-      <line x1="${W * 0.5}" y1="0" x2="${W * 0.5}" y2="${H}" stroke="${col}" stroke-width="1.2" stroke-dasharray="3 3"/>
-      <line x1="0" y1="${H * 0.5}" x2="${W}" y2="${H * 0.5}" stroke="${col}" stroke-width="1.2" stroke-dasharray="3 3"/>
+      <line x1="${W*0.5}" y1="0" x2="${W*0.5}" y2="${H}" stroke="${col}" stroke-width="1.2" stroke-dasharray="3 3"/>
+      <line x1="0" y1="${H*0.5}" x2="${W}" y2="${H*0.5}" stroke="${col}" stroke-width="1.2" stroke-dasharray="3 3"/>
     `);
   }
 
-  // 5. V-SHAPE / WEDGE DIAGONALS
-  if (OVERLAY_STATE.vshape) {
+  // 5. V-Shape Wedge
+  if (LAYERS.vshape) {
     const isWin = winArm === 'v_shape';
-    const col = isWin ? '#ffb000' : 'rgba(51,255,119,0.25)';
+    const col = isWin ? '#ffb000' : 'rgba(51,255,119,0.24)';
     if (f.v_orientation === 'A_PYRAMID') {
-      parts.push(`<polyline points="0,${H} ${W * 0.5},${H * 0.14} ${W},${H}" fill="none" stroke="${col}" stroke-width="${isWin ? 2.2 : 1}"/>`);
+      parts.push(`<polyline points="0,${H} ${W*0.5},${H*0.14} ${W},${H}" fill="none" stroke="${col}" stroke-width="${isWin ? 2.4 : 1}"/>`);
     } else {
-      parts.push(`<polyline points="0,0 ${W * 0.5},${H * 0.86} ${W},0" fill="none" stroke="${col}" stroke-width="${isWin ? 2.2 : 1}"/>`);
+      parts.push(`<polyline points="0,0 ${W*0.5},${H*0.86} ${W},0" fill="none" stroke="${col}" stroke-width="${isWin ? 2.4 : 1}"/>`);
     }
   }
 
-  // 6. GOLDEN RATIO SPIRAL + PHI^-1 FOCAL NODE
-  if (OVERLAY_STATE.spiral) {
+  // 6. Golden Spiral Curve
+  if (LAYERS.spiral) {
     const isWin = winArm === 'golden_spiral';
     const col = isWin ? '#ffb000' : '#33ff77';
     const gn = f.focal_node || [0.618, 0.382];
     const gx = gn[0] * W, gy = gn[1] * H;
-    // Generate logarithmic spiral converging to (gx, gy)
-    const spiralPts = [];
+    const pts = [];
     for (let t = 0; t <= 4.2 * Math.PI; t += 0.12) {
       const r = 420 * Math.exp(-0.34 * t);
       const sx = Math.max(0, Math.min(W, gx + r * Math.cos(t)));
       const sy = Math.max(0, Math.min(H, gy + r * Math.sin(t) * (H / W)));
-      spiralPts.push(`${sx.toFixed(1)},${sy.toFixed(1)}`);
+      pts.push(`${sx.toFixed(1)},${sy.toFixed(1)}`);
     }
     parts.push(`
-      <polyline points="${spiralPts.join(' ')}" fill="none" stroke="${col}" stroke-width="${isWin ? 2.2 : 1.2}" opacity="${isWin ? 0.95 : 0.55}"/>
-      <circle cx="${gx}" cy="${gy}" r="7" fill="none" stroke="${col}" stroke-width="1.6"/>
-      <text x="${gx + 10}" y="${gy - 6}" fill="${col}" font-family="monospace" font-size="10">
-        PHI_NODE (${gn[0].toFixed(3)}, ${gn[1].toFixed(3)})
-      </text>
+      <polyline points="${pts.join(' ')}" fill="none" stroke="${col}" stroke-width="${isWin ? 2.5 : 1.3}" opacity="${isWin ? 0.95 : 0.55}"/>
+      <circle cx="${gx}" cy="${gy}" r="8" fill="none" stroke="${col}" stroke-width="2"/>
     `);
   }
 
-  // 7. S-CURVE CUBIC BEZIER SPINE B(s)
-  if (OVERLAY_STATE.scurve && f.s_curve_bezier && f.s_curve_bezier.length === 4) {
+  // 7. S-Curve Cubic Bezier
+  if (LAYERS.scurve && f.s_curve_bezier && f.s_curve_bezier.length === 4) {
     const isWin = winArm === 's_curve';
     const b = f.s_curve_bezier;
-    const dPath = `M ${b[0][0] * W} ${b[0][1] * H} C ${b[1][0] * W} ${b[1][1] * H}, ${b[2][0] * W} ${b[2][1] * H}, ${b[3][0] * W} ${b[3][1] * H}`;
+    const dPath = `M ${b[0][0]*W} ${b[0][1]*H} C ${b[1][0]*W} ${b[1][1]*H}, ${b[2][0]*W} ${b[2][1]*H}, ${b[3][0]*W} ${b[3][1]*H}`;
     parts.push(`
-      <path d="${dPath}" fill="none" stroke="${isWin ? '#00e5ff' : 'rgba(0,229,255,0.45)'}" stroke-width="${isWin ? 2.5 : 1.3}"/>
-      <circle cx="${b[0][0] * W}" cy="${b[0][1] * H}" r="3.5" fill="#00e5ff"/>
-      <circle cx="${b[3][0] * W}" cy="${b[3][1] * H}" r="3.5" fill="#00e5ff"/>
+      <path d="${dPath}" fill="none" stroke="${isWin ? '#00e5ff' : 'rgba(0,229,255,0.45)'}" stroke-width="${isWin ? 2.8 : 1.4}"/>
+      <circle cx="${b[0][0]*W}" cy="${b[0][1]*H}" r="4" fill="#00e5ff"/>
+      <circle cx="${b[3][0]*W}" cy="${b[3][1]*H}" r="4" fill="#00e5ff"/>
     `);
   }
 
-  // 8. JEV BOX [u, v, w, h] + SUBJECT CENTROID (u*, v*) + KINEMATIC TRAJECTORY VECTOR
-  if (OVERLAY_STATE.jev && f.jev_box) {
+  // 8. JEV Box + 8-Subframe Eye-Trace Trajectory
+  if (LAYERS.jev && f.jev_box) {
     const [bx, by, bw, bh] = f.jev_box;
     const ux = f.u * W, uy = f.v * H;
-    const en = sg.centroid_entry || [f.u, f.v];
-    const ex = sg.centroid_exit || [f.u, f.v];
+    const tracePts = (sh.frames_8 || []).map(fr => `${fr.u*W},${fr.v*H}`).join(' ');
     parts.push(`
-      <rect x="${bx * W}" y="${by * H}" width="${bw * W}" height="${bh * H}"
-            fill="rgba(255, 176, 0, 0.06)" stroke="#ffb000" stroke-width="1.8"/>
-      <text x="${bx * W + 4}" y="${Math.max(12, by * H - 4)}" fill="#ffb000" font-family="monospace" font-size="10" font-weight="bold">
-        JEV_BOX [${bx.toFixed(2)}, ${by.toFixed(2)}, ${bw.toFixed(2)}, ${bh.toFixed(2)}]
-      </text>
-      <line x1="${ux - 10}" y1="${uy}" x2="${ux + 10}" y2="${uy}" stroke="#b8ffd0" stroke-width="1.8"/>
-      <line x1="${ux}" y1="${uy - 10}" x2="${ux}" y2="${uy + 10}" stroke="#b8ffd0" stroke-width="1.8"/>
-      <line x1="${en[0] * W}" y1="${en[1] * H}" x2="${ex[0] * W}" y2="${ex[1] * H}"
-            stroke="#00e5ff" stroke-width="1.8" stroke-dasharray="3 2"/>
+      <polyline points="${tracePts}" fill="none" stroke="#00e5ff" stroke-width="2" stroke-dasharray="4 2"/>
+      <rect x="${bx*W}" y="${by*H}" width="${bw*W}" height="${bh*H}" fill="rgba(255, 176, 0, 0.06)" stroke="#ffb000" stroke-width="2"/>
+      <line x1="${ux-12}" y1="${uy}" x2="${ux+12}" y2="${uy}" stroke="#b8ffd0" stroke-width="2"/>
+      <line x1="${ux}" y1="${uy-12}" x2="${ux}" y2="${uy+12}" stroke="#b8ffd0" stroke-width="2"/>
+      <circle cx="${ux}" cy="${uy}" r="5" fill="#00e5ff"/>
     `);
   }
 
   svg.innerHTML = parts.join('');
 }
 
-function renderRightTelemetry(sh, f) {
-  // 1. 8 Composition Rule Bars for active sub-frame f
-  const scores = f.scores || (sh.spatial_grid && sh.spatial_grid.rule_scores) || {};
-  const winRule = f.primary_armature || (sh.spatial_grid && sh.spatial_grid.armature) || 'golden_spiral';
-  document.getElementById('winRuleLabel').textContent = winRule.toUpperCase();
-
-  const rulesOrder = [
-    ['golden_spiral',  'GOLDEN SPIRAL'],
-    ['rule_of_thirds', 'RULE OF THIRDS'],
-    ['s_curve',        'S-CURVE BEZIER'],
-    ['symmetry',       'SYMMETRY AXIS'],
-    ['centered',       'CENTERED HOLD'],
-    ['frame_in_frame', 'FRAME-IN-FRAME'],
-    ['v_shape',        'V-SHAPE WEDGE'],
-    ['negative_space', 'NEGATIVE SPACE']
-  ];
-  document.getElementById('ruleBars').innerHTML = rulesOrder.map(([key, label]) => {
-    const val = Number(scores[key] || 0);
-    const isWin = key === winRule;
-    return `
-      <div class="rb-row ${isWin ? 'win' : ''}">
-        <span>${label}</span>
-        <div class="rb-track"><div class="rb-fill" style="width:${Math.round(val * 100)}%;"></div></div>
-        <span style="text-align:right;">${val.toFixed(3)}</span>
-      </div>
-    `;
-  }).join('');
-
-  // 2. Toric Camera Manifold (alpha, theta, phi, fov)
-  const tc = sh.camera_toric || {};
-  const tr = (sh.depth_layers && sh.depth_layers.d1_subject && sh.depth_layers.d1_subject.trajectory) || {};
-  document.getElementById('toricModeLabel').textContent = (tc.mode || 'anchor_hold').toUpperCase();
-  document.getElementById('toricGrid').innerHTML = `
-    <div class="kv-box"><div class="kv-k">TORIC ALPHA (VANTAGE)</div><div class="kv-v">${tc.alpha_deg ?? 45.0} deg</div></div>
-    <div class="kv-box"><div class="kv-k">TORIC THETA / PHI</div><div class="kv-v">${tc.theta_deg ?? 0.0} / ${tc.phi_deg ?? 0.0} deg</div></div>
-    <div class="kv-box"><div class="kv-k">SOLVED FOV SPAN</div><div class="kv-v">[${(tc.fov_deg || [45,45]).join(' -> ')}] deg</div></div>
-    <div class="kv-box"><div class="kv-k">KINEMATIC VELOCITY</div><div class="kv-v">${tr.velocity_uv_per_s ?? 0.0} uv/s</div></div>
-  `;
-
-  // 3. Beat Lattice (tau) & Earshot Micro-Sync
-  const cue = (sh.audio_sync && sh.audio_sync.cue) || {};
-  document.getElementById('syncStatusLabel').textContent =
-    `${cue.earshot_role || 'tty.carrier_lock'} (${cue.offset_ms >= 0 ? '+' : ''}${cue.offset_ms ?? 0}ms)`;
-  document.getElementById('syncGrid').innerHTML = `
-    <div class="kv-box"><div class="kv-k">FRAME CLOCK (tau)</div><div class="kv-v" style="color:var(--cyan);">${f.tau} (${f.t_sec}s)</div></div>
-    <div class="kv-box"><div class="kv-k">SCENE TEMPO (BPM)</div><div class="kv-v">${sh.bpm || 120} BPM</div></div>
-    <div class="kv-box"><div class="kv-k">EARSHOT CUE ROLE</div><div class="kv-v" style="color:var(--amber);">${cue.earshot_role || 'tty.carrier_lock'}</div></div>
-    <div class="kv-box"><div class="kv-k">ACOUSTIC OFFSET (Delta_t)</div><div class="kv-v">+${cue.offset_ms ?? 0} ms [LOCKED]</div></div>
-  `;
-
-  // 4. Closed-Loop Pre-Flight Lint Gate
-  const lg = sh.lint_gate || {};
-  const to = sh.transition_out || {};
-  const sacD = Number(to.saccade_dist ?? to.saccade_from_prev ?? 0);
-  document.getElementById('gatePassLabel').textContent = lg.status || 'PASS';
-  document.getElementById('lintGrid').innerHTML = `
-    <div class="kv-box"><div class="kv-k">EYE-TRACE SACCADE (Delta_d)</div><div class="kv-v" style="color:${sacD <= 0.25 ? 'var(--fg)' : 'var(--amber)'};">${sacD.toFixed(3)} (${sacD <= 0.25 ? '<=0.25 LOCK' : 'SHOCK CUT'})</div></div>
-    <div class="kv-box"><div class="kv-k">JEV BOX NODE ERROR</div><div class="kv-v">${f.jev_convergence_err.toFixed(4)}</div></div>
-    <div class="kv-box"><div class="kv-k">NOUL FACE OCCLUSION</div><div class="kv-v">${f.noul_occluded ? 'OCCLUDED (d0)' : 'CLEAR (d1)'}</div></div>
-    <div class="kv-box"><div class="kv-k">HUD IN NEGATIVE SPACE</div><div class="kv-v">VERIFIED (${(f.neg_area_pct * 100).toFixed(0)}%)</div></div>
-  `;
-
-  // 5. Declarative Timeline IR JSON for this shot + active frame
-  const irView = {
-    meta: { aspect: "16:9", fps: 24, bpm: sh.bpm || 120, lufs_target: -21.0 },
-    shot: {
-      id: sh.id,
-      shot_id: sh.shot_id,
-      span: sh.span,
-      active_subframe: {
-        f: f.f,
-        tau: f.tau,
-        u: f.u,
-        v: f.v,
-        primary_armature: f.primary_armature,
-        jev_box: f.jev_box,
-        scores: f.scores
-      },
-      spatial_grid: sh.spatial_grid,
-      depth_layers: sh.depth_layers,
-      camera_toric: sh.camera_toric,
-      audio_sync: sh.audio_sync,
-      transition_out: sh.transition_out,
-      lint_gate: sh.lint_gate
+function loop() {
+  const sh = SHOTS[CUR];
+  const vid = document.getElementById('stglVideo');
+  if (PLAYING && sh) {
+    if (vid.ended) {
+      selectShot(CUR + 1);
+    } else if (vid.duration > 0) {
+      const k = Math.min(7, Math.floor((vid.currentTime / vid.duration) * 8));
+      if (k !== SUB) selectSubframe(k);
     }
-  };
-  document.getElementById('irJsonPre').textContent = JSON.stringify(irView, null, 2);
+  }
+  requestAnimationFrame(loop);
 }
 
-function copyTimelineIR() {
-  const txt = document.getElementById('irJsonPre').textContent;
-  navigator.clipboard.writeText(txt);
-}
-
-function setupKeyboard() {
+function setupKeys() {
   window.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT') return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); selectShot(Math.min(FILTERED_SHOTS.length - 1, CURRENT_SHOT_IDX + 1)); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); selectShot(Math.max(0, CURRENT_SHOT_IDX - 1)); }
-    else if (e.key === 'ArrowRight') { e.preventDefault(); stepSubframe(1); }
-    else if (e.key === 'ArrowLeft') { e.preventDefault(); stepSubframe(-1); }
-    else if (e.key === ' ') { e.preventDefault(); playLiveClip(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); stepShot(1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); stepShot(-1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); stepSubframe(-1); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); stepSubframe(1); }
+    else if (e.key === ' ') { e.preventDefault(); toggleStream(); }
   });
 }
 
-initSTGL();
+init();
 </script>
 </body>
 </html>

@@ -3,33 +3,32 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>WOPR // 3D SPATIOTEMPORAL WORM &amp; VIDEO CUBISM CINEMA V(u, v, tau)</title>
+<title>WOPR // 3D WORM CINEMA V(u,v,tau)</title>
 <style>
   :root {
     --bg: #000000;
-    --bg-sub: #020704;
     --fg: #33ff77;
-    --fg-bright: #c2ffd6;
+    --fg-bright: #b8ffd0;
     --fg-dim: #197a3a;
-    --fg-dark: #0a3016;
+    --fg-dark: #0a3318;
     --amber: #ffb000;
     --cyan: #00e5ff;
-    --red: #ff3344;
     --mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Courier New', monospace;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important; -webkit-tap-highlight-color: transparent; }
+  * { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important; }
   html, body {
-    width: 100%; height: 100%;
-    background: var(--bg); color: var(--fg);
-    font-family: var(--mono); font-size: 11px; line-height: 1.32;
+    width: 100%; height: 100%; overflow: hidden;
+    background: #000; color: var(--fg);
+    font-family: var(--mono); font-size: 10px;
     -webkit-font-smoothing: none;
+    user-select: none;
   }
   body::after {
     content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
-    background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,18,7,0.20) 3px);
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,18,6,0.18) 3px);
   }
   a { color: var(--fg); text-decoration: none; }
-  button, input, select {
+  button {
     font-family: var(--mono); font-size: 10px;
     background: #000; color: var(--fg);
     border: 1px solid var(--fg-dim); padding: 3px 7px;
@@ -40,1415 +39,768 @@
   button.amber:hover, button.amber.on { background: var(--amber); color: #000; border-color: var(--amber); }
   button.cyan { color: var(--cyan); border-color: #005566; }
   button.cyan:hover, button.cyan.on { background: var(--cyan); color: #000; border-color: var(--cyan); }
-  button.red { color: var(--red); border-color: #661118; }
-  button.red:hover, button.red.on { background: var(--red); color: #000; border-color: var(--red); }
 
   .app {
     display: grid;
-    grid-template-rows: 28px 30px 28px 1fr 22px;
-    width: 100vw; height: 100vh; overflow: hidden;
+    grid-template-rows: 28px 1fr 74px;
+    width: 100vw; height: 100vh;
   }
+
+  /* ULTRA-SPARSE TOP BAR */
   .topbar {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 8px; border-bottom: 1px solid var(--fg-dim); background: #000;
-    white-space: nowrap; overflow-x: auto; gap: 8px;
+    padding: 0 6px; border-bottom: 1px solid var(--fg-dark); background: #000;
+    overflow-x: auto; gap: 6px;
   }
-  .brand { font-weight: 700; letter-spacing: 0.05em; color: var(--fg-bright); font-size: 10.5px; }
-  .nav-links { display: flex; gap: 4px; align-items: center; }
-  .nav-link { padding: 2px 6px; border: 1px solid var(--fg-dark); color: var(--fg-dim); font-size: 10px; }
-  .nav-link.active, .nav-link:hover { border-color: var(--fg); color: #000; background: var(--fg); font-weight: 700; }
+  .bar-group { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
 
-  /* CONTINUOUS CINEMA WATCH BAR (MOBILE & DESKTOP STREAM CONTROLS) */
-  .watchbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 8px; border-bottom: 1px solid var(--fg-dim); background: #030a06;
-    overflow-x: auto; gap: 6px; white-space: nowrap;
-  }
-  .watch-group { display: flex; gap: 4px; align-items: center; }
-
-  .filterbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 8px; border-bottom: 1px solid var(--fg-dim); background: #020604;
-    overflow-x: auto; gap: 6px; white-space: nowrap;
-  }
-  .topo-pills { display: flex; gap: 3px; align-items: center; }
-
-  .workspace {
+  /* PURE IMAGE MAIN STAGE: 3 VISUAL PANES (CRT-A 1983, 3D WORM PRISM, CRT-B MONTAGE CUT) */
+  .stage {
     display: grid;
-    grid-template-columns: 265px 1fr 405px;
+    grid-template-columns: 1fr 1.15fr 1fr;
+    grid-template-rows: 1fr 56px;
+    gap: 1px; background: var(--fg-dark);
     min-height: 0; overflow: hidden;
   }
 
-  /* LEFT PANE: 105 BEATS + 68 SCREENS WORM TOPOLOGY INDEX */
-  .left-pane {
-    border-right: 1px solid var(--fg-dim);
-    display: flex; flex-direction: column; min-height: 0;
+  .vp-cell {
+    position: relative; background: #000; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
   }
-  .pane-head {
-    padding: 4px 8px; border-bottom: 1px solid var(--fg-dark);
-    color: var(--amber); font-weight: 700; font-size: 10px;
-    display: flex; justify-content: space-between; align-items: center;
-    background: #030805; flex-shrink: 0;
+  .vp-cell video, .vp-cell img.fallback {
+    width: 100%; height: 100%; object-fit: cover; display: block;
   }
-  .shot-list { flex: 1; overflow-y: auto; }
-  .shot-row {
-    padding: 5px 7px; border-bottom: 1px solid #061b0d;
-    cursor: pointer; display: flex; flex-direction: column; gap: 2px;
-  }
-  .shot-row:hover { background: #04150a; }
-  .shot-row.active { background: #082a14; border-left: 3px solid var(--fg-bright); }
-  .sr-top { display: flex; justify-content: space-between; font-size: 10px; }
-  .sr-id { color: var(--fg-bright); font-weight: 700; }
-  .sr-frac { font-size: 8.5px; color: var(--cyan); }
-  .sr-mid { display: flex; justify-content: space-between; font-size: 9px; align-items: center; }
-  .sr-topo { color: var(--amber); font-weight: 700; }
-  .sr-pal { display: flex; gap: 1px; }
-  .sr-sw { width: 8px; height: 8px; border: 1px solid #111; }
-  .sr-line { font-size: 9px; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.85; }
-
-  /* CENTER PANE: 3D GLASS-PRISM WORM VOLUME + DUAL LIVE VIDEO + TOMOGRAPHY + MANOVICH + BRODBECK */
-  .center-pane {
-    border-right: 1px solid var(--fg-dim);
-    display: flex; flex-direction: column; min-height: 0; overflow-y: auto;
-  }
-  .stage-toolbar {
-    padding: 4px 8px; border-bottom: 1px solid var(--fg-dark);
-    display: flex; justify-content: space-between; align-items: center; gap: 6px;
-    background: #020604; flex-wrap: wrap; flex-shrink: 0;
-  }
-  .prism-wrap {
-    position: relative; flex: 1; min-height: 270px;
-    display: grid; grid-template-columns: 1.25fr 1fr;
-    border-bottom: 1px solid var(--fg-dim); background: #000; overflow: hidden;
-  }
-  .prism-box {
-    position: relative; border-right: 1px solid var(--fg-dark);
-    background: #000; overflow: hidden; display: flex; flex-direction: column;
+  .vp-cell svg {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 10;
   }
   #prismCanvas {
-    width: 100%; height: 100%; flex: 1; cursor: grab; display: block; touch-action: none;
+    width: 100%; height: 100%; display: block; cursor: grab; touch-action: none;
   }
   #prismCanvas:active { cursor: grabbing; }
-  .prism-hud {
-    position: absolute; top: 6px; left: 8px; right: 8px; pointer-events: none;
-    background: rgba(0,0,0,0.84); border: 1px solid var(--fg-dim); padding: 3px 6px; font-size: 9.5px;
-    display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap;
+
+  .tag {
+    position: absolute; top: 5px; left: 6px; z-index: 20;
+    background: rgba(0,0,0,0.72); border: 1px solid var(--fg-dark);
+    padding: 1px 5px; font-size: 9px; color: var(--fg-bright); pointer-events: none;
   }
-  .prism-sub-banner {
-    position: absolute; bottom: 30px; left: 8px; right: 8px; pointer-events: none;
-    background: rgba(0,0,0,0.88); border: 1px solid var(--amber); padding: 4px 8px;
-    font-size: 11px; color: var(--fg-bright);
+  .tag.amber { color: var(--amber); border-color: #553800; }
+  .tag.cyan { color: var(--cyan); border-color: #004455; }
+
+  /* 10-CUT PILL OVERLAY ON CRT-B */
+  .cut-switcher {
+    position: absolute; bottom: 5px; left: 5px; right: 5px; z-index: 25;
+    display: flex; gap: 2px; overflow-x: auto; justify-content: center;
+    background: rgba(0,0,0,0.78); padding: 2px; border: 1px solid #221800;
   }
-  .prism-controls {
-    padding: 3px 6px; border-top: 1px solid var(--fg-dark); background: #020603;
-    display: flex; gap: 8px; align-items: center; font-size: 9.5px; flex-wrap: wrap;
+  .cut-switcher button { padding: 2px 5px; font-size: 8.5px; }
+
+  /* PRISM LAYER PILLS OVERLAY */
+  .prism-toggles {
+    position: absolute; bottom: 5px; left: 5px; right: 5px; z-index: 25;
+    display: flex; gap: 2px; justify-content: center; flex-wrap: wrap;
+    background: rgba(0,0,0,0.75); padding: 2px; border: 1px solid var(--fg-dark);
+  }
+  .prism-toggles button { padding: 2px 5px; font-size: 8.5px; }
+
+  /* SUB-ROW: PURE VISUAL TOMOGRAPHIC SLIT-SCANS + KALMUS COLOR BAR + CURVATURE SPARKLINE */
+  .tomo-strip {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px; background: var(--fg-dark);
+  }
+  .tomo-cell {
+    position: relative; background: #000; overflow: hidden; cursor: pointer;
+  }
+  .tomo-cell canvas {
+    width: 100%; height: 100%; display: block;
+  }
+  .kalmus-stack {
+    display: flex; flex-direction: column; width: 100%; height: 100%;
+  }
+  .kalmus-row {
+    flex: 1; display: grid; grid-template-columns: repeat(8, 1fr);
   }
 
-  /* LIVE DUAL CRT VIDEO (1983 MASTER + ACTIVE MONTAGE CUT) + TOMOGRAPHY */
-  .crt-side {
-    display: flex; flex-direction: column; background: #000; min-height: 0;
+  /* BOTTOM 105-BEAT VISUAL FILMSTRIP RIBBON */
+  .ribbon-wrap {
+    display: grid;
+    grid-template-columns: 74px 1fr;
+    border-top: 1px solid var(--fg-dim);
+    background: #000; min-height: 0;
   }
-  .dual-crt-grid {
-    display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--fg-dark); background: #000;
+  .torus-mini {
+    width: 74px; height: 74px; border-right: 1px solid var(--fg-dark);
+    position: relative; background: #000; cursor: pointer;
   }
-  .crt-cell {
-    border-right: 1px solid var(--fg-dark); display: flex; flex-direction: column;
+  .torus-mini canvas { width: 100%; height: 100%; display: block; }
+  .filmstrip {
+    display: flex; align-items: center; gap: 2px;
+    overflow-x: auto; overflow-y: hidden; padding: 3px 4px;
+    scroll-behavior: smooth;
   }
-  .crt-cell:last-child { border-right: none; }
-  .crt-mini-head {
-    padding: 2px 5px; font-size: 9px; background: #020704; border-bottom: 1px solid var(--fg-dark);
-    display: flex; justify-content: space-between; color: var(--fg-bright);
+  .thumb-tile {
+    position: relative; height: 66px; width: 106px; flex-shrink: 0;
+    border: 1px solid #092612; background: #000; cursor: pointer; overflow: hidden;
   }
-  .crt-vp {
-    position: relative; width: 100%; aspect-ratio: 16 / 9;
-    background: #000; overflow: hidden;
+  .thumb-tile img {
+    width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.65;
   }
-  .crt-vp video, .crt-vp img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  #wormVideoSvg, #cutVideoSvg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 12; }
-
-  /* 10-LENS MONTAGE SWITCHER BAR */
-  .lens10-bar {
-    display: flex; gap: 2px; padding: 3px 5px; border-bottom: 1px solid var(--fg-dark);
-    background: #020603; overflow-x: auto; white-space: nowrap;
+  .thumb-tile:hover img { opacity: 0.95; }
+  .thumb-tile.active {
+    border: 2px solid var(--amber);
   }
-  .lens10-bar button { padding: 2px 5px; font-size: 9px; }
-
-  /* TOMOGRAPHIC SLIT-SCAN SLICES (u-tau & v-tau) */
-  .tomo-box {
-    flex: 1; display: flex; flex-direction: column; padding: 4px 6px; gap: 3px; overflow-y: auto;
+  .thumb-tile.active img { opacity: 1; }
+  .thumb-tile .t-idx {
+    position: absolute; bottom: 2px; left: 3px;
+    background: rgba(0,0,0,0.8); padding: 0 3px; font-size: 8px; color: var(--fg-bright);
   }
-  .tomo-canvas {
-    width: 100%; height: 44px; border: 1px solid var(--fg-dark); background: #000; display: block; cursor: pointer;
-  }
-
-  /* LOWER DECK: MANOVICH ENTRY/MID/EXIT UNROLL + BRODBECK TORUS */
-  .lower-deck {
-    height: 205px; display: grid; grid-template-columns: 1.25fr 1fr;
-    background: #000; min-height: 0; flex-shrink: 0;
-  }
-  .manovich-pane {
-    border-right: 1px solid var(--fg-dim); display: flex; flex-direction: column; min-height: 0;
-  }
-  .manovich-body {
-    flex: 1; padding: 5px 7px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto;
-  }
-  .unroll-3grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
-  .unroll-card { border: 1px solid var(--fg-dark); background: #020603; padding: 2px; cursor: pointer; }
-  .unroll-card:hover { border-color: var(--amber); }
-  .unroll-hdr { display: flex; justify-content: space-between; font-size: 8.5px; padding: 1px 3px; color: var(--fg-bright); }
-  .unroll-vp { position: relative; height: 44px; overflow: hidden; background: #000; }
-  .unroll-strip-img { position: absolute; top: 0; height: 100%; width: 800%; max-width: none; }
-
-  .torus-pane { display: flex; flex-direction: column; min-height: 0; background: #000; }
-  .torus-wrap {
-    flex: 1; display: flex; align-items: center; justify-content: space-between;
-    padding: 4px 8px; gap: 8px; min-height: 0;
-  }
-  #torusCanvas { width: 155px; height: 155px; flex-shrink: 0; cursor: pointer; border: 1px solid var(--fg-dark); }
-  .torus-legend { flex: 1; font-size: 9px; display: flex; flex-direction: column; gap: 3px; overflow-y: auto; max-height: 165px; }
-
-  /* RIGHT PANE: TELEMETRY & 10-CUT WORMS */
-  .right-pane {
-    display: flex; flex-direction: column; min-height: 0; overflow-y: auto; background: #000;
-  }
-  .sec-block { border-bottom: 1px solid var(--fg-dim); padding: 6px 8px; }
-  .sec-title {
-    color: var(--amber); font-weight: 700; font-size: 10px;
-    margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;
-  }
-  .kv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 9.5px; }
-  .kv-box { border: 1px solid var(--fg-dark); padding: 3px 5px; background: #020704; }
-  .kv-k { color: var(--fg-dim); font-size: 8.5px; }
-  .kv-v { color: var(--fg-bright); font-weight: 700; }
-
-  .kalmus-bar {
-    display: grid; grid-template-columns: repeat(8, 1fr); height: 13px;
-    border: 1px solid var(--fg-dark); margin-top: 2px;
-  }
-  .curve-canvas { width: 100%; height: 82px; border: 1px solid var(--fg-dark); background: #010502; display: block; }
-
-  .cuts10-table { width: 100%; border-collapse: collapse; font-size: 9px; }
-  .cuts10-table th, .cuts10-table td { border: 1px solid var(--fg-dark); padding: 3px 4px; text-align: left; }
-  .cuts10-table th { color: var(--amber); background: #030905; }
-  .cuts10-table tr { cursor: pointer; }
-  .cuts10-table tr:hover, .cuts10-table tr.active { background: #092613; color: var(--fg-bright); }
-
-  .statusbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 8px; border-top: 1px solid var(--fg-dim);
-    background: #000; font-size: 10px; color: var(--fg-dim);
-    white-space: nowrap; overflow-x: auto;
+  .thumb-tile .t-bar {
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
   }
 
-  /* MOBILE & WATCH-MODE LAYOUT (<= 1024px OR body.mobile-watch) */
-  @media (max-width: 1024px) {
-    html, body { overflow-y: auto; height: auto; }
-    .app { display: flex; flex-direction: column; height: auto; min-height: 100vh; overflow: visible; }
-    .workspace { display: flex; flex-direction: column; overflow: visible; }
-    .center-pane { order: 1; border-right: none; overflow: visible; }
-    .right-pane { order: 2; overflow: visible; }
-    .left-pane { order: 3; border-right: none; max-height: 360px; border-top: 1px solid var(--fg); }
-    .prism-wrap { grid-template-columns: 1fr; min-height: auto; }
-    .prism-box { height: 280px; border-right: none; border-bottom: 1px solid var(--fg-dim); }
-    .lower-deck { grid-template-columns: 1fr; height: auto; }
-    .manovich-pane { border-right: none; border-bottom: 1px solid var(--fg-dim); }
-    button { padding: 5px 9px; font-size: 10.5px; }
+  /* MOBILE PORTRAIT STACK: 3 LARGE VISUAL PANES STACKED VERTICALLY */
+  @media (max-width: 960px) {
+    .app { grid-template-rows: 32px 1fr 64px; }
+    .stage {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr 1.15fr 1fr 44px;
+    }
+    .tomo-strip { grid-column: 1; }
+    .ribbon-wrap { grid-template-columns: 64px 1fr; }
+    .torus-mini { width: 64px; height: 64px; }
+    .thumb-tile { height: 56px; width: 90px; }
   }
-  body.mobile-watch {
-    overflow-y: auto; height: auto;
-  }
-  body.mobile-watch .app {
-    display: flex; flex-direction: column; height: auto; min-height: 100vh; overflow: visible; max-width: 680px; margin: 0 auto; border-left: 1px solid var(--fg-dim); border-right: 1px solid var(--fg-dim);
-  }
-  body.mobile-watch .workspace { display: flex; flex-direction: column; overflow: visible; }
-  body.mobile-watch .center-pane { order: 1; border-right: none; overflow: visible; }
-  body.mobile-watch .right-pane { order: 2; overflow: visible; }
-  body.mobile-watch .left-pane { order: 3; border-right: none; max-height: 360px; border-top: 1px solid var(--fg); }
-  body.mobile-watch .prism-wrap { grid-template-columns: 1fr; min-height: auto; }
-  body.mobile-watch .prism-box { height: 310px; border-right: none; border-bottom: 1px solid var(--fg-dim); }
-  body.mobile-watch .lower-deck { grid-template-columns: 1fr; height: auto; }
 </style>
 </head>
 <body>
 <div class="app">
-  <!-- TOP SYSTEM BUS -->
+  <!-- SPARSE BAR -->
   <div class="topbar">
-    <div class="brand">WOPR // 3D SPATIOTEMPORAL WORM &amp; VIDEO CUBISM CINEMA V(u, v, tau)</div>
-    <div class="nav-links">
-      <a class="nav-link" href="wargames-studio.html">00:ROOT</a>
-      <a class="nav-link" href="wg-studio-screens.html">01:SCREENS(68)</a>
-      <a class="nav-link" href="bumblebee-dilemma.html">04:SEMIOSIS(105)</a>
-      <a class="nav-link" href="wg-studio-stgl.html">11:4D-STGL</a>
-      <a class="nav-link active" href="wg-studio-worm.html">12:3D-WORM</a>
+    <div class="bar-group">
+      <a href="wargames-studios.html"><button>[00:OS]</button></a>
+      <a href="wg-studio-stgl.html"><button class="cyan">[11:4D-GRID]</button></a>
+      <button class="amber on" id="btnPlay" onclick="toggleStream()">[PAUSE]</button>
+      <button class="cyan on" id="btnSound" onclick="cycleAudio()">[TAP SOUND: MUTE]</button>
+      <button onclick="stepShot(-1)">[&lt;]</button>
+      <span id="shotCounter" style="color:var(--fg-bright);font-weight:700;padding:0 3px;">001/105</span>
+      <button onclick="stepShot(1)">[&gt;]</button>
+    </div>
+    <div class="bar-group" id="topoBar">
+      <button class="on" data-topo="ALL" onclick="setTopo('ALL')">ALL</button>
+      <button data-topo="HELICAL_CORKSCREW" onclick="setTopo('HELICAL_CORKSCREW')">SPIRAL</button>
+      <button data-topo="SHEARED_DIAGONAL_RIBBON" onclick="setTopo('SHEARED_DIAGONAL_RIBBON')">PAN</button>
+      <button data-topo="EXPANDING_CONE_FUNNEL" onclick="setTopo('EXPANDING_CONE_FUNNEL')">CONE</button>
+      <button data-topo="DOUBLE_HELIX_BRAID" onclick="setTopo('DOUBLE_HELIX_BRAID')">BRAID</button>
+      <button class="cyan" id="btnScreens" onclick="toggleCorpus()">[68 SCREENS]</button>
     </div>
   </div>
 
-  <!-- CONTINUOUS MOBILE / LEAN-BACK STREAM TRANSPORT BAR -->
-  <div class="watchbar">
-    <div class="watch-group">
-      <button class="amber on" id="btnStreamAll" onclick="toggleContinuousStream()">[PAUSE FILM STREAM]</button>
-      <button class="cyan on" id="btnUnmuteMobile" onclick="unlockAudioOnTap()" style="font-weight:700;">[TAP TO UNMUTE DIALOGUE AUDIO]</button>
-      <button onclick="stepShot(-1)">[&lt; PREV BEAT]</button>
-      <span id="streamBeatCounter" style="color:var(--fg-bright);font-weight:700;padding:0 4px;">01 / 105</span>
-      <button onclick="stepShot(1)">[NEXT BEAT &gt;]</button>
-    </div>
-    <div class="watch-group">
-      <span style="color:var(--fg-dim);">AUDIO:</span>
-      <button class="cyan on" id="btnAudOrig" onclick="setAudioMode('orig')">1983 DIALOGUE</button>
-      <button class="cyan" id="btnAudAligned" onclick="setAudioMode('aligned')">ARCHIVE DUET</button>
-      <button class="cyan" id="btnAudMute" onclick="setAudioMode('mute')">MUTE</button>
-      <button class="amber" id="btnMobileLayout" onclick="toggleMobileWatchLayout()">[MOBILE WATCH VIEW]</button>
-    </div>
-  </div>
-
-  <!-- 7 WORM TOPOLOGIES + CORPUS SWITCH BAR -->
-  <div class="filterbar">
-    <div class="topo-pills" id="topoFilterBar">
-      <span style="color:var(--amber);font-weight:700;margin-right:4px;">TOPOLOGY:</span>
-      <button class="on" data-topo="ALL">ALL (105)</button>
-      <button data-topo="HELICAL_CORKSCREW">HELICAL CORKSCREW</button>
-      <button data-topo="SHEARED_DIAGONAL_RIBBON">SHEARED PAN RIBBON</button>
-      <button data-topo="EXPANDING_CONE_FUNNEL">DOLLY CONE/FUNNEL</button>
-      <button data-topo="DOUBLE_HELIX_BRAID">DOUBLE-HELIX BRAID</button>
-      <button data-topo="VERTICAL_PILLAR">VERTICAL PILLAR</button>
-      <button class="cyan" data-topo="EYE_TRACE_FRACTURE_TUBE">MURCH EYE-TRACE</button>
-      <button class="amber" data-topo="EISENSTEIN_COLLISION_FRACTURE">EISENSTEIN COLLISION</button>
-    </div>
-    <div style="display:flex;gap:4px;align-items:center;">
-      <button id="btnModeBeats" class="amber on" onclick="setCorpus('beats')">105 BEATS (x10 CUTS)</button>
-      <button id="btnModeScreens" class="amber" onclick="setCorpus('screens')">68 PURE SCREENS</button>
-    </div>
-  </div>
-
-  <!-- MAIN WORKSPACE -->
-  <div class="workspace">
-    <!-- LEFT: 105 BEATS / 68 SCREENS WORM TOPOLOGY LIST -->
-    <div class="left-pane">
-      <div class="pane-head">
-        <span id="leftListTitle">3D ACTION-TUBE VOLUMES (105)</span>
-        <span style="color:var(--fg);">1,050 CUT-WORMS</span>
-      </div>
-      <div class="shot-list" id="wormShotList"></div>
+  <!-- PURE VISUAL 3-UP STAGE -->
+  <div class="stage">
+    <!-- PANE 1: 1983 MASTER FILM + LIVE WORM CROSS-SECTION -->
+    <div class="vp-cell" onclick="stepTau(1)">
+      <video id="vidMaster" autoplay muted playsinline webkit-playsinline preload="auto"></video>
+      <svg id="svgMaster" viewBox="0 0 1000 562.5" preserveAspectRatio="none"></svg>
+      <div class="tag" id="tagMaster">1983 // wg_001</div>
     </div>
 
-    <!-- CENTER: 3D GLASS-PRISM VOLUME + DUAL LIVE VIDEO + TOMOGRAPHY + MANOVICH + BRODBECK -->
-    <div class="center-pane">
-      <div class="stage-toolbar">
-        <div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;">
-          <span style="color:var(--amber);font-weight:700;">3D PRISM:</span>
-          <button class="on" id="togBouleau" onclick="toggleFilament('bouleau')">BOULEAU 14-LINE</button>
-          <button class="on" id="togThirds" onclick="toggleFilament('thirds')">THIRDS TUNNEL</button>
-          <button class="on" id="togSpiral" onclick="toggleFilament('spiral')">SPIRAL</button>
-          <button class="on" id="togBraid" onclick="toggleFilament('braid')">RABATMENT BRAID</button>
-          <button class="cyan on" id="tog10Cuts" onclick="toggleFilament('cuts10')">ALL 10 CUT WORMS</button>
-          <button class="amber on" id="togAutoOrbit" onclick="toggleFilament('orbit')">AUTO-ORBIT</button>
-        </div>
-        <div style="display:flex;gap:4px;">
-          <button onclick="stepTauFrame(-1)">[&lt; f-1]</button>
-          <button onclick="stepTauFrame(1)">[f+1 &gt;]</button>
-        </div>
-      </div>
-
-      <!-- UPPER SPLIT: 3D GLASS-PRISM RENDERER (LEFT) + DUAL LIVE CRT & TOMOGRAPHIC SLICER (RIGHT) -->
-      <div class="prism-wrap">
-        <div class="prism-box">
-          <canvas id="prismCanvas" width="620" height="360"></canvas>
-          <div class="prism-hud" id="prismHud">3D PRISM V(u, v, tau) // SWIPE OR DRAG TO ORBIT</div>
-          <div class="prism-sub-banner" id="prismSubBanner">LOADING SPOKEN DIALOGUE &amp; 3D ACTION TUBE...</div>
-          <div class="prism-controls">
-            <span>TAU: <input type="range" id="tauSlider" min="0" max="7" step="1" value="3" oninput="onTauSlider(this.value)" style="width:70px;vertical-align:middle;"></span>
-            <span id="tauLabel" style="color:var(--cyan);">f4 (0.43)</span>
-            <span>YAW: <input type="range" id="yawSlider" min="-80" max="80" step="1" value="-32" oninput="onOrbitSlider()" style="width:55px;vertical-align:middle;"></span>
-            <span>PITCH: <input type="range" id="pitchSlider" min="-45" max="45" step="1" value="20" oninput="onOrbitSlider()" style="width:55px;vertical-align:middle;"></span>
-          </div>
-        </div>
-
-        <div class="crt-side">
-          <!-- DUAL CRT MONITORS: 1983 MASTER (LEFT) + ACTIVE MONTAGE LENS CUT (RIGHT) -->
-          <div class="dual-crt-grid">
-            <div class="crt-cell">
-              <div class="crt-mini-head">
-                <span>CRT-A // 1983 MASTER</span>
-                <span id="crtShotLabel" style="color:var(--cyan);">wg_001</span>
-              </div>
-              <div class="crt-vp">
-                <video id="wormVideo" autoplay playsinline webkit-playsinline preload="auto" muted></video>
-                <svg id="wormVideoSvg" viewBox="0 0 1000 562.5" preserveAspectRatio="none"></svg>
-              </div>
-            </div>
-            <div class="crt-cell">
-              <div class="crt-mini-head">
-                <span style="color:var(--amber);">CRT-B // ACTIVE CUT WORM</span>
-                <span id="crtCutLabel" style="color:var(--amber);">SYNTHESIS</span>
-              </div>
-              <div class="crt-vp">
-                <video id="cutVideo" autoplay playsinline webkit-playsinline preload="auto" muted></video>
-                <img id="cutThumbFallback" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" alt="">
-                <svg id="cutVideoSvg" viewBox="0 0 1000 562.5" preserveAspectRatio="none"></svg>
-              </div>
-            </div>
-          </div>
-
-          <!-- 10 SIMULTANEOUS CUT LENS SELECTOR BAR -->
-          <div class="lens10-bar" id="lens10Bar">
-            <span style="color:var(--amber);font-size:9px;align-self:center;margin-right:3px;">10 CUTS:</span>
-            <button class="on" data-lens="synthesis" onclick="selectCutLens('synthesis')">SYNTHESIS</button>
-            <button data-lens="1983" onclick="selectCutLens('1983')">1983</button>
-            <button data-lens="clip" onclick="selectCutLens('clip')">CLIP</button>
-            <button data-lens="vjepa" onclick="selectCutLens('vjepa')">V-JEPA</button>
-            <button data-lens="blip" onclick="selectCutLens('blip')">BLIP</button>
-            <button data-lens="cineosis" onclick="selectCutLens('cineosis')">CINEOSIS</button>
-            <button data-lens="trurl" onclick="selectCutLens('trurl')">TRURL</button>
-            <button data-lens="klapaucius" onclick="selectCutLens('klapaucius')">KLAPAUCIUS</button>
-            <button data-lens="murch" onclick="selectCutLens('murch')">MURCH</button>
-            <button data-lens="novelty" onclick="selectCutLens('novelty')">NOVELTY</button>
-          </div>
-
-          <!-- FELS & MASE TOMOGRAPHIC SLIT-SCAN SLICES (u-tau & v-tau) -->
-          <div class="tomo-box">
-            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--amber);">
-              <span>TOMOGRAPHIC SLIT-SCANS: HORIZONTAL (u-tau) &amp; VERTICAL (v-tau) [TAP TO SLICE]</span>
-              <span id="tomoMeta">VIDEO CUBISM</span>
-            </div>
-            <canvas class="tomo-canvas" id="tomoUTauCanvas" width="420" height="44" onclick="onTomoClick(event)"></canvas>
-            <canvas class="tomo-canvas" id="tomoVTauCanvas" width="420" height="44" onclick="onTomoClick(event)"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- LOWER SPLIT: LEV MANOVICH CULTURAL ANALYTICS UNROLL + BRODBECK CINEMETRICS TORUS -->
-      <div class="lower-deck">
-        <div class="manovich-pane">
-          <div class="pane-head">
-            <span>MANOVICH CULTURAL ANALYTICS UNROLL (f1 / f4 / f8) + KALMUS STRATIGRAPHY</span>
-            <span id="manovichTopoBadge" style="color:var(--fg-bright);">--</span>
-          </div>
-          <div class="manovich-body">
-            <div class="unroll-3grid" id="manovichUnrollGrid"></div>
-            <div style="font-size:9px;color:var(--fg-dim);display:flex;justify-content:space-between;">
-              <span>KALMUS CORE WORM PALETTE (f1..f8):</span>
-              <span id="kalmusCoreText" style="color:var(--fg-bright);">--</span>
-            </div>
-            <div class="kalmus-bar" id="kalmusCoreBar"></div>
-            <div style="font-size:9px;color:var(--fg-dim);display:flex;justify-content:space-between;">
-              <span>KALMUS OUTER SHELL PALETTE (f1..f8):</span>
-              <span id="kalmusShellText" style="color:var(--cyan);">--</span>
-            </div>
-            <div class="kalmus-bar" id="kalmusShellBar"></div>
-          </div>
-        </div>
-
-        <div class="torus-pane">
-          <div class="pane-head">
-            <span>BRODBECK 360-DEG RADIAL CINEMETRICS TORUS</span>
-            <span style="color:var(--cyan);">TAP SEGMENT</span>
-          </div>
-          <div class="torus-wrap">
-            <canvas id="torusCanvas" width="160" height="160"></canvas>
-            <div class="torus-legend" id="torusLegend"></div>
-          </div>
-        </div>
+    <!-- PANE 2: 3D GLASS-PRISM SPATIOTEMPORAL WORM VOLUME V(u,v,tau) -->
+    <div class="vp-cell">
+      <canvas id="prismCanvas" width="720" height="450"></canvas>
+      <div class="tag cyan" id="tagPrism">V(u,v,tau) // HELICAL_CORKSCREW</div>
+      <div class="prism-toggles">
+        <button class="on" id="togSlices" onclick="toggleVis('slices')">IMAGE SLICES</button>
+        <button class="on" id="togTube" onclick="toggleVis('tube')">3D WORM</button>
+        <button class="on" id="togCuts10" onclick="toggleVis('cuts10')">10-CUT WORMS</button>
+        <button class="on" id="togGrid" onclick="toggleVis('grid')">ARMATURE</button>
+        <button class="amber on" id="togOrbit" onclick="toggleVis('orbit')">ORBIT</button>
       </div>
     </div>
 
-    <!-- RIGHT: TELEMETRY (TOPOLOGY, KALMUS/ITTEN, BOULEAU/ARNHEIM, FRENET-SERRET DIFF GEOM, 10-CUT WORMS) -->
-    <div class="right-pane">
-      <!-- 1. 3D WORM TOPOLOGY & CUT FRACTURE -->
-      <div class="sec-block">
-        <div class="sec-title">
-          <span>1. 3D WORM TOPOLOGY &amp; CUT FRACTURE PLANE</span>
-          <span id="rightTopoBadge" style="color:var(--fg-bright);">--</span>
-        </div>
-        <div id="topoGrammarText" style="font-size:9.5px;color:var(--fg);margin-bottom:5px;padding:3px 5px;border:1px solid var(--fg-dark);background:#020804;"></div>
-        <div class="kv-grid" id="topoKvGrid"></div>
+    <!-- PANE 3: SIMULTANEOUS ARCHIVAL CUT + WORM CONTOUR -->
+    <div class="vp-cell">
+      <video id="vidCut" autoplay muted playsinline webkit-playsinline preload="auto"></video>
+      <img id="imgCutFallback" class="fallback" style="display:none;position:absolute;inset:0;" alt="">
+      <svg id="svgCut" viewBox="0 0 1000 562.5" preserveAspectRatio="none"></svg>
+      <div class="tag amber" id="tagCut">SYNTHESIS</div>
+      <div class="cut-switcher" id="cutBar">
+        <button class="amber on" data-lens="synthesis" onclick="setLens('synthesis')">SYNTH</button>
+        <button class="amber" data-lens="clip" onclick="setLens('clip')">CLIP</button>
+        <button class="amber" data-lens="vjepa" onclick="setLens('vjepa')">VJEPA</button>
+        <button class="amber" data-lens="blip" onclick="setLens('blip')">BLIP</button>
+        <button class="amber" data-lens="cineosis" onclick="setLens('cineosis')">CINE</button>
+        <button class="amber" data-lens="trurl" onclick="setLens('trurl')">TRURL</button>
+        <button class="amber" data-lens="klapaucius" onclick="setLens('klapaucius')">KLAP</button>
+        <button class="amber" data-lens="murch" onclick="setLens('murch')">MURCH</button>
+        <button class="amber" data-lens="novelty" onclick="setLens('novelty')">NOVEL</button>
+        <button class="amber" data-lens="1983" onclick="setLens('1983')">1983</button>
       </div>
+    </div>
 
-      <!-- 2. KALMUS & JOHANNES ITTEN'S 7 COLOR CONTRASTS -->
-      <div class="sec-block">
-        <div class="sec-title">
-          <span>2. KALMUS &amp; ITTEN 7 COLOR CONTRASTS (CORE vs SHELL)</span>
-          <span id="ittenSummaryBadge" style="color:var(--cyan);">--</span>
-        </div>
-        <div class="kv-grid" id="ittenKvGrid"></div>
+    <!-- SUB-ROW: FELS & MASE SLIT-SCANS (u-tau, v-tau) + KALMUS CHROMATIC BAR -->
+    <div class="tomo-strip">
+      <div class="tomo-cell" onclick="scrubTomo(event)" title="u-tau Horizontal Slit-Scan">
+        <canvas id="uTauCanvas" width="480" height="56"></canvas>
+        <div class="tag" style="top:2px;left:3px;font-size:8px;">u-tau</div>
       </div>
-
-      <!-- 3. BOULEAU 14-LINE ARMATURE & ARNHEIM ECCENTRIC TENSION -->
-      <div class="sec-block">
-        <div class="sec-title">
-          <span>3. BOULEAU 14-LINE ARMATURE &amp; ARNHEIM TORQUE</span>
-          <span id="bouleauStateBadge" style="color:var(--amber);">--</span>
-        </div>
-        <div class="kv-grid" id="bouleauKvGrid"></div>
+      <div class="tomo-cell" onclick="scrubTomo(event)" title="v-tau Vertical Slit-Scan">
+        <canvas id="vTauCanvas" width="480" height="56"></canvas>
+        <div class="tag" style="top:2px;left:3px;font-size:8px;">v-tau</div>
       </div>
-
-      <!-- 4. FRENET-SERRET 3D SPACE-CURVE (CURVATURE kappa, TORSION tau, JERK ||c'''||) & BRUCE BLOCK -->
-      <div class="sec-block">
-        <div class="sec-title">
-          <span>4. CURVATURE kappa(tau), TORSION, JERK &amp; BRUCE BLOCK</span>
-          <span id="jerkPeakBadge" style="color:var(--fg-bright);">--</span>
+      <div class="tomo-cell" onclick="stepTau(1)" title="KALMUS Core & Shell Color Stratigraphy">
+        <div class="kalmus-stack">
+          <div class="kalmus-row" id="kalmusCore"></div>
+          <div class="kalmus-row" id="kalmusShell"></div>
         </div>
-        <canvas class="curve-canvas" id="diffGeomCanvas" width="380" height="82"></canvas>
-        <div class="kv-grid" id="diffGeomKvGrid" style="margin-top:4px;"></div>
-      </div>
-
-      <!-- 5. 10 SIMULTANEOUS MONTAGE CUTS: REAL-PIXEL 3D WORM COMPARISON -->
-      <div class="sec-block" style="border-bottom:none;">
-        <div class="sec-title">
-          <span>5. ALL 10 SIMULTANEOUS CUTS // 3D WORM COMPARISON</span>
-          <span style="color:var(--cyan);">TAP ROW TO WATCH CUT</span>
-        </div>
-        <table class="cuts10-table">
-          <thead>
-            <tr>
-              <th>CUT LENS</th>
-              <th>SHOTS</th>
-              <th>3D WORM TOPOLOGY</th>
-              <th>PALETTE</th>
-              <th>dL*</th>
-              <th>BLOCK</th>
-            </tr>
-          </thead>
-          <tbody id="cuts10Tbody"></tbody>
-        </table>
+        <div class="tag" style="top:2px;left:3px;font-size:8px;">KALMUS</div>
       </div>
     </div>
   </div>
 
-  <!-- STATUS BAR -->
-  <div class="statusbar">
-    <div id="statusLeft">3D SPATIOTEMPORAL WORM CINEMA READY // 4,736 STRIP FRAMES + 1,050 10-CUT WORMS (4,300 SUB-SHOTS)</div>
-    <div>SWIPE/DRAG 3D PRISM // TAP ANY OF THE 10 CUTS TO WATCH IN SYNC</div>
+  <!-- BOTTOM VISUAL FILMSTRIP + RADIAL TORUS -->
+  <div class="ribbon-wrap">
+    <div class="torus-mini" onclick="onTorusTap(event)">
+      <canvas id="torusCanvas" width="140" height="140"></canvas>
+    </div>
+    <div class="filmstrip" id="filmstrip"></div>
   </div>
 </div>
 
 <audio id="sceneAudio" preload="auto"></audio>
 
 <script>
-const RAB_L = 9.0 / 16.0;
-const RAB_R = 1.0 - RAB_L;
+const RAB_L = 9.0 / 16.0, RAB_R = 1.0 - RAB_L;
 const BOULEAU_14 = [
   [[0,0],[1,1]], [[0,1],[1,0]],
   [[0.5,0],[0.5,1]], [[0,0.5],[1,0.5]],
-  [[RAB_R,0],[RAB_R,1]], [[RAB_L,0],[RAB_L,1]],
-  [[0,0],[RAB_L,1]], [[0,1],[RAB_L,0]],
-  [[RAB_R,0],[1,1]], [[RAB_R,1],[1,0]],
-  [[0.5,0],[1,0.5]], [[1,0.5],[0.5,1]],
-  [[0.5,1],[0,0.5]], [[0,0.5],[0.5,0]]
+  [[RAB_R,0],[RAB_R,1]], [[RAB_L,0],[RAB_L,1]]
 ];
 
-let WORM_VOL = null;
-let SCREENS_DATA = null;
-let CORPUS = 'beats';
-let TOPO_FILTER = 'ALL';
-let SHOTS = [];
-let CUR_IDX = 0;
-let CUR_TAU_IDX = 0;
-let ACTIVE_CUT_LENS = 'synthesis';
-let STREAM_PLAYING = true;
-let AUDIO_MODE = 'orig'; // 'orig' | 'aligned' | 'mute'
-let AUDIO_UNLOCKED = false;
-let SUBSHOT_TIMER = null;
+let WORM_VOL = null, SCREENS_DATA = null;
+let CORPUS = 'beats', TOPO = 'ALL', LENS = 'synthesis';
+let SHOTS = [], CUR = 0, TAU = 0;
+let PLAYING = true;
+let SOUND_MODE = 0; // 0=mute, 1=1983 orig, 2=archive duet
+let YAW = -0.52, PITCH = 0.32, DRAGGING = false, PTR = {x:0, y:0};
+let STRIP_CACHE = {};
 
-// 3D Prism Camera Orbit State
-let PRISM_YAW = -32 * Math.PI / 180;
-let PRISM_PITCH = 20 * Math.PI / 180;
-let IS_DRAGGING = false;
-let LAST_PTR = { x: 0, y: 0 };
+const VIS = { slices: true, tube: true, cuts10: true, grid: true, orbit: true };
 
-const FILAMENTS = {
-  bouleau: true,
-  thirds: true,
-  spiral: true,
-  braid: true,
-  cuts10: true,
-  orbit: true
-};
-
-async function initWormConsole() {
-  const [volRes, scrRes] = await Promise.all([
+async function init() {
+  const [r1, r2] = await Promise.all([
     fetch('wargames-worm-volume.json'),
     fetch('wargames-screens-program.json')
   ]);
-  WORM_VOL = await volRes.json();
-  SCREENS_DATA = await scrRes.json();
-
-  setupTopoFilters();
-  setupPrismPointers();
+  WORM_VOL = await r1.json();
+  SCREENS_DATA = await r2.json();
+  setupPointerOrbit();
   setupKeys();
-  applyTopoFilter();
-  requestAnimationFrame(masterRenderLoop);
+  filterShots();
+  requestAnimationFrame(loop);
 }
 
-function toggleMobileWatchLayout() {
-  document.body.classList.toggle('mobile-watch');
-  document.getElementById('btnMobileLayout').classList.toggle('on', document.body.classList.contains('mobile-watch'));
-}
-
-function unlockAudioOnTap() {
-  AUDIO_UNLOCKED = true;
-  const btn = document.getElementById('btnUnmuteMobile');
-  if (btn) {
-    btn.textContent = '[AUDIO LIVE]';
-    btn.classList.remove('on');
-  }
-  const vidB = document.getElementById('cutVideo');
-  const sh = SHOTS[CUR_IDX];
-  if (sh) {
-    if (AUDIO_MODE === 'mute') setAudioMode('orig');
-    else startBeatAudio(sh);
-  }
-  if (vidB && AUDIO_MODE === 'aligned') {
-    vidB.muted = false;
-  }
-}
-
-function setAudioMode(mode) {
-  AUDIO_MODE = mode;
-  ['orig', 'aligned', 'mute'].forEach(m => {
-    const idMap = { orig: 'btnAudOrig', aligned: 'btnAudAligned', mute: 'btnAudMute' };
-    document.getElementById(idMap[m]).classList.toggle('on', m === mode);
-  });
-  const aud = document.getElementById('sceneAudio');
-  if (mode === 'mute') {
-    aud.pause();
-  } else if (STREAM_PLAYING) {
-    const sh = SHOTS[CUR_IDX];
-    if (sh) startBeatAudio(sh);
-  }
-}
-
-function selectCutLens(lens) {
-  ACTIVE_CUT_LENS = lens;
-  document.querySelectorAll('#lens10Bar button').forEach(b => {
-    b.classList.toggle('on', b.getAttribute('data-lens') === lens);
-  });
-  document.getElementById('crtCutLabel').textContent = lens.toUpperCase();
-  const sh = SHOTS[CUR_IDX];
-  if (sh) {
-    syncCutLensVideo(sh, CUR_TAU_IDX);
-    renderRightTelemetry(sh, sh.worm_frames[CUR_TAU_IDX] || sh.worm_frames[0]);
-  }
-}
-
-function setupTopoFilters() {
-  const btns = document.querySelectorAll('#topoFilterBar button');
-  btns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      btns.forEach(b => b.classList.remove('on'));
-      btn.classList.add('on');
-      TOPO_FILTER = btn.getAttribute('data-topo');
-      applyTopoFilter();
-    });
-  });
-}
-
-function setCorpus(mode) {
-  CORPUS = mode;
-  document.getElementById('btnModeBeats').classList.toggle('on', mode === 'beats');
-  document.getElementById('btnModeScreens').classList.toggle('on', mode === 'screens');
-  applyTopoFilter();
-}
-
-function getAllItems() {
-  if (CORPUS === 'beats') {
-    return WORM_VOL.beats || [];
-  }
-  return (SCREENS_DATA.screen_states || []).map((st, idx) => {
+function getRawList() {
+  if (CORPUS === 'beats') return WORM_VOL.beats || [];
+  return (SCREENS_DATA.screen_states || []).map((st, i) => {
     const w = st.worm_3d || {};
     return {
-      id: `SCR-${String(idx + 1).padStart(2, '0')}`,
+      id: `S${String(i+1).padStart(2,'0')}`,
       shot_id: st.shot_id,
-      book_title: st.system_node || 'WOPR_SCREEN',
-      start_sec: st.start,
-      end_sec: st.end,
-      dur_sec: st.dur,
-      who: (st.trigger_line && st.trigger_line.speaker) || 'WOPR',
-      fulcrum_line: (st.trigger_line && st.trigger_line.text) || st.inferred_command || st.ocr_text || '',
       thumb: st.thumb,
       strip: st.strip,
       video: st.video,
       audio_orig: `cache/wg_sound/${st.beat_id || 'S01-B01'}_orig.m4a`,
       audio_aligned: `cache/wg_sound/${st.beat_id || 'S01-B01'}_aligned.m4a`,
       topology: w.topology || 'VERTICAL_PILLAR',
-      topology_grammar: w.topology_grammar || '',
-      pan_shear_angle_deg: w.pan_shear_angle_deg || 0,
-      cone_flare_dr: w.cone_flare_dr || 0,
-      mean_rabatment_gap: w.mean_rabatment_gap || 0.5,
-      mean_bilateral_balance: w.mean_bilateral_balance || 0.5,
-      cut_fracture: w.cut_fracture || { type: 'EYE_TRACE_FRACTURE_TUBE', jump_dist_uv: 0.05, velocity_dot: 0.0 },
+      cut_fracture: w.cut_fracture || { type: 'EYE_TRACE_FRACTURE_TUBE', jump_dist_uv: 0.05 },
       kalmus_summary: w.kalmus_summary,
-      bouleau_summary: w.bouleau_summary,
-      diff_geom_summary: w.diff_geom_summary,
       tomography: w.tomography,
       worm_frames: w.worm_frames || [],
-      cuts_10_worms: [],
-      turns: []
+      cuts_10_worms: []
     };
   });
 }
 
-function applyTopoFilter() {
-  const raw = getAllItems();
-  SHOTS = raw.filter(item => {
-    if (TOPO_FILTER === 'ALL') return true;
-    if (TOPO_FILTER === 'EYE_TRACE_FRACTURE_TUBE' || TOPO_FILTER === 'EISENSTEIN_COLLISION_FRACTURE') {
-      return item.cut_fracture && item.cut_fracture.type === TOPO_FILTER;
-    }
-    return item.topology === TOPO_FILTER;
+function filterShots() {
+  SHOTS = getRawList().filter(s => TOPO === 'ALL' || s.topology === TOPO);
+  renderFilmstrip();
+  renderTorus();
+  if (SHOTS.length) selectShot(0);
+}
+
+function setTopo(t) {
+  TOPO = t;
+  document.querySelectorAll('#topoBar button[data-topo]').forEach(b => {
+    b.classList.toggle('on', b.getAttribute('data-topo') === t);
   });
-
-  document.getElementById('leftListTitle').textContent =
-    `${CORPUS === 'beats' ? '105 SCENE BEATS' : '68 PURE SCREENS'} (${SHOTS.length})`;
-
-  renderShotList();
-  renderBrodbeckTorus();
-  if (SHOTS.length > 0) selectShot(0, STREAM_PLAYING);
+  filterShots();
 }
 
-function renderShotList() {
-  const el = document.getElementById('wormShotList');
-  el.innerHTML = SHOTS.map((sh, i) => {
-    const pal = (sh.kalmus_summary && sh.kalmus_summary.core_palette_8) || [];
-    const swatches = pal.slice(0, 6).map(hex => `<span class="sr-sw" style="background:${hex};"></span>`).join('');
-    const fracShort = (sh.cut_fracture && sh.cut_fracture.type === 'EYE_TRACE_FRACTURE_TUBE') ? 'EYE-LOCK' : 'COLLISION';
-    return `
-      <div class="shot-row ${i === CUR_IDX ? 'active' : ''}" onclick="selectShot(${i}, STREAM_PLAYING)">
-        <div class="sr-top">
-          <span class="sr-id">${sh.id} // ${sh.shot_id}</span>
-          <span class="sr-frac">${fracShort} (d=${(sh.cut_fracture?.jump_dist_uv ?? 0).toFixed(2)})</span>
-        </div>
-        <div class="sr-mid">
-          <span class="sr-topo">${sh.topology.replace(/_/g, ' ')}</span>
-          <span class="sr-pal">${swatches}</span>
-        </div>
-        <div class="sr-line">${sh.who ? sh.who + ': ' : ''}${sh.fulcrum_line || ''}</div>
-      </div>
-    `;
-  }).join('');
+function toggleCorpus() {
+  CORPUS = CORPUS === 'beats' ? 'screens' : 'beats';
+  document.getElementById('btnScreens').classList.toggle('on', CORPUS === 'screens');
+  filterShots();
 }
 
-function stepShot(dir) {
-  if (!SHOTS.length) return;
-  const next = (CUR_IDX + dir + SHOTS.length) % SHOTS.length;
-  selectShot(next, STREAM_PLAYING);
+function toggleVis(k) {
+  VIS[k] = !VIS[k];
+  const ids = { slices:'togSlices', tube:'togTube', cuts10:'togCuts10', grid:'togGrid', orbit:'togOrbit' };
+  document.getElementById(ids[k]).classList.toggle('on', VIS[k]);
 }
 
-function selectShot(idx, autoPlay) {
-  if (idx < 0 || idx >= SHOTS.length) return;
-  CUR_IDX = idx;
-  document.getElementById('streamBeatCounter').textContent =
-    `${String(idx + 1).padStart(2, '0')} / ${String(SHOTS.length).padStart(2, '0')}`;
-
-  const rows = document.querySelectorAll('#wormShotList .shot-row');
-  rows.forEach((r, i) => r.classList.toggle('active', i === idx));
-  if (rows[idx]) rows[idx].scrollIntoView({ block: 'nearest' });
-
-  const sh = SHOTS[idx];
-  const vidA = document.getElementById('wormVideo');
-  vidA.src = sh.video;
-  document.getElementById('crtShotLabel').textContent = `${sh.id} // ${sh.shot_id}`;
-
-  renderManovichUnroll(sh);
-  renderBrodbeckTorus();
-
-  if (autoPlay) {
-    setTauSubframe(0);
-    vidA.currentTime = 0;
-    vidA.play().catch(() => {});
-    startBeatAudio(sh);
-    syncCutLensVideo(sh, 0, true);
-  } else {
-    vidA.pause();
-    const pkF = (sh.diff_geom_summary && sh.diff_geom_summary.peak_jerk_subframe) ? (sh.diff_geom_summary.peak_jerk_subframe - 1) : 3;
-    setTauSubframe(Math.max(0, Math.min(7, pkF)));
-    syncCutLensVideo(sh, CUR_TAU_IDX, false);
-  }
+function setLens(l) {
+  LENS = l;
+  document.querySelectorAll('#cutBar button').forEach(b => {
+    b.classList.toggle('on', b.getAttribute('data-lens') === l);
+  });
+  const sh = SHOTS[CUR];
+  if (sh) syncCutVideo(sh, TAU);
 }
 
-function startBeatAudio(sh) {
+function cycleAudio() {
+  SOUND_MODE = (SOUND_MODE + 1) % 3;
+  const labels = ['[TAP SOUND: MUTE]', '[SOUND: 1983]', '[SOUND: DUET]'];
+  const btn = document.getElementById('btnSound');
+  btn.textContent = labels[SOUND_MODE];
+  btn.classList.toggle('on', SOUND_MODE > 0);
+  const sh = SHOTS[CUR];
+  if (sh) syncAudio(sh);
+}
+
+function syncAudio(sh) {
   const aud = document.getElementById('sceneAudio');
-  if (AUDIO_MODE === 'mute') {
-    aud.pause();
-    return;
-  }
-  const src = AUDIO_MODE === 'aligned' ? sh.audio_aligned : sh.audio_orig;
+  if (SOUND_MODE === 0 || !PLAYING) { aud.pause(); return; }
+  const src = SOUND_MODE === 2 ? sh.audio_aligned : sh.audio_orig;
   if (!src) return;
-  if (aud.dataset.src !== src) {
-    aud.dataset.src = src;
-    aud.src = src;
-  }
+  if (aud.dataset.src !== src) { aud.dataset.src = src; aud.src = src; }
   aud.currentTime = 0;
   aud.play().catch(() => {});
 }
 
-function syncCutLensVideo(sh, k, playNow) {
-  const cw = (sh.cuts_10_worms || []).find(c => c.cut_lens === ACTIVE_CUT_LENS) || (sh.cuts_10_worms || [])[0];
-  const vidB = document.getElementById('cutVideo');
-  const imgFallback = document.getElementById('cutThumbFallback');
-  const svgB = document.getElementById('cutVideoSvg');
+function toggleStream() {
+  PLAYING = !PLAYING;
+  const btn = document.getElementById('btnPlay');
+  btn.textContent = PLAYING ? '[PAUSE]' : '[PLAY]';
+  btn.classList.toggle('on', PLAYING);
+  const vA = document.getElementById('vidMaster');
+  const vB = document.getElementById('vidCut');
+  const aud = document.getElementById('sceneAudio');
+  if (PLAYING) {
+    vA.play().catch(() => {});
+    vB.play().catch(() => {});
+    if (SHOTS[CUR]) syncAudio(SHOTS[CUR]);
+  } else {
+    vA.pause(); vB.pause(); aud.pause();
+  }
+}
+
+function renderFilmstrip() {
+  const el = document.getElementById('filmstrip');
+  el.innerHTML = SHOTS.map((s, i) => {
+    const col = (s.kalmus_summary && s.kalmus_summary.core_palette_8 && s.kalmus_summary.core_palette_8[3]) || '#33ff77';
+    return `
+      <div class="thumb-tile ${i === CUR ? 'active' : ''}" id="tile_${i}" onclick="selectShot(${i})">
+        <div class="t-bar" style="background:${col};"></div>
+        <img src="${s.thumb}" loading="lazy" alt="">
+        <div class="t-idx">${s.id}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectShot(idx) {
+  if (!SHOTS.length) return;
+  CUR = (idx + SHOTS.length) % SHOTS.length;
+  const sh = SHOTS[CUR];
+  document.getElementById('shotCounter').textContent =
+    `${String(CUR+1).padStart(3,'0')}/${String(SHOTS.length).padStart(3,'0')}`;
+
+  document.querySelectorAll('.thumb-tile').forEach((t, i) => t.classList.toggle('active', i === CUR));
+  const tile = document.getElementById(`tile_${CUR}`);
+  if (tile) tile.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+
+  // Preload 8-frame strip image for 3D texture slices inside the Prism
+  if (sh.strip && !STRIP_CACHE[sh.strip]) {
+    const im = new Image();
+    im.src = sh.strip;
+    STRIP_CACHE[sh.strip] = im;
+  }
+
+  const vA = document.getElementById('vidMaster');
+  vA.src = sh.video;
+  vA.currentTime = 0;
+  if (PLAYING) vA.play().catch(() => {});
+
+  document.getElementById('tagMaster').textContent = `${sh.id} // ${sh.shot_id}`;
+  document.getElementById('tagPrism').textContent = `${sh.topology.replace(/_/g,' ')}`;
+
+  // Kalmus bars
+  const c8 = (sh.kalmus_summary && sh.kalmus_summary.core_palette_8) || [];
+  const s8 = (sh.kalmus_summary && sh.kalmus_summary.shell_palette_8) || [];
+  document.getElementById('kalmusCore').innerHTML = c8.map(h => `<div style="background:${h};"></div>`).join('');
+  document.getElementById('kalmusShell').innerHTML = s8.map(h => `<div style="background:${h};"></div>`).join('');
+
+  setTau(0);
+  syncCutVideo(sh, 0);
+  syncAudio(sh);
+  renderTorus();
+}
+
+function stepShot(d) { selectShot(CUR + d); }
+function stepTau(d) { setTau((TAU + d + 8) % 8); if (SHOTS[CUR]) syncCutVideo(SHOTS[CUR], TAU); }
+
+function setTau(k) {
+  const sh = SHOTS[CUR];
+  if (!sh || !sh.worm_frames || !sh.worm_frames[k]) return;
+  TAU = k;
+  const wf = sh.worm_frames[k];
+  renderMasterOverlay(sh, wf);
+  renderPrism(sh, k);
+  renderTomo(sh, k);
+}
+
+function syncCutVideo(sh, k) {
+  const cw = (sh.cuts_10_worms || []).find(c => c.cut_lens === LENS) || (sh.cuts_10_worms || [])[0];
+  const vB = document.getElementById('vidCut');
+  const fb = document.getElementById('imgCutFallback');
+  const svgB = document.getElementById('svgCut');
 
   if (!cw || !cw.subshots || !cw.subshots.length) {
-    vidB.src = sh.video;
-    imgFallback.style.display = 'none';
-    if (playNow) vidB.play().catch(() => {});
+    vB.src = sh.video;
+    fb.style.display = 'none';
+    if (PLAYING) vB.play().catch(() => {});
     svgB.innerHTML = '';
     return;
   }
 
-  const subIdx = Math.min(cw.subshots.length - 1, Math.floor((k / 8.0) * cw.subshots.length));
-  const sub = cw.subshots[subIdx];
+  const sIdx = Math.min(cw.subshots.length - 1, Math.floor((k / 8.0) * cw.subshots.length));
+  const sub = cw.subshots[sIdx];
+  document.getElementById('tagCut').textContent = `${LENS.toUpperCase()} // ${sub.year || ''}`;
 
-  // Show local thumbnail immediately behind video so there is never a black flash
-  if (sub.thumb) {
-    imgFallback.src = sub.thumb;
-    imgFallback.style.display = 'block';
+  if (sub.thumb) { fb.src = sub.thumb; fb.style.display = 'block'; }
+  const url = sub.media_url || '';
+  if (url && vB.dataset.src !== url) {
+    vB.dataset.src = url;
+    vB.src = url;
+    vB.onloadeddata = () => {
+      fb.style.display = 'none';
+      if (sub.t0) { try { vB.currentTime = sub.t0; } catch(e) {} }
+      if (PLAYING) vB.play().catch(() => {});
+    };
+    vB.onerror = () => { fb.style.display = 'block'; };
+  } else if (PLAYING) {
+    vB.play().catch(() => {});
   }
 
-  const mediaUrl = sub.media_url || '';
-  if (mediaUrl && vidB.dataset.src !== mediaUrl) {
-    vidB.dataset.src = mediaUrl;
-    vidB.src = mediaUrl;
-    vidB.onloadeddata = () => {
-      imgFallback.style.display = 'none';
-      if (sub.t0) {
-        try { vidB.currentTime = sub.t0; } catch (e) {}
-      }
-      if (playNow || STREAM_PLAYING) vidB.play().catch(() => {});
-    };
-    vidB.onerror = () => {
-      imgFallback.style.display = 'block';
-    };
-  } else if (playNow || STREAM_PLAYING) {
-    vidB.play().catch(() => {});
-  }
-
-  // Draw active Cut Worm SVG overlay on CRT-B
+  // Minimal pure geometry overlay on CRT-B
   const W = 1000, H = 562.5;
-  const pt = (cw.pts_uvr && cw.pts_uvr[k]) || [sub.u || 0.5, sub.v || 0.5, sub.r || 0.2];
-  const ux = pt[0] * W, uy = pt[1] * H, rx = pt[2] * W, ry = pt[2] * H;
+  const pt = (cw.pts_uvr && cw.pts_uvr[k]) || [sub.u || 0.5, sub.v || 0.5, sub.r || 0.22];
+  const allPts = (cw.pts_uvr || []).map(p => `${p[0]*W},${p[1]*H}`).join(' ');
   svgB.innerHTML = `
-    <ellipse cx="${ux}" cy="${uy}" rx="${rx}" ry="${ry}" fill="none" stroke="${cw.core_hex || '#ffb000'}" stroke-width="2.5"/>
-    <circle cx="${ux}" cy="${uy}" r="5" fill="#00e5ff"/>
-    <text x="10" y="20" fill="#ffb000" font-family="monospace" font-size="13" font-weight="bold">
-      ${cw.cut_lens.toUpperCase()} // ${sub.title.slice(0, 28)} (${sub.year}) // [${cw.topology}]
-    </text>
+    <polyline points="${allPts}" fill="none" stroke="${cw.core_hex || '#ffb000'}" stroke-width="2" opacity="0.7"/>
+    <ellipse cx="${pt[0]*W}" cy="${pt[1]*H}" rx="${pt[2]*W}" ry="${pt[2]*H}"
+             fill="none" stroke="${cw.core_hex || '#ffb000'}" stroke-width="2.5"/>
+    <circle cx="${pt[0]*W}" cy="${pt[1]*H}" r="5" fill="#00e5ff"/>
   `;
 }
 
-function setTauSubframe(k) {
-  const sh = SHOTS[CUR_IDX];
-  if (!sh || !sh.worm_frames || !sh.worm_frames[k]) return;
-  CUR_TAU_IDX = k;
-  document.getElementById('tauSlider').value = k;
-  const wf = sh.worm_frames[k];
-  document.getElementById('tauLabel').textContent = `f${wf.f} (${wf.tau_norm.toFixed(2)})`;
-
-  // Update Spoken Subtitle Banner
-  const turns = sh.turns || [];
-  const activeTurn = turns[Math.min(turns.length - 1, Math.floor((k / 8.0) * Math.max(1, turns.length)))];
-  const cw = (sh.cuts_10_worms || []).find(c => c.cut_lens === ACTIVE_CUT_LENS);
-  const sub = cw && cw.subshots ? cw.subshots[Math.min(cw.subshots.length - 1, Math.floor((k / 8.0) * cw.subshots.length))] : null;
-
-  const spkLine = activeTurn
-    ? `<span style="color:var(--amber);font-weight:700;">${activeTurn.speaker}:</span> "${activeTurn.text}"`
-    : `<span style="color:var(--amber);font-weight:700;">${sh.who || '1983'}:</span> "${sh.fulcrum_line || ''}"`;
-  const archLine = (sub && sub.spoken)
-    ? `<div style="color:var(--cyan);font-size:9.5px;margin-top:2px;">[${ACTIVE_CUT_LENS.toUpperCase()} CUT · ${sub.title} (${sub.year})]: "${sub.spoken}"</div>`
-    : '';
-  document.getElementById('prismSubBanner').innerHTML = spkLine + archLine;
-
-  render3DPrism(sh, k);
-  renderCrtCrossSectionSvg(sh, wf);
-  renderTomographicSlices(sh, k);
-  renderRightTelemetry(sh, wf);
-}
-
-function onTauSlider(val) {
-  const k = parseInt(val, 10);
-  setTauSubframe(k);
-  const sh = SHOTS[CUR_IDX];
-  if (sh) syncCutLensVideo(sh, k, STREAM_PLAYING);
-}
-
-function stepTauFrame(dir) {
-  const next = (CUR_TAU_IDX + dir + 8) % 8;
-  setTauSubframe(next);
-  const sh = SHOTS[CUR_IDX];
-  if (sh) syncCutLensVideo(sh, next, STREAM_PLAYING);
-}
-
-function toggleFilament(key) {
-  FILAMENTS[key] = !FILAMENTS[key];
-  const mapIds = {
-    bouleau: 'togBouleau',
-    thirds: 'togThirds',
-    spiral: 'togSpiral',
-    braid: 'togBraid',
-    cuts10: 'tog10Cuts',
-    orbit: 'togAutoOrbit'
-  };
-  document.getElementById(mapIds[key]).classList.toggle('on', FILAMENTS[key]);
-  const sh = SHOTS[CUR_IDX];
-  if (sh) {
-    render3DPrism(sh, CUR_TAU_IDX);
-    if (sh.worm_frames[CUR_TAU_IDX]) renderCrtCrossSectionSvg(sh, sh.worm_frames[CUR_TAU_IDX]);
-  }
-}
-
-function onOrbitSlider() {
-  PRISM_YAW = parseFloat(document.getElementById('yawSlider').value) * Math.PI / 180;
-  PRISM_PITCH = parseFloat(document.getElementById('pitchSlider').value) * Math.PI / 180;
-  const sh = SHOTS[CUR_IDX];
-  if (sh) render3DPrism(sh, CUR_TAU_IDX);
-}
-
-function setupPrismPointers() {
-  const canvas = document.getElementById('prismCanvas');
-  const onStart = (x, y) => {
-    IS_DRAGGING = true;
-    LAST_PTR = { x, y };
-  };
-  const onMove = (x, y) => {
-    if (!IS_DRAGGING) return;
-    const dx = x - LAST_PTR.x;
-    const dy = y - LAST_PTR.y;
-    LAST_PTR = { x, y };
-    PRISM_YAW = Math.max(-1.4, Math.min(1.4, PRISM_YAW + dx * 0.008));
-    PRISM_PITCH = Math.max(-0.85, Math.min(0.85, PRISM_PITCH + dy * 0.008));
-    document.getElementById('yawSlider').value = Math.round(PRISM_YAW * 180 / Math.PI);
-    document.getElementById('pitchSlider').value = Math.round(PRISM_PITCH * 180 / Math.PI);
-    const sh = SHOTS[CUR_IDX];
-    if (sh) render3DPrism(sh, CUR_TAU_IDX);
-  };
-  canvas.addEventListener('mousedown', e => onStart(e.clientX, e.clientY));
-  window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
-  window.addEventListener('mouseup', () => { IS_DRAGGING = false; });
-
-  canvas.addEventListener('touchstart', e => {
-    if (e.touches.length === 1) onStart(e.touches[0].clientX, e.touches[0].clientY);
-  }, { passive: true });
-  canvas.addEventListener('touchmove', e => {
-    if (e.touches.length === 1) onMove(e.touches[0].clientX, e.touches[0].clientY);
-  }, { passive: true });
-  canvas.addEventListener('touchend', () => { IS_DRAGGING = false; });
-}
-
-function project3D(u, v, tau, W, H) {
-  const x0 = (u - 0.5) * 1.55;
-  const y0 = (v - 0.5) * 0.92;
-  const z0 = (tau - 0.5) * 1.85;
-
-  const cosY = Math.cos(PRISM_YAW), sinY = Math.sin(PRISM_YAW);
-  const x1 = x0 * cosY + z0 * sinY;
-  const z1 = -x0 * sinY + z0 * cosY;
-
-  const cosP = Math.cos(PRISM_PITCH), sinP = Math.sin(PRISM_PITCH);
-  const y2 = y0 * cosP - z1 * sinP;
-  const z2 = y0 * sinP + z1 * cosP;
-
-  const fovScale = 235.0 / (2.9 + z2 * 0.45);
-  return {
-    x: W * 0.5 + x1 * fovScale,
-    y: H * 0.48 + y2 * fovScale,
-    scale: fovScale,
-    z: z2
-  };
-}
-
-function render3DPrism(sh, activeK) {
-  const canvas = document.getElementById('prismCanvas');
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, W, H);
-
-  const wFrames = sh.worm_frames || [];
-  if (!wFrames.length) return;
-
-  document.getElementById('prismHud').innerHTML =
-    `<span><b style="color:var(--fg-bright);">${sh.id} (${sh.shot_id})</b> // <b style="color:var(--amber);">${sh.topology}</b></span>` +
-    `<span style="color:var(--cyan);">CUT FRACTURE: ${sh.cut_fracture?.type || ''} (d=${(sh.cut_fracture?.jump_dist_uv ?? 0).toFixed(2)})</span>`;
-
-  // 1. 3D Glass-Prism Wireframe Box V(u, v, tau)
-  const corners = [
-    [0,0,0],[1,0,0],[1,1,0],[0,1,0],
-    [0,0,1],[1,0,1],[1,1,1],[0,1,1]
-  ].map(c => project3D(c[0], c[1], c[2], W, H));
-
-  const edges = [
-    [0,1],[1,2],[2,3],[3,0],
-    [4,5],[5,6],[6,7],[7,4],
-    [0,4],[1,5],[2,6],[3,7]
-  ];
-  ctx.strokeStyle = '#145228';
-  ctx.lineWidth = 1;
-  edges.forEach(([i, j]) => {
-    ctx.beginPath();
-    ctx.moveTo(corners[i].x, corners[i].y);
-    ctx.lineTo(corners[j].x, corners[j].y);
-    ctx.stroke();
-  });
-
-  // 2. Active Tau Cut-Plane Slice
-  const tauCur = activeK / 7.0;
-  const sliceCorners = [[0,0,tauCur],[1,0,tauCur],[1,1,tauCur],[0,1,tauCur]].map(c => project3D(c[0], c[1], c[2], W, H));
-  ctx.fillStyle = 'rgba(0, 229, 255, 0.06)';
-  ctx.strokeStyle = 'rgba(0, 229, 255, 0.72)';
-  ctx.lineWidth = 1.4;
-  ctx.beginPath();
-  sliceCorners.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  // 3. Bouleau's 14-Line Armature on active Tau Slice
-  if (FILAMENTS.bouleau) {
-    ctx.strokeStyle = 'rgba(255, 176, 0, 0.24)';
-    ctx.lineWidth = 0.85;
-    BOULEAU_14.forEach(([pA, pB]) => {
-      const a = project3D(pA[0], pA[1], tauCur, W, H);
-      const b = project3D(pB[0], pB[1], tauCur, W, H);
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    });
-  }
-
-  // 4. Rule of Thirds 3D Magnetic Filaments
-  if (FILAMENTS.thirds) {
-    ctx.strokeStyle = 'rgba(51, 255, 119, 0.25)';
-    ctx.setLineDash([3, 3]);
-    [[1/3,1/3],[2/3,1/3],[1/3,2/3],[2/3,2/3]].forEach(([tu, tv]) => {
-      const p0 = project3D(tu, tv, 0, W, H);
-      const p1 = project3D(tu, tv, 1, W, H);
-      ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
-    });
-    ctx.setLineDash([]);
-  }
-
-  // 5. Golden Spiral Helical Filament around (0.618, 0.382)
-  if (FILAMENTS.spiral) {
-    ctx.strokeStyle = 'rgba(255, 176, 0, 0.42)';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    for (let s = 0; s <= 40; s++) {
-      const t = s / 40.0;
-      const ang = t * 3.0 * Math.PI;
-      const rad = 0.28 * (1.0 - 0.65 * t);
-      const pt = project3D(0.618 + rad * Math.cos(ang), 0.382 + rad * Math.sin(ang), t, W, H);
-      if (s === 0) ctx.moveTo(pt.x, pt.y);
-      else ctx.lineTo(pt.x, pt.y);
-    }
-    ctx.stroke();
-  }
-
-  // 6. All 10 Simultaneous Montage Cut Worms inside the Prism (Highlighting ACTIVE_CUT_LENS)
-  if (FILAMENTS.cuts10 && sh.cuts_10_worms) {
-    sh.cuts_10_worms.forEach(cw => {
-      const isSelectedLens = cw.cut_lens === ACTIVE_CUT_LENS;
-      ctx.strokeStyle = isSelectedLens ? '#00e5ff' : (cw.core_hex || '#33ff77');
-      ctx.lineWidth = isSelectedLens ? 2.6 : 1.1;
-      ctx.globalAlpha = isSelectedLens ? 0.95 : 0.48;
-      ctx.beginPath();
-      (cw.pts_uvr || []).forEach((pt, k) => {
-        const p = project3D(pt[0], pt[1], k / 7.0, W, H);
-        if (k === 0) ctx.moveTo(p.x, p.y);
-        else ctx.lineTo(p.x, p.y);
-      });
-      ctx.stroke();
-      ctx.globalAlpha = 1.0;
-    });
-  }
-
-  // 7. Rabatment Double-Helix Counterpoint Worms (c_left & c_right)
-  if (FILAMENTS.braid) {
-    ['c_left', 'c_right'].forEach((sideKey, sIdx) => {
-      ctx.strokeStyle = sIdx === 0 ? 'rgba(0, 229, 255, 0.55)' : 'rgba(255, 176, 0, 0.55)';
-      ctx.lineWidth = 1.3;
-      ctx.beginPath();
-      wFrames.forEach((wf, k) => {
-        const c = wf[sideKey] || [0.5, 0.5];
-        const p = project3D(c[0], c[1], wf.tau_norm, W, H);
-        if (k === 0) ctx.moveTo(p.x, p.y);
-        else ctx.lineTo(p.x, p.y);
-      });
-      ctx.stroke();
-    });
-  }
-
-  // 8. Extruded Primary 3D Spatiotemporal Worm (Action Tube)
-  const projWorm = wFrames.map(wf => ({
-    wf,
-    p: project3D(wf.u, wf.v, wf.tau_norm, W, H),
-    rPx: Math.max(8, wf.r * 92.0)
-  }));
-
-  for (let k = 0; k < projWorm.length - 1; k++) {
-    const a = projWorm[k], b = projWorm[k + 1];
-    ctx.fillStyle = a.wf.core_color?.hex || '#33ff77';
-    ctx.globalAlpha = 0.28;
-    ctx.beginPath();
-    ctx.moveTo(a.p.x, a.p.y - a.rPx);
-    ctx.lineTo(b.p.x, b.p.y - b.rPx);
-    ctx.lineTo(b.p.x, b.p.y + b.rPx);
-    ctx.lineTo(a.p.x, a.p.y + a.rPx);
-    ctx.closePath();
-    ctx.fill();
-    ctx.globalAlpha = 1.0;
-  }
-
-  projWorm.forEach((item, k) => {
-    const isAct = k === activeK;
-    ctx.beginPath();
-    ctx.ellipse(item.p.x, item.p.y, item.rPx, item.rPx * 0.72, 0, 0, Math.PI * 2);
-    ctx.fillStyle = item.wf.core_color?.hex || '#33ff77';
-    ctx.globalAlpha = isAct ? 0.68 : 0.34;
-    ctx.fill();
-    ctx.globalAlpha = 1.0;
-    ctx.lineWidth = isAct ? 2.5 : 1.1;
-    ctx.strokeStyle = isAct ? '#ffb000' : '#33ff77';
-    ctx.stroke();
-  });
-
-  ctx.beginPath();
-  ctx.strokeStyle = '#c2ffd6';
-  ctx.lineWidth = 2.4;
-  projWorm.forEach((item, k) => {
-    if (k === 0) ctx.moveTo(item.p.x, item.p.y);
-    else ctx.lineTo(item.p.x, item.p.y);
-  });
-  ctx.stroke();
-}
-
-function renderCrtCrossSectionSvg(sh, wf) {
-  const svg = document.getElementById('wormVideoSvg');
+function renderMasterOverlay(sh, wf) {
+  const svg = document.getElementById('svgMaster');
   const W = 1000, H = 562.5;
   const parts = [];
 
-  if (FILAMENTS.bouleau) {
-    BOULEAU_14.forEach(([a, b]) => {
-      parts.push(`<line x1="${a[0]*W}" y1="${a[1]*H}" x2="${b[0]*W}" y2="${b[1]*H}" stroke="rgba(255,176,0,0.26)" stroke-width="1"/>`);
+  if (VIS.grid) {
+    BOULEAU_14.forEach(([[x1,y1],[x2,y2]]) => {
+      parts.push(`<line x1="${x1*W}" y1="${y1*H}" x2="${x2*W}" y2="${y2*H}" stroke="rgba(255,176,0,0.22)" stroke-width="1"/>`);
     });
   }
-  if (FILAMENTS.braid && wf.c_left && wf.c_right) {
-    const [lu, lv] = wf.c_left;
-    const [ru, rv] = wf.c_right;
+
+  // Full 8-node spine + active cross-section ring
+  const wFrames = sh.worm_frames || [];
+  const spine = wFrames.map(f => `${f.u*W},${f.v*H}`).join(' ');
+  parts.push(`<polyline points="${spine}" fill="none" stroke="#00e5ff" stroke-width="2.2"/>`);
+
+  const ux = wf.u * W, uy = wf.v * H, rx = wf.r * W, ry = wf.r * H;
+  parts.push(`
+    <ellipse cx="${ux}" cy="${uy}" rx="${rx}" ry="${ry}"
+             fill="${wf.core_color.hex}22" stroke="${wf.core_color.hex}" stroke-width="3"/>
+    <circle cx="${ux}" cy="${uy}" r="5" fill="#b8ffd0"/>
+  `);
+
+  if (wf.rabatment) {
+    const l = wf.rabatment.left_actor, r = wf.rabatment.right_actor;
     parts.push(`
-      <line x1="${lu*W}" y1="${lv*H}" x2="${ru*W}" y2="${rv*H}" stroke="#00e5ff" stroke-width="1.5" stroke-dasharray="4 3"/>
-      <circle cx="${lu*W}" cy="${lv*H}" r="6" fill="none" stroke="#00e5ff" stroke-width="1.6"/>
-      <circle cx="${ru*W}" cy="${rv*H}" r="6" fill="none" stroke="#ffb000" stroke-width="1.6"/>
+      <line x1="${l[0]*W}" y1="${l[1]*H}" x2="${r[0]*W}" y2="${r[1]*H}" stroke="#00e5ff" stroke-width="1.4" stroke-dasharray="4 3"/>
+      <circle cx="${l[0]*W}" cy="${l[1]*H}" r="4" fill="#00e5ff"/>
+      <circle cx="${r[0]*W}" cy="${r[1]*H}" r="4" fill="#ffb000"/>
     `);
   }
-  const ux = wf.u * W, uy = wf.v * H;
-  const rx = wf.r * W, ry = wf.r * H;
-  parts.push(`
-    <line x1="${W*0.5}" y1="${H*0.5}" x2="${ux}" y2="${uy}" stroke="#ff3344" stroke-width="1.5" stroke-dasharray="3 2"/>
-    <ellipse cx="${ux}" cy="${uy}" rx="${rx}" ry="${ry}" fill="rgba(51,255,119,0.08)" stroke="${wf.core_color?.hex || '#33ff77'}" stroke-width="2.4"/>
-    <circle cx="${ux}" cy="${uy}" r="4.5" fill="#ffb000"/>
-    <text x="10" y="20" fill="#ffb000" font-family="monospace" font-size="13" font-weight="bold">
-      1983[${sh.topology}] f${wf.f} // dL*=${wf.itten.chiaroscuro_dL} // kappa=${wf.diff_geom.curvature_kappa}
-    </text>
-  `);
+
   svg.innerHTML = parts.join('');
 }
 
-function renderTomographicSlices(sh, activeK) {
-  const tomo = sh.tomography || {};
-  const uRows = tomo.u_tau_horizon_slice || [];
-  const vRows = tomo.v_tau_meridian_slice || [];
-  const wFrames = sh.worm_frames || [];
-
-  const drawTomo = (canvasId, rows, coordKey, lineCol) => {
-    const c = document.getElementById(canvasId);
-    const ctx = c.getContext('2d');
-    const W = c.width, H = c.height;
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, W, H);
-    if (!rows.length) return;
-    const nT = rows.length, nS = rows[0].length;
-    const cw = W / nT, ch = H / nS;
-    for (let t = 0; t < nT; t++) {
-      for (let s = 0; s < nS; s++) {
-        ctx.fillStyle = rows[t][s];
-        ctx.fillRect(t * cw, s * ch, Math.ceil(cw), Math.ceil(ch));
-      }
-    }
-    ctx.strokeStyle = lineCol;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    wFrames.forEach((wf, k) => {
-      const x = (k + 0.5) * cw;
-      const y = wf[coordKey] * H;
-      if (k === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-    ctx.strokeStyle = '#ffb000';
-    ctx.strokeRect(activeK * cw, 0, cw, H);
-  };
-
-  drawTomo('tomoUTauCanvas', uRows, 'u', '#33ff77');
-  drawTomo('tomoVTauCanvas', vRows, 'v', '#00e5ff');
+function proj(u, v, tau, W, H) {
+  const x0 = (u - 0.5) * 1.62;
+  const y0 = (v - 0.5) * 0.96;
+  const z0 = (tau - 0.5) * 1.95;
+  const cY = Math.cos(YAW), sY = Math.sin(YAW);
+  const x1 = x0 * cY + z0 * sY;
+  const z1 = -x0 * sY + z0 * cY;
+  const cP = Math.cos(PITCH), sP = Math.sin(PITCH);
+  const y2 = y0 * cP - z1 * sP;
+  const z2 = y0 * sP + z1 * cP;
+  const sc = Math.min(W, H) * 0.62 / (2.85 + z2 * 0.45);
+  return { x: W * 0.5 + x1 * sc, y: H * 0.5 + y2 * sc, sc, z: z2 };
 }
 
-function onTomoClick(e) {
-  const rect = e.currentTarget.getBoundingClientRect();
-  const pct = Math.max(0, Math.min(0.99, (e.clientX - rect.left) / rect.width));
-  const k = Math.floor(pct * 8);
-  setTauSubframe(k);
-  const sh = SHOTS[CUR_IDX];
-  if (sh) syncCutLensVideo(sh, k, STREAM_PLAYING);
-}
-
-function renderManovichUnroll(sh) {
-  document.getElementById('manovichTopoBadge').textContent = sh.topology;
-  const grid = document.getElementById('manovichUnrollGrid');
-  const wFrames = sh.worm_frames || [];
-  const indices = [[0, 'ENTRY (f1)'], [3, 'MIDPOINT (f4)'], [7, 'EXIT (f8)']];
-  grid.innerHTML = indices.map(([k, label]) => {
-    const wf = wFrames[k] || wFrames[0] || { u: 0.5, v: 0.5, r: 0.2 };
-    return `
-      <div class="unroll-card" onclick="onTauSlider(${k})">
-        <div class="unroll-hdr">
-          <span>${label}</span>
-          <span style="color:var(--amber);">u=${wf.u.toFixed(2)} r=${wf.r.toFixed(2)}</span>
-        </div>
-        <div class="unroll-vp">
-          <img class="unroll-strip-img" src="${sh.strip}" style="left:-${k * 100}%;">
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  const ks = sh.kalmus_summary || {};
-  const core8 = ks.core_palette_8 || [];
-  const shell8 = ks.shell_palette_8 || [];
-  document.getElementById('kalmusCoreText').textContent = `dL*=${ks.mean_chiaroscuro_dL ?? 0} // dH=${ks.mean_hue_polarity_deg ?? 0} deg`;
-  document.getElementById('kalmusShellText').textContent = `WARM-COOL=${ks.mean_cold_warm_delta ?? 0} // AREA=${((ks.mean_extension_ratio ?? 0)*100).toFixed(0)}%`;
-  document.getElementById('kalmusCoreBar').innerHTML = core8.map((c, k) => `<div style="background:${c};" onclick="onTauSlider(${k})"></div>`).join('');
-  document.getElementById('kalmusShellBar').innerHTML = shell8.map((c, k) => `<div style="background:${c};" onclick="onTauSlider(${k})"></div>`).join('');
-}
-
-function renderBrodbeckTorus() {
-  const canvas = document.getElementById('torusCanvas');
+function renderPrism(sh, activeK) {
+  const canvas = document.getElementById('prismCanvas');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
-  const cx = W * 0.5, cy = H * 0.5;
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, W, H);
 
-  if (!SHOTS.length) return;
-  const N = SHOTS.length;
-  const dAng = (Math.PI * 2) / N;
-
-  SHOTS.forEach((sh, i) => {
-    const a0 = -Math.PI * 0.5 + i * dAng;
-    const a1 = a0 + dAng * 0.92;
-    const coreHex = (sh.kalmus_summary?.core_palette_8?.[3]) || '#33ff77';
-    const shellHex = (sh.kalmus_summary?.shell_palette_8?.[3]) || '#0a2916';
-    const jerkNorm = Math.min(1.0, ((sh.diff_geom_summary?.max_jerk_mag) || 5) / 35.0);
-
-    ctx.beginPath(); ctx.arc(cx, cy, 36, a0, a1);
-    ctx.strokeStyle = shellHex; ctx.lineWidth = 9; ctx.stroke();
-
-    ctx.beginPath(); ctx.arc(cx, cy, 50, a0, a1);
-    ctx.strokeStyle = i === CUR_IDX ? '#ffb000' : coreHex;
-    ctx.lineWidth = i === CUR_IDX ? 13 : 10; ctx.stroke();
-
-    const am = 0.5 * (a0 + a1);
-    const rOut = 58 + 17 * jerkNorm;
-    ctx.beginPath();
-    ctx.moveTo(cx + 57 * Math.cos(am), cy + 57 * Math.sin(am));
-    ctx.lineTo(cx + rOut * Math.cos(am), cy + rOut * Math.sin(am));
-    ctx.strokeStyle = i === CUR_IDX ? '#00e5ff' : '#33ff77';
-    ctx.lineWidth = i === CUR_IDX ? 2.2 : 1.1;
-    ctx.stroke();
-  });
-
-  canvas.onclick = (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const dx = e.clientX - rect.left - cx;
-    const dy = e.clientY - rect.top - cy;
-    let ang = Math.atan2(dy, dx) + Math.PI * 0.5;
-    if (ang < 0) ang += Math.PI * 2;
-    const idx = Math.min(SHOTS.length - 1, Math.floor((ang / (Math.PI * 2)) * SHOTS.length));
-    selectShot(idx, STREAM_PLAYING);
-  };
-
-  const sh = SHOTS[CUR_IDX];
-  if (sh) {
-    document.getElementById('torusLegend').innerHTML = `
-      <div><strong style="color:var(--fg-bright);">SEGMENT ${CUR_IDX + 1}/${SHOTS.length}</strong></div>
-      <div>SHOT: <span style="color:var(--amber);">${sh.id} (${sh.shot_id})</span></div>
-      <div>TOPOLOGY: <span style="color:var(--cyan);">${sh.topology}</span></div>
-      <div>INNER: KALMUS SHELL</div>
-      <div>MIDDLE: KALMUS CORE</div>
-      <div>SPIKES: JERK ||c'''||</div>
-      <div>BRUCE BLOCK: <b style="color:var(--fg-bright);">${sh.diff_geom_summary?.mean_bruce_block_intensity ?? 0}</b></div>
-    `;
-  }
-}
-
-function renderRightTelemetry(sh, wf) {
-  const cf = sh.cut_fracture || {};
-  document.getElementById('rightTopoBadge').textContent = sh.topology;
-  document.getElementById('topoGrammarText').textContent = sh.topology_grammar || '';
-  document.getElementById('topoKvGrid').innerHTML = `
-    <div class="kv-box"><div class="kv-k">PAN SHEAR ANGLE (theta)</div><div class="kv-v">${sh.pan_shear_angle_deg >= 0 ? '+' : ''}${sh.pan_shear_angle_deg} deg</div></div>
-    <div class="kv-box"><div class="kv-k">CONE FLARE (dr)</div><div class="kv-v">${sh.cone_flare_dr >= 0 ? '+' : ''}${sh.cone_flare_dr}</div></div>
-    <div class="kv-box"><div class="kv-k">RABATMENT GAP (Delta_u)</div><div class="kv-v">${wf.rabatment_gap_du} (bal=${wf.bilateral_balance})</div></div>
-    <div class="kv-box"><div class="kv-k">CUT FRACTURE JUMP</div><div class="kv-v" style="color:${cf.type === 'EYE_TRACE_FRACTURE_TUBE' ? 'var(--fg)' : 'var(--amber)'};">${cf.jump_dist_uv ?? 0} (${cf.type === 'EYE_TRACE_FRACTURE_TUBE' ? 'MURCH LOCK' : 'EISENSTEIN'})</div></div>
-  `;
-
-  const it = wf.itten || {};
-  document.getElementById('ittenSummaryBadge').textContent = `CORE ${wf.core_color?.hex || ''} vs SHELL ${wf.shell_color?.hex || ''}`;
-  document.getElementById('ittenKvGrid').innerHTML = `
-    <div class="kv-box"><div class="kv-k">LIGHT-DARK CHIAROSCURO (dL*)</div><div class="kv-v">${it.chiaroscuro_dL} (L*=${wf.core_color?.L_star}/${wf.shell_color?.L_star})</div></div>
-    <div class="kv-box"><div class="kv-k">COMPLEMENTARY HUE (dH)</div><div class="kv-v">${it.hue_polarity_deg} deg</div></div>
-    <div class="kv-box"><div class="kv-k">COLD-WARM POLARITY</div><div class="kv-v">${it.cold_warm_delta >= 0 ? '+' : ''}${it.cold_warm_delta}</div></div>
-    <div class="kv-box"><div class="kv-k">EXTENSION AREA RATIO</div><div class="kv-v">${(it.extension_area_ratio * 100).toFixed(1)}% OF FRAME</div></div>
-  `;
-
-  const b14 = wf.bouleau_14 || {};
-  document.getElementById('bouleauStateBadge').textContent = b14.grid_state || 'HARMONIC_LOCK';
-  document.getElementById('bouleauKvGrid').innerHTML = `
-    <div class="kv-box"><div class="kv-k">FILAMENT DISTANCE d_grid</div><div class="kv-v">${b14.d_grid}</div></div>
-    <div class="kv-box"><div class="kv-k">NEAREST 14-LINE FILAMENT</div><div class="kv-v" style="color:var(--cyan);">${b14.nearest_filament}</div></div>
-    <div class="kv-box"><div class="kv-k">ARNHEIM ECCENTRIC TORQUE</div><div class="kv-v">${b14.arnheim_torque}</div></div>
-    <div class="kv-box"><div class="kv-k">TUBE RADIUS r(tau)</div><div class="kv-v">${wf.r}</div></div>
-  `;
-
-  const dg = wf.diff_geom || {};
-  const dgs = sh.diff_geom_summary || {};
-  document.getElementById('jerkPeakBadge').textContent = `PEAK JERK AT f${dgs.peak_jerk_subframe || 1}`;
-  document.getElementById('diffGeomKvGrid').innerHTML = `
-    <div class="kv-box"><div class="kv-k">CURVATURE kappa(tau)</div><div class="kv-v">${dg.curvature_kappa}</div></div>
-    <div class="kv-box"><div class="kv-k">TORSION tau_torsion(tau)</div><div class="kv-v">${dg.torsion_tau}</div></div>
-    <div class="kv-box"><div class="kv-k">KINETIC JERK ||c'''(tau)||</div><div class="kv-v" style="color:var(--amber);">${dg.jerk_mag}</div></div>
-    <div class="kv-box"><div class="kv-k">BRUCE BLOCK INTENSITY</div><div class="kv-v" style="color:var(--cyan);">${dg.bruce_block_intensity}</div></div>
-  `;
-  drawDiffGeomCurves(sh.worm_frames || [], CUR_TAU_IDX);
-
-  // 5. All 10 Simultaneous Montage Cuts Table (real-pixel measured)
-  const cuts10 = sh.cuts_10_worms || [];
-  const tbody = document.getElementById('cuts10Tbody');
-  if (!cuts10.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="color:var(--fg-dim);">SWITCH TO '105 BEATS (x10 CUTS)' TO INSPECT ALL 10 PARALLEL MONTAGE WORMS</td></tr>`;
-  } else {
-    tbody.innerHTML = cuts10.map(cw => {
-      const isAct = cw.cut_lens === ACTIVE_CUT_LENS;
-      const sw = (cw.core_palette_8 || [cw.core_hex]).slice(0, 4).map(h =>
-        `<span style="display:inline-block;width:7px;height:9px;background:${h};border:1px solid #111;"></span>`
-      ).join('');
-      return `
-        <tr class="${isAct ? 'active' : ''}" onclick="selectCutLens('${cw.cut_lens}')">
-          <td style="color:${isAct ? 'var(--cyan)' : 'var(--fg-bright)'};font-weight:700;">${cw.cut_lens.toUpperCase()}</td>
-          <td>${cw.subshot_count || 4} (${cw.internal_eye_locks ?? 0}L/${cw.internal_collisions ?? 0}C)</td>
-          <td style="color:var(--amber);">${cw.topology.replace(/_/g, ' ')}</td>
-          <td>${sw}</td>
-          <td>${cw.chiaroscuro_dL}</td>
-          <td style="color:var(--cyan);">${cw.bruce_block}</td>
-        </tr>
-      `;
-    }).join('');
-  }
-}
-
-function drawDiffGeomCurves(wFrames, activeK) {
-  const canvas = document.getElementById('diffGeomCanvas');
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  ctx.fillStyle = '#010502';
-  ctx.fillRect(0, 0, W, H);
+  const wFrames = sh.worm_frames || [];
   if (!wFrames.length) return;
 
-  ctx.strokeStyle = '#092612';
+  // 1. Wireframe Volume Cage
+  const corners = [
+    [0,0,0],[1,0,0],[1,1,0],[0,1,0],
+    [0,0,1],[1,0,1],[1,1,1],[0,1,1]
+  ].map(c => proj(c[0], c[1], c[2], W, H));
+  const edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+  ctx.strokeStyle = 'rgba(51, 255, 119, 0.24)';
   ctx.lineWidth = 1;
-  for (let k = 0; k < 8; k++) {
-    const x = (k / 7.0) * (W - 20) + 10;
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  edges.forEach(([a,b]) => {
+    ctx.beginPath(); ctx.moveTo(corners[a].x, corners[a].y); ctx.lineTo(corners[b].x, corners[b].y); ctx.stroke();
+  });
+
+  // 2. Actual video frame slices inside the 3D volume (from 8-frame strip)
+  const stripImg = sh.strip ? STRIP_CACHE[sh.strip] : null;
+  if (VIS.slices && stripImg && stripImg.complete && stripImg.naturalWidth > 0) {
+    const fw = stripImg.naturalWidth / 8, fh = stripImg.naturalHeight;
+    wFrames.forEach((wf, k) => {
+      const isAct = k === activeK;
+      if (!isAct && k % 2 !== 0) return; // draw f1, f3, f5, f7 + active slice for crystal clarity
+      const tl = proj(0, 0, wf.tau_norm, W, H);
+      const br = proj(1, 1, wf.tau_norm, W, H);
+      const sw = br.x - tl.x, sh_px = br.y - tl.y;
+      ctx.save();
+      ctx.globalAlpha = isAct ? 0.52 : 0.14;
+      ctx.drawImage(stripImg, k * fw, 0, fw, fh, tl.x, tl.y, sw, sh_px);
+      ctx.restore();
+    });
   }
 
-  const plotTrace = (vals, maxV, color) => {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.8;
+  // 3. Internal Armature Planes
+  if (VIS.grid) {
+    ctx.strokeStyle = 'rgba(255, 176, 0, 0.16)';
+    ctx.lineWidth = 1;
+    [1/3, 2/3].forEach(u => {
+      const p0 = proj(u,0,0,W,H), p1 = proj(u,1,0,W,H), p2 = proj(u,1,1,W,H), p3 = proj(u,0,1,W,H);
+      ctx.beginPath(); ctx.moveTo(p0.x,p0.y); ctx.lineTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.lineTo(p3.x,p3.y); ctx.closePath(); ctx.stroke();
+    });
+  }
+
+  // 4. All 10 Montage Cut Worms in 3D
+  if (VIS.cuts10 && sh.cuts_10_worms) {
+    sh.cuts_10_worms.forEach(cw => {
+      const isSel = cw.cut_lens === LENS;
+      const pts = (cw.pts_uvr || []).map((pt, k) => proj(pt[0], pt[1], k / 7.0, W, H));
+      if (pts.length > 1) {
+        ctx.strokeStyle = isSel ? '#ffb000' : (cw.core_hex || '#33ff77');
+        ctx.globalAlpha = isSel ? 0.95 : 0.25;
+        ctx.lineWidth = isSel ? 2.8 : 1.1;
+        ctx.beginPath();
+        pts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    });
+  }
+
+  // 5. Extruded 3D Subject Action-Tube Worm
+  if (VIS.tube) {
+    const rings = wFrames.map(wf => {
+      const ring = [];
+      for (let s = 0; s < 16; s++) {
+        const ang = (s / 16) * 2 * Math.PI;
+        const ru = Math.max(0.02, Math.min(0.98, wf.u + wf.r * Math.cos(ang)));
+        const rv = Math.max(0.02, Math.min(0.98, wf.v + wf.r * Math.sin(ang)));
+        ring.push(proj(ru, rv, wf.tau_norm, W, H));
+      }
+      return { ring, center: proj(wf.u, wf.v, wf.tau_norm, W, H), hex: wf.core_color.hex, wf };
+    });
+
+    // Longitudinal ribs
+    for (let k = 0; k < rings.length - 1; k++) {
+      ctx.strokeStyle = rings[k].hex;
+      ctx.globalAlpha = 0.42;
+      ctx.lineWidth = 1.2;
+      for (let s = 0; s < 16; s += 2) {
+        ctx.beginPath();
+        ctx.moveTo(rings[k].ring[s].x, rings[k].ring[s].y);
+        ctx.lineTo(rings[k+1].ring[s].x, rings[k+1].ring[s].y);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // Cross-section rings
+    rings.forEach((rg, k) => {
+      const isAct = k === activeK;
+      ctx.beginPath();
+      rg.ring.forEach((p, idx) => { if (idx === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+      ctx.closePath();
+      ctx.fillStyle = rg.hex + (isAct ? '66' : '22');
+      ctx.fill();
+      ctx.strokeStyle = isAct ? '#ffffff' : rg.hex;
+      ctx.lineWidth = isAct ? 2.6 : 1.3;
+      ctx.stroke();
+    });
+
+    // Spine worldline
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.4;
     ctx.beginPath();
-    vals.forEach((v, k) => {
-      const x = (k / 7.0) * (W - 20) + 10;
-      const y = H - 8 - Math.max(0, Math.min(1, v / maxV)) * (H - 16);
-      if (k === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+    rings.forEach((rg, k) => { if (k === 0) ctx.moveTo(rg.center.x, rg.center.y); else ctx.lineTo(rg.center.x, rg.center.y); });
+    ctx.stroke();
+  }
+
+  // 6. Active tau slice plane frame
+  const aTau = wFrames[activeK].tau_norm;
+  const sl = [proj(0,0,aTau,W,H), proj(1,0,aTau,W,H), proj(1,1,aTau,W,H), proj(0,1,aTau,W,H)];
+  ctx.strokeStyle = '#00e5ff';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  sl.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+  ctx.closePath();
+  ctx.stroke();
+}
+
+function renderTomo(sh, activeK) {
+  const tomo = sh.tomography || {};
+  const uRows = tomo.u_tau_slice || [], vRows = tomo.v_tau_slice || [];
+  const wFrames = sh.worm_frames || [];
+
+  const draw = (id, rows, isU) => {
+    const c = document.getElementById(id), ctx = c.getContext('2d');
+    const W = c.width, H = c.height;
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    if (!rows.length) return;
+    const cw = W / rows.length, ch = H / rows[0].length;
+    rows.forEach((col, k) => {
+      col.forEach((hex, b) => {
+        ctx.fillStyle = hex;
+        ctx.fillRect(k * cw, b * ch, Math.ceil(cw), Math.ceil(ch));
+      });
+    });
+    // Spine trace
+    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    wFrames.forEach((wf, k) => {
+      const x = (k + 0.5) * cw;
+      const y = (isU ? wf.u : wf.v) * H;
+      if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     });
     ctx.stroke();
+    // Playhead
+    const ax = (activeK + 0.5) * cw;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(ax, 0); ctx.lineTo(ax, H); ctx.stroke();
   };
-
-  plotTrace(wFrames.map(f => f.diff_geom.curvature_kappa), 25.0, '#33ff77');
-  plotTrace(wFrames.map(f => f.diff_geom.jerk_mag), 50.0, '#ffb000');
-  plotTrace(wFrames.map(f => f.diff_geom.bruce_block_intensity), 1.0, '#00e5ff');
-
-  const ax = (activeK / 7.0) * (W - 20) + 10;
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.moveTo(ax, 0); ctx.lineTo(ax, H); ctx.stroke();
+  draw('uTauCanvas', uRows, true);
+  draw('vTauCanvas', vRows, false);
 }
 
-function toggleContinuousStream() {
-  STREAM_PLAYING = !STREAM_PLAYING;
-  const btn = document.getElementById('btnStreamAll');
-  const vidA = document.getElementById('wormVideo');
-  const vidB = document.getElementById('cutVideo');
-  const aud = document.getElementById('sceneAudio');
-
-  if (STREAM_PLAYING) {
-    btn.textContent = '[PAUSE FILM STREAM]';
-    btn.classList.add('on');
-    selectShot(CUR_IDX, true);
-  } else {
-    btn.textContent = '[PLAY CONTINUOUS FILM STREAM]';
-    btn.classList.remove('on');
-    vidA.pause();
-    vidB.pause();
-    aud.pause();
-  }
+function scrubTomo(e) {
+  const r = e.currentTarget.getBoundingClientRect();
+  const k = Math.max(0, Math.min(7, Math.floor(((e.clientX - r.left) / r.width) * 8)));
+  setTau(k);
+  if (SHOTS[CUR]) syncCutVideo(SHOTS[CUR], k);
 }
 
-function masterRenderLoop() {
-  const sh = SHOTS[CUR_IDX];
-  const vidA = document.getElementById('wormVideo');
+function renderTorus() {
+  const c = document.getElementById('torusCanvas'), ctx = c.getContext('2d');
+  const W = c.width, H = c.height, cx = W/2, cy = H/2, rOut = 64, rIn = 26;
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  const N = SHOTS.length;
+  if (!N) return;
+  SHOTS.forEach((s, i) => {
+    const a0 = (i / N) * 2 * Math.PI - Math.PI / 2;
+    const a1 = ((i + 1) / N) * 2 * Math.PI - Math.PI / 2;
+    const col = (s.kalmus_summary && s.kalmus_summary.core_palette_8 && s.kalmus_summary.core_palette_8[3]) || '#33ff77';
+    ctx.beginPath();
+    ctx.arc(cx, cy, i === CUR ? rOut + 3 : rOut, a0, a1);
+    ctx.arc(cx, cy, rIn, a1, a0, true);
+    ctx.closePath();
+    ctx.fillStyle = col;
+    ctx.fill();
+  });
+}
 
-  if (FILAMENTS.orbit && !IS_DRAGGING) {
-    PRISM_YAW += 0.0045;
-    if (PRISM_YAW > 1.25) PRISM_YAW = -1.25;
-    document.getElementById('yawSlider').value = Math.round(PRISM_YAW * 180 / Math.PI);
-    if (sh) render3DPrism(sh, CUR_TAU_IDX);
+function onTorusTap(e) {
+  if (!SHOTS.length) return;
+  const r = e.currentTarget.getBoundingClientRect();
+  const dx = e.clientX - (r.left + r.width/2), dy = e.clientY - (r.top + r.height/2);
+  let ang = Math.atan2(dy, dx) + Math.PI / 2;
+  if (ang < 0) ang += 2 * Math.PI;
+  selectShot(Math.floor((ang / (2 * Math.PI)) * SHOTS.length));
+}
+
+function setupPointerOrbit() {
+  const c = document.getElementById('prismCanvas');
+  const down = (x, y) => { DRAGGING = true; PTR = {x, y}; };
+  const move = (x, y) => {
+    if (!DRAGGING) return;
+    YAW = Math.max(-1.4, Math.min(1.4, YAW + (x - PTR.x) * 0.008));
+    PITCH = Math.max(-0.85, Math.min(0.85, PITCH + (y - PTR.y) * 0.008));
+    PTR = {x, y};
+    if (SHOTS[CUR]) renderPrism(SHOTS[CUR], TAU);
+  };
+  c.addEventListener('mousedown', e => down(e.clientX, e.clientY));
+  window.addEventListener('mousemove', e => move(e.clientX, e.clientY));
+  window.addEventListener('mouseup', () => { DRAGGING = false; });
+  c.addEventListener('touchstart', e => { if (e.touches.length === 1) down(e.touches[0].clientX, e.touches[0].clientY); }, {passive:true});
+  c.addEventListener('touchmove', e => { if (e.touches.length === 1) move(e.touches[0].clientX, e.touches[0].clientY); }, {passive:true});
+  c.addEventListener('touchend', () => { DRAGGING = false; });
+}
+
+function loop() {
+  const sh = SHOTS[CUR];
+  const vA = document.getElementById('vidMaster');
+  if (VIS.orbit && !DRAGGING) {
+    YAW += 0.0045;
+    if (YAW > 1.25) YAW = -1.25;
+    if (sh) renderPrism(sh, TAU);
   }
-
-  if (STREAM_PLAYING && sh) {
-    if (vidA.ended) {
-      // Auto-advance to the next shot across the Cut Fracture Plane!
-      const nextIdx = (CUR_IDX + 1) % SHOTS.length;
-      selectShot(nextIdx, true);
-    } else if (vidA.duration > 0) {
-      const k = Math.min(7, Math.floor((vidA.currentTime / vidA.duration) * 8));
-      if (k !== CUR_TAU_IDX) {
-        setTauSubframe(k);
-        syncCutLensVideo(sh, k, true);
+  if (PLAYING && sh) {
+    if (vA.ended) {
+      selectShot(CUR + 1);
+    } else if (vA.duration > 0) {
+      const k = Math.min(7, Math.floor((vA.currentTime / vA.duration) * 8));
+      if (k !== TAU) {
+        setTau(k);
+        syncCutVideo(sh, k);
       }
     }
   }
-  requestAnimationFrame(masterRenderLoop);
+  requestAnimationFrame(loop);
 }
 
 function setupKeys() {
   window.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT') return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); stepShot(1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); stepShot(-1); }
-    else if (e.key === 'ArrowRight') { e.preventDefault(); stepTauFrame(1); }
-    else if (e.key === 'ArrowLeft') { e.preventDefault(); stepTauFrame(-1); }
-    else if (e.key === ' ') { e.preventDefault(); toggleContinuousStream(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); stepShot(1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); stepShot(-1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); stepTau(-1); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); stepTau(1); }
+    else if (e.key === ' ') { e.preventDefault(); toggleStream(); }
   });
 }
 
-initWormConsole();
+init();
 </script>
 </body>
 </html>
