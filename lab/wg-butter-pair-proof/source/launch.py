@@ -6,7 +6,7 @@ T128='/tmp/claude-0/-home-claude/5dcbf124-08aa-5357-a87a-ec1f490e8f81/scratchpad
 R={};errs=[]
 def log(k,v):R[k]=v;print(k,json.dumps(v)[:700])
 GEST="""(()=>{const W=.15,D=.075,H0=BP.SIM.H0,st=2.6+2.0,K=[],pc=[];
- BP.TEST.steps.forEach((s,k)=>{const t0=k*st;let P=[W/2,D/2,H0],closed=false,pose,orient;if(s.id==='pinch')closed=true;if(s.id==='Vflat'||s.id==='Vup'){pose='V';pc.push([t0,t0+st,s.id==='Vflat'?'B':'A']);}if(s.id==='fist')pose='fist';if(s.id==='palmTop'){orient='wall';P=[W*.55,D*.9,.23];}
+ BP.TEST.steps.forEach((s,k)=>{const t0=k*st;let P=[W/2,D/2,H0],closed=false,pose,orient;if(s.id==='pinch')closed=true;if(s.id==='Vflat'||s.id==='Vup'){pose='V';pc.push([t0,t0+st,s.id==='Vflat'?'B':'A']);}if(s.id==='fist')pose='fist';if(s.id==='palmTop'){orient='wall';P=[W*.55,D*.75,.23];}if(s.id==='Vup'){orient='wall';P=[W*.55,D*.75,.23];}
   K.push({t:t0+.05,P:k?K[K.length-1].P:P,closed:false,pose:k?K[K.length-1].pose:pose,orient:k?K[K.length-1].orient:orient});K.push({t:t0+.8,P,closed,pose,orient});K.push({t:t0+st-.02,P,closed,pose,orient});});
  BP.RUN={sc:{dur:BP.TEST.steps.length*st+.5,hands:[K],poseCam:{V:pc}},t0:performance.now(),name:'launch-gest',next:[],last:null};})()"""
 with sync_playwright() as p:
@@ -15,11 +15,15 @@ with sync_playwright() as p:
     pg=ctx.new_page();pg.on('pageerror',lambda e:errs.append(str(e)));pg.goto(U+'?sim');pg.wait_for_timeout(1800);E=lambda s:pg.evaluate(s)
     fl=ctx.new_page();fl.set_viewport_size({'width':844,'height':390});fl.on('pageerror',lambda e:errs.append('floor: '+str(e)));fl.goto(U+'?floor');fl.wait_for_timeout(1500);pg.bring_to_front()
     # 1. Launch, end to end
-    E("(()=>{BP.resetModel();BP.reset();BP.CAL.B=null;BP.BPAIRS.length=0;window._imu=setInterval(()=>BP.imuIn({mov:false,b:1,g:1},performance.now()),100);document.querySelector('#launchB').click();BP.launchRun();})()")
+    E("(()=>{BP.resetModel();BP.reset();BP.CAL.B=null;BP.BPAIRS.length=0;window._imu=setInterval(()=>BP.imuIn({mov:false,b:1,g:1},performance.now()),100);BP.launchRun(BP.GO_STEPS);})()")
     seen=set();shots=0;t0=time.time()
-    while time.time()-t0<150:
-        pg.wait_for_timeout(150);st=E("BP.LAUNCH.on?BP.LAUNCH.rows.length+':'+(['level','camA','floor','palms','gest'][BP.LAUNCH.step]):'done'")
-        if st=='done':break
+    go_rows=None
+    while time.time()-t0<200:
+        pg.wait_for_timeout(150);st=E("BP.LAUNCH.on?BP.LAUNCH.rows.length+':'+(BP.LAUNCH.kind==='go'?['link','level','camA','floor']:['palms','gest'])[BP.LAUNCH.step]:'done'")
+        if st=='done':
+            if go_rows is None:
+                go_rows=E("BP.LAUNCH.rows.map(r=>r&&[r.id,r.st,r.text])");pg.screenshot(path=OUT+'/go-done.png');E("BP.launchRun(BP.PRACTICE_STEPS);0");pg.wait_for_timeout(300);continue
+            break
         k=st.split(':')[1]
         if k in seen:continue
         seen.add(k)
@@ -27,7 +31,7 @@ with sync_playwright() as p:
         if k=='palms':E("BP.RUN={sc:BP.SIM.SCRIPTS.twopalms(),t0:performance.now(),name:'twopalms',next:[],last:null}");pg.wait_for_timeout(1500);pg.screenshot(path=OUT+'/launch-palms.png')
         if k=='gest':pg.wait_for_timeout(300);E(GEST);pg.wait_for_timeout(5000);pg.screenshot(path=OUT+'/launch-gest.png');pg.wait_for_timeout(7500);pg.screenshot(path=OUT+'/cue-vup.png');fl.screenshot(path=OUT+'/cue-vup-floor.png')
     E("BP.RUN=null;clearInterval(window._imu)");pg.wait_for_timeout(400);pg.screenshot(path=OUT+'/launch-done.png')
-    log('launch, end to end (simulated hand)',E("({seconds:null,done:BP.LAUNCH.done,rows:BP.LAUNCH.rows.map(r=>r&&[r.id,r.st,r.text]),baseline_hands:BP.LAUNCH.baseline&&BP.LAUNCH.baseline.hands.length})"))
+    log('launch, end to end (simulated hand)',E("({practice_done:BP.LAUNCH.done,practice:BP.LAUNCH.rows.map(r=>r&&[r.id,r.st,r.text]),baseline_hands:BP.LAUNCH.baseline&&BP.LAUNCH.baseline.hands.length})")|{'go':go_rows})
     # 2. the agreement check: no false alarms when the pose is right
     def isolations(): return E("BP.LOG.filter(l=>l.includes('laptop camera isolated')).length")
     E("(()=>{BP.LOG.length=0;BP.resetModel();BP.reset();BP.setGeo(BP.geoFromImage(BP.SIM.flash(.0015),4/3),'test')})()")
