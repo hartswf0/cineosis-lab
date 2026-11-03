@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>68 PURE SCREENS CINEMA</title>
+<title>68 PURE SCREENS // LIVE VIDEO + ACTUAL VIDEO TIME WORM</title>
 <style>
   :root {
     --bg: #000000;
@@ -24,7 +24,7 @@
   }
   .app {
     display: grid;
-    grid-template-rows: 32px 1fr 84px 128px;
+    grid-template-rows: 32px 1fr 74px 104px;
     width: 100vw; height: 100vh;
     background: #000;
   }
@@ -43,33 +43,63 @@
   .btn:hover, .btn.on { background: var(--fg); color: #000; font-weight: 700; }
   .btn.amber { color: var(--amber); border-color: #775200; }
   .btn.amber.on, .btn.amber:hover { background: var(--amber); color: #000; }
+  .btn.cyan { color: var(--cyan); border-color: #006677; }
+  .btn.cyan.on, .btn.cyan:hover { background: var(--cyan); color: #000; }
 
   .theater-stage {
-    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    gap: 10px;
+    padding: 8px 14px;
     background: #000;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 8px 14px; min-height: 0; overflow: hidden;
+    align-items: center;
+    min-height: 0; overflow: hidden;
+  }
+  .panel-wrap {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column; justify-content: center; gap: 4px;
+    min-height: 0;
+  }
+  .panel-head {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 10px; color: var(--fg-bright); padding: 0 2px;
   }
   .video-16x9 {
     position: relative;
-    height: 100%;
+    width: 100%;
+    max-height: calc(100% - 42px);
     aspect-ratio: 16 / 9;
-    max-width: 100%;
+    margin: 0 auto;
     background: #000;
-    border: 1px solid var(--fg-dim);
+    border: 1px solid var(--cyan);
     overflow: hidden; cursor: pointer;
   }
   .video-16x9 video {
     position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; display: block;
   }
   .video-16x9 svg {
-    position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; opacity: 0.5;
+    position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; opacity: 0.55;
   }
   body.hide-overlay .video-16x9 svg { opacity: 0; }
-  .hud-pill {
-    position: absolute; top: 8px; left: 8px; z-index: 15;
-    background: rgba(0,0,0,0.75); border: 1px solid var(--border);
-    padding: 2px 8px; font-size: 10px; color: var(--fg-bright); pointer-events: none;
+
+  .worm-card {
+    position: relative;
+    width: 100%;
+    max-height: calc(100% - 42px);
+    aspect-ratio: 16 / 9;
+    margin: 0 auto;
+    background: #010502;
+    border: 1px solid var(--fg-dim);
+    overflow: hidden;
+  }
+  .worm-card canvas {
+    width: 100%; height: 100%; display: block; cursor: ew-resize;
+  }
+  .sub-bar {
+    height: 20px; line-height: 18px; padding: 0 6px;
+    background: #030a05; border: 1px solid var(--border);
+    color: var(--cyan); font-size: 10px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
 
   .strip-row {
@@ -79,7 +109,8 @@
     background: #020603; align-items: center;
   }
   .f-card {
-    position: relative; width: 100%; aspect-ratio: 16 / 9;
+    position: relative; width: 100%; max-height: 64px; aspect-ratio: 16 / 9;
+    margin: 0 auto;
     background: #000; border: 1px solid var(--border);
     overflow: hidden; cursor: pointer;
   }
@@ -99,17 +130,23 @@
     scroll-behavior: smooth;
   }
   .sc-tile {
-    position: relative; height: 112px; aspect-ratio: 16 / 9; flex-shrink: 0;
+    position: relative; height: 90px; aspect-ratio: 16 / 9; flex-shrink: 0;
     background: #000; border: 1px solid var(--border);
     overflow: hidden; cursor: pointer;
   }
   .sc-tile img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.68; }
   .sc-tile:hover img { opacity: 0.95; }
-  .sc-tile.active { border: 2px solid var(--amber); }
+  .sc-tile.active { border: 2px solid var(--cyan); }
   .sc-tile.active img { opacity: 1; }
   .tile-id {
     position: absolute; bottom: 2px; left: 3px;
     background: rgba(0,0,0,0.82); padding: 0 4px; font-size: 9px; color: var(--fg-bright);
+  }
+
+  @media (max-width: 960px) {
+    html, body { overflow-y: auto; height: auto; }
+    .app { display: flex; flex-direction: column; height: auto; }
+    .theater-stage { grid-template-columns: 1fr; padding: 6px; }
   }
 </style>
 </head>
@@ -119,22 +156,39 @@
     <div class="bar-group">
       <button class="btn amber on" id="btnPlay" onclick="togglePlay()">[PAUSE]</button>
       <button class="btn" onclick="selectScreen(CUR-1)">[&lt; PREV SCREEN]</button>
-      <span id="scrNum" style="color:var(--fg-bright);font-weight:700;padding:0 4px;">01 / 68</span>
+      <span id="scrNum" style="color:var(--cyan);font-weight:700;padding:0 4px;">01 / 68</span>
       <button class="btn" onclick="selectScreen(CUR+1)">[NEXT SCREEN &gt;]</button>
       <button class="btn on" id="btnOverlay" onclick="toggleOverlay()">[DOT/CIRCLE: ON]</button>
     </div>
     <div class="bar-group">
-      <a class="btn amber" href="wg-studio-worm.html">[DUAL WORM CINEMA]</a>
+      <a class="btn amber" href="wg-studio-worm.html">[3-MONITOR + DUAL WORM CINEMA]</a>
       <a class="btn" href="wg-studio-stgl.html">[4D GRID CINEMA]</a>
     </div>
   </div>
 
-  <!-- LARGE CLEAN 16:9 COMPUTER SCREEN VIDEO -->
+  <!-- SIDE-BY-SIDE: LIVE PLAYING COMPUTER SCREEN VIDEO + STATIONARY 3D VIDEO TIME WORM -->
   <div class="theater-stage">
-    <div class="video-16x9" onclick="togglePlay()">
-      <video id="scrVid" autoplay muted playsinline webkit-playsinline preload="auto"></video>
-      <svg id="scrSvg" viewBox="0 0 160 90" preserveAspectRatio="none"></svg>
-      <div class="hud-pill" id="tagScr">SCREEN 01/68</div>
+    <div class="panel-wrap">
+      <div class="panel-head">
+        <span id="tagScr" style="color:var(--cyan);font-weight:700;">LIVE WOPR COMPUTER SCREEN 01/68</span>
+        <span id="tagSubsys" style="color:var(--amber);">NORAD</span>
+      </div>
+      <div class="video-16x9" onclick="togglePlay()">
+        <video id="scrVid" autoplay muted playsinline webkit-playsinline preload="auto"></video>
+        <svg id="scrSvg" viewBox="0 0 160 90" preserveAspectRatio="none"></svg>
+      </div>
+      <div class="sub-bar" id="subCmd">Loading computer screen video...</div>
+    </div>
+
+    <div class="panel-wrap">
+      <div class="panel-head">
+        <span style="color:var(--fg-bright);font-weight:700;">ACTUAL VIDEO TIME WORM // 3D EXTRUSION (u, v, r, tau) + SLIT-SCAN</span>
+        <span id="wormTau" style="color:var(--cyan);">tau = 0.00</span>
+      </div>
+      <div class="worm-card">
+        <canvas id="cvScrWorm" width="720" height="405"></canvas>
+      </div>
+      <div class="sub-bar" id="subTopo" style="color:var(--fg);">Stationary 3D Video Time Worm — drag across worm to scrub time tau</div>
     </div>
   </div>
 
@@ -147,12 +201,17 @@
 
 <script>
 let SCREENS = [], CUR = 0, SUB = 0, PLAYING = true, SHOW_OVERLAY = true;
+const stripImg = new Image();
+const slitCanvas = document.createElement('canvas');
+slitCanvas.width = 360; slitCanvas.height = 36;
+const slitCtx = slitCanvas.getContext('2d');
 
 async function init() {
   const res = await fetch('wargames-screens-program.json');
   const data = await res.json();
   SCREENS = data.screen_states || [];
   renderWall();
+  setupScrub();
   if (SCREENS.length) selectScreen(0);
   requestAnimationFrame(loop);
 }
@@ -178,7 +237,7 @@ function renderWall() {
   const w = document.getElementById('wall68');
   w.innerHTML = SCREENS.map((s, i) => `
     <div class="sc-tile ${i === CUR ? 'active' : ''}" id="sct_${i}" onclick="selectScreen(${i})">
-      <img src="${s.thumb}" loading="lazy" alt="">
+      <img src="${s.thumb || s.screen_thumb}" loading="lazy" alt="">
       <div class="tile-id">${String(i+1).padStart(2,'0')} · ${s.shot_id}</div>
     </div>
   `).join('');
@@ -194,12 +253,26 @@ function selectScreen(idx) {
   if (tile) tile.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
 
   document.getElementById('tagScr').textContent =
-    `SCREEN ${CUR+1}/68 // ${st.shot_id} // ${st.system_node || ''} // ${st.inferred_command || ''}`;
+    `LIVE WOPR SCREEN ${String(CUR+1).padStart(2,'0')}/68 // ${st.shot_id} (${st.beat_id || ''})`;
+  document.getElementById('tagSubsys').textContent =
+    `${st.subsystem || 'WOPR'} // ${st.opcode || st.subroutine || ''}`;
+  document.getElementById('subCmd').textContent =
+    `${st.shell_cmd || st.terminal_prompt || ''} ${st.spoken_1983 ? '· "' + st.spoken_1983 + '"' : ''}`;
+  document.getElementById('subTopo').textContent =
+    `WORM TOPOLOGY: ${(st.worm_3d && st.worm_3d.topology) || 'LOCKED_PILLAR'} // ${(st.worm_3d && st.worm_3d.topology_grammar) || ''}`;
 
   const v = document.getElementById('scrVid');
-  v.src = st.video;
+  const clipUrl = st.clip || st.video || '';
+  v.src = clipUrl;
   v.currentTime = 0;
   if (PLAYING) v.play().catch(() => {});
+
+  if (st.strip) {
+    stripImg.src = st.strip;
+    stripImg.onload = () => {
+      slitCtx.drawImage(stripImg, 0, 30, stripImg.width, 30, 0, 0, 360, 36);
+    };
+  }
 
   renderStrip8(st);
   setSub(0);
@@ -210,7 +283,7 @@ function renderStrip8(st) {
   const el = document.getElementById('strip8');
   const W = 160, H = 90;
   el.innerHTML = wFrames.map((wf, k) => `
-    <div class="f-card ${k === SUB ? 'active' : ''}" onclick="setSub(${k})">
+    <div class="f-card ${k === SUB ? 'active' : ''}" onclick="onTapSub(${k})">
       <img class="f-strip-img" src="${st.strip}" style="left:${-(k*100)}%;">
       <svg viewBox="0 0 160 90" preserveAspectRatio="none">
         <ellipse cx="${wf.u*W}" cy="${wf.v*H}" rx="${wf.r*W}" ry="${wf.r*H}" fill="none" stroke="${wf.core_color.hex}" stroke-width="1.8"/>
@@ -219,6 +292,12 @@ function renderStrip8(st) {
       <div class="f-num">f${k+1}</div>
     </div>
   `).join('');
+}
+
+function onTapSub(k) {
+  const v = document.getElementById('scrVid');
+  if (v.duration > 0) v.currentTime = ((k + 0.2) / 8.0) * v.duration;
+  setSub(k);
 }
 
 function setSub(k) {
@@ -238,15 +317,203 @@ function setSub(k) {
   `;
 }
 
+function interpWormAt(wFrames, tau) {
+  if (!wFrames || !wFrames.length) return { u: 0.5, v: 0.5, r: 0.25, core: '#00e5ff', k: 0 };
+  const n = wFrames.length;
+  const fIdx = Math.max(0, Math.min(n - 1, tau * (n - 1)));
+  const k0 = Math.floor(fIdx), k1 = Math.min(n - 1, k0 + 1), a = fIdx - k0;
+  const w0 = wFrames[k0], w1 = wFrames[k1];
+  return {
+    u: w0.u * (1 - a) + w1.u * a,
+    v: w0.v * (1 - a) + w1.v * a,
+    r: w0.r * (1 - a) + w1.r * a,
+    core: (w0.core_color && w0.core_color.hex) || '#00e5ff',
+    k: Math.min(7, Math.floor(tau * 8))
+  };
+}
+
+function drawScreenVideoWorm(tauNow) {
+  const st = SCREENS[CUR];
+  if (!st) return;
+  const wFrames = (st.worm_3d && st.worm_3d.worm_frames) || [];
+  const canvas = document.getElementById('cvScrWorm');
+  const ctx = canvas.getContext('2d');
+  const CW = canvas.width, CH = canvas.height;
+  ctx.fillStyle = '#010402';
+  ctx.fillRect(0, 0, CW, CH);
+
+  const v = document.getElementById('scrVid');
+  const hasVid = v && v.readyState >= 2 && v.videoWidth > 0;
+  const hasStrip = stripImg.complete && stripImg.naturalWidth > 0;
+  const fw = hasStrip ? stripImg.naturalWidth / 8 : 160;
+  const fh = hasStrip ? stripImg.naturalHeight : 90;
+
+  const slitY = CH - 52;
+  const sliceH = 220;
+  const sliceW = Math.round(sliceH * (16 / 9));
+  const xStart = 24;
+  const xSpan = CW - sliceW - 48;
+  const yStart = 44;
+  const yTilt = -24;
+  const sxOf = t => xStart + t * xSpan;
+  const syOf = t => yStart - (t - 0.5) * yTilt;
+
+  // 1. 3D Prism rails
+  ctx.strokeStyle = '#114022';
+  ctx.lineWidth = 1;
+  [[0,0],[sliceW,0],[sliceW,sliceH],[0,sliceH]].forEach(([dx, dy]) => {
+    ctx.beginPath();
+    ctx.moveTo(sxOf(0)+dx, syOf(0)+dy);
+    ctx.lineTo(sxOf(1)+dx, syOf(1)+dy);
+    ctx.stroke();
+  });
+
+  // Update real-pixel slit-scan from playing screen video
+  if (hasVid) {
+    const cw = interpWormAt(wFrames, tauNow);
+    const vy = Math.max(0, Math.min(v.videoHeight - 16, Math.floor(cw.v * v.videoHeight - 8)));
+    const sx = Math.floor(tauNow * (slitCanvas.width - 5));
+    try { slitCtx.drawImage(v, 0, vy, v.videoWidth, 16, sx, 0, 6, slitCanvas.height); } catch (e) {}
+  }
+
+  // 2. 8 ghosted 16:9 keyframe planes
+  for (let k = 0; k < 8; k++) {
+    const tk = k / 7.0;
+    const kx = sxOf(tk), ky = syOf(tk);
+    if (hasStrip) {
+      ctx.save();
+      ctx.globalAlpha = 0.16;
+      ctx.drawImage(stripImg, k * fw, 0, fw, fh, kx, ky, sliceW, sliceH);
+      ctx.restore();
+    }
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.18)';
+    ctx.strokeRect(kx, ky, sliceW, sliceH);
+  }
+
+  // 3. 48 dense extruded video slices forming the Actual Video Time Worm
+  const STEPS = 48;
+  for (let s = 0; s <= STEPS; s++) {
+    const t = s / STEPS;
+    const w = interpWormAt(wFrames, t);
+    const kx = sxOf(t), ky = syOf(t);
+    const cx = kx + w.u * sliceW, cy = ky + w.v * sliceH;
+    const rx = Math.max(14, w.r * sliceW), ry = Math.max(10, w.r * sliceH);
+    const isPast = t <= tauNow + 0.02;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.globalAlpha = isPast ? 0.65 : 0.25;
+    if (hasVid && Math.abs(t - tauNow) < 0.04) {
+      try { ctx.drawImage(v, kx, ky, sliceW, sliceH); } catch (e) {}
+    } else if (hasStrip) {
+      ctx.drawImage(stripImg, w.k * fw, 0, fw, fh, kx, ky, sliceW, sliceH);
+    }
+    ctx.restore();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = w.core;
+    ctx.globalAlpha = isPast ? 0.75 : 0.25;
+    ctx.lineWidth = isPast ? 1.6 : 0.9;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 4. Live moving <video> cross-section slice at tauNow
+  const lx = sxOf(tauNow), ly = syOf(tauNow);
+  const lw = interpWormAt(wFrames, tauNow);
+  const lcx = lx + lw.u * sliceW, lcy = ly + lw.v * sliceH;
+  const lrx = Math.max(16, lw.r * sliceW), lry = Math.max(12, lw.r * sliceH);
+
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  if (hasVid) { try { ctx.drawImage(v, lx, ly, sliceW, sliceH); } catch (e) {} }
+  else if (hasStrip) { ctx.drawImage(stripImg, lw.k * fw, 0, fw, fh, lx, ly, sliceW, sliceH); }
+  ctx.restore();
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(lcx, lcy, lrx, lry, 0, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.globalAlpha = 1.0;
+  if (hasVid) { try { ctx.drawImage(v, lx, ly, sliceW, sliceH); } catch (e) {} }
+  else if (hasStrip) { ctx.drawImage(stripImg, lw.k * fw, 0, fw, fh, lx, ly, sliceW, sliceH); }
+  ctx.restore();
+
+  ctx.strokeStyle = '#00e5ff';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(lx, ly, sliceW, sliceH);
+
+  ctx.beginPath();
+  ctx.ellipse(lcx, lcy, lrx, lry, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = '#ffb000';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // 5. Cyan spine curve + dot
+  ctx.beginPath();
+  for (let s = 0; s <= STEPS; s++) {
+    const t = s / STEPS;
+    const w = interpWormAt(wFrames, t);
+    const px = sxOf(t) + w.u * sliceW, py = syOf(t) + w.v * sliceH;
+    if (s === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.strokeStyle = '#00e5ff';
+  ctx.lineWidth = 2.2;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(lcx, lcy, 5, 0, Math.PI * 2);
+  ctx.fillStyle = '#00e5ff';
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.stroke();
+
+  // 6. Bottom real-pixel Slit-Scan ribbon
+  ctx.drawImage(slitCanvas, 0, 0, slitCanvas.width, slitCanvas.height, xStart, slitY, CW - 48, 44);
+  ctx.strokeStyle = '#00e5ff';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(xStart, slitY, CW - 48, 44);
+  const px = xStart + tauNow * (CW - 48);
+  ctx.strokeStyle = '#ffb000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(px, slitY - 4);
+  ctx.lineTo(px, CH - 4);
+  ctx.stroke();
+}
+
+function setupScrub() {
+  const cv = document.getElementById('cvScrWorm');
+  let down = false;
+  const scrub = e => {
+    const r = cv.getBoundingClientRect();
+    const t = Math.max(0, Math.min(0.999, (e.clientX - r.left) / r.width));
+    const v = document.getElementById('scrVid');
+    if (v.duration > 0) v.currentTime = t * v.duration;
+    setSub(Math.min(7, Math.floor(t * 8)));
+  };
+  cv.addEventListener('mousedown', e => { down = true; scrub(e); });
+  window.addEventListener('mousemove', e => { if (down) scrub(e); });
+  window.addEventListener('mouseup', () => { down = false; });
+}
+
 function loop() {
   const st = SCREENS[CUR];
   const v = document.getElementById('scrVid');
-  if (PLAYING && st) {
-    if (v.ended) selectScreen(CUR + 1);
+  let tau = SUB / 7.0;
+  if (st) {
+    if (PLAYING && v.ended) selectScreen(CUR + 1);
     else if (v.duration > 0) {
-      const k = Math.min(7, Math.floor((v.currentTime / v.duration) * 8));
+      tau = Math.max(0, Math.min(1, v.currentTime / v.duration));
+      const k = Math.min(7, Math.floor(tau * 8));
       if (k !== SUB) setSub(k);
     }
+    document.getElementById('wormTau').textContent = `tau = ${tau.toFixed(2)} // f${SUB+1}/8`;
+    drawScreenVideoWorm(tau);
   }
   requestAnimationFrame(loop);
 }

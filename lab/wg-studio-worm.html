@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>WARGAMES // CINEMA + WORM TRACE</title>
+<title>WARGAMES // LIVE SCREENS + ACTUAL VIDEO TIME WORM</title>
 <style>
   :root {
     --bg: #000000;
@@ -25,7 +25,7 @@
 
   .app {
     display: grid;
-    grid-template-rows: 32px 1fr 84px 64px;
+    grid-template-rows: 32px minmax(160px, 1.05fr) minmax(145px, 0.95fr) 64px 52px 52px;
     width: 100vw; height: 100vh;
     background: #000;
   }
@@ -34,13 +34,13 @@
   .topbar {
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 10px; border-bottom: 1px solid var(--border);
-    background: #020804; overflow-x: auto; white-space: nowrap; gap: 10px;
+    background: #020804; overflow-x: auto; white-space: nowrap; gap: 8px;
   }
   .bar-group { display: flex; align-items: center; gap: 4px; }
   .btn {
-    font-family: var(--mono); font-size: 10px;
+    font-family: var(--mono); font-size: 9.5px;
     background: #000; color: var(--fg);
-    border: 1px solid var(--fg-dim); padding: 3px 8px;
+    border: 1px solid var(--fg-dim); padding: 2px 7px;
     cursor: pointer; text-decoration: none;
   }
   .btn:hover, .btn.on { background: var(--fg); color: #000; font-weight: 700; }
@@ -49,31 +49,38 @@
   .btn.cyan { color: var(--cyan); border-color: #006677; }
   .btn.cyan.on, .btn.cyan:hover { background: var(--cyan); color: #000; }
 
-  /* 2. MAIN CINEMA STAGE: TWO HUGE, CLEAN, UNCLUTTERED 16:9 VIDEO SCREENS */
+  /* 2. THREE LIVE 16:9 VIDEO MONITORS:
+     [1983 FILM SCENE] + [ACTUAL WOPR COMPUTER SCREEN (68 SCREENS)] + [ARCHIVE COUNTER-CUT] */
   .cinema-stage {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px; padding: 10px 14px;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px; padding: 6px 12px;
     background: #000; align-items: center; justify-items: center;
     min-height: 0; overflow: hidden;
   }
   .screen-wrap {
-    width: 100%; max-width: 100%;
-    display: flex; flex-direction: column; gap: 4px;
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column; justify-content: center; gap: 3px;
+    min-height: 0;
   }
   .screen-head {
     display: flex; justify-content: space-between; align-items: center;
-    font-size: 10px; color: #99e6b3; padding: 0 2px;
+    font-size: 9.5px; color: #99e6b3; padding: 0 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .video-16x9 {
     position: relative;
     width: 100%;
+    max-height: calc(100% - 36px);
     aspect-ratio: 16 / 9;
+    margin: 0 auto;
     background: #000;
     border: 1px solid var(--fg-dim);
     overflow: hidden;
     cursor: pointer;
   }
+  .video-16x9.amber-border { border-color: #885e00; }
+  .video-16x9.cyan-border { border-color: #008899; }
   .video-16x9 video,
   .video-16x9 img.vid-fallback {
     position: absolute; inset: 0;
@@ -82,48 +89,79 @@
     background: #000;
     display: block;
   }
-  /* Optional subtle overlay on the video — OFF or super subtle by default so the film is 100% watchable */
   .video-16x9 svg {
     position: absolute; inset: 0;
     width: 100%; height: 100%;
     pointer-events: none; z-index: 10;
-    opacity: 0.45;
+    opacity: 0.55;
     transition: opacity 0.2s;
   }
   body.hide-overlay .video-16x9 svg { opacity: 0; }
 
   .sub-bar {
-    min-height: 22px;
-    padding: 3px 6px;
+    height: 18px; line-height: 16px;
+    padding: 0 5px;
     background: #030a05;
     border: 1px solid var(--border);
     color: var(--fg-bright);
-    font-size: 11px;
+    font-size: 9.5px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
 
-  /* 3. STILL HORIZONTAL WORM TRACK (f1 -> f8 LEFT TO RIGHT, NEVER SPINS!) */
+  /* 3. ACTUAL VIDEO TIME WORM STAGE (STATIONARY OBLIQUE 3D VIDEO EXTRUSION + SLIT-SCAN) */
+  .worm-volume-stage {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px; padding: 4px 12px;
+    border-top: 1px solid var(--border);
+    background: #010502;
+    min-height: 0; overflow: hidden;
+  }
+  .worm-box {
+    position: relative;
+    width: 100%; height: 100%;
+    background: #000;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .worm-box-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 2px 6px; background: #030b05; border-bottom: 1px solid var(--border);
+    font-size: 9px; color: var(--fg-bright);
+    flex-shrink: 0;
+  }
+  .worm-canvas-wrap {
+    position: relative;
+    flex: 1; min-height: 0; width: 100%;
+  }
+  .worm-canvas-wrap canvas {
+    width: 100%; height: 100%; display: block;
+    cursor: ew-resize;
+  }
+
+  /* 4. STILL HORIZONTAL 8-FRAME KEYFRAME STRIP (f1..f8 LEFT TO RIGHT) */
   .worm-track-row {
     display: grid;
     grid-template-columns: repeat(8, 1fr);
-    gap: 4px; padding: 4px 14px;
+    gap: 4px; padding: 3px 12px;
     border-top: 1px solid var(--border);
     background: #020603;
-    position: relative;
     align-items: center;
+    min-height: 0;
   }
   .f-card {
     position: relative;
     width: 100%;
+    max-height: 56px;
     aspect-ratio: 16 / 9;
+    margin: 0 auto;
     background: #000;
     border: 1px solid var(--border);
     overflow: hidden;
     cursor: pointer;
   }
-  .f-card.active {
-    border: 2px solid var(--amber);
-  }
+  .f-card.active { border: 2px solid var(--amber); }
   .f-strip-img {
     position: absolute; top: 0; height: 100%; width: 800%; max-width: none;
     opacity: 0.85;
@@ -133,68 +171,76 @@
     position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;
   }
   .f-num {
-    position: absolute; top: 2px; left: 3px; z-index: 8;
-    background: rgba(0,0,0,0.75); padding: 0 3px; font-size: 8.5px; color: var(--fg-bright);
+    position: absolute; top: 1px; left: 2px; z-index: 8;
+    background: rgba(0,0,0,0.8); padding: 0 3px; font-size: 8px; color: var(--fg-bright);
   }
   .f-color-bar {
-    position: absolute; bottom: 0; left: 0; right: 0; height: 4px; z-index: 8;
+    position: absolute; bottom: 0; left: 0; right: 0; height: 3px; z-index: 8;
     display: grid; grid-template-columns: 1fr 1fr;
   }
 
-  /* 4. BOTTOM 105-SCENE FILMSTRIP */
+  /* 5. 68 PURE COMPUTER SCREENS STRIP + 105 SCENE BEATS FILMSTRIP */
   .filmstrip {
     display: flex; align-items: center; gap: 4px;
-    overflow-x: auto; overflow-y: hidden; padding: 4px 14px;
+    overflow-x: auto; overflow-y: hidden; padding: 2px 12px;
     border-top: 1px solid var(--border); background: #000;
     scroll-behavior: smooth;
   }
+  .strip-tag {
+    flex-shrink: 0; font-size: 9px; font-weight: 700;
+    padding: 2px 6px; border: 1px solid var(--border);
+    background: #030b05; color: var(--cyan);
+  }
   .tile-16x9 {
     position: relative;
-    height: 52px;
+    height: 42px;
     aspect-ratio: 16 / 9;
     flex-shrink: 0;
     border: 1px solid var(--border);
     background: #000; cursor: pointer; overflow: hidden;
   }
   .tile-16x9 img {
-    width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.65;
+    width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.68;
   }
   .tile-16x9:hover img { opacity: 0.95; }
   .tile-16x9.active { border: 2px solid var(--amber); }
+  .tile-16x9.active.cyan-active { border: 2px solid var(--cyan); }
   .tile-16x9.active img { opacity: 1; }
   .tile-id {
     position: absolute; bottom: 1px; left: 2px;
-    background: rgba(0,0,0,0.8); padding: 0 3px; font-size: 8px; color: var(--fg-bright);
+    background: rgba(0,0,0,0.82); padding: 0 3px; font-size: 7.5px; color: var(--fg-bright);
   }
 
-  @media (max-width: 960px) {
-    .app { grid-template-rows: 32px 1fr 62px 54px; }
-    .cinema-stage {
-      grid-template-columns: 1fr;
-      overflow-y: auto;
-      padding: 6px; gap: 6px;
+  @media (max-width: 980px) {
+    html, body { overflow-y: auto; height: auto; }
+    .app {
+      display: flex; flex-direction: column; height: auto; min-height: 100vh;
     }
-    .worm-track-row { padding: 3px 6px; gap: 2px; }
-    .filmstrip { padding: 3px 6px; }
-    .tile-16x9 { height: 44px; }
+    .cinema-stage { grid-template-columns: 1fr; padding: 6px; gap: 8px; }
+    .worm-volume-stage { grid-template-columns: 1fr; height: 340px; padding: 6px; gap: 6px; }
+    .worm-track-row { padding: 4px 6px; gap: 2px; }
+    .filmstrip { height: 50px; padding: 3px 6px; }
   }
 </style>
 </head>
 <body>
 <div class="app">
-  <!-- 1. TOP BAR: PLAY, SOUND, 10 CUT SWITCHER, OVERLAY TOGGLE -->
+  <!-- 1. TOP BAR -->
   <div class="topbar">
     <div class="bar-group">
       <button class="btn amber on" id="btnPlay" onclick="togglePlay()">[PAUSE]</button>
       <button class="btn cyan on" id="btnSound" onclick="toggleSound()">[UNMUTE SOUND]</button>
-      <button class="btn" onclick="stepShot(-1)">[&lt; PREV]</button>
-      <span id="shotNum" style="color:var(--fg-bright);font-weight:700;padding:0 4px;">001 / 105</span>
-      <button class="btn" onclick="stepShot(1)">[NEXT &gt;]</button>
+      <button class="btn" onclick="stepShot(-1)">[&lt; SCENE]</button>
+      <span id="shotNum" style="color:var(--fg-bright);font-weight:700;padding:0 3px;">001/105</span>
+      <button class="btn" onclick="stepShot(1)">[SCENE &gt;]</button>
+      <button class="btn cyan" onclick="stepScreen(-1)">[&lt; SCREEN]</button>
+      <span id="scrNum" style="color:var(--cyan);font-weight:700;padding:0 3px;">SCR 01/68</span>
+      <button class="btn cyan" onclick="stepScreen(1)">[SCREEN &gt;]</button>
       <button class="btn on" id="btnOverlay" onclick="toggleOverlay()">[DOT/CIRCLE: ON]</button>
     </div>
 
     <div class="bar-group" id="lensBar">
-      <span style="color:var(--amber);font-size:9.5px;margin-right:2px;">CUT:</span>
+      <span style="color:var(--amber);font-size:9px;">CUT:</span>
       <button class="btn amber on" data-lens="synthesis" onclick="setLens('synthesis')">SYNTHESIS</button>
       <button class="btn amber" data-lens="clip" onclick="setLens('clip')">CLIP</button>
       <button class="btn amber" data-lens="vjepa" onclick="setLens('vjepa')">V-JEPA</button>
@@ -204,46 +250,89 @@
       <button class="btn amber" data-lens="trurl" onclick="setLens('trurl')">TRURL</button>
       <button class="btn amber" data-lens="klapaucius" onclick="setLens('klapaucius')">KLAP</button>
       <button class="btn amber" data-lens="novelty" onclick="setLens('novelty')">NOVELTY</button>
-      <a class="btn cyan" href="wg-studio-stgl.html">[4D GRID]</a>
-      <a class="btn" href="wg-studio-screens.html">[68 SCREENS]</a>
+      <a class="btn cyan" href="wg-studio-screens.html">[68 SCREENS FULL]</a>
+      <a class="btn" href="wg-studio-stgl.html">[4D GRID]</a>
     </div>
   </div>
 
-  <!-- 2. MAIN CINEMA STAGE: TWO LARGE, CLEAN 16:9 VIDEO MONITORS -->
+  <!-- 2. THREE LIVE PLAYING 16:9 VIDEO SCREENS -->
   <div class="cinema-stage">
-    <!-- LEFT SCREEN: 1983 ORIGINAL FILM -->
+    <!-- MONITOR 1: 1983 FILM SCENE -->
     <div class="screen-wrap">
       <div class="screen-head">
-        <span id="hdrMaster" style="color:var(--fg-bright);font-weight:700;">1983 WARGAMES // S01-B01</span>
-        <span id="hdrTopo" style="color:var(--cyan);">HELICAL CORKSCREW</span>
+        <span id="hdrMaster" style="color:var(--fg-bright);font-weight:700;">1. 1983 FILM SCENE // S01-B01</span>
+        <span id="hdrTopo" style="color:var(--fg);">HELICAL CORKSCREW</span>
       </div>
       <div class="video-16x9" onclick="togglePlay()">
         <video id="vidMaster" autoplay muted playsinline webkit-playsinline preload="auto"></video>
         <svg id="svgMaster" viewBox="0 0 160 90" preserveAspectRatio="none"></svg>
       </div>
-      <div class="sub-bar" id="subMaster">Loading dialogue...</div>
+      <div class="sub-bar" id="subMaster">Loading scene dialogue...</div>
     </div>
 
-    <!-- RIGHT SCREEN: FOUND ARCHIVAL COUNTER-CUT -->
+    <!-- MONITOR 2: ACTUAL WOPR PURE COMPUTER SCREEN (68 SCREENS LIVE VIDEO) -->
     <div class="screen-wrap">
       <div class="screen-head">
-        <span id="hdrCut" style="color:var(--amber);font-weight:700;">ARCHIVE CUT // SYNTHESIS</span>
+        <span id="hdrScreen" style="color:var(--cyan);font-weight:700;">2. ACTUAL WOPR SCREEN // SCR 01/68</span>
+        <span id="hdrScreenSys" style="color:var(--cyan);">NORAD VECTOR DISPLAY</span>
+      </div>
+      <div class="video-16x9 cyan-border" onclick="stepScreen(1)" title="Click to advance to next pure computer screen (68 total)">
+        <video id="vidScreen" autoplay muted playsinline webkit-playsinline preload="auto"></video>
+        <svg id="svgScreen" viewBox="0 0 160 90" preserveAspectRatio="none"></svg>
+      </div>
+      <div class="sub-bar" id="subScreen" style="color:var(--cyan);">Click screen or [SCREEN >] to step through all 68 pure computer screens</div>
+    </div>
+
+    <!-- MONITOR 3: FOUND ARCHIVAL COUNTER-CUT -->
+    <div class="screen-wrap">
+      <div class="screen-head">
+        <span id="hdrCut" style="color:var(--amber);font-weight:700;">3. ARCHIVE COUNTER-CUT // SYNTHESIS</span>
         <span id="hdrCutMeta" style="color:#99e6b3;">--</span>
       </div>
-      <div class="video-16x9" onclick="nextLens()">
+      <div class="video-16x9 amber-border" onclick="nextLens()" title="Click to cycle through the 10 montage cuts">
         <img class="vid-fallback" id="imgCutFallback" alt="">
         <video id="vidCut" autoplay muted playsinline webkit-playsinline preload="auto"></video>
         <svg id="svgCut" viewBox="0 0 160 90" preserveAspectRatio="none"></svg>
       </div>
-      <div class="sub-bar" id="subCut" style="color:var(--amber);">Click right screen or top buttons to switch among the 10 cuts</div>
+      <div class="sub-bar" id="subCut" style="color:var(--amber);">Click right monitor or top buttons to switch montage cut</div>
     </div>
   </div>
 
-  <!-- 3. STILL HORIZONTAL WORM TRACK (f1..f8 LEFT TO RIGHT — NO SPINNING!)
-       Shows the 8 sub-frames of the shot with the Cyan Dot (action center), Circle (spread), and Core/Background Color Bar -->
+  <!-- 3. ACTUAL VIDEO TIME WORM STAGE (STATIONARY 3D VIDEO EXTRUSION + LIVE MOVING VIDEO SLICE + SLIT-SCAN) -->
+  <div class="worm-volume-stage">
+    <!-- LEFT WORM: 1983 SCENE ACTUAL VIDEO TIME WORM -->
+    <div class="worm-box">
+      <div class="worm-box-head">
+        <span>ACTUAL VIDEO TIME WORM A // 1983 FILM EXTRUSION (u, v, r, tau) — STILL 3D VOLUME</span>
+        <span id="wormStatA" style="color:var(--cyan);">tau = 0.00</span>
+      </div>
+      <div class="worm-canvas-wrap">
+        <canvas id="cvWormA" width="680" height="210"></canvas>
+      </div>
+    </div>
+
+    <!-- RIGHT WORM: WOPR COMPUTER SCREEN ACTUAL VIDEO TIME WORM -->
+    <div class="worm-box">
+      <div class="worm-box-head">
+        <span id="wormTitleB">ACTUAL VIDEO TIME WORM B // WOPR PURE COMPUTER SCREEN EXTRUSION (u, v, r, tau)</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span id="wormStatB" style="color:var(--amber);">tau = 0.00</span>
+          <button class="btn cyan" id="btnWormBMode" onclick="toggleWormBMode()" style="padding:0 5px;font-size:8.5px;">[SHOWING: WOPR SCREEN WORM]</button>
+        </div>
+      </div>
+      <div class="worm-canvas-wrap">
+        <canvas id="cvWormB" width="680" height="210"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. STILL 8-FRAME SUB-SHOT STRIP (f1..f8 LEFT TO RIGHT) -->
   <div class="worm-track-row" id="strip8"></div>
 
-  <!-- 4. BOTTOM 105-SCENE FILMSTRIP -->
+  <!-- 5A. 68 PURE COMPUTER SCREENS LIVE SELECTOR STRIP -->
+  <div class="filmstrip" id="screenstrip"></div>
+
+  <!-- 5B. 105 FILM BEATS SELECTOR STRIP -->
   <div class="filmstrip" id="filmstrip"></div>
 </div>
 
@@ -251,17 +340,56 @@
 
 <script>
 const LENS_KEYS = ['synthesis','clip','vjepa','blip','cineosis','murch','trurl','klapaucius','novelty'];
-let SHOTS = [], CUR = 0, TAU = 0, LENS = 'synthesis';
+let SHOTS = [], SCREENS = [];
+let CUR = 0, CUR_SCR = 0, TAU = 0, LENS = 'synthesis';
 let PLAYING = true, SOUND_ON = false, SHOW_OVERLAY = true;
+let WORM_B_MODE = 'screen'; // 'screen' or 'cut'
+
+// Preloaded strip images for instant 60fps Video Time Worm rendering
+const stripImgA = new Image();
+const stripImgScreen = new Image();
+const thumbImgCut = new Image();
+
+// Offscreen slit-scan buffers that accumulate real live video pixels as the video plays
+const slitCanvasA = document.createElement('canvas');
+slitCanvasA.width = 320; slitCanvasA.height = 28;
+const slitCtxA = slitCanvasA.getContext('2d');
+
+const slitCanvasB = document.createElement('canvas');
+slitCanvasB.width = 320; slitCanvasB.height = 28;
+const slitCtxB = slitCanvasB.getContext('2d');
 
 async function init() {
-  const res = await fetch('wargames-worm-volume.json');
-  const data = await res.json();
-  SHOTS = data.beats || [];
+  const [resWorm, resScr] = await Promise.all([
+    fetch('wargames-worm-volume.json'),
+    fetch('wargames-screens-program.json')
+  ]);
+  const dataWorm = await resWorm.json();
+  const dataScr = await resScr.json();
+  SHOTS = dataWorm.beats || [];
+  SCREENS = dataScr.screen_states || [];
+
+  renderScreenStrip();
   renderFilmstrip();
   setupKeys();
+  setupWormScrub();
+
+  if (SCREENS.length) selectScreen(0, false);
   if (SHOTS.length) selectShot(0);
   requestAnimationFrame(loop);
+}
+
+function toggleWormBMode() {
+  WORM_B_MODE = (WORM_B_MODE === 'screen') ? 'cut' : 'screen';
+  const btn = document.getElementById('btnWormBMode');
+  const title = document.getElementById('wormTitleB');
+  if (WORM_B_MODE === 'screen') {
+    btn.textContent = '[SHOWING: WOPR SCREEN WORM]';
+    title.textContent = 'ACTUAL VIDEO TIME WORM B // WOPR PURE COMPUTER SCREEN EXTRUSION (u, v, r, tau)';
+  } else {
+    btn.textContent = '[SHOWING: ARCHIVE CUT WORM]';
+    title.textContent = `ACTUAL VIDEO TIME WORM B // ARCHIVE COUNTER-CUT (${LENS.toUpperCase()}) EXTRUSION`;
+  }
 }
 
 function toggleOverlay() {
@@ -309,26 +437,73 @@ function togglePlay() {
   btn.textContent = PLAYING ? '[PAUSE]' : '[PLAY]';
   btn.classList.toggle('on', PLAYING);
   const vA = document.getElementById('vidMaster');
+  const vS = document.getElementById('vidScreen');
   const vB = document.getElementById('vidCut');
   const aud = document.getElementById('sceneAudio');
   if (PLAYING) {
     vA.play().catch(() => {});
+    vS.play().catch(() => {});
     vB.play().catch(() => {});
     if (SHOTS[CUR]) syncAudio(SHOTS[CUR]);
   } else {
-    vA.pause(); vB.pause(); aud.pause();
+    vA.pause(); vS.pause(); vB.pause(); aud.pause();
   }
+}
+
+function renderScreenStrip() {
+  const el = document.getElementById('screenstrip');
+  el.innerHTML = `<div class="strip-tag">68 PURE SCREENS</div>` + SCREENS.map((s, i) => `
+    <div class="tile-16x9 cyan-active ${i === CUR_SCR ? 'active' : ''}" id="scrtile_${i}" onclick="selectScreen(${i}, true)">
+      <img src="${s.thumb || s.screen_thumb}" loading="lazy" alt="">
+      <div class="tile-id" style="color:var(--cyan);">SCR ${String(i+1).padStart(2,'0')}</div>
+    </div>
+  `).join('');
 }
 
 function renderFilmstrip() {
   const el = document.getElementById('filmstrip');
-  el.innerHTML = SHOTS.map((s, i) => `
+  el.innerHTML = `<div class="strip-tag" style="color:var(--amber);">105 FILM SCENES</div>` + SHOTS.map((s, i) => `
     <div class="tile-16x9 ${i === CUR ? 'active' : ''}" id="tile_${i}" onclick="selectShot(${i})">
       <img src="${s.thumb}" loading="lazy" alt="">
       <div class="tile-id">${s.id}</div>
     </div>
   `).join('');
 }
+
+function selectScreen(idx, manualClick) {
+  if (!SCREENS.length) return;
+  CUR_SCR = (idx + SCREENS.length) % SCREENS.length;
+  const st = SCREENS[CUR_SCR];
+
+  document.getElementById('scrNum').textContent = `SCR ${String(CUR_SCR+1).padStart(2,'0')}/68`;
+  document.querySelectorAll('#screenstrip .tile-16x9').forEach((t, i) => t.classList.toggle('active', i === CUR_SCR));
+  const tile = document.getElementById(`scrtile_${CUR_SCR}`);
+  if (tile) tile.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+
+  const clipUrl = st.clip || st.video || '';
+  const vS = document.getElementById('vidScreen');
+  if (clipUrl) {
+    vS.src = clipUrl;
+    vS.currentTime = 0;
+    if (PLAYING) vS.play().catch(() => {});
+  }
+
+  if (st.strip) {
+    stripImgScreen.src = st.strip;
+    stripImgScreen.onload = () => {
+      slitCtxB.drawImage(stripImgScreen, 0, 32, stripImgScreen.width, 26, 0, 0, 320, 28);
+    };
+  }
+
+  document.getElementById('hdrScreen').textContent =
+    `2. ACTUAL WOPR SCREEN // SCR ${String(CUR_SCR+1).padStart(2,'0')}/68 (${st.shot_id})`;
+  document.getElementById('hdrScreenSys').textContent =
+    `${st.subsystem || 'WOPR'} // ${st.opcode || st.subroutine || ''}`;
+  document.getElementById('subScreen').textContent =
+    `${st.shell_cmd || st.terminal_prompt || ''} ${st.spoken_1983 ? '· "' + st.spoken_1983 + '"' : ''}`;
+}
+
+function stepScreen(d) { selectScreen(CUR_SCR + d, true); }
 
 function renderStrip8(sh) {
   const el = document.getElementById('strip8');
@@ -364,6 +539,10 @@ function onTapSubframe(k) {
   if (vA.duration > 0) {
     vA.currentTime = ((k + 0.2) / 8.0) * vA.duration;
   }
+  const vS = document.getElementById('vidScreen');
+  if (vS.duration > 0) {
+    vS.currentTime = ((k + 0.2) / 8.0) * vS.duration;
+  }
   setTau(k);
   syncCutVideo(sh, k);
 }
@@ -374,7 +553,7 @@ function selectShot(idx) {
   const sh = SHOTS[CUR];
 
   document.getElementById('shotNum').textContent =
-    `${String(CUR+1).padStart(3,'0')} / ${String(SHOTS.length).padStart(3,'0')}`;
+    `${String(CUR+1).padStart(3,'0')}/${String(SHOTS.length).padStart(3,'0')}`;
 
   document.querySelectorAll('#filmstrip .tile-16x9').forEach((t, i) => t.classList.toggle('active', i === CUR));
   const tile = document.getElementById(`tile_${CUR}`);
@@ -385,8 +564,22 @@ function selectShot(idx) {
   vA.currentTime = 0;
   if (PLAYING) vA.play().catch(() => {});
 
-  document.getElementById('hdrMaster').textContent = `1983 WARGAMES // ${sh.id} (${sh.shot_id}) · ${sh.book_title || ''}`;
-  document.getElementById('hdrTopo').textContent = `WORM: ${sh.topology.replace(/_/g, ' ')}`;
+  if (sh.strip) {
+    stripImgA.src = sh.strip;
+    stripImgA.onload = () => {
+      slitCtxA.drawImage(stripImgA, 0, 32, stripImgA.width, 26, 0, 0, 320, 28);
+    };
+  }
+
+  // Also sync the WOPR Pure Computer Screen monitor to the matching beat or proportional screen index
+  if (SCREENS.length) {
+    const matchIdx = SCREENS.findIndex(s => s.beat_id === sh.id || s.shot_id === sh.shot_id);
+    const targetScr = matchIdx >= 0 ? matchIdx : Math.floor((CUR / SHOTS.length) * SCREENS.length);
+    selectScreen(targetScr, false);
+  }
+
+  document.getElementById('hdrMaster').textContent = `1. 1983 FILM // ${sh.id} (${sh.shot_id}) · ${sh.book_title || ''}`;
+  document.getElementById('hdrTopo').textContent = `${sh.topology.replace(/_/g, ' ')}`;
   document.getElementById('subMaster').textContent =
     `${sh.who ? sh.who + ': ' : ''}"${sh.fulcrum_line || ''}"`;
 
@@ -405,6 +598,7 @@ function setTau(k) {
   document.querySelectorAll('.f-card').forEach((c, idx) => c.classList.toggle('active', idx === k));
   const wf = sh.worm_frames[k];
   renderMasterOverlay(sh, wf);
+  renderScreenOverlay(k);
 }
 
 function renderMasterOverlay(sh, wf) {
@@ -419,6 +613,24 @@ function renderMasterOverlay(sh, wf) {
     <ellipse cx="${ux}" cy="${uy}" rx="${rx}" ry="${ry}"
              fill="none" stroke="${wf.core_color.hex}" stroke-width="1.8"/>
     <circle cx="${ux}" cy="${uy}" r="3" fill="#00e5ff" stroke="#fff" stroke-width="0.6"/>
+  `;
+}
+
+function renderScreenOverlay(k) {
+  const st = SCREENS[CUR_SCR];
+  const svg = document.getElementById('svgScreen');
+  if (!st || !st.worm_3d || !st.worm_3d.worm_frames) { svg.innerHTML = ''; return; }
+  const wFrames = st.worm_3d.worm_frames;
+  const wf = wFrames[Math.min(wFrames.length - 1, k)] || wFrames[0];
+  if (!wf) return;
+  const W = 160, H = 90;
+  const spine = wFrames.map(f => `${f.u*W},${f.v*H}`).join(' ');
+  const col = (wf.core_color && wf.core_color.hex) || '#00e5ff';
+  svg.innerHTML = `
+    <polyline points="${spine}" fill="none" stroke="#00e5ff" stroke-width="1.4"/>
+    <ellipse cx="${wf.u*W}" cy="${wf.v*H}" rx="${wf.r*W}" ry="${wf.r*H}"
+             fill="none" stroke="${col}" stroke-width="1.8"/>
+    <circle cx="${wf.u*W}" cy="${wf.v*H}" r="3" fill="#00e5ff" stroke="#fff" stroke-width="0.6"/>
   `;
 }
 
@@ -439,11 +651,15 @@ function syncCutVideo(sh, k) {
   const sIdx = Math.min(cw.subshots.length - 1, Math.floor((k / 8.0) * cw.subshots.length));
   const sub = cw.subshots[sIdx];
 
-  document.getElementById('hdrCut').textContent = `ARCHIVE CUT // ${LENS.toUpperCase()} (${sIdx+1}/${cw.subshots.length})`;
+  document.getElementById('hdrCut').textContent = `3. ARCHIVE CUT // ${LENS.toUpperCase()} (${sIdx+1}/${cw.subshots.length})`;
   document.getElementById('hdrCutMeta').textContent = `${sub.title || ''} (${sub.year || ''})`;
   document.getElementById('subCut').textContent = sub.spoken ? `"${sub.spoken}"` : `${sub.title || ''} (${sub.year || ''})`;
 
-  if (sub.thumb) { fb.src = sub.thumb; fb.style.display = 'block'; }
+  if (sub.thumb) {
+    fb.src = sub.thumb;
+    fb.style.display = 'block';
+    thumbImgCut.src = sub.thumb;
+  }
   const url = sub.media_url || '';
   if (url && vB.dataset.src !== url) {
     vB.dataset.src = url;
@@ -470,20 +686,354 @@ function syncCutVideo(sh, k) {
   `;
 }
 
+// Interpolate (u, v, r, coreHex, shellHex) smoothly at any continuous tau in [0, 1]
+function interpWormAt(wFrames, tau) {
+  if (!wFrames || !wFrames.length) {
+    return { u: 0.5, v: 0.5, r: 0.24, core: '#00e5ff', shell: '#113322', k: 0 };
+  }
+  const n = wFrames.length;
+  const fIdx = Math.max(0, Math.min(n - 1, tau * (n - 1)));
+  const k0 = Math.floor(fIdx);
+  const k1 = Math.min(n - 1, k0 + 1);
+  const a = fIdx - k0;
+  const w0 = wFrames[k0], w1 = wFrames[k1];
+  const u = w0.u * (1 - a) + w1.u * a;
+  const v = w0.v * (1 - a) + w1.v * a;
+  const r = w0.r * (1 - a) + w1.r * a;
+  const core = (w0.core_color && w0.core_color.hex) || w0.core_hex || '#00e5ff';
+  const shell = (w0.shell_color && w0.shell_color.hex) || w0.shell_hex || '#0f381d';
+  return { u, v, r, core, shell, k: Math.min(7, Math.floor(tau * 8)) };
+}
+
+/**
+ * ACTUAL VIDEO TIME WORM RENDERER (Fels & Mase Interactive Video Cubism / Video Summagator)
+ * Stationary (non-spinning) oblique 3D Spatiotemporal Volume V(u, v, tau)
+ * - Extrudes the real video pixels along the horizontal time axis tau in [0, 1]
+ * - Carves the Subject Action Tube (Time Worm) through 40 dense cross-sections of real video frames
+ * - Draws the live playing <video> cross-section plane gliding smoothly at tauNow
+ * - Renders the synchronized real-pixel u-tau Slit-Scan ribbon along the base
+ */
+function drawActualVideoTimeWorm(canvas, videoEl, stripImg, wFrames, tauNow, accentColor, slitCanvas, slitCtx) {
+  const ctx = canvas.getContext('2d');
+  const CW = canvas.width, CH = canvas.height;
+  ctx.fillStyle = '#010402';
+  ctx.fillRect(0, 0, CW, CH);
+
+  // Slit-scan strip occupies bottom 28px; 3D extruded video volume occupies top (CH - 32)px
+  const slitY = CH - 28;
+  const volH = slitY - 6;
+
+  // Oblique 16:9 slice geometry along horizontal time axis tau in [0, 1]
+  const sliceH = Math.min(volH - 28, 126);
+  const sliceW = Math.round(sliceH * (16 / 9)); // Strict 16:9 slice!
+  const xStart = 18;
+  const xSpan = CW - sliceW - 36;
+  const yStart = 22;
+  const yTilt = -14; // Subtle isometric depth rise from tau=0 to tau=1 (100% stationary!)
+
+  const sxOf = (tau) => xStart + tau * xSpan;
+  const syOf = (tau) => yStart - (tau - 0.5) * yTilt;
+
+  // 1. Draw 3D Spatiotemporal Prism Rails (connecting tau=0 16:9 frame to tau=1 16:9 frame)
+  const x0 = sxOf(0), y0 = syOf(0);
+  const x1 = sxOf(1), y1 = syOf(1);
+  ctx.strokeStyle = '#0e331b';
+  ctx.lineWidth = 1;
+  [[0,0],[sliceW,0],[sliceW,sliceH],[0,sliceH]].forEach(([dx, dy]) => {
+    ctx.beginPath();
+    ctx.moveTo(x0 + dx, y0 + dy);
+    ctx.lineTo(x1 + dx, y1 + dy);
+    ctx.stroke();
+  });
+
+  const hasStrip = stripImg && stripImg.complete && stripImg.naturalWidth > 0;
+  const fw = hasStrip ? (stripImg.naturalWidth / 8) : 160;
+  const fh = hasStrip ? stripImg.naturalHeight : 90;
+  const hasLiveVid = videoEl && videoEl.readyState >= 2 && videoEl.videoWidth > 0;
+
+  // Update real-pixel slit-scan at current tauNow from live video!
+  if (hasLiveVid && slitCtx) {
+    const curW = interpWormAt(wFrames, tauNow);
+    const vy = Math.max(0, Math.min(videoEl.videoHeight - 12, Math.floor(curW.v * videoEl.videoHeight - 6)));
+    const sx = Math.floor(tauNow * (slitCanvas.width - 4));
+    try {
+      slitCtx.drawImage(videoEl, 0, vy, videoEl.videoWidth, 12, sx, 0, 5, slitCanvas.height);
+    } catch (e) {}
+  }
+
+  // 2. Draw the 8 ghosted 16:9 keyframe planes (f1..f8) in oblique 3D
+  for (let k = 0; k < 8; k++) {
+    const tk = k / 7.0;
+    const kx = sxOf(tk), ky = syOf(tk);
+    if (hasStrip) {
+      ctx.save();
+      ctx.globalAlpha = 0.14;
+      ctx.drawImage(stripImg, k * fw, 0, fw, fh, kx, ky, sliceW, sliceH);
+      ctx.restore();
+    }
+    ctx.strokeStyle = 'rgba(51, 255, 119, 0.16)';
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(kx, ky, sliceW, sliceH);
+  }
+
+  // 3. EXTRUDE THE ACTUAL VIDEO TIME WORM (44 dense cross-sectional video cutouts along tau)
+  const STEPS = 44;
+  for (let s = 0; s <= STEPS; s++) {
+    const t = s / STEPS;
+    const w = interpWormAt(wFrames, t);
+    const kx = sxOf(t), ky = syOf(t);
+    const cx = kx + w.u * sliceW;
+    const cy = ky + w.v * sliceH;
+    const rx = Math.max(10, w.r * sliceW * 0.95);
+    const ry = Math.max(8, w.r * sliceH * 0.95);
+
+    const isPast = t <= tauNow + 0.02;
+
+    // Clip to the circular/elliptical Action Tube cross-section at (u(t), v(t), r(t))
+    // and paint the ACTUAL VIDEO PIXELS inside the worm!
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.clip();
+
+    ctx.globalAlpha = isPast ? 0.62 : 0.26;
+    if (hasLiveVid && Math.abs(t - tauNow) < 0.045) {
+      try {
+        ctx.drawImage(videoEl, kx, ky, sliceW, sliceH);
+      } catch (e) {
+        if (hasStrip) ctx.drawImage(stripImg, w.k * fw, 0, fw, fh, kx, ky, sliceW, sliceH);
+      }
+    } else if (hasStrip) {
+      ctx.drawImage(stripImg, w.k * fw, 0, fw, fh, kx, ky, sliceW, sliceH);
+    } else {
+      ctx.fillStyle = w.core;
+      ctx.fillRect(kx, ky, sliceW, sliceH);
+    }
+    ctx.restore();
+
+    // Draw the 3D skin ring around this worm slice
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = w.core;
+    ctx.globalAlpha = isPast ? 0.72 : 0.25;
+    ctx.lineWidth = isPast ? 1.5 : 0.9;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 4. DRAW THE LIVE PLAYING <VIDEO> SLICE PLANE AT tauNow GLIDING THROUGH THE WORM!
+  const lx = sxOf(tauNow), ly = syOf(tauNow);
+  const lw = interpWormAt(wFrames, tauNow);
+  const lcx = lx + lw.u * sliceW;
+  const lcy = ly + lw.v * sliceH;
+  const lrx = Math.max(12, lw.r * sliceW);
+  const lry = Math.max(10, lw.r * sliceH);
+
+  // 4a. Full 16:9 live video frame slice at tauNow (semi-transparent context plane)
+  ctx.save();
+  ctx.globalAlpha = 0.48;
+  if (hasLiveVid) {
+    try { ctx.drawImage(videoEl, lx, ly, sliceW, sliceH); } catch (e) {}
+  } else if (hasStrip) {
+    ctx.drawImage(stripImg, lw.k * fw, 0, fw, fh, lx, ly, sliceW, sliceH);
+  }
+  ctx.restore();
+
+  // 4b. 100% full-brightness live video cutout inside the Worm's Circle at tauNow
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(lcx, lcy, lrx, lry, 0, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.globalAlpha = 1.0;
+  if (hasLiveVid) {
+    try { ctx.drawImage(videoEl, lx, ly, sliceW, sliceH); } catch (e) {}
+  } else if (hasStrip) {
+    ctx.drawImage(stripImg, lw.k * fw, 0, fw, fh, lx, ly, sliceW, sliceH);
+  }
+  ctx.restore();
+
+  // 4c. Crisp glowing frame & target ring on the live video slice plane
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 1.8;
+  ctx.strokeRect(lx, ly, sliceW, sliceH);
+
+  ctx.beginPath();
+  ctx.ellipse(lcx, lcy, lrx, lry, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = lw.core;
+  ctx.lineWidth = 2.4;
+  ctx.stroke();
+
+  // 5. Continuous Cyan Worldline Spine threading through the entire 3D Video Time Worm
+  ctx.beginPath();
+  for (let s = 0; s <= STEPS; s++) {
+    const t = s / STEPS;
+    const w = interpWormAt(wFrames, t);
+    const px = sxOf(t) + w.u * sliceW;
+    const py = syOf(t) + w.v * sliceH;
+    if (s === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.strokeStyle = '#00e5ff';
+  ctx.lineWidth = 2.0;
+  ctx.stroke();
+
+  // Cyan Center Dot at live tauNow
+  ctx.beginPath();
+  ctx.arc(lcx, lcy, 4.2, 0, Math.PI * 2);
+  ctx.fillStyle = '#00e5ff';
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.1;
+  ctx.stroke();
+
+  // f1..f8 tick markers along top of worm
+  ctx.fillStyle = '#99e6b3';
+  ctx.font = '8.5px monospace';
+  for (let k = 0; k < 8; k++) {
+    const tk = k / 7.0;
+    const tx = sxOf(tk) + sliceW * 0.5;
+    ctx.fillText(`f${k+1}`, tx - 6, 10);
+  }
+
+  // 6. BOTTOM REAL-PIXEL SLIT-SCAN RIBBON (u-tau Video Cubism slice)
+  ctx.fillStyle = '#051209';
+  ctx.fillRect(0, slitY, CW, 28);
+  if (slitCanvas) {
+    ctx.drawImage(slitCanvas, 0, 0, slitCanvas.width, slitCanvas.height, xStart, slitY, CW - 36, 28);
+  }
+  ctx.strokeStyle = '#1d6b38';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(xStart, slitY, CW - 36, 28);
+
+  // Worldline u(tau) wave overlaid on the slit-scan
+  ctx.beginPath();
+  for (let s = 0; s <= STEPS; s++) {
+    const t = s / STEPS;
+    const w = interpWormAt(wFrames, t);
+    const sx = xStart + t * (CW - 36);
+    const sy = slitY + w.u * 26;
+    if (s === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+  }
+  ctx.strokeStyle = '#00e5ff';
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+
+  // Live playhead cursor on slit-scan
+  const playX = xStart + tauNow * (CW - 36);
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(playX, slitY - 4);
+  ctx.lineTo(playX, CH);
+  ctx.stroke();
+  ctx.fillStyle = '#d0ffe4';
+  ctx.fillText('SLIT-SCAN u(tau)', xStart + 4, CH - 4);
+}
+
+function setupWormScrub() {
+  ['cvWormA', 'cvWormB'].forEach(id => {
+    const cv = document.getElementById(id);
+    const scrub = (e) => {
+      const r = cv.getBoundingClientRect();
+      const t = Math.max(0, Math.min(0.999, (e.clientX - r.left) / r.width));
+      const vA = document.getElementById('vidMaster');
+      const vS = document.getElementById('vidScreen');
+      if (vA.duration > 0) vA.currentTime = t * vA.duration;
+      if (vS.duration > 0) vS.currentTime = t * vS.duration;
+      const k = Math.min(7, Math.floor(t * 8));
+      setTau(k);
+      if (SHOTS[CUR]) syncCutVideo(SHOTS[CUR], k);
+    };
+    let down = false;
+    cv.addEventListener('mousedown', e => { down = true; scrub(e); });
+    window.addEventListener('mousemove', e => { if (down) scrub(e); });
+    window.addEventListener('mouseup', () => { down = false; });
+  });
+}
+
 function loop() {
   const sh = SHOTS[CUR];
+  const st = SCREENS[CUR_SCR];
   const vA = document.getElementById('vidMaster');
-  if (PLAYING && sh) {
-    if (vA.ended) {
+  const vS = document.getElementById('vidScreen');
+  const vB = document.getElementById('vidCut');
+
+  let tauA = TAU / 7.0;
+  if (sh) {
+    if (PLAYING && vA.ended) {
       selectShot(CUR + 1);
     } else if (vA.duration > 0) {
-      const k = Math.min(7, Math.floor((vA.currentTime / vA.duration) * 8));
+      tauA = Math.max(0, Math.min(1, vA.currentTime / vA.duration));
+      const k = Math.min(7, Math.floor(tauA * 8));
       if (k !== TAU) {
         setTau(k);
         syncCutVideo(sh, k);
       }
     }
   }
+
+  let tauS = tauA;
+  if (st && vS.duration > 0) {
+    if (PLAYING && vS.ended) {
+      vS.currentTime = 0;
+      vS.play().catch(() => {});
+    }
+    tauS = Math.max(0, Math.min(1, vS.currentTime / vS.duration));
+  }
+
+  // Render Left Actual Video Time Worm (1983 Film Scene)
+  if (sh) {
+    document.getElementById('wormStatA').textContent =
+      `tau = ${tauA.toFixed(2)} // f${TAU+1}/8 // ${sh.shot_id}`;
+    drawActualVideoTimeWorm(
+      document.getElementById('cvWormA'),
+      vA,
+      stripImgA,
+      sh.worm_frames || [],
+      tauA,
+      '#00e5ff',
+      slitCanvasA,
+      slitCtxA
+    );
+  }
+
+  // Render Right Actual Video Time Worm (WOPR Pure Computer Screen OR Archive Cut)
+  if (WORM_B_MODE === 'screen' && st) {
+    const scrFrames = (st.worm_3d && st.worm_3d.worm_frames) || [];
+    document.getElementById('wormStatB').textContent =
+      `SCR ${String(CUR_SCR+1).padStart(2,'0')}/68 (${st.shot_id}) // tau = ${tauS.toFixed(2)}`;
+    drawActualVideoTimeWorm(
+      document.getElementById('cvWormB'),
+      vS,
+      stripImgScreen,
+      scrFrames,
+      tauS,
+      '#ffb000',
+      slitCanvasB,
+      slitCtxB
+    );
+  } else if (sh) {
+    const cw = (sh.cuts_10_worms || []).find(c => c.cut_lens === LENS) || (sh.cuts_10_worms || [])[0];
+    const cutFrames = (cw && cw.pts_uvr || []).map((p, idx) => ({
+      u: p[0], v: p[1], r: p[2],
+      core_color: { hex: (cw.core_palette_8 && cw.core_palette_8[idx]) || cw.core_hex || '#ffb000' },
+      shell_color: { hex: (cw.shell_palette_8 && cw.shell_palette_8[idx]) || cw.shell_hex || '#221800' }
+    }));
+    document.getElementById('wormStatB').textContent =
+      `CUT: ${LENS.toUpperCase()} // tau = ${tauA.toFixed(2)}`;
+    drawActualVideoTimeWorm(
+      document.getElementById('cvWormB'),
+      vB,
+      stripImgA,
+      cutFrames,
+      tauA,
+      '#ffb000',
+      slitCanvasB,
+      slitCtxB
+    );
+  }
+
   requestAnimationFrame(loop);
 }
 
@@ -491,7 +1041,8 @@ function setupKeys() {
   window.addEventListener('keydown', e => {
     if (e.key === 'ArrowRight') { e.preventDefault(); stepShot(1); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); stepShot(-1); }
-    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); nextLens(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); stepScreen(1); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); stepScreen(-1); }
     else if (e.key === ' ') { e.preventDefault(); togglePlay(); }
   });
 }
