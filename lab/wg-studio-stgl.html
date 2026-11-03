@@ -3,62 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>WOPR // 4D GRID CINEMA (u,v,d,tau)</title>
+<title>4D GRID CINEMA</title>
 <style>
-  :root {
-    --bg: #000000;
-    --fg: #33ff77;
-    --fg-bright: #b8ffd0;
-    --fg-dim: #197a3a;
-    --fg-dark: #0a3318;
-    --amber: #ffb000;
-    --cyan: #00e5ff;
-    --mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Courier New', monospace;
-  }
   * { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important; }
   html, body {
     width: 100%; height: 100%; overflow: hidden;
-    background: #000; color: var(--fg);
-    font-family: var(--mono); font-size: 10px;
-    -webkit-font-smoothing: none;
-    user-select: none;
+    background: #000; color: #33ff77;
+    user-select: none; -webkit-user-select: none;
   }
-  body::after {
-    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
-    background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,18,6,0.18) 3px);
-  }
-  a { color: var(--fg); text-decoration: none; }
-  button {
-    font-family: var(--mono); font-size: 10px;
-    background: #000; color: var(--fg);
-    border: 1px solid var(--fg-dim); padding: 3px 7px;
-    cursor: pointer; text-transform: uppercase; white-space: nowrap;
-  }
-  button:hover, button.on { background: var(--fg); color: #000; border-color: var(--fg); font-weight: 700; }
-  button.amber { color: var(--amber); border-color: #664400; }
-  button.amber:hover, button.amber.on { background: var(--amber); color: #000; border-color: var(--amber); }
-  button.cyan { color: var(--cyan); border-color: #005566; }
-  button.cyan:hover, button.cyan.on { background: var(--cyan); color: #000; border-color: var(--cyan); }
-
   .app {
     display: grid;
-    grid-template-rows: 28px 1fr 86px 68px;
+    grid-template-rows: 1fr 76px 56px;
     width: 100vw; height: 100vh;
+    background: #061c0d; gap: 1px;
   }
-
-  .topbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 6px; border-bottom: 1px solid var(--fg-dark); background: #000;
-    overflow-x: auto; gap: 6px;
-  }
-  .bar-group { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
-
-  /* FULL-BLEED 16:9 VIEWPORT WITH PURE GEOMETRIC OVERLAYS */
   .stage {
     position: relative; background: #000; overflow: hidden;
     display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
   }
-  .viewport-box {
+  .vp-box {
     position: relative; width: 100%; height: 100%;
     max-width: 177.78vh; max-height: 56.25vw;
     background: #000; overflow: hidden;
@@ -74,116 +38,66 @@
     position: absolute; inset: 0; width: 100%; height: 100%;
     pointer-events: none; z-index: 15;
   }
-  .tag {
-    position: absolute; top: 6px; left: 8px; z-index: 20;
-    background: rgba(0,0,0,0.72); border: 1px solid var(--fg-dark);
-    padding: 2px 6px; font-size: 9.5px; color: var(--fg-bright); pointer-events: none;
+  .snd-dot {
+    position: absolute; top: 8px; right: 8px; z-index: 25;
+    width: 24px; height: 24px; background: rgba(0,0,0,0.7);
+    border: 1px solid #33ff77; display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
   }
-  .tag-right {
-    position: absolute; top: 6px; right: 8px; z-index: 20;
-    background: rgba(0,0,0,0.72); border: 1px solid #553800;
-    padding: 2px 6px; font-size: 9.5px; color: var(--amber); pointer-events: none;
-  }
-  .layer-pills {
-    position: absolute; bottom: 6px; left: 8px; right: 8px; z-index: 25;
-    display: flex; gap: 3px; justify-content: center; flex-wrap: wrap;
-    background: rgba(0,0,0,0.72); padding: 3px; border: 1px solid var(--fg-dark);
-  }
-  .layer-pills button { padding: 2px 6px; font-size: 8.5px; }
+  .snd-dot.on { border-color: #00e5ff; background: rgba(0,229,255,0.2); }
 
-  /* 8-FRAME VISUAL STRIP MATRIX (PURE IMAGE + MINI GEOMETRY OVERLAY) */
+  /* 8-FRAME VISUAL SUB-LATTICE STRIP */
   .strip-bar {
     display: grid; grid-template-columns: repeat(8, 1fr);
     gap: 2px; padding: 2px; background: #000;
-    border-top: 1px solid var(--fg-dark);
   }
   .f-cell {
     position: relative; border: 1px solid #092612; background: #000;
     cursor: pointer; overflow: hidden;
   }
-  .f-cell.active { border: 2px solid var(--amber); }
+  .f-cell.active { border: 2px solid #ffb000; }
   .f-strip-img {
     position: absolute; top: 0; height: 100%; width: 800%; max-width: none;
-    opacity: 0.82;
+    opacity: 0.78;
   }
   .f-cell.active .f-strip-img { opacity: 1; }
   .f-mini-svg {
     position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
   }
-  .f-badge {
-    position: absolute; bottom: 2px; left: 3px;
-    background: rgba(0,0,0,0.75); padding: 0 3px; font-size: 8px; color: var(--cyan);
-  }
 
-  /* BOTTOM 105-BEAT FILMSTRIP */
+  /* 105-BEAT VISUAL FILMSTRIP */
   .filmstrip {
     display: flex; align-items: center; gap: 2px;
-    overflow-x: auto; overflow-y: hidden; padding: 3px 4px;
-    border-top: 1px solid var(--fg-dim); background: #000;
-    scroll-behavior: smooth;
+    overflow-x: auto; overflow-y: hidden; padding: 2px;
+    background: #000; scroll-behavior: smooth;
   }
-  .thumb-tile {
-    position: relative; height: 58px; width: 96px; flex-shrink: 0;
+  .tile {
+    position: relative; height: 52px; width: 90px; flex-shrink: 0;
     border: 1px solid #092612; background: #000; cursor: pointer; overflow: hidden;
   }
-  .thumb-tile img {
-    width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.65;
-  }
-  .thumb-tile.active { border: 2px solid var(--amber); }
-  .thumb-tile.active img { opacity: 1; }
-  .thumb-tile .t-idx {
-    position: absolute; bottom: 2px; left: 3px;
-    background: rgba(0,0,0,0.8); padding: 0 3px; font-size: 8px; color: var(--fg-bright);
-  }
+  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.6; }
+  .tile.active { border: 2px solid #ffb000; }
+  .tile.active img { opacity: 1; }
 
   @media (max-width: 900px) {
-    .app { grid-template-rows: 32px 1fr 68px 58px; }
-    .viewport-box { max-width: 100%; max-height: 100%; }
+    .app { grid-template-rows: 1fr 62px 50px; }
+    .vp-box { max-width: 100%; max-height: 100%; }
   }
 </style>
 </head>
 <body>
 <div class="app">
-  <!-- SPARSE BAR -->
-  <div class="topbar">
-    <div class="bar-group">
-      <a href="wargames-studios.html"><button>[00:OS]</button></a>
-      <a href="wg-studio-worm.html"><button class="amber">[12:3D-WORM]</button></a>
-      <button class="amber on" id="btnPlay" onclick="toggleStream()">[PAUSE]</button>
-      <button class="cyan on" id="btnSound" onclick="cycleAudio()">[TAP SOUND: MUTE]</button>
-      <button onclick="stepShot(-1)">[&lt;]</button>
-      <span id="shotCounter" style="color:var(--fg-bright);font-weight:700;padding:0 3px;">001/105</span>
-      <button onclick="stepShot(1)">[&gt;]</button>
-    </div>
-    <div class="bar-group" id="ruleBar">
-      <button class="on" data-rule="ALL" onclick="setRule('ALL')">ALL</button>
-      <button data-rule="golden_spiral" onclick="setRule('golden_spiral')">SPIRAL</button>
-      <button data-rule="rule_of_thirds" onclick="setRule('rule_of_thirds')">THIRDS</button>
-      <button data-rule="s_curve" onclick="setRule('s_curve')">S-CURVE</button>
-      <button data-rule="symmetry" onclick="setRule('symmetry')">SYMMETRY</button>
-      <button data-rule="frame_in_frame" onclick="setRule('frame_in_frame')">APERTURE</button>
-      <button data-rule="v_shape" onclick="setRule('v_shape')">V-WEDGE</button>
-      <button class="cyan" id="btnScreens" onclick="toggleCorpus()">[68 SCREENS]</button>
-    </div>
-  </div>
-
   <!-- FULL-BLEED 16:9 STAGE -->
-  <div class="stage">
-    <div class="viewport-box" onclick="stepSubframe(1)">
+  <div class="stage" onclick="togglePlay()">
+    <div class="vp-box">
       <video id="stglVideo" autoplay muted playsinline webkit-playsinline preload="auto"></video>
       <canvas id="frameCanvas" width="960" height="540"></canvas>
       <svg id="stglSvg" viewBox="0 0 1000 562.5" preserveAspectRatio="none"></svg>
-      <div class="tag" id="tagLeft">S01-B01 // wg_001</div>
-      <div class="tag-right" id="tagRight">GOLDEN SPIRAL</div>
-      <div class="layer-pills" onclick="event.stopPropagation()">
-        <button class="on" id="togSpiral" onclick="toggleLayer('spiral')">SPIRAL</button>
-        <button class="on" id="togThirds" onclick="toggleLayer('thirds')">THIRDS</button>
-        <button class="on" id="togSCurve" onclick="toggleLayer('scurve')">S-CURVE</button>
-        <button class="on" id="togFrame" onclick="toggleLayer('frame')">APERTURE</button>
-        <button class="on" id="togSym" onclick="toggleLayer('sym')">SYMMETRY</button>
-        <button class="on" id="togVShape" onclick="toggleLayer('vshape')">V-WEDGE</button>
-        <button class="on" id="togNeg" onclick="toggleLayer('neg')">NEG-SPACE</button>
-        <button class="on" id="togJev" onclick="toggleLayer('jev')">JEV + TRACE</button>
+      <div class="snd-dot" id="sndBtn" onclick="event.stopPropagation();toggleSound()" title="Audio">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#33ff77" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <path id="sndWaves" d="M15.54 8.46a5 5 0 0 1 0 7.07 M19.07 4.93a10 10 0 0 1 0 14.14" style="display:none;" stroke="#00e5ff"/>
+        </svg>
       </div>
     </div>
   </div>
@@ -198,103 +112,39 @@
 <audio id="sceneAudio" preload="auto"></audio>
 
 <script>
-let STGL_IR = null, SCREENS_DATA = null;
-let CORPUS = 'beats', RULE = 'ALL';
 let SHOTS = [], CUR = 0, SUB = 0;
-let PLAYING = true, SOUND_MODE = 0;
+let PLAYING = true, SOUND_ON = false;
 let STRIP_CACHE = {};
 
-const LAYERS = {
-  spiral: true, thirds: true, scurve: true, frame: true,
-  sym: true, vshape: true, neg: true, jev: true
-};
-
 async function init() {
-  const [r1, r2] = await Promise.all([
-    fetch('wargames-stgl-ir.json'),
-    fetch('wargames-screens-program.json')
-  ]);
-  STGL_IR = await r1.json();
-  SCREENS_DATA = await r2.json();
+  const res = await fetch('wargames-stgl-ir.json');
+  const data = await res.json();
+  SHOTS = data.shots || [];
+  renderFilmstrip();
   setupKeys();
-  filterShots();
+  if (SHOTS.length) selectShot(0);
   requestAnimationFrame(loop);
 }
 
-function getSource() {
-  if (CORPUS === 'beats') return STGL_IR.shots || [];
-  return (SCREENS_DATA.screen_states || []).map((st, idx) => {
-    const s = st.stgl || {};
-    return {
-      id: `S${String(idx+1).padStart(2,'0')}`,
-      shot_id: st.shot_id,
-      thumb: st.thumb,
-      strip: st.strip,
-      video: st.video,
-      audio_orig: `cache/wg_sound/${st.beat_id || 'S01-B01'}_orig.m4a`,
-      spatial_grid: s.spatial_grid,
-      frames_8: s.frames_8 || []
-    };
-  });
-}
-
-function filterShots() {
-  SHOTS = getSource().filter(sh => {
-    if (RULE === 'ALL') return true;
-    return sh.spatial_grid && sh.spatial_grid.armature === RULE;
-  });
-  renderFilmstrip();
-  if (SHOTS.length) selectShot(0);
-}
-
-function setRule(r) {
-  RULE = r;
-  document.querySelectorAll('#ruleBar button[data-rule]').forEach(b => {
-    b.classList.toggle('on', b.getAttribute('data-rule') === r);
-  });
-  filterShots();
-}
-
-function toggleCorpus() {
-  CORPUS = CORPUS === 'beats' ? 'screens' : 'beats';
-  document.getElementById('btnScreens').classList.toggle('on', CORPUS === 'screens');
-  filterShots();
-}
-
-function toggleLayer(k) {
-  LAYERS[k] = !LAYERS[k];
-  const ids = {
-    spiral:'togSpiral', thirds:'togThirds', scurve:'togSCurve', frame:'togFrame',
-    sym:'togSym', vshape:'togVShape', neg:'togNeg', jev:'togJev'
-  };
-  document.getElementById(ids[k]).classList.toggle('on', LAYERS[k]);
-  const sh = SHOTS[CUR];
-  if (sh && sh.frames_8 && sh.frames_8[SUB]) renderSVG(sh, sh.frames_8[SUB]);
-}
-
-function cycleAudio() {
-  SOUND_MODE = (SOUND_MODE + 1) % 2;
-  const btn = document.getElementById('btnSound');
-  btn.textContent = SOUND_MODE ? '[SOUND: ON]' : '[TAP SOUND: MUTE]';
-  btn.classList.toggle('on', SOUND_MODE > 0);
+function toggleSound() {
+  SOUND_ON = !SOUND_ON;
+  document.getElementById('sndBtn').classList.toggle('on', SOUND_ON);
+  document.getElementById('sndWaves').style.display = SOUND_ON ? 'block' : 'none';
   if (SHOTS[CUR]) syncAudio(SHOTS[CUR]);
 }
 
 function syncAudio(sh) {
   const aud = document.getElementById('sceneAudio');
-  if (!SOUND_MODE || !PLAYING) { aud.pause(); return; }
+  if (!SOUND_ON || !PLAYING) { aud.pause(); return; }
   const bId = sh.id.startsWith('S') && sh.id.includes('-B') ? sh.id : 'S01-B01';
-  const src = sh.audio_orig || `cache/wg_sound/${bId}_orig.m4a`;
+  const src = `cache/wg_sound/${bId}_orig.m4a`;
   if (aud.dataset.src !== src) { aud.dataset.src = src; aud.src = src; }
   aud.currentTime = 0;
   aud.play().catch(() => {});
 }
 
-function toggleStream() {
+function togglePlay() {
   PLAYING = !PLAYING;
-  const btn = document.getElementById('btnPlay');
-  btn.textContent = PLAYING ? '[PAUSE]' : '[PLAY]';
-  btn.classList.toggle('on', PLAYING);
   const vid = document.getElementById('stglVideo');
   const canvas = document.getElementById('frameCanvas');
   const aud = document.getElementById('sceneAudio');
@@ -312,9 +162,8 @@ function toggleStream() {
 function renderFilmstrip() {
   const el = document.getElementById('filmstrip');
   el.innerHTML = SHOTS.map((s, i) => `
-    <div class="thumb-tile ${i === CUR ? 'active' : ''}" id="ftile_${i}" onclick="selectShot(${i})">
+    <div class="tile ${i === CUR ? 'active' : ''}" id="ftile_${i}" onclick="selectShot(${i})">
       <img src="${s.thumb}" loading="lazy" alt="">
-      <div class="t-idx">${s.id}</div>
     </div>
   `).join('');
 }
@@ -323,10 +172,8 @@ function selectShot(idx) {
   if (!SHOTS.length) return;
   CUR = (idx + SHOTS.length) % SHOTS.length;
   const sh = SHOTS[CUR];
-  document.getElementById('shotCounter').textContent =
-    `${String(CUR+1).padStart(3,'0')}/${String(SHOTS.length).padStart(3,'0')}`;
 
-  document.querySelectorAll('.thumb-tile').forEach((t, i) => t.classList.toggle('active', i === CUR));
+  document.querySelectorAll('.tile').forEach((t, i) => t.classList.toggle('active', i === CUR));
   const tile = document.getElementById(`ftile_${CUR}`);
   if (tile) tile.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
 
@@ -344,14 +191,6 @@ function selectShot(idx) {
 }
 
 function stepShot(d) { selectShot(CUR + d); }
-function stepSubframe(d) {
-  PLAYING = false;
-  document.getElementById('btnPlay').textContent = '[PLAY]';
-  document.getElementById('btnPlay').classList.remove('on');
-  document.getElementById('stglVideo').pause();
-  document.getElementById('sceneAudio').pause();
-  selectSubframe((SUB + d + 8) % 8);
-}
 
 function renderStrip8(sh) {
   const grid = document.getElementById('stripGrid');
@@ -362,10 +201,9 @@ function renderStrip8(sh) {
       <div class="f-cell ${k === SUB ? 'active' : ''}" id="fCell_${k}" onclick="onTapSubframe(${k})">
         <img class="f-strip-img" src="${sh.strip}" style="left:${-(k*100)}%;">
         <svg class="f-mini-svg" viewBox="0 0 100 56.25" preserveAspectRatio="none">
-          <rect x="${bx*100}" y="${by*56.25}" width="${bw*100}" height="${bh*56.25}" fill="none" stroke="#ffb000" stroke-width="1.2"/>
-          <circle cx="${f.u*100}" cy="${f.v*56.25}" r="2.5" fill="#00e5ff"/>
+          <rect x="${bx*100}" y="${by*56.25}" width="${bw*100}" height="${bh*56.25}" fill="none" stroke="#ffb000" stroke-width="1.4"/>
+          <circle cx="${f.u*100}" cy="${f.v*56.25}" r="2.8" fill="#00e5ff"/>
         </svg>
-        <div class="f-badge">f${f.f}</div>
       </div>
     `;
   }).join('');
@@ -373,8 +211,6 @@ function renderStrip8(sh) {
 
 function onTapSubframe(k) {
   PLAYING = false;
-  document.getElementById('btnPlay').textContent = '[PLAY]';
-  document.getElementById('btnPlay').classList.remove('on');
   document.getElementById('stglVideo').pause();
   document.getElementById('sceneAudio').pause();
   selectSubframe(k);
@@ -386,7 +222,6 @@ function selectSubframe(k) {
   SUB = k;
   document.querySelectorAll('.f-cell').forEach((c, idx) => c.classList.toggle('active', idx === k));
   const f = sh.frames_8[k];
-
   if (!PLAYING) drawSubframe(sh.strip, k);
   renderSVG(sh, f);
 }
@@ -417,100 +252,79 @@ function renderSVG(sh, f) {
   const sg = sh.spatial_grid || {};
   const winArm = f.primary_armature || sg.armature || 'golden_spiral';
 
-  document.getElementById('tagLeft').textContent = `${sh.id} // f${f.f} // ${f.tau}`;
-  document.getElementById('tagRight').textContent = winArm.replace(/_/g, ' ').toUpperCase();
-
-  // 1. Negative Space Polygon (Pure geometry, no text)
-  if (LAYERS.neg && f.negative_space_zone && f.negative_space_zone.polygon) {
+  if (f.negative_space_zone && f.negative_space_zone.polygon) {
     const poly = f.negative_space_zone.polygon.map(pt => `${pt[0]*W},${pt[1]*H}`).join(' ');
-    parts.push(`<polygon points="${poly}" fill="rgba(0, 229, 255, 0.06)" stroke="#00e5ff" stroke-width="1" stroke-dasharray="4 4"/>`);
+    parts.push(`<polygon points="${poly}" fill="rgba(0, 229, 255, 0.05)" stroke="#00e5ff" stroke-width="1" stroke-dasharray="4 4"/>`);
   }
 
-  // 2. Frame-in-Frame Aperture
-  if (LAYERS.frame) {
-    const isWin = winArm === 'frame_in_frame';
-    parts.push(`<rect x="${0.12*W}" y="${0.12*H}" width="${0.76*W}" height="${0.76*H}" fill="none" stroke="${isWin ? '#ffb000' : 'rgba(51,255,119,0.28)'}" stroke-width="${isWin ? 2.4 : 1}" stroke-dasharray="8 4"/>`);
+  const isFrame = winArm === 'frame_in_frame';
+  parts.push(`<rect x="${0.12*W}" y="${0.12*H}" width="${0.76*W}" height="${0.76*H}" fill="none" stroke="${isFrame ? '#ffb000' : 'rgba(51,255,119,0.22)'}" stroke-width="${isFrame ? 2.4 : 1}" stroke-dasharray="8 4"/>`);
+
+  const isThirds = winArm === 'rule_of_thirds';
+  const colT = isThirds ? '#ffb000' : 'rgba(51,255,119,0.28)';
+  const wT = isThirds ? 2 : 1;
+  parts.push(`
+    <line x1="${W/3}" y1="0" x2="${W/3}" y2="${H}" stroke="${colT}" stroke-width="${wT}"/>
+    <line x1="${2*W/3}" y1="0" x2="${2*W/3}" y2="${H}" stroke="${colT}" stroke-width="${wT}"/>
+    <line x1="0" y1="${H/3}" x2="${W}" y2="${H/3}" stroke="${colT}" stroke-width="${wT}"/>
+    <line x1="0" y1="${2*H/3}" x2="${W}" y2="${2*H/3}" stroke="${colT}" stroke-width="${wT}"/>
+  `);
+  [[1/3,1/3],[2/3,1/3],[1/3,2/3],[2/3,2/3]].forEach(([tu, tv]) => {
+    parts.push(`<circle cx="${tu*W}" cy="${tv*H}" r="5" fill="none" stroke="${colT}" stroke-width="1.4"/>`);
+  });
+
+  const isSym = winArm === 'symmetry' || winArm === 'centered';
+  const colS = isSym ? '#ffb000' : 'rgba(51,255,119,0.2)';
+  parts.push(`
+    <line x1="${W*0.5}" y1="0" x2="${W*0.5}" y2="${H}" stroke="${colS}" stroke-width="1.2" stroke-dasharray="3 3"/>
+    <line x1="0" y1="${H*0.5}" x2="${W}" y2="${H*0.5}" stroke="${colS}" stroke-width="1.2" stroke-dasharray="3 3"/>
+  `);
+
+  const isV = winArm === 'v_shape';
+  const colV = isV ? '#ffb000' : 'rgba(51,255,119,0.2)';
+  if (f.v_orientation === 'A_PYRAMID') {
+    parts.push(`<polyline points="0,${H} ${W*0.5},${H*0.14} ${W},${H}" fill="none" stroke="${colV}" stroke-width="${isV ? 2.4 : 1}"/>`);
+  } else {
+    parts.push(`<polyline points="0,0 ${W*0.5},${H*0.86} ${W},0" fill="none" stroke="${colV}" stroke-width="${isV ? 2.4 : 1}"/>`);
   }
 
-  // 3. Rule of Thirds 3x3 + 4 Power Nodes
-  if (LAYERS.thirds) {
-    const isWin = winArm === 'rule_of_thirds';
-    const col = isWin ? '#ffb000' : 'rgba(51,255,119,0.32)';
-    const w = isWin ? 2 : 1;
-    parts.push(`
-      <line x1="${W/3}" y1="0" x2="${W/3}" y2="${H}" stroke="${col}" stroke-width="${w}"/>
-      <line x1="${2*W/3}" y1="0" x2="${2*W/3}" y2="${H}" stroke="${col}" stroke-width="${w}"/>
-      <line x1="0" y1="${H/3}" x2="${W}" y2="${H/3}" stroke="${col}" stroke-width="${w}"/>
-      <line x1="0" y1="${2*H/3}" x2="${W}" y2="${2*H/3}" stroke="${col}" stroke-width="${w}"/>
-    `);
-    [[1/3,1/3],[2/3,1/3],[1/3,2/3],[2/3,2/3]].forEach(([tu, tv]) => {
-      parts.push(`<circle cx="${tu*W}" cy="${tv*H}" r="5" fill="none" stroke="${col}" stroke-width="1.4"/>`);
-    });
+  const isSp = winArm === 'golden_spiral';
+  const colSp = isSp ? '#ffb000' : '#33ff77';
+  const gn = f.focal_node || [0.618, 0.382];
+  const gx = gn[0] * W, gy = gn[1] * H;
+  const pts = [];
+  for (let t = 0; t <= 4.2 * Math.PI; t += 0.12) {
+    const r = 420 * Math.exp(-0.34 * t);
+    const sx = Math.max(0, Math.min(W, gx + r * Math.cos(t)));
+    const sy = Math.max(0, Math.min(H, gy + r * Math.sin(t) * (H / W)));
+    pts.push(`${sx.toFixed(1)},${sy.toFixed(1)}`);
   }
+  parts.push(`
+    <polyline points="${pts.join(' ')}" fill="none" stroke="${colSp}" stroke-width="${isSp ? 2.6 : 1.3}" opacity="${isSp ? 0.95 : 0.55}"/>
+    <circle cx="${gx}" cy="${gy}" r="8" fill="none" stroke="${colSp}" stroke-width="2"/>
+  `);
 
-  // 4. Symmetry Axes
-  if (LAYERS.sym) {
-    const isWin = winArm === 'symmetry' || winArm === 'centered';
-    const col = isWin ? '#ffb000' : 'rgba(51,255,119,0.24)';
-    parts.push(`
-      <line x1="${W*0.5}" y1="0" x2="${W*0.5}" y2="${H}" stroke="${col}" stroke-width="1.2" stroke-dasharray="3 3"/>
-      <line x1="0" y1="${H*0.5}" x2="${W}" y2="${H*0.5}" stroke="${col}" stroke-width="1.2" stroke-dasharray="3 3"/>
-    `);
-  }
-
-  // 5. V-Shape Wedge
-  if (LAYERS.vshape) {
-    const isWin = winArm === 'v_shape';
-    const col = isWin ? '#ffb000' : 'rgba(51,255,119,0.24)';
-    if (f.v_orientation === 'A_PYRAMID') {
-      parts.push(`<polyline points="0,${H} ${W*0.5},${H*0.14} ${W},${H}" fill="none" stroke="${col}" stroke-width="${isWin ? 2.4 : 1}"/>`);
-    } else {
-      parts.push(`<polyline points="0,0 ${W*0.5},${H*0.86} ${W},0" fill="none" stroke="${col}" stroke-width="${isWin ? 2.4 : 1}"/>`);
-    }
-  }
-
-  // 6. Golden Spiral Curve
-  if (LAYERS.spiral) {
-    const isWin = winArm === 'golden_spiral';
-    const col = isWin ? '#ffb000' : '#33ff77';
-    const gn = f.focal_node || [0.618, 0.382];
-    const gx = gn[0] * W, gy = gn[1] * H;
-    const pts = [];
-    for (let t = 0; t <= 4.2 * Math.PI; t += 0.12) {
-      const r = 420 * Math.exp(-0.34 * t);
-      const sx = Math.max(0, Math.min(W, gx + r * Math.cos(t)));
-      const sy = Math.max(0, Math.min(H, gy + r * Math.sin(t) * (H / W)));
-      pts.push(`${sx.toFixed(1)},${sy.toFixed(1)}`);
-    }
-    parts.push(`
-      <polyline points="${pts.join(' ')}" fill="none" stroke="${col}" stroke-width="${isWin ? 2.5 : 1.3}" opacity="${isWin ? 0.95 : 0.55}"/>
-      <circle cx="${gx}" cy="${gy}" r="8" fill="none" stroke="${col}" stroke-width="2"/>
-    `);
-  }
-
-  // 7. S-Curve Cubic Bezier
-  if (LAYERS.scurve && f.s_curve_bezier && f.s_curve_bezier.length === 4) {
-    const isWin = winArm === 's_curve';
+  if (f.s_curve_bezier && f.s_curve_bezier.length === 4) {
+    const isSC = winArm === 's_curve';
     const b = f.s_curve_bezier;
     const dPath = `M ${b[0][0]*W} ${b[0][1]*H} C ${b[1][0]*W} ${b[1][1]*H}, ${b[2][0]*W} ${b[2][1]*H}, ${b[3][0]*W} ${b[3][1]*H}`;
     parts.push(`
-      <path d="${dPath}" fill="none" stroke="${isWin ? '#00e5ff' : 'rgba(0,229,255,0.45)'}" stroke-width="${isWin ? 2.8 : 1.4}"/>
+      <path d="${dPath}" fill="none" stroke="${isSC ? '#00e5ff' : 'rgba(0,229,255,0.45)'}" stroke-width="${isSC ? 2.8 : 1.4}"/>
       <circle cx="${b[0][0]*W}" cy="${b[0][1]*H}" r="4" fill="#00e5ff"/>
       <circle cx="${b[3][0]*W}" cy="${b[3][1]*H}" r="4" fill="#00e5ff"/>
     `);
   }
 
-  // 8. JEV Box + 8-Subframe Eye-Trace Trajectory
-  if (LAYERS.jev && f.jev_box) {
+  if (f.jev_box) {
     const [bx, by, bw, bh] = f.jev_box;
     const ux = f.u * W, uy = f.v * H;
     const tracePts = (sh.frames_8 || []).map(fr => `${fr.u*W},${fr.v*H}`).join(' ');
     parts.push(`
-      <polyline points="${tracePts}" fill="none" stroke="#00e5ff" stroke-width="2" stroke-dasharray="4 2"/>
-      <rect x="${bx*W}" y="${by*H}" width="${bw*W}" height="${bh*H}" fill="rgba(255, 176, 0, 0.06)" stroke="#ffb000" stroke-width="2"/>
+      <polyline points="${tracePts}" fill="none" stroke="#00e5ff" stroke-width="2.2" stroke-dasharray="4 2"/>
+      <rect x="${bx*W}" y="${by*H}" width="${bw*W}" height="${bh*H}" fill="rgba(255, 176, 0, 0.06)" stroke="#ffb000" stroke-width="2.2"/>
       <line x1="${ux-12}" y1="${uy}" x2="${ux+12}" y2="${uy}" stroke="#b8ffd0" stroke-width="2"/>
       <line x1="${ux}" y1="${uy-12}" x2="${ux}" y2="${uy+12}" stroke="#b8ffd0" stroke-width="2"/>
-      <circle cx="${ux}" cy="${uy}" r="5" fill="#00e5ff"/>
+      <circle cx="${ux}" cy="${uy}" r="5.5" fill="#00e5ff"/>
     `);
   }
 
@@ -535,9 +349,7 @@ function setupKeys() {
   window.addEventListener('keydown', e => {
     if (e.key === 'ArrowRight') { e.preventDefault(); stepShot(1); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); stepShot(-1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); stepSubframe(-1); }
-    else if (e.key === 'ArrowDown') { e.preventDefault(); stepSubframe(1); }
-    else if (e.key === ' ') { e.preventDefault(); toggleStream(); }
+    else if (e.key === ' ') { e.preventDefault(); togglePlay(); }
   });
 }
 
