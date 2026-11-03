@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>4D GRID CINEMA // STGL (u,v,d,tau)</title>
+<title>WARGAMES // 4D GRID CINEMA</title>
 <style>
   :root {
     --bg: #000000;
     --fg: #33ff77;
-    --fg-bright: #c8ffe0;
-    --fg-dim: #1b6b36;
-    --border: #0e381c;
+    --fg-bright: #d0ffe4;
+    --fg-dim: #1d6b38;
+    --border: #0f381d;
     --amber: #ffb000;
     --cyan: #00e5ff;
     --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
@@ -19,33 +19,28 @@
   html, body {
     width: 100%; height: 100%; overflow: hidden;
     background: #000; color: var(--fg);
-    font-family: var(--mono); font-size: 10px;
+    font-family: var(--mono); font-size: 11px;
     user-select: none; -webkit-user-select: none;
   }
 
   .app {
     display: grid;
-    grid-template-rows: 26px 1fr auto 74px;
+    grid-template-rows: 32px 1fr 84px 64px;
     width: 100vw; height: 100vh;
     background: #000;
   }
 
-  /* 1. VISUAL KEY / LEGEND BAR */
-  .legend-bar {
+  /* 1. TOP TRANSPORT & GRID RULE BAR */
+  .topbar {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 8px; border-bottom: 1px solid var(--border);
-    background: #020804; overflow-x: auto; white-space: nowrap; gap: 12px;
+    padding: 0 10px; border-bottom: 1px solid var(--border);
+    background: #020804; overflow-x: auto; white-space: nowrap; gap: 10px;
   }
-  .leg-items { display: flex; align-items: center; gap: 12px; }
-  .leg-item { display: inline-flex; align-items: center; gap: 5px; color: #99e6b3; font-size: 9.5px; }
-  .sym-dot { width: 8px; height: 8px; background: var(--cyan); border: 1px solid #fff; display: inline-block; }
-  .sym-box { width: 12px; height: 9px; border: 2px solid var(--amber); display: inline-block; }
-  .sym-grid { width: 12px; height: 9px; border: 1px solid var(--fg); display: inline-block; }
-  .nav-btns { display: flex; align-items: center; gap: 4px; }
+  .bar-group { display: flex; align-items: center; gap: 4px; }
   .btn {
-    font-family: var(--mono); font-size: 9.5px;
+    font-family: var(--mono); font-size: 10px;
     background: #000; color: var(--fg);
-    border: 1px solid var(--fg-dim); padding: 2px 6px;
+    border: 1px solid var(--fg-dim); padding: 3px 8px;
     cursor: pointer; text-decoration: none;
   }
   .btn:hover, .btn.on { background: var(--fg); color: #000; font-weight: 700; }
@@ -54,79 +49,61 @@
   .btn.cyan { color: var(--cyan); border-color: #006677; }
   .btn.cyan.on, .btn.cyan:hover { background: var(--cyan); color: #000; }
 
-  /* 2. MAIN STAGE: MASTER 16:9 FRAME + 4x2 WALL OF ALL 8 COMPOSITION GRIDS (ALL STRICTLY 16:9) */
-  .main-stage {
-    display: grid;
-    grid-template-columns: 1fr 1.45fr;
-    gap: 6px; padding: 6px;
-    min-height: 0; overflow: hidden; align-items: center;
-    background: #000;
-  }
-
-  .frame-16x9 {
+  /* 2. FULL-THEATER 16:9 VIDEO STAGE */
+  .theater-stage {
     position: relative;
-    width: 100%;
+    background: #000;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 8px 14px; min-height: 0; overflow: hidden;
+  }
+  .video-16x9 {
+    position: relative;
+    height: 100%;
     aspect-ratio: 16 / 9;
-    background: #030905;
-    border: 1px solid var(--border);
+    max-width: 100%;
+    background: #000;
+    border: 1px solid var(--fg-dim);
     overflow: hidden;
     cursor: pointer;
   }
-  .frame-16x9.win {
-    border: 2px solid var(--amber);
-  }
-  .frame-16x9 video,
-  .frame-16x9 canvas {
+  .video-16x9 video {
     position: absolute; inset: 0;
     width: 100%; height: 100%;
-    object-fit: fill;
+    object-fit: contain;
+    background: #000;
     display: block;
   }
-  .frame-16x9 svg {
+  .video-16x9 svg {
     position: absolute; inset: 0;
     width: 100%; height: 100%;
     pointer-events: none; z-index: 10;
+    opacity: 0.55;
+    transition: opacity 0.2s;
+  }
+  body.hide-grid .video-16x9 svg { opacity: 0; }
+
+  .hud-pill {
+    position: absolute; top: 8px; left: 8px; z-index: 15;
+    background: rgba(0,0,0,0.75); border: 1px solid var(--border);
+    padding: 2px 8px; font-size: 10px; color: var(--fg-bright); pointer-events: none;
+  }
+  .hud-sub {
+    position: absolute; bottom: 8px; left: 8px; right: 8px; z-index: 15;
+    background: rgba(0,0,0,0.75); border: 1px solid var(--border);
+    padding: 3px 8px; font-size: 11px; color: var(--fg-bright);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
   }
 
-  .micro-tag {
-    position: absolute; top: 3px; left: 3px; z-index: 15;
-    background: rgba(0, 0, 0, 0.78);
-    border: 1px solid rgba(51, 255, 119, 0.35);
-    padding: 1px 4px; font-size: 8.5px; color: var(--fg-bright);
-    pointer-events: none;
-  }
-  .micro-tag.amber { color: var(--amber); border-color: rgba(255, 176, 0, 0.55); font-weight: 700; }
-  .micro-tag-bl {
-    position: absolute; bottom: 3px; left: 3px; z-index: 15;
-    background: rgba(0, 0, 0, 0.78);
-    padding: 1px 4px; font-size: 8px; color: #99e6b3;
-    pointer-events: none;
-  }
-
-  /* 4x2 WALL OF THE 8 COMPOSITION RULES — EVERY CELL STRICTLY 16:9 */
-  .arm-wall {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 4px; width: 100%; align-content: center;
-  }
-  .arm-wall .f-strip-img {
-    position: absolute; top: 0; height: 100%; width: 800%; max-width: none;
-    opacity: 0.78;
-  }
-  .arm-wall .frame-16x9.win .f-strip-img { opacity: 1; }
-
-  /* 3. ROW 3: 8 SUB-FRAMES (f1..f8) — STRICTLY 16:9 */
-  .strip-row-wrap {
-    padding: 4px 6px;
-    border-top: 1px solid var(--border);
-    background: #020603;
-  }
-  .strip-8 {
+  /* 3. 8 SUB-FRAMES (f1..f8) LEFT TO RIGHT */
+  .strip-row {
     display: grid;
     grid-template-columns: repeat(8, 1fr);
-    gap: 4px; width: 100%;
+    gap: 4px; padding: 4px 14px;
+    border-top: 1px solid var(--border);
+    background: #020603;
+    align-items: center;
   }
-  .f-cell {
+  .f-card {
     position: relative;
     width: 100%;
     aspect-ratio: 16 / 9;
@@ -134,26 +111,30 @@
     border: 1px solid var(--border);
     overflow: hidden; cursor: pointer;
   }
-  .f-cell.active { border: 2px solid var(--cyan); }
+  .f-card.active { border: 2px solid var(--amber); }
   .f-strip-img {
     position: absolute; top: 0; height: 100%; width: 800%; max-width: none;
-    opacity: 0.84;
+    opacity: 0.85;
   }
-  .f-cell.active .f-strip-img { opacity: 1; }
-  .f-cell svg {
+  .f-card.active .f-strip-img { opacity: 1; }
+  .f-card svg {
     position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;
   }
+  .f-num {
+    position: absolute; top: 2px; left: 3px; z-index: 8;
+    background: rgba(0,0,0,0.75); padding: 0 3px; font-size: 8.5px; color: var(--fg-bright);
+  }
 
-  /* 4. ROW 4: 105-BEAT FILMSTRIP (ALL TILES STRICTLY 16:9) */
+  /* 4. BOTTOM 105-SCENE FILMSTRIP */
   .filmstrip {
     display: flex; align-items: center; gap: 4px;
-    overflow-x: auto; overflow-y: hidden; padding: 4px 6px;
+    overflow-x: auto; overflow-y: hidden; padding: 4px 14px;
     border-top: 1px solid var(--border); background: #000;
     scroll-behavior: smooth;
   }
   .tile-16x9 {
     position: relative;
-    height: 62px;
+    height: 52px;
     aspect-ratio: 16 / 9;
     flex-shrink: 0;
     border: 1px solid var(--border);
@@ -164,73 +145,69 @@
   }
   .tile-16x9.active { border: 2px solid var(--amber); }
   .tile-16x9.active img { opacity: 1; }
+  .tile-id {
+    position: absolute; bottom: 1px; left: 2px;
+    background: rgba(0,0,0,0.8); padding: 0 3px; font-size: 8px; color: var(--fg-bright);
+  }
 
-  @media (max-width: 1024px) {
-    .app { grid-template-rows: 26px 1fr auto 62px; }
-    .main-stage { grid-template-columns: 1fr; overflow-y: auto; align-items: start; }
-    .tile-16x9 { height: 52px; }
+  @media (max-width: 900px) {
+    .app { grid-template-rows: 32px 1fr 62px 54px; }
+    .video-16x9 { width: 100%; height: auto; }
+    .strip-row { padding: 3px 6px; gap: 2px; }
+    .filmstrip { padding: 3px 6px; }
+    .tile-16x9 { height: 44px; }
   }
 </style>
 </head>
 <body>
 <div class="app">
-  <!-- 1. CLEAR VISUAL KEY BAR -->
-  <div class="legend-bar">
-    <div class="leg-items">
-      <span class="leg-item"><i class="sym-dot"></i><b>DOT (u,v)</b> = Subject Center</span>
-      <span class="leg-item"><i class="sym-box"></i><b>AMBER BOX</b> = Active Subject Bounding Box + Winning Grid Rule</span>
-      <span class="leg-item"><i class="sym-grid"></i><b>8 GRID PANELS</b> = All 8 Composition Rules tested on live frame</span>
-    </div>
-    <div class="nav-btns">
+  <!-- 1. TOP BAR -->
+  <div class="topbar">
+    <div class="bar-group">
       <button class="btn amber on" id="btnPlay" onclick="togglePlay()">[PAUSE]</button>
-      <button class="btn cyan" id="btnSound" onclick="toggleSound()">[SOUND: OFF]</button>
+      <button class="btn cyan on" id="btnSound" onclick="toggleSound()">[UNMUTE SOUND]</button>
       <button class="btn" onclick="stepShot(-1)">[&lt; PREV]</button>
-      <span id="shotNum" style="color:var(--fg-bright);font-weight:700;padding:0 4px;">001/105</span>
+      <span id="shotNum" style="color:var(--fg-bright);font-weight:700;padding:0 4px;">001 / 105</span>
       <button class="btn" onclick="stepShot(1)">[NEXT &gt;]</button>
-      <a class="btn amber" href="wg-studio-worm.html">[3D WORM]</a>
+      <button class="btn on" id="btnGrid" onclick="toggleGrid()">[GRID OVERLAY: ON]</button>
+    </div>
+
+    <div class="bar-group" id="ruleBar">
+      <span style="color:var(--amber);font-size:9.5px;">GRID:</span>
+      <button class="btn amber on" data-rule="AUTO" onclick="setRuleMode('AUTO')">AUTO (WINNING)</button>
+      <button class="btn" data-rule="golden_spiral" onclick="setRuleMode('golden_spiral')">SPIRAL</button>
+      <button class="btn" data-rule="rule_of_thirds" onclick="setRuleMode('rule_of_thirds')">THIRDS</button>
+      <button class="btn" data-rule="s_curve" onclick="setRuleMode('s_curve')">S-CURVE</button>
+      <button class="btn" data-rule="symmetry" onclick="setRuleMode('symmetry')">SYMMETRY</button>
+      <button class="btn" data-rule="frame_in_frame" onclick="setRuleMode('frame_in_frame')">APERTURE</button>
+      <button class="btn" data-rule="v_shape" onclick="setRuleMode('v_shape')">V-WEDGE</button>
+      <a class="btn amber" href="wg-studio-worm.html">[DUAL WORM CINEMA]</a>
       <a class="btn" href="wg-studio-screens.html">[68 SCREENS]</a>
     </div>
   </div>
 
-  <!-- 2. MAIN STAGE: MASTER 16:9 + 4x2 WALL OF 8 COMPOSITION GRIDS (ALL STRICTLY 16:9) -->
-  <div class="main-stage">
-    <div class="frame-16x9 win" onclick="togglePlay()">
+  <!-- 2. LARGE UNCLUTTERED 16:9 VIDEO STAGE -->
+  <div class="theater-stage">
+    <div class="video-16x9" onclick="togglePlay()">
       <video id="stglVideo" autoplay muted playsinline webkit-playsinline preload="auto"></video>
-      <canvas id="frameCanvas" width="960" height="540" style="display:none;pointer-events:none;"></canvas>
       <svg id="stglSvg" viewBox="0 0 160 90" preserveAspectRatio="none"></svg>
-      <div class="micro-tag amber" id="tagMaster">S01-B01 // GOLDEN SPIRAL</div>
-      <div class="micro-tag-bl" id="tagMasterSub">f1/8 · dot(0.50,0.50)</div>
+      <div class="hud-pill" id="hudTop">S01-B01 // GOLDEN SPIRAL</div>
+      <div class="hud-sub" id="hudSub">Loading...</div>
     </div>
-
-    <div class="arm-wall" id="armWall"></div>
   </div>
 
-  <!-- 3. 8 SUB-FRAMES (f1..f8) — STRICTLY 16:9 -->
-  <div class="strip-row-wrap">
-    <div class="strip-8" id="stripGrid"></div>
-  </div>
+  <!-- 3. 8 SUB-FRAMES (f1..f8) -->
+  <div class="strip-row" id="stripGrid"></div>
 
-  <!-- 4. 105-SHOT FILMSTRIP — STRICTLY 16:9 -->
+  <!-- 4. 105-SCENE FILMSTRIP -->
   <div class="filmstrip" id="filmstrip"></div>
 </div>
 
 <audio id="sceneAudio" preload="auto"></audio>
 
 <script>
-const RULES = [
-  { key: 'golden_spiral',  label: '1: GOLDEN SPIRAL' },
-  { key: 'rule_of_thirds', label: '2: RULE OF THIRDS' },
-  { key: 's_curve',        label: '3: S-CURVE' },
-  { key: 'symmetry',       label: '4: SYMMETRY' },
-  { key: 'centered',       label: '5: CENTERED' },
-  { key: 'frame_in_frame', label: '6: FRAME APERTURE' },
-  { key: 'v_shape',        label: '7: V-WEDGE' },
-  { key: 'negative_space', label: '8: NEGATIVE SPACE' }
-];
-
 let SHOTS = [], CUR = 0, SUB = 0;
-let PLAYING = true, SOUND_ON = false;
-let STRIP_CACHE = {};
+let PLAYING = true, SOUND_ON = false, SHOW_GRID = true, RULE_MODE = 'AUTO';
 
 async function init() {
   const res = await fetch('wargames-stgl-ir.json');
@@ -242,11 +219,28 @@ async function init() {
   requestAnimationFrame(loop);
 }
 
+function toggleGrid() {
+  SHOW_GRID = !SHOW_GRID;
+  document.body.classList.toggle('hide-grid', !SHOW_GRID);
+  const btn = document.getElementById('btnGrid');
+  btn.textContent = SHOW_GRID ? '[GRID OVERLAY: ON]' : '[GRID OVERLAY: OFF]';
+  btn.classList.toggle('on', SHOW_GRID);
+}
+
+function setRuleMode(m) {
+  RULE_MODE = m;
+  document.querySelectorAll('#ruleBar button[data-rule]').forEach(b => {
+    b.classList.toggle('on', b.getAttribute('data-rule') === m);
+  });
+  const sh = SHOTS[CUR];
+  if (sh && sh.frames_8 && sh.frames_8[SUB]) renderSVG(sh, sh.frames_8[SUB]);
+}
+
 function toggleSound() {
   SOUND_ON = !SOUND_ON;
   const btn = document.getElementById('btnSound');
-  btn.textContent = SOUND_ON ? '[SOUND: ON]' : '[SOUND: OFF]';
-  btn.classList.toggle('on', SOUND_ON);
+  btn.textContent = SOUND_ON ? '[SOUND: ON]' : '[UNMUTE SOUND]';
+  btn.classList.toggle('on', !SOUND_ON);
   if (SHOTS[CUR]) syncAudio(SHOTS[CUR]);
 }
 
@@ -266,16 +260,13 @@ function togglePlay() {
   btn.textContent = PLAYING ? '[PAUSE]' : '[PLAY]';
   btn.classList.toggle('on', PLAYING);
   const vid = document.getElementById('stglVideo');
-  const canvas = document.getElementById('frameCanvas');
   const aud = document.getElementById('sceneAudio');
   if (PLAYING) {
-    canvas.style.display = 'none';
     vid.play().catch(() => {});
     if (SHOTS[CUR]) syncAudio(SHOTS[CUR]);
   } else {
     vid.pause();
     aud.pause();
-    if (SHOTS[CUR]) drawSubframe(SHOTS[CUR].strip, SUB);
   }
 }
 
@@ -284,7 +275,7 @@ function renderFilmstrip() {
   el.innerHTML = SHOTS.map((s, i) => `
     <div class="tile-16x9 ${i === CUR ? 'active' : ''}" id="ftile_${i}" onclick="selectShot(${i})">
       <img src="${s.thumb}" loading="lazy" alt="">
-      <div class="micro-tag" style="top:auto;bottom:2px;left:2px;font-size:7.5px;">${s.id}</div>
+      <div class="tile-id">${s.id}</div>
     </div>
   `).join('');
 }
@@ -295,7 +286,7 @@ function selectShot(idx) {
   const sh = SHOTS[CUR];
 
   document.getElementById('shotNum').textContent =
-    `${String(CUR+1).padStart(3,'0')}/${String(SHOTS.length).padStart(3,'0')}`;
+    `${String(CUR+1).padStart(3,'0')} / ${String(SHOTS.length).padStart(3,'0')}`;
 
   document.querySelectorAll('#filmstrip .tile-16x9').forEach((t, i) => t.classList.toggle('active', i === CUR));
   const tile = document.getElementById(`ftile_${CUR}`);
@@ -304,10 +295,10 @@ function selectShot(idx) {
   const vid = document.getElementById('stglVideo');
   vid.src = sh.video;
   vid.currentTime = 0;
-  if (PLAYING) {
-    document.getElementById('frameCanvas').style.display = 'none';
-    vid.play().catch(() => {});
-  }
+  if (PLAYING) vid.play().catch(() => {});
+
+  document.getElementById('hudSub').textContent =
+    `${sh.who ? sh.who + ': ' : ''}"${sh.fulcrum_line || ''}"`;
 
   renderStrip8(sh);
   selectSubframe(0);
@@ -323,24 +314,23 @@ function renderStrip8(sh) {
   grid.innerHTML = frames.map((f, k) => {
     const [bx, by, bw, bh] = f.jev_box || [0.3, 0.3, 0.4, 0.4];
     return `
-      <div class="f-cell ${k === SUB ? 'active' : ''}" id="fCell_${k}" onclick="onTapSubframe(${k})">
+      <div class="f-card ${k === SUB ? 'active' : ''}" id="fCell_${k}" onclick="onTapSubframe(${k})">
         <img class="f-strip-img" src="${sh.strip}" style="left:${-(k*100)}%;">
         <svg viewBox="0 0 160 90" preserveAspectRatio="none">
-          <rect x="${bx*W}" y="${by*H}" width="${bw*W}" height="${bh*H}" fill="none" stroke="#ffb000" stroke-width="1.8"/>
-          <circle cx="${f.u*W}" cy="${f.v*H}" r="3.5" fill="#00e5ff" stroke="#fff" stroke-width="0.8"/>
+          <rect x="${bx*W}" y="${by*H}" width="${bw*W}" height="${bh*H}" fill="none" stroke="#ffb000" stroke-width="1.6"/>
+          <circle cx="${f.u*W}" cy="${f.v*H}" r="3" fill="#00e5ff" stroke="#fff" stroke-width="0.6"/>
         </svg>
-        <div class="micro-tag" style="font-size:8px;padding:0 3px;">f${k+1}/8</div>
+        <div class="f-num">f${k+1}</div>
       </div>
     `;
   }).join('');
 }
 
 function onTapSubframe(k) {
-  PLAYING = false;
-  document.getElementById('btnPlay').textContent = '[PLAY]';
-  document.getElementById('btnPlay').classList.remove('on');
-  document.getElementById('stglVideo').pause();
-  document.getElementById('sceneAudio').pause();
+  const vid = document.getElementById('stglVideo');
+  if (vid.duration > 0) {
+    vid.currentTime = ((k + 0.2) / 8.0) * vid.duration;
+  }
   selectSubframe(k);
 }
 
@@ -348,35 +338,13 @@ function selectSubframe(k) {
   const sh = SHOTS[CUR];
   if (!sh || !sh.frames_8 || !sh.frames_8[k]) return;
   SUB = k;
-  document.querySelectorAll('.f-cell').forEach((c, idx) => c.classList.toggle('active', idx === k));
-  const f = sh.frames_8[k];
-  if (!PLAYING) drawSubframe(sh.strip, k);
-  renderSVG(sh, f);
-  renderArmWall8(sh, f, k);
-}
-
-function drawSubframe(stripUrl, k) {
-  const canvas = document.getElementById('frameCanvas');
-  const ctx = canvas.getContext('2d');
-  let im = STRIP_CACHE[stripUrl];
-  const paint = (img) => {
-    const fw = img.naturalWidth / 8, fh = img.naturalHeight;
-    canvas.style.display = 'block';
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, k * fw, 0, fw, fh, 0, 0, canvas.width, canvas.height);
-  };
-  if (!im) {
-    im = new Image();
-    im.onload = () => { STRIP_CACHE[stripUrl] = im; if (!PLAYING) paint(im); };
-    im.src = stripUrl;
-  } else if (im.complete) {
-    paint(im);
-  }
+  document.querySelectorAll('.f-card').forEach((c, idx) => c.classList.toggle('active', idx === k));
+  renderSVG(sh, sh.frames_8[k]);
 }
 
 function singleRuleSvg(rule, f, W, H, col) {
   const ux = f.u * W, uy = f.v * H;
-  const dot = `<circle cx="${ux}" cy="${uy}" r="4" fill="#00e5ff" stroke="#fff" stroke-width="0.8"/>`;
+  const dot = `<circle cx="${ux}" cy="${uy}" r="3.5" fill="#00e5ff" stroke="#fff" stroke-width="0.8"/>`;
   if (rule === 'golden_spiral') {
     const gn = f.focal_node || [0.618, 0.382];
     const gx = gn[0]*W, gy = gn[1]*H;
@@ -385,75 +353,50 @@ function singleRuleSvg(rule, f, W, H, col) {
       const r = W * 0.42 * Math.exp(-0.34 * t);
       pts.push(`${(gx + r*Math.cos(t)).toFixed(1)},${(gy + r*Math.sin(t)*(H/W)).toFixed(1)}`);
     }
-    return `<polyline points="${pts.join(' ')}" fill="none" stroke="${col}" stroke-width="2"/><circle cx="${gx}" cy="${gy}" r="5" fill="none" stroke="${col}" stroke-width="1.8"/>${dot}`;
+    return `<polyline points="${pts.join(' ')}" fill="none" stroke="${col}" stroke-width="1.5"/><circle cx="${gx}" cy="${gy}" r="4.5" fill="none" stroke="${col}" stroke-width="1.5"/>${dot}`;
   }
   if (rule === 'rule_of_thirds') {
-    return `<line x1="${W/3}" y1="0" x2="${W/3}" y2="${H}" stroke="${col}" stroke-width="1.6"/><line x1="${2*W/3}" y1="0" x2="${2*W/3}" y2="${H}" stroke="${col}" stroke-width="1.6"/><line x1="0" y1="${H/3}" x2="${W}" y2="${H/3}" stroke="${col}" stroke-width="1.6"/><line x1="0" y1="${2*H/3}" x2="${W}" y2="${2*H/3}" stroke="${col}" stroke-width="1.6"/>${dot}`;
+    return `<line x1="${W/3}" y1="0" x2="${W/3}" y2="${H}" stroke="${col}" stroke-width="1.2"/><line x1="${2*W/3}" y1="0" x2="${2*W/3}" y2="${H}" stroke="${col}" stroke-width="1.2"/><line x1="0" y1="${H/3}" x2="${W}" y2="${H/3}" stroke="${col}" stroke-width="1.2"/><line x1="0" y1="${2*H/3}" x2="${W}" y2="${2*H/3}" stroke="${col}" stroke-width="1.2"/>${dot}`;
   }
   if (rule === 's_curve' && f.s_curve_bezier) {
     const b = f.s_curve_bezier;
-    return `<path d="M ${b[0][0]*W} ${b[0][1]*H} C ${b[1][0]*W} ${b[1][1]*H}, ${b[2][0]*W} ${b[2][1]*H}, ${b[3][0]*W} ${b[3][1]*H}" fill="none" stroke="${col}" stroke-width="2.2"/>${dot}`;
+    return `<path d="M ${b[0][0]*W} ${b[0][1]*H} C ${b[1][0]*W} ${b[1][1]*H}, ${b[2][0]*W} ${b[2][1]*H}, ${b[3][0]*W} ${b[3][1]*H}" fill="none" stroke="${col}" stroke-width="1.8"/>${dot}`;
   }
   if (rule === 'symmetry') {
-    return `<line x1="${W*0.5}" y1="0" x2="${W*0.5}" y2="${H}" stroke="${col}" stroke-width="1.8"/><line x1="0" y1="${H*0.5}" x2="${W}" y2="${H*0.5}" stroke="${col}" stroke-width="1.8"/>${dot}`;
+    return `<line x1="${W*0.5}" y1="0" x2="${W*0.5}" y2="${H}" stroke="${col}" stroke-width="1.4"/><line x1="0" y1="${H*0.5}" x2="${W}" y2="${H*0.5}" stroke="${col}" stroke-width="1.4"/>${dot}`;
   }
   if (rule === 'centered') {
-    return `<circle cx="${W*0.5}" cy="${H*0.5}" r="${H*0.28}" fill="none" stroke="${col}" stroke-width="1.8"/>${dot}`;
+    return `<circle cx="${W*0.5}" cy="${H*0.5}" r="${H*0.28}" fill="none" stroke="${col}" stroke-width="1.5"/>${dot}`;
   }
   if (rule === 'frame_in_frame') {
-    return `<rect x="${0.12*W}" y="${0.12*H}" width="${0.76*W}" height="${0.76*H}" fill="none" stroke="${col}" stroke-width="2"/>${dot}`;
+    return `<rect x="${0.12*W}" y="${0.12*H}" width="${0.76*W}" height="${0.76*H}" fill="none" stroke="${col}" stroke-width="1.6"/>${dot}`;
   }
   if (rule === 'v_shape') {
     return f.v_orientation === 'A_PYRAMID'
-      ? `<polyline points="0,${H} ${W*0.5},${H*0.14} ${W},${H}" fill="none" stroke="${col}" stroke-width="2"/>${dot}`
-      : `<polyline points="0,0 ${W*0.5},${H*0.86} ${W},0" fill="none" stroke="${col}" stroke-width="2"/>${dot}`;
-  }
-  if (rule === 'negative_space' && f.negative_space_zone && f.negative_space_zone.polygon) {
-    const poly = f.negative_space_zone.polygon.map(pt => `${pt[0]*W},${pt[1]*H}`).join(' ');
-    return `<polygon points="${poly}" fill="rgba(0,229,255,0.18)" stroke="${col}" stroke-width="1.8"/>${dot}`;
+      ? `<polyline points="0,${H} ${W*0.5},${H*0.14} ${W},${H}" fill="none" stroke="${col}" stroke-width="1.6"/>${dot}`
+      : `<polyline points="0,0 ${W*0.5},${H*0.86} ${W},0" fill="none" stroke="${col}" stroke-width="1.6"/>${dot}`;
   }
   return dot;
-}
-
-function renderArmWall8(sh, f, k) {
-  const wall = document.getElementById('armWall');
-  const winArm = f.primary_armature || (sh.spatial_grid && sh.spatial_grid.armature) || 'golden_spiral';
-  const scores = f.scores || {};
-  wall.innerHTML = RULES.map(rObj => {
-    const isWin = rObj.key === winArm;
-    const col = isWin ? '#ffb000' : '#33ff77';
-    const sc = Number(scores[rObj.key] || 0);
-    return `
-      <div class="frame-16x9 ${isWin ? 'win' : ''}" onclick="stepShot(1)">
-        <img class="f-strip-img" src="${sh.strip}" style="left:${-(k*100)}%;">
-        <svg viewBox="0 0 160 90" preserveAspectRatio="none">
-          ${singleRuleSvg(rObj.key, f, 160, 90, col)}
-        </svg>
-        <div class="micro-tag ${isWin ? 'amber' : ''}">${rObj.label}</div>
-        <div class="micro-tag-bl">${Math.round(sc * 100)}% MATCH</div>
-      </div>
-    `;
-  }).join('');
 }
 
 function renderSVG(sh, f) {
   const svg = document.getElementById('stglSvg');
   const W = 160, H = 90;
-  const parts = [];
   const sg = sh.spatial_grid || {};
   const winArm = f.primary_armature || sg.armature || 'golden_spiral';
+  const activeRule = RULE_MODE === 'AUTO' ? winArm : RULE_MODE;
 
-  document.getElementById('tagMaster').textContent = `${sh.id} // WINNING GRID: ${winArm.replace(/_/g, ' ').toUpperCase()}`;
-  document.getElementById('tagMasterSub').textContent = `f${f.f}/8 · dot(${f.u.toFixed(2)}, ${f.v.toFixed(2)}) · beat ${f.tau}`;
+  document.getElementById('hudTop').textContent =
+    `${sh.id} (${sh.shot_id}) // GRID: ${activeRule.replace(/_/g, ' ').toUpperCase()} · f${f.f}/8`;
 
-  parts.push(singleRuleSvg(winArm, f, W, H, '#ffb000'));
+  const parts = [singleRuleSvg(activeRule, f, W, H, '#ffb000')];
 
   if (f.jev_box) {
     const [bx, by, bw, bh] = f.jev_box;
     const tracePts = (sh.frames_8 || []).map(fr => `${fr.u*W},${fr.v*H}`).join(' ');
     parts.push(`
-      <polyline points="${tracePts}" fill="none" stroke="#00e5ff" stroke-width="1.6" stroke-dasharray="3 2"/>
-      <rect x="${bx*W}" y="${by*H}" width="${bw*W}" height="${bh*H}" fill="rgba(255, 176, 0, 0.08)" stroke="#ffb000" stroke-width="1.8"/>
+      <polyline points="${tracePts}" fill="none" stroke="#00e5ff" stroke-width="1.2" stroke-dasharray="3 2"/>
+      <rect x="${bx*W}" y="${by*H}" width="${bw*W}" height="${bh*H}" fill="none" stroke="#ffb000" stroke-width="1.4"/>
     `);
   }
 

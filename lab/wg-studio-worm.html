@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>3D WORM CINEMA // V(u,v,tau)</title>
+<title>WARGAMES // CINEMA + WORM TRACE</title>
 <style>
   :root {
     --bg: #000000;
     --fg: #33ff77;
-    --fg-bright: #c8ffe0;
-    --fg-dim: #1b6b36;
-    --border: #0e381c;
+    --fg-bright: #d0ffe4;
+    --fg-dim: #1d6b38;
+    --border: #0f381d;
     --amber: #ffb000;
     --cyan: #00e5ff;
     --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
@@ -19,46 +19,28 @@
   html, body {
     width: 100%; height: 100%; overflow: hidden;
     background: #000; color: var(--fg);
-    font-family: var(--mono); font-size: 10px;
+    font-family: var(--mono); font-size: 11px;
     user-select: none; -webkit-user-select: none;
   }
 
   .app {
     display: grid;
-    grid-template-rows: 26px 1fr auto 74px;
+    grid-template-rows: 32px 1fr 84px 64px;
     width: 100vw; height: 100vh;
     background: #000;
   }
 
-  /* 1. COMPACT VISUAL KEY / LEGEND BAR (EXPLAINS DOTS, CIRCLE, COLORS) */
-  .legend-bar {
+  /* 1. TOP TRANSPORT & LENS BAR */
+  .topbar {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 8px; border-bottom: 1px solid var(--border);
-    background: #020804; overflow-x: auto; white-space: nowrap; gap: 12px;
+    padding: 0 10px; border-bottom: 1px solid var(--border);
+    background: #020804; overflow-x: auto; white-space: nowrap; gap: 10px;
   }
-  .leg-items { display: flex; align-items: center; gap: 12px; }
-  .leg-item { display: inline-flex; align-items: center; gap: 5px; color: #99e6b3; font-size: 9.5px; }
-  .sym-dot {
-    width: 8px; height: 8px; background: var(--cyan);
-    border: 1px solid #fff; display: inline-block;
-  }
-  .sym-circle {
-    width: 12px; height: 9px; border: 2px solid var(--amber);
-    display: inline-block;
-  }
-  .sym-spine {
-    width: 16px; height: 2px; background: var(--cyan); display: inline-block;
-  }
-  .sym-swatch {
-    width: 12px; height: 9px;
-    background: linear-gradient(90deg, #ff5533 50%, #1a334d 50%);
-    border: 1px solid #fff; display: inline-block;
-  }
-  .nav-btns { display: flex; align-items: center; gap: 4px; }
+  .bar-group { display: flex; align-items: center; gap: 4px; }
   .btn {
-    font-family: var(--mono); font-size: 9.5px;
+    font-family: var(--mono); font-size: 10px;
     background: #000; color: var(--fg);
-    border: 1px solid var(--fg-dim); padding: 2px 6px;
+    border: 1px solid var(--fg-dim); padding: 3px 8px;
     cursor: pointer; text-decoration: none;
   }
   .btn:hover, .btn.on { background: var(--fg); color: #000; font-weight: 700; }
@@ -67,129 +49,108 @@
   .btn.cyan { color: var(--cyan); border-color: #006677; }
   .btn.cyan.on, .btn.cyan:hover { background: var(--cyan); color: #000; }
 
-  /* 2. MAIN STAGE: LEFT (1983 + 3D WORM) + RIGHT (5x2 WALL OF 10 CUTS)
-     EVERY VIDEO & FRAME LOCKED STRICTLY TO 16:9 */
-  .main-stage {
-    display: grid;
-    grid-template-columns: 1.08fr 1.42fr;
-    gap: 6px; padding: 6px;
-    min-height: 0; overflow: hidden; align-items: center;
-    background: #000;
-  }
-
-  .left-pair {
+  /* 2. MAIN CINEMA STAGE: TWO HUGE, CLEAN, UNCLUTTERED 16:9 VIDEO SCREENS */
+  .cinema-stage {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px; width: 100%; align-items: center;
+    gap: 10px; padding: 10px 14px;
+    background: #000; align-items: center; justify-items: center;
+    min-height: 0; overflow: hidden;
   }
-
-  /* STRICT 16:9 FRAME CONTAINER — NEVER STRETCHES OR CROPS */
-  .frame-16x9 {
+  .screen-wrap {
+    width: 100%; max-width: 100%;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .screen-head {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 10px; color: #99e6b3; padding: 0 2px;
+  }
+  .video-16x9 {
     position: relative;
     width: 100%;
     aspect-ratio: 16 / 9;
-    background: #030905;
+    background: #000;
+    border: 1px solid var(--fg-dim);
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .video-16x9 video,
+  .video-16x9 img.vid-fallback {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: contain;
+    background: #000;
+    display: block;
+  }
+  /* Optional subtle overlay on the video — OFF or super subtle by default so the film is 100% watchable */
+  .video-16x9 svg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 10;
+    opacity: 0.45;
+    transition: opacity 0.2s;
+  }
+  body.hide-overlay .video-16x9 svg { opacity: 0; }
+
+  .sub-bar {
+    min-height: 22px;
+    padding: 3px 6px;
+    background: #030a05;
+    border: 1px solid var(--border);
+    color: var(--fg-bright);
+    font-size: 11px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* 3. STILL HORIZONTAL WORM TRACK (f1 -> f8 LEFT TO RIGHT, NEVER SPINS!) */
+  .worm-track-row {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px; padding: 4px 14px;
+    border-top: 1px solid var(--border);
+    background: #020603;
+    position: relative;
+    align-items: center;
+  }
+  .f-card {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
     border: 1px solid var(--border);
     overflow: hidden;
     cursor: pointer;
   }
-  .frame-16x9.active {
+  .f-card.active {
     border: 2px solid var(--amber);
   }
-  .frame-16x9 video,
-  .frame-16x9 img.vid-thumb,
-  .frame-16x9 canvas {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    object-fit: fill; /* Source is 16:9 and container is 16:9 -> exact 1:1 geometry match */
-    display: block;
-  }
-  .frame-16x9 svg {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    pointer-events: none; z-index: 10;
-  }
-
-  /* TINY CORNER MICRO-BADGE */
-  .micro-tag {
-    position: absolute; top: 3px; left: 3px; z-index: 15;
-    background: rgba(0, 0, 0, 0.78);
-    border: 1px solid rgba(51, 255, 119, 0.35);
-    padding: 1px 4px; font-size: 8.5px; color: var(--fg-bright);
-    pointer-events: none; letter-spacing: 0.03em;
-  }
-  .micro-tag.amber { color: var(--amber); border-color: rgba(255, 176, 0, 0.45); }
-  .micro-tag.cyan { color: var(--cyan); border-color: rgba(0, 229, 255, 0.45); }
-  .micro-tag-bl {
-    position: absolute; bottom: 3px; left: 3px; z-index: 15;
-    background: rgba(0, 0, 0, 0.78);
-    padding: 1px 4px; font-size: 8px; color: #99e6b3;
-    pointer-events: none; display: flex; align-items: center; gap: 4px;
-  }
-  .sw-dot {
-    width: 8px; height: 8px; display: inline-block; border: 1px solid #fff;
-  }
-
-  /* 5x2 WALL OF ALL 10 CUTS — EVERY CELL STRICTLY 16:9 */
-  .wall-10 {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 4px; width: 100%; align-content: center;
-  }
-
-  /* 3. ROW 3: 8 SUB-FRAMES (f1..f8) — EVERY SLICE STRICTLY 16:9 */
-  .strip-row-wrap {
-    padding: 4px 6px;
-    border-top: 1px solid var(--border);
-    background: #020603;
-  }
-  .strip-8 {
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 4px; width: 100%;
-  }
-  .f-cell {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    background: #000;
-    border: 1px solid var(--border);
-    overflow: hidden; cursor: pointer;
-  }
-  .f-cell.active { border: 2px solid var(--cyan); }
   .f-strip-img {
     position: absolute; top: 0; height: 100%; width: 800%; max-width: none;
-    opacity: 0.84;
+    opacity: 0.85;
   }
-  .f-cell.active .f-strip-img { opacity: 1; }
-  .f-cell svg {
+  .f-card.active .f-strip-img { opacity: 1; }
+  .f-card svg {
     position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;
   }
-  .kalmus-chip {
+  .f-num {
+    position: absolute; top: 2px; left: 3px; z-index: 8;
+    background: rgba(0,0,0,0.75); padding: 0 3px; font-size: 8.5px; color: var(--fg-bright);
+  }
+  .f-color-bar {
     position: absolute; bottom: 0; left: 0; right: 0; height: 4px; z-index: 8;
     display: grid; grid-template-columns: 1fr 1fr;
   }
 
-  /* 4. ROW 4: 105-BEAT FILMSTRIP (ALL TILES STRICTLY 16:9) + RADIAL WHEEL */
-  .bottom-row {
-    display: grid;
-    grid-template-columns: 74px 1fr;
-    border-top: 1px solid var(--border);
-    background: #000; min-height: 0;
-  }
-  .torus-box {
-    width: 74px; height: 74px; border-right: 1px solid var(--border);
-    position: relative; background: #000; cursor: pointer;
-  }
-  .torus-box canvas { width: 100%; height: 100%; display: block; }
+  /* 4. BOTTOM 105-SCENE FILMSTRIP */
   .filmstrip {
     display: flex; align-items: center; gap: 4px;
-    overflow-x: auto; overflow-y: hidden; padding: 4px 6px;
+    overflow-x: auto; overflow-y: hidden; padding: 4px 14px;
+    border-top: 1px solid var(--border); background: #000;
     scroll-behavior: smooth;
   }
   .tile-16x9 {
     position: relative;
-    height: 62px;
+    height: 52px;
     aspect-ratio: 16 / 9;
     flex-shrink: 0;
     border: 1px solid var(--border);
@@ -201,151 +162,134 @@
   .tile-16x9:hover img { opacity: 0.95; }
   .tile-16x9.active { border: 2px solid var(--amber); }
   .tile-16x9.active img { opacity: 1; }
-  .tile-sw { position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .tile-id {
+    position: absolute; bottom: 1px; left: 2px;
+    background: rgba(0,0,0,0.8); padding: 0 3px; font-size: 8px; color: var(--fg-bright);
+  }
 
-  @media (max-width: 1024px) {
-    .app { grid-template-rows: 26px 1fr auto 62px; }
-    .main-stage {
+  @media (max-width: 960px) {
+    .app { grid-template-rows: 32px 1fr 62px 54px; }
+    .cinema-stage {
       grid-template-columns: 1fr;
       overflow-y: auto;
-      align-items: start;
+      padding: 6px; gap: 6px;
     }
-    .wall-10 { grid-template-columns: repeat(5, 1fr); }
-    .bottom-row { grid-template-columns: 62px 1fr; }
-    .torus-box { width: 62px; height: 62px; }
-    .tile-16x9 { height: 52px; }
+    .worm-track-row { padding: 3px 6px; gap: 2px; }
+    .filmstrip { padding: 3px 6px; }
+    .tile-16x9 { height: 44px; }
   }
 </style>
 </head>
 <body>
 <div class="app">
-  <!-- 1. CLEAR VISUAL KEY BAR: EXPLAINS EXACTLY WHAT DOT, CIRCLE & COLORS MEAN -->
-  <div class="legend-bar">
-    <div class="leg-items">
-      <span class="leg-item"><i class="sym-dot"></i><b>DOT (u,v)</b> = Center of action / brightness</span>
-      <span class="leg-item"><i class="sym-circle"></i><b>CIRCLE (r)</b> = Subject spread (spread of action around dot)</span>
-      <span class="leg-item"><i class="sym-spine"></i><b>LINE</b> = Path of dot from f1..f8</span>
-      <span class="leg-item"><i class="sym-swatch"></i><b>COLOR</b> = Inside circle (Core) vs Outside (Background)</span>
-    </div>
-    <div class="nav-btns">
+  <!-- 1. TOP BAR: PLAY, SOUND, 10 CUT SWITCHER, OVERLAY TOGGLE -->
+  <div class="topbar">
+    <div class="bar-group">
       <button class="btn amber on" id="btnPlay" onclick="togglePlay()">[PAUSE]</button>
-      <button class="btn cyan" id="btnSound" onclick="toggleSound()">[SOUND: OFF]</button>
+      <button class="btn cyan on" id="btnSound" onclick="toggleSound()">[UNMUTE SOUND]</button>
       <button class="btn" onclick="stepShot(-1)">[&lt; PREV]</button>
-      <span id="shotNum" style="color:var(--fg-bright);font-weight:700;padding:0 4px;">001/105</span>
+      <span id="shotNum" style="color:var(--fg-bright);font-weight:700;padding:0 4px;">001 / 105</span>
       <button class="btn" onclick="stepShot(1)">[NEXT &gt;]</button>
+      <button class="btn on" id="btnOverlay" onclick="toggleOverlay()">[DOT/CIRCLE: ON]</button>
+    </div>
+
+    <div class="bar-group" id="lensBar">
+      <span style="color:var(--amber);font-size:9.5px;margin-right:2px;">CUT:</span>
+      <button class="btn amber on" data-lens="synthesis" onclick="setLens('synthesis')">SYNTHESIS</button>
+      <button class="btn amber" data-lens="clip" onclick="setLens('clip')">CLIP</button>
+      <button class="btn amber" data-lens="vjepa" onclick="setLens('vjepa')">V-JEPA</button>
+      <button class="btn amber" data-lens="blip" onclick="setLens('blip')">BLIP</button>
+      <button class="btn amber" data-lens="cineosis" onclick="setLens('cineosis')">CINEOSIS</button>
+      <button class="btn amber" data-lens="murch" onclick="setLens('murch')">MURCH</button>
+      <button class="btn amber" data-lens="trurl" onclick="setLens('trurl')">TRURL</button>
+      <button class="btn amber" data-lens="klapaucius" onclick="setLens('klapaucius')">KLAP</button>
+      <button class="btn amber" data-lens="novelty" onclick="setLens('novelty')">NOVELTY</button>
       <a class="btn cyan" href="wg-studio-stgl.html">[4D GRID]</a>
       <a class="btn" href="wg-studio-screens.html">[68 SCREENS]</a>
     </div>
   </div>
 
-  <!-- 2. MAIN STAGE: ALL FRAMES STRICTLY 16:9 -->
-  <div class="main-stage">
-    <!-- LEFT PAIR: 1983 MASTER (16:9) + 3D WORM EXTRUSION (16:9) -->
-    <div class="left-pair">
-      <div class="frame-16x9 active" onclick="togglePlay()">
+  <!-- 2. MAIN CINEMA STAGE: TWO LARGE, CLEAN 16:9 VIDEO MONITORS -->
+  <div class="cinema-stage">
+    <!-- LEFT SCREEN: 1983 ORIGINAL FILM -->
+    <div class="screen-wrap">
+      <div class="screen-head">
+        <span id="hdrMaster" style="color:var(--fg-bright);font-weight:700;">1983 WARGAMES // S01-B01</span>
+        <span id="hdrTopo" style="color:var(--cyan);">HELICAL CORKSCREW</span>
+      </div>
+      <div class="video-16x9" onclick="togglePlay()">
         <video id="vidMaster" autoplay muted playsinline webkit-playsinline preload="auto"></video>
         <svg id="svgMaster" viewBox="0 0 160 90" preserveAspectRatio="none"></svg>
-        <div class="micro-tag" id="tagMaster">1983 MASTER // S01-B01</div>
-        <div class="micro-tag-bl" id="tagMasterCoords">
-          <i class="sw-dot" id="swMasterCore"></i>
-          <i class="sw-dot" id="swMasterShell"></i>
-          <span id="txtMasterUVR">dot(0.50,0.50) r=0.20</span>
-        </div>
       </div>
-
-      <div class="frame-16x9">
-        <canvas id="prismCanvas" width="640" height="360"></canvas>
-        <div class="micro-tag cyan" id="tagPrism">3D WORM (f1..f8 STACKED) // DRAG TO TURN</div>
-        <div class="micro-tag-bl" id="tagTopo">HELICAL CORKSCREW</div>
-      </div>
+      <div class="sub-bar" id="subMaster">Loading dialogue...</div>
     </div>
 
-    <!-- RIGHT: 5x2 WALL OF ALL 10 MONTAGE CUTS (EVERY CELL STRICTLY 16:9) -->
-    <div class="wall-10" id="wall10"></div>
-  </div>
-
-  <!-- 3. 8 SUB-FRAMES (f1..f8) OF CURRENT SHOT — EACH STRICTLY 16:9 WITH ITS DOT, CIRCLE & COLOR CHIP -->
-  <div class="strip-row-wrap">
-    <div class="strip-8" id="strip8"></div>
-  </div>
-
-  <!-- 4. BOTTOM 105-SHOT FILMSTRIP (ALL TILES STRICTLY 16:9) + COLOR WHEEL -->
-  <div class="bottom-row">
-    <div class="torus-box" onclick="onTorusTap(event)" title="105 Shots Color Wheel (Tap to jump)">
-      <canvas id="torusCanvas" width="148" height="148"></canvas>
+    <!-- RIGHT SCREEN: FOUND ARCHIVAL COUNTER-CUT -->
+    <div class="screen-wrap">
+      <div class="screen-head">
+        <span id="hdrCut" style="color:var(--amber);font-weight:700;">ARCHIVE CUT // SYNTHESIS</span>
+        <span id="hdrCutMeta" style="color:#99e6b3;">--</span>
+      </div>
+      <div class="video-16x9" onclick="nextLens()">
+        <img class="vid-fallback" id="imgCutFallback" alt="">
+        <video id="vidCut" autoplay muted playsinline webkit-playsinline preload="auto"></video>
+        <svg id="svgCut" viewBox="0 0 160 90" preserveAspectRatio="none"></svg>
+      </div>
+      <div class="sub-bar" id="subCut" style="color:var(--amber);">Click right screen or top buttons to switch among the 10 cuts</div>
     </div>
-    <div class="filmstrip" id="filmstrip"></div>
   </div>
+
+  <!-- 3. STILL HORIZONTAL WORM TRACK (f1..f8 LEFT TO RIGHT — NO SPINNING!)
+       Shows the 8 sub-frames of the shot with the Cyan Dot (action center), Circle (spread), and Core/Background Color Bar -->
+  <div class="worm-track-row" id="strip8"></div>
+
+  <!-- 4. BOTTOM 105-SCENE FILMSTRIP -->
+  <div class="filmstrip" id="filmstrip"></div>
 </div>
 
 <audio id="sceneAudio" preload="auto"></audio>
 
 <script>
-const LENSES = [
-  { key: 'synthesis', label: '01:SYNTHESIS' },
-  { key: 'clip',      label: '02:CLIP' },
-  { key: 'vjepa',     label: '03:V-JEPA' },
-  { key: 'blip',      label: '04:BLIP' },
-  { key: 'cineosis',  label: '05:CINEOSIS' },
-  { key: 'trurl',     label: '06:TRURL' },
-  { key: 'klapaucius',label: '07:KLAPAUCIUS' },
-  { key: 'murch',     label: '08:MURCH' },
-  { key: 'novelty',   label: '09:NOVELTY' },
-  { key: '1983',      label: '10:1983-CUT' }
-];
-
-let SHOTS = [], CUR = 0, TAU = 0, LENS_IDX = 0;
-let PLAYING = true, SOUND_ON = false;
-let YAW = -0.52, PITCH = 0.28, DRAGGING = false, PTR = {x:0, y:0};
-let STRIP_CACHE = {};
+const LENS_KEYS = ['synthesis','clip','vjepa','blip','cineosis','murch','trurl','klapaucius','novelty'];
+let SHOTS = [], CUR = 0, TAU = 0, LENS = 'synthesis';
+let PLAYING = true, SOUND_ON = false, SHOW_OVERLAY = true;
 
 async function init() {
   const res = await fetch('wargames-worm-volume.json');
   const data = await res.json();
   SHOTS = data.beats || [];
-  buildWall10();
   renderFilmstrip();
-  renderTorus();
-  setupPointerOrbit();
   setupKeys();
   if (SHOTS.length) selectShot(0);
   requestAnimationFrame(loop);
 }
 
-function buildWall10() {
-  const wall = document.getElementById('wall10');
-  wall.innerHTML = LENSES.map((l, i) => `
-    <div class="frame-16x9 ${i === LENS_IDX ? 'active' : ''}" id="cc_${i}" onclick="selectLens(${i})">
-      <img class="vid-thumb" id="cimg_${i}" alt="">
-      <video id="cvid_${i}" autoplay muted loop playsinline webkit-playsinline preload="metadata" style="display:none;"></video>
-      <svg id="csvg_${i}" viewBox="0 0 160 90" preserveAspectRatio="none"></svg>
-      <div class="micro-tag ${i === LENS_IDX ? 'amber' : ''}" id="ctag_${i}">${l.label}</div>
-      <div class="micro-tag-bl">
-        <i class="sw-dot" id="csw_${i}"></i>
-        <span id="cyear_${i}"></span>
-      </div>
-    </div>
-  `).join('');
+function toggleOverlay() {
+  SHOW_OVERLAY = !SHOW_OVERLAY;
+  document.body.classList.toggle('hide-overlay', !SHOW_OVERLAY);
+  const btn = document.getElementById('btnOverlay');
+  btn.textContent = SHOW_OVERLAY ? '[DOT/CIRCLE: ON]' : '[DOT/CIRCLE: OFF]';
+  btn.classList.toggle('on', SHOW_OVERLAY);
 }
 
-function selectLens(i) {
-  LENS_IDX = (i + LENSES.length) % LENSES.length;
-  document.querySelectorAll('#wall10 .frame-16x9').forEach((c, idx) => {
-    c.classList.toggle('active', idx === LENS_IDX);
-    const t = document.getElementById(`ctag_${idx}`);
-    if (t) t.classList.toggle('amber', idx === LENS_IDX);
+function setLens(l) {
+  LENS = l;
+  document.querySelectorAll('#lensBar button[data-lens]').forEach(b => {
+    b.classList.toggle('on', b.getAttribute('data-lens') === l);
   });
-  if (SHOTS[CUR]) {
-    syncWall10(SHOTS[CUR], TAU);
-    renderPrism(SHOTS[CUR], TAU);
-  }
+  if (SHOTS[CUR]) syncCutVideo(SHOTS[CUR], TAU);
+}
+
+function nextLens() {
+  const idx = (LENS_KEYS.indexOf(LENS) + 1) % LENS_KEYS.length;
+  setLens(LENS_KEYS[idx]);
 }
 
 function toggleSound() {
   SOUND_ON = !SOUND_ON;
   const btn = document.getElementById('btnSound');
-  btn.textContent = SOUND_ON ? '[SOUND: ON]' : '[SOUND: OFF]';
-  btn.classList.toggle('on', SOUND_ON);
+  btn.textContent = SOUND_ON ? '[SOUND: ON]' : '[UNMUTE SOUND]';
+  btn.classList.toggle('on', !SOUND_ON);
   if (SHOTS[CUR]) syncAudio(SHOTS[CUR]);
 }
 
@@ -365,47 +309,48 @@ function togglePlay() {
   btn.textContent = PLAYING ? '[PAUSE]' : '[PLAY]';
   btn.classList.toggle('on', PLAYING);
   const vA = document.getElementById('vidMaster');
+  const vB = document.getElementById('vidCut');
   const aud = document.getElementById('sceneAudio');
   if (PLAYING) {
     vA.play().catch(() => {});
+    vB.play().catch(() => {});
     if (SHOTS[CUR]) syncAudio(SHOTS[CUR]);
   } else {
-    vA.pause(); aud.pause();
+    vA.pause(); vB.pause(); aud.pause();
   }
 }
 
 function renderFilmstrip() {
   const el = document.getElementById('filmstrip');
-  el.innerHTML = SHOTS.map((s, i) => {
-    const col = (s.kalmus_summary && s.kalmus_summary.core_palette_8 && s.kalmus_summary.core_palette_8[3]) || '#33ff77';
-    return `
-      <div class="tile-16x9 ${i === CUR ? 'active' : ''}" id="tile_${i}" onclick="selectShot(${i})">
-        <div class="tile-sw" style="background:${col};"></div>
-        <img src="${s.thumb}" loading="lazy" alt="">
-        <div class="micro-tag" style="top:auto;bottom:2px;left:2px;font-size:7.5px;">${s.id}</div>
-      </div>
-    `;
-  }).join('');
+  el.innerHTML = SHOTS.map((s, i) => `
+    <div class="tile-16x9 ${i === CUR ? 'active' : ''}" id="tile_${i}" onclick="selectShot(${i})">
+      <img src="${s.thumb}" loading="lazy" alt="">
+      <div class="tile-id">${s.id}</div>
+    </div>
+  `).join('');
 }
 
 function renderStrip8(sh) {
   const el = document.getElementById('strip8');
   const frames = sh.worm_frames || [];
+  const W = 160, H = 90;
   el.innerHTML = frames.map((wf, k) => {
-    const W = 160, H = 90;
     const ux = wf.u * W, uy = wf.v * H, rx = wf.r * W, ry = wf.r * H;
+    const prev = k > 0 ? frames[k-1] : wf;
     return `
-      <div class="f-cell ${k === TAU ? 'active' : ''}" id="fc_${k}" onclick="onTapSubframe(${k})">
+      <div class="f-card ${k === TAU ? 'active' : ''}" id="fc_${k}" onclick="onTapSubframe(${k})"
+           title="f${k+1}: Dot=(${wf.u.toFixed(2)}, ${wf.v.toFixed(2)}), Circle r=${wf.r.toFixed(2)}">
         <img class="f-strip-img" src="${sh.strip}" style="left:${-(k*100)}%;">
         <svg viewBox="0 0 160 90" preserveAspectRatio="none">
+          <line x1="${prev.u*W}" y1="${prev.v*H}" x2="${ux}" y2="${uy}" stroke="#00e5ff" stroke-width="2"/>
           <ellipse cx="${ux}" cy="${uy}" rx="${rx}" ry="${ry}"
                    fill="${wf.core_color.hex}28" stroke="${wf.core_color.hex}" stroke-width="2"/>
           <circle cx="${ux}" cy="${uy}" r="3.5" fill="#00e5ff" stroke="#fff" stroke-width="0.8"/>
         </svg>
-        <div class="micro-tag" style="font-size:8px;padding:0 3px;">f${k+1}/8</div>
-        <div class="kalmus-chip">
-          <div style="background:${wf.core_color.hex};" title="Inside Circle Color"></div>
-          <div style="background:${wf.shell_color.hex};" title="Outside Background Color"></div>
+        <div class="f-num">f${k+1}</div>
+        <div class="f-color-bar">
+          <div style="background:${wf.core_color.hex};"></div>
+          <div style="background:${wf.shell_color.hex};"></div>
         </div>
       </div>
     `;
@@ -413,8 +358,14 @@ function renderStrip8(sh) {
 }
 
 function onTapSubframe(k) {
+  const sh = SHOTS[CUR];
+  if (!sh) return;
+  const vA = document.getElementById('vidMaster');
+  if (vA.duration > 0) {
+    vA.currentTime = ((k + 0.2) / 8.0) * vA.duration;
+  }
   setTau(k);
-  if (SHOTS[CUR]) syncWall10(SHOTS[CUR], k);
+  syncCutVideo(sh, k);
 }
 
 function selectShot(idx) {
@@ -423,31 +374,26 @@ function selectShot(idx) {
   const sh = SHOTS[CUR];
 
   document.getElementById('shotNum').textContent =
-    `${String(CUR+1).padStart(3,'0')}/${String(SHOTS.length).padStart(3,'0')}`;
+    `${String(CUR+1).padStart(3,'0')} / ${String(SHOTS.length).padStart(3,'0')}`;
 
   document.querySelectorAll('#filmstrip .tile-16x9').forEach((t, i) => t.classList.toggle('active', i === CUR));
   const tile = document.getElementById(`tile_${CUR}`);
   if (tile) tile.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-
-  if (sh.strip && !STRIP_CACHE[sh.strip]) {
-    const im = new Image();
-    im.src = sh.strip;
-    STRIP_CACHE[sh.strip] = im;
-  }
 
   const vA = document.getElementById('vidMaster');
   vA.src = sh.video;
   vA.currentTime = 0;
   if (PLAYING) vA.play().catch(() => {});
 
-  document.getElementById('tagMaster').textContent = `1983 MASTER // ${sh.id} (${sh.shot_id})`;
-  document.getElementById('tagTopo').textContent = `SHAPE: ${sh.topology.replace(/_/g, ' ')}`;
+  document.getElementById('hdrMaster').textContent = `1983 WARGAMES // ${sh.id} (${sh.shot_id}) · ${sh.book_title || ''}`;
+  document.getElementById('hdrTopo').textContent = `WORM: ${sh.topology.replace(/_/g, ' ')}`;
+  document.getElementById('subMaster').textContent =
+    `${sh.who ? sh.who + ': ' : ''}"${sh.fulcrum_line || ''}"`;
 
   renderStrip8(sh);
   setTau(0);
-  syncWall10(sh, 0);
+  syncCutVideo(sh, 0);
   syncAudio(sh);
-  renderTorus();
 }
 
 function stepShot(d) { selectShot(CUR + d); }
@@ -456,71 +402,9 @@ function setTau(k) {
   const sh = SHOTS[CUR];
   if (!sh || !sh.worm_frames || !sh.worm_frames[k]) return;
   TAU = k;
-  document.querySelectorAll('.f-cell').forEach((c, idx) => c.classList.toggle('active', idx === k));
+  document.querySelectorAll('.f-card').forEach((c, idx) => c.classList.toggle('active', idx === k));
   const wf = sh.worm_frames[k];
   renderMasterOverlay(sh, wf);
-  renderPrism(sh, k);
-}
-
-function syncWall10(sh, k) {
-  const cuts = sh.cuts_10_worms || [];
-  const W = 160, H = 90;
-  LENSES.forEach((lObj, i) => {
-    const cw = cuts.find(c => c.cut_lens === lObj.key);
-    const imgEl = document.getElementById(`cimg_${i}`);
-    const vidEl = document.getElementById(`cvid_${i}`);
-    const svgEl = document.getElementById(`csvg_${i}`);
-    const swEl  = document.getElementById(`csw_${i}`);
-    const yrEl  = document.getElementById(`cyear_${i}`);
-
-    if (!cw || !cw.subshots || !cw.subshots.length) {
-      imgEl.src = sh.thumb;
-      vidEl.style.display = 'none';
-      svgEl.innerHTML = '';
-      return;
-    }
-
-    const sIdx = Math.min(cw.subshots.length - 1, Math.floor((k / 8.0) * cw.subshots.length));
-    const sub = cw.subshots[sIdx];
-    if (sub.thumb && imgEl.dataset.src !== sub.thumb) {
-      imgEl.dataset.src = sub.thumb;
-      imgEl.src = sub.thumb;
-    }
-
-    if (swEl) swEl.style.background = sub.core_hex || cw.core_hex || '#ffb000';
-    if (yrEl) yrEl.textContent = `${sub.year || ''} · r=${(sub.r || 0.2).toFixed(2)}`;
-
-    // Play live video on the selected cut + top 3 cuts
-    const shouldPlayVid = (i === LENS_IDX || i < 3);
-    if (shouldPlayVid && sub.media_url) {
-      if (vidEl.dataset.src !== sub.media_url) {
-        vidEl.dataset.src = sub.media_url;
-        vidEl.src = sub.media_url;
-        vidEl.onloadeddata = () => {
-          vidEl.style.display = 'block';
-          if (sub.t0) { try { vidEl.currentTime = sub.t0; } catch(e) {} }
-          if (PLAYING) vidEl.play().catch(() => {});
-        };
-        vidEl.onerror = () => { vidEl.style.display = 'none'; };
-      } else if (PLAYING && vidEl.paused) {
-        vidEl.play().catch(() => {});
-      }
-    } else {
-      vidEl.pause();
-      vidEl.style.display = 'none';
-    }
-
-    // Draw clear path + Circle (spread r) + Dot (center u,v) on 160x90 16:9 canvas
-    const pt = (cw.pts_uvr && cw.pts_uvr[k]) || [sub.u || 0.5, sub.v || 0.5, sub.r || 0.22];
-    const allPts = (cw.pts_uvr || []).map(p => `${p[0]*W},${p[1]*H}`).join(' ');
-    const col = sub.core_hex || cw.core_hex || '#ffb000';
-    svgEl.innerHTML = `
-      <polyline points="${allPts}" fill="none" stroke="#00e5ff" stroke-width="1.5" opacity="0.8"/>
-      <ellipse cx="${pt[0]*W}" cy="${pt[1]*H}" rx="${pt[2]*W}" ry="${pt[2]*H}"
-               fill="${col}28" stroke="${col}" stroke-width="2"/>
-      <circle cx="${pt[0]*W}" cy="${pt[1]*H}" r="3.5" fill="#00e5ff" stroke="#fff" stroke-width="0.8"/>
-    `;
-  });
 }
 
 function renderMasterOverlay(sh, wf) {
@@ -530,210 +414,65 @@ function renderMasterOverlay(sh, wf) {
   const spine = wFrames.map(f => `${f.u*W},${f.v*H}`).join(' ');
   const ux = wf.u * W, uy = wf.v * H, rx = wf.r * W, ry = wf.r * H;
 
-  document.getElementById('swMasterCore').style.background = wf.core_color.hex;
-  document.getElementById('swMasterShell').style.background = wf.shell_color.hex;
-  document.getElementById('txtMasterUVR').textContent =
-    `f${wf.f}/8 · dot(${wf.u.toFixed(2)},${wf.v.toFixed(2)}) · circle r=${wf.r.toFixed(2)}`;
-
-  // Show all 8 dots along the path so you can see where the dot came from and where it goes
-  const dots8 = wFrames.map((f, idx) =>
-    `<circle cx="${f.u*W}" cy="${f.v*H}" r="${idx === TAU ? 4 : 2}" fill="${idx === TAU ? '#00e5ff' : '#ffffffaa'}" stroke="#000" stroke-width="0.5"/>`
-  ).join('');
-
   svg.innerHTML = `
-    <line x1="${W/3}" y1="0" x2="${W/3}" y2="${H}" stroke="rgba(51,255,119,0.2)" stroke-width="0.6"/>
-    <line x1="${2*W/3}" y1="0" x2="${2*W/3}" y2="${H}" stroke="rgba(51,255,119,0.2)" stroke-width="0.6"/>
-    <line x1="0" y1="${H/3}" x2="${W}" y2="${H/3}" stroke="rgba(51,255,119,0.2)" stroke-width="0.6"/>
-    <line x1="0" y1="${2*H/3}" x2="${W}" y2="${2*H/3}" stroke="rgba(51,255,119,0.2)" stroke-width="0.6"/>
-    <polyline points="${spine}" fill="none" stroke="#00e5ff" stroke-width="1.8"/>
+    <polyline points="${spine}" fill="none" stroke="#00e5ff" stroke-width="1.4"/>
     <ellipse cx="${ux}" cy="${uy}" rx="${rx}" ry="${ry}"
-             fill="${wf.core_color.hex}33" stroke="${wf.core_color.hex}" stroke-width="2.2"/>
-    ${dots8}
+             fill="none" stroke="${wf.core_color.hex}" stroke-width="1.8"/>
+    <circle cx="${ux}" cy="${uy}" r="3" fill="#00e5ff" stroke="#fff" stroke-width="0.6"/>
   `;
 }
 
-function proj(u, v, tau, W, H) {
-  const x0 = (u - 0.5) * 1.65;
-  const y0 = (v - 0.5) * 0.94;
-  const z0 = (tau - 0.5) * 1.95;
-  const cY = Math.cos(YAW), sY = Math.sin(YAW);
-  const x1 = x0 * cY + z0 * sY;
-  const z1 = -x0 * sY + z0 * cY;
-  const cP = Math.cos(PITCH), sP = Math.sin(PITCH);
-  const y2 = y0 * cP - z1 * sP;
-  const z2 = y0 * sP + z1 * cP;
-  const sc = Math.min(W, H) * 0.72 / (2.85 + z2 * 0.45);
-  return { x: W * 0.5 + x1 * sc, y: H * 0.52 + y2 * sc, sc, z: z2 };
-}
+function syncCutVideo(sh, k) {
+  const cw = (sh.cuts_10_worms || []).find(c => c.cut_lens === LENS) || (sh.cuts_10_worms || [])[0];
+  const vB = document.getElementById('vidCut');
+  const fb = document.getElementById('imgCutFallback');
+  const svgB = document.getElementById('svgCut');
 
-function renderPrism(sh, activeK) {
-  const canvas = document.getElementById('prismCanvas');
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  ctx.fillStyle = '#020603';
-  ctx.fillRect(0, 0, W, H);
-
-  const wFrames = sh.worm_frames || [];
-  if (!wFrames.length) return;
-
-  // 1. 3D Box Cage (f1 at front -> f8 at back)
-  const corners = [
-    [0,0,0],[1,0,0],[1,1,0],[0,1,0],
-    [0,0,1],[1,0,1],[1,1,1],[0,1,1]
-  ].map(c => proj(c[0], c[1], c[2], W, H));
-  const edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
-  ctx.strokeStyle = 'rgba(51, 255, 119, 0.28)';
-  ctx.lineWidth = 1;
-  edges.forEach(([a,b]) => {
-    ctx.beginPath(); ctx.moveTo(corners[a].x, corners[a].y); ctx.lineTo(corners[b].x, corners[b].y); ctx.stroke();
-  });
-
-  // Label f1 and f8 on the 3D box so time axis tau is crystal clear
-  ctx.fillStyle = '#00e5ff';
-  ctx.font = 'bold 11px monospace';
-  ctx.fillText('f1 (START)', corners[3].x + 4, corners[3].y - 4);
-  ctx.fillText('f8 (END)', corners[7].x + 4, corners[7].y - 4);
-
-  // 2. Actual 16:9 image slice at active frame k inside the 3D box
-  const stripImg = sh.strip ? STRIP_CACHE[sh.strip] : null;
-  if (stripImg && stripImg.complete && stripImg.naturalWidth > 0) {
-    const fw = stripImg.naturalWidth / 8, fh = stripImg.naturalHeight;
-    const wfAct = wFrames[activeK];
-    const tl = proj(0, 0, wfAct.tau_norm, W, H);
-    const br = proj(1, 1, wfAct.tau_norm, W, H);
-    ctx.save();
-    ctx.globalAlpha = 0.55;
-    ctx.drawImage(stripImg, activeK * fw, 0, fw, fh, tl.x, tl.y, br.x - tl.x, br.y - tl.y);
-    ctx.restore();
+  if (!cw || !cw.subshots || !cw.subshots.length) {
+    vB.src = sh.video;
+    fb.style.display = 'none';
+    if (PLAYING) vB.play().catch(() => {});
+    svgB.innerHTML = '';
+    return;
   }
 
-  // 3. Selected Montage Cut Worm (amber dashed spine) for comparison
-  const curLens = LENSES[LENS_IDX].key;
-  const cw = (sh.cuts_10_worms || []).find(c => c.cut_lens === curLens);
-  if (cw && cw.pts_uvr) {
-    const pts = cw.pts_uvr.map((pt, k) => proj(pt[0], pt[1], k / 7.0, W, H));
-    ctx.strokeStyle = '#ffb000';
-    ctx.lineWidth = 2.2;
-    ctx.setLineDash([4, 3]);
-    ctx.beginPath();
-    pts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
-    ctx.stroke();
-    ctx.setLineDash([]);
+  const sIdx = Math.min(cw.subshots.length - 1, Math.floor((k / 8.0) * cw.subshots.length));
+  const sub = cw.subshots[sIdx];
+
+  document.getElementById('hdrCut').textContent = `ARCHIVE CUT // ${LENS.toUpperCase()} (${sIdx+1}/${cw.subshots.length})`;
+  document.getElementById('hdrCutMeta').textContent = `${sub.title || ''} (${sub.year || ''})`;
+  document.getElementById('subCut').textContent = sub.spoken ? `"${sub.spoken}"` : `${sub.title || ''} (${sub.year || ''})`;
+
+  if (sub.thumb) { fb.src = sub.thumb; fb.style.display = 'block'; }
+  const url = sub.media_url || '';
+  if (url && vB.dataset.src !== url) {
+    vB.dataset.src = url;
+    vB.src = url;
+    vB.onloadeddata = () => {
+      fb.style.display = 'none';
+      if (sub.t0) { try { vB.currentTime = sub.t0; } catch(e) {} }
+      if (PLAYING) vB.play().catch(() => {});
+    };
+    vB.onerror = () => { fb.style.display = 'block'; };
+  } else if (PLAYING && vB.paused) {
+    vB.play().catch(() => {});
   }
 
-  // 4. The 8 Stacked Circles (f1..f8) forming the 3D Worm Tunnel
-  const rings = wFrames.map(wf => {
-    const ring = [];
-    for (let s = 0; s < 20; s++) {
-      const ang = (s / 20) * 2 * Math.PI;
-      const ru = Math.max(0.02, Math.min(0.98, wf.u + wf.r * Math.cos(ang)));
-      const rv = Math.max(0.02, Math.min(0.98, wf.v + wf.r * Math.sin(ang)));
-      ring.push(proj(ru, rv, wf.tau_norm, W, H));
-    }
-    return { ring, center: proj(wf.u, wf.v, wf.tau_norm, W, H), hex: wf.core_color.hex };
-  });
-
-  // Connect the 8 circles into a 3D tube
-  for (let k = 0; k < rings.length - 1; k++) {
-    ctx.strokeStyle = rings[k].hex;
-    ctx.globalAlpha = 0.45;
-    ctx.lineWidth = 1.2;
-    for (let s = 0; s < 20; s += 2) {
-      ctx.beginPath();
-      ctx.moveTo(rings[k].ring[s].x, rings[k].ring[s].y);
-      ctx.lineTo(rings[k+1].ring[s].x, rings[k+1].ring[s].y);
-      ctx.stroke();
-    }
-  }
-  ctx.globalAlpha = 1;
-
-  // Draw each of the 8 circles colored by its Core Color
-  rings.forEach((rg, k) => {
-    const isAct = k === activeK;
-    ctx.beginPath();
-    rg.ring.forEach((p, idx) => { if (idx === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
-    ctx.closePath();
-    ctx.fillStyle = rg.hex + (isAct ? '66' : '26');
-    ctx.fill();
-    ctx.strokeStyle = isAct ? '#ffffff' : rg.hex;
-    ctx.lineWidth = isAct ? 2.8 : 1.5;
-    ctx.stroke();
-  });
-
-  // Draw the Cyan Center Spine connecting the 8 Dots (u,v)
-  ctx.strokeStyle = '#00e5ff';
-  ctx.lineWidth = 2.8;
-  ctx.beginPath();
-  rings.forEach((rg, k) => { if (k === 0) ctx.moveTo(rg.center.x, rg.center.y); else ctx.lineTo(rg.center.x, rg.center.y); });
-  ctx.stroke();
-
-  // Draw each of the 8 Dots (f1..f8)
-  rings.forEach((rg, k) => {
-    const isAct = k === activeK;
-    ctx.beginPath();
-    ctx.arc(rg.center.x, rg.center.y, isAct ? 5.5 : 3.2, 0, 2 * Math.PI);
-    ctx.fillStyle = isAct ? '#00e5ff' : '#ffffff';
-    ctx.fill();
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  });
-}
-
-function renderTorus() {
-  const c = document.getElementById('torusCanvas'), ctx = c.getContext('2d');
-  const W = c.width, H = c.height, cx = W/2, cy = H/2, rOut = 64, rIn = 26;
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-  const N = SHOTS.length;
-  if (!N) return;
-  SHOTS.forEach((s, i) => {
-    const a0 = (i / N) * 2 * Math.PI - Math.PI / 2;
-    const a1 = ((i + 1) / N) * 2 * Math.PI - Math.PI / 2;
-    const col = (s.kalmus_summary && s.kalmus_summary.core_palette_8 && s.kalmus_summary.core_palette_8[3]) || '#33ff77';
-    ctx.beginPath();
-    ctx.arc(cx, cy, i === CUR ? rOut + 4 : rOut, a0, a1);
-    ctx.arc(cx, cy, rIn, a1, a0, true);
-    ctx.closePath();
-    ctx.fillStyle = col;
-    ctx.fill();
-  });
-}
-
-function onTorusTap(e) {
-  if (!SHOTS.length) return;
-  const r = e.currentTarget.getBoundingClientRect();
-  const dx = e.clientX - (r.left + r.width/2), dy = e.clientY - (r.top + r.height/2);
-  let ang = Math.atan2(dy, dx) + Math.PI / 2;
-  if (ang < 0) ang += 2 * Math.PI;
-  selectShot(Math.floor((ang / (2 * Math.PI)) * SHOTS.length));
-}
-
-function setupPointerOrbit() {
-  const c = document.getElementById('prismCanvas');
-  const down = (x, y) => { DRAGGING = true; PTR = {x, y}; };
-  const move = (x, y) => {
-    if (!DRAGGING) return;
-    YAW = Math.max(-1.4, Math.min(1.4, YAW + (x - PTR.x) * 0.008));
-    PITCH = Math.max(-0.85, Math.min(0.85, PITCH + (y - PTR.y) * 0.008));
-    PTR = {x, y};
-    if (SHOTS[CUR]) renderPrism(SHOTS[CUR], TAU);
-  };
-  c.addEventListener('mousedown', e => down(e.clientX, e.clientY));
-  window.addEventListener('mousemove', e => move(e.clientX, e.clientY));
-  window.addEventListener('mouseup', () => { DRAGGING = false; });
-  c.addEventListener('touchstart', e => { if (e.touches.length === 1) down(e.touches[0].clientX, e.touches[0].clientY); }, {passive:true});
-  c.addEventListener('touchmove', e => { if (e.touches.length === 1) move(e.touches[0].clientX, e.touches[0].clientY); }, {passive:true});
-  c.addEventListener('touchend', () => { DRAGGING = false; });
+  const W = 160, H = 90;
+  const pt = (cw.pts_uvr && cw.pts_uvr[k]) || [sub.u || 0.5, sub.v || 0.5, sub.r || 0.22];
+  const allPts = (cw.pts_uvr || []).map(p => `${p[0]*W},${p[1]*H}`).join(' ');
+  const col = sub.core_hex || cw.core_hex || '#ffb000';
+  svgB.innerHTML = `
+    <polyline points="${allPts}" fill="none" stroke="#ffb000" stroke-width="1.4"/>
+    <ellipse cx="${pt[0]*W}" cy="${pt[1]*H}" rx="${pt[2]*W}" ry="${pt[2]*H}"
+             fill="none" stroke="${col}" stroke-width="1.8"/>
+    <circle cx="${pt[0]*W}" cy="${pt[1]*H}" r="3" fill="#00e5ff" stroke="#fff" stroke-width="0.6"/>
+  `;
 }
 
 function loop() {
   const sh = SHOTS[CUR];
   const vA = document.getElementById('vidMaster');
-  if (!DRAGGING) {
-    YAW += 0.004;
-    if (YAW > 1.2) YAW = -1.2;
-    if (sh) renderPrism(sh, TAU);
-  }
   if (PLAYING && sh) {
     if (vA.ended) {
       selectShot(CUR + 1);
@@ -741,7 +480,7 @@ function loop() {
       const k = Math.min(7, Math.floor((vA.currentTime / vA.duration) * 8));
       if (k !== TAU) {
         setTau(k);
-        syncWall10(sh, k);
+        syncCutVideo(sh, k);
       }
     }
   }
@@ -752,8 +491,7 @@ function setupKeys() {
   window.addEventListener('keydown', e => {
     if (e.key === 'ArrowRight') { e.preventDefault(); stepShot(1); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); stepShot(-1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); selectLens(LENS_IDX - 1); }
-    else if (e.key === 'ArrowDown') { e.preventDefault(); selectLens(LENS_IDX + 1); }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); nextLens(); }
     else if (e.key === ' ') { e.preventDefault(); togglePlay(); }
   });
 }
