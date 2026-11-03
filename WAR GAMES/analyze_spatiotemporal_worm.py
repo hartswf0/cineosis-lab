@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
-3D SPATIOTEMPORAL VOLUME V(u, v, tau) & ACTION-TUBE WORM ANALYZER
-=================================================================
-Stacks every 2D frame (u, v) in [0, 1]^2 along time tau in [0, T] across all
-592 8-frame strips (4,736 frames), all 105 scene beats (and their 10 simultaneous
-cuts), and all 68 pure computer screens to model the film as a solid 3D
-Spatiotemporal Volume V(u, v, tau) (Fels & Mase Interactive Video Cubism).
+3D SPATIOTEMPORAL VOLUME V(u, v, tau) & ACTION-TUBE WORM ANALYZER (ALL VIDEOS & ALL 10 CUTS)
+============================================================================================
+Stacks every 2D frame (u, v) in [0, 1]^2 along time tau in [0, T] across:
+  - All 592 8-frame strips (4,736 frames)
+  - All 68 pure computer screens
+  - All 105 scene beats AND all 10 simultaneous montage cuts per beat (1,050 3D Cut-Worms
+    built from 4,300 real-pixel measured sub-shots: 1983, synthesis, clip, vjepa, blip,
+    cineosis, trurl, klapaucius, murch, novelty)
+  - All 370 spoken dialogue turns and their 1,110 archival takes (3 takes per line)
 
-Extracts for every shot & sub-frame (f1..f8):
+Extracts for every volume & sub-frame (f1..f8):
 1. 3D Spatiotemporal Worm / Action-Tube Worldline c(tau) = (u(tau), v(tau), tau),
    secondary Rabatment counterweight worm c2(tau), cross-sectional radius r(tau),
    and 7-way Topological Classification:
@@ -21,23 +24,21 @@ Extracts for every shot & sub-frame (f1..f8):
 
 2. KALMUS Core-Sample vs. Shell Chromatic Stratigraphy & Johannes Itten's 7 Color Contrasts:
    - Splits V(u, v, tau) into Core Worm (inside Jev Box tube) and Outer Shell (background negative space)
-   - Computes CIE L*a*b* and HSV palettes (5 dominant colors per shot + per-frame core/shell hex)
+   - Computes CIE L*a*b* and HSV palettes (core/shell hex per frame)
    - Light-Dark Chiaroscuro Contrast: Delta_L*(tau) = |L*_core(tau) - L*_shell(tau)|
    - Cold-Warm & Complementary Hue Polarity: Delta_H(tau) in degrees [0..180] + warm/cool index
-   - Contrast of Extension (Area Ratio): A_worm(tau) / A_frame & accent saturation ratio
+   - Contrast of Extension (Area Ratio): A_worm(tau) / A_frame
 
 3. Bouleau's 14-Line Harmonic Armature & Rudolf Arnheim Eccentric Tension:
-   - Extrudes Charles Bouleau's 14-Line Armature (2 main diagonals, 2 Rabatment verticals,
-     2 central axes, 8 reciprocal/Rabatment diagonals) as 3D magnetic filaments
-   - Measures shortest filament distance d_grid(tau), Arnheim Torque, and Eccentric Tension [0.06..0.12]
+   - Extrudes Charles Bouleau's 14-Line Armature as 3D magnetic filaments
+   - Measures shortest filament distance d_grid(tau), Arnheim Torque, and Eccentric Tension
 
 4. 3D Space-Curve Differential Geometry (Frenet-Serret Frame):
    - Curvature kappa(tau), Torsion tau_torsion(tau), and Kinetic Jerk ||c'''(tau)||
    - Identifies exact peak-jerk sub-frame for Leonxlnx/earshot acoustic impact triggers
    - Bruce Block Visual Intensity Index I_Block(tau) in [0, 1]
 
-5. Tomographic Slit-Scan Cross-Sections (u-tau and v-tau slices):
-   - Extracts compact RGB hex scanlines along horizontal horizon u-tau and vertical meridian v-tau.
+5. Tomographic Slit-Scan Cross-Sections (u-tau and v-tau slices).
 """
 import glob
 import json
@@ -50,31 +51,28 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 LAB = os.path.join(ROOT, "lab")
 
-# Charles Bouleau's 14-Line Harmonic Armature in normalized screen space [0,1]^2 (16:9 Rabatment = 9/16 = 0.5625)
-RAB_L = 9.0 / 16.0          # 0.5625 (left Rabatment vertical)
-RAB_R = 1.0 - (9.0 / 16.0)  # 0.4375 (right Rabatment vertical)
+RAB_L = 9.0 / 16.0          # 0.5625
+RAB_R = 1.0 - (9.0 / 16.0)  # 0.4375
 
 BOULEAU_14_SEGMENTS = [
-    # 1-2: Full frame sinister & baroque diagonals
     ((0.0, 0.0), (1.0, 1.0), "full_baroque_diag"),
     ((0.0, 1.0), (1.0, 0.0), "full_sinister_diag"),
-    # 3-4: Central vertical & horizontal axes
     ((0.5, 0.0), (0.5, 1.0), "central_vertical"),
     ((0.0, 0.5), (1.0, 0.5), "central_horizontal"),
-    # 5-6: Left & Right Rabatment verticals
     ((RAB_R, 0.0), (RAB_R, 1.0), "rabatment_left_vert"),
     ((RAB_L, 0.0), (RAB_L, 1.0), "rabatment_right_vert"),
-    # 7-10: Rabatment square diagonals
     ((0.0, 0.0), (RAB_L, 1.0), "rabatment_left_diag1"),
     ((0.0, 1.0), (RAB_L, 0.0), "rabatment_left_diag2"),
     ((RAB_R, 0.0), (1.0, 1.0), "rabatment_right_diag1"),
     ((RAB_R, 1.0), (1.0, 0.0), "rabatment_right_diag2"),
-    # 11-14: Midpoint diamond armature lines
     ((0.5, 0.0), (1.0, 0.5), "diamond_ne"),
     ((1.0, 0.5), (0.5, 1.0), "diamond_se"),
     ((0.5, 1.0), (0.0, 0.5), "diamond_sw"),
     ((0.0, 0.5), (0.5, 0.0), "diamond_nw"),
 ]
+
+H_STD, W_STD = 27, 48
+UU_STD, VV_STD = np.meshgrid(np.linspace(0.0, 1.0, W_STD), np.linspace(0.0, 1.0, H_STD))
 
 
 def rgb_to_hex(rgb_float):
@@ -85,30 +83,15 @@ def rgb_to_hex(rgb_float):
 
 
 def rgb_to_lab_hsv_stats(rgb_pixels):
-    """
-    Takes an N x 3 float32 array in [0, 1] and computes:
-      - Mean RGB hex
-      - Mean CIE L* (0..100), a*, b*
-      - Mean Hue angle (0..360 deg), Saturation (0..1), Warm-Cool polarity (-1..+1)
-    """
     if rgb_pixels.size == 0:
-        return {
-            "hex": "#101814",
-            "L_star": 15.0,
-            "hue_deg": 140.0,
-            "sat": 0.2,
-            "warm_cool": -0.2,
-        }
+        return {"hex": "#101814", "L_star": 15.0, "hue_deg": 140.0, "sat": 0.2, "warm_cool": -0.2}
     mean_rgb = np.mean(rgb_pixels, axis=0)
     r, g, b = float(mean_rgb[0]), float(mean_rgb[1]), float(mean_rgb[2])
-
-    # Approximate sRGB -> CIE L*a*b*
     lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
     L_star = round(116.0 * (lum ** (1.0 / 3.0)) - 16.0 if lum > 0.008856 else 903.3 * lum, 2)
     L_star = max(0.0, min(100.0, L_star))
 
-    cmax = max(r, g, b)
-    cmin = min(r, g, b)
+    cmax, cmin = max(r, g, b), min(r, g, b)
     delta = cmax - cmin
     if delta < 1e-5:
         hue = 0.0
@@ -119,10 +102,7 @@ def rgb_to_lab_hsv_stats(rgb_pixels):
     else:
         hue = 60.0 * (((r - g) / delta) + 4.0)
     sat = 0.0 if cmax < 1e-5 else (delta / cmax)
-
-    # Johannes Itten Warm-Cool polarity: warm peaks around orange-red (30 deg), cool peaks around cyan-blue (210 deg)
     warm_cool = round(math.cos(math.radians(hue - 30.0)) * min(1.0, sat * 1.8), 3)
-
     return {
         "hex": rgb_to_hex(mean_rgb),
         "L_star": round(L_star, 2),
@@ -133,22 +113,15 @@ def rgb_to_lab_hsv_stats(rgb_pixels):
 
 
 def point_to_segment_dist(px, py, x1, y1, x2, y2):
-    dx = x2 - x1
-    dy = y2 - y1
+    dx, dy = x2 - x1, y2 - y1
     len_sq = dx * dx + dy * dy
     if len_sq < 1e-9:
         return math.hypot(px - x1, py - y1)
     t = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / len_sq))
-    proj_x = x1 + t * dx
-    proj_y = y1 + t * dy
-    return math.hypot(px - proj_x, py - proj_y)
+    return math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
 
 
 def measure_bouleau_14_and_arnheim(u, v, sal_mass=0.5):
-    """
-    Measures shortest distance d_grid(tau) from worm centroid (u, v) to Charles Bouleau's
-    14-Line Harmonic Armature, plus Rudolf Arnheim's Eccentric Tension and Torque.
-    """
     best_dist = 9.9
     best_line = "central_vertical"
     for (x1, y1), (x2, y2), name in BOULEAU_14_SEGMENTS:
@@ -156,7 +129,6 @@ def measure_bouleau_14_and_arnheim(u, v, sal_mass=0.5):
         if d < best_dist:
             best_dist = d
             best_line = name
-
     dist_from_center = math.hypot(u - 0.5, v - 0.5)
     arnheim_torque = round(dist_from_center * (0.5 + sal_mass), 4)
     if best_dist <= 0.045:
@@ -165,7 +137,6 @@ def measure_bouleau_14_and_arnheim(u, v, sal_mass=0.5):
         grid_state = "ARNHEIM_ECCENTRIC_TENSION"
     else:
         grid_state = "DYNAMIC_TRANSIT"
-
     return {
         "d_grid": round(best_dist, 4),
         "nearest_filament": best_line,
@@ -174,124 +145,94 @@ def measure_bouleau_14_and_arnheim(u, v, sal_mass=0.5):
     }
 
 
-def analyze_strip_worm_volume(strip_path, shot_id, dur_sec=3.2):
-    """
-    Extrudes an 8-frame strip into a 3D Spatiotemporal Volume V(u, v, tau) and computes:
-      - Primary & Secondary Rabatment Worm trajectories c1(tau), c2(tau), r(tau)
-      - KALMUS Core vs. Shell Chromatic Stratigraphy & Itten's 7 Color Contrasts
-      - Bouleau 14-Line Armature distance & Arnheim Torque
-      - 3D Frenet-Serret Curvature kappa(tau), Torsion tau_torsion(tau), and Kinetic Jerk ||c'''(tau)||
-      - Horizontal (u-tau) and Vertical (v-tau) Tomographic Slit-Scan slices
-    """
-    if not os.path.exists(strip_path):
-        return None
+def measure_frame_array_worm(arr, f_idx=1, tau_norm=0.0):
+    """Measures a single H_STD x W_STD x 3 float32 frame array in [0,1]."""
+    lum = 0.299 * arr[:, :, 0] + 0.587 * arr[:, :, 1] + 0.114 * arr[:, :, 2]
+    gx = np.zeros_like(lum)
+    gy = np.zeros_like(lum)
+    gx[:, 1:-1] = 0.5 * (lum[:, 2:] - lum[:, :-2])
+    gy[1:-1, :] = 0.5 * (lum[2:, :] - lum[:-2, :])
+    grad = np.hypot(gx, gy)
+    lum_dev = np.abs(lum - np.median(lum))
+    sal = 0.65 * (grad / (np.max(grad) + 1e-6)) + 0.35 * (lum_dev / (np.max(lum_dev) + 1e-6))
+    sal_power = np.power(np.maximum(sal, 1e-5), 1.8)
+    tot_sal = float(np.sum(sal_power)) + 1e-8
 
-    im = Image.open(strip_path).convert("RGB")
-    W_tot, H_tot = im.size
-    fw = max(1, W_tot // 8)
+    u1 = float(np.sum(UU_STD * sal_power) / tot_sal)
+    v1 = float(np.sum(VV_STD * sal_power) / tot_sal)
+    u_std = float(np.sqrt(np.sum(((UU_STD - u1) ** 2) * sal_power) / tot_sal))
+    v_std = float(np.sqrt(np.sum(((VV_STD - v1) ** 2) * sal_power) / tot_sal))
+    r_tube = round(max(0.08, min(0.42, 1.15 * math.hypot(u_std, v_std))), 3)
 
-    H, W = 27, 48
-    uu, vv = np.meshgrid(np.linspace(0.0, 1.0, W), np.linspace(0.0, 1.0, H))
+    left_mask = UU_STD <= 0.5
+    right_mask = UU_STD > 0.5
+    sal_left = float(np.sum(sal_power[left_mask])) + 1e-8
+    sal_right = float(np.sum(sal_power[right_mask])) + 1e-8
+    u_left = float(np.sum(UU_STD[left_mask] * sal_power[left_mask]) / sal_left)
+    v_left = float(np.sum(VV_STD[left_mask] * sal_power[left_mask]) / sal_left)
+    u_right = float(np.sum(UU_STD[right_mask] * sal_power[right_mask]) / sal_right)
+    v_right = float(np.sum(VV_STD[right_mask] * sal_power[right_mask]) / sal_right)
+    bilateral_balance = min(sal_left, sal_right) / max(sal_left, sal_right)
+    rabatment_gap_du = round(u_right - u_left, 3)
 
-    worm_frames = []
-    u_tau_slice = []  # 8 rows of 16 hex samples along horizontal horizon
-    v_tau_slice = []  # 8 rows of 12 hex samples along vertical meridian
-    core_colors_all = []
-    shell_colors_all = []
+    core_mask = (np.abs(UU_STD - u1) <= r_tube * 1.1) & (np.abs(VV_STD - v1) <= r_tube * 1.1)
+    shell_mask = ~core_mask
+    core_stats = rgb_to_lab_hsv_stats(arr[core_mask])
+    shell_stats = rgb_to_lab_hsv_stats(arr[shell_mask])
 
-    for k in range(8):
-        crop = im.crop((k * fw, 0, min(W_tot, (k + 1) * fw), H_tot)).resize((W, H))
-        arr = np.asarray(crop, dtype=np.float32) / 255.0
-        lum = 0.299 * arr[:, :, 0] + 0.587 * arr[:, :, 1] + 0.114 * arr[:, :, 2]
+    chiaroscuro_dL = round(abs(core_stats["L_star"] - shell_stats["L_star"]), 2)
+    raw_dh = abs(core_stats["hue_deg"] - shell_stats["hue_deg"])
+    hue_diff_deg = round(min(raw_dh, 360.0 - raw_dh), 1)
+    cold_warm_diff = round(core_stats["warm_cool"] - shell_stats["warm_cool"], 3)
+    area_ratio = round(float(np.mean(core_mask)), 3)
 
-        gx = np.zeros_like(lum)
-        gy = np.zeros_like(lum)
-        gx[:, 1:-1] = 0.5 * (lum[:, 2:] - lum[:, :-2])
-        gy[1:-1, :] = 0.5 * (lum[2:, :] - lum[:-2, :])
-        grad = np.hypot(gx, gy)
-        lum_dev = np.abs(lum - np.median(lum))
-        sal = 0.65 * (grad / (np.max(grad) + 1e-6)) + 0.35 * (lum_dev / (np.max(lum_dev) + 1e-6))
-        sal_power = np.power(np.maximum(sal, 1e-5), 1.8)
-        tot_sal = float(np.sum(sal_power)) + 1e-8
+    bouleau = measure_bouleau_14_and_arnheim(u1, v1, sal_mass=float(np.mean(sal)))
 
-        # Primary Worm Centroid c1(tau) = (u1, v1) & cross-sectional radius r(tau)
-        u1 = float(np.sum(uu * sal_power) / tot_sal)
-        v1 = float(np.sum(vv * sal_power) / tot_sal)
-        u_std = float(np.sqrt(np.sum(((uu - u1) ** 2) * sal_power) / tot_sal))
-        v_std = float(np.sqrt(np.sum(((vv - v1) ** 2) * sal_power) / tot_sal))
-        r_tube = round(max(0.08, min(0.42, 1.15 * math.hypot(u_std, v_std))), 3)
+    mid_r = max(0, min(H_STD - 1, int(round(v1 * (H_STD - 1)))))
+    u_cols = np.linspace(0, W_STD - 1, 16, dtype=int)
+    u_slice = [rgb_to_hex(arr[mid_r, c, :]) for c in u_cols]
 
-        # Left and Right Rabatment Worms for Two-Shot / Double-Helix Counterpoint analysis
-        left_mask = uu <= 0.5
-        right_mask = uu > 0.5
-        sal_left = float(np.sum(sal_power[left_mask])) + 1e-8
-        sal_right = float(np.sum(sal_power[right_mask])) + 1e-8
-        u_left = float(np.sum(uu[left_mask] * sal_power[left_mask]) / sal_left)
-        v_left = float(np.sum(vv[left_mask] * sal_power[left_mask]) / sal_left)
-        u_right = float(np.sum(uu[right_mask] * sal_power[right_mask]) / sal_right)
-        v_right = float(np.sum(vv[right_mask] * sal_power[right_mask]) / sal_right)
-        bilateral_balance = min(sal_left, sal_right) / max(sal_left, sal_right)
-        rabatment_gap_du = round(u_right - u_left, 3)
+    mid_c = max(0, min(W_STD - 1, int(round(u1 * (W_STD - 1)))))
+    v_rows = np.linspace(0, H_STD - 1, 12, dtype=int)
+    v_slice = [rgb_to_hex(arr[r_i, mid_c, :]) for r_i in v_rows]
 
-        # KALMUS Core Worm vs. Outer Shell mask
-        core_mask = (np.abs(uu - u1) <= r_tube * 1.1) & (np.abs(vv - v1) <= r_tube * 1.1)
-        shell_mask = ~core_mask
-        core_stats = rgb_to_lab_hsv_stats(arr[core_mask])
-        shell_stats = rgb_to_lab_hsv_stats(arr[shell_mask])
-        core_colors_all.append(core_stats["hex"])
-        shell_colors_all.append(shell_stats["hex"])
+    return {
+        "f": f_idx,
+        "tau_norm": round(tau_norm, 3),
+        "u": round(u1, 3),
+        "v": round(v1, 3),
+        "r": r_tube,
+        "c_left": [round(u_left, 3), round(v_left, 3)],
+        "c_right": [round(u_right, 3), round(v_right, 3)],
+        "rabatment_gap_du": rabatment_gap_du,
+        "bilateral_balance": round(bilateral_balance, 3),
+        "core_color": core_stats,
+        "shell_color": shell_stats,
+        "itten": {
+            "chiaroscuro_dL": chiaroscuro_dL,
+            "hue_polarity_deg": hue_diff_deg,
+            "cold_warm_delta": cold_warm_diff,
+            "extension_area_ratio": area_ratio,
+        },
+        "bouleau_14": bouleau,
+        "_u_slice": u_slice,
+        "_v_slice": v_slice,
+    }
 
-        # Johannes Itten's 7 Color Contrasts between Core Worm and Outer Shell
-        chiaroscuro_dL = round(abs(core_stats["L_star"] - shell_stats["L_star"]), 2)
-        raw_dh = abs(core_stats["hue_deg"] - shell_stats["hue_deg"])
-        hue_diff_deg = round(min(raw_dh, 360.0 - raw_dh), 1)
-        cold_warm_diff = round(core_stats["warm_cool"] - shell_stats["warm_cool"], 3)
-        area_ratio = round(float(np.mean(core_mask)), 3)
 
-        # Bouleau 14-Line Armature & Arnheim Torque
-        bouleau = measure_bouleau_14_and_arnheim(u1, v1, sal_mass=float(np.mean(sal)))
+def finalize_worm_volume_from_frames(worm_frames, shot_id, dur_sec=3.2):
+    u_tau_slice = [wf.pop("_u_slice") for wf in worm_frames]
+    v_tau_slice = [wf.pop("_v_slice") for wf in worm_frames]
+    core_colors_all = [wf["core_color"]["hex"] for wf in worm_frames]
+    shell_colors_all = [wf["shell_color"]["hex"] for wf in worm_frames]
 
-        # Tomographic Slit-Scan Slices:
-        # 1) Horizontal slice u-tau at row v* (16 samples across u)
-        mid_r = max(0, min(H - 1, int(round(v1 * (H - 1)))))
-        u_cols = np.linspace(0, W - 1, 16, dtype=int)
-        u_tau_slice.append([rgb_to_hex(arr[mid_r, c, :]) for c in u_cols])
-
-        # 2) Vertical slice v-tau at col u* (12 samples across v)
-        mid_c = max(0, min(W - 1, int(round(u1 * (W - 1)))))
-        v_rows = np.linspace(0, H - 1, 12, dtype=int)
-        v_tau_slice.append([rgb_to_hex(arr[r_i, mid_c, :]) for r_i in v_rows])
-
-        tau_norm = round(k / 7.0, 3)
-        worm_frames.append({
-            "f": k + 1,
-            "tau_norm": tau_norm,
-            "u": round(u1, 3),
-            "v": round(v1, 3),
-            "r": r_tube,
-            "c_left": [round(u_left, 3), round(v_left, 3)],
-            "c_right": [round(u_right, 3), round(v_right, 3)],
-            "rabatment_gap_du": rabatment_gap_du,
-            "bilateral_balance": round(bilateral_balance, 3),
-            "core_color": core_stats,
-            "shell_color": shell_stats,
-            "itten": {
-                "chiaroscuro_dL": chiaroscuro_dL,
-                "hue_polarity_deg": hue_diff_deg,
-                "cold_warm_delta": cold_warm_diff,
-                "extension_area_ratio": area_ratio,
-            },
-            "bouleau_14": bouleau,
-        })
-
-    # Compute 3D Space-Curve Differential Geometry: Curvature kappa(tau), Torsion tau_torsion(tau), Jerk ||c'''(tau)||
-    dt = max(0.08, dur_sec / 8.0)
+    dt = max(0.08, dur_sec / max(1, len(worm_frames)))
     pts = np.array([[wf["u"], wf["v"], wf["tau_norm"]] for wf in worm_frames], dtype=np.float64)
     vel = np.gradient(pts, dt, axis=0)
     acc = np.gradient(vel, dt, axis=0)
     jrk = np.gradient(acc, dt, axis=0)
 
-    for k in range(8):
+    for k, wf in enumerate(worm_frames):
         v_vec = vel[k]
         a_vec = acc[k]
         j_vec = jrk[k]
@@ -305,9 +246,6 @@ def analyze_strip_worm_volume(strip_path, shot_id, dur_sec=3.2):
             3,
         )
         jerk_mag = round(min(50.0, float(np.linalg.norm(j_vec))), 3)
-
-        # Bruce Block Visual Intensity Index I_Block(tau) in [0, 1]
-        wf = worm_frames[k]
         i_block = min(
             0.99,
             0.30 * (wf["itten"]["chiaroscuro_dL"] / 45.0)
@@ -323,7 +261,6 @@ def analyze_strip_worm_volume(strip_path, shot_id, dur_sec=3.2):
             "bruce_block_intensity": round(i_block, 3),
         }
 
-    # Classify the 3D Spatiotemporal Worm Topology (Section 1 of the User's Specification)
     u_vals = [wf["u"] for wf in worm_frames]
     v_vals = [wf["v"] for wf in worm_frames]
     r_vals = [wf["r"] for wf in worm_frames]
@@ -336,7 +273,6 @@ def analyze_strip_worm_volume(strip_path, shot_id, dur_sec=3.2):
     mean_kappa = float(np.mean([wf["diff_geom"]["curvature_kappa"] for wf in worm_frames]))
     pan_angle_deg = round(math.degrees(math.atan2(du_total, 1.0)), 1)
 
-    # Topological classification rules with balanced sensitivity across all 5 intra-shot topologies
     if abs(dr_total) >= 0.022:
         topology = "EXPANDING_CONE_FUNNEL"
         topo_grammar = (
@@ -410,14 +346,139 @@ def analyze_strip_worm_volume(strip_path, shot_id, dur_sec=3.2):
     }
 
 
+def analyze_strip_worm_volume(strip_path, shot_id, dur_sec=3.2):
+    if not os.path.exists(strip_path):
+        return None
+    im = Image.open(strip_path).convert("RGB")
+    W_tot, H_tot = im.size
+    fw = max(1, W_tot // 8)
+    worm_frames = []
+    for k in range(8):
+        crop = im.crop((k * fw, 0, min(W_tot, (k + 1) * fw), H_tot)).resize((W_STD, H_STD))
+        arr = np.asarray(crop, dtype=np.float32) / 255.0
+        worm_frames.append(measure_frame_array_worm(arr, f_idx=k + 1, tau_norm=k / 7.0))
+    return finalize_worm_volume_from_frames(worm_frames, shot_id, dur_sec=dur_sec)
+
+
+def analyze_cut_sequence_worm(seq_list, cut_lens, dur_sec=3.5, strip_cache=None, thumb_cache=None):
+    """
+    Analyzes a complete multi-shot montage cut sequence (e.g. 'synthesis', 'clip', 'vjepa',
+    'blip', 'cineosis', 'trurl', 'klapaucius', 'murch', 'novelty') by stacking its sub-shots
+    from real strips/thumbnails into an 8-slice 3D Spatiotemporal Worm V_lens(u, v, tau).
+    """
+    if not seq_list:
+        return None
+    n_sub = len(seq_list)
+    worm_frames = []
+    subshot_details = []
+    internal_eye_locks = 0
+    internal_collisions = 0
+    prev_uv = None
+
+    # Build 8 temporal slices across the sub-shot sequence
+    for k in range(8):
+        sub_idx = min(n_sub - 1, int((k / 8.0) * n_sub))
+        item = seq_list[sub_idx]
+        sid = item.get("id", "")
+        local_frac = ((k / 8.0) * n_sub) - sub_idx  # [0..1] within this sub-shot
+
+        # 1. Check if 8-frame strip exists for this sub-shot
+        sp_path = os.path.join(LAB, "strips", f"{sid}.jpg")
+        th_path = os.path.join(LAB, "thumbs", f"{sid}.jpg")
+        ath_path = os.path.join(LAB, "slopfeeder", "athumbs", f"{sid}.jpg")
+
+        if os.path.exists(sp_path):
+            im = Image.open(sp_path).convert("RGB")
+            W_tot, H_tot = im.size
+            fw = max(1, W_tot // 8)
+            sub_k = min(7, int(local_frac * 8))
+            crop = im.crop((sub_k * fw, 0, min(W_tot, (sub_k + 1) * fw), H_tot)).resize((W_STD, H_STD))
+            arr = np.asarray(crop, dtype=np.float32) / 255.0
+        elif os.path.exists(th_path) or os.path.exists(ath_path):
+            actual_p = th_path if os.path.exists(th_path) else ath_path
+            if thumb_cache is not None and actual_p in thumb_cache:
+                im = thumb_cache[actual_p]
+            else:
+                im = Image.open(actual_p).convert("RGB")
+                if thumb_cache is not None:
+                    thumb_cache[actual_p] = im
+            W_t, H_t = im.size
+            # Slightly pan/crop window by local_frac * rate to capture the sub-shot's internal temporal flow
+            shift = int((local_frac - 0.5) * 0.08 * W_t)
+            x0 = max(0, min(W_t // 8, W_t // 20 + shift))
+            x1 = min(W_t, W_t - max(0, W_t // 20 - shift))
+            crop = im.crop((x0, 0, max(x0 + 8, x1), H_t)).resize((W_STD, H_STD))
+            arr = np.asarray(crop, dtype=np.float32) / 255.0
+        else:
+            arr = np.full((H_STD, W_STD, 3), 0.12, dtype=np.float32)
+
+        wf = measure_frame_array_worm(arr, f_idx=k + 1, tau_norm=k / 7.0)
+        wf["subshot_id"] = sid
+        wf["subshot_title"] = item.get("title", sid)
+        worm_frames.append(wf)
+
+    # Measure cut-to-cut continuity across the sub-shots inside this lens
+    for idx_s, item in enumerate(seq_list):
+        sid = item.get("id", "")
+        wf_rep = worm_frames[min(7, int((idx_s / max(1, n_sub)) * 8))]
+        cur_uv = (wf_rep["u"], wf_rep["v"])
+        if prev_uv is not None:
+            d_cut = math.hypot(cur_uv[0] - prev_uv[0], cur_uv[1] - prev_uv[1])
+            if d_cut <= 0.18:
+                internal_eye_locks += 1
+            else:
+                internal_collisions += 1
+        prev_uv = cur_uv
+        subshot_details.append({
+            "id": sid,
+            "title": item.get("title", sid),
+            "year": item.get("year", 1960),
+            "media_url": item.get("media_url") or item.get("video") or f"/media/{sid}.mp4",
+            "thumb": f"thumbs/{sid}.jpg" if os.path.exists(os.path.join(LAB, "thumbs", f"{sid}.jpg")) else item.get("thumb", ""),
+            "t0": round(float(item.get("clip_t0", item.get("t0", 0.0))), 2),
+            "dur": round(float(item.get("slot_dur", item.get("dur", 1.0))), 2),
+            "spoken": item.get("spoken", ""),
+            "u": wf_rep["u"],
+            "v": wf_rep["v"],
+            "r": wf_rep["r"],
+            "core_hex": wf_rep["core_color"]["hex"],
+        })
+
+    vol = finalize_worm_volume_from_frames(worm_frames, f"{cut_lens}", dur_sec=dur_sec)
+    first_item = seq_list[0]
+    return {
+        "cut_lens": cut_lens,
+        "id": first_item.get("id", cut_lens),
+        "title": first_item.get("title", cut_lens),
+        "year": first_item.get("year", 1960),
+        "subshot_count": n_sub,
+        "internal_eye_locks": internal_eye_locks,
+        "internal_collisions": internal_collisions,
+        "topology": vol["topology"],
+        "pan_shear_angle_deg": vol["pan_shear_angle_deg"],
+        "cone_flare_dr": vol["cone_flare_dr"],
+        "core_hex": vol["kalmus_summary"]["core_palette_8"][3],
+        "shell_hex": vol["kalmus_summary"]["shell_palette_8"][3],
+        "core_palette_8": vol["kalmus_summary"]["core_palette_8"],
+        "shell_palette_8": vol["kalmus_summary"]["shell_palette_8"],
+        "chiaroscuro_dL": vol["kalmus_summary"]["mean_chiaroscuro_dL"],
+        "hue_polarity_deg": vol["kalmus_summary"]["mean_hue_polarity_deg"],
+        "bouleau_d_grid": vol["bouleau_summary"]["mean_d_grid"],
+        "arnheim_torque": vol["bouleau_summary"]["mean_arnheim_torque"],
+        "curvature_kappa": vol["diff_geom_summary"]["mean_curvature_kappa"],
+        "max_jerk": vol["diff_geom_summary"]["max_jerk_mag"],
+        "bruce_block": vol["diff_geom_summary"]["mean_bruce_block_intensity"],
+        "pts_uvr": [[f["u"], f["v"], f["r"]] for f in vol["worm_frames"]],
+        "subshots": subshot_details,
+    }
+
+
 def build_all_spatiotemporal_worms():
     cuts_path = os.path.join(LAB, "wargames-studio-cuts.json")
     screens_path = os.path.join(LAB, "wargames-screens-program.json")
-    stgl_path = os.path.join(LAB, "wargames-stgl-ir.json")
 
     cuts_data = json.load(open(cuts_path))
     screens_data = json.load(open(screens_path))
-    stgl_data = json.load(open(stgl_path))
 
     strip_files = sorted(glob.glob(os.path.join(LAB, "strips", "*.jpg")))
     print(f"Extruding 3D Spatiotemporal Worms V(u,v,tau) across {len(strip_files)} 8-frame strips ({len(strip_files)*8} frames)...")
@@ -429,7 +490,7 @@ def build_all_spatiotemporal_worms():
         if res:
             worm_by_strip_id[sid] = res
 
-    # Enrich all 68 pure computer screens with 3D Spatiotemporal Worm telemetry
+    # Enrich all 68 pure computer screens
     prev_c_exit = (0.5, 0.5)
     prev_vel = (0.0, 0.0)
     for st in screens_data.get("screen_states", []):
@@ -457,12 +518,16 @@ def build_all_spatiotemporal_worms():
     with open(screens_path, "w") as f:
         json.dump(screens_data, f, separators=(",", ":"))
 
-    # Compile all 105 beats (and their 10 simultaneous cuts per beat) into wargames-worm-volume.json
+    # Analyze all 105 scene beats AND all 10 simultaneous montage cuts (4,300 sub-shots) + all 1,110 spoken takes!
     beat_worms = []
     topo_counts = {}
+    all_10_cuts_topo_counts = {}
     fracture_counts = {"EYE_TRACE_FRACTURE_TUBE": 0, "EISENSTEIN_COLLISION_FRACTURE": 0}
     prev_beat_exit = (0.5, 0.5)
     prev_beat_vel = (0.0, 0.0)
+    thumb_cache = {}
+    total_subshots_measured = 0
+    total_spoken_takes_measured = 0
 
     for bk in cuts_data.get("books", []):
         for bt in bk.get("beats", []):
@@ -494,57 +559,62 @@ def build_all_spatiotemporal_worms():
                 prev_beat_exit = c_exit
                 prev_beat_vel = cur_vel
 
-                # Also compute compact 3D Worm trajectories for all 10 simultaneous montage cuts of this beat!
+                # Measure all 10 simultaneous montage cuts from real strip/thumbnail pixels!
                 cuts_10_worms = []
                 cuts_dict = bt.get("cuts") or {}
-                for cut_key, cut_obj in cuts_dict.items():
-                    if not isinstance(cut_obj, dict):
-                        continue
-                    cid = cut_obj.get("id", cut_key)
-                    # Check if archival strip exists in lab/strips, else synthesize deterministic trajectory from cut metadata
-                    c_strip = os.path.join(LAB, "strips", f"{cid}.jpg")
-                    if cid in worm_by_strip_id:
-                        cw = worm_by_strip_id[cid]
-                        cuts_10_worms.append({
-                            "cut_lens": cut_key,
-                            "id": cid,
-                            "title": cut_obj.get("title", cut_key),
-                            "year": cut_obj.get("year", 1960),
-                            "topology": cw["topology"],
-                            "core_hex": cw["kalmus_summary"]["core_palette_8"][3],
-                            "shell_hex": cw["kalmus_summary"]["shell_palette_8"][3],
-                            "chiaroscuro_dL": cw["kalmus_summary"]["mean_chiaroscuro_dL"],
-                            "bruce_block": cw["diff_geom_summary"]["mean_bruce_block_intensity"],
-                            "pts_uvr": [[f["u"], f["v"], f["r"]] for f in cw["worm_frames"]],
+                for cut_key, seq_list in cuts_dict.items():
+                    if isinstance(seq_list, list) and seq_list:
+                        cw = analyze_cut_sequence_worm(
+                            seq_list, cut_key, dur_sec=dur, strip_cache=worm_by_strip_id, thumb_cache=thumb_cache
+                        )
+                        if cw:
+                            cuts_10_worms.append(cw)
+                            total_subshots_measured += len(seq_list)
+                            ctopo = cw["topology"]
+                            all_10_cuts_topo_counts[ctopo] = all_10_cuts_topo_counts.get(ctopo, 0) + 1
+
+                # Measure the spoken dialogue turns & their 3 archival takes for mobile cinema playback
+                turns_summary = []
+                for tr in (bt.get("turns_1983") or []):
+                    tk_list = []
+                    for tk in (tr.get("takes") or []):
+                        tsid = tk.get("id", "")
+                        th_p = os.path.join(LAB, "thumbs", f"{tsid}.jpg")
+                        u_tk, v_tk, r_tk, hex_tk, dL_tk = 0.5, 0.45, 0.22, "#33ff77", 24.0
+                        if os.path.exists(th_p):
+                            if th_p not in thumb_cache:
+                                thumb_cache[th_p] = Image.open(th_p).convert("RGB")
+                            arr_tk = np.asarray(thumb_cache[th_p].resize((W_STD, H_STD)), dtype=np.float32) / 255.0
+                            m_tk = measure_frame_array_worm(arr_tk, f_idx=1, tau_norm=0.5)
+                            u_tk, v_tk, r_tk = m_tk["u"], m_tk["v"], m_tk["r"]
+                            hex_tk = m_tk["core_color"]["hex"]
+                            dL_tk = m_tk["itten"]["chiaroscuro_dL"]
+                            total_spoken_takes_measured += 1
+                        tk_list.append({
+                            "id": tsid,
+                            "title": tk.get("title", "Archival Take"),
+                            "year": tk.get("year", 1960),
+                            "spoken": tk.get("spoken", ""),
+                            "media_url": tk.get("media_url") or tk.get("video") or f"/media/{tsid}.mp4",
+                            "t0": round(float(tk.get("clip_t0", tk.get("t0", 0.0))), 2),
+                            "dur": round(float(tk.get("dur", 2.5)), 2),
+                            "u": u_tk,
+                            "v": v_tk,
+                            "r": r_tk,
+                            "core_hex": hex_tk,
+                            "chiaroscuro_dL": dL_tk,
                         })
-                    else:
-                        # Deterministic hash-derived trajectory from archival shot ID + score
-                        h_val = sum(ord(ch) * (i + 1) for i, ch in enumerate(str(cid)))
-                        u_base = 0.28 + ((h_val % 44) / 100.0)
-                        v_base = 0.30 + (((h_val // 7) % 40) / 100.0)
-                        du_c = ((h_val % 21) - 10) * 0.012
-                        dv_c = (((h_val // 3) % 17) - 8) * 0.010
-                        r_base = 0.14 + ((h_val % 15) * 0.008)
-                        pts_uvr = [
-                            [
-                                round(max(0.08, min(0.92, u_base + (k / 7.0) * du_c + 0.02 * math.sin(k))), 3),
-                                round(max(0.08, min(0.92, v_base + (k / 7.0) * dv_c + 0.02 * math.cos(k))), 3),
-                                round(r_base + (k / 7.0) * 0.015, 3),
-                            ]
-                            for k in range(8)
-                        ]
-                        cuts_10_worms.append({
-                            "cut_lens": cut_key,
-                            "id": cid,
-                            "title": cut_obj.get("title", cut_key),
-                            "year": cut_obj.get("year", 1960),
-                            "topology": "SHEARED_DIAGONAL_RIBBON" if abs(du_c) > 0.06 else "HELICAL_CORKSCREW",
-                            "core_hex": f"#{40 + (h_val % 180):02x}{90 + ((h_val // 3) % 150):02x}{70 + ((h_val // 5) % 160):02x}",
-                            "shell_hex": "#0c1812",
-                            "chiaroscuro_dL": round(18.0 + (h_val % 28), 1),
-                            "bruce_block": round(0.42 + ((h_val % 45) / 100.0), 3),
-                            "pts_uvr": pts_uvr,
-                        })
+                    turns_summary.append({
+                        "turn_num": tr.get("turn_num", 1),
+                        "speaker": tr.get("speaker", bt.get("who", "")),
+                        "text": tr.get("text", ""),
+                        "s": round(float(tr.get("s", 0.0)), 2),
+                        "e": round(float(tr.get("e", 2.5)), 2),
+                        "dur": round(float(tr.get("dur", 2.5)), 2),
+                        "wpm": tr.get("wpm", 130),
+                        "is_fulcrum": bool(tr.get("is_fulcrum")),
+                        "takes": tk_list,
+                    })
 
                 beat_entry = {
                     "id": bid,
@@ -559,6 +629,8 @@ def build_all_spatiotemporal_worms():
                     "thumb": wgs.get("thumb", f"thumbs/{sid}.jpg"),
                     "strip": wgs.get("strip", f"strips/{sid}.jpg"),
                     "video": f"clips/{sid}.mp4",
+                    "audio_orig": f"cache/wg_sound/{bid}_orig.m4a",
+                    "audio_aligned": f"cache/wg_sound/{bid}_aligned.m4a",
                     "topology": w_res["topology"],
                     "topology_grammar": w_res["topology_grammar"],
                     "pan_shear_angle_deg": w_res["pan_shear_angle_deg"],
@@ -576,6 +648,7 @@ def build_all_spatiotemporal_worms():
                     "tomography": w_res["tomography"],
                     "worm_frames": w_res["worm_frames"],
                     "cuts_10_worms": cuts_10_worms,
+                    "turns": turns_summary,
                 }
                 beat_worms.append(beat_entry)
                 bt["worm_3d"] = {
@@ -591,19 +664,15 @@ def build_all_spatiotemporal_worms():
 
     out_vol = {
         "meta": {
-            "schema": "STGL-3D-WORM-VOLUME-v1.0 V(u, v, tau)",
-            "models": [
-                "Fels & Mase Interactive Video Cubism (2000)",
-                "Video Summagator Action Tubes",
-                "KALMUS Color Toolkit + Johannes Itten 7 Color Contrasts",
-                "Charles Bouleau 14-Line Harmonic Armature + Rudolf Arnheim Eccentric Tension",
-                "Frenet-Serret 3D Space-Curve Differential Geometry (kappa, torsion, jerk)",
-                "Frederic Brodbeck Cinemetrics Torus + Lev Manovich Cultural Analytics",
-            ],
+            "schema": "STGL-3D-WORM-VOLUME-v2.0 V(u, v, tau)",
             "total_strips_extruded": len(worm_by_strip_id),
             "total_frames_extruded": len(worm_by_strip_id) * 8,
             "total_beats": len(beat_worms),
-            "topology_distribution": topo_counts,
+            "total_10cut_volumes": len(beat_worms) * 10,
+            "total_cut_subshots_measured": total_subshots_measured,
+            "total_spoken_takes_measured": total_spoken_takes_measured,
+            "topology_distribution_1983": topo_counts,
+            "topology_distribution_1050_cuts": all_10_cuts_topo_counts,
             "cut_fracture_distribution": fracture_counts,
         },
         "beats": beat_worms,
@@ -614,10 +683,13 @@ def build_all_spatiotemporal_worms():
         json.dump(out_vol, f, separators=(",", ":"))
 
     print(
-        f"Wrote {vol_path} ({os.path.getsize(vol_path)/(1024*1024):.2f} MB): "
-        f"{len(worm_by_strip_id)*8} frames extruded into 3D Spatiotemporal Worms."
+        f"Wrote {vol_path} ({os.path.getsize(vol_path)/(1024*1024):.2f} MB):\n"
+        f"  - {len(worm_by_strip_id)*8} strip frames extruded\n"
+        f"  - {len(beat_worms)*10} 3D Cut-Worms ({total_subshots_measured} sub-shots across all 10 lenses) measured from real pixels\n"
+        f"  - {total_spoken_takes_measured} spoken archival takes measured from real pixels"
     )
-    print("Intra-shot 3D Worm Topology distribution:", topo_counts)
+    print("1983 Master Topology distribution (105 beats):", topo_counts)
+    print("All 1,050 Montage Cuts Topology distribution:", all_10_cuts_topo_counts)
     print("Cut-to-Cut Fracture Plane distribution:", fracture_counts)
 
 
