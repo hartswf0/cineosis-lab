@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>WarGames · Screening Room, Heatmaps &amp; Footage Cans</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gloock&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout after Afterlight Screening Room: a projection booth's reel shelf;
+   one big screen + live heatmap/pattern canvas, then species heatmap reels, then the cans of collected footage */
+:root {
+  --bg: #111310;
+  --panel: #191d18;
+  --ink: #ecf2e8;
+  --mute: #92a08a;
+  --line: #263024;
+  --lamp: #ffb000;
+  --lamp-ink: #ffd166;
+  --cyan: #00e5ff;
+  --green: #33ff77;
+  --screen: #000000;
+  --f-disp: "Gloock", "Iowan Old Style", Georgia, serif;
+  --f-body: "Figtree", system-ui, -apple-system, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.55 var(--f-body);
+}
+a { color: var(--lamp-ink); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.wrap {
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 24px max(18px, env(safe-area-inset-left, 0px)) 72px;
+  display: grid;
+  gap: 48px;
+}
+header { display: grid; gap: 10px; }
+.eyebrow {
+  font: 500 11.5px/1 var(--f-mono);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--lamp-ink);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+}
+h1 {
+  font: 400 clamp(34px, 5.5vw, 62px)/1.02 var(--f-disp);
+  margin: 0;
+}
+.lede { max-width: 68ch; color: var(--mute); margin: 0; }
+.counts {
+  display: flex; flex-wrap: wrap; gap: 8px 22px;
+  font: 500 12.5px/1.4 var(--f-mono); color: var(--mute);
+}
+.counts b { color: var(--ink); font-weight: 500; }
+
+/* Projection Booth Screen: Left 16:9 Live Video, Right 16:9 Live Pattern/Heatmap Canvas + Controls */
+.screen {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 18px;
+}
+@media (max-width: 860px) { .screen { grid-template-columns: 1fr; } }
+
+.stage-box {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--screen);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.stage-box video, .stage-box canvas, .stage-box svg {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.stage-box svg { pointer-events: none; z-index: 5; }
+
+.booth-meta { display: grid; gap: 12px; }
+.booth-meta h2 { font: 400 26px/1.15 var(--f-disp); margin: 0; }
+.booth-meta p { margin: 0; color: var(--mute); font-size: 14px; }
+
+.pill-bar { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill {
+  font: 500 11px/1 var(--f-mono);
+  background: #0c0f0b;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.pill:hover, .pill.on {
+  background: var(--lamp);
+  color: #000;
+  border-color: var(--lamp);
+  font-weight: 600;
+}
+
+section { display: grid; gap: 18px; }
+.shead {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: 6px 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.shead h2 { font: 400 28px/1.1 var(--f-disp); margin: 0; }
+.shead p { margin: 0; color: var(--mute); flex: 1 1 280px; }
+
+/* 5 Species Heatmap Cards */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
+  gap: 20px 16px;
+}
+.film {
+  display: grid; gap: 8px; min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 10px;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.film:hover, .film.active { border-color: var(--lamp); }
+.frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  background: var(--screen);
+  overflow: hidden;
+}
+.frame canvas {
+  width: 100%; height: 100%; display: block;
+}
+.meta { display: flex; align-items: baseline; gap: 8px; }
+.code { font: 500 11px/1 var(--f-mono); color: var(--lamp-ink); letter-spacing: .06em; }
+.title { font: 600 15px/1.25 var(--f-body); }
+.dur { margin-left: auto; font: 400 11.5px/1 var(--f-mono); color: var(--mute); }
+.desc { margin: 0; font-size: 13px; color: var(--mute); }
+
+/* Cans of Collected Footage (.tiles contact sheets) */
+.can { display: grid; gap: 10px; }
+.can h3 {
+  font: 600 15px/1.2 var(--f-body); margin: 0;
+  display: flex; gap: 12px; align-items: baseline;
+}
+.can h3 small { font: 400 12px/1 var(--f-mono); color: var(--mute); }
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 5px;
+}
+.tile {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  background: #000;
+  border: 1px solid var(--line);
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+}
+.tile img {
+  width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.78;
+  transition: opacity .15s;
+}
+.tile:hover img, .tile.active img { opacity: 1; }
+.tile:hover, .tile.active { outline: 2px solid var(--lamp); outline-offset: 0; z-index: 2; }
+.tile svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.tile-tag {
+  position: absolute; bottom: 2px; left: 2px;
+  background: rgba(0,0,0,0.82); color: #fff;
+  font: 500 9px/1.2 var(--f-mono); padding: 1px 4px;
+}
+.caption {
+  min-height: 2.2em;
+  font: 400 13px/1.4 var(--f-mono);
+  color: var(--mute);
+  margin: 0;
+  padding: 6px 10px;
+  background: var(--panel);
+  border-left: 3px solid var(--lamp);
+}
+.caption b { color: var(--ink); font-weight: 600; }
+
+footer {
+  color: var(--mute);
+  font: 400 12.5px/1.5 var(--f-mono);
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">
+      <span>WarGames (1983) &middot; Spatiotemporal Worm &amp; Afterlight Pattern Atlas</span>
+      <span>
+        <a href="wg-studio-worm.html">[3-Monitor Worm Studio]</a> &middot;
+        <a href="wg-studio-screens.html">[68 Pure Screens]</a> &middot;
+        <a href="wg-studio-stgl.html">[4D Grid Cinema]</a>
+      </span>
+    </div>
+    <h1>Screening Room &amp; Heatmap Cans</h1>
+    <p class="lede">
+      Every scene beat and pure WOPR computer screen organized like a projection booth’s reel shelf:
+      one main screening stage with five live spatiotemporal pattern processes (after <em>Afterlight</em>),
+      five cumulative species heatmaps, and the cans of collected footage below. Press any frame in the cans to play and inspect it here.
+    </p>
+    <div class="counts" id="counts"></div>
+  </header>
+
+  <!-- 1. PROJECTION BOOTH: LIVE VIDEO + LIVE SPATIOTEMPORAL PATTERN / HEATMAP CANVAS -->
+  <section class="screen" id="feature">
+    <div>
+      <div class="stage-box" onclick="toggleBoothPlay()">
+        <video id="boothVid" autoplay muted loop playsinline webkit-playsinline></video>
+        <svg id="boothSvg" viewBox="0 0 160 90" preserveAspectRatio="none"></svg>
+      </div>
+      <div class="pill-bar" style="margin-top:10px;">
+        <span style="font:500 11px/2 var(--f-mono);color:var(--mute);margin-right:4px;">SOURCE:</span>
+        <button class="pill on" id="src1983" onclick="setSourceMode('1983')">1983 Scene</button>
+        <button class="pill" id="srcScreen" onclick="setSourceMode('screen')">Synchronized WOPR Screen</button>
+        <button class="pill" id="srcCut" onclick="setSourceMode('cut')">Archival Counter-Cut</button>
+      </div>
+    </div>
+
+    <div class="booth-meta">
+      <div class="eyebrow" id="boothEyebrow">S01-B01 &middot; HELIX &middot; 00:12</div>
+      <h2 id="boothTitle">WarGames (1983)</h2>
+      <p id="boothDesc">Select any pattern process below or click any frame in the footage cans to project it.</p>
+
+      <div class="stage-box">
+        <canvas id="patternCanvas" width="480" height="270"></canvas>
+      </div>
+
+      <div class="pill-bar" id="patternBar">
+        <button class="pill on" data-pat="HEATMAP" onclick="setPattern('HEATMAP')">1. Burn-In Heatmap (M2)</button>
+        <button class="pill" data-pat="DEW" onclick="setPattern('DEW')">2. Dew Worms (02d)</button>
+        <button class="pill" data-pat="STONE" onclick="setPattern('STONE')">3. Oxblood &amp; Gold (03)</button>
+        <button class="pill" data-pat="BORROWED" onclick="setPattern('BORROWED')">4. Borrowed Light (01)</button>
+        <button class="pill" data-pat="TUBE" onclick="setPattern('TUBE')">5. Horizontal Worm</button>
+      </div>
+      <p id="patternNote" style="font:400 12px/1.4 var(--f-mono);color:var(--lamp-ink);">
+        Burn-In Heatmap (M2): Accumulates the phosphor focus footprint (u, v, r) across time on the 16:9 grid.
+      </p>
+    </div>
+  </section>
+
+  <!-- 2. THE FIVE WORM SPECIES & CUMULATIVE 16:9 HEATMAPS -->
+  <section id="species-reels">
+    <div class="shead">
+      <h2>The Five Worm Species (Cumulative 16:9 Heatmaps)</h2>
+      <p>Each species accumulates all of its trajectories across the film into a single 16:9 density signature. Click a species card to filter the cans below.</p>
+    </div>
+    <div class="grid" id="speciesGrid"></div>
+  </section>
+
+  <!-- 3. THE CANS OF COLLECTED FOOTAGE (.tiles contact-sheet grids) -->
+  <section id="cans">
+    <div class="shead">
+      <h2>Collected Footage Cans</h2>
+      <p>All 68 pure WOPR computer screens and 105 narrative scene beats. Hover a frame for its source and worm measurement; click any frame to project it above.</p>
+    </div>
+    <div id="cansContainer" style="display:grid;gap:36px;"></div>
+  </section>
+
+  <footer>
+    <span>WarGames Spatiotemporal Grid &amp; Worm Lab &middot; Afterlight Screening Room Pattern</span>
+    <span><a href="wg-studio-worm.html">Return to 3-Monitor Worm Studio &rarr;</a></span>
+  </footer>
+</div>
+
+<script>
+const SPECIES = [
+  { key: 'HELICAL_CORKSCREW', code: 'S1 · HELIX', name: 'Helical Corkscrew', col: '#ff44cc',
+    desc: 'Golden Spiral / S-Curve staging: the subject spirals across both u and v toward a focal attractor.' },
+  { key: 'SHEARED_DIAGONAL_RIBBON', code: 'S2 · RIBBON', name: 'Sheared Diagonal Ribbon', col: '#00e5ff',
+    desc: 'Lateral pan or tracking shot: the action tube shears diagonally across the u-tau plane.' },
+  { key: 'EXPANDING_CONE_FUNNEL', code: 'S3 · CONE', name: 'Expanding Cone Funnel', col: '#ffb000',
+    desc: 'Dolly-in push or snap-zoom compression: cross-sectional radius r(tau) flares or contracts.' },
+  { key: 'DOUBLE_HELIX_BRAID', code: 'S4 · BRAID', name: 'Double-Helix Braid', col: '#ff5544',
+    desc: 'Two-shot dialogue counterpoint: attention alternates between left and right Rabatment zones.' },
+  { key: 'VERTICAL_PILLAR', code: 'S5 · PILLAR', name: 'Locked Vertical Pillar', col: '#33ff77',
+    desc: 'Locked tripod affinity: a stationary vertical cylinder holding its grid channel over time.' }
+];
+
+const PATTERN_NOTES = {
+  HEATMAP: 'Burn-In Heatmap (after M2 Six Burns): Accumulates the Gaussian focus footprint (u, v, r) of the current shot + species corpus on the 16:9 grid.',
+  DEW: 'Dew Worms (after 02d Worms): The tracks keep playing — each droplet along the path runs the exact frame moment the subject passed through (u, v).',
+  STONE: 'The Stone That Remembered (after 03 Linocut): Two temporal blocks — Crimson/Cyan for NOW (tau), Burnished Gold for what the picture just let go (tau - d_tau).',
+  BORROWED: 'Borrowed Light (after 01 Watercolour): Concentric rings around the focus point (u, v) show the shot progressively earlier the farther they sit from the center.',
+  TUBE: 'Horizontal Action Tube: Left-to-right side-scroll extrusion of the 8 subject cutouts (f1..f8) inside their smooth radius envelope.'
+};
+
+let SHOTS = [], SCREENS = [];
+let CUR_SHOT = 0, CUR_SCR = 0;
+let SOURCE_MODE = '1983'; // '1983' | 'screen' | 'cut'
+let PATTERN = 'HEATMAP';
+let ACTIVE_SPECIES = 'ALL';
+const activeStripImg = new Image();
+
+function getSp(topo) {
+  return SPECIES.find(s => s.key === topo) || SPECIES[0];
+}
+
+async function init() {
+  const [rW, rS] = await Promise.all([
+    fetch('wargames-worm-volume.json?v=3'),
+    fetch('wargames-screens-program.json?v=3')
+  ]);
+  const dW = await rW.json();
+  const dS = await rS.json();
+  SHOTS = dW.beats || [];
+  SCREENS = dS.screen_states || [];
+
+  document.getElementById('counts').innerHTML = `
+    <span><b>${SHOTS.length}</b> master scene beats</span>
+    <span><b>${SCREENS.length}</b> pure WOPR computer screens</span>
+    <span><b>5</b> worm species heatmaps</span>
+    <span><b>${SHOTS.length * 10}</b> measured 3D action tubes</span>
+  `;
+
+  renderSpeciesHeatmaps();
+  renderCans();
+  selectSceneItem(0);
+  requestAnimationFrame(loop);
+}
+
+function setPattern(p) {
+  PATTERN = p;
+  document.querySelectorAll('#patternBar .pill').forEach(b => {
+    b.classList.toggle('on', b.getAttribute('data-pat') === p);
+  });
+  document.getElementById('patternNote').textContent = PATTERN_NOTES[p] || '';
+}
+
+function setSourceMode(m) {
+  SOURCE_MODE = m;
+  document.getElementById('src1983').classList.toggle('on', m === '1983');
+  document.getElementById('srcScreen').classList.toggle('on', m === 'screen');
+  document.getElementById('srcCut').classList.toggle('on', m === 'cut');
+  if (m === 'screen') selectScreenItem(CUR_SCR);
+  else selectSceneItem(CUR_SHOT);
+}
+
+function toggleBoothPlay() {
+  const v = document.getElementById('boothVid');
+  if (v.paused) v.play().catch(()=>{}); else v.pause();
+}
+
+function renderSpeciesHeatmaps() {
+  const g = document.getElementById('speciesGrid');
+  g.innerHTML = SPECIES.map(sp => {
+    const scList = SHOTS.filter(s => s.topology === sp.key);
+    const scrList = SCREENS.filter(s => (s.worm_3d && s.worm_3d.topology) === sp.key);
+    return `
+      <div class="film ${ACTIVE_SPECIES === sp.key ? 'active' : ''}" onclick="toggleSpeciesFilter('${sp.key}')">
+        <div class="frame"><canvas id="spcv_${sp.key}" width="240" height="135"></canvas></div>
+        <div class="meta">
+          <span class="code" style="color:${sp.col};">${sp.code}</span>
+          <span class="title">${sp.name}</span>
+          <span class="dur">${scList.length + scrList.length} clips</span>
+        </div>
+        <p class="desc">${sp.desc}</p>
+      </div>
+    `;
+  }).join('');
+
+  // Draw the cumulative 16:9 phosphor density heatmap for each species
+  SPECIES.forEach(sp => {
+    const cv = document.getElementById(`spcv_${sp.key}`);
+    if (!cv) return;
+    const ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height;
+    ctx.fillStyle = '#050806';
+    ctx.fillRect(0, 0, W, H);
+
+    // Subtle 16:9 rule-of-thirds + Rabatment lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    [1/3, 2/3].forEach(f => {
+      ctx.beginPath(); ctx.moveTo(f*W, 0); ctx.lineTo(f*W, H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, f*H); ctx.lineTo(W, f*H); ctx.stroke();
+    });
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const scList = SHOTS.filter(s => s.topology === sp.key);
+    const scrList = SCREENS.filter(s => (s.worm_3d && s.worm_3d.topology) === sp.key);
+
+    const allFrames = [];
+    scList.forEach(s => (s.worm_frames || []).forEach(f => allFrames.push(f)));
+    scrList.forEach(s => ((s.worm_3d && s.worm_3d.worm_frames) || []).forEach(f => allFrames.push(f)));
+
+    allFrames.forEach(f => {
+      const cx = f.u * W, cy = f.v * H;
+      const rad = Math.max(12, f.r * W * 0.9);
+      const gr = ctx.createRadialGradient(cx, cy, 1, cx, cy, rad);
+      gr.addColorStop(0, sp.col + '26');
+      gr.addColorStop(0.5, sp.col + '10');
+      gr.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2); ctx.fill();
+    });
+
+    // Also draw faint spine traces
+    ctx.strokeStyle = sp.col + '55';
+    ctx.lineWidth = 1;
+    scList.slice(0, 18).forEach(s => {
+      const wf = s.worm_frames || [];
+      ctx.beginPath();
+      wf.forEach((f, idx) => { if (idx===0) ctx.moveTo(f.u*W, f.v*H); else ctx.lineTo(f.u*W, f.v*H); });
+      ctx.stroke();
+    });
+    ctx.restore();
+  });
+}
+
+function toggleSpeciesFilter(key) {
+  ACTIVE_SPECIES = (ACTIVE_SPECIES === key) ? 'ALL' : key;
+  renderSpeciesHeatmaps();
+  renderCans();
+}
+
+function renderCans() {
+  const container = document.getElementById('cansContainer');
+  const scrFiltered = SCREENS.map((st, i) => ({ st, i })).filter(({ st }) => {
+    const t = (st.worm_3d && st.worm_3d.topology) || 'EXPANDING_CONE_FUNNEL';
+    return ACTIVE_SPECIES === 'ALL' || t === ACTIVE_SPECIES;
+  });
+
+  const shotsFiltered = SHOTS.map((sh, i) => ({ sh, i })).filter(({ sh }) => {
+    return ACTIVE_SPECIES === 'ALL' || sh.topology === ACTIVE_SPECIES;
+  });
+
+  container.innerHTML = `
+    <!-- CAN 1: 68 PURE WOPR COMPUTER SCREENS -->
+    <div class="can">
+      <h3>Can I · Pure WOPR Computer Screens <small>${scrFiltered.length} of ${SCREENS.length} screens</small></h3>
+      <div class="tiles" id="tilesScreens">
+        ${scrFiltered.map(({ st, i }) => {
+          const topo = (st.worm_3d && st.worm_3d.topology) || 'EXPANDING_CONE_FUNNEL';
+          const sp = getSp(topo);
+          const wf = (st.worm_3d && st.worm_3d.worm_frames) || [];
+          const pts = wf.map(f => `${(f.u*100).toFixed(1)},${(f.v*56).toFixed(1)}`).join(' ');
+          const mid = wf[3] || { u: 0.5, v: 0.5 };
+          const capText = `<b>SCR ${String(i+1).padStart(2,'0')}/68 (${st.shot_id})</b> &middot; <span style="color:${sp.col}">${sp.name}</span> &middot; ${st.subsystem || 'WOPR'} // ${st.shell_cmd || st.opcode || ''} ${st.spoken_1983 ? '— "' + st.spoken_1983.replace(/"/g, '&quot;') + '"' : ''}`;
+          return `
+            <button type="button" class="tile ${SOURCE_MODE==='screen' && i===CUR_SCR ? 'active' : ''}"
+                    id="cantile_scr_${i}"
+                    onmouseenter="showCanCaption('capScreens', \`${capText}\`)"
+                    onclick="selectScreenItem(${i})">
+              <img src="${st.thumb || st.screen_thumb}" loading="lazy" alt="">
+              <svg viewBox="0 0 100 56" preserveAspectRatio="none">
+                <polyline points="${pts}" fill="none" stroke="${sp.col}" stroke-width="2"/>
+                <circle cx="${mid.u*100}" cy="${mid.v*56}" r="3" fill="#00e5ff" stroke="#fff" stroke-width="0.7"/>
+              </svg>
+              <span class="tile-tag" style="border-left:2px solid ${sp.col};">SCR ${String(i+1).padStart(2,'0')}</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+      <p class="caption" id="capScreens">Hover any WOPR computer screen tile to inspect its command, dialogue, and worm species; click to project it above.</p>
+    </div>
+
+    <!-- CAN 2: 105 MASTER SCENE BEATS -->
+    <div class="can">
+      <h3>Can II · 1983 Master Scene Beats <small>${shotsFiltered.length} of ${SHOTS.length} scenes</small></h3>
+      <div class="tiles" id="tilesScenes">
+        ${shotsFiltered.map(({ sh, i }) => {
+          const sp = getSp(sh.topology);
+          const wf = sh.worm_frames || [];
+          const pts = wf.map(f => `${(f.u*100).toFixed(1)},${(f.v*56).toFixed(1)}`).join(' ');
+          const mid = wf[3] || { u: 0.5, v: 0.5 };
+          const line = (sh.fulcrum_line || '').replace(/"/g, '&quot;').replace(/`/g, '');
+          const capText = `<b>#${String(i+1).padStart(3,'0')} ${sh.id} (${sh.shot_id})</b> &middot; <span style="color:${sp.col}">${sp.name}</span> &middot; ${sh.who ? sh.who + ': ' : ''}&ldquo;${line}&rdquo;`;
+          return `
+            <button type="button" class="tile ${SOURCE_MODE!=='screen' && i===CUR_SHOT ? 'active' : ''}"
+                    id="cantile_sh_${i}"
+                    onmouseenter="showCanCaption('capScenes', \`${capText}\`)"
+                    onclick="selectSceneItem(${i})">
+              <img src="${sh.thumb}" loading="lazy" alt="">
+              <svg viewBox="0 0 100 56" preserveAspectRatio="none">
+                <polyline points="${pts}" fill="none" stroke="${sp.col}" stroke-width="2"/>
+                <circle cx="${mid.u*100}" cy="${mid.v*56}" r="3" fill="#00e5ff" stroke="#fff" stroke-width="0.7"/>
+              </svg>
+              <span class="tile-tag" style="border-left:2px solid ${sp.col};">${sh.id}</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+      <p class="caption" id="capScenes">Hover any scene tile to read its dialogue, beat ID, and worm topology; click to project it above.</p>
+    </div>
+  `;
+}
+
+function showCanCaption(id, html) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = html;
+}
+
+function selectSceneItem(idx) {
+  if (!SHOTS.length) return;
+  CUR_SHOT = (idx + SHOTS.length) % SHOTS.length;
+  if (SOURCE_MODE === 'screen') SOURCE_MODE = '1983';
+  document.getElementById('src1983').classList.toggle('on', SOURCE_MODE === '1983');
+  document.getElementById('srcScreen').classList.remove('on');
+  document.getElementById('srcCut').classList.toggle('on', SOURCE_MODE === 'cut');
+
+  const sh = SHOTS[CUR_SHOT];
+  const sp = getSp(sh.topology);
+
+  const v = document.getElementById('boothVid');
+  if (SOURCE_MODE === 'cut') {
+    const cw = (sh.cuts_10_worms || [])[1] || (sh.cuts_10_worms || [])[0];
+    const sub = (cw && cw.subshots && cw.subshots[0]) || {};
+    v.src = sub.media_url || sh.video;
+  } else {
+    v.src = sh.video;
+  }
+  v.currentTime = 0;
+  v.play().catch(()=>{});
+
+  if (sh.strip) activeStripImg.src = sh.strip;
+
+  document.getElementById('boothEyebrow').innerHTML =
+    `<span style="color:${sp.col}">${sp.code} &middot; ${sp.name}</span> &middot; SCENE #${String(CUR_SHOT+1).padStart(3,'0')} (${sh.id})`;
+  document.getElementById('boothTitle').textContent =
+    `${sh.book_title || sh.id} — ${sh.who || 'NORAD'}`;
+  document.getElementById('boothDesc').textContent =
+    `"${sh.fulcrum_line || ''}" — ${sh.topology_grammar || sp.desc}`;
+
+  document.querySelectorAll('.tile').forEach(t => t.classList.remove('active'));
+  const tEl = document.getElementById(`cantile_sh_${CUR_SHOT}`);
+  if (tEl) tEl.classList.add('active');
+}
+
+function selectScreenItem(idx) {
+  if (!SCREENS.length) return;
+  CUR_SCR = (idx + SCREENS.length) % SCREENS.length;
+  SOURCE_MODE = 'screen';
+  document.getElementById('src1983').classList.remove('on');
+  document.getElementById('srcScreen').classList.add('on');
+  document.getElementById('srcCut').classList.remove('on');
+
+  const st = SCREENS[CUR_SCR];
+  const topo = (st.worm_3d && st.worm_3d.topology) || 'EXPANDING_CONE_FUNNEL';
+  const sp = getSp(topo);
+
+  const v = document.getElementById('boothVid');
+  v.src = st.clip || st.video || '';
+  v.currentTime = 0;
+  v.play().catch(()=>{});
+
+  if (st.strip) activeStripImg.src = st.strip;
+
+  document.getElementById('boothEyebrow').innerHTML =
+    `<span style="color:${sp.col}">${sp.code} &middot; ${sp.name}</span> &middot; WOPR SCREEN ${String(CUR_SCR+1).padStart(2,'0')}/68 (${st.shot_id})`;
+  document.getElementById('boothTitle').textContent =
+    `${st.subsystem || 'WOPR'} // ${st.opcode || st.subroutine || st.shot_id}`;
+  document.getElementById('boothDesc').textContent =
+    `${st.shell_cmd || st.terminal_prompt || ''} ${st.spoken_1983 ? '— "' + st.spoken_1983 + '"' : ''}`;
+
+  document.querySelectorAll('.tile').forEach(t => t.classList.remove('active'));
+  const tEl = document.getElementById(`cantile_scr_${CUR_SCR}`);
+  if (tEl) tEl.classList.add('active');
+}
+
+function interpWorm(wFrames, tau) {
+  if (!wFrames || !wFrames.length) return { u: 0.5, v: 0.5, r: 0.14, core: '#00e5ff', k: 0 };
+  const n = wFrames.length;
+  const fIdx = Math.max(0, Math.min(n - 1, tau * (n - 1)));
+  const k0 = Math.floor(fIdx), k1 = Math.min(n - 1, k0 + 1), a = fIdx - k0;
+  const w0 = wFrames[k0], w1 = wFrames[k1];
+  return {
+    u: w0.u * (1 - a) + w1.u * a,
+    v: w0.v * (1 - a) + w1.v * a,
+    r: w0.r * (1 - a) + w1.r * a,
+    core: (w0.core_color && w0.core_color.hex) || '#00e5ff',
+    k: Math.min(7, Math.floor(tau * 8))
+  };
+}
+
+function loop() {
+  const v = document.getElementById('boothVid');
+  const tau = (v && v.duration > 0) ? Math.max(0, Math.min(1, v.currentTime / v.duration)) : 0;
+
+  let wFrames = [];
+  let topo = 'HELICAL_CORKSCREW';
+  if (SOURCE_MODE === 'screen' && SCREENS[CUR_SCR]) {
+    const st = SCREENS[CUR_SCR];
+    wFrames = (st.worm_3d && st.worm_3d.worm_frames) || [];
+    topo = (st.worm_3d && st.worm_3d.topology) || topo;
+  } else if (SHOTS[CUR_SHOT]) {
+    const sh = SHOTS[CUR_SHOT];
+    wFrames = sh.worm_frames || [];
+    topo = sh.topology || topo;
+  }
+
+  const lw = interpWorm(wFrames, tau);
+  const svg = document.getElementById('boothSvg');
+  if (wFrames.length) {
+    const pts = wFrames.map(f => `${f.u*160},${f.v*90}`).join(' ');
+    svg.innerHTML = `
+      <polyline points="${pts}" fill="none" stroke="#00e5ff" stroke-width="1.3" opacity="0.75"/>
+      <ellipse cx="${lw.u*160}" cy="${lw.v*90}" rx="${lw.r*160}" ry="${lw.r*90}" fill="none" stroke="#ffb000" stroke-width="1.8"/>
+      <circle cx="${lw.u*160}" cy="${lw.v*90}" r="3.2" fill="#00e5ff" stroke="#fff" stroke-width="0.8"/>
+    `;
+  }
+
+  drawBoothPattern(v, wFrames, tau, topo);
+  requestAnimationFrame(loop);
+}
+
+function drawBoothPattern(videoEl, wFrames, tauNow, topo) {
+  const cv = document.getElementById('patternCanvas');
+  const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  ctx.fillStyle = '#050806';
+  ctx.fillRect(0, 0, W, H);
+
+  const hasStrip = activeStripImg.complete && activeStripImg.naturalWidth > 0;
+  const fw = hasStrip ? activeStripImg.naturalWidth / 8 : 160;
+  const fh = hasStrip ? activeStripImg.naturalHeight : 90;
+  const hasVid = videoEl && videoEl.readyState >= 2 && videoEl.videoWidth > 0;
+  const lw = interpWorm(wFrames, tauNow);
+  const sp = getSp(topo);
+
+  // Subtle background frame
+  ctx.save();
+  ctx.globalAlpha = 0.25;
+  if (hasVid) { try { ctx.drawImage(videoEl, 0, 0, W, H); } catch(e){} }
+  else if (hasStrip) { ctx.drawImage(activeStripImg, lw.k * fw, 0, fw, fh, 0, 0, W, H); }
+  ctx.restore();
+
+  // Rule of thirds + Rabatment grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1;
+  [1/3, 2/3].forEach(f => {
+    ctx.beginPath(); ctx.moveTo(f*W, 0); ctx.lineTo(f*W, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, f*H); ctx.lineTo(W, f*H); ctx.stroke();
+  });
+
+  if (PATTERN === 'HEATMAP') {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let s = 0; s <= 40; s++) {
+      const t = s / 40;
+      const w = interpWorm(wFrames, t);
+      const cx = w.u * W, cy = w.v * H, rad = Math.max(24, w.r * W * 1.35);
+      const gr = ctx.createRadialGradient(cx, cy, 2, cx, cy, rad);
+      gr.addColorStop(0, sp.col + '38');
+      gr.addColorStop(0.5, '#00e5ff18');
+      gr.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2); ctx.fill();
+    }
+    const lcx = lw.u * W, lcy = lw.v * H, lrad = Math.max(28, lw.r * W * 1.4);
+    const lgr = ctx.createRadialGradient(lcx, lcy, 2, lcx, lcy, lrad);
+    lgr.addColorStop(0, 'rgba(255,255,255,0.95)');
+    lgr.addColorStop(0.4, sp.col + 'aa');
+    lgr.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = lgr;
+    ctx.beginPath(); ctx.arc(lcx, lcy, lrad, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  } else if (PATTERN === 'DEW') {
+    for (let s = 0; s <= 28; s++) {
+      const t = (s / 28) * tauNow;
+      const w = interpWorm(wFrames, t);
+      const cx = w.u * W, cy = w.v * H;
+      const rx = Math.max(16, w.r * W * (0.5 + 0.5*(s/28)));
+      const ry = Math.max(14, w.r * H * (0.5 + 0.5*(s/28)));
+      if (hasStrip) {
+        ctx.save();
+        ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI*2); ctx.clip();
+        ctx.globalAlpha = 0.35 + 0.65*(s/28);
+        ctx.drawImage(activeStripImg, w.k * fw, 0, fw, fh, 0, 0, W, H);
+        ctx.restore();
+      }
+      ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI*2);
+      ctx.strokeStyle = s === 28 ? '#00e5ff' : 'rgba(0,229,255,0.3)';
+      ctx.lineWidth = s === 28 ? 2.4 : 1;
+      ctx.stroke();
+    }
+  } else if (PATTERN === 'STONE') {
+    const pw = interpWorm(wFrames, Math.max(0, tauNow - 0.18));
+    const pcx = pw.u * W, pcy = pw.v * H, prx = Math.max(20, pw.r * W * 1.2), pry = Math.max(16, pw.r * H * 1.2);
+    if (hasStrip) {
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(pcx, pcy, prx, pry, 0, 0, Math.PI*2); ctx.clip();
+      ctx.drawImage(activeStripImg, pw.k * fw, 0, fw, fh, 0, 0, W, H);
+      ctx.fillStyle = 'rgba(255, 176, 0, 0.45)'; ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
+    ctx.beginPath(); ctx.ellipse(pcx, pcy, prx, pry, 0, 0, Math.PI*2);
+    ctx.strokeStyle = '#ffb000'; ctx.lineWidth = 2.4; ctx.stroke();
+
+    const lcx = lw.u * W, lcy = lw.v * H, lrx = Math.max(20, lw.r * W * 1.2), lry = Math.max(16, lw.r * H * 1.2);
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(lcx, lcy, lrx, lry, 0, 0, Math.PI*2); ctx.clip();
+    if (hasVid) { try { ctx.drawImage(videoEl, 0, 0, W, H); } catch(e){} }
+    else if (hasStrip) { ctx.drawImage(activeStripImg, lw.k * fw, 0, fw, fh, 0, 0, W, H); }
+    ctx.fillStyle = 'rgba(255, 45, 85, 0.28)'; ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+    ctx.beginPath(); ctx.ellipse(lcx, lcy, lrx, lry, 0, 0, Math.PI*2);
+    ctx.strokeStyle = '#ff2d55'; ctx.lineWidth = 2.6; ctx.stroke();
+  } else if (PATTERN === 'BORROWED') {
+    const lcx = lw.u * W, lcy = lw.v * H;
+    if (hasStrip) {
+      for (let ring = 7; ring >= 0; ring--) {
+        const kf = Math.max(0, Math.min(7, lw.k - ring));
+        const rad = (ring + 1) * (W * 0.11);
+        ctx.save();
+        ctx.beginPath(); ctx.arc(lcx, lcy, rad, 0, Math.PI*2); ctx.clip();
+        ctx.drawImage(activeStripImg, kf * fw, 0, fw, fh, 0, 0, W, H);
+        ctx.restore();
+        ctx.beginPath(); ctx.arc(lcx, lcy, rad, 0, Math.PI*2);
+        ctx.strokeStyle = ring === 0 ? '#00e5ff' : 'rgba(0,229,255,0.28)';
+        ctx.lineWidth = ring === 0 ? 2.2 : 1;
+        ctx.stroke();
+      }
+    }
+  } else {
+    // Horizontal Action Tube across W
+    const sliceH = H * 0.72, sliceW = sliceH * (16 / 9);
+    const xSpan = W - sliceW - 24;
+    for (let k = 0; k < 8; k++) {
+      const tk = k / 7.0;
+      const w = interpWorm(wFrames, tk);
+      const kx = 12 + tk * xSpan, ky = (H - sliceH) * 0.5;
+      const cx = kx + w.u * sliceW, cy = ky + w.v * sliceH;
+      const rx = Math.max(14, w.r * sliceW), ry = Math.max(12, w.r * sliceH);
+      if (hasStrip) {
+        ctx.save();
+        ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI*2); ctx.clip();
+        ctx.drawImage(activeStripImg, k * fw, 0, fw, fh, kx, ky, sliceW, sliceH);
+        ctx.restore();
+      }
+      ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI*2);
+      ctx.strokeStyle = sp.col; ctx.lineWidth = 1.6; ctx.stroke();
+    }
+  }
+}
+
+init();
+</script>
+</body>
+</html>

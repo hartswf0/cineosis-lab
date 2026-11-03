@@ -424,9 +424,13 @@
       </button>
     </div>
     <div class="bar-group" style="font-size:8.5px;color:#99e6b3;">
-      <span>CYAN DOT = Face / Hand / CRT Focus (u,v)</span>
-      <span>·</span>
-      <span>CIRCLE = Subject Tight Bounds (r)</span>
+      <span style="color:var(--amber);font-weight:700;">RENDER PATTERN:</span>
+      <button class="sp-btn on" data-rm="TUBE" onclick="setRenderMode('TUBE')" title="Horizontal Side-Scroll Action Tube (f1..f8)">[1. TUBE]</button>
+      <button class="sp-btn" data-rm="HEATMAP" onclick="setRenderMode('HEATMAP')" title="Cumulative Phosphor Burn-In Heatmap on 16:9 Grid (Shot + Species Corpus)">[2. BURN-IN HEATMAP]</button>
+      <button class="sp-btn" data-rm="DEW" onclick="setRenderMode('DEW')" title="Afterlight 02d Dew Worms: wet video trail in 16:9 space where each point keeps its moment">[3. DEW TRAIL]</button>
+      <button class="sp-btn" data-rm="DELTA" onclick="setRenderMode('DELTA')" title="Afterlight 03 Stone That Remembered: Cyan/Crimson for NOW, Gold for what the picture just let go">[4. GOLD AFTERIMAGE]</button>
+      <button class="sp-btn" data-rm="RIPPLE" onclick="setRenderMode('RIPPLE')" title="Afterlight 01 Borrowed Light: concentric time-lag rings around focus (u,v)">[5. BORROWED LIGHT]</button>
+      <a class="sp-btn" href="wg-screening-room.html" style="border-color:var(--amber);color:var(--amber);text-decoration:none;">[SCREENING ROOM &amp; CANS]</a>
     </div>
   </div>
 
@@ -577,6 +581,14 @@ let PLAYING = true, SOUND_ON = false, SHOW_OVERLAY = true;
 let WORM_B_MODE = 'screen';
 let DOCK_MODE = 'scenes';
 let SPECIES_FILTER = 'ALL';
+let RENDER_MODE = 'TUBE'; // 'TUBE' | 'HEATMAP' | 'DEW' | 'DELTA' | 'RIPPLE'
+
+function setRenderMode(rm) {
+  RENDER_MODE = rm;
+  document.querySelectorAll('button[data-rm]').forEach(b => {
+    b.classList.toggle('on', b.getAttribute('data-rm') === rm);
+  });
+}
 
 const stripImgA = new Image();
 const stripImgScreen = new Image();
@@ -1203,22 +1215,6 @@ function drawActualVideoTimeWorm(canvas, videoEl, stripImg, wFrames, tauNow, acc
   ctx.fillStyle = '#010402';
   ctx.fillRect(0, 0, CW, CH);
 
-  const slitY = CH - 24;
-  const volH = slitY - 4;
-  const sliceH = Math.min(volH - 18, 120);
-  const sliceW = Math.round(sliceH * (16 / 9));
-  const xStart = 12;
-  const xSpan = CW - sliceW - 24;
-  const yStart = 16;
-
-  const sxOf = (tau) => xStart + tau * xSpan;
-  const syOf = () => yStart; // Pure horizontal left-to-right side-scroll alignment!
-
-  // 1. Horizontal tunnel rails
-  ctx.strokeStyle = '#0c2b17';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(xStart, yStart, CW - 24, sliceH);
-
   const hasStrip = stripImg && stripImg.complete && stripImg.naturalWidth > 0;
   const fw = hasStrip ? (stripImg.naturalWidth / 8) : 160;
   const fh = hasStrip ? stripImg.naturalHeight : 90;
@@ -1230,6 +1226,181 @@ function drawActualVideoTimeWorm(canvas, videoEl, stripImg, wFrames, tauNow, acc
     const sx = Math.floor(tauNow * (slitCanvas.width - 4));
     try { slitCtx.drawImage(videoEl, 0, vy, videoEl.videoWidth, 12, sx, 0, 5, slitCanvas.height); } catch (e) {}
   }
+
+  const slitY = CH - 24;
+  const volH = slitY - 4;
+
+  // For 16:9 spatial field modes (HEATMAP, DEW, DELTA, RIPPLE), draw a centered 16:9 stage + side corpus heatmap!
+  if (RENDER_MODE !== 'TUBE') {
+    const boxH = volH - 8;
+    const boxW = Math.round(boxH * (16 / 9));
+    const bx = 14, by = 4;
+    const sideX = bx + boxW + 12;
+    const sideW = CW - sideX - 12;
+
+    // 1. Base 16:9 video frame (dimmed)
+    const lw = interpWormAt(wFrames, tauNow);
+    ctx.save();
+    ctx.globalAlpha = (RENDER_MODE === 'HEATMAP') ? 0.25 : 0.35;
+    if (hasLiveVid) { try { ctx.drawImage(videoEl, bx, by, boxW, boxH); } catch (e) {} }
+    else if (hasStrip) { ctx.drawImage(stripImg, lw.k * fw, 0, fw, fh, bx, by, boxW, boxH); }
+    ctx.restore();
+
+    // Bouleau / Rule of Thirds Grid overlay on the 16:9 stage
+    ctx.strokeStyle = 'rgba(51, 255, 119, 0.18)';
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(bx, by, boxW, boxH);
+    [1/3, 2/3].forEach(f => {
+      ctx.beginPath(); ctx.moveTo(bx + f*boxW, by); ctx.lineTo(bx + f*boxW, by + boxH); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(bx, by + f*boxH); ctx.lineTo(bx + boxW, by + f*boxH); ctx.stroke();
+    });
+
+    if (RENDER_MODE === 'HEATMAP') {
+      // MODE 2: PHOSPHOR BURN-IN HEATMAP (M2 Screen Burn-In)
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let s = 0; s <= 40; s++) {
+        const t = s / 40;
+        const w = interpWormAt(wFrames, t);
+        const cx = bx + w.u * boxW, cy = by + w.v * boxH;
+        const rad = Math.max(18, w.r * boxW * 1.35);
+        const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, rad);
+        grad.addColorStop(0, accentColor === '#00e5ff' ? 'rgba(0, 255, 200, 0.22)' : 'rgba(255, 160, 0, 0.22)');
+        grad.addColorStop(0.45, 'rgba(255, 68, 136, 0.10)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2); ctx.fill();
+      }
+      // Live hot focus core
+      const lcx = bx + lw.u * boxW, lcy = by + lw.v * boxH;
+      const lrad = Math.max(22, lw.r * boxW * 1.4);
+      const lgrad = ctx.createRadialGradient(lcx, lcy, 2, lcx, lcy, lrad);
+      lgrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+      lgrad.addColorStop(0.35, accentColor === '#00e5ff' ? 'rgba(0, 229, 255, 0.65)' : 'rgba(255, 176, 0, 0.65)');
+      lgrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = lgrad;
+      ctx.beginPath(); ctx.arc(lcx, lcy, lrad, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    } else if (RENDER_MODE === 'DEW') {
+      // MODE 3: AFTERLIGHT 02d DEW WORMS ("Each point along the wet track runs the moment the drop passed")
+      for (let s = 0; s <= 24; s++) {
+        const t = (s / 24) * tauNow;
+        const w = interpWormAt(wFrames, t);
+        const cx = bx + w.u * boxW, cy = by + w.v * boxH;
+        const rx = Math.max(14, w.r * boxW * 0.95 * (0.55 + 0.45 * (s / 24)));
+        const ry = Math.max(12, w.r * boxH * 0.95 * (0.55 + 0.45 * (s / 24)));
+        if (hasStrip) {
+          ctx.save();
+          ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.clip();
+          ctx.globalAlpha = 0.35 + 0.65 * (s / 24);
+          ctx.drawImage(stripImg, w.k * fw, 0, fw, fh, bx, by, boxW, boxH);
+          ctx.restore();
+        }
+        ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = s === 24 ? '#00e5ff' : 'rgba(0, 229, 255, 0.28)';
+        ctx.lineWidth = s === 24 ? 2.2 : 0.9;
+        ctx.stroke();
+      }
+    } else if (RENDER_MODE === 'DELTA') {
+      // MODE 4: AFTERLIGHT 03 STONE THAT REMEMBERED ("Oxblood/Cyan for NOW, Gold for what the picture just let go")
+      const tauPast = Math.max(0, tauNow - 0.18);
+      const pw = interpWormAt(wFrames, tauPast);
+      const pcx = bx + pw.u * boxW, pcy = by + pw.v * boxH;
+      const prx = Math.max(16, pw.r * boxW * 1.15), pry = Math.max(14, pw.r * boxH * 1.15);
+
+      // Gold block: What the picture just let go (tau - d_tau)
+      if (hasStrip) {
+        ctx.save();
+        ctx.beginPath(); ctx.ellipse(pcx, pcy, prx, pry, 0, 0, Math.PI * 2); ctx.clip();
+        ctx.drawImage(stripImg, pw.k * fw, 0, fw, fh, bx, by, boxW, boxH);
+        ctx.fillStyle = 'rgba(255, 176, 0, 0.42)';
+        ctx.fillRect(bx, by, boxW, boxH);
+        ctx.restore();
+      }
+      ctx.beginPath(); ctx.ellipse(pcx, pcy, prx, pry, 0, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ffb000'; ctx.lineWidth = 2.2; ctx.stroke();
+
+      // Oxblood/Cyan block: NOW (tauNow)
+      const lcx = bx + lw.u * boxW, lcy = by + lw.v * boxH;
+      const lrx = Math.max(16, lw.r * boxW * 1.15), lry = Math.max(14, lw.r * boxH * 1.15);
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(lcx, lcy, lrx, lry, 0, 0, Math.PI * 2); ctx.clip();
+      if (hasLiveVid) { try { ctx.drawImage(videoEl, bx, by, boxW, boxH); } catch (e) {} }
+      else if (hasStrip) { ctx.drawImage(stripImg, lw.k * fw, 0, fw, fh, bx, by, boxW, boxH); }
+      ctx.fillStyle = 'rgba(255, 50, 90, 0.25)';
+      ctx.fillRect(bx, by, boxW, boxH);
+      ctx.restore();
+      ctx.beginPath(); ctx.ellipse(lcx, lcy, lrx, lry, 0, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ff3366'; ctx.lineWidth = 2.4; ctx.stroke();
+
+      // Motion displacement arrow from Gold (past) to Oxblood (now)
+      ctx.beginPath(); ctx.moveTo(pcx, pcy); ctx.lineTo(lcx, lcy);
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+    } else if (RENDER_MODE === 'RIPPLE') {
+      // MODE 5: AFTERLIGHT 01 BORROWED LIGHT ("Each ring shows the shot a little earlier the farther it sits from focus")
+      const lcx = bx + lw.u * boxW, lcy = by + lw.v * boxH;
+      if (hasStrip) {
+        for (let ring = 7; ring >= 0; ring--) {
+          const kFrame = Math.max(0, Math.min(7, lw.k - ring));
+          const rad = (ring + 1) * (boxW * 0.11);
+          ctx.save();
+          ctx.beginPath(); ctx.arc(lcx, lcy, rad, 0, Math.PI * 2); ctx.clip();
+          ctx.drawImage(stripImg, kFrame * fw, 0, fw, fh, bx, by, boxW, boxH);
+          ctx.restore();
+          ctx.beginPath(); ctx.arc(lcx, lcy, rad, 0, Math.PI * 2);
+          ctx.strokeStyle = ring === 0 ? '#00e5ff' : 'rgba(0, 229, 255, 0.28)';
+          ctx.lineWidth = ring === 0 ? 2.2 : 0.9;
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Side Corpus Heatmap (Shows cumulative burn-in of all shots in the current Species Filter!)
+    if (sideW > 60) {
+      ctx.fillStyle = '#030a05';
+      ctx.fillRect(sideX, by, sideW, boxH);
+      ctx.strokeStyle = '#194d29';
+      ctx.strokeRect(sideX, by, sideW, boxH);
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const pool = (DOCK_MODE === 'scenes' ? SHOTS : SCREENS);
+      pool.forEach(item => {
+        const topo = item.topology || (item.worm_3d && item.worm_3d.topology) || '';
+        if (SPECIES_FILTER !== 'ALL' && topo !== SPECIES_FILTER) return;
+        const frames = item.worm_frames || (item.worm_3d && item.worm_3d.worm_frames) || [];
+        frames.forEach(f => {
+          const gx = sideX + f.u * sideW, gy = by + f.v * boxH;
+          const gr = ctx.createRadialGradient(gx, gy, 1, gx, gy, 14);
+          gr.addColorStop(0, 'rgba(51, 255, 119, 0.045)');
+          gr.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          ctx.fillStyle = gr;
+          ctx.beginPath(); ctx.arc(gx, gy, 14, 0, Math.PI * 2); ctx.fill();
+        });
+      });
+      ctx.restore();
+      ctx.fillStyle = '#d0ffe4';
+      ctx.font = '8px monospace';
+      ctx.fillText(`CORPUS HEATMAP (${SPECIES_FILTER === 'ALL' ? 'ALL' : getSpeciesMeta(SPECIES_FILTER).short})`, sideX + 5, by + 11);
+    }
+
+    // Bottom Slit-Scan Ribbon
+    if (slitCanvas) ctx.drawImage(slitCanvas, 0, 0, slitCanvas.width, slitCanvas.height, 14, slitY, CW - 28, 24);
+    ctx.strokeStyle = '#1d6b38'; ctx.strokeRect(14, slitY, CW - 28, 24);
+    return;
+  }
+
+  const sliceH = Math.min(volH - 18, 120);
+  const sliceW = Math.round(sliceH * (16 / 9));
+  const xStart = 12;
+  const xSpan = CW - sliceW - 24;
+  const yStart = 16;
+
+  const sxOf = (tau) => xStart + tau * xSpan;
+  const syOf = () => yStart;
+
+  ctx.strokeStyle = '#0c2b17';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(xStart, yStart, CW - 24, sliceH);
 
   // 2. Smooth Continuous Action-Tube Envelope (Top & Bottom Contour Ribbon, NO noisy ring clutter)
   const STEPS = 32;
