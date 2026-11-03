@@ -5,21 +5,21 @@ serve.start(8833);U='http://127.0.0.1:8833/cineosis-lab/lab/wg-butter-pair.html'
 T128='/tmp/claude-0/-home-claude/5dcbf124-08aa-5357-a87a-ec1f490e8f81/scratchpad/t128/node_modules/three/build/three.min.js'
 R={};errs=[]
 def log(k,v):R[k]=v;print(k,json.dumps(v)[:700])
-GEST="""(()=>{const W=.15,D=.075,H0=BP.SIM.H0,st=2.6+2.0,K=[],pc=[];
- BP.TEST.steps.forEach((s,k)=>{const t0=k*st;let P=[W/2,D/2,H0],closed=false,pose,orient;if(s.id==='pinch')closed=true;if(s.id==='Vflat'||s.id==='Vup'){pose='V';pc.push([t0,t0+st,s.id==='Vflat'?'B':'A']);}if(s.id==='fist')pose='fist';if(s.id==='palmTop'){orient='wall';P=[W*.55,D*.75,.23];}if(s.id==='Vup'){orient='wall';P=[W*.55,D*.75,.23];}
-  K.push({t:t0+.05,P:k?K[K.length-1].P:P,closed:false,pose:k?K[K.length-1].pose:pose,orient:k?K[K.length-1].orient:orient});K.push({t:t0+.8,P,closed,pose,orient});K.push({t:t0+st-.02,P,closed,pose,orient});});
- BP.RUN={sc:{dur:BP.TEST.steps.length*st+.5,hands:[K],poseCam:{V:pc}},t0:performance.now(),name:'launch-gest',next:[],last:null};})()"""
+GEST="""(()=>{const W=.15,D=.075,H0=BP.SIM.H0;let last=-1,prev=null;window._gw2=setInterval(()=>{if(!(BP.TEST.on&&BP.TEST.suite==='gestures')){if(last>=0&&!BP.TEST.on)clearInterval(window._gw2);return;}if(BP.TEST.i===last)return;last=BP.TEST.i;const s=BP.TEST.steps[last];if(!s)return;
+ let P=[W/2,D/2,H0],closed=false,pose,orient,pc=[];if(s.id==='pinch')closed=true;if(s.id==='Vflat'||s.id==='Vup'){pose='V';pc.push([0,99,s.id==='Vflat'?'B':'A']);}if(s.id==='fist')pose='fist';if(s.id==='palmTop'||s.id==='Vup'){orient='wall';P=[W*.55,D*.75,.23];}
+ const K=[{t:0,P:prev?prev.P:P,closed:false,pose:prev?prev.pose:pose,orient:prev?prev.orient:orient},{t:.8,P,closed,pose,orient},{t:30,P,closed,pose,orient}];prev={P,pose,orient};
+ BP.RUN={sc:{dur:30,hands:[K],poseCam:{V:pc}},t0:performance.now(),name:'launch-gest-'+s.id,next:[],last:null};},4);})()"""
 with sync_playwright() as p:
     b=p.chromium.launch(args=['--use-angle=swiftshader','--enable-unsafe-swiftshader']);ctx=b.new_context(viewport={'width':1280,'height':860})
     ctx.route('**/three.min.js',lambda r:r.fulfill(path=T128,content_type='text/javascript'))
     pg=ctx.new_page();pg.on('pageerror',lambda e:errs.append(str(e)));pg.goto(U+'?sim');pg.wait_for_timeout(1800);E=lambda s:pg.evaluate(s)
     fl=ctx.new_page();fl.set_viewport_size({'width':844,'height':390});fl.on('pageerror',lambda e:errs.append('floor: '+str(e)));fl.goto(U+'?floor');fl.wait_for_timeout(1500);pg.bring_to_front()
     # 1. Launch, end to end
-    E("(()=>{BP.resetModel();BP.reset();BP.CAL.B=null;BP.BPAIRS.length=0;window._imu=setInterval(()=>BP.imuIn({mov:false,b:1,g:1},performance.now()),100);BP.launchRun(BP.GO_STEPS);})()")
+    E("(()=>{BP.PLAN.on=true;BP.resetModel();BP.reset();BP.CAL.B=null;BP.BPAIRS.length=0;window._imu=setInterval(()=>BP.imuIn({mov:false,b:1,g:1},performance.now()),100);BP.launchRun(BP.GO_STEPS);})()")
     seen=set();shots=0;t0=time.time()
     go_rows=None
     while time.time()-t0<200:
-        pg.wait_for_timeout(150);st=E("BP.LAUNCH.on?BP.LAUNCH.rows.length+':'+(BP.LAUNCH.kind==='go'?['link','level','camA','floor']:['palms','gest'])[BP.LAUNCH.step]:'done'")
+        pg.wait_for_timeout(150);st=E("BP.LAUNCH.on?BP.LAUNCH.rows.length+':'+(BP.LAUNCH.kind==='go'?['link','level','camA','floor']:['reach','palms','gest'])[BP.LAUNCH.step]:'done'")
         if st=='done':
             if go_rows is None:
                 go_rows=E("BP.LAUNCH.rows.map(r=>r&&[r.id,r.st,r.text])");pg.screenshot(path=OUT+'/go-done.png');E("BP.launchRun(BP.PRACTICE_STEPS);0");pg.wait_for_timeout(300);continue
@@ -28,10 +28,12 @@ with sync_playwright() as p:
         if k in seen:continue
         seen.add(k)
         if k=='floor':pg.wait_for_timeout(200);E("BP.RUN={sc:BP.SIM.SCRIPTS.tapcal(),t0:performance.now(),name:'tapcal',next:[],last:null}");pg.wait_for_timeout(2600);pg.screenshot(path=OUT+'/cue-lift.png');fl.screenshot(path=OUT+'/cue-lift-floor.png')
-        if k=='palms':E("BP.RUN={sc:BP.SIM.SCRIPTS.twopalms(),t0:performance.now(),name:'twopalms',next:[],last:null}");pg.wait_for_timeout(1500);pg.screenshot(path=OUT+'/launch-palms.png')
-        if k=='gest':pg.wait_for_timeout(300);E(GEST);pg.wait_for_timeout(5000);pg.screenshot(path=OUT+'/launch-gest.png');pg.wait_for_timeout(7500);pg.screenshot(path=OUT+'/cue-vup.png');fl.screenshot(path=OUT+'/cue-vup-floor.png')
+        if k=='reach':
+            pg.wait_for_timeout(200);E("""(()=>{const W=.15,D=.075,CD=D/8,H0=BP.SIM.H0,T=BP.REACH.targets,K=[{t:0,P:[W/2,D/2,H0],closed:false}];let t=.5;for(const j of T){K.push({t:t+=1.4,P:[W/2,(j+.5)*CD,H0],closed:false});K.push({t:t+=3,P:[W/2,(j+.5)*CD,H0],closed:false});}BP.RUN={sc:{dur:t+3,hands:[K]},t0:performance.now(),name:'reach',next:[],last:null};})()""");pg.wait_for_timeout(2500);pg.screenshot(path=OUT+'/launch-reach.png');fl.screenshot(path=OUT+'/launch-reach-floor.png')
+        if k=='palms':E("BP.RUN={sc:BP.SIM.SCRIPTS.twopalms(),t0:performance.now(),name:'twopalms',next:[],last:null}");E(GEST);pg.wait_for_timeout(1500);pg.screenshot(path=OUT+'/launch-palms.png')
+        if k=='gest':pg.wait_for_timeout(5300);pg.screenshot(path=OUT+'/launch-gest.png');pg.wait_for_timeout(7500);pg.screenshot(path=OUT+'/cue-vup.png');fl.screenshot(path=OUT+'/cue-vup-floor.png')
     E("BP.RUN=null;clearInterval(window._imu)");pg.wait_for_timeout(400);pg.screenshot(path=OUT+'/launch-done.png')
-    log('launch, end to end (simulated hand)',E("({practice_done:BP.LAUNCH.done,practice:BP.LAUNCH.rows.map(r=>r&&[r.id,r.st,r.text]),baseline_hands:BP.LAUNCH.baseline&&BP.LAUNCH.baseline.hands.length})")|{'go':go_rows})
+    log("launch, end to end (simulated hand)",E("({gest:(BP.LAUNCH.rows[2]&&BP.LAUNCH.rows[2].data&&BP.LAUNCH.rows[2].data.results||[]).filter(x=>!x.ok).map(x=>[x.id,x.A&&x.A.reads,x.A&&x.A.reads_share,x.B&&x.B.reads]),practice_done:BP.LAUNCH.done,practice:BP.LAUNCH.rows.map(r=>r&&[r.id,r.st,r.text]),baseline_hands:BP.LAUNCH.baseline&&BP.LAUNCH.baseline.hands.length})")|{'go':go_rows})
     # 2. the agreement check: no false alarms when the pose is right
     def isolations(): return E("BP.LOG.filter(l=>l.includes('laptop camera isolated')).length")
     E("(()=>{BP.LOG.length=0;BP.resetModel();BP.reset();BP.setGeo(BP.geoFromImage(BP.SIM.flash(.0015),4/3),'test')})()")

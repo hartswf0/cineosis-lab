@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Butter Pair Manual</title>
+<meta name="description" content="How the two-camera hand instrument works, the procedure that makes it work, how to read the Plan, and a troubleshooting tree for every failure.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0a09;--panel:#12100e;--ink:#ece6da;--dim:#b3ab9e;--faint:#7a7368;--rule:#2e2a26;--lime:#c4f46a;--orange:#efa13a;--blue:#85bdff;--red:#e0483a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 "IBM Plex Mono",ui-monospace,monospace}
+main{max-width:1060px;margin:0 auto;padding:28px 16px 90px}a{color:var(--lime)}
+h1{font:700 clamp(28px,5vw,44px)/1.1 Fraunces,Georgia,serif;margin:6px 0 10px}h2{font:400 24px/1.25 Fraunces,Georgia,serif;margin:46px 0 10px;border-top:1px solid var(--rule);padding-top:22px}
+h3{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:24px 0 8px;font-weight:500}p{max-width:76ch;margin:8px 0}
+.lead{font:300 19px/1.45 Fraunces,Georgia,serif;color:#d8d2c6;max-width:64ch}.kick{font-size:11px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase}
+.wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px;min-width:620px}th,td{text-align:left;vertical-align:top;padding:7px 8px;border-bottom:1px solid var(--rule)}th{font-weight:500;color:var(--dim);font-size:11px;letter-spacing:.06em}
+ul,ol{padding-left:20px;max-width:78ch}li{margin:5px 0}code,kbd{background:var(--panel);padding:1px 5px;border-radius:3px;font-size:12.5px;border:1px solid var(--rule)}.note{color:var(--faint);font-size:12.5px}
+.box{border:1px solid var(--rule);border-radius:6px;padding:12px 14px;margin:12px 0;background:var(--panel)}.box b{font-weight:500}
+.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin:12px 0}figure{margin:0;border:1px solid var(--rule);border-radius:6px;padding:8px;background:#0e0c0b}figure svg{width:100%;height:auto;display:block}figcaption{font-size:12px;color:var(--dim);margin-top:6px}
+.toc{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0}.toc a{border:1px solid var(--rule);border-radius:4px;padding:6px 10px;text-decoration:none;color:var(--ink);font-size:12.5px}
+.state{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11.5px;letter-spacing:.06em;white-space:nowrap}.s-nom{background:#c4f46a22;color:var(--lime)}.s-deg{background:#efa13a22;color:var(--orange)}.s-safe{background:#e0483a22;color:var(--red)}.s-idle{background:#6b645b33;color:var(--dim)}
+.A{color:var(--lime)}.B{color:var(--orange)}
+.steps{counter-reset:s;list-style:none;padding:0}.steps>li{counter-increment:s;position:relative;padding:10px 12px 10px 48px;border:1px solid var(--rule);border-radius:6px;margin:8px 0;background:var(--panel)}.steps>li::before{content:counter(s);position:absolute;left:12px;top:10px;width:24px;height:24px;border-radius:50%;border:1.5px solid var(--ink);display:grid;place-items:center;font-size:12px}
+.steps b{font-weight:500}.ok{color:var(--lime)}.if{color:var(--orange)}
+/* the tree */
+#tree{border:1px solid var(--rule);border-radius:8px;background:var(--panel);padding:14px;margin:12px 0;scroll-margin-top:12px}
+#crumbs{font-size:11.5px;color:var(--faint);margin-bottom:8px;display:flex;flex-wrap:wrap;gap:4px}#crumbs a{color:var(--dim);text-decoration:none;border-bottom:1px dotted var(--faint)}#crumbs span{color:var(--faint)}
+#tq{font:400 21px/1.3 Fraunces,Georgia,serif;margin:2px 0 10px}#tnote{color:var(--dim);font-size:13px;max-width:76ch}
+#topts{display:grid;gap:8px;margin-top:12px}#topts a{display:block;text-decoration:none;color:var(--ink);border:1px solid var(--rule);border-radius:6px;padding:10px 12px;background:#0e0c0b}#topts a:hover,#topts a:focus{border-color:var(--lime)}#topts a small{display:block;color:var(--faint);font-size:11.5px}
+#tfix{margin-top:10px}#tfix ol{margin:6px 0}#tfix li{margin:7px 0}
+.tbtn{display:inline-block;margin-top:12px;font:inherit;font-size:12px;color:var(--dim);background:none;border:1px solid var(--rule);border-radius:4px;padding:5px 10px;text-decoration:none}
+details{border-top:1px solid var(--rule);padding:8px 0}summary{cursor:pointer;color:var(--dim)}details .node{margin:10px 0 18px;padding-left:12px;border-left:2px solid var(--rule)}details .node h4{margin:0 0 4px;font-weight:500}
+@media (max-width:640px){main{padding:18px 16px 70px}.steps>li{padding-left:42px}}
+</style>
+</head>
+<body>
+<main>
+<div class="kick">BUTTER PAIR · operating manual · 3 November 2026</div>
+<h1>How it works, and what to do when it does not</h1>
+<p class="lead">Two cameras watch one hand. Each is good at two directions and poor at the third. This page explains which, gives the procedure that makes the system work, shows how to read the Plan, and ends with a troubleshooting tree that starts from what you see.</p>
+<div class="toc"><a href="#theory">How it works</a><a href="#procedure">The procedure</a><a href="#depth">Toward and away</a><a href="#plan">Reading the Plan</a><a href="#controls">Controls</a><a href="#states">States</a><a href="#tree">Troubleshooting tree</a><a href="#recover">Recovery</a><a href="../wg-butter-pair.html">Open Butter Pair</a></div>
+
+<h2 id="theory">How it works</h2>
+<p><b class="A">Camera A</b> is the laptop camera. It faces you. <b class="B">Camera B</b> is the phone's front camera; the phone lies flat between you and the laptop, screen up, and is called the Floor. Each camera's tracker finds 21 points on your hand. From those, each camera estimates where the pinch is in one shared frame: across (left and right), along (toward and away from the laptop), and up (height above the phone).</p>
+<div class="wrap"><table>
+<tr><th>Direction</th><th>Camera A (laptop)</th><th>Camera B (phone, facing up)</th><th>Both together</th></tr>
+<tr><td>Across</td><td class="ok">good: position in its picture</td><td class="ok">good: position in its picture</td><td>combined</td></tr>
+<tr><td>Toward and away</td><td class="if">poor: judged from how big your hand looks</td><td class="ok">good: position in its picture</td><td>B decides</td></tr>
+<tr><td>Height</td><td class="ok">good: position in its picture</td><td class="if">poor: judged from how big your hand looks</td><td>where the two lines of sight meet</td></tr>
+</table></div>
+<p>Judging distance from apparent size depends on knowing how big your hand is. People's hands differ by about 15%, so before it is measured, a camera working from size alone can be several centimetres off. With both cameras on, each covers the other's poor direction, and the hand is where the two lines of sight cross: in simulation, within a few millimetres. With only the laptop camera, toward and away is the weak direction. That is why moving a brick toward or away from the laptop is the hardest move when the phone's camera is off.</p>
+<div class="figs">
+<figure><svg viewBox="0 0 520 300" role="img" aria-label="Side view: the phone on the table, the laptop camera 43 cm away and 27 cm up, and the region both cameras see">
+<rect width="520" height="300" fill="#0e0c0b"/>
+<line x1="20" y1="260" x2="500" y2="260" stroke="#2e2a26" stroke-width="2"/>
+<polygon points="110,260 30,40 190,40" fill="#efa13a22" stroke="#efa13a" stroke-dasharray="4 3"/>
+<polygon points="440,110 20,150 20,300 230,260" fill="#c4f46a14" stroke="#c4f46a" stroke-dasharray="4 3"/>
+<polygon points="70,150 150,150 132,205 88,205" fill="#ece6da22" stroke="#ece6da"/>
+<rect x="80" y="254" width="70" height="6" fill="#ece6da"/>
+<circle cx="110" cy="256" r="4" fill="#efa13a"/>
+<rect x="430" y="100" width="8" height="160" fill="#3a3530"/><circle cx="440" cy="110" r="6" fill="#c4f46a"/>
+<text x="452" y="114" fill="#c4f46a" font-size="12" font-family="IBM Plex Mono">A</text>
+<text x="118" y="250" fill="#efa13a" font-size="12" font-family="IBM Plex Mono">B</text>
+<text x="160" y="182" fill="#ece6da" font-size="12" font-family="IBM Plex Mono">both see a hand</text>
+<text x="160" y="198" fill="#b3ab9e" font-size="11" font-family="IBM Plex Mono">about 15 to 35 cm up</text>
+<text x="26" y="30" fill="#efa13a" font-size="11" font-family="IBM Plex Mono">B: 78° cone, facing up</text>
+<text x="250" y="96" fill="#c4f46a" font-size="11" font-family="IBM Plex Mono">A: about 43 cm away, 27 cm up</text>
+<text x="40" y="284" fill="#7a7368" font-size="11" font-family="IBM Plex Mono">you</text><text x="420" y="284" fill="#7a7368" font-size="11" font-family="IBM Plex Mono">laptop</text>
+</svg><figcaption>Seen from your right, as the Plan draws it. Below about 12 cm the phone camera cannot fit your whole hand in its picture. Far above the laptop camera's line of sight, A loses it. Work in the white region. The numbers are the simulated setup; the Plan draws yours.</figcaption></figure>
+<figure><svg viewBox="0 0 520 300" role="img" aria-label="One camera alone: the hand could be anywhere along a segment of the line of sight">
+<rect width="520" height="300" fill="#0e0c0b"/>
+<line x1="20" y1="260" x2="500" y2="260" stroke="#2e2a26" stroke-width="2"/>
+<circle cx="460" cy="110" r="6" fill="#c4f46a"/>
+<line x1="460" y1="110" x2="60" y2="196" stroke="#c4f46a66"/>
+<line x1="300" y1="144" x2="140" y2="179" stroke="#c4f46a" stroke-width="5" stroke-linecap="round"/>
+<circle cx="220" cy="161" r="7" fill="none" stroke="#ece6da" stroke-width="2"/>
+<circle cx="190" cy="256" r="4" fill="#efa13a"/>
+<line x1="190" y1="256" x2="190" y2="90" stroke="#efa13a66"/>
+<line x1="190" y1="146" x2="190" y2="196" stroke="#efa13a" stroke-width="5" stroke-linecap="round"/>
+<text x="250" y="200" fill="#c4f46a" font-size="12" font-family="IBM Plex Mono">A alone: somewhere on</text><text x="250" y="216" fill="#c4f46a" font-size="12" font-family="IBM Plex Mono">this stretch of its line</text>
+<text x="200" y="80" fill="#efa13a" font-size="12" font-family="IBM Plex Mono">B alone: somewhere on this</text><text x="200" y="96" fill="#efa13a" font-size="12" font-family="IBM Plex Mono">stretch, straight up</text>
+<text x="40" y="284" fill="#7a7368" font-size="11" font-family="IBM Plex Mono">you</text><text x="420" y="284" fill="#7a7368" font-size="11" font-family="IBM Plex Mono">laptop</text>
+</svg><figcaption>Each camera knows the direction to your hand exactly and the distance only roughly. The two thick stretches are where each camera thinks the hand could be. They cross in one place: that is the hand. The Plan draws these stretches live.</figcaption></figure>
+</div>
+
+<h2 id="procedure">The procedure</h2>
+<p>Follow the big icon on the laptop and the cue on the phone. Each step waits for evidence before it turns green; a step that cannot pass falls back to something that still works and says so.</p>
+<ol class="steps">
+<li><b>Set up.</b> Phone flat on the table, screen up, between you and the laptop, about 40 cm from the laptop screen. Laptop screen opened normally. On the laptop press <b>Floor</b>, scan the code with the phone, then on the phone tap <b>START CAMERA</b> and allow the camera (and motion, on an iPhone). The phone shows four stages: motion sensors, camera, hand tracker, a hand in view. All four should turn green.</li>
+<li><b>Press Go</b> on the laptop. It checks four things in order:
+ <ol><li><b>Both cameras on.</b> Waits for the phone's camera. <span class="if">If the phone never starts, Go continues with the laptop camera, mouse and keyboard.</span></li>
+ <li><b>Floor level and still.</b> From the phone's motion sensors.</li>
+ <li><b>Laptop camera located.</b> The phone flashes dots; the laptop camera finds them and works out where it is. <span class="if">If it cannot see the phone, tilt the screen forward until it can, then back: the laptop follows the tilt from its own picture. Failing that, the Rig page, or your lifts in step 4.</span></li>
+ <li><b>Both cameras solved.</b> Touch each lit dot on the phone with a pinch, lift straight up, still pinched, and open at the top. The last dot is a check. <span class="if">Skipped if the phone's camera is off.</span></li></ol></li>
+<li><b>Press Practice.</b> First <b>toward and away</b>: if the phone's camera is off, hold your open hand still over the middle of the phone for a second (this measures your hand), then move your hand to each lit band. Then both palms flat, then seven gestures, each read by the camera that can see it.</li>
+<li><b>Build.</b> Pinch over a brick to lift it, carry it, open to place it. Undo with <kbd>Z</kbd> or a held fist.</li>
+</ol>
+
+<h2 id="depth">Toward and away from the laptop</h2>
+<p>This is the hardest direction. Here is what the system does about it, and what you can do.</p>
+<h3>What the system does</h3>
+<ul>
+<li><b>Whole rows, with a margin.</b> While you carry a brick and only the laptop camera sees you, the brick moves one row at a time. It changes row only when your hand crosses one of two dashed lines in the Plan's side view. The lines sit further apart when the reading is less certain, so a wavering reading does not make the brick wander.</li>
+<li><b>Counted from where you picked it up.</b> The laptop camera knows roughly where your hand is but knows well how far it has moved. So rows are counted from the brick's starting row: push 2 rows' worth toward the screen and it moves 2 rows. In simulation, a laptop-only reading that was 2 to 4 rows off in absolute terms still put the brick in the right row this way.</li>
+<li><b>Zero.</b> Holding your open hand still over the middle of the phone tells the laptop camera how big your hand is, which is what its distance is made from. Practice does this first when the phone's camera is off.</li>
+<li><b>An honest band.</b> The laptop camera alone tells rows apart only about one in two. The practice band never narrows below plus or minus one row for it. With the phone camera on, it narrows to half a row.</li>
+</ul>
+<h3>What you can do</h3>
+<ol>
+<li>Move the whole forearm, slowly, with your fingers held the same way. Changing your hand's shape changes how big it looks, which the laptop camera reads as distance.</li>
+<li>Keep the hand open and facing the screen when only the laptop camera sees it.</li>
+<li>Set depth exactly another way while carrying: <kbd>↑</kbd> <kbd>↓</kbd> arrow keys or the mouse wheel move one row a press; touching the phone where you want the brick places it there.</li>
+<li>Turn the phone's camera on. With both cameras, toward and away is measured by the phone and is the most accurate direction.</li>
+</ol>
+
+<h2 id="plan">Reading the Plan</h2>
+<p>Press <b>Plan</b> on the laptop. It draws the setup twice: from above, at your hand's height, and from your right side. It shows what each camera believes, not a description of it.</p>
+<div class="wrap"><table>
+<tr><th>Mark</th><th>Means</th></tr>
+<tr><td><span style="color:var(--lime)">lime area</span></td><td>only the laptop camera can see a hand there</td></tr>
+<tr><td><span style="color:var(--orange)">orange area</span></td><td>only the phone camera can see a hand there</td></tr>
+<tr><td><span style="color:var(--red)">red area</span></td><td>neither camera can: a blind spot. Clear (no colour) means both see it.</td></tr>
+<tr><td><span class="A">lime dot</span>, <span class="B">orange dot</span></td><td>where each camera thinks your hand is</td></tr>
+<tr><td>thin coloured line</td><td>that camera's line of sight to your hand</td></tr>
+<tr><td>thick coloured stretch</td><td>with one camera alone: where along its line the hand could be</td></tr>
+<tr><td>dashed ellipse</td><td>from above: how uncertain each camera's estimate is. Long along toward and away for the laptop camera.</td></tr>
+<tr><td>white ring</td><td>the one hand the system acts on</td></tr>
+<tr><td>white arrow</td><td>the move to make. The sentence underneath says it in words, such as "Raise 12 cm so the Floor camera sees it too".</td></tr>
+<tr><td>lime band</td><td>the row asked for in practice</td></tr>
+<tr><td>orange dashed box</td><td>where a carried brick will land</td></tr>
+<tr><td>two orange dashed lines (side view)</td><td>cross one to move the carried brick one row (only the laptop camera)</td></tr>
+<tr><td>orange vertical bar (side view)</td><td>during calibration: the height range where both cameras see the lift</td></tr>
+<tr><td>A 43 cm</td><td>the laptop camera, at the edge, with its distance; "assumed" until it is located</td></tr>
+</table></div>
+<p>The same coverage is tinted on the laptop's 3D bed. In <b>Scope</b>, each camera's picture has the other camera's belief drawn over it. On the phone, tap the small camera picture in the corner to enlarge it: a lime ring shows where the laptop camera thinks your hand is, over what the phone sees.</p>
+
+<h2 id="controls">Controls</h2>
+<div class="wrap"><table>
+<tr><th>Do</th><th>Hand</th><th>Mouse and keyboard</th><th>Phone touch</th></tr>
+<tr><td>Lift</td><td>pinch over a brick</td><td>press on a brick</td><td>touch a brick</td></tr>
+<tr><td>Carry</td><td>move while pinched</td><td>drag</td><td>drag</td></tr>
+<tr><td>Across and toward or away</td><td>move the hand</td><td><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> while carrying; wheel for toward and away</td><td>touch where it should go</td></tr>
+<tr><td>Turn 90°</td><td>other hand: two fingers up, toward the laptop</td><td><kbd>R</kbd></td><td></td></tr>
+<tr><td>Place</td><td>open the pinch</td><td><kbd>Enter</kbd> or <kbd>Space</kbd>, or release</td><td>touch while a hand carries; or lift the finger</td></tr>
+<tr><td>Copy</td><td>two fingers flat, over a brick (phone camera)</td><td></td><td></td></tr>
+<tr><td>Undo</td><td>hold a fist</td><td><kbd>Z</kbd> (redo <kbd>Shift Z</kbd>)</td><td>Undo button</td></tr>
+<tr><td>Cancel a carry</td><td></td><td><kbd>Esc</kbd></td><td>the X button</td></tr>
+<tr><td>Lock a plane</td><td>other hand flat over the phone (move in the floor plane) or standing toward the laptop (move along the row, depth held)</td><td></td><td></td></tr>
+<tr><td>Recover from anything</td><td></td><td>More, then Recover</td><td></td></tr>
+</table></div>
+<p class="note">Inputs combine. A hand can carry while a finger on the phone places, or the arrow keys correct the row.</p>
+
+<h2 id="states">States</h2>
+<p>The laptop's panel and the phone's border show one state for the whole system.</p>
+<div class="wrap"><table>
+<tr><th>State</th><th>Means</th><th>Still works</th><th>Do</th></tr>
+<tr><td><span class="state s-nom">NOMINAL</span></td><td>both cameras see the hand and agree</td><td>everything</td><td>nothing</td></tr>
+<tr><td><span class="state s-deg">FLOOR ONLY</span></td><td>only the phone camera sees, or the laptop camera disagrees and is set aside</td><td>everything; height is rougher</td><td>follow the Plan's arrow into the laptop camera's view</td></tr>
+<tr><td><span class="state s-deg">LAPTOP ONLY</span></td><td>only the laptop camera sees</td><td>lift and carry; toward and away in whole rows; placing needs a second open, a touch or Enter</td><td>follow the Plan's arrow into the band both see; or use keys, wheel, touch</td></tr>
+<tr><td><span class="state s-deg">FLOOR MOVED</span></td><td>the phone was picked up or moved</td><td>the phone camera; the laptop camera's place is out of date</td><td>set it down flat; press Go</td></tr>
+<tr><td><span class="state s-safe">SAFE</span></td><td>no camera sees the hand</td><td>a held brick waits in the air; nothing is dropped</td><td>show your hand and pinch where the brick is; or <kbd>Esc</kbd></td></tr>
+<tr><td><span class="state s-idle">IDLE</span></td><td>no hand, or not set up</td><td>mouse, keyboard, touch</td><td>press Go</td></tr>
+</table></div>
+
+<h2 id="tree-h">Troubleshooting tree</h2>
+<p>Start from what you see. Each answer leads to the next question or to a fix. The laptop's "what to do" links open the right branch.</p>
+<div id="tree" aria-live="polite"><div id="crumbs"></div><div id="tq"></div><div id="tnote"></div><div id="tfix"></div><div id="topts"></div><a class="tbtn" href="#tree">Start over</a></div>
+<details><summary>The whole tree, for reading through</summary><div id="tall"></div></details>
+
+<h2 id="recover">Recovery</h2>
+<p>These hold whatever fails:</p>
+<ul>
+<li>A brick in the air is never dropped because a camera lost the hand. It waits; pinch where it is to go on.</li>
+<li><kbd>Esc</kbd> (or X on the phone) cancels a carry: the brick returns to where it was.</li>
+<li><kbd>Z</kbd> undoes the last change, as many times as you like.</li>
+<li><b>More, then Recover</b> puts held bricks back, forgets hands, stops any test or calibration, and restarts a laptop camera that stopped giving pictures.</li>
+<li>Every Go step that fails falls back: no phone camera, then laptop camera with keys and touch; no flash, then tilt, then Rig, then lifts; no lifts, then the map from before.</li>
+<li>If the page itself misbehaves, reload both the laptop and the phone and join again.</li>
+</ul>
+<p class="note">The behaviour described here was checked with two simulated cameras and a simulated hand. On your laptop and phone, send the launch record (Go, then Save record) and a screenshot of the phone's stage list when something fails; they say which branch of this tree you are on.</p>
+</main>
+<script>
+'use strict';
+/* the tree: every node is a question with answers, or a fix. ids match the links from the laptop */
+const T={
+ tree:{q:'What is going wrong?',a:[['The phone\'s camera will not start','t-phone'],['Toward and away from the laptop is wrong or jumpy','t-depth'],['A brick lands in the wrong place','t-place'],['The laptop says LAPTOP ONLY','t-laptop-only'],['The laptop says FLOOR ONLY','t-floor-only'],['The laptop says SAFE: the hand is lost','t-no-hand'],['Go: "Laptop camera located" did not pass','t-laptop'],['Go: the lifts failed','t-lifts'],['Practice: gestures not read','t-gestures'],['Practice: palms not recorded','t-palms'],['The phone was moved','t-moved'],['Everything seems stuck','t-stuck'],['Not sure where to begin','t-start']]},
+ 't-start':{q:'Begin here',fix:['Lay the phone flat, screen up, between you and the laptop, about 40 cm from the screen.','On the laptop press Floor. Scan the code with the phone.','On the phone tap START CAMERA. Allow the camera, and motion on an iPhone. Wait until all four stages are green.','On the laptop press Go and follow the big icon.','Then press Practice.'],a:[['Something on the way failed','tree']]},
+ 't-phone':{q:'What does the phone\'s list of four stages show?',note:'The phone lists: motion sensors, camera, hand tracker, a hand in view. The laptop shows the same line next to the cameras.',a:[['Only the START CAMERA button','t-phone-tap'],['camera: red, or "blocked"','t-phone-blocked'],['hand tracker: stays orange, loading','t-phone-tracker'],['"stopped:" with an error','t-phone-error'],['All green, but the laptop sees no hand from the phone','t-phone-green']]},
+ 't-phone-tap':{q:'Tap START CAMERA on the phone',fix:['Tap the orange START CAMERA button. The camera can only start from a tap.','On an iPhone, allow motion first, then the camera.','If the button does nothing, reload the phone page and rejoin with the code.'],a:[['The list now shows something red or stuck','t-phone']]},
+ 't-phone-blocked':{q:'The browser refused the camera',fix:['iPhone: Settings, Safari, Camera: set to Ask or Allow. Then reload the page and tap START CAMERA.','Android Chrome: tap the icon left of the address, Permissions, Camera: Allow. Reload.','Close other apps that may be using the camera (video calls, the camera app).','The page must be opened from its https address (the code\'s link is).'],a:[['Still refused','t-phone-error']]},
+ 't-phone-tracker':{q:'The hand tracker did not finish loading',fix:['Wait 20 seconds on a slow connection: the tracker is several megabytes.','Tap "Try the slower tracker". It works on more phones.','Reload the phone page; check the phone is online.'],a:[['It loaded, but no hand is seen','t-phone-green']]},
+ 't-phone-error':{q:'The camera stopped with an error',fix:['Read the error on the phone. Tap RETRY.','Tap "Try the slower tracker".','Send a screenshot of the phone with the error, and the launch record from the laptop (Go, then Save record).'],a:[]},
+ 't-phone-green':{q:'The phone\'s camera runs but the laptop gets no hand from it',fix:['Check the laptop shows Floor (1): the phone is linked to the same room.','The front camera is at one end of the phone. Hold your hand above that end, 15 to 35 cm up, palm down.','Below about 12 cm the camera cannot fit your whole hand. Raise it.','Open Scope on the laptop: the B picture should show the phone\'s view.'],a:[['The laptop shows Floor without (1)','t-stuck']]},
+ 't-depth':{q:'Which cameras see your hand right now?',note:'The state on the laptop panel and the phone border says it.',a:[['Both (NOMINAL)','t-depth-both'],['Only the laptop camera (LAPTOP ONLY)','t-depth-a'],['It moves the opposite way to my hand','t-depth-flip']]},
+ 't-depth-both':{q:'Both cameras see it, and depth is still off',fix:['Move your hand toward the middle of the phone: near the edge of the phone camera\'s view, readings drift.','Press Go again: the lifts re-solve both cameras.','Run Practice: the toward and away step shows how well each row is reached.'],a:[]},
+ 't-depth-a':{q:'Only the laptop camera: depth comes from how big your hand looks',fix:['Zero it: Practice, then hold your open hand still over the middle of the phone for a second.','Move the whole forearm, slowly, with your fingers held the same way.','While carrying, the brick steps one row each time your hand crosses a dashed line in the Plan\'s side view. Push further to cross it.','Set depth exactly: arrow keys or the wheel while carrying, or touch the phone where the brick should go.','Turn the phone\'s camera on: then depth is measured, not judged.'],a:[['The phone\'s camera will not start','t-phone']]},
+ 't-depth-flip':{q:'Depth runs backwards',fix:['The laptop camera\'s place is wrong. Press Go: the flash step finds it again.','If Go says it was found from the Rig, open the Rig page and check the screen angle and distance.','Make sure the laptop camera is the one on the laptop and not an external camera facing the other way.'],a:[]},
+ 't-place':{q:'Where does the brick land?',a:[['One or two rows too near or too far','t-depth'],['Too far left or right','t-place-lr'],['It does not land: it stays held','t-place-held'],['It lands where my hand moved while opening','t-place-open']]},
+ 't-place-lr':{q:'Off to the side',fix:['Across is measured well by both cameras. An error here means the setup changed: press Go.','Check the phone is lying straight in front of the laptop, its long edge facing you.'],a:[]},
+ 't-place-held':{q:'The brick stays held',fix:['With only the laptop camera, the first open only holds the brick, so a misread cannot drop it in the wrong place. Pinch and open again in the same spot to place it.','Or press Enter, or touch the phone where it should go.','Or bring your hand into the band where the phone camera sees it.'],a:[]},
+ 't-place-open':{q:'Opening the pinch moves the hand',fix:['Open slowly and keep the wrist still.','Use Enter or Space to place without opening.'],a:[]},
+ 't-laptop-only':{q:'Is the phone\'s camera on?',note:'The phone\'s stage list says camera: green, and the laptop shows "phone camera on".',a:[['No','t-phone'],['Yes','t-laptop-only-yes']]},
+ 't-laptop-only-yes':{q:'Your hand is outside the phone camera\'s view',fix:['Follow the white arrow in the Plan. Its sentence says how far, such as "Raise 12 cm".','The usual place is 15 to 35 cm above the phone, over its middle.','Too low (under about 12 cm), the phone cannot fit your hand in its picture.'],a:[]},
+ 't-floor-only':{q:'The laptop camera does not see your hand, or disagrees',a:[['It does not see it','t-floor-only-see'],['The panel says it "disagrees" and is set aside','t-floor-only-dis']]},
+ 't-floor-only-see':{q:'Bring the hand into the laptop camera\'s view',fix:['Follow the Plan\'s arrow; usually lower and nearer to you.','Check the laptop camera is on (Camera A button highlighted).'],a:[]},
+ 't-floor-only-dis':{q:'The two cameras place the hand more than 3 cm apart',fix:['Something moved: the laptop screen angle, the laptop, or the phone. Press Go.','Work over the middle of the phone, where both cameras see the whole hand.'],a:[]},
+ 't-no-hand':{q:'No camera sees your hand',fix:['Nothing is lost. A brick you held waits in the air.','Show your hand in the band above the phone and pinch where the brick is to go on.','Or press Esc to put it back where it was.','If the hand is in view and still not seen, open Scope: if a picture is frozen or black, use More, then Recover.'],a:[['A picture is black or frozen','t-stuck']]},
+ 't-laptop':{q:'How did "Laptop camera located" end?',a:[['"camera A is off"','t-laptop-off'],['"not seen by the flash"','t-laptop-flash'],['"from the Rig"','t-laptop-rig']]},
+ 't-laptop-off':{q:'The laptop camera is off',fix:['Press Camera A and allow the camera in the browser.','Close other apps using the camera.','Then press Go again.'],a:[]},
+ 't-laptop-flash':{q:'The laptop camera did not see the phone\'s flashes',fix:['Open Scope and look at the A picture: is the phone in it?','If not, tilt the laptop screen forward until the phone appears, hold, then tilt back slowly when asked. Go does this itself if the first flash fails.','Turn the phone\'s brightness up; avoid a bright window behind the phone.','If the phone cannot be brought into view at all, the lifts in the next step locate the laptop camera instead.'],a:[]},
+ 't-laptop-rig':{q:'Located from the Rig, measured by hand',fix:['This works, with less certain height. Check the Rig page values: screen size, distance, angle.','Prefer the flash: bring the phone into the laptop camera\'s picture and press Go.'],a:[]},
+ 't-lifts':{q:'The record says "A n / B n" for each lift. Which number is 0?',a:[['B is 0 for every lift','t-phone'],['A is 0','t-lifts-a'],['Neither, but "both" is small','t-lifts-both']]},
+ 't-lifts-a':{q:'The laptop camera did not see the lifts',fix:['Bring the phone into the laptop camera\'s view (see the A picture in Scope).','Lift toward the laptop camera, not hidden behind your own hand.'],a:[]},
+ 't-lifts-both':{q:'The two cameras did not see the same lift at the same time',fix:['Lift straight up, slowly, still pinched, to the height the Plan\'s orange bar shows; open at the top.','Keep the pinch visible: fingertips toward the laptop, not curled away.'],a:[]},
+ 't-gestures':{q:'Which camera reads each gesture?',note:'Open hand, pinch, two fingers flat and a flat palm are read by the phone camera. Two fingers up and a palm standing toward the laptop are read by the laptop camera. A fist by either.',a:[['The needed camera is off: the gesture was skipped','t-phone'],['A fist reads as a pinch','t-gest-fist'],['Two fingers flat reads as open','t-gest-v']]},
+ 't-gest-fist':{q:'Fist read as pinch',fix:['Fold all four fingers into the palm, thumb across the outside.','Hold it for a moment: an undo needs about two thirds of a second.'],a:[]},
+ 't-gest-v':{q:'Two fingers flat read as open',fix:['Fold the ring and little fingers fully.','Hold the hand flat over the phone, palm down, so the phone camera sees it.'],a:[]},
+ 't-palms':{q:'Both palms were not recorded',fix:['Both hands flat, palms down, 20 to 30 cm above the phone, still for two seconds.','Both cameras must see both hands: keep them over the phone, not to the sides.','Use the One hand button to record a single hand.'],a:[]},
+ 't-level':{q:'The Floor is not level, or has no motion data',fix:['Lay the phone flat on the table, not on a stand.','On an iPhone, motion needs permission: tap START CAMERA and allow motion.'],a:[]},
+ 't-moved':{q:'The phone was moved',fix:['Set it down flat where you want it.','Press Go: the laptop camera is located again from the flash.'],a:[]},
+ 't-stuck':{q:'Recover',fix:['On the laptop: More, then Recover. Held bricks go back; tests stop; a stalled camera restarts.','If still stuck, reload the laptop page and the phone page, and join again.','Then press Go.'],a:[]}};
+const PARENT={};for(const [k,n] of Object.entries(T))for(const [,to] of n.a||[])if(!PARENT[to]&&to!==k&&to!=='tree')PARENT[to]=k;
+const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function show(id,scroll){const n=T[id]||T.tree;id=T[id]?id:'tree';const path=[];let p=id;while(p&&path.length<8){path.unshift(p);p=PARENT[p];}if(path[0]!=='tree')path.unshift('tree');
+ document.getElementById('crumbs').innerHTML=path.map((k,i)=>i<path.length-1?'<a href="#'+k+'">'+esc(k==='tree'?'Start':T[k].q.slice(0,34)+(T[k].q.length>34?'…':''))+'</a><span>›</span>':'').join('');
+ document.getElementById('tq').textContent=n.q;document.getElementById('tnote').textContent=n.note||'';
+ document.getElementById('tfix').innerHTML=n.fix?'<ol>'+n.fix.map(f=>'<li>'+esc(f)+'</li>').join('')+'</ol>':'';
+ document.getElementById('topts').innerHTML=(n.a||[]).map(([t,to])=>'<a href="#'+to+'">'+esc(t)+'<small>'+esc(T[to]?T[to].q:'')+'</small></a>').join('');
+ if(scroll)document.getElementById('tree').scrollIntoView({block:'start'});}
+function route(){const h=location.hash.slice(1);if(T[h])show(h,true);else show('tree',false);}
+addEventListener('hashchange',route);route();
+document.getElementById('tall').innerHTML=Object.entries(T).map(([k,n])=>'<div class="node" id="all-'+k+'"><h4>'+esc(n.q)+'</h4>'+(n.note?'<div class="note">'+esc(n.note)+'</div>':'')+(n.fix?'<ol>'+n.fix.map(f=>'<li>'+esc(f)+'</li>').join('')+'</ol>':'')+((n.a||[]).length?'<ul>'+n.a.map(([t,to])=>'<li>'+esc(t)+': <a href="#'+to+'">'+esc(T[to].q)+'</a></li>').join('')+'</ul>':'')+'</div>').join('');
+</script>
+</body>
+</html>

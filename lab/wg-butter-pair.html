@@ -14,7 +14,7 @@
 :root{--bg:#0b0a09;--panel:#12100e;--ink:#ece6da;--dim:#b3ab9e;--faint:#6b645b;--rule:#2e2a26;--lime:#c4f46a;--orange:#efa13a;--blue:#85bdff;--red:#e0483a}
 [hidden]{display:none!important}*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.45 "IBM Plex Mono",ui-monospace,monospace;overflow:hidden}
 button{font:inherit;cursor:pointer}
-header{height:48px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--rule)}
+header{height:48px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--rule);overflow-x:auto;overflow-y:hidden}
 header h1{font:700 17px/1 Fraunces,Georgia,serif;margin:0 8px 0 0;white-space:nowrap}header h1 small{font:400 11px "IBM Plex Mono";color:var(--dim);margin-left:8px}
 .hb{background:none;border:1px solid var(--rule);color:var(--dim);border-radius:6px;padding:6px 10px;min-height:32px;white-space:nowrap}.hb:hover{color:var(--ink);border-color:var(--dim)}.hb[aria-pressed=true]{background:var(--lime);color:#111;border-color:var(--lime)}.hb.warn{border-color:var(--orange);color:var(--orange)}
 .sp{flex:1}
@@ -41,6 +41,8 @@ aside details{border-top:1px solid var(--rule);margin-top:12px;padding-top:6px}a
 #sOne{font-size:12px;color:var(--dim)}#sOne b{color:var(--ink)}#sChart{width:100%;height:120px;display:block;border:1px solid var(--rule);border-radius:6px}
 #scope .tb{display:flex;gap:8px;align-items:center;flex-wrap:wrap}#tMsg{font-size:12.5px;color:var(--orange)}
 #tRep table{width:100%;border-collapse:collapse;font-size:11.5px}#tRep th,#tRep td{text-align:left;vertical-align:top;padding:5px 6px;border-bottom:1px solid var(--rule)}#tRep th{color:var(--dim);font-weight:500}#tRep tr.ok td:last-child b{color:var(--lime)}#tRep tr.bad td:last-child b{color:var(--orange)}#tRep i{color:var(--faint);font-style:normal}#stage canvas{display:block;width:100%;height:100%}
+#stage #bp{position:absolute;right:12px;top:40px;width:min(330px,40%);height:min(580px,calc(100% - 52px));z-index:2;pointer-events:none;border-radius:8px}#stage #bp[hidden]{display:none}
+#help a,.help{color:var(--blue);font-size:11px}
 #tag{position:absolute;left:12px;top:10px;z-index:1;font-size:11px;letter-spacing:.12em;color:var(--dim);background:#0b0a09cc;padding:3px 8px;border-radius:4px}
 #sim{position:absolute;right:12px;top:10px;font-size:11px;letter-spacing:.12em;color:#111;background:var(--orange);padding:3px 8px;border-radius:4px}
 #hold{position:absolute;right:12px;bottom:12px;display:flex;gap:8px}
@@ -82,12 +84,14 @@ body.flashing #flStart,body.flashing #flU,body.flashing #flX{visibility:hidden}#
   <button class="hb" id="launchB" title="One button: cameras on, Floor level, laptop camera located, both cameras solved from lifts. Whatever fails falls back to a mode that works.">Go</button>
   <button class="hb" id="undoB" title="Undo (Z)">Undo</button>
   <a class="hb" id="rigB" href="wg-butter-pair-rig.html" title="Model the setup: where the laptop camera is, which way it points, and where both cameras see a hand" style="text-decoration:none;display:inline-flex;align-items:center">Rig</a>
+  <button class="hb" id="planB" title="From above and from the side: what each camera believes, where each is blind, and the move to make">Plan</button>
+  <a class="hb" id="manB" href="wg-butter-pair-manual/" target="_blank" title="How it works, and what to do when something fails" style="text-decoration:none;display:inline-flex;align-items:center">Manual</a>
   <button class="hb" id="scopeB" title="See both cameras large, what each reads from your hand, and run calibration and gesture tests">Scope</button>
     <button class="hb" id="recB" title="Record what both cameras see, to send and replay. Drop a recording on this page to replay it.">Record</button>
   <span style="position:relative"><button class="hb" id="moreB" aria-expanded="false" title="Demo, redo, reset">More</button><span id="more" hidden><button class="hb" id="demoB" title="Run both cameras as a simulation">Demo</button><button class="hb" id="redoB" title="Redo (Shift Z)">Redo</button><button class="hb" id="resetB" title="Put the bricks back where they started">Reset</button><button class="hb" id="recoverB" title="Put held bricks back, forget hands, stop tests, restart a stalled camera">Recover</button><button class="hb" id="soundB">Sound on</button></span></span>
 </header>
 <main>
-  <section id="stage"><canvas id="cv3"></canvas><span id="tag">LAPTOP · PERSPECTIVE</span><span id="spaceL" style="position:absolute;left:18px;top:40px;max-width:330px;font-size:10.5px;color:var(--dim);pointer-events:none"></span><span id="constr" hidden style="position:absolute;left:50%;top:10px;transform:translateX(-50%);font-size:11.5px;letter-spacing:.08em;color:#111;background:var(--blue);padding:4px 10px;border-radius:4px"></span><span id="sim" hidden>SIMULATED CAMERAS</span><div id="hold" hidden><button class="hb warn" id="cancelB">Cancel (Esc)</button></div>
+  <section id="stage"><canvas id="cv3"></canvas><span id="tag">LAPTOP · PERSPECTIVE</span><span id="spaceL" style="position:absolute;left:18px;top:40px;max-width:330px;font-size:10.5px;color:var(--dim);pointer-events:none"></span><span id="constr" hidden style="position:absolute;left:50%;top:10px;transform:translateX(-50%);font-size:11.5px;letter-spacing:.08em;color:#111;background:var(--blue);padding:4px 10px;border-radius:4px"></span><span id="sim" hidden>SIMULATED CAMERAS</span><canvas id="bp" aria-label="Plan: what each camera believes and where each is blind"></canvas><div id="hold" hidden><button class="hb warn" id="cancelB">Cancel (Esc)</button></div>
   <div id="launch" hidden><div id="lsteps"></div>
    <div id="cue"><div id="cueIc"></div><div><div id="cueWhere"></div><b id="cueMain"></b><span id="cueSub"></span></div><div id="cueBar"><i id="cueProg"></i></div><div id="cueCams"></div>
     <div class="tb"><button class="hb" id="lGo">Go</button><button class="hb" id="lPr" hidden title="Palms and gestures, each by its camera">Practice</button><button class="hb" id="lSkip" hidden>Skip</button><button class="hb" id="lOne" hidden>One hand</button><a class="hb" id="lRig" href="wg-butter-pair-rig.html" hidden style="text-decoration:none">Open Rig</a><button class="hb" id="lSave" hidden>Save record</button><button class="hb" id="lClose" title="Close">Close</button></div></div></div>
@@ -173,7 +177,7 @@ function Lin(){return {n:0,sx:0,sy:0,sxx:0,sxy:0,a:0,b:0,ok:false,add(x,y){const
 let CAL={rev:0,A:null,B:null,res:null,check:null};const XF={Bh:Lin(),Av:Lin(),Ag:Lin()};/* Ag: A's posed depth, corrected by B (the pinch sits closer to A than the knuckles whose size gives the distance) */
 function lsq(rows,ys,lam){const n=rows[0].length,M=Array.from({length:n},()=>Array(n+1).fill(0));rows.forEach((r,k)=>{for(let i=0;i<n;i++){for(let j=0;j<n;j++)M[i][j]+=r[i]*r[j];M[i][n]+=r[i]*ys[k];}});for(let i=0;i<n;i++)M[i][i]+=lam||1e-9;
  for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;[M[c],M[p]]=[M[p],M[c]];for(let r=0;r<n;r++){if(r===c)continue;const k=M[r][c]/M[c][c];for(let j=c;j<=n;j++)M[r][j]-=k*M[c][j];}}return M.map((r,i)=>r[n]/r[i]);}
-function estA(f){if(GEO.A)return estAg(f);const c=CAL.A;if(!c)return {U:W/2-f.nx*.045,V:D/2+(f.inv-8)*.01,H:-f.ny*S_HAND,sd:{U:.04,V:.09,H:.1},cal:false};/* uncalibrated height depends on how the laptop camera is tilted: a guess */
+function estA(f){if(GEO.A)return estAg(f);const c=CAL.A;if(!c)return {U:W/2-f.nx*.045,V:D/2+(f.inv-8)*.01+ZERO.dv,H:-f.ny*S_HAND,sd:{U:.04,V:.09,H:.1},cal:false};/* uncalibrated height depends on how the laptop camera is tilted: a guess */
  const V=XF.Av.ok?XF.Av.pred(f.inv):c.v[0]*f.inv+c.v[1];return {U:c.u[0]*f.nx+c.u[1]*f.ny+c.u[2],V,H:-(f.ny-(c.h[0]+c.h[1]*f.inv))*S_HAND,sd:{U:.008,V:XF.Av.ok?.014:.03,H:.01},cal:true};}
 function estB(f){const c=CAL.B;const H=XF.Bh.ok?XF.Bh.pred(f.inv):FB0*GEO.L*f.inv-HREF,sdH=XF.Bh.ok?.016:.04;/* until A teaches it, B's height is its distance from the hand's size */
  if(BCAM.on){const r=rayB(BCAM.p,f.nx*f.span,f.ny*f.span);if(r.d[2]>.05){const k=(H+HREF-r.o[2])/r.d[2],tn=Math.hypot(r.d[0],r.d[1])/r.d[2];return {U:r.o[0]+k*r.d[0],V:r.o[1]+k*r.d[1],H,sd:{U:.004+tn*sdH,V:.004+tn*sdH,H:sdH},cal:true,lens:true};}}if(!c)return {U:W/2+f.nx*.045,V:D/2-f.ny*.045,H,sd:{U:.04,V:.04,H:sdH},cal:false};
@@ -242,7 +246,7 @@ function interact(t,cl,now){const c=cellOf(t.X),rising=cl&&!t.closed,falling=!cl
  else if(t.state==='suspended'){if(rising){t.state='carrying';log('hand '+t.id+' holds '+byId(t.grasp.brick).name+' again');lessonEvent({type:'resume'});}}
  gestures(t,now);}
 function preview(t){const g=t.grasp,b=byId(g.brick);if(!b)return;const f=g.rot?{w:b.d,d:b.w}:{w:b.w,d:b.d};const off={i:Math.min(g.off.i,f.w-1),j:Math.min(g.off.j,f.d-1)};
- const n=g.nudge||{i:0,j:0},i=clamp(t.cell.i-off.i+n.i,0,COLS-f.w),j=clamp(t.cell.j-off.j+n.j,0,ROWS-f.d),old=g.pv;g.pv={i,j,l:levelFor(i,j,f.w,f.d,b.id),rot:g.rot};if(old&&(old.i!==i||old.j!==j||old.l!==g.pv.l))sfx.tick();/* the crane's ratchet: one tick per stud */}
+ const n=g.nudge||{i:0,j:0},i=clamp(t.cell.i-off.i+n.i,0,COLS-f.w),j=clamp(stepRow(t,g)-off.j+n.j,0,ROWS-f.d),old=g.pv;g.pv={i,j,l:levelFor(i,j,f.w,f.d,b.id),rot:g.rot};if(old&&(old.i!==i||old.j!==j||old.l!==g.pv.l))sfx.tick();/* the crane's ratchet: one tick per stud */}
 /* a held pose fires once; it can fire again only after it has been gone for 0.4 s, so a flicker in one camera does not repeat it */
 function dwell(t,key,on,ms,now,fire){const d=t.dwell[key]||(t.dwell[key]={t0:0,done:false,off:0});if(!on){if(!d.off)d.off=now;if(now-d.off>400){d.t0=0;d.done=false;}return 0;}d.off=0;if(d.done)return 1;if(!d.t0)d.t0=now;const k=(now-d.t0)/ms;if(k>=1&&!d.done){d.done=true;fire();}return Math.min(1,k);}
 /* a V, and which way it faces: flat (palm toward the Floor camera) doubles; up (palm toward the laptop camera) turns. Either camera may read the V itself: in the first real run the Floor camera called a flat V 'up' while the laptop camera read it */
@@ -430,7 +434,7 @@ function overlay(cv,r,col,mirror,src){const w=cv.clientWidth,h=cv.clientHeight;i
  const P={x:(r.lm[4].x+r.lm[8].x)/2,y:(r.lm[4].y+r.lm[8].y)/2};x.lineWidth=3;x.strokeStyle=r.closed?'#efa13a':'#ece6da';x.beginPath();x.arc(X(P),Y(P),r.closed?7:12,0,7);x.stroke();
  x.font='600 13px IBM Plex Mono';x.fillStyle=POSECOL[r.pose]||col;x.fillText(r.closed?'PINCH':r.pose.toUpperCase(),X(r.lm[0])+8,Y(r.lm[0])+18);return RECT;}
 function drawScope(S,now){const A=$('#vidA'),bsrc=rtcLive()?RTC.vid:TH.B&&now-TH.Bat<2500?TH.B:null;
- const recA=overlay($('#soA'),S.A,'#c4f46a',true,HND&&A.videoWidth?A:TH.A&&now-TH.Aat<2500?TH.A:null);arOverlay($('#soA'),recA,now);overlay($('#soB'),S.B,'#efa13a',false,bsrc);
+ const recA=overlay($('#soA'),S.A,'#c4f46a',true,HND&&A.videoWidth?A:TH.A&&now-TH.Aat<2500?TH.A:null);arOverlay($('#soA'),recA,now);const recB=overlay($('#soB'),S.B,'#efa13a',false,bsrc);arOverlayB($('#soB'),recB,now);
  $('#srA').innerHTML=readText(S.A,'A');$('#srB').innerHTML=readText(S.B,'B');
  $('#svAst').textContent=HND?'live':RUN?'simulated':'camera off';$('#svBst').textContent=rtcLive()?'live video':bsrc?'pictures (3 a second): live video not connected'+(RTC.state?' ('+RTC.state+')':''):floors()?'Floor linked, its camera is off':RUN?'simulated':'no Floor linked';
  const F=S.F;let one='no hand';if(F){const ag=S.A&&S.B?' · A and B agree within '+mm(Math.hypot(S.A.U-S.B.U,S.A.V-S.B.V))+' mm in plan, '+mm(Math.abs(S.A.H-S.B.H))+' mm in height':'';one='<b>'+(F.closed?'PINCH':'OPEN')+'</b>'+(F.palm?' · palm command: '+F.palm:'')+' · seen by '+(F.live.join('+')||'nobody')+(F.lead?' · trusted most: '+F.lead:'')+ag;}
@@ -611,7 +615,8 @@ function healthOf(now){const t=TR.find(x=>!x.ptr&&(x.grasp||x.lostAt===null))||n
  const A=live.includes('A'),B=live.includes('B');
  if(A&&B&&!t.isoA)return {k:'nominal',text:'both cameras agree'+(t.gate!=null?' (within '+Math.round(t.gate*1000)+' mm)':'')};
  if(B)return {k:'floor',text:t.isoA?'Floor camera only: the laptop camera disagrees by '+Math.round((t.gate||0)*1000)+' mm and is set aside':'Floor camera only: height '+(XF.Bh.ok?'as taught by the laptop camera':'from hand size')};
- return {k:'laptop',text:'laptop camera only: '+(t.grasp?'to place, bring your hand into the band so the Floor camera sees it':'lower your hand into the band so the Floor camera sees it')};}
+ if(!camOn('B'))return {k:'laptop',text:'laptop camera only (the phone\'s camera is off): depth is judged from hand size'+(ZERO.L?', zeroed':'; zero it in Practice')+'. Arrow keys, wheel or a touch on the phone set depth exactly'};
+ const pa=PLAN.last&&PLAN.last.kind==='cover'&&PLAN.on?PLAN.last.text:null;return {k:'laptop',text:'laptop camera only: '+(pa?pa.charAt(0).toLowerCase()+pa.slice(1):'follow the arrow in the Plan into the band both cameras see')+(t.grasp?'; to place without it, press Enter or touch the phone':'')};}
 const HCOL={nominal:'#c4f46a',floor:'#efa13a',laptop:'#efa13a',moved:'#efa13a',safe:'#e0483a',idle:'#6b645b'};
 const HNAME={nominal:'NOMINAL',floor:'FLOOR ONLY',laptop:'LAPTOP ONLY',moved:'FLOOR MOVED',safe:'SAFE',idle:'IDLE'};
 
@@ -638,7 +643,7 @@ const icon=(k,col,sz)=>'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 
 const ICIMG={};function iconImg(k,col){const key=k+col;if(!ICIMG[key]){const im=new Image();im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(icon(k,col,96));ICIMG[key]=im;}return ICIMG[key];}
 const GMAP={open:{ic:'open',where:'floor',main:'Open hand, flat',cam:'both'},pinch:{ic:'pinch',where:'floor',main:'Pinch',cam:'both'},Vflat:{ic:'V',where:'floor',main:'Two fingers, flat',cam:'B'},Vup:{ic:'V',where:'laptop',main:'Two fingers up',cam:'A'},
  fist:{ic:'fist',where:'floor',main:'Fist',cam:'either'},palmFloor:{ic:'open',where:'floor',main:'Flat palm, still',cam:'both'},palmTop:{ic:'open',where:'laptop',main:'Palm standing, facing the laptop',cam:'A'}};
-const STEPIC={link:'floor',level:'level',camA:'laptop',floor:'lift',palms:'two',gest:'V'};
+const STEPIC={reach:'up',link:'floor',level:'level',camA:'laptop',floor:'lift',palms:'two',gest:'V'};
 /* what to do now: one icon, one line, where to do it, how far along */
 function cueOf(now){const step=LAUNCH.on?LSTEPS[LAUNCH.step]:null;if(!step)return null;const id=step.id;
  if(id==='level'){const tl=floorTilt(),fresh=FLR.at&&now-FLR.at<1500;return {ic:'level',where:'floor',main:'Lay the Floor flat and still',sub:fresh?(tl>=4?'tilted '+tl+'°':FLR.mov?'moving':'level'):'waiting for the Floor\'s motion sensors',prog:LAUNCH.lv?Math.min(1,(now-LAUNCH.lv)/1000):0};}
@@ -647,6 +652,7 @@ function cueOf(now){const step=LAUNCH.on?LSTEPS[LAUNCH.step]:null;if(!step)retur
   if(TILT.phase==='find'||TILT.phase==='hold')return {ic:'down',where:'laptop',main:TILT.phase==='hold'?'Found the phone: hold still':'Tilt the laptop screen forward until it sees the phone',sub:'the Floor flashes a dot; the laptop looks for it',prog:TILT.phase==='hold'?.5:0};
   return {ic:'laptop',where:'floor',main:'Finding the laptop camera',sub:FL.busy?'the Floor is flashing: keep it in the laptop camera\'s view':'',prog:0};}
  if(id==='floor'){const n=TCAL.dots.length,k=TCAL.checking?n:TCAL.k,lifting=LCUR&&LCUR.phase==='lift';return {ic:lifting?'lift':'touch',where:'floor',main:lifting?'Lift, still pinched; open at the top':TCAL.checking?'Check: touch the last dot':'Touch the lit dot with a pinch',sub:'dot '+Math.min(k+1,n+1)+' of '+(n+1),prog:k/(n+1)};}
+ if(id==='reach'){const h=REACH.help||{},c=REACH.cur,up=c?REACH.tgt>c.r:true,inn=h.k==='in';if(REACH.phase==='zero')return {ic:'open',where:'floor',main:h.main,sub:h.text,prog:REACH.prog||0};return {ic:inn?'check':h.k==='nohand'?'open':up?'up':'down',where:'floor',main:(h.main||'Toward the laptop')+' · row '+(REACH.tgt+1),sub:(REACH.k+1)+' of '+REACH.targets.length+' · '+(h.text||''),prog:REACH.prog||0};}
  if(id==='palms'){const band=RIGBAND||[18,30];return {ic:'two',where:'floor',main:'Both palms flat, still',sub:'about '+Math.round((band[0]+band[1])/2)+' cm above the Floor',prog:LAUNCH.held?Math.min(1,(now-LAUNCH.held)/2000):0};}
  if(id==='gest'&&TEST.on&&TEST.steps[TEST.i]){const st=TEST.steps[TEST.i],g=GMAP[st.id]||{ic:'open',where:'floor',main:st.prompt},el=now-TEST.t0;
   return {ic:g.ic,where:g.where,main:g.main,sub:(TEST.i+1)+' of '+TEST.steps.length+' · '+(TEST.phase==='ready'?'get ready':'hold'),prog:TEST.phase==='ready'?0:Math.min(1,el/CAP),cam:g.cam};}
@@ -663,19 +669,21 @@ function drawCue(now){const box=$('#launch');if(!box||box.hidden)return;CUE=cueO
  else{/* not running: either the start, or what happened */const bad=LAUNCH.rows.map((r,k)=>r&&r.st!=='ok'?{r,s:LSTEPS[k]}:null).filter(Boolean);
   cardIc.innerHTML=icon(LAUNCH.rows.length?(bad.length?'cross':'check'):'lift',LAUNCH.rows.length?(bad.length?'#efa13a':'#c4f46a'):'#ece6da',84);
   main.textContent=!LAUNCH.rows.length?'Launch':bad.length?bad.length+' step'+(bad.length>1?'s':'')+' to look at':'Launched';
-  sub.innerHTML=!LAUNCH.rows.length?'About a minute. Follow the big icon.':bad.map(({r,s})=>'<span class="bad">'+icon(STEPIC[s.id],r.st==='fail'?'#e0483a':'#efa13a',16)+' '+shortWhy(s.id,r)+'</span>').join('');
+  sub.innerHTML=!LAUNCH.rows.length?'About a minute. Follow the big icon.':bad.map(({r,s})=>'<span class="bad">'+icon(STEPIC[s.id],r.st==='fail'?'#e0483a':'#efa13a',16)+' '+shortWhy(s.id,r)+' <a class="help" target="_blank" href="wg-butter-pair-manual/#'+(HELPAT[s.id]||'tree')+'">what to do</a></span>').join('');
   wh.innerHTML='';pr.style.width='0%';}
  /* the two cameras: is the hand seen, and as what; the one this gesture needs is outlined */
  const ra=camRead('A',now),rb=camRead('B',now),need=c&&c.cam;
  $('#cueCams').innerHTML=[['A','laptop','#c4f46a',ra],['B','floor','#efa13a',rb]].map(([k,ic,col,r])=>'<span class="cc'+(need==='both'||need===k||need==='either'?' need':'')+(r?' on':'')+'" style="--c:'+col+'">'+icon(ic,r?col:'#6b645b',18)+'<b>'+(r?r.toUpperCase():k==='B'&&!phoneCam()?(l=>l.length>30?l.slice(0,29)+'…':l)(phoneLine(now)):'no hand')+'</b></span>').join('');
  $('#lGo').hidden=LAUNCH.on;$('#lGo').textContent=LAUNCH.rows.length?'Go again':'Go';$('#lPr').hidden=LAUNCH.on||LAUNCH.kind!=='go'||!LAUNCH.rows.length;$('#lSkip').hidden=!LAUNCH.on;$('#lOne').hidden=!(LAUNCH.on&&c&&LSTEPS[LAUNCH.step].id==='palms');$('#lSave').hidden=LAUNCH.on||!LAUNCH.rows.length;$('#lRig').hidden=LAUNCH.on||!LAUNCH.rows.some(r=>r&&r.id==='camA'&&r.st!=='ok');}
+const HELPAT={link:'t-phone',level:'t-level',camA:'t-laptop',floor:'t-lifts',reach:'t-depth',palms:'t-palms',gest:'t-gestures',laptop:'t-laptop-only',floor_only:'t-floor-only',safe:'t-no-hand',moved:'t-moved',idle:'t-start',nominal:'tree'};
 function shortWhy(id,r){const t=r.text||'';if(id==='camA')return t.includes('lifts')?'laptop camera: found from lifts':'laptop camera: not found';if(id==='floor'){const m=t.match(/check touch (\d+) mm/);return 'lifts: check '+(m?m[1]+' mm':'not seen');}
- if(id==='palms')return 'palms: '+(t.includes('did not')?'not seen by both':'recorded with gaps');if(id==='gest'){const m=t.match(/(\d+) of (\d+)/);return 'gestures: '+(m?m[1]+' of '+m[2]:'');}if(id==='level')return 'Floor: '+t.split(':')[0];return t;}
+ if(id==='palms')return 'palms: '+(t.includes('did not')?'not seen by both':'recorded with gaps');if(id==='gest'){const m=t.match(/(\d+) of (\d+)/);return 'gestures: '+(m?m[1]+' of '+m[2]:'');}if(id==='level')return 'Floor: '+t.split(':')[0];if(id==='reach'){const m=t.match(/(\d+) of (\d+)/);return 'toward and away: '+(m?m[1]+' of '+m[2]+' rows':t.slice(0,30));}return t;}
 
 /* ---------------- Launch: one checklist, about a minute; each line turns green only on evidence ---------------- */
 const LAUNCH={on:false,step:-1,rows:[],done:false,baseline:null,when:null,skip:false};
 const GO_STEPS=[{id:'link',name:'Both cameras on',owner:'the laptop camera, the phone, its camera'},{id:'level',name:'Floor level and still',owner:'the Floor\'s motion sensors'},{id:'camA',name:'Laptop camera located',owner:'the flash, your screen tilt, or the Rig'},{id:'floor',name:'Both cameras solved from touches and lifts',owner:'touch, then both lines of sight along each lift'}];
 const PRACTICE_STEPS=[
+ {id:'reach',name:'Toward and away from the laptop',owner:'your hand, row by row'},
  {id:'palms',name:'Both palms flat, recorded',owner:'both cameras'},
  {id:'gest',name:'Gestures, each by its camera',owner:'both cameras'}];
 let LSTEPS=GO_STEPS;const LSTEPS_OLD=[
@@ -723,6 +731,9 @@ const LRUN={
   else if(!(CAL.B&&CAL.B.src==='touch'))lrow('floor','fail',LDIAG.length?'lifts seen by both cameras: '+seen+' of '+LDIAG.length+' (each needs both cameras on the pinch while it rises): '+LDIAG.map(d=>'A'+d.A+'/B'+d.B).join(', ')+(cr&&!cr.used?'; solve did not fit (check '+cr.check_mm+' mm)':''):'no lifts were recorded: the touches did not reach the laptop (is the Floor linked?)',dg);
   else if(e==null)lrow('floor','warn','map fitted; the check touch was not seen');
   else lrow('floor',e<=10?'ok':e<=20?'warn':'fail',(cr&&cr.used?'both cameras solved from '+cr.lifts+' lifts (fit '+cr.fit_mm.A+'/'+cr.fit_mm.B+' mm); laptop camera corrected '+cr.A_moved_mm+' mm, '+cr.A_turned_deg+'°':'map from '+TCAL.dots.length+' touches')+'; check touch '+e+' mm off',{checkErr:e,calib:cr});},
+ async reach(){reachStart();const r=await waitFor(()=>!REACH.on||REACH.k>=REACH.targets.length?'done':null,20*60000);REACH.on=false;const R=REACH.res,byHand=R.filter(x=>/^(A|B|A\+B)$/.test(x.by)),med=R.length?R.map(x=>x.ms).sort((a,b)=>a-b)[Math.floor(R.length/2)]:null,aOnly=R.filter(x=>x.by==='A').length;
+  const d={targets:REACH.targets.map(j=>j+1),left_out:REACH.skipped.map(j=>j+1),results:R};if(r==='skip'&&!R.length){lrow('reach','warn','skipped',d);return;}
+  lrow('reach',byHand.length===REACH.targets.length?'ok':R.length?'warn':'fail',R.length+' of '+REACH.targets.length+' rows reached'+(byHand.length<R.length?' ('+(R.length-byHand.length)+' by touch or keys)':'')+(med!=null?'; typical '+(med/1000).toFixed(1)+' s':'')+(aOnly?'; '+aOnly+' with only the laptop camera':'')+(REACH.skipped.length?'; rows '+REACH.skipped.map(j=>j+1).join(', ')+' are in a blind spot':''),d);},
  async palms(){const band=RIGBAND||[18,30],hh=Math.round((band[0]+band[1])/2);LAUNCH.prompt='both hands flat, palms down, about '+hh+' cm above the Floor, still';LAUNCH.held=0;LAUNCH.pt0=performance.now();LAUNCH.oneHand=false;
   const r=await waitFor(()=>{const now=TR.reduce((m,t)=>Math.max(m,t.seen||0),0)||performance.now()/* the newest observation's time: a slow page does not make every reading look old */,hs=TR.filter(t=>!t.ptr&&t.lostAt===null&&t.X&&t.src.A&&t.src.B&&now-t.src.A.t<450&&now-t.src.B.t<450&&/* a dropped frame or two does not restart the hold */!t.closed&&Math.hypot(t.vel.U,t.vel.V)<.06);
    if(hs.length>=2||hs.length===1&&(LAUNCH.oneHand||performance.now()-LAUNCH.pt0>12000)){if(!LAUNCH.held)LAUNCH.held=now;if(now-LAUNCH.held>2000)return hs;}else LAUNCH.held=0;return null;},RUN?20000:40000);LAUNCH.prompt=null;
@@ -809,6 +820,155 @@ setInterval(()=>{if(FLOOR||!HND||RUN||!RX.A)return;if(performance.now()-RX.A>400
 
 async function startA(){if(HND)return true;try{$('#camB').textContent='Starting';HND=await startCam(onFrameA);if(SCOPE.on)scopeToggle(true);RTC.want=1;return true;}catch(e){toast('Camera A did not start: '+(e.message||e),5000);return false;}finally{$('#camB').textContent='Camera A';}}
 
+
+/* =====================================================================================================
+   DEPTH, BLIND SPOTS, AND EACH CAMERA'S MODEL OF THE SCENE
+   Toward and away from the laptop is the axis the laptop camera measures worst (from how big the hand looks).
+   So: depth moves in whole rows with a margin that grows with the uncertainty; a practice step that waits until
+   the move works; every camera's blind region drawn where you work; and a plan that says where to move.
+   ===================================================================================================== */
+/* ---------------- where each camera can see a hand: inside its picture with room for the hand, at a size the tracker can use ---------------- */
+const BLP=()=>BCAM.on&&BCAM.p?BCAM.p:B0;
+const camOn=k=>k==='A'?!!(HND||RUN):RUN?!(RUN.sc.occl&&RUN.sc.occl.B&&RUN.sc.occl.B.some(([a,b])=>b>500)):!!phoneCam();/* in a simulation, a camera blocked for the whole run counts as off */
+function projCam(k,P){/* P = [U, V, height above the phone]; picture fractions as the tracker reports them, and the distance along the lens axis */
+ if(k==='B'){const p=BLP(),a=bAxes(p),v=[P[0]-p.cu,P[1]-p.cv,P[2]],z=v3.dot(v,a.f);if(z<.02)return null;return {x:.5+p.fB*v3.dot(v,a.r)/z/(4/3),y:.5+p.fB*v3.dot(v,a.d)/z,z,f:p.fB,asp:4/3};}
+ const c=camOf('A'),v=v3.sub(P,c.pos),z=v3.dot(v,c.f);if(z<.02)return null;return {x:.5+c.fx*v3.dot(v,c.r)/z,y:.5+c.fx*c.asp*v3.dot(v,c.d)/z,z,f:c.fx*c.asp,asp:c.asp};}
+function canSee(k,P){const q=projCam(k,P);if(!q)return 0;const span=q.f*GEO.L/q.z;/* the hand's size in picture heights */if(span<.07||span>.5)return 0;
+ const my=Math.min(.3,span*.5),mx=my/q.asp,e=Math.min(q.x-mx,1-mx-q.x,q.y-my,1-my-q.y);return e>0?Math.min(1,e/.04):0;}
+const seesNow=(k,P)=>camOn(k)?canSee(k,P):0;
+const COVCOL={A:[196,244,106],B:[239,161,58],none:[224,72,58]};
+/* one coverage raster: cell colour says who sees a hand there. Both: clear. One: that camera's colour. Neither: red */
+function covRaster(nx,ny,pt){const im=new ImageData(nx,ny);for(let y=0;y<ny;y++)for(let x=0;x<nx;x++){const P=pt(x,y),a=seesNow('A',P)>0,b=seesNow('B',P)>0,i=4*(y*nx+x);let c=null,al=0;if(a&&!b){c=COVCOL.A;al=70;}else if(b&&!a){c=COVCOL.B;al=70;}else if(!a&&!b){c=COVCOL.none;al=95;}if(c){im.data[i]=c[0];im.data[i+1]=c[1];im.data[i+2]=c[2];im.data[i+3]=al;}}return im;}
+const covKey=(z,u)=>[Math.round(z*100),Math.round((u||0)*100),GEO.rev,BCAM.on?1:0,camOn('A')?1:0,camOn('B')?1:0,Math.round(GEO.L*1000)].join(',');
+/* on the laptop's bed: the coverage at the height of your hand */
+function covPlate(now){if(!R3)return;const t=TR.find(x=>!x.ptr&&x.X&&x.lostAt===null),z=t?clamp(t.X.H+HREF,.04,.6):HREF;const key=covKey(z);if(R3.covKey===key||now-(R3.covAt||0)<250)return;R3.covKey=key;R3.covAt=now;
+ if(!R3.cov){const c=document.createElement('canvas');c.width=COLS;c.height=ROWS;const tex=new THREE.CanvasTexture(c);tex.magFilter=THREE.NearestFilter;const m=new THREE.Mesh(new THREE.PlaneGeometry(COLS,ROWS),new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false}));m.rotation.x=-Math.PI/2;m.position.y=.2;m.renderOrder=2;R3.sc.add(m);R3.cov={c,tex,m};}
+ const im=covRaster(COLS,ROWS,(i,j)=>[(i+.5)*CW,(ROWS-j-.5)*CD,z]);R3.cov.c.getContext('2d').putImageData(im,0,0);R3.cov.tex.needsUpdate=true;}
+
+/* ---------------- forward and back in whole rows: a row changes only when the hand clearly crosses into the next one ---------------- */
+function stepRow(t,g){const sure=t.ptr||(t.live||[]).includes('B');if(sure){g.dj=clamp(Math.round(t.X.V/CD-.5),0,ROWS-1);g.hy=0;g.v0=null;return g.dj;}
+ /* only the laptop camera: where the hand is, it knows roughly; how far the hand has moved, it knows well. So rows count from where
+    the brick was picked up (or from the last row the Floor camera confirmed), and the margin grows with the uncertainty */
+ if(g.v0==null){g.v0=t.X.V;g.r0=g.dj!=null?g.dj:clamp(g.from.j+Math.max(0,g.off.j),0,ROWS-1);g.dj=g.r0;}const r=g.r0+(t.X.V-g.v0)/CD;g.rr=r;
+ const sdr=(t.sd?t.sd.V:CD)/CD*.5/* relative: the shared offset cancels */,hy=clamp(.25+.35*sdr,.25,1.2);g.hy=hy;
+ if(r>g.dj+.5+hy&&g.dj<ROWS-1){g.dj++;}else if(r<g.dj-.5-hy&&g.dj>0){g.dj--;}return g.dj;}
+
+/* ---------------- reach practice: rows toward and away from the laptop, one at a time; it does not move on until the hand gets there ---------------- */
+const ZERO={dv:0,at:0,L:null};
+/* zero: one still hand over the middle of the phone tells the laptop camera how big your hand is, which is what its depth is made from */
+function zeroSample(t){const a=t.src.A;if(!a||!a.f||!GEO.A)return null;const g=GEO.A,x=a.f.nx*a.f.span,y=a.f.ny*a.f.span,ray=rayA(g,x,y);if(Math.abs(ray.d[1])<1e-3)return null;const s=(D/2-ray.o[1])/ray.d[1],Pz=ray.o[2]+s*ray.d[2];if(!(s>0)||Pz<.03||Pz>.7)return null;const L=s*a.f.span/g.f;return L>=.05&&L<=.16?{L,H:Pz}:null;}
+function zeroDepth(t,samples){const a=t.src.A;if(!a||!a.f)return null;if(GEO.A){const S=(samples&&samples.length?samples:[zeroSample(t)]).filter(Boolean);if(!S.length)return null;const L=med(S.map(q=>q.L)),H=med(S.map(q=>q.H));GEO.L=L;ZERO.L=L;ZERO.at=performance.now();for(const k of ['U','V','H'])BIAS.A[k]=0;return {L,H,n:S.length};}
+ ZERO.dv=D/2-(a.e.V-ZERO.dv);ZERO.at=performance.now();return {dv:ZERO.dv};}
+const REACH={on:false,targets:[],k:0,tgt:0,w:1.5,t0:0,inAt:0,help:null,hist:[],res:[],easier:0,km:null,kmAt:0,lastSnd:0,skipped:[],pause:0};
+const sdev=a=>{if(a.length<2)return 0;const m=a.reduce((s,x)=>s+x,0)/a.length;return Math.sqrt(a.reduce((s,x)=>s+(x-m)*(x-m),0)/a.length);};
+function reachCur(now){if(REACH.km!=null&&now-REACH.kmAt<4000)return {r:REACH.km,sd:0,by:'keys'};
+ const p=TR.find(x=>x.ptr&&x.src.T&&x.src.T.closed&&now-x.src.T.t<700&&x.X);if(p)return {r:p.X.V/CD-.5,sd:0,by:p.ptr.startsWith('touch')?'touch':'mouse'};
+ const t=TR.find(x=>!x.ptr&&x.X&&x.lostAt===null&&now-x.seen<400);if(!t)return null;return {r:t.X.V/CD-.5,sd:(t.sd?t.sd.V:CD)/CD,by:(t.live||[]).filter(c=>c!=='T').join('+'),t};}
+function reachStart(){const z=HREF,ok=j=>['A','B'].some(k=>seesNow(k,[W/2,(j+.5)*CD,z])>0);const want=[6,1,5,2,7,0];REACH.targets=[];REACH.skipped=[];for(const j of want){if(ok(j))REACH.targets.push(j);else REACH.skipped.push(j);}if(REACH.targets.length<2)REACH.targets=[5,2];REACH.targets=REACH.targets.slice(0,5);
+ Object.assign(REACH,{on:true,k:0,w:1.5,res:[],easier:0,km:null,hist:[],inAt:0,pause:0,phase:camOn('B')?'go':'zero',zat:0,zinfo:null});REACH.tgt=REACH.targets[0];REACH.t0=performance.now();
+ if(REACH.skipped.length)log('reach practice: row'+(REACH.skipped.length>1?'s ':' ')+REACH.skipped.map(j=>j+1).join(', ')+' left out: no camera that is on can see a hand there');}
+const rowsWord=n=>n===1?'1 row':n+' rows';
+function reachHelp(now,cur){const el=now-REACH.t0,h=REACH.hist.filter(s=>now-s.t<4000);
+ if(REACH.phase==='zero')return {k:'zero',main:'Hold your open hand over the middle of the phone',text:cur?'Still, about a hand\'s width above it: the laptop camera is measuring your hand':'No camera sees your hand yet: hold it up in front of the laptop screen'};
+ if(!cur)return {k:'nohand',main:'Show your hand',text:camOn('A')?'No camera sees your hand. Hold it up in front of the laptop screen, above the phone.':'The laptop camera is off: press Camera A, or touch the lit band on the phone.'};
+ const d=REACH.tgt-cur.r,out=Math.max(0,Math.abs(d)-REACH.w),dir=d>0?1:-1,steps=Math.max(1,Math.ceil(out)),main=out<=0?'Hold it there':(dir>0?'Toward the laptop: ':'Back toward you: ')+rowsWord(steps);
+ if(out<=0)return {k:'in',main,text:'Keep still for a moment.'};
+ const last1=h.filter(s=>now-s.t<1000).map(s=>s.r);if(last1.length>6&&sdev(last1)>.9)return {k:'jitter',main,text:'The reading is jumping. Keep your fingers as they are and move the whole arm, slowly.'};
+ const ago=h.find(s=>now-s.t>1200&&now-s.t<1800);if(ago&&Math.abs(REACH.tgt-ago.r)-Math.abs(d)<-1)return {k:'wrong',main,text:'That moved it the other way. '+(dir>0?'Push toward the screen.':'Pull back toward your body.')};
+ const crossed=h.some((s,i)=>i>0&&now-s.t<2500&&Math.sign(h[i-1].r-REACH.tgt)!==Math.sign(s.r-REACH.tgt));if(crossed)return {k:'over',main,text:'You went past it. Come back half as far, slower.'};
+ const rng=h.length?Math.max(...h.map(s=>s.r))-Math.min(...h.map(s=>s.r)):0;
+ if(el>4000&&rng<.6)return {k:'stuck',main,text:(cur.by==='A'?'Only the laptop camera sees your hand; it judges distance by how big your hand looks. ':'')+'Move further: the whole forearm '+(dir>0?'toward the screen.':'back toward you.')};
+ return {k:'go',main,text:cur.by==='A'?'Only the laptop camera sees you: keep the hand open and facing the screen while you move.':el>25000?'Or touch the lit band on the phone, or use the arrow keys.':'Watch the white line on the phone come into the lit band.'};}
+function reachTick(now){if(!REACH.on)return;
+ if(REACH.phase==='zero'){const t=TR.find(x=>!x.ptr&&x.X&&x.lostAt===null&&x.src.A&&now-x.src.A.t<STALE),moved=t&&REACH.zp&&Math.hypot(t.X.U-REACH.zp.U,t.X.V-REACH.zp.V,t.X.H-REACH.zp.H)>.02;/* still: the smoothed position stays within 2 cm (single readings of depth jump more than that) */REACH.cur=t?{r:t.X.V/CD-.5,by:'A'}:null;REACH.help=reachHelp(now,REACH.cur);if(t&&(!REACH.zp||moved||t.closed)){REACH.zp={...t.X};REACH.zat=now;REACH.zs=[];}const still=t&&!t.closed&&REACH.zp&&!moved;if(still){const q=zeroSample(t);if(q)REACH.zs.push(q);REACH.prog=Math.min(1,(now-REACH.zat)/1200);if(now-REACH.zat>1200){const z=zeroDepth(t,REACH.zs);REACH.zinfo=z;REACH.phase='go';REACH.t0=now;REACH.hist=[];sfx.found();REACH.zp=null;log(z?(z.L?'depth zeroed: your hand measures '+Math.round(z.L*1000)+' mm to the laptop camera, held '+Math.round(z.H*100)+' cm up':'depth zeroed at the middle of the phone'):'zero failed: the laptop camera\'s line of sight does not cross the middle of the phone');}}else{REACH.zat=0;REACH.prog=0;}return;}if(REACH.pause){if(now<REACH.pause)return;REACH.pause=0;REACH.t0=now;REACH.hist=[];}
+ const cur=reachCur(now);REACH.cur=cur;if(cur){REACH.hist.push({t:now,r:cur.r});while(REACH.hist.length&&now-REACH.hist[0].t>5000)REACH.hist.shift();}
+ REACH.help=reachHelp(now,cur);const el=now-REACH.t0;
+ /* pacing: the band widens when it is too hard, and narrows after each success */
+ if(el>12000*(REACH.easier+1)&&REACH.w<2.5){REACH.easier++;REACH.w=Math.min(2.5,REACH.w+.5);log('reach practice: band made wider (±'+REACH.w+' rows) so you can get the feel first');sfx.pluck();}
+ /* the laptop camera alone tells rows apart only about one in two (its depth comes from hand size): its band never narrows below ±1 row */if(cur&&cur.by==='A'&&REACH.w<1)REACH.w=1;const inside=cur&&Math.abs(cur.r-REACH.tgt)<=REACH.w;if(inside){if(!REACH.inAt)REACH.inAt=now;}else REACH.inAt=0;
+ const need=cur&&cur.by!=='A+B'&&cur.by!=='B'&&cur.by!=='A'?250:800,prog=REACH.inAt?Math.min(1,(now-REACH.inAt)/need):0;REACH.prog=prog;
+ /* the crane: ticks quicken and rise as the hand closes on the band; inside, a rising tone while you hold */
+ if(cur&&now-REACH.lastSnd>(inside?110:110+70*Math.min(6,Math.abs(cur.r-REACH.tgt)-REACH.w))){REACH.lastSnd=now;if(inside)tone(500+700*prog,0,.06,'sine',.06);else click(.3,700+1500/(1+Math.max(0,Math.abs(cur.r-REACH.tgt)-REACH.w)));}
+ if(prog>=1){REACH.res.push({row:REACH.tgt+1,ms:Math.round(el),by:cur.by,band:REACH.w,easier:REACH.easier});sfx.found();log('reach: row '+(REACH.tgt+1)+' in '+(el/1000).toFixed(1)+' s ('+cur.by+')');REACH.k++;REACH.inAt=0;REACH.km=null;
+  if(REACH.k<REACH.targets.length){REACH.tgt=REACH.targets[REACH.k];REACH.w=Math.max(.5,REACH.w-.25);REACH.easier=0;REACH.pause=now+700;}}}
+
+/* ---------------- what to do next, as a move: the nearest place where both cameras see your hand, or the row you are asked for ---------------- */
+function nearestBoth(P){let best=null,bd=1e9;for(let dv=-.2;dv<=.2001;dv+=.01)for(let dz=-.2;dz<=.2001;dz+=.01){const Q=[P[0],P[1]+dv,P[2]+dz];if(Q[2]<.05||Q[2]>.5)continue;const d=Math.hypot(dv,dz);if(d>=bd)continue;if(seesNow('A',Q)>.3&&seesNow('B',Q)>.3){bd=d;best=Q;}}return best;}
+function moveWords(dU,dV,dz){const p=[],c=x=>Math.round(Math.abs(x)*100);if(Math.abs(dz)>=.01)p.push((dz<0?'lower ':'raise ')+c(dz)+' cm');if(Math.abs(dV)>=.01)p.push(c(dV)+' cm '+(dV>0?'toward the laptop':'toward you'));if(Math.abs(dU)>=.01)p.push(c(dU)+' cm to the '+(dU>0?'right':'left'));const s=p.join(', ');return s?s[0].toUpperCase()+s.slice(1):'';}
+function planAction(now){const t=TR.find(x=>!x.ptr&&x.X&&x.lostAt===null),P=t?[t.X.U,t.X.V,t.X.H+HREF]:null;
+ if(REACH.on){const h=REACH.help||{};const goal=P?[P[0],(REACH.tgt+.5)*CD,P[2]]:null;return {text:(h.main||'')+(h.text?'. '+h.text:''),goal,P,kind:'reach'};}
+ if(TCAL.on){const d=TCAL.checking?TCAL.check:TCAL.dots[TCAL.k];if(d){let z0=null,z1=null;for(let z=.03;z<=.5;z+=.01){const s=seesNow('A',[d.U,d.V,z])>0&&seesNow('B',[d.U,d.V,z])>0;if(s){if(z0==null)z0=z;z1=z;}}return {text:'Touch the lit dot with a pinch, then lift straight up'+(z0!=null?' to about '+Math.round(z1*100)+' cm: both cameras see the pinch from '+Math.round(z0*100)+' to '+Math.round(z1*100)+' cm':': no height here is seen by both cameras'),goal:null,P,lift:{U:d.U,V:d.V,z0,z1},kind:'tcal'};}}
+ if(!P){const Q=nearestBoth([W/2,D/2,HREF]);return {text:camOn('A')||camOn('B')?'Show a hand over the phone'+(Q?', about '+Math.round(Q[2]*100)+' cm up':''):'Both cameras are off: press Go',goal:Q,P:null,kind:'none'};}
+ const live=(t.live||[]).filter(c=>c!=='T'),a=live.includes('A'),b=live.includes('B');
+ if(a!==b){const other=a?'B':'A';if(camOn(other)){const Q=nearestBoth(P);if(Q)return {text:moveWords(Q[0]-P[0],Q[1]-P[1],Q[2]-P[2])+' so the '+(other==='B'?'Floor':'laptop')+' camera sees it too',goal:Q,P,kind:'cover'};return {text:'Only the '+(a?'laptop':'Floor')+' camera can see here; no nearby spot is seen by both',goal:null,P,kind:'cover'};}
+  return {text:(a?'Only the laptop camera is on: depth is a guess from hand size; arrows, wheel or a touch on the phone set it exactly':'Only the Floor camera is on: height is a guess from hand size'),goal:null,P,kind:'one'};}
+ if(t.state==='carrying'&&t.grasp&&t.grasp.pv){const pv=t.grasp.pv;return {text:'Placing at row '+(pv.j+1)+' of '+ROWS+', column '+(pv.i+1)+(pv.l?', level '+(pv.l+1):'')+'. Open the pinch to set it down',goal:null,P,kind:'carry'};}
+ return {text:'Both cameras see your hand'+(t.gate!=null?' and agree within '+Math.round(t.gate*1000)+' mm':''),goal:null,P,kind:'ok'};}
+
+/* ---------------- the plan: from above and from the side, what each camera believes, where each is blind, and the move to make ---------------- */
+const PLAN={on:(()=>{try{return localStorage.getItem('butter-pair-plan')!=='off';}catch(e){return true;}})(),at:0,cache:{}};
+function drawPlan(now){const cv=$('#bp');if(!cv)return;cv.hidden=!PLAN.on||SCOPE.on;if(cv.hidden||now-PLAN.at<66)return;PLAN.at=now;
+ const dpr=Math.min(2,devicePixelRatio||1),cw=cv.clientWidth,ch=cv.clientHeight;if(!cw||!ch)return;if(cv.width!==Math.round(cw*dpr)||cv.height!==Math.round(ch*dpr)){cv.width=Math.round(cw*dpr);cv.height=Math.round(ch*dpr);}
+ const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,cw,ch);g.fillStyle='#0b0a09';g.fillRect(0,0,cw,ch);g.strokeStyle='#2e2a26';g.strokeRect(.5,.5,cw-1,ch-1);
+ const act=planAction(now),t=TR.find(x=>!x.ptr&&x.X&&x.lostAt===null),A=t&&t.src.A&&now-t.src.A.t<STALE?t.src.A:null,B=t&&t.src.B&&now-t.src.B.t<STALE?t.src.B:null,z=t?clamp(t.X.H+HREF,.04,.6):HREF,uH=t?t.X.U:W/2;
+ const pad=8,txtH=52,availH=ch-txtH-pad*3-46,fs=10.5;g.font=fs+'px IBM Plex Mono';
+ /* TOP: U across, V up (the laptop at the top, as on the phone). Bed plus a margin */
+ const pu0=-.035,pu1=W+.035,pv0=-.03,pv1=D+.05,topH=availH*.42,sT=Math.min((cw-2*pad)/(pu1-pu0),topH/(pv1-pv0)),tx0=(cw-(pu1-pu0)*sT)/2,ty0=pad+14,TX=U=>tx0+(U-pu0)*sT,TY=V=>ty0+(pv1-V)*sT;
+ /* SIDE, seen from your right: V across (you on the left, the laptop on the right), height up */
+ const sv0=-.09,sv1=D+.16,sz0=0,sz1=.42,sideH=availH-topH-18,sS=Math.min((cw-2*pad)/(sv1-sv0),sideH/(sz1-sz0)),sx0=(cw-(sv1-sv0)*sS)/2,sy0=ty0+(pv1-pv0)*sT+26,SX=V=>sx0+(V-sv0)*sS,SY=zz=>sy0+(sz1-zz)*sS;
+ const ck=covKey(z,uH);if(PLAN.cache.k!==ck||now-(PLAN.cache.at||0)>1500){PLAN.cache.k=ck;PLAN.cache.at=now;
+  const nx=42,ny=Math.round(nx*(pv1-pv0)/(pu1-pu0));PLAN.cache.top={im:covRaster(nx,ny,(x,y)=>[pu0+(x+.5)/nx*(pu1-pu0),pv1-(y+.5)/ny*(pv1-pv0),z]),nx,ny};
+  const mx=46,my=Math.round(mx*(sz1-sz0)/(sv1-sv0));PLAN.cache.side={im:covRaster(mx,my,(x,y)=>[uH,sv0+(x+.5)/mx*(sv1-sv0),sz1-(y+.5)/my*(sz1-sz0)]),mx,my};
+  for(const k of ['top','side']){const c=PLAN.cache[k],o=document.createElement('canvas');o.width=c.im.width;o.height=c.im.height;o.getContext('2d').putImageData(c.im,0,0);c.cv=o;}}
+ g.imageSmoothingEnabled=false;g.drawImage(PLAN.cache.top.cv,TX(pu0),TY(pv1),(pu1-pu0)*sT,(pv1-pv0)*sT);g.drawImage(PLAN.cache.side.cv,SX(sv0),SY(sz1),(sv1-sv0)*sS,(sz1-sz0)*sS);g.imageSmoothingEnabled=true;
+ const lab=(s,x,y,col,al)=>{g.fillStyle=col||'#b3ab9e';g.textAlign=al||'left';g.fillText(s,x,y);g.textAlign='left';};
+ lab('FROM ABOVE · at your hand\'s height, '+Math.round(z*100)+' cm',pad,ty0-4,'#b3ab9e');lab('FROM YOUR RIGHT',pad,sy0-6,'#b3ab9e');
+ /* the bed and its rows, both views */
+ g.strokeStyle='#ece6da';g.lineWidth=1.2;g.strokeRect(TX(0),TY(D),W*sT,D*sT);g.strokeStyle='#ece6da22';g.lineWidth=1;for(let j=1;j<ROWS;j++){g.beginPath();g.moveTo(TX(0),TY(j*CD));g.lineTo(TX(W),TY(j*CD));g.stroke();}
+ for(const b of SCENE.bricks){const f=fp(b);g.fillStyle=COLORS[b.c]+'cc';g.fillRect(TX(b.i*CW),TY((b.j+f.d)*CD),f.w*CW*sT,f.d*CD*sT);}
+ g.strokeStyle='#ece6da';g.lineWidth=3;g.beginPath();g.moveTo(SX(0),SY(0));g.lineTo(SX(D),SY(0));g.stroke();g.lineWidth=1;g.strokeStyle='#ece6da66';for(let j=0;j<=ROWS;j++){g.beginPath();g.moveTo(SX(j*CD),SY(0));g.lineTo(SX(j*CD),SY(0)+4);g.stroke();}
+ lab('you',SX(sv0)+2,SY(0)+14,'#6b645b');lab('laptop',SX(sv1)-2,SY(0)+14,'#6b645b','right');lab('row 1',SX(0),SY(0)+14,'#6b645b');lab(String(ROWS),SX(D),SY(0)+14,'#6b645b','right');
+ /* the asked-for row: a band in both views */
+ const band=(j0,j1,col)=>{g.fillStyle=col;g.fillRect(TX(0),TY(j1*CD),W*sT,(j1-j0)*CD*sT);g.fillRect(SX(j0*CD),SY(sz1),(j1-j0)*CD*sS,(sz1-sz0)*sS);};
+ if(REACH.on){const j0=clamp(REACH.tgt+.5-REACH.w,0,ROWS),j1=clamp(REACH.tgt+.5+REACH.w,0,ROWS);band(j0,j1,'#c4f46a33');g.strokeStyle='#c4f46a';g.setLineDash([4,3]);g.strokeRect(TX(0),TY(j1*CD),W*sT,(j1-j0)*CD*sT);g.setLineDash([]);}
+ if(t&&t.grasp&&t.grasp.pv){const b=byId(t.grasp.brick);if(b){const pv=t.grasp.pv,f=pv.rot?{w:b.d,d:b.w}:{w:b.w,d:b.d};g.strokeStyle='#efa13a';g.setLineDash([4,3]);g.lineWidth=2;g.strokeRect(TX(pv.i*CW),TY((pv.j+f.d)*CD),f.w*CW*sT,f.d*CD*sT);g.setLineDash([]);g.fillStyle='#efa13a44';g.fillRect(SX(pv.j*CD),SY((pv.l+1)*.0096),f.d*CD*sS,.0096*sS);
+  /* with only the laptop camera, a row changes when the hand crosses one of these lines */const gr=t.grasp;if(gr.hy&&gr.rr!=null){g.strokeStyle='#efa13a99';g.setLineDash([2,3]);for(const e of [gr.dj+.5+gr.hy+.5,gr.dj-.5-gr.hy+.5]){if(e<0||e>ROWS)continue;g.beginPath();g.moveTo(SX(e*CD),SY(sz1));g.lineTo(SX(e*CD),SY(0));g.stroke();}g.setLineDash([]);}}}
+ if(act.lift&&act.lift.z0!=null){g.strokeStyle='#efa13a';g.lineWidth=3;g.beginPath();g.moveTo(SX(act.lift.V),SY(act.lift.z0));g.lineTo(SX(act.lift.V),SY(act.lift.z1));g.stroke();g.lineWidth=1;g.beginPath();g.arc(TX(act.lift.U),TY(act.lift.V),5,0,7);g.stroke();}
+ /* the two cameras: the laptop camera is usually beyond the side view, so it is an arrow at the edge with its distance */
+ const cA=camOf('A').pos,locA=!!GEO.A,cB=BLP();
+ const edge=(x,y,x0,y0,x1,y1)=>[clamp(x,x0+6,x1-6),clamp(y,y0+6,y1-6)];
+ { const [ex,ey]=edge(SX(cA[1]),SY(cA[2]),SX(sv0),SY(sz1),SX(sv1),SY(sz0));g.fillStyle='#c4f46a';g.beginPath();g.arc(ex,ey,4,0,7);g.fill();lab('A '+Math.round(Math.hypot(cA[0]-W/2,cA[1]-D/2)*100)+' cm'+(locA?'':' (assumed)'),ex-6,ey-7,'#c4f46a','right');
+   const [fx,fy]=edge(TX(cA[0]),TY(cA[1]),TX(pu0),TY(pv1),TX(pu1),TY(pv0));g.beginPath();g.moveTo(fx,fy);g.lineTo(fx-4,fy+7);g.lineTo(fx+4,fy+7);g.closePath();g.fill();}
+ g.fillStyle='#efa13a';g.beginPath();g.arc(TX(cB.cu),TY(cB.cv),3.5,0,7);g.fill();g.beginPath();g.arc(SX(cB.cv),SY(0),3.5,0,7);g.fill();lab('B',SX(cB.cv)+5,SY(0)-4,'#efa13a');
+ /* each camera's belief about the hand: its point, its line of sight, and how far along that line it could be */
+ const ell=(cx,cy,rx,ry,col)=>{g.strokeStyle=col;g.setLineDash([3,3]);g.beginPath();g.ellipse(cx,cy,Math.max(2,rx),Math.max(2,ry),0,0,7);g.stroke();g.setLineDash([]);};
+ if(t){const X=t.X;
+  if(A){const e=A.e,Pz=e.H+HREF;g.strokeStyle='#c4f46a66';g.beginPath();g.moveTo(SX(cA[1]),SY(cA[2]));g.lineTo(SX(e.V),SY(Pz));g.stroke();
+   const dir=v3.nrm(v3.sub([e.U,e.V,Pz],cA)),sz=e.z?(GEO.Ln>=2?.05:.1)*e.z*(GEO.A&&GEO.A.stale?3:1):Math.max(e.sd.V,.02);if(!B){g.strokeStyle='#c4f46a';g.lineWidth=3;g.beginPath();g.moveTo(SX(e.V-dir[1]*2*sz),SY(Pz-dir[2]*2*sz));g.lineTo(SX(e.V+dir[1]*2*sz),SY(Pz+dir[2]*2*sz));g.stroke();g.lineWidth=1;}
+   g.fillStyle='#c4f46a';g.beginPath();g.arc(SX(e.V),SY(Pz),3.5,0,7);g.fill();g.beginPath();g.arc(TX(e.U),TY(e.V),3.5,0,7);g.fill();ell(TX(e.U),TY(e.V),2*e.sd.U*sT,2*e.sd.V*sT,'#c4f46a');}
+  if(B){const e=B.e,Pz=e.H+HREF;g.strokeStyle='#efa13a66';g.beginPath();g.moveTo(SX(cB.cv),SY(0));g.lineTo(SX(e.V),SY(Pz));g.stroke();if(!A){g.strokeStyle='#efa13a';g.lineWidth=3;g.beginPath();g.moveTo(SX(e.V),SY(Pz-2*e.sd.H));g.lineTo(SX(e.V),SY(Pz+2*e.sd.H));g.stroke();g.lineWidth=1;}
+   g.fillStyle='#efa13a';g.beginPath();g.arc(SX(e.V),SY(Pz),3.5,0,7);g.fill();g.beginPath();g.arc(TX(e.U),TY(e.V),3.5,0,7);g.fill();ell(TX(e.U),TY(e.V),2*e.sd.U*sT,2*e.sd.V*sT,'#efa13a');}
+  if(A&&B&&t.gate!=null){const d=Math.round(t.gate*1000);lab('lines of sight meet within '+d+' mm',SX(X.V)+8,SY(X.H+HREF)+14,d>gateTol()*1000?'#efa13a':'#b3ab9e');}
+  g.strokeStyle='#ece6da';g.lineWidth=2;g.beginPath();g.arc(SX(X.V),SY(X.H+HREF),t.closed?4:7,0,7);g.stroke();g.beginPath();g.arc(TX(X.U),TY(X.V),t.closed?4:7,0,7);g.stroke();g.lineWidth=1;
+  g.setLineDash([2,3]);g.beginPath();g.moveTo(SX(X.V),SY(X.H+HREF));g.lineTo(SX(X.V),SY(0));g.stroke();g.setLineDash([]);
+  if(!A&&!B)lab('no camera: last seen here',SX(X.V)+8,SY(X.H+HREF),'#e0483a');}
+ /* the move */
+ if(act.goal&&act.P){const arrow=(x0,y0,x1,y1)=>{const L=Math.hypot(x1-x0,y1-y0);if(L<6)return;const ux=(x1-x0)/L,uy=(y1-y0)/L;g.strokeStyle='#ece6da';g.fillStyle='#ece6da';g.lineWidth=2;g.beginPath();g.moveTo(x0,y0);g.lineTo(x1-ux*6,y1-uy*6);g.stroke();g.beginPath();g.moveTo(x1,y1);g.lineTo(x1-ux*9-uy*5,y1-uy*9+ux*5);g.lineTo(x1-ux*9+uy*5,y1-uy*9-ux*5);g.closePath();g.fill();g.lineWidth=1;};
+  arrow(SX(act.P[1]),SY(act.P[2]),SX(act.goal[1]),SY(act.goal[2]));arrow(TX(act.P[0]),TY(act.P[1]),TX(act.goal[0]),TY(act.goal[1]));}
+ else if(act.goal&&!act.P){g.strokeStyle='#ece6da';g.setLineDash([3,3]);g.beginPath();g.arc(SX(act.goal[1]),SY(act.goal[2]),8,0,7);g.stroke();g.setLineDash([]);}
+ /* legend and the instruction */
+ let ly=ch-txtH-pad-10;const sw=(c,s,x)=>{g.fillStyle='rgba('+c.join(',')+',.6)';g.fillRect(x,ly-8,10,10);lab(s,x+14,ly+1,'#b3ab9e');return x+14+g.measureText(s).width+10;};let lx=pad;lx=sw(COVCOL.A,'only A',lx);lx=sw(COVCOL.B,'only B',lx);sw(COVCOL.none,'neither',lx);
+ g.font='500 12.5px IBM Plex Mono';g.fillStyle='#ece6da';const words=(act.text||'').split(' ');let line='',y=ch-txtH-pad+10;for(const w_ of words){const tst=line?line+' '+w_:w_;if(g.measureText(tst).width>cw-2*pad&&line){g.fillText(line,pad,y);line=w_;y+=16;if(y>ch-4)break;}else line=tst;}if(line&&y<=ch-4)g.fillText(line,pad,y);
+ PLAN.last=act;}
+
+/* ---------------- the laptop camera's belief, drawn over the Floor camera's picture (the other camera's model, where this one sees) ---------------- */
+function arOverlayB(cv,rect,now,bp){if(!rect)return;const x=cv.getContext('2d'),t=TR.find(q=>!q.ptr&&q.X&&q.lostAt===null);if(!t)return;
+ const P=(U,V,Hb)=>{const q=projCam('B',[U,V,Hb]);return q?[rect.ox+q.x*rect.fw,rect.oy+q.y*rect.fh]:null;};
+ const A=t.src.A&&now-t.src.A.t<STALE?t.src.A:null;x.lineWidth=2.5;x.font='11px IBM Plex Mono';
+ if(A){const p=P(A.e.U,A.e.V,A.e.H+HREF);if(p){x.strokeStyle='#c4f46a';x.beginPath();x.arc(p[0],p[1],8,0,7);x.stroke();x.fillStyle='#c4f46a';x.fillText('laptop camera\'s guess',p[0]+11,p[1]+4);}}
+ const f=P(t.X.U,t.X.V,t.X.H+HREF);if(f){x.strokeStyle='#ece6da';x.beginPath();x.arc(f[0],f[1],12,0,7);x.stroke();}
+ x.fillStyle='#ece6da';x.fillText('the model, drawn where this camera should see it'+(BCAM.on?'':' (lens assumed until the lifts solve it)'),rect.ox+8,rect.oy+rect.fh-8);}
+
 /* ---------------- lessons: the butter brick, checked by what actually happens ---------------- */
 const LES=[['hold the butter brick (pinch it)','lift'],['let the other camera take over while you hold it','handover'],['hide your hand from both, come back, pinch again','resume'],['place it somewhere new','place'],['undo','undo']];const LDONE={};
 function lessonEvent(e){if(e.type==='lift'&&e.brick==='butter')LDONE.lift=1;if(e.type==='handover'&&byIdHeld('butter'))LDONE.handover=1;if(e.type==='resume'&&byIdHeld('butter'))LDONE.resume=1;if(e.type==='place'&&e.brick==='butter')LDONE.place=1;if(e.type==='undo'&&LDONE.place)LDONE.undo=1;drawLessons();}
@@ -850,7 +1010,7 @@ function onMsg(m){const now=performance.now();
 const packLm=lm=>lm.map(p=>[Math.round(p.x*1e4)/1e4,Math.round(p.y*1e4)/1e4]).flat(),unpackLm=a=>{const o=[];for(let i=0;i<a.length;i+=2)o.push({x:a[i],y:a[i+1]});return o;};
 function sceneOut(){if(!FLOOR)fsend({type:'scene',rev:SCENE.rev,scene:SCENE.bricks});}
 const RX={A:0,B:0,An:0,Bn:0};
-setInterval(()=>{if(FLOOR||(!ROOM&&!BC))return;fsend({type:'view',t:performance.now(),tracks:TR.map(t=>({id:t.id,ptr:!!t.ptr,X:t.X,live:t.live||[],lead:t.lead,state:t.state,closed:t.closed,grasp:t.grasp&&{brick:t.grasp.brick,pv:t.grasp.pv,from:t.grasp.from},target:t.target&&t.target.id})),cal:{on:CALF.on,k:CALF.k,ticks:CALF.ticks},rev:SCENE.rev,les:LDONE,constr:CONSTR&&CONSTR.kind,palms:TR.filter(t=>t.palm&&t.X).map(t=>({X:t.X,k:t.palm})),cue:CUE&&LAUNCH.on?{ic:CUE.ic,where:CUE.where,main:CUE.main,sub:CUE.sub,prog:CUE.prog||0}:null,tcal:TCAL.on?(TCAL.checking?{k:0,dots:[TCAL.check],check:true}:{k:TCAL.k,dots:TCAL.dots}):null,health:HEALTH,lprompt:LAUNCH.on&&LAUNCH.prompt?LAUNCH.prompt:null,test:TEST.on&&TEST.steps[TEST.i]?{prompt:TEST.steps[TEST.i].prompt,dot:TEST.steps[TEST.i].dot||null,phase:TEST.phase,n:TEST.i+1,of:TEST.steps.length}:null,geo:GEO.A?(GEO.A.stale?'stale':'ok'):null,band:RIGBAND,aCam:GEO.A?{U:GEO.A.C[0],V:GEO.A.C[1],H:GEO.A.C[2],src:GEO.A.src||'flash'}:null,flashing:FL.busy});},70);
+setInterval(()=>{if(FLOOR||(!ROOM&&!BC))return;fsend({type:'view',t:performance.now(),tracks:TR.map(t=>({id:t.id,ptr:!!t.ptr,X:t.X,eA:t.src.A&&(t.seen||0)-t.src.A.t<400?{U:t.src.A.e.U,V:t.src.A.e.V,H:t.src.A.e.H}:null,live:t.live||[],lead:t.lead,state:t.state,closed:t.closed,grasp:t.grasp&&{brick:t.grasp.brick,pv:t.grasp.pv,from:t.grasp.from},target:t.target&&t.target.id})),cal:{on:CALF.on,k:CALF.k,ticks:CALF.ticks},rev:SCENE.rev,les:LDONE,constr:CONSTR&&CONSTR.kind,palms:TR.filter(t=>t.palm&&t.X).map(t=>({X:t.X,k:t.palm})),cue:CUE&&LAUNCH.on?{ic:CUE.ic,where:CUE.where,main:CUE.main,sub:CUE.sub,prog:CUE.prog||0}:null,tcal:TCAL.on?(TCAL.checking?{k:0,dots:[TCAL.check],check:true}:{k:TCAL.k,dots:TCAL.dots}):null,health:HEALTH,lprompt:LAUNCH.on&&LAUNCH.prompt?LAUNCH.prompt:null,test:TEST.on&&TEST.steps[TEST.i]?{prompt:TEST.steps[TEST.i].prompt,dot:TEST.steps[TEST.i].dot||null,phase:TEST.phase,n:TEST.i+1,of:TEST.steps.length}:null,geo:GEO.A?(GEO.A.stale?'stale':'ok'):null,band:RIGBAND,aCam:GEO.A?{U:GEO.A.C[0],V:GEO.A.C[1],H:GEO.A.C[2],src:GEO.A.src||'flash'}:null,flashing:FL.busy,reach:REACH.on?{zero:REACH.phase==='zero',tgt:REACH.tgt,w:REACH.w,r:REACH.cur?REACH.cur.r:null,prog:REACH.prog||0,main:REACH.help&&REACH.help.main,text:REACH.help&&REACH.help.text}:null,bp:BCAM.on?BCAM.p:null});},70);
 setInterval(()=>{if(ROOM||BC)hello();},2500);
 
 /* ---------------- camera A on the laptop, camera B on the Floor: the same detector, the observations go to one model ---------------- */
@@ -959,6 +1119,7 @@ function draw3(){if(!R3)return;if(!R3.space)initSpace();const {r,sc,cam}=R3,cv=r
  for(const t of TR){if(!t.X)continue;const lost=t.lostAt!==null,col=t.ptr?0xece6da:lost?0x6b645b:t.lead==='B'?0xefa13a:0xc4f46a;const x=U2x(t.X.U),z=V2z(t.X.V),y=t.ptr?.4:H2y(t.X.H);
   const ring=new THREE.Mesh(new THREE.RingGeometry(.45,.6,28),new THREE.MeshBasicMaterial({color:col,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.set(x,.2,z);R3.fx.add(ring);
   if(!t.ptr){const s=new THREE.Mesh(new THREE.SphereGeometry(t.closed?.32:.45,16,12),new THREE.MeshBasicMaterial({color:col,wireframe:!t.closed}));s.position.set(x,y,z);R3.fx.add(s);
+   if(t.sd&&(t.live||[]).filter(c=>c!=='T').length===1&&!lost){/* one camera: the hand could be anywhere in this cloud, longest along that camera's weak axis */const gh=new THREE.Mesh(new THREE.SphereGeometry(1,18,12),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.1,depthWrite:false}));gh.scale.set(clamp(t.sd.U/CW,.5,3),clamp(t.sd.H/.02,.5,2.5),clamp(t.sd.V/CD,.5,4.5));gh.position.set(x,y,z);R3.fx.add(gh);}
    const lg=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,.2,z),new THREE.Vector3(x,y,z)]);R3.fx.add(new THREE.Line(lg,new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.6})));}
   if(t.palm){const d=new THREE.Mesh(new THREE.CircleGeometry(1.4,28),new THREE.MeshBasicMaterial({color:0x85bdff,transparent:true,opacity:.6,side:THREE.DoubleSide}));d.position.set(x,y,z);if(t.palm==='floor')d.rotation.x=-Math.PI/2;R3.fx.add(d);}
   if(t.target&&t.state==='free'){const b=t.target,f=fp(b),e=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(f.w+.12,BH+.12,f.d+.12)),new THREE.LineBasicMaterial({color:0xc4f46a}));placeMesh(e,b,b.i,b.j,b.l);R3.fx.add(e);}
@@ -967,6 +1128,8 @@ function draw3(){if(!R3)return;if(!R3.space)initSpace();const {r,sc,cam}=R3,cv=r
    const dl=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,air.position.y-BH/2,z),new THREE.Vector3(pv.i+f.w/2-COLS/2,pv.l*BH+BH,-(pv.j+f.d/2-ROWS/2))]);R3.fx.add(new THREE.Line(dl,new THREE.LineDashedMaterial({color:0xefa13a,dashSize:.25,gapSize:.18})).computeLineDistances());
    for(const g of R3.bricks.children)if(g.userData.id===b.id)g.visible=false;const src=brickMesh(b,.18);placeMesh(src,b,t.grasp.from.i,t.grasp.from.j,t.grasp.from.l);R3.fx.add(src);}}
  if(CALF.on){[...CORN,CENTER].forEach((c,k)=>{const done=k<4?CALF.ticks[k]&&(CALF.ticks[k].A||CALF.ticks[k].B):false,cur=k===CALF.k,col=done?0xc4f46a:cur?0xefa13a:0x6b645b;const m=new THREE.Mesh(new THREE.RingGeometry(.7,.95,36),new THREE.MeshBasicMaterial({color:col,side:THREE.DoubleSide}));m.rotation.x=-Math.PI/2;m.position.set(U2x(c.U),.25,V2z(c.V));R3.fx.add(m);});}
+ covPlate(performance.now());
+ if(REACH.on){const j0=clamp(REACH.tgt+.5-REACH.w,0,ROWS),j1=clamp(REACH.tgt+.5+REACH.w,0,ROWS),m=new THREE.Mesh(new THREE.BoxGeometry(COLS,.06,j1-j0),new THREE.MeshBasicMaterial({color:0xc4f46a,transparent:true,opacity:.35,depthWrite:false}));m.position.set(0,.26,V2z((j0+j1)/2*CD));R3.fx.add(m);}
  r.render(sc,cam);drawSpace();}
 
 /* ---------------- the inspector: what each camera sees, how much it is trusted, and what the one model believes ---------------- */
@@ -989,7 +1152,7 @@ function inspect(now){if(FLOOR||now-INSP<90)return;INSP=now;const t=TR.find(x=>!
  $('#camB').setAttribute('aria-pressed',HND?'true':'false');$('#floorB').textContent=floors()?'Floor ('+floors()+')':'Floor';$('#peers').textContent=(relayOn()?'relay connected':ROOM?'reaching the relay…':'')+(floors()?' · '+floors()+' Floor linked':'');}
 
 function drawHealth(){const el=$('#health');if(!el)return;const mb=$('#measB');if(mb&&performance.now()-(mb._t||0)>250){mb._t=performance.now();mb.innerHTML=measureText(performance.now());}const h=HEALTH,c=HCOL[h.k];el.style.borderColor=c;const t=TR.find(x=>!x.ptr&&x.X&&x.lostAt===null);
- el.innerHTML='<b style="color:'+c+'">'+HNAME[h.k]+'</b><span>'+h.text+'</span>'+(t&&ROLES?'<span class="src">position from '+(t.live.includes('B')?'the Floor camera':'the laptop camera (rough)')+' · height from '+(t.hsrc||'-')+'</span>':'');
+ el.innerHTML='<b style="color:'+c+'">'+HNAME[h.k]+'</b><span>'+h.text+'</span>'+(h.k!=='nominal'?' <a class="help" target="_blank" href="wg-butter-pair-manual/#'+(HELPAT[h.k==='floor'?'floor_only':h.k]||'tree')+'">what to do</a>':'')+(t&&ROLES?'<span class="src">position from '+(t.live.includes('B')?'the Floor camera':'the laptop camera (rough)')+' · height from '+(t.hsrc||'-')+'</span>':'');
  const st=$('#stage');st.className='h-'+h.k;}
 function regText(now){const g=GEO.A,tl=floorTilt(),rows=[];
  rows.push(FL.busy?'<b style="color:var(--orange)">the Floor is flashing: keep it in camera A\'s view</b>':TCAL.on?'<b style="color:var(--orange)">touch dot '+(TCAL.k+1)+' of '+TCAL.dots.length+' on the Floor with a pinch, then lift straight up</b>':'');
@@ -1008,7 +1171,10 @@ function drawFloor(now){const cv=$('#cvF'),dpr=Math.min(2,devicePixelRatio||1),w
  const X=(U)=>ox+U/CW*cs,Y=(V)=>oy+(ROWS-V/CD)*cs;
  const fla=FV.flash!=null&&now-FV.flashAt<4000;document.body.classList.toggle('flashing',fla);if(fla){g.fillStyle='#000';g.fillRect(0,0,w,h);if(FV.flash>=0){const c=FLASHPTS[FV.flash];g.fillStyle='#fff';g.beginPath();g.arc(X(c.U),Y(c.V),cs*1.15,0,7);g.fill();}if(FV.flashSent!==FV.flash){const k=FV.flash;FV.flashSent=k;setTimeout(()=>fsend({type:'flashed',k}),40);}return;}/* the screen is the marker: a dark Floor with one lit dot */g.fillStyle='#8f8f8f';g.fillRect(ox,oy,cs*COLS,cs*ROWS);
  for(let i=0;i<COLS;i++)for(let j=0;j<ROWS;j++){g.fillStyle='#a3a3a3';g.beginPath();g.arc(ox+(i+.5)*cs,oy+(j+.5)*cs,cs*.3,0,7);g.fill();}
- const v=FV.view&&now-FV.at<1500?FV.view:null,held=new Set((v?v.tracks:[]).filter(t=>t.grasp).map(t=>t.grasp.brick));
+ const v=FV.view&&now-FV.at<1500?FV.view:null;if(v&&v.reach&&v.reach.zero){const r0=Math.min(cs*ROWS*.45,90*dpr)*(1+.08*Math.sin(now/180));g.strokeStyle='#c4f46a';g.lineWidth=5*dpr;g.beginPath();g.arc(X(W/2),Y(D/2),r0,0,7);g.stroke();g.fillStyle='rgba(196,244,106,.18)';g.fill();g.beginPath();g.arc(X(W/2),Y(D/2),r0,-Math.PI/2,-Math.PI/2+2*Math.PI*(v.reach.prog||0));g.lineWidth=9*dpr;g.stroke();}
+ else if(v&&v.reach){const R=v.reach,j0=clamp(R.tgt+.5-R.w,0,ROWS),j1=clamp(R.tgt+.5+R.w,0,ROWS);g.fillStyle='rgba(196,244,106,'+(.28+.12*Math.sin(now/200))+')';g.fillRect(ox,Y(j1*CD),cs*COLS,(j1-j0)*cs);g.strokeStyle='#c4f46a';g.lineWidth=3*dpr;g.strokeRect(ox,Y(j1*CD),cs*COLS,(j1-j0)*cs);
+  if(R.r!=null){const yy=Y((R.r+.5)*CD);g.strokeStyle='#ece6da';g.lineWidth=4*dpr;g.beginPath();g.moveTo(ox-14*dpr,clamp(yy,oy-20*dpr,oy+ROWS*cs+20*dpr));g.lineTo(ox+cs*COLS+14*dpr,clamp(yy,oy-20*dpr,oy+ROWS*cs+20*dpr));g.stroke();const inn=Math.abs(R.r-R.tgt)<=R.w;if(!inn){const up=R.tgt>R.r,im=iconImg(up?'up':'down','#ece6da');if(im.complete&&im.naturalWidth)g.drawImage(im,ox+cs*COLS+18*dpr,oy+ROWS*cs/2-36*dpr,72*dpr,72*dpr);}}}
+ const held=new Set((v?v.tracks:[]).filter(t=>t.grasp).map(t=>t.grasp.brick));
  const brick=(b,i,j,l,rot,a,dash)=>{const f=rot?{w:b.d,d:b.w}:{w:b.w,d:b.d},x=ox+i*cs,y=oy+(ROWS-j-f.d)*cs;g.globalAlpha=a;g.fillStyle=COLORS[b.c];g.fillRect(x+1,y+1,f.w*cs-2,f.d*cs-2);g.fillStyle='rgba(255,255,255,.18)';for(let p=0;p<f.w;p++)for(let q=0;q<f.d;q++){g.beginPath();g.arc(x+(p+.5)*cs,y+(q+.5)*cs,cs*.3,0,7);g.fill();}
   g.globalAlpha=1;g.strokeStyle=dash?'#efa13a':'rgba(0,0,0,.45)';g.lineWidth=dash?2.5*dpr:1.5*dpr;if(dash)g.setLineDash([6*dpr,4*dpr]);g.strokeRect(x+1,y+1,f.w*cs-2,f.d*cs-2);g.setLineDash([]);if(l){g.fillStyle='#111';g.font='500 '+(11*dpr)+'px IBM Plex Mono';g.fillText('L'+(l+1),x+4*dpr,y+13*dpr);}};
  const S=(FV.scene||[]).slice().sort((a,b)=>a.l-b.l);for(const b of S){if(held.has(b.id)){brick(b,b.i,b.j,b.l,b.rot,.18,true);continue;}brick(b,b.i,b.j,b.l,b.rot,1,false);}
@@ -1023,7 +1189,7 @@ function drawFloor(now){const cv=$('#cvF'),dpr=Math.min(2,devicePixelRatio||1),w
   g.font='500 '+(13*dpr)+'px IBM Plex Mono';g.fillStyle=T.phase==='cap'?'#c4f46a':'#efa13a';g.textAlign='center';g.fillText(T.n+'/'+T.of+' · '+(T.phase==='cap'?'HOLD · ':'GET READY · ')+T.prompt.toUpperCase(),w/2,oy-10*dpr);g.textAlign='left';}
  else if(false){g.font='500 '+(13*dpr)+'px IBM Plex Mono';g.fillStyle='#efa13a';g.textAlign='center';g.fillText('MOVE YOUR OPEN HAND OVER THE FLOOR · THE LAPTOP CAMERA LEARNS FROM THIS ONE · '+v.alearn+'%',w/2,oy-10*dpr);g.textAlign='left';}
  if(v&&v.health&&!v.cue){const hc=HCOL[v.health.k]||'#6b645b';g.strokeStyle=hc;g.lineWidth=6*dpr;g.strokeRect(3*dpr,3*dpr,w-6*dpr,h-6*dpr);g.font='500 '+(11.5*dpr)+'px IBM Plex Mono';g.fillStyle=hc;g.textAlign='center';g.fillText(HNAME[v.health.k]+' · '+v.health.text.toUpperCase(),w/2,h-12*dpr);g.textAlign='left';}
- if(v&&v.cue){const c=v.cue,big=Math.min(96*dpr,h*.24),cx=w/2,dot=v.tcal?v.tcal.dots[v.tcal.k]:v.test&&v.test.dot,aUp=dot?Y(dot.V)<h/2:(!v.aCam||Y(v.aCam.V)<Y(D/2)),top=aUp?h-big-58*dpr-10*dpr:10*dpr,/* away from the lit dot first, then away from camera A */col=c.where==='laptop'?'#c4f46a':'#ece6da';g.fillStyle='#0b0a09d9';const bw=Math.min(w-20*dpr,520*dpr),bh=big+58*dpr;g.fillRect(cx-bw/2,top,bw,bh);g.strokeStyle=c.where==='laptop'?'#c4f46a':'#efa13a';g.lineWidth=2*dpr;g.strokeRect(cx-bw/2,top,bw,bh);
+ if(v&&v.cue){const c=v.cue,big=Math.min(96*dpr,h*.24),cx=w/2,dot=v.tcal?v.tcal.dots[v.tcal.k]:v.test&&v.test.dot||(v.reach&&!v.reach.zero?{U:W/2,V:(v.reach.tgt+.5)*CD}:null),aUp=dot?Y(dot.V)<h/2:(!v.aCam||Y(v.aCam.V)<Y(D/2)),top=aUp?h-big-58*dpr-10*dpr:10*dpr,/* away from the lit dot first, then away from camera A */col=c.where==='laptop'?'#c4f46a':'#ece6da';g.fillStyle='#0b0a09d9';const bw=Math.min(w-20*dpr,520*dpr),bh=big+58*dpr;g.fillRect(cx-bw/2,top,bw,bh);g.strokeStyle=c.where==='laptop'?'#c4f46a':'#efa13a';g.lineWidth=2*dpr;g.strokeRect(cx-bw/2,top,bw,bh);
   const im=iconImg(c.ic,col);if(im.complete&&im.naturalWidth)g.drawImage(im,cx-bw/2+12*dpr,top+8*dpr,big,big);const tx=cx-bw/2+big+28*dpr;g.textAlign='left';g.fillStyle=c.where==='laptop'?'#c4f46a':'#efa13a';g.font='500 '+(11*dpr)+'px IBM Plex Mono';g.fillText(c.where==='laptop'?'TOWARD THE LAPTOP CAMERA':'OVER THIS PHONE',tx,top+24*dpr);
   g.fillStyle='#ece6da';g.font='500 '+(17*dpr)+'px IBM Plex Mono';g.fillText(c.main,tx,top+50*dpr,bw-big-40*dpr);g.fillStyle='#b3ab9e';g.font=(12*dpr)+'px IBM Plex Mono';g.fillText(c.sub||'',tx,top+72*dpr,bw-big-40*dpr);g.fillStyle='#2e2a26';g.fillRect(cx-bw/2,top+bh-4*dpr,bw,4*dpr);g.fillStyle='#ece6da';g.fillRect(cx-bw/2,top+bh-4*dpr,bw*(c.prog||0),4*dpr);
   if(c.where==='laptop'&&v.aCam){const a=v.aCam,dx=X(a.U)-X(W/2),dy=Y(a.V)-Y(D/2),L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,ax=cx+ux*(Math.min(w,h)*.3),ay=h/2+uy*(Math.min(w,h)*.3);const ui=iconImg('up','#c4f46a');if(ui.complete&&ui.naturalWidth){g.save();g.translate(ax,ay);g.rotate(Math.atan2(uy,ux)+Math.PI/2);g.drawImage(ui,-40*dpr,-40*dpr,80*dpr,80*dpr);g.restore();}}}
@@ -1044,9 +1210,10 @@ function drawFloor(now){const cv=$('#cvF'),dpr=Math.min(2,devicePixelRatio||1),w
   if(FSTAT.err){g.fillStyle='#e0483a';g.fillText('stopped: '+FSTAT.err,x0+14*dpr,y0+(rows.length*26+66)*dpr,bw-28*dpr);}}
  if(FV.own&&FV.own.length)FV.everHand=true;
  /* own camera, corner view: what this phone sees from below */
- if(FV.cam){const vw=110*dpr,vh=82*dpr,x0=10*dpr,y0=h-vh-10*dpr;g.fillStyle='#000';g.fillRect(x0,y0,vw,vh);const vd=$('#vidA');if(vd.videoWidth){g.save();g.translate(x0+vw,y0);g.scale(-1,1);g.globalAlpha=.7;g.drawImage(vd,0,0,vw,vh);g.restore();}
+ if(FV.cam){const big=FV.big,vw=(big?Math.min(w*.62,520*dpr):110*dpr),vh=vw*.75,x0=10*dpr,y0=h-vh-10*dpr;FV.corner=[x0,y0,vw,vh];g.fillStyle='#000';g.fillRect(x0,y0,vw,vh);const vd=$('#vidA');if(vd.videoWidth){g.save();g.translate(x0+vw,y0);g.scale(-1,1);g.globalAlpha=.7;g.drawImage(vd,0,0,vw,vh);g.restore();}
   if(FV.own&&now-FV.ownAt<300)for(const t of FV.own){g.strokeStyle='#efa13a';g.lineWidth=1.6*dpr;for(const [a,b] of LINKS){g.beginPath();g.moveTo(x0+(1-t.marks[a].x)*vw,y0+t.marks[a].y*vh);g.lineTo(x0+(1-t.marks[b].x)*vw,y0+t.marks[b].y*vh);g.stroke();}}
-  g.strokeStyle='#2e2a26';g.strokeRect(x0,y0,vw,vh);g.fillStyle='#b3ab9e';g.font=(10.5*dpr)+'px IBM Plex Mono';g.fillText(FV.own&&FV.own.length&&now-FV.ownAt<300?'B SEES A HAND':(CAMSTEP||'B: NO HAND').toUpperCase().slice(0,30),x0+vw+10*dpr,y0+vh-4*dpr);}
+  if(v){const bp=v.bp||B0,pj=(U,V,Hb)=>{const a=bAxes(bp),q=[U-bp.cu,V-bp.cv,Hb],zz=v3.dot(q,a.f);if(zz<.02)return null;return [x0+(1-(.5+bp.fB*v3.dot(q,a.r)/zz/(4/3)))*vw,y0+(.5+bp.fB*v3.dot(q,a.d)/zz)*vh];};for(const t of v.tracks){if(t.ptr||!t.X)continue;g.lineWidth=2.5*dpr;g.font=(10.5*dpr)+'px IBM Plex Mono';if(t.eA){const p=pj(t.eA.U,t.eA.V,t.eA.H+HREF);if(p){g.strokeStyle='#c4f46a';g.beginPath();g.arc(p[0],p[1],(big?10:5)*dpr,0,7);g.stroke();if(big){g.fillStyle='#c4f46a';g.fillText('WHERE THE LAPTOP CAMERA THINKS YOUR HAND IS',x0+8*dpr,y0+16*dpr);}}}const pf=pj(t.X.U,t.X.V,t.X.H+HREF);if(pf){g.strokeStyle='#ece6da';g.beginPath();g.arc(pf[0],pf[1],(big?14:7)*dpr,0,7);g.stroke();}}}
+  g.strokeStyle='#2e2a26';g.strokeRect(x0,y0,vw,vh);g.fillStyle='#b3ab9e';g.font=(10.5*dpr)+'px IBM Plex Mono';g.fillText((FV.own&&FV.own.length&&now-FV.ownAt<300?'B SEES A HAND':(CAMSTEP||'B: NO HAND').toUpperCase().slice(0,30))+(big?' · TAP TO SHRINK':' · TAP TO ENLARGE'),x0+vw+10*dpr,y0+vh-4*dpr);}
  if(v&&v.constr){const t=v.constr==='floor'?'PALM OVER THE FLOOR · plan only, height held':'PALM TO THE LAPTOP · along the row, depth held';g.font='500 '+(12*dpr)+'px IBM Plex Mono';const tw=g.measureText(t).width;g.fillStyle='#85bdff';g.fillRect(w/2-tw/2-10*dpr,h-34*dpr,tw+20*dpr,24*dpr);g.fillStyle='#111';g.fillText(t,w/2-tw/2,h-17*dpr);}
  if(v&&v.palms)for(const pm of v.palms){g.fillStyle='rgba(133,189,255,.3)';g.strokeStyle='#85bdff';g.lineWidth=2*dpr;const x=X(pm.X.U),y=Y(pm.X.V);if(pm.k==='floor'){g.beginPath();g.ellipse(x,y,30*dpr,22*dpr,0,0,7);g.fill();g.stroke();}else{g.fillRect(x-30*dpr,y-3*dpr,60*dpr,6*dpr);}}
  const on=now-FV.linked<6000;g.font='500 '+(12*dpr)+'px IBM Plex Mono';g.fillStyle=on?'#c4f46a':'#b3ab9e';g.textAlign='left';g.fillText(on?'FLOOR · '+(ROOM||'this browser')+(v&&v.cal&&v.cal.on?' · CALIBRATING: pinch '+(v.cal.k<4?'corner '+(v.cal.k+1):'the centre'):'')
@@ -1064,7 +1231,7 @@ function imuStart(){if(IMU.on)return;IMU.on=true;addEventListener('deviceorienta
 /* ---------------- wiring ---------------- */
 function loop(){const now=performance.now();
  if(!FLOOR){if(RUN){const t=(now-RUN.t0)/1000;if(t>RUN.sc.dur){const nx=RUN.next.shift();if(nx){RUN={sc:SIM.SCRIPTS[nx](),t0:now,name:nx,next:RUN.next,last:null};SCENE={rev:SCENE.rev+1,bricks:startBricks()};sceneOut();if(nx==='calibrate')calStart();if(nx==='tapcal')startTcal();log('demo: '+nx);}else{RUN=null;$('#sim').hidden=true;log('demo finished');}}else{const dt=1/30;RUN.last=RUN.last==null?-dt:RUN.last;while(RUN.last+dt<=t){RUN.last+=dt;simStep(RUN.sc,RUN.last);}}}
-  else{liftTick(now);if(REPLAY){const t=now-REPLAY.t0;while(REPLAY.i<REPLAY.ev.length&&REPLAY.ev[REPLAY.i].t<=t)play(REPLAY.ev[REPLAY.i++],now);if(REPLAY.i>=REPLAY.ev.length){REPLAY=null;log('replay finished');}}fuse(now);calTick(now);}HEALTH=healthOf(now);if(TCAL.waitCheck&&TCAL.on&&now-TCAL.waitCheck>1800){TCAL.on=false;TCAL.checking=false;}draw3();inspect(now);scopeTick(RUN&&RUN.last!=null?RUN.t0+RUN.last*1000:now);drawHealth();if(!$('#launch').hidden&&now-(LAUNCH.drawn||0)>120){LAUNCH.drawn=now;drawCue(now);}}
+  else{liftTick(now);if(REPLAY){const t=now-REPLAY.t0;while(REPLAY.i<REPLAY.ev.length&&REPLAY.ev[REPLAY.i].t<=t)play(REPLAY.ev[REPLAY.i++],now);if(REPLAY.i>=REPLAY.ev.length){REPLAY=null;log('replay finished');}}fuse(now);calTick(now);}HEALTH=healthOf(now);if(TCAL.waitCheck&&TCAL.on&&now-TCAL.waitCheck>1800){TCAL.on=false;TCAL.checking=false;}reachTick(now);draw3();drawPlan(now);inspect(now);scopeTick(RUN&&RUN.last!=null?RUN.t0+RUN.last*1000:now);drawHealth();if(!$('#launch').hidden&&now-(LAUNCH.drawn||0)>120){LAUNCH.drawn=now;drawCue(now);}}
  else drawFloor(now);requestAnimationFrame(loop);}
 function newCode(){const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789',r=crypto.getRandomValues(new Uint8Array(5));return [...r].map(x=>A[x%A.length]).join('');}
 async function loadScript(u){await new Promise((ok,no)=>{const e=document.createElement('script');e.src=u;e.onload=ok;e.onerror=no;document.head.append(e);});}
@@ -1076,6 +1243,7 @@ if(!FLOOR){
   loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js').then(()=>{$('#qrC').innerHTML='';new QRCode($('#qrC'),{text:u,width:180,height:180});}).catch(()=>{$('#qrC').textContent='no QR here: type the code';});};
  $('#popX').onclick=()=>$('#pop').hidden=true;$('#scopeB').onclick=()=>scopeToggle();$('#tPos').onclick=()=>{if(!floors()&&!RUN)toast('The position test lights dots on the Floor: link a Floor first');testStart('positions');};$('#tGes').onclick=()=>testStart('gestures');$('#tSave').onclick=testSave;$('#tStop').onclick=()=>{TEST.on=false;$('#tMsg').textContent='';};$('#launchB').onclick=()=>{const l=$('#launch');if(l.hidden||!LAUNCH.on){l.hidden=false;drawCue(performance.now());if(!LAUNCH.on)launchRun(GO_STEPS);}else l.hidden=true;};$('#lGo').onclick=()=>launchRun(GO_STEPS);$('#lPr').onclick=()=>launchRun(PRACTICE_STEPS);$('#lSkip').onclick=()=>{LAUNCH.skip=true;};$('#lOne').onclick=()=>{LAUNCH.oneHand=true;};$('#lSave').onclick=launchSave;$('#lClose').onclick=()=>{$('#launch').hidden=true;};
  $('#recoverB').onclick=()=>{$('#more').hidden=true;recover();};$('#soundB').textContent=SND.on?'Sound on':'Sound off';$('#soundB').onclick=()=>{SND.on=!SND.on;try{localStorage.setItem('butter-pair-sound',SND.on?'on':'off');}catch(e){}$('#soundB').textContent=SND.on?'Sound on':'Sound off';if(SND.on)sfx.chime();};
+ const planSet=on=>{PLAN.on=on;try{localStorage.setItem('butter-pair-plan',on?'on':'off');}catch(e){}$('#planB').setAttribute('aria-pressed',on?'true':'false');};planSet(PLAN.on);$('#planB').onclick=()=>planSet(!PLAN.on);
  $('#moreB').onclick=()=>{const m=$('#more');m.hidden=!m.hidden;$('#moreB').setAttribute('aria-expanded',String(!m.hidden));};
  const calOld=async()=>{if(floors()){if(HND)await flashReg({quiet:true});startTcal();}else{if(!floors())toast('No Floor linked: calibrating by pinching the corners instead. With a Floor, it flashes and you touch.',5000);calStart();}};
  $('#recB').onclick=()=>{recToggle();$('#recB').textContent=REC.on?'Stop and save':'Record';$('#recB').classList.toggle('warn',REC.on);};
@@ -1086,6 +1254,7 @@ if(!FLOOR){
   if(held&&/^Arrow/.test(e.key)){e.preventDefault();const n=held.grasp.nudge||(held.grasp.nudge={i:0,j:0});if(e.key==='ArrowLeft')n.i--;if(e.key==='ArrowRight')n.i++;if(e.key==='ArrowUp')n.j++;if(e.key==='ArrowDown')n.j--;return;}
   if(held&&(e.key==='r'||e.key==='R')){held.grasp.rot^=1;sfx.tick();return;}
   if(held&&(e.key==='Enter'||e.key===' ')){e.preventDefault();const g=held.grasp,pv=g.pv;if(pv){held.state='free';held.grasp=null;command({id:g.cmd,type:'place',brick:g.brick,i:pv.i,j:pv.j,l:pv.l,rot:pv.rot,by:'keyboard'});}return;}
+  if(REACH.on&&(e.key==='ArrowUp'||e.key==='ArrowDown')){e.preventDefault();const c=REACH.km!=null&&performance.now()-REACH.kmAt<4000?REACH.km:REACH.cur&&REACH.cur.by!=='keys'?Math.round(REACH.cur.r):REACH.tgt<4?6:1;REACH.km=clamp(c+(e.key==='ArrowUp'?1:-1),0,ROWS-1);REACH.kmAt=performance.now();sfx.tick();return;}
   if(e.key==='Escape'){cancelAll();CALF.on=false;}else if(e.key==='z')command({type:'undo'});else if(e.key==='Z')command({type:'redo'});});
  /* the mouse is a hand too: a ray onto the bed */
  const cv=$('#cv3'),ray=new THREE.Raycaster(),pl=new THREE.Plane(new THREE.Vector3(0,1,0),0),hit=new THREE.Vector3();let mdown=false;
@@ -1101,7 +1270,7 @@ if(!FLOOR){
  if(ROOM)joinRoom(ROOM);
 }else{
  document.body.classList.add('floor');const cv=$('#cvF');
- cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);FV.down=e;flTouch(e,true);});cv.addEventListener('pointermove',e=>{if(FV.down){FV.down=e;flTouch(e,true);}});cv.addEventListener('pointerup',e=>{FV.down=false;flTouch(e,false);});
+ cv.addEventListener('pointerdown',e=>{const c=FV.corner,r=cv.getBoundingClientRect(),dp=Math.min(2,devicePixelRatio||1),px=(e.clientX-r.left)*dp,py=(e.clientY-r.top)*dp;if(c&&px>=c[0]&&px<=c[0]+c[2]&&py>=c[1]&&py<=c[1]+c[3]){FV.big=!FV.big;return;}cv.setPointerCapture(e.pointerId);FV.down=e;flTouch(e,true);});cv.addEventListener('pointermove',e=>{if(FV.down){FV.down=e;flTouch(e,true);}});cv.addEventListener('pointerup',e=>{FV.down=false;flTouch(e,false);});
  setInterval(()=>{if(FV.down)flTouch(FV.down,true);},150);
  $('#flX').onclick=()=>fsend({type:'cmd',cmd:{id:uid(),type:'cancel'}});$('#flU').onclick=()=>command({type:'undo'});
  $('#flStart').hidden=!window.MPHands;if(!window.MPHands){fstatSet('tracker',false,'the hand tracker script did not load: check the connection and reload');}
@@ -1116,7 +1285,7 @@ if(!FLOOR){
  $('#flRoomF').onsubmit=e=>{e.preventDefault();const c=$('#flCode').value.trim().toUpperCase();if(c.length<4)return;$('#flRoom').hidden=true;joinRoom(c);hello();};
  hello();}
 requestAnimationFrame(loop);
-window.BP={get CONSTR(){return CONSTR;},get R3(){return R3;},get LOG(){return LOG;},get MQ(){return MQ;},get TR(){return TR;},get SCENE(){return SCENE;},get CAL(){return CAL;},CALF,XF,BIAS,HIST,SIM,measure,resetModel,calStart,simStep,ingest,fuse,pointerHand,command,apply,cancelAll,feat,estA,estB,get RUN(){return RUN;},set RUN(v){RUN=v;},LDONE,floors,joinRoom,fsend,get FV(){return FV;},packLm,startBricks,get GEO(){return GEO;},TILT,tiltApply,tiltTick,vShift,rowProfile,FSTAT,get FREM(){return FREM;},set FREM(v){FREM=v;},recover,sfx,SND,measureText,arOverlay,GO_STEPS,PRACTICE_STEPS,phoneLine,LDIAG,vOf,cueOf,bootstrapA,get CUE(){return CUE;},BCAM,LIFTS,calibSolve,_cal:{calRes:(...a)=>calRes(...a),lm:(...a)=>lm(...a),bAxes:(...a)=>bAxes(...a)},meet,rayA,rayB,LAUNCH,LRUN,launchRun,get HEALTH(){return HEALTH;},healthOf,triH,ROLES,rigLoad,rigFromStore,TEST,SCOPE,APAIRS,RTC,testStart,scopeToggle,fitAfromB,rtcLive,get HND(){return HND;},set HND(v){HND=v;},set GEO(v){GEO=v;},TCAL,BPAIRS,FLR,FL,TH,REC,get REPLAY(){return REPLAY;},geoFromImage,setGeo,projA,rayToPlane,findDot,floorTouch,imuIn,replay,recToggle,startTcal,fitB,regText,floorTilt,
+window.BP={ZERO,zeroDepth,REACH,reachStart,reachTick,reachCur,stepRow,canSee,seesNow,projCam,planAction,nearestBoth,drawPlan,PLAN,covRaster,camOn,get CONSTR(){return CONSTR;},get R3(){return R3;},get LOG(){return LOG;},get MQ(){return MQ;},get TR(){return TR;},get SCENE(){return SCENE;},get CAL(){return CAL;},CALF,XF,BIAS,HIST,SIM,measure,resetModel,calStart,simStep,ingest,fuse,pointerHand,command,apply,cancelAll,feat,estA,estB,get RUN(){return RUN;},set RUN(v){RUN=v;},LDONE,floors,joinRoom,fsend,get FV(){return FV;},packLm,startBricks,get GEO(){return GEO;},TILT,tiltApply,tiltTick,vShift,rowProfile,FSTAT,get FREM(){return FREM;},set FREM(v){FREM=v;},recover,sfx,SND,measureText,arOverlay,GO_STEPS,PRACTICE_STEPS,phoneLine,LDIAG,vOf,cueOf,bootstrapA,get CUE(){return CUE;},BCAM,LIFTS,calibSolve,_cal:{calRes:(...a)=>calRes(...a),lm:(...a)=>lm(...a),bAxes:(...a)=>bAxes(...a)},meet,rayA,rayB,LAUNCH,LRUN,launchRun,get HEALTH(){return HEALTH;},healthOf,triH,ROLES,rigLoad,rigFromStore,TEST,SCOPE,APAIRS,RTC,testStart,scopeToggle,fitAfromB,rtcLive,get HND(){return HND;},set HND(v){HND=v;},set GEO(v){GEO=v;},TCAL,BPAIRS,FLR,FL,TH,REC,get REPLAY(){return REPLAY;},geoFromImage,setGeo,projA,rayToPlane,findDot,floorTouch,imuIn,replay,recToggle,startTcal,fitB,regText,floorTilt,
  setCal(c){CAL=c;},reset(){SCENE={rev:SCENE.rev+1,bricks:startBricks()};HIST.length=0;REDO.length=0;sceneOut();}};
 </script>
 </body>
