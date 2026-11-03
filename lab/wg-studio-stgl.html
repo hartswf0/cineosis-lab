@@ -15,7 +15,16 @@
     --cyan: #00e5ff;
     --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important; }
+  * {
+    box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important;
+    scrollbar-width: thin;
+    scrollbar-color: #33ff77 #020804;
+  }
+  *::-webkit-scrollbar { height: 5px; width: 5px; background: #020804; }
+  *::-webkit-scrollbar-track { background: #020804; border-top: 1px solid #0f381d; }
+  *::-webkit-scrollbar-thumb { background: #269952; }
+  *::-webkit-scrollbar-thumb:hover { background: #33ff77; }
+
   html, body {
     width: 100%; height: 100%; overflow: hidden;
     background: #000; color: var(--fg);
@@ -25,7 +34,7 @@
 
   .app {
     display: grid;
-    grid-template-rows: 32px 1fr 84px 64px;
+    grid-template-rows: 32px 1fr 74px 116px;
     width: 100vw; height: 100vh;
     background: #000;
   }
@@ -125,37 +134,65 @@
     background: rgba(0,0,0,0.75); padding: 0 3px; font-size: 8.5px; color: var(--fg-bright);
   }
 
-  /* 4. BOTTOM 105-SCENE FILMSTRIP */
+  /* 4. UPGRADED BOTTOM TIMELINE & GRID-RULE SCRUBBER DOCK */
+  .bottom-dock {
+    display: grid;
+    grid-template-rows: 22px 1fr;
+    border-top: 1px solid var(--fg-dim);
+    background: #010502;
+    min-height: 0; overflow: hidden;
+  }
+  .dock-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 10px; gap: 8px;
+    background: #030b05; border-bottom: 1px solid var(--border);
+    font-size: 9px;
+  }
+  .macro-barcode {
+    flex: 1; height: 12px;
+    background: #000; border: 1px solid #174425;
+    display: flex; cursor: pointer; position: relative; overflow: hidden;
+  }
+  .bc-slice { flex: 1; height: 100%; opacity: 0.7; }
+  .bc-slice:hover { opacity: 1; }
+  .bc-slice.active { opacity: 1; box-shadow: inset 0 0 0 1px #fff; }
+
   .filmstrip {
-    display: flex; align-items: center; gap: 4px;
-    overflow-x: auto; overflow-y: hidden; padding: 4px 14px;
-    border-top: 1px solid var(--border); background: #000;
+    display: flex; align-items: center; gap: 6px;
+    overflow-x: auto; overflow-y: hidden; padding: 4px 10px;
+    background: #000;
     scroll-behavior: smooth;
   }
-  .tile-16x9 {
-    position: relative;
-    height: 52px;
-    aspect-ratio: 16 / 9;
+  .sc-card {
+    width: 142px; height: 84px;
     flex-shrink: 0;
-    border: 1px solid var(--border);
-    background: #000; cursor: pointer; overflow: hidden;
+    background: #020704; border: 1px solid #143d21;
+    display: grid; grid-template-rows: 15px 1fr 15px;
+    cursor: pointer; overflow: hidden;
   }
-  .tile-16x9 img {
-    width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.65;
+  .sc-card:hover { border-color: var(--fg); }
+  .sc-card.active { border: 2px solid var(--amber); background: #0d0a00; }
+  .sc-card-top {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 4px; background: #041008; font-size: 8px; color: var(--fg-bright);
+    border-bottom: 1px solid #0c2915;
   }
-  .tile-16x9.active { border: 2px solid var(--amber); }
-  .tile-16x9.active img { opacity: 1; }
-  .tile-id {
-    position: absolute; bottom: 1px; left: 2px;
-    background: rgba(0,0,0,0.8); padding: 0 3px; font-size: 8px; color: var(--fg-bright);
+  .sp-pill { padding: 0 3px; font-size: 7.5px; font-weight: 700; color: #000; }
+  .sc-card-mid { position: relative; width: 100%; height: 100%; overflow: hidden; background: #000; }
+  .sc-card-mid img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.78; }
+  .sc-card.active .sc-card-mid img { opacity: 1; }
+  .sc-card-mid svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .sc-card-bot {
+    padding: 0 4px; line-height: 14px; font-size: 8px; color: #99e6b3;
+    background: #020804; border-top: 1px solid #0c2915;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
 
   @media (max-width: 900px) {
-    .app { grid-template-rows: 32px 1fr 62px 54px; }
+    .app { grid-template-rows: 32px 1fr 62px 112px; }
     .video-16x9 { width: 100%; height: auto; }
     .strip-row { padding: 3px 6px; gap: 2px; }
     .filmstrip { padding: 3px 6px; }
-    .tile-16x9 { height: 44px; }
   }
 </style>
 </head>
@@ -199,8 +236,19 @@
   <!-- 3. 8 SUB-FRAMES (f1..f8) -->
   <div class="strip-row" id="stripGrid"></div>
 
-  <!-- 4. 105-SCENE FILMSTRIP -->
-  <div class="filmstrip" id="filmstrip"></div>
+  <!-- 4. UPGRADED 105-SCENE FILMSTRIP DOCK -->
+  <div class="bottom-dock">
+    <div class="dock-header">
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+        <span style="color:var(--amber);font-weight:700;">105 SCENES GRID BARCODE:</span>
+        <button class="btn" onclick="document.getElementById('filmstrip').scrollBy({left:-420,behavior:'smooth'})" style="padding:1px 5px;font-size:8.5px;">[&lt;&lt;]</button>
+        <button class="btn" onclick="document.getElementById('filmstrip').scrollBy({left:420,behavior:'smooth'})" style="padding:1px 5px;font-size:8.5px;">[&gt;&gt;]</button>
+      </div>
+      <div class="macro-barcode" id="macroBarcode"></div>
+      <span style="color:#99e6b3;font-size:8.5px;flex-shrink:0;">105 SCENES</span>
+    </div>
+    <div class="filmstrip" id="filmstrip"></div>
+  </div>
 </div>
 
 <audio id="sceneAudio" preload="auto"></audio>
@@ -270,14 +318,52 @@ function togglePlay() {
   }
 }
 
+const RULE_META = {
+  golden_spiral:   { short: 'SPIRAL',   col: '#ff44cc' },
+  rule_of_thirds:  { short: 'THIRDS',   col: '#00e5ff' },
+  s_curve:         { short: 'S-CURVE',  col: '#ffb000' },
+  symmetry:        { short: 'SYMMETRY', col: '#33ff77' },
+  frame_in_frame:  { short: 'APERTURE', col: '#ff5544' },
+  v_shape:         { short: 'V-WEDGE',  col: '#aa88ff' }
+};
+
 function renderFilmstrip() {
+  const bc = document.getElementById('macroBarcode');
   const el = document.getElementById('filmstrip');
-  el.innerHTML = SHOTS.map((s, i) => `
-    <div class="tile-16x9 ${i === CUR ? 'active' : ''}" id="ftile_${i}" onclick="selectShot(${i})">
-      <img src="${s.thumb}" loading="lazy" alt="">
-      <div class="tile-id">${s.id}</div>
-    </div>
-  `).join('');
+
+  bc.innerHTML = SHOTS.map((s, i) => {
+    const r = (s.frames_8 && s.frames_8[0] && s.frames_8[0].primary_rule) || 'golden_spiral';
+    const rm = RULE_META[r] || { short: 'GRID', col: '#33ff77' };
+    return `<div class="bc-slice ${i === CUR ? 'active' : ''}"
+                 style="background:${rm.col};"
+                 onclick="selectShot(${i})"
+                 title="#${i+1} ${s.id} · ${rm.short} · ${s.fulcrum_line || ''}"></div>`;
+  }).join('');
+
+  el.innerHTML = SHOTS.map((s, i) => {
+    const fFrames = s.frames_8 || [];
+    const r = (fFrames[0] && fFrames[0].primary_rule) || 'golden_spiral';
+    const rm = RULE_META[r] || { short: 'GRID', col: '#33ff77' };
+    const pts = fFrames.map(f => `${(f.u*100).toFixed(1)},${(f.v*56).toFixed(1)}`).join(' ');
+    const mid = fFrames[3] || { u: 0.5, v: 0.5 };
+    const cap = `${s.who ? s.who + ': ' : ''}${s.fulcrum_line || ''}`;
+    return `
+      <div class="sc-card ${i === CUR ? 'active' : ''}" id="ftile_${i}" onclick="selectShot(${i})">
+        <div class="sc-card-top">
+          <span>#${String(i+1).padStart(3,'0')} · ${s.id}</span>
+          <span class="sp-pill" style="background:${rm.col};">${rm.short}</span>
+        </div>
+        <div class="sc-card-mid">
+          <img src="${s.thumb}" loading="lazy" alt="">
+          <svg viewBox="0 0 100 56" preserveAspectRatio="none">
+            <polyline points="${pts}" fill="none" stroke="#00e5ff" stroke-width="1.8"/>
+            <circle cx="${mid.u*100}" cy="${mid.v*56}" r="3" fill="${rm.col}" stroke="#fff" stroke-width="0.6"/>
+          </svg>
+        </div>
+        <div class="sc-card-bot">${cap}</div>
+      </div>
+    `;
+  }).join('');
 }
 
 function selectShot(idx) {
@@ -288,7 +374,8 @@ function selectShot(idx) {
   document.getElementById('shotNum').textContent =
     `${String(CUR+1).padStart(3,'0')} / ${String(SHOTS.length).padStart(3,'0')}`;
 
-  document.querySelectorAll('#filmstrip .tile-16x9').forEach((t, i) => t.classList.toggle('active', i === CUR));
+  document.querySelectorAll('#filmstrip .sc-card').forEach((t, i) => t.classList.toggle('active', i === CUR));
+  document.querySelectorAll('#macroBarcode .bc-slice').forEach((b, i) => b.classList.toggle('active', i === CUR));
   const tile = document.getElementById(`ftile_${CUR}`);
   if (tile) tile.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
 
