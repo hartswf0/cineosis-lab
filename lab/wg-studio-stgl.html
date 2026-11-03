@@ -3,130 +3,214 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>4D GRID CINEMA</title>
+<title>4D GRID CINEMA // STGL (u,v,d,tau)</title>
 <style>
+  :root {
+    --bg: #000000;
+    --fg: #33ff77;
+    --fg-bright: #c8ffe0;
+    --fg-dim: #1b6b36;
+    --border: #0e381c;
+    --amber: #ffb000;
+    --cyan: #00e5ff;
+    --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important; }
   html, body {
     width: 100%; height: 100%; overflow: hidden;
-    background: #000; color: #33ff77;
+    background: #000; color: var(--fg);
+    font-family: var(--mono); font-size: 10px;
     user-select: none; -webkit-user-select: none;
   }
+
   .app {
     display: grid;
-    grid-template-rows: 1fr 82px 62px;
+    grid-template-rows: 26px 1fr auto 74px;
     width: 100vw; height: 100vh;
-    background: #061c0d; gap: 1px;
+    background: #000;
   }
 
-  /* ROW 1: MASTER VIDEO + 4x2 WALL OF ALL 8 COMPOSITION ARMATURE FRAMES */
-  .top-stage {
-    display: grid;
-    grid-template-columns: 1.15fr 1.55fr;
-    gap: 1px; background: #061c0d;
-    min-height: 0; overflow: hidden;
+  /* 1. VISUAL KEY / LEGEND BAR */
+  .legend-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 8px; border-bottom: 1px solid var(--border);
+    background: #020804; overflow-x: auto; white-space: nowrap; gap: 12px;
   }
-  .master-vp {
-    position: relative; background: #000; overflow: hidden;
-    display: flex; align-items: center; justify-content: center;
+  .leg-items { display: flex; align-items: center; gap: 12px; }
+  .leg-item { display: inline-flex; align-items: center; gap: 5px; color: #99e6b3; font-size: 9.5px; }
+  .sym-dot { width: 8px; height: 8px; background: var(--cyan); border: 1px solid #fff; display: inline-block; }
+  .sym-box { width: 12px; height: 9px; border: 2px solid var(--amber); display: inline-block; }
+  .sym-grid { width: 12px; height: 9px; border: 1px solid var(--fg); display: inline-block; }
+  .nav-btns { display: flex; align-items: center; gap: 4px; }
+  .btn {
+    font-family: var(--mono); font-size: 9.5px;
+    background: #000; color: var(--fg);
+    border: 1px solid var(--fg-dim); padding: 2px 6px;
+    cursor: pointer; text-decoration: none;
+  }
+  .btn:hover, .btn.on { background: var(--fg); color: #000; font-weight: 700; }
+  .btn.amber { color: var(--amber); border-color: #775200; }
+  .btn.amber.on, .btn.amber:hover { background: var(--amber); color: #000; }
+  .btn.cyan { color: var(--cyan); border-color: #006677; }
+  .btn.cyan.on, .btn.cyan:hover { background: var(--cyan); color: #000; }
+
+  /* 2. MAIN STAGE: MASTER 16:9 FRAME + 4x2 WALL OF ALL 8 COMPOSITION GRIDS (ALL STRICTLY 16:9) */
+  .main-stage {
+    display: grid;
+    grid-template-columns: 1fr 1.45fr;
+    gap: 6px; padding: 6px;
+    min-height: 0; overflow: hidden; align-items: center;
+    background: #000;
+  }
+
+  .frame-16x9 {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #030905;
+    border: 1px solid var(--border);
+    overflow: hidden;
     cursor: pointer;
   }
-  .master-vp video, #frameCanvas {
-    width: 100%; height: 100%; object-fit: cover; display: block;
+  .frame-16x9.win {
+    border: 2px solid var(--amber);
   }
-  #frameCanvas { position: absolute; inset: 0; display: none; pointer-events: none; }
-  #stglSvg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 15; }
+  .frame-16x9 video,
+  .frame-16x9 canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: fill;
+    display: block;
+  }
+  .frame-16x9 svg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 10;
+  }
 
-  /* 4x2 WALL OF THE 8 COMPOSITIONAL ARMATURES OVER THE LIVE FRAME */
+  .micro-tag {
+    position: absolute; top: 3px; left: 3px; z-index: 15;
+    background: rgba(0, 0, 0, 0.78);
+    border: 1px solid rgba(51, 255, 119, 0.35);
+    padding: 1px 4px; font-size: 8.5px; color: var(--fg-bright);
+    pointer-events: none;
+  }
+  .micro-tag.amber { color: var(--amber); border-color: rgba(255, 176, 0, 0.55); font-weight: 700; }
+  .micro-tag-bl {
+    position: absolute; bottom: 3px; left: 3px; z-index: 15;
+    background: rgba(0, 0, 0, 0.78);
+    padding: 1px 4px; font-size: 8px; color: #99e6b3;
+    pointer-events: none;
+  }
+
+  /* 4x2 WALL OF THE 8 COMPOSITION RULES — EVERY CELL STRICTLY 16:9 */
   .arm-wall {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-    gap: 1px; background: #061c0d;
-    min-height: 0; overflow: hidden;
+    gap: 4px; width: 100%; align-content: center;
   }
-  .arm-cell {
-    position: relative; background: #000; overflow: hidden; cursor: pointer;
-  }
-  .arm-cell.win { outline: 2px solid #ffb000; outline-offset: -2px; z-index: 5; }
-  .arm-cell .f-strip-img {
+  .arm-wall .f-strip-img {
     position: absolute; top: 0; height: 100%; width: 800%; max-width: none;
     opacity: 0.78;
   }
-  .arm-cell.win .f-strip-img { opacity: 1; }
-  .arm-cell svg {
-    position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
-  }
+  .arm-wall .frame-16x9.win .f-strip-img { opacity: 1; }
 
-  .snd-dot {
-    position: absolute; top: 8px; right: 8px; z-index: 25;
-    width: 26px; height: 26px; background: rgba(0,0,0,0.75);
-    border: 1px solid #33ff77; display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
+  /* 3. ROW 3: 8 SUB-FRAMES (f1..f8) — STRICTLY 16:9 */
+  .strip-row-wrap {
+    padding: 4px 6px;
+    border-top: 1px solid var(--border);
+    background: #020603;
   }
-  .snd-dot.on { border-color: #00e5ff; background: rgba(0,229,255,0.22); }
-
-  /* ROW 2: 8 WATCHABLE SUB-FRAME SLICES (f1..f8) */
-  .strip-bar {
-    display: grid; grid-template-columns: repeat(8, 1fr);
-    gap: 1px; background: #061c0d;
+  .strip-8 {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px; width: 100%;
   }
   .f-cell {
-    position: relative; background: #000; cursor: pointer; overflow: hidden;
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border: 1px solid var(--border);
+    overflow: hidden; cursor: pointer;
   }
-  .f-cell.active { outline: 2px solid #00e5ff; outline-offset: -2px; z-index: 4; }
+  .f-cell.active { border: 2px solid var(--cyan); }
   .f-strip-img {
     position: absolute; top: 0; height: 100%; width: 800%; max-width: none;
-    opacity: 0.78;
+    opacity: 0.84;
   }
   .f-cell.active .f-strip-img { opacity: 1; }
-  .f-mini-svg {
-    position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
+  .f-cell svg {
+    position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;
   }
 
-  /* ROW 3: 105-BEAT VISUAL FILMSTRIP */
+  /* 4. ROW 4: 105-BEAT FILMSTRIP (ALL TILES STRICTLY 16:9) */
   .filmstrip {
-    display: flex; align-items: center; gap: 2px;
-    overflow-x: auto; overflow-y: hidden; padding: 2px;
-    background: #000; scroll-behavior: smooth;
+    display: flex; align-items: center; gap: 4px;
+    overflow-x: auto; overflow-y: hidden; padding: 4px 6px;
+    border-top: 1px solid var(--border); background: #000;
+    scroll-behavior: smooth;
   }
-  .tile {
-    position: relative; height: 58px; width: 100px; flex-shrink: 0;
-    border: 1px solid #092612; background: #000; cursor: pointer; overflow: hidden;
+  .tile-16x9 {
+    position: relative;
+    height: 62px;
+    aspect-ratio: 16 / 9;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    background: #000; cursor: pointer; overflow: hidden;
   }
-  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.62; }
-  .tile.active { border: 2px solid #ffb000; }
-  .tile.active img { opacity: 1; }
+  .tile-16x9 img {
+    width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.65;
+  }
+  .tile-16x9.active { border: 2px solid var(--amber); }
+  .tile-16x9.active img { opacity: 1; }
 
-  @media (max-width: 960px) {
-    .app { grid-template-rows: 1fr 58px 52px; }
-    .top-stage { grid-template-columns: 1fr; grid-template-rows: 48% 52%; }
-    .tile { height: 48px; width: 82px; }
+  @media (max-width: 1024px) {
+    .app { grid-template-rows: 26px 1fr auto 62px; }
+    .main-stage { grid-template-columns: 1fr; overflow-y: auto; align-items: start; }
+    .tile-16x9 { height: 52px; }
   }
 </style>
 </head>
 <body>
 <div class="app">
-  <!-- TOP: MASTER VIDEO + 8-ARMATURE FRAME WALL -->
-  <div class="top-stage">
-    <div class="master-vp" onclick="togglePlay()">
+  <!-- 1. CLEAR VISUAL KEY BAR -->
+  <div class="legend-bar">
+    <div class="leg-items">
+      <span class="leg-item"><i class="sym-dot"></i><b>DOT (u,v)</b> = Subject Center</span>
+      <span class="leg-item"><i class="sym-box"></i><b>AMBER BOX</b> = Active Subject Bounding Box + Winning Grid Rule</span>
+      <span class="leg-item"><i class="sym-grid"></i><b>8 GRID PANELS</b> = All 8 Composition Rules tested on live frame</span>
+    </div>
+    <div class="nav-btns">
+      <button class="btn amber on" id="btnPlay" onclick="togglePlay()">[PAUSE]</button>
+      <button class="btn cyan" id="btnSound" onclick="toggleSound()">[SOUND: OFF]</button>
+      <button class="btn" onclick="stepShot(-1)">[&lt; PREV]</button>
+      <span id="shotNum" style="color:var(--fg-bright);font-weight:700;padding:0 4px;">001/105</span>
+      <button class="btn" onclick="stepShot(1)">[NEXT &gt;]</button>
+      <a class="btn amber" href="wg-studio-worm.html">[3D WORM]</a>
+      <a class="btn" href="wg-studio-screens.html">[68 SCREENS]</a>
+    </div>
+  </div>
+
+  <!-- 2. MAIN STAGE: MASTER 16:9 + 4x2 WALL OF 8 COMPOSITION GRIDS (ALL STRICTLY 16:9) -->
+  <div class="main-stage">
+    <div class="frame-16x9 win" onclick="togglePlay()">
       <video id="stglVideo" autoplay muted playsinline webkit-playsinline preload="auto"></video>
-      <canvas id="frameCanvas" width="960" height="540"></canvas>
-      <svg id="stglSvg" viewBox="0 0 1000 562.5" preserveAspectRatio="none"></svg>
-      <div class="snd-dot" id="sndBtn" onclick="event.stopPropagation();toggleSound()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#33ff77" stroke-width="2">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-          <path id="sndWaves" d="M15.54 8.46a5 5 0 0 1 0 7.07 M19.07 4.93a10 10 0 0 1 0 14.14" style="display:none;" stroke="#00e5ff"/>
-        </svg>
-      </div>
+      <canvas id="frameCanvas" width="960" height="540" style="display:none;pointer-events:none;"></canvas>
+      <svg id="stglSvg" viewBox="0 0 160 90" preserveAspectRatio="none"></svg>
+      <div class="micro-tag amber" id="tagMaster">S01-B01 // GOLDEN SPIRAL</div>
+      <div class="micro-tag-bl" id="tagMasterSub">f1/8 · dot(0.50,0.50)</div>
     </div>
 
     <div class="arm-wall" id="armWall"></div>
   </div>
 
-  <!-- MIDDLE: 8-FRAME VISUAL SUB-LATTICE STRIP (f1..f8) -->
-  <div class="strip-bar" id="stripGrid"></div>
+  <!-- 3. 8 SUB-FRAMES (f1..f8) — STRICTLY 16:9 -->
+  <div class="strip-row-wrap">
+    <div class="strip-8" id="stripGrid"></div>
+  </div>
 
-  <!-- BOTTOM: 105-BEAT VISUAL FILMSTRIP -->
+  <!-- 4. 105-SHOT FILMSTRIP — STRICTLY 16:9 -->
   <div class="filmstrip" id="filmstrip"></div>
 </div>
 
@@ -134,8 +218,14 @@
 
 <script>
 const RULES = [
-  'golden_spiral','rule_of_thirds','s_curve','symmetry',
-  'centered','frame_in_frame','v_shape','negative_space'
+  { key: 'golden_spiral',  label: '1: GOLDEN SPIRAL' },
+  { key: 'rule_of_thirds', label: '2: RULE OF THIRDS' },
+  { key: 's_curve',        label: '3: S-CURVE' },
+  { key: 'symmetry',       label: '4: SYMMETRY' },
+  { key: 'centered',       label: '5: CENTERED' },
+  { key: 'frame_in_frame', label: '6: FRAME APERTURE' },
+  { key: 'v_shape',        label: '7: V-WEDGE' },
+  { key: 'negative_space', label: '8: NEGATIVE SPACE' }
 ];
 
 let SHOTS = [], CUR = 0, SUB = 0;
@@ -154,8 +244,9 @@ async function init() {
 
 function toggleSound() {
   SOUND_ON = !SOUND_ON;
-  document.getElementById('sndBtn').classList.toggle('on', SOUND_ON);
-  document.getElementById('sndWaves').style.display = SOUND_ON ? 'block' : 'none';
+  const btn = document.getElementById('btnSound');
+  btn.textContent = SOUND_ON ? '[SOUND: ON]' : '[SOUND: OFF]';
+  btn.classList.toggle('on', SOUND_ON);
   if (SHOTS[CUR]) syncAudio(SHOTS[CUR]);
 }
 
@@ -171,6 +262,9 @@ function syncAudio(sh) {
 
 function togglePlay() {
   PLAYING = !PLAYING;
+  const btn = document.getElementById('btnPlay');
+  btn.textContent = PLAYING ? '[PAUSE]' : '[PLAY]';
+  btn.classList.toggle('on', PLAYING);
   const vid = document.getElementById('stglVideo');
   const canvas = document.getElementById('frameCanvas');
   const aud = document.getElementById('sceneAudio');
@@ -188,8 +282,9 @@ function togglePlay() {
 function renderFilmstrip() {
   const el = document.getElementById('filmstrip');
   el.innerHTML = SHOTS.map((s, i) => `
-    <div class="tile ${i === CUR ? 'active' : ''}" id="ftile_${i}" onclick="selectShot(${i})">
+    <div class="tile-16x9 ${i === CUR ? 'active' : ''}" id="ftile_${i}" onclick="selectShot(${i})">
       <img src="${s.thumb}" loading="lazy" alt="">
+      <div class="micro-tag" style="top:auto;bottom:2px;left:2px;font-size:7.5px;">${s.id}</div>
     </div>
   `).join('');
 }
@@ -199,7 +294,10 @@ function selectShot(idx) {
   CUR = (idx + SHOTS.length) % SHOTS.length;
   const sh = SHOTS[CUR];
 
-  document.querySelectorAll('.tile').forEach((t, i) => t.classList.toggle('active', i === CUR));
+  document.getElementById('shotNum').textContent =
+    `${String(CUR+1).padStart(3,'0')}/${String(SHOTS.length).padStart(3,'0')}`;
+
+  document.querySelectorAll('#filmstrip .tile-16x9').forEach((t, i) => t.classList.toggle('active', i === CUR));
   const tile = document.getElementById(`ftile_${CUR}`);
   if (tile) tile.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
 
@@ -221,15 +319,17 @@ function stepShot(d) { selectShot(CUR + d); }
 function renderStrip8(sh) {
   const grid = document.getElementById('stripGrid');
   const frames = sh.frames_8 || [];
+  const W = 160, H = 90;
   grid.innerHTML = frames.map((f, k) => {
     const [bx, by, bw, bh] = f.jev_box || [0.3, 0.3, 0.4, 0.4];
     return `
       <div class="f-cell ${k === SUB ? 'active' : ''}" id="fCell_${k}" onclick="onTapSubframe(${k})">
         <img class="f-strip-img" src="${sh.strip}" style="left:${-(k*100)}%;">
-        <svg class="f-mini-svg" viewBox="0 0 100 56.25" preserveAspectRatio="none">
-          <rect x="${bx*100}" y="${by*56.25}" width="${bw*100}" height="${bh*56.25}" fill="none" stroke="#ffb000" stroke-width="1.5"/>
-          <circle cx="${f.u*100}" cy="${f.v*56.25}" r="2.8" fill="#00e5ff"/>
+        <svg viewBox="0 0 160 90" preserveAspectRatio="none">
+          <rect x="${bx*W}" y="${by*H}" width="${bw*W}" height="${bh*H}" fill="none" stroke="#ffb000" stroke-width="1.8"/>
+          <circle cx="${f.u*W}" cy="${f.v*H}" r="3.5" fill="#00e5ff" stroke="#fff" stroke-width="0.8"/>
         </svg>
+        <div class="micro-tag" style="font-size:8px;padding:0 3px;">f${k+1}/8</div>
       </div>
     `;
   }).join('');
@@ -237,6 +337,8 @@ function renderStrip8(sh) {
 
 function onTapSubframe(k) {
   PLAYING = false;
+  document.getElementById('btnPlay').textContent = '[PLAY]';
+  document.getElementById('btnPlay').classList.remove('on');
   document.getElementById('stglVideo').pause();
   document.getElementById('sceneAudio').pause();
   selectSubframe(k);
@@ -274,7 +376,7 @@ function drawSubframe(stripUrl, k) {
 
 function singleRuleSvg(rule, f, W, H, col) {
   const ux = f.u * W, uy = f.v * H;
-  const dot = `<circle cx="${ux}" cy="${uy}" r="4" fill="#00e5ff"/>`;
+  const dot = `<circle cx="${ux}" cy="${uy}" r="4" fill="#00e5ff" stroke="#fff" stroke-width="0.8"/>`;
   if (rule === 'golden_spiral') {
     const gn = f.focal_node || [0.618, 0.382];
     const gx = gn[0]*W, gy = gn[1]*H;
@@ -283,32 +385,32 @@ function singleRuleSvg(rule, f, W, H, col) {
       const r = W * 0.42 * Math.exp(-0.34 * t);
       pts.push(`${(gx + r*Math.cos(t)).toFixed(1)},${(gy + r*Math.sin(t)*(H/W)).toFixed(1)}`);
     }
-    return `<polyline points="${pts.join(' ')}" fill="none" stroke="${col}" stroke-width="2.2"/><circle cx="${gx}" cy="${gy}" r="5" fill="none" stroke="${col}" stroke-width="1.8"/>${dot}`;
+    return `<polyline points="${pts.join(' ')}" fill="none" stroke="${col}" stroke-width="2"/><circle cx="${gx}" cy="${gy}" r="5" fill="none" stroke="${col}" stroke-width="1.8"/>${dot}`;
   }
   if (rule === 'rule_of_thirds') {
-    return `<line x1="${W/3}" y1="0" x2="${W/3}" y2="${H}" stroke="${col}" stroke-width="1.8"/><line x1="${2*W/3}" y1="0" x2="${2*W/3}" y2="${H}" stroke="${col}" stroke-width="1.8"/><line x1="0" y1="${H/3}" x2="${W}" y2="${H/3}" stroke="${col}" stroke-width="1.8"/><line x1="0" y1="${2*H/3}" x2="${W}" y2="${2*H/3}" stroke="${col}" stroke-width="1.8"/>${dot}`;
+    return `<line x1="${W/3}" y1="0" x2="${W/3}" y2="${H}" stroke="${col}" stroke-width="1.6"/><line x1="${2*W/3}" y1="0" x2="${2*W/3}" y2="${H}" stroke="${col}" stroke-width="1.6"/><line x1="0" y1="${H/3}" x2="${W}" y2="${H/3}" stroke="${col}" stroke-width="1.6"/><line x1="0" y1="${2*H/3}" x2="${W}" y2="${2*H/3}" stroke="${col}" stroke-width="1.6"/>${dot}`;
   }
   if (rule === 's_curve' && f.s_curve_bezier) {
     const b = f.s_curve_bezier;
-    return `<path d="M ${b[0][0]*W} ${b[0][1]*H} C ${b[1][0]*W} ${b[1][1]*H}, ${b[2][0]*W} ${b[2][1]*H}, ${b[3][0]*W} ${b[3][1]*H}" fill="none" stroke="${col}" stroke-width="2.4"/>${dot}`;
+    return `<path d="M ${b[0][0]*W} ${b[0][1]*H} C ${b[1][0]*W} ${b[1][1]*H}, ${b[2][0]*W} ${b[2][1]*H}, ${b[3][0]*W} ${b[3][1]*H}" fill="none" stroke="${col}" stroke-width="2.2"/>${dot}`;
   }
   if (rule === 'symmetry') {
-    return `<line x1="${W*0.5}" y1="0" x2="${W*0.5}" y2="${H}" stroke="${col}" stroke-width="2"/><line x1="0" y1="${H*0.5}" x2="${W}" y2="${H*0.5}" stroke="${col}" stroke-width="2"/>${dot}`;
+    return `<line x1="${W*0.5}" y1="0" x2="${W*0.5}" y2="${H}" stroke="${col}" stroke-width="1.8"/><line x1="0" y1="${H*0.5}" x2="${W}" y2="${H*0.5}" stroke="${col}" stroke-width="1.8"/>${dot}`;
   }
   if (rule === 'centered') {
-    return `<circle cx="${W*0.5}" cy="${H*0.5}" r="${H*0.28}" fill="none" stroke="${col}" stroke-width="2"/>${dot}`;
+    return `<circle cx="${W*0.5}" cy="${H*0.5}" r="${H*0.28}" fill="none" stroke="${col}" stroke-width="1.8"/>${dot}`;
   }
   if (rule === 'frame_in_frame') {
-    return `<rect x="${0.12*W}" y="${0.12*H}" width="${0.76*W}" height="${0.76*H}" fill="none" stroke="${col}" stroke-width="2.2"/>${dot}`;
+    return `<rect x="${0.12*W}" y="${0.12*H}" width="${0.76*W}" height="${0.76*H}" fill="none" stroke="${col}" stroke-width="2"/>${dot}`;
   }
   if (rule === 'v_shape') {
     return f.v_orientation === 'A_PYRAMID'
-      ? `<polyline points="0,${H} ${W*0.5},${H*0.14} ${W},${H}" fill="none" stroke="${col}" stroke-width="2.2"/>${dot}`
-      : `<polyline points="0,0 ${W*0.5},${H*0.86} ${W},0" fill="none" stroke="${col}" stroke-width="2.2"/>${dot}`;
+      ? `<polyline points="0,${H} ${W*0.5},${H*0.14} ${W},${H}" fill="none" stroke="${col}" stroke-width="2"/>${dot}`
+      : `<polyline points="0,0 ${W*0.5},${H*0.86} ${W},0" fill="none" stroke="${col}" stroke-width="2"/>${dot}`;
   }
   if (rule === 'negative_space' && f.negative_space_zone && f.negative_space_zone.polygon) {
     const poly = f.negative_space_zone.polygon.map(pt => `${pt[0]*W},${pt[1]*H}`).join(' ');
-    return `<polygon points="${poly}" fill="rgba(0,229,255,0.18)" stroke="${col}" stroke-width="2"/>${dot}`;
+    return `<polygon points="${poly}" fill="rgba(0,229,255,0.18)" stroke="${col}" stroke-width="1.8"/>${dot}`;
   }
   return dot;
 }
@@ -316,15 +418,19 @@ function singleRuleSvg(rule, f, W, H, col) {
 function renderArmWall8(sh, f, k) {
   const wall = document.getElementById('armWall');
   const winArm = f.primary_armature || (sh.spatial_grid && sh.spatial_grid.armature) || 'golden_spiral';
-  wall.innerHTML = RULES.map(rule => {
-    const isWin = rule === winArm;
+  const scores = f.scores || {};
+  wall.innerHTML = RULES.map(rObj => {
+    const isWin = rObj.key === winArm;
     const col = isWin ? '#ffb000' : '#33ff77';
+    const sc = Number(scores[rObj.key] || 0);
     return `
-      <div class="arm-cell ${isWin ? 'win' : ''}" onclick="stepShot(1)">
+      <div class="frame-16x9 ${isWin ? 'win' : ''}" onclick="stepShot(1)">
         <img class="f-strip-img" src="${sh.strip}" style="left:${-(k*100)}%;">
-        <svg viewBox="0 0 200 112.5" preserveAspectRatio="none">
-          ${singleRuleSvg(rule, f, 200, 112.5, col)}
+        <svg viewBox="0 0 160 90" preserveAspectRatio="none">
+          ${singleRuleSvg(rObj.key, f, 160, 90, col)}
         </svg>
+        <div class="micro-tag ${isWin ? 'amber' : ''}">${rObj.label}</div>
+        <div class="micro-tag-bl">${Math.round(sc * 100)}% MATCH</div>
       </div>
     `;
   }).join('');
@@ -332,22 +438,22 @@ function renderArmWall8(sh, f, k) {
 
 function renderSVG(sh, f) {
   const svg = document.getElementById('stglSvg');
-  const W = 1000, H = 562.5;
+  const W = 160, H = 90;
   const parts = [];
   const sg = sh.spatial_grid || {};
   const winArm = f.primary_armature || sg.armature || 'golden_spiral';
+
+  document.getElementById('tagMaster').textContent = `${sh.id} // WINNING GRID: ${winArm.replace(/_/g, ' ').toUpperCase()}`;
+  document.getElementById('tagMasterSub').textContent = `f${f.f}/8 · dot(${f.u.toFixed(2)}, ${f.v.toFixed(2)}) · beat ${f.tau}`;
 
   parts.push(singleRuleSvg(winArm, f, W, H, '#ffb000'));
 
   if (f.jev_box) {
     const [bx, by, bw, bh] = f.jev_box;
-    const ux = f.u * W, uy = f.v * H;
     const tracePts = (sh.frames_8 || []).map(fr => `${fr.u*W},${fr.v*H}`).join(' ');
     parts.push(`
-      <polyline points="${tracePts}" fill="none" stroke="#00e5ff" stroke-width="2.2" stroke-dasharray="4 2"/>
-      <rect x="${bx*W}" y="${by*H}" width="${bw*W}" height="${bh*H}" fill="rgba(255, 176, 0, 0.06)" stroke="#ffb000" stroke-width="2.2"/>
-      <line x1="${ux-12}" y1="${uy}" x2="${ux+12}" y2="${uy}" stroke="#b8ffd0" stroke-width="2"/>
-      <line x1="${ux}" y1="${uy-12}" x2="${ux}" y2="${uy+12}" stroke="#b8ffd0" stroke-width="2"/>
+      <polyline points="${tracePts}" fill="none" stroke="#00e5ff" stroke-width="1.6" stroke-dasharray="3 2"/>
+      <rect x="${bx*W}" y="${by*H}" width="${bw*W}" height="${bh*H}" fill="rgba(255, 176, 0, 0.08)" stroke="#ffb000" stroke-width="1.8"/>
     `);
   }
 

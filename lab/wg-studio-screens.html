@@ -5,78 +5,144 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>68 PURE SCREENS CINEMA</title>
 <style>
+  :root {
+    --bg: #000000;
+    --fg: #33ff77;
+    --fg-bright: #c8ffe0;
+    --fg-dim: #1b6b36;
+    --border: #0e381c;
+    --amber: #ffb000;
+    --cyan: #00e5ff;
+    --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important; }
   html, body {
     width: 100%; height: 100%; overflow: hidden;
-    background: #000; color: #33ff77;
+    background: #000; color: var(--fg);
+    font-family: var(--mono); font-size: 10px;
     user-select: none; -webkit-user-select: none;
   }
   .app {
     display: grid;
-    grid-template-rows: 46% 64px 1fr;
+    grid-template-rows: 26px auto auto 1fr;
     width: 100vw; height: 100vh;
-    background: #061c0d; gap: 1px;
+    background: #000;
   }
+  .legend-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 8px; border-bottom: 1px solid var(--border);
+    background: #020804; overflow-x: auto; white-space: nowrap; gap: 12px;
+  }
+  .leg-items { display: flex; align-items: center; gap: 12px; }
+  .leg-item { display: inline-flex; align-items: center; gap: 5px; color: #99e6b3; font-size: 9.5px; }
+  .sym-dot { width: 8px; height: 8px; background: var(--cyan); border: 1px solid #fff; display: inline-block; }
+  .sym-circle { width: 12px; height: 9px; border: 2px solid var(--amber); display: inline-block; }
+  .nav-btns { display: flex; align-items: center; gap: 4px; }
+  .btn {
+    font-family: var(--mono); font-size: 9.5px;
+    background: #000; color: var(--fg);
+    border: 1px solid var(--fg-dim); padding: 2px 6px;
+    cursor: pointer; text-decoration: none;
+  }
+  .btn:hover, .btn.on { background: var(--fg); color: #000; font-weight: 700; }
+  .btn.amber { color: var(--amber); border-color: #775200; }
+  .btn.amber.on, .btn.amber:hover { background: var(--amber); color: #000; }
+
   .top-row {
     display: grid;
-    grid-template-columns: 1.25fr 1fr;
-    gap: 1px; background: #061c0d;
-    min-height: 0; overflow: hidden;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px; padding: 6px;
+    background: #000; align-items: center;
+    max-width: 1120px; width: 100%; margin: 0 auto;
   }
-  .vp {
-    position: relative; background: #000; overflow: hidden;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
+  .frame-16x9 {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #030905;
+    border: 1px solid var(--border);
+    overflow: hidden; cursor: pointer;
   }
-  .vp video { width: 100%; height: 100%; object-fit: contain; background: #000; display: block; }
-  .vp svg, #prismCanvas { width: 100%; height: 100%; display: block; }
-  .vp svg { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+  .frame-16x9 video, .frame-16x9 canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; display: block;
+  }
+  .frame-16x9 svg {
+    position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;
+  }
+  .micro-tag {
+    position: absolute; top: 3px; left: 3px; z-index: 15;
+    background: rgba(0, 0, 0, 0.78);
+    border: 1px solid rgba(51, 255, 119, 0.35);
+    padding: 1px 4px; font-size: 8.5px; color: var(--fg-bright);
+    pointer-events: none;
+  }
 
+  .strip-row-wrap {
+    padding: 4px 6px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    background: #020603;
+  }
   .strip-8 {
     display: grid; grid-template-columns: repeat(8, 1fr);
-    gap: 1px; background: #061c0d;
+    gap: 4px; width: 100%;
   }
-  .f-cell { position: relative; background: #000; overflow: hidden; cursor: pointer; }
-  .f-cell.active { outline: 2px solid #00e5ff; outline-offset: -2px; z-index: 4; }
-  .f-strip-img { position: absolute; top: 0; height: 100%; width: 800%; max-width: none; opacity: 0.8; }
+  .f-cell {
+    position: relative; width: 100%; aspect-ratio: 16 / 9;
+    background: #000; border: 1px solid var(--border);
+    overflow: hidden; cursor: pointer;
+  }
+  .f-cell.active { border: 2px solid var(--cyan); }
+  .f-strip-img { position: absolute; top: 0; height: 100%; width: 800%; max-width: none; opacity: 0.84; }
   .f-cell.active .f-strip-img { opacity: 1; }
   .f-cell svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
-  /* 68-SCREEN VISUAL WALL */
+  /* 68-SCREEN VISUAL WALL — ALL STRICTLY 16:9 */
   .wall-68 {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    grid-auto-rows: 72px;
-    gap: 2px; padding: 2px;
-    background: #000; overflow-y: auto;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 4px; padding: 6px;
+    background: #000; overflow-y: auto; align-content: start;
   }
   .sc-tile {
-    position: relative; background: #000; border: 1px solid #092612;
+    position: relative; width: 100%; aspect-ratio: 16 / 9;
+    background: #000; border: 1px solid var(--border);
     overflow: hidden; cursor: pointer;
   }
   .sc-tile img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.68; }
   .sc-tile:hover img { opacity: 0.95; }
-  .sc-tile.active { border: 2px solid #ffb000; }
+  .sc-tile.active { border: 2px solid var(--amber); }
   .sc-tile.active img { opacity: 1; }
-
-  @media (max-width: 900px) {
-    .app { grid-template-rows: 42% 52px 1fr; }
-    .wall-68 { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); grid-auto-rows: 56px; }
-  }
 </style>
 </head>
 <body>
 <div class="app">
-  <div class="top-row">
-    <div class="vp" onclick="togglePlay()">
-      <video id="scrVid" autoplay muted playsinline webkit-playsinline preload="auto"></video>
-      <svg id="scrSvg" viewBox="0 0 1000 562.5" preserveAspectRatio="none"></svg>
+  <div class="legend-bar">
+    <div class="leg-items">
+      <span class="leg-item"><i class="sym-dot"></i><b>DOT (u,v)</b> = Active Screen Cursor / Raster Center</span>
+      <span class="leg-item"><i class="sym-circle"></i><b>CIRCLE (r)</b> = Illuminated CRT Region</span>
     </div>
-    <div class="vp">
-      <canvas id="prismCanvas" width="600" height="400"></canvas>
+    <div class="nav-btns">
+      <button class="btn amber on" id="btnPlay" onclick="togglePlay()">[PAUSE]</button>
+      <a class="btn amber" href="wg-studio-worm.html">[3D WORM]</a>
+      <a class="btn" href="wg-studio-stgl.html">[4D GRID]</a>
     </div>
   </div>
-  <div class="strip-8" id="strip8"></div>
+
+  <div class="top-row">
+    <div class="frame-16x9" onclick="togglePlay()">
+      <video id="scrVid" autoplay muted playsinline webkit-playsinline preload="auto"></video>
+      <svg id="scrSvg" viewBox="0 0 160 90" preserveAspectRatio="none"></svg>
+      <div class="micro-tag" id="tagScr">SCR-01</div>
+    </div>
+    <div class="frame-16x9">
+      <canvas id="prismCanvas" width="640" height="360"></canvas>
+      <div class="micro-tag" style="color:var(--cyan);">3D SCREEN WORM (f1..f8)</div>
+    </div>
+  </div>
+
+  <div class="strip-row-wrap">
+    <div class="strip-8" id="strip8"></div>
+  </div>
+
   <div class="wall-68" id="wall68"></div>
 </div>
 
@@ -95,6 +161,9 @@ async function init() {
 
 function togglePlay() {
   PLAYING = !PLAYING;
+  const btn = document.getElementById('btnPlay');
+  btn.textContent = PLAYING ? '[PAUSE]' : '[PLAY]';
+  btn.classList.toggle('on', PLAYING);
   const v = document.getElementById('scrVid');
   if (PLAYING) v.play().catch(() => {}); else v.pause();
 }
@@ -104,6 +173,7 @@ function renderWall() {
   w.innerHTML = SCREENS.map((s, i) => `
     <div class="sc-tile ${i === CUR ? 'active' : ''}" id="sct_${i}" onclick="selectScreen(${i})">
       <img src="${s.thumb}" loading="lazy" alt="">
+      <div class="micro-tag" style="top:auto;bottom:2px;left:2px;font-size:7.5px;">${s.shot_id}</div>
     </div>
   `).join('');
 }
@@ -120,6 +190,8 @@ function selectScreen(idx) {
     const im = new Image(); im.src = st.strip; STRIP_CACHE[st.strip] = im;
   }
 
+  document.getElementById('tagScr').textContent = `SCREEN ${CUR+1}/68 // ${st.shot_id} // ${st.system_node || ''}`;
+
   const v = document.getElementById('scrVid');
   v.src = st.video;
   v.currentTime = 0;
@@ -132,12 +204,15 @@ function selectScreen(idx) {
 function renderStrip8(st) {
   const wFrames = (st.worm_3d && st.worm_3d.worm_frames) || [];
   const el = document.getElementById('strip8');
+  const W = 160, H = 90;
   el.innerHTML = wFrames.map((wf, k) => `
     <div class="f-cell ${k === SUB ? 'active' : ''}" onclick="setSub(${k})">
       <img class="f-strip-img" src="${st.strip}" style="left:${-(k*100)}%;">
-      <svg viewBox="0 0 100 56.25" preserveAspectRatio="none">
-        <ellipse cx="${wf.u*100}" cy="${wf.v*56.25}" rx="${wf.r*100}" ry="${wf.r*56.25}" fill="none" stroke="${wf.core_color.hex}" stroke-width="1.6"/>
+      <svg viewBox="0 0 160 90" preserveAspectRatio="none">
+        <ellipse cx="${wf.u*W}" cy="${wf.v*H}" rx="${wf.r*W}" ry="${wf.r*H}" fill="none" stroke="${wf.core_color.hex}" stroke-width="1.8"/>
+        <circle cx="${wf.u*W}" cy="${wf.v*H}" r="3" fill="#00e5ff"/>
       </svg>
+      <div class="micro-tag" style="font-size:7.5px;padding:0 3px;">f${k+1}</div>
     </div>
   `).join('');
 }
@@ -150,56 +225,53 @@ function setSub(k) {
   document.querySelectorAll('.f-cell').forEach((c, idx) => c.classList.toggle('active', idx === k));
   const wf = wFrames[k];
   const svg = document.getElementById('scrSvg');
-  const W = 1000, H = 562.5;
+  const W = 160, H = 90;
   const spine = wFrames.map(f => `${f.u*W},${f.v*H}`).join(' ');
   svg.innerHTML = `
-    <polyline points="${spine}" fill="none" stroke="#00e5ff" stroke-width="2.2"/>
-    <ellipse cx="${wf.u*W}" cy="${wf.v*H}" rx="${wf.r*W}" ry="${wf.r*H}" fill="none" stroke="#ffb000" stroke-width="2.6"/>
-    <circle cx="${wf.u*W}" cy="${wf.v*H}" r="5" fill="#00e5ff"/>
+    <polyline points="${spine}" fill="none" stroke="#00e5ff" stroke-width="2"/>
+    <ellipse cx="${wf.u*W}" cy="${wf.v*H}" rx="${wf.r*W}" ry="${wf.r*H}" fill="none" stroke="#ffb000" stroke-width="2.4"/>
+    <circle cx="${wf.u*W}" cy="${wf.v*H}" r="4" fill="#00e5ff" stroke="#fff" stroke-width="0.8"/>
   `;
   renderPrism(st, k);
 }
 
 function proj(u, v, tau, W, H) {
-  const x0 = (u - 0.5) * 1.6, y0 = (v - 0.5) * 0.95, z0 = (tau - 0.5) * 1.9;
+  const x0 = (u - 0.5) * 1.6, y0 = (v - 0.5) * 0.94, z0 = (tau - 0.5) * 1.9;
   const cY = Math.cos(YAW), sY = Math.sin(YAW);
   const x1 = x0 * cY + z0 * sY, z1 = -x0 * sY + z0 * cY;
   const cP = Math.cos(PITCH), sP = Math.sin(PITCH);
   const y2 = y0 * cP - z1 * sP, z2 = y0 * sP + z1 * cP;
-  const sc = Math.min(W, H) * 0.65 / (2.85 + z2 * 0.45);
+  const sc = Math.min(W, H) * 0.7 / (2.85 + z2 * 0.45);
   return { x: W * 0.5 + x1 * sc, y: H * 0.5 + y2 * sc };
 }
 
 function renderPrism(st, activeK) {
   const c = document.getElementById('prismCanvas'), ctx = c.getContext('2d');
   const W = c.width, H = c.height;
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#020603'; ctx.fillRect(0, 0, W, H);
   const wFrames = (st.worm_3d && st.worm_3d.worm_frames) || [];
   if (!wFrames.length) return;
 
   const stripImg = st.strip ? STRIP_CACHE[st.strip] : null;
   if (stripImg && stripImg.complete && stripImg.naturalWidth > 0) {
     const fw = stripImg.naturalWidth / 8, fh = stripImg.naturalHeight;
-    wFrames.forEach((wf, k) => {
-      const isAct = k === activeK;
-      if (!isAct && k % 2 !== 0) return;
-      const tl = proj(0, 0, wf.tau_norm, W, H), br = proj(1, 1, wf.tau_norm, W, H);
-      ctx.save(); ctx.globalAlpha = isAct ? 0.6 : 0.16;
-      ctx.drawImage(stripImg, k * fw, 0, fw, fh, tl.x, tl.y, br.x - tl.x, br.y - tl.y);
-      ctx.restore();
-    });
+    const wfAct = wFrames[activeK];
+    const tl = proj(0, 0, wfAct.tau_norm, W, H), br = proj(1, 1, wfAct.tau_norm, W, H);
+    ctx.save(); ctx.globalAlpha = 0.58;
+    ctx.drawImage(stripImg, activeK * fw, 0, fw, fh, tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+    ctx.restore();
   }
 
   wFrames.forEach((wf, k) => {
     const isAct = k === activeK;
     ctx.beginPath();
-    for (let s = 0; s < 16; s++) {
-      const ang = (s / 16) * 2 * Math.PI;
+    for (let s = 0; s < 20; s++) {
+      const ang = (s / 20) * 2 * Math.PI;
       const p = proj(wf.u + wf.r * Math.cos(ang), wf.v + wf.r * Math.sin(ang), wf.tau_norm, W, H);
       if (s === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
     }
     ctx.closePath();
-    ctx.fillStyle = wf.core_color.hex + (isAct ? '66' : '22'); ctx.fill();
+    ctx.fillStyle = wf.core_color.hex + (isAct ? '66' : '24'); ctx.fill();
     ctx.strokeStyle = isAct ? '#ffffff' : wf.core_color.hex; ctx.lineWidth = isAct ? 2.5 : 1.2; ctx.stroke();
   });
 }
@@ -207,7 +279,7 @@ function renderPrism(st, activeK) {
 function loop() {
   const st = SCREENS[CUR];
   const v = document.getElementById('scrVid');
-  YAW += 0.0045; if (YAW > 1.2) YAW = -1.2;
+  YAW += 0.004; if (YAW > 1.2) YAW = -1.2;
   if (st) renderPrism(st, SUB);
   if (PLAYING && st) {
     if (v.ended) selectScreen(CUR + 1);
