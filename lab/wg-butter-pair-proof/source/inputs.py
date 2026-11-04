@@ -18,7 +18,7 @@ with sync_playwright() as p:
     pg.keyboard.press('Enter');pg.wait_for_timeout(400)
     log('arrow keys nudge a carried brick, Enter places it',{'held':before,'after_left_left_up':after,'placed':E("BP.SCENE.bricks.find(b=>b.id==='butter')"),'last':E("BP.LOG[0]")})
     # the hand lifts again; a finger touches the Floor at (0.3, 0.2): the brick goes there
-    E("BP.RUN=null");pg.wait_for_timeout(300);E(HOLD.replace("(10+2)*CW","(2+2)*CW").replace("(4+1)*CD","(1+1)*CD").replace("BP.reset();",""));pg.wait_for_timeout(2500)
+    E("BP.RUN=null");pg.wait_for_timeout(300);E(HOLD.replace("(10+2)*CW","(5+2)*CW").replace("(4+1)*CD","(2+1)*CD").replace("BP.reset();",""));pg.wait_for_timeout(2500)
     held=E("(()=>{const t=BP.TR.find(x=>x.grasp);return t&&t.grasp.brick})()")
     E("BP.floorTouch(.3,.2,true,performance.now(),'f1')");pg.wait_for_timeout(200);E("BP.floorTouch(.3,.2,false,performance.now(),'f1')");pg.wait_for_timeout(300)
     log('a hand carries, a finger places on the Floor',{'held':held,'placed':E("(id=>BP.SCENE.bricks.find(b=>b.id===id))('%s')"%held) if held else None,'last':E("BP.LOG[0]")})
