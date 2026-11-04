@@ -8,7 +8,7 @@ R={};errs=[]
 def log(k,v):R[k]=v;print(k,json.dumps(v)[:800])
 SETUP="""(()=>{BP.resetModel();BP.setGeo(BP.geoFromImage(BP.SIM.flash(.0015),4/3),'t');BP.BCAM.on=true;BP.BCAM.p=Object.assign({},BP.B0);BP.BCAM.report={B_fov_deg:78,B_turn_deg:0,B_mirrored:false,used:true,lifts:0,fit_mm:{A:0,B:0,height:0},A_moved_mm:0,A_turned_deg:0};BP.GEO.L=.075;})()"""
 # move a hand over a brick, pinch, carry to the target cell, open
-MOVE="""((id,ti,tj,occl)=>{const W=.15,D=.075,CW=W/16,CD=D/8,H0=BP.SIM.H0,b=BP.SCENE.bricks.find(x=>x.id===id),f=b.rot?{w:b.d,d:b.w}:{w:b.w,d:b.d},ci=b.i+Math.floor(f.w/2),cj=b.j+Math.floor(f.d/2),A=[(ci+.5)*CW,(cj+.5)*CD,H0],B=[(ti+Math.floor(f.w/2)+.5)*CW,(tj+Math.floor(f.d/2)+.5)*CD,H0];
+MOVE="""((id,ti,tj,occl)=>{const W=.075,D=.075,CW=W/8,CD=D/8,H0=BP.SIM.H0,b=BP.SCENE.bricks.find(x=>x.id===id),f=b.rot?{w:b.d,d:b.w}:{w:b.w,d:b.d},ci=b.i+Math.floor(f.w/2),cj=b.j+Math.floor(f.d/2),A=[(ci+.5)*CW,(cj+.5)*CD,H0],B=[(ti+Math.floor(f.w/2)+.5)*CW,(tj+Math.floor(f.d/2)+.5)*CD,H0];
  const K=[{t:0,P:[A[0],A[1],H0+.03],closed:false},{t:.7,P:A,closed:false},{t:1.1,P:A,closed:true},{t:2.6,P:B,closed:true},{t:3.2,P:B,closed:true},{t:3.6,P:[B[0],B[1],H0+.02],closed:false},{t:4.2,P:[B[0],B[1],H0+.04],closed:false}];const sc={dur:4.3,hands:[K]};if(occl)sc.occl=occl;BP.RUN={sc,t0:performance.now(),name:'move',next:[],last:null};return 4.3;})(%s)"""
 with sync_playwright() as p:
     b=p.chromium.launch(args=['--use-angle=swiftshader','--enable-unsafe-swiftshader']);ctx=b.new_context(viewport={'width':1280,'height':800})
@@ -16,7 +16,7 @@ with sync_playwright() as p:
     pg=ctx.new_page();pg.on('pageerror',lambda e:errs.append(str(e)));pg.goto(U+'?sim');pg.wait_for_timeout(1500);E=lambda s:pg.evaluate(s)
     fl=ctx.new_page();fl.set_viewport_size({'width':844,'height':390});fl.on('pageerror',lambda e:errs.append('floor: '+str(e)));fl.goto(U+'?floor');fl.wait_for_timeout(1200);pg.bring_to_front()
     log('game mode by default',E("({workshop:BP.WORK,visible_panels:[...document.querySelectorAll('aside > *')].filter(e=>e.offsetParent).map(e=>e.id||e.tagName),header:[...document.querySelectorAll('header .hb')].filter(e=>e.offsetParent).map(e=>e.textContent)})"))
-    E(SETUP);E("BP.playStart(1)");pg.wait_for_timeout(500);pg.screenshot(path=OUT+'/game-start.png')
+    E(SETUP);E("document.querySelector('[data-a=tab-blueprint]').click()");E("BP.playStart(1)");pg.wait_for_timeout(500);pg.screenshot(path=OUT+'/game-start.png')
     bp=E("BP.BLUEPRINTS[1].parts");steps=[]
     for k,part in enumerate(bp):
         pk=E("BP.PARTS.findIndex(p=>p.w===%d&&p.d===%d&&p.c==='%s')"%(part['w'],part['d'],part['c']))
@@ -27,7 +27,7 @@ with sync_playwright() as p:
         steps.append({'part':k+1,'target':[part['i'],part['j'],part['l']],'placed':got,'matched':E("BP.PLAY.matched.filter(Boolean).length")})
         if k==2:pg.screenshot(path=OUT+'/game-mid.png');fl.evaluate("FV.cam=true;FV.everHand=true");fl.wait_for_timeout(300);fl.screenshot(path=OUT+'/game-floor.png')
     E("BP.RUN=null");pg.wait_for_timeout(500);pg.screenshot(path=OUT+'/game-done.png')
-    log('a simulated hand builds Stairs from the tray',{'steps':steps,'play':E("({done:BP.PLAY.done,stars:BP.PLAY.stars,lifts:BP.PLAY.lifts,undos:BP.PLAY.undos,wrong:BP.PLAY.wrong,secs:Math.round(BP.PLAY.secs)})")})
+    log('a simulated hand builds Stairs from the tray',{'grades':E("BP.GRADE.list"),'report':E("BP.reportCard().replace(/<[^>]+>/g,' ').replace(/\\s+/g,' ')"),'steps':steps,'play':E("({done:BP.PLAY.done,stars:BP.PLAY.stars,lifts:BP.PLAY.lifts,undos:BP.PLAY.undos,wrong:BP.PLAY.wrong,secs:Math.round(BP.PLAY.secs)})")})
     # free build and LDraw
     E("BP.playStart(null,'free')");pg.wait_for_timeout(200);E("BP.trayAdd(0);BP.trayAdd(3);BP.trayAdd(2)");pg.wait_for_timeout(300)
     log('free build, exported as LDraw',{'ldr':E("BP.toLDraw()").split('\r\n')[:8]})
