@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>WAG · Butter CMM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="markov/hands.js?v=3"></script>
+<style>
+:root{--teal:#19e6c8;--amber:#ffd23f;--red:#ff2e2e;--blue:#3b82f6;--green:#37e862;--yellow:#f2cd37}
+*{box-sizing:border-box;border-radius:0}
+html,body{margin:0;height:100%;overflow:hidden;background:#fff;color:#000;font:12px/1.4 'IBM Plex Mono',ui-monospace,monospace;-webkit-user-select:none;user-select:none}
+#app{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:28px minmax(0,1fr) auto;height:100dvh;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+header{display:flex;gap:14px;align-items:center;padding:0 10px;border-bottom:2px solid #000;white-space:nowrap;overflow:hidden}
+header a{color:#000;text-decoration:none}
+header b{letter-spacing:.08em}
+#link{margin-left:auto;font-weight:600}
+#views{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:0}
+.view{position:relative;min-width:0;min-height:0;overflow:hidden}
+#camView{border-right:2px solid #000;background:#fff}
+#vidA{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+canvas.ov{position:absolute;inset:0;width:100%;height:100%;display:block}
+.tag{position:absolute;left:8px;top:6px;font-weight:700;letter-spacing:.06em;background:#fff;padding:0 4px;pointer-events:none}
+#knowView{background:#121212}
+#knowView .tag{background:#121212;color:var(--green)}
+#camStart{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;max-width:80%}
+#pairBox{position:absolute;inset:0;background:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px;text-align:center}
+#pairBox.on{display:flex}
+#qr{background:#fff;padding:6px;border:2px solid #000}
+#ctl{min-width:0;overflow:hidden;border-top:2px solid #000;padding:8px 10px 10px}
+#vrow{display:flex;align-items:stretch;gap:10px;margin-bottom:8px}
+#chip{min-width:150px;padding:8px 10px;font-weight:700;font-size:15px;letter-spacing:.04em;border:2px solid #000;display:flex;align-items:center}
+#meas{display:flex;flex-direction:column;justify-content:center;min-width:0}
+#meas div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+button{font:inherit;font-weight:700;letter-spacing:.05em;border:2px solid #000;background:#fff;color:#000;padding:9px 12px;cursor:pointer}
+button.on{background:#000;color:#fff}
+button[disabled]{border-style:dashed;cursor:default}
+#say{font-size:12px}
+.c-acc{background:var(--teal)}.c-rej{background:var(--red);color:#fff}.c-ind{background:var(--amber)}.c-rest{background:#fff}
+/* Floor */
+#floor{position:fixed;inset:0;background:#fff;touch-action:none;display:none}
+#floor canvas{position:absolute;inset:0;width:100%;height:100%}
+#flTop{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;font-weight:600;pointer-events:none}
+#flSay{position:absolute;left:0;right:0;top:40%;text-align:center;font-size:16px;font-weight:600;padding:0 24px;pointer-events:none}
+#flBtns{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;padding:10px 12px calc(env(safe-area-inset-bottom) + 10px)}
+#flJoin{position:absolute;inset:0;background:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+#flJoin input{font:inherit;font-size:24px;width:6em;text-align:center;border:2px solid #000;padding:6px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div id="app">
+  <header><a href="wg-butter-pair.html">&larr; Butter Pair</a><b>WAG · BUTTER CMM</b><span>the Floor measures a brick</span><span id="link">no Floor</span></header>
+  <div id="views">
+    <div class="view" id="camView">
+      <video id="vidA" playsinline muted></video><canvas class="ov" id="camOv"></canvas>
+      <div class="tag">A · LAPTOP CAMERA · WATCHING</div>
+      <div id="camStart"><button id="bCam">START CAMERA A</button><div id="camMsg" style="margin-top:8px">It watches your hand make each touch.</div></div>
+    </div>
+    <div class="view" id="knowView">
+      <canvas class="ov" id="know"></canvas><div class="tag">WHAT THE COMPUTER KNOWS</div>
+      <div id="pairBox"><b>ON THE PHONE: SCAN, OR OPEN THE ADDRESS AND TYPE THE CODE</b><div id="qr"></div><div id="pairUrl" style="word-break:break-all"></div><div style="font-size:28px;font-weight:700;letter-spacing:.2em" id="pairCode"></div><div>Lay the phone flat, screen up, in front of the laptop.</div><button id="bPairClose">CLOSE</button></div>
+    </div>
+  </div>
+  <div id="ctl">
+    <div id="vrow"><div id="chip" class="c-rest">REST</div><div id="meas"><div id="m1">&nbsp;</div><div id="m2">&nbsp;</div></div></div>
+    <div class="row">
+      <button id="bPair">PAIR FLOOR</button><button id="bQual">1 · QUALIFY WITH A 2×4</button><button id="bMeas">2 · MEASURE</button>
+      <button id="bUndo">UNDO</button><button id="bClear">CLEAR</button><button id="bSim">TRY WITHOUT A PHONE</button>
+    </div>
+    <div id="say"></div>
+  </div>
+</div>
+
+<div id="floor"><canvas id="flCv"></canvas><div id="flTop"></div><div id="flSay">Put a LEGO brick on this screen.<br>Go around it with one finger pressed against the brick.</div>
+  <div id="flNext" style="position:absolute;left:0;right:0;bottom:70px;text-align:center;font-size:18px;font-weight:700;pointer-events:none"></div><div id="flBtns"><button id="flUndo">UNDO</button><button id="flClear">CLEAR</button></div>
+  <div id="flJoin"><b>FLOOR · TYPE THE CODE FROM THE LAPTOP</b><input id="flCode" maxlength="6" autocapitalize="characters"><button id="flGo">JOIN</button></div>
+</div>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const FLOOR=/[?&]floor\b/.test(location.search);
+const uid=()=>Math.random().toString(36).slice(2,10);
+
+/* ================= the link: BroadcastChannel in one browser, public MQTT relays across devices (as in Butter Pair) ================= */
+let BC=null;try{BC=new BroadcastChannel('butter-cmm');}catch(e){}
+const DEV=uid(),SEEN=new Set();let MID=0;
+const RELAYS=['wss://broker.emqx.io:8084/mqtt','wss://broker.hivemq.com:8884/mqtt','wss://test.mosquitto.org:8081/mqtt'];
+let ROOM=((location.search.match(/[?&]room=([A-Za-z0-9]{4,8})/)||[])[1]||'').toUpperCase()||null;
+const MQ={socks:[],urls:new Set()},TE=new TextEncoder(),TD=new TextDecoder();
+const cat=(...ps)=>{const o=new Uint8Array(ps.reduce((a,p)=>a+p.length,0));let i=0;for(const p of ps){o.set(p,i);i+=p.length;}return o;};
+const mqStr=s=>{const b=TE.encode(s);return cat(new Uint8Array([b.length>>8,b.length&255]),b);};
+const mqPkt=(h,body)=>{const r=[];let n=body.length;do{let d=n%128;n=Math.floor(n/128);if(n)d|=128;r.push(d);}while(n);return cat(new Uint8Array([h,...r]),body);};
+const topic=()=>'butter-cmm/v1/'+ROOM;
+function mqOpen(url){if(MQ.urls.has(url))return;MQ.urls.add(url);let ws;try{ws=new WebSocket(url,'mqtt');}catch(e){MQ.urls.delete(url);return;}
+  ws.binaryType='arraybuffer';const S={ws,ok:false,buf:new Uint8Array(0)};MQ.socks.push(S);
+  ws.onopen=()=>ws.send(mqPkt(0x10,cat(mqStr('MQTT'),new Uint8Array([4,2,0,60]),mqStr('bc-'+DEV+'-'+uid().slice(0,4)))));
+  ws.onmessage=e=>{S.buf=cat(S.buf,new Uint8Array(e.data));for(;;){const b=S.buf;if(b.length<2)return;let m=1,len=0,i=1,d;do{if(i>=b.length)return;d=b[i++];len+=(d&127)*m;m*=128;}while(d&128);
+    if(b.length<i+len)return;const h=b[0],body=b.subarray(i,i+len);S.buf=b.slice(i+len);
+    if(h>>4===2){S.ok=true;ws.send(mqPkt(0x82,cat(new Uint8Array([0,1]),mqStr(topic()),new Uint8Array([0]))));hello();}
+    else if(h>>4===3){const tl=(body[0]<<8)|body[1],off=2+tl+(((h>>1)&3)?2:0);try{recv(JSON.parse(TD.decode(body.subarray(off))));}catch(x){}}}};
+  ws.onclose=()=>{MQ.socks=MQ.socks.filter(x=>x!==S);MQ.urls.delete(url);if(ROOM)setTimeout(()=>mqOpen(url),3000);};ws.onerror=()=>{};}
+setInterval(()=>{for(const S of MQ.socks)if(S.ok)try{S.ws.send(new Uint8Array([0xC0,0]));}catch(e){}},25000);
+function joinRoom(c){ROOM=c;for(const u of RELAYS)mqOpen(u);}
+function send(m){m.from=DEV;m.mid=DEV+':'+(++MID);try{BC&&BC.postMessage(m);}catch(e){}
+  if(ROOM&&MQ.socks.length){const p=mqPkt(0x30,cat(mqStr(topic()),TE.encode(JSON.stringify(m))));for(const S of MQ.socks)if(S.ok)try{S.ws.send(p);}catch(e){}}}
+function recv(m){if(!m||!m.type||m.from===DEV||SEEN.has(m.mid))return;SEEN.add(m.mid);if(SEEN.size>800)SEEN.delete(SEEN.values().next().value);onMsg(m);}
+if(BC)BC.onmessage=e=>recv(e.data);
+function hello(){send({type:'hello',role:FLOOR?'floor':'laptop'});}
+setInterval(hello,2000);
+
+/* ================= measurement: touches around a rectangle ================= */
+const LEGO=[[1,1],[1,2],[1,3],[1,4],[1,6],[1,8],[2,2],[2,3],[2,4],[2,6],[2,8],[2,10],[4,4],[4,6]];
+const brickMM=(n,m)=>[8*Math.max(n,m)-0.2,8*Math.min(n,m)-0.2];
+const EPS_MM=0.6;            // declared repeatability of one finger contact, mm
+function hull(P){const p=P.map((q,i)=>[q[0],q[1],i]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);if(p.length<3)return p;
+  const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]),lo=[],up=[];
+  for(const q of p){while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],q)<=0)lo.pop();lo.push(q);}
+  for(let i=p.length-1;i>=0;i--){const q=p[i];while(up.length>=2&&cr(up[up.length-2],up[up.length-1],q)<=0)up.pop();up.push(q);}
+  return lo.slice(0,-1).concat(up.slice(0,-1));}
+function extents(P,th){const c=Math.cos(th),s=Math.sin(th);let a0=1e9,a1=-1e9,b0=1e9,b1=-1e9;
+  for(const p of P){const a=p[0]*c+p[1]*s,b=-p[0]*s+p[1]*c;a0=Math.min(a0,a);a1=Math.max(a1,a);b0=Math.min(b0,b);b1=Math.max(b1,b);}return {a0,a1,b0,b1};}
+/* returns the contact rectangle (through the finger centres) in floor pixels, the side each touch landed on, and what is missing.
+   The direction is the one where every touch lies closest to one of the four sides of the bounding rectangle. */
+function sideOf(P,th){const e=extents(P,th),c=Math.cos(th),s=Math.sin(th);let sc=0;
+  const side=P.map(p=>{const a=p[0]*c+p[1]*s,b=-p[0]*s+p[1]*c,d=[a-e.a0,e.a1-a,b-e.b0,e.b1-b];let k=0;for(let j=1;j<4;j++)if(d[j]<d[k])k=j;sc+=d[k]*d[k];return {k,d:d[k]};});
+  return {e,side,sc};}
+/* Going around the brick fixes which side each touch is on: touches 1-2 one long side, 3 an end, 4-5 the other long side, 6 the other end.
+   A second lap (7-12) repeats the pattern and is averaged in. Side numbers: 0,1 the ends (across the length), 2,3 the long sides. */
+const ROUND=[2,2,0,3,3,1],ROLE=['the end','the other end','one long side, near one end','the other long side'];
+function nextRole(n){const k=ROUND[n%6];return k===2?(n%6===0?'one long side, near one end':'the same long side, near its other end'):k===3?(n%6===3?'the other long side, near one end':'the same side, near its other end'):k===0?'the end':'the other end';}
+function fitRect(P,tolPx){
+  const by=[[],[],[],[]];P.forEach((p,i)=>by[ROUND[i%6]].push(p));
+  if(P.length<6)return {ok:false,why:`touch ${P.length+1} of 6: ${nextRole(P.length)}`,side:P.map((p,i)=>ROUND[i%6])};
+  let sxx=0,syy=0,sxy=0;
+  by.forEach((Q,k)=>{if(Q.length<2)return;const mx=Q.reduce((u,q)=>u+q[0],0)/Q.length,my=Q.reduce((u,q)=>u+q[1],0)/Q.length;
+    for(const q of Q){let dx=q[0]-mx,dy=q[1]-my;if(k<2){const t=dx;dx=dy;dy=-t;}sxx+=dx*dx;syy+=dy*dy;sxy+=dx*dy;}});
+  const th=0.5*Math.atan2(2*sxy,sxx-syy),c=Math.cos(th),s=Math.sin(th);
+  const proj=(k,Q)=>Q.map(q=>k<2?q[0]*c+q[1]*s:-q[0]*s+q[1]*c),along=(k,Q)=>Q.map(q=>k<2?-q[0]*s+q[1]*c:q[0]*c+q[1]*s);
+  const off=by.map((Q,k)=>{const v=proj(k,Q);return v.reduce((u,w)=>u+w,0)/v.length;}),half=by.map((Q,k)=>{if(Q.length<2)return 0;const v=proj(k,Q);return (Math.max(...v)-Math.min(...v))/2;});
+  const rect={th,cA:(off[0]+off[1])/2,cB:(off[2]+off[3])/2,A:Math.abs(off[1]-off[0]),B:Math.abs(off[3]-off[2]),half};
+  const side=P.map((p,i)=>{const k=ROUND[i%6],v=k<2?p[0]*c+p[1]*s:-p[0]*s+p[1]*c;return Math.abs(v-off[k])>tolPx?-1:k;});
+  const bad=side.map((k,i)=>k<0?i+1:0).filter(Boolean);
+  if(bad.length)return {ok:false,why:'touch '+bad.join(', ')+' is off its side: undo and touch again',side,th};
+  const short=[2,3].filter(k=>{const v=along(k,by[k]);return Math.max(...v)-Math.min(...v)<0.3*(rect.A-2*tolPx);});
+  if(short.length)return {ok:false,why:'the two touches on a long side must be near its two ends: undo and spread them',side,th};
+  return {ok:true,rect,side,th};
+}
+function rectCorners(r,inset){const c=Math.cos(r.th),s=Math.sin(r.th),a=r.A/2-inset,b=r.B/2-inset;
+  return [[-a,-b],[a,-b],[a,b],[-a,b]].map(([u,v])=>{const A=r.cA+u,B=r.cB+v;return [A*c-B*s,A*s+B*c];});}
+
+/* ================= laptop state ================= */
+const S={mode:'qualify',touches:[],cal:null,fit:null,result:null,floorSeen:0,floorWH:null,sim:null,cam:null,hands:[],handAt:0,pops:[]};
+try{const c=JSON.parse(localStorage.getItem('butter-cmm-cal')||'null');if(c&&c.s&&c.r!=null){S.cal=c;S.mode='measure';}}catch(e){}
+const pxTol=()=>S.cal?2.5/S.cal.s:16;
+function analyse(){
+  const P=S.touches.map(t=>[t.x,t.y]);S.fit=fitRect(P,pxTol());S.result=null;
+  if(!S.fit.ok)return;
+  const r=S.fit.rect,long=Math.max(r.A,r.B),short=Math.min(r.A,r.B),hl=r.A>=r.B?[r.half[0],r.half[1]]:[r.half[2],r.half[3]],hs=r.A>=r.B?[r.half[2],r.half[3]]:[r.half[0],r.half[1]];
+  if(S.mode==='qualify'||!S.cal){
+    const s=16/(long-short),rr=(long*s-31.8)/2;S.result={kind:'qualify',s,r:rr,long,short,ok:s>0.05&&s<0.5&&rr>-1&&rr<12};return;}
+  const s=S.cal.s,L=long*s-2*S.cal.r,W=short*s-2*S.cal.r;
+  const eL=Math.max(EPS_MM,hl[0]*s)+Math.max(EPS_MM,hl[1]*s)+S.cal.u,eW=Math.max(EPS_MM,hs[0]*s)+Math.max(EPS_MM,hs[1]*s)+S.cal.u;
+  const cands=LEGO.filter(([n,m])=>{const [cl,cw]=brickMM(n,m);return Math.abs(L-cl)<=eL&&Math.abs(W-cw)<=eW;});
+  S.result={kind:'measure',L,W,eL,eW,cands};
+}
+function addTouch(t){t.n=S.touches.length+1;t.seen=performance.now()-S.handAt<400&&S.hands.length>0;S.touches.push(t);analyse();
+  const h=S.hands[0];S.pops.push({t:performance.now(),n:t.n,hx:h?h.marks[8].x:null,hy:h?h.marks[8].y:null});render();sendState();}
+function sendState(){let rect=null;if(S.fit&&S.fit.ok){const r=S.fit.rect,inset=S.cal&&S.mode==='measure'?S.cal.r/S.cal.s:0;rect=rectCorners(r,inset);}
+  let label='';const R=S.result;
+  if(R&&R.kind==='measure')label=R.cands.length===1?R.cands[0].join(' × '):R.cands.length?'not sure':'no standard brick';
+  if(R&&R.kind==='qualify')label=R.ok?'ready to qualify':'not a 2×4?';
+  send({type:'state',touches:S.touches.map(t=>[t.x,t.y]),rect,label,scale:S.cal?S.cal.s:null});}
+
+/* ================= laptop rendering ================= */
+function fitCv(c){const r=c.getBoundingClientRect(),d=window.devicePixelRatio||1;if(c.width!==Math.round(r.width*d)||c.height!==Math.round(r.height*d)){c.width=Math.round(r.width*d);c.height=Math.round(r.height*d);}const g=c.getContext('2d');g.setTransform(d,0,0,d,0,0);return {g,W:r.width,H:r.height};}
+const font=(w,s)=>`${w} ${s}px "IBM Plex Mono",monospace`;
+function drawKnow(){
+  const {g,W,H}=fitCv($('know'));g.fillStyle='#121212';g.fillRect(0,0,W,H);
+  const s=S.cal?S.cal.s:(S.sim?S.sim.s:0.16);  // mm per floor px (best current guess)
+  const P=S.touches.map(t=>[t.x*s,t.y*s]);
+  let cx,cy;if(P.length){cx=P.reduce((u,p)=>u+p[0],0)/P.length;cy=P.reduce((u,p)=>u+p[1],0)/P.length;}else if(S.floorWH){cx=S.floorWH[0]*s/2;cy=S.floorWH[1]*s/2;}else{cx=35;cy=60;}
+  const k=Math.min(W,H-40)/70,X=x=>W/2+(x-cx)*k,Y=y=>H/2+8+(y-cy)*k;
+  g.strokeStyle='rgba(55,232,98,0.16)';g.lineWidth=1;g.beginPath();
+  const gx0=Math.floor((cx-W/2/k)/8)*8;for(let x=gx0;x<cx+W/2/k;x+=8){g.moveTo(X(x),0);g.lineTo(X(x),H);}
+  const gy0=Math.floor((cy-H/2/k)/8)*8;for(let y=gy0;y<cy+H/2/k;y+=8){g.moveTo(0,Y(y));g.lineTo(W,Y(y));}g.stroke();
+  if(S.floorWH){g.setLineDash([5,4]);g.strokeStyle='rgba(55,232,98,0.5)';g.strokeRect(X(0),Y(0),S.floorWH[0]*s*k,S.floorWH[1]*s*k);g.setLineDash([]);}
+  const R=S.result;
+  if(S.fit&&S.fit.ok){
+    const r=S.fit.rect,pc=rectCorners(r,0).map(p=>[X(p[0]*s),Y(p[1]*s)]);
+    g.strokeStyle='rgba(55,232,98,0.55)';g.setLineDash([4,4]);g.lineWidth=1.5;poly(g,pc);g.stroke();g.setLineDash([]);
+    if(S.cal&&S.mode==='measure'){const wc=rectCorners(r,S.cal.r/S.cal.s).map(p=>[X(p[0]*s),Y(p[1]*s)]);
+      if(R&&R.cands.length===1)drawBrick(g,r,R.cands[0],X,Y,s);
+      g.strokeStyle='#37e862';g.lineWidth=2.5;g.shadowColor='#37e862';g.shadowBlur=8;poly(g,wc);g.stroke();g.shadowBlur=0;}
+  }
+  if(S.sim&&R&&R.kind==='measure'){const b=S.sim.brick,cs=simCorners(b).map(p=>[X(p[0]),Y(p[1])]);g.strokeStyle='#3b82f6';g.setLineDash([2,3]);g.lineWidth=1.5;poly(g,cs);g.stroke();g.setLineDash([]);}
+  S.touches.forEach((t,i)=>{const x=X(t.x*s),y=Y(t.y*s),side=S.fit&&S.fit.side?S.fit.side[i]:0;
+    g.fillStyle=side<0?'#ff2e2e':'#37e862';g.shadowColor='#37e862';g.shadowBlur=6;g.beginPath();g.arc(x,y,4,0,7);g.fill();g.shadowBlur=0;
+    g.font=font(600,10);g.fillText(String(t.n),x+6,y-6);});
+  g.fillStyle='#37e862';g.font=font(400,10);
+  g.fillText(S.cal?`scale ${(1/S.cal.s).toFixed(2)} px/mm · finger ${S.cal.r.toFixed(1)} mm · grid = one stud (8 mm)`:'not qualified: scale and finger size unknown',8,H-8);
+  if(!S.touches.length){g.font=font(600,12);g.fillText(S.sim?'tap around the hidden brick':'nothing touched',W/2-60,H/2);}
+}
+function poly(g,p){g.beginPath();p.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]));g.closePath();}
+function drawBrick(g,r,nm,X,Y,s){
+  const inset=S.cal.r/S.cal.s,wc=rectCorners(r,inset).map(p=>[p[0]*s,p[1]*s]);
+  g.fillStyle='#f2cd37';poly(g,wc.map(p=>[X(p[0]),Y(p[1])]));g.fill();
+  const n=Math.max(...nm),m=Math.min(...nm),alongA=r.A>=r.B,c=Math.cos(r.th),sn=Math.sin(r.th);
+  const ua=[c,sn],ub=[-sn,c],o=wc[0],A=Math.hypot(wc[1][0]-o[0],wc[1][1]-o[1]),B=Math.hypot(wc[3][0]-o[0],wc[3][1]-o[1]);
+  const na=alongA?n:m,nb=alongA?m:n;g.strokeStyle='#8a6d00';g.lineWidth=1.5;
+  for(let i=0;i<na;i++)for(let j=0;j<nb;j++){const pa=(i+0.5)*A/na,pb=(j+0.5)*B/nb,x=o[0]+ua[0]*pa+ub[0]*pb,y=o[1]+ua[1]*pa+ub[1]*pb;
+    g.beginPath();g.arc(X(x),Y(y),2.4*Math.abs(X(1)-X(0)),0,7);g.fillStyle='#f7dc6a';g.fill();g.stroke();}
+}
+function drawCam(){
+  const {g,W,H}=fitCv($('camOv'));g.clearRect(0,0,W,H);const v=$('vidA'),now=performance.now();
+  if(!S.cam){return;}
+  const vw=v.videoWidth||640,vh=v.videoHeight||480,sc=Math.max(W/vw,H/vh),ox=(W-vw*sc)/2,oy=(H-vh*sc)/2;
+  const P=m=>[W-(ox+m.x*vw*sc),oy+m.y*vh*sc];
+  const L=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[0,17],[17,18],[18,19],[19,20]];
+  if(now-S.handAt<300)for(const h of S.hands){g.strokeStyle='#000';g.lineWidth=3;g.beginPath();for(const [a,b] of L){const p=P(h.marks[a]),q=P(h.marks[b]);g.moveTo(p[0],p[1]);g.lineTo(q[0],q[1]);}g.stroke();
+    g.strokeStyle='#fff';g.lineWidth=1;g.stroke();const t=P(h.marks[8]);g.fillStyle='#19e6c8';g.fillRect(t[0]-4,t[1]-4,8,8);}
+  S.pops=S.pops.filter(p=>now-p.t<1200);
+  for(const p of S.pops){const a=(now-p.t)/1200;let x=W/2,y=H/2;if(p.hx!=null)[x,y]=P({x:p.hx,y:p.hy});
+    g.globalAlpha=1-a;g.strokeStyle='#37e862';g.lineWidth=3;g.beginPath();g.arc(x,y,10+30*a,0,7);g.stroke();
+    g.fillStyle='#22c84a';g.font=font(700,28);g.fillText(String(p.n),x+14,y-14-30*a);g.strokeStyle='#0b5a1e';g.lineWidth=1;g.strokeText(String(p.n),x+14,y-14-30*a);g.globalAlpha=1;}
+  const seen=S.touches.filter(t=>t.seen).length;g.fillStyle='#fff';g.fillRect(6,H-22,250,18);g.fillStyle='#000';g.font=font(600,11);
+  g.fillText(`saw a hand at ${seen} of ${S.touches.length} touches`,10,H-9);
+}
+const VCLS={acc:'c-acc',rej:'c-rej',ind:'c-ind',rest:'c-rest'};
+function render(){
+  const R=S.result,F=S.fit;let chip='REST',cls='rest',m1='',m2='',say='';
+  const linked=performance.now()-S.floorSeen<5000;
+  $('link').textContent=S.sim?'simulated Floor':linked?'Floor linked'+(ROOM?' · room '+ROOM:''):'no Floor';
+  if(S.mode==='qualify'){
+    chip='QUALIFY';cls='rest';
+    say='Put a 2×4 brick on the Floor. Go around it with one finger pressed against the brick: a long side twice (near both ends), the end, the other long side twice, the other end. Then press QUALIFY.';
+    if(F&&!F.ok)m1=F.why;
+    if(R&&R.kind==='qualify'){chip=R.ok?'READY':'NOT A 2×4?';cls=R.ok?'acc':'rej';m1=`touched rectangle ${R.long.toFixed(0)} × ${R.short.toFixed(0)} px`;
+      m2=R.ok?`→ scale ${(1/R.s).toFixed(2)} px/mm, finger reaches ${R.r.toFixed(1)} mm beyond the brick wall`:'these touches do not fit a 2×4 (31.8 × 15.8 mm): clear and try again';}
+  } else {
+    say='Put any brick on the Floor and go around it the same way: long side twice, end, other long side twice, other end.';
+    if(!S.touches.length){chip='REST';}
+    else if(F&&!F.ok){chip='NOT SURE';cls='ind';m1=F.why;}
+    if(R&&R.kind==='measure'){m1=`${R.L.toFixed(1)} ± ${R.eL.toFixed(1)} mm  ×  ${R.W.toFixed(1)} ± ${R.eW.toFixed(1)} mm`;
+      if(R.cands.length===1){const [n,m]=R.cands[0];chip=`${Math.min(n,m)} × ${Math.max(n,m)} BRICK`;cls='acc';const c=brickMM(n,m);m2=`nominal ${c[0].toFixed(1)} × ${c[1].toFixed(1)} mm, inside the range on both sides`;}
+      else if(R.cands.length>1){chip='NOT SURE';cls='ind';m2='could be '+R.cands.map(c=>c.join('×')).join(' or ')+': touch the ends again';}
+      else {chip='NO MATCH';cls='rej';m2='no standard brick fits: check the red touches, or qualify again';}
+      if(S.sim&&R.cands.length){const b=S.sim.brick;m2+=`  ·  it was ${Math.min(...b.nm)}×${Math.max(...b.nm)}`;}}
+  }
+  if(F&&F.side&&F.side.some(k=>k<0))m2=(m2?m2+'  ·  ':'')+'red touches did not land on a side';
+  if(!S.sim&&!linked&&S.mode==='qualify'&&!S.touches.length)say='First PAIR FLOOR and open the Floor on the phone, or TRY WITHOUT A PHONE.';
+  const c=$('chip');c.textContent=chip;c.className=VCLS[cls];$('m1').textContent=m1||' ';$('m2').textContent=m2||' ';$('say').textContent=say;
+  $('bQual').classList.toggle('on',S.mode==='qualify');$('bMeas').classList.toggle('on',S.mode==='measure');$('bMeas').disabled=!S.cal;
+  $('bQual').textContent=S.mode==='qualify'&&R&&R.kind==='qualify'&&R.ok?'QUALIFY NOW':'1 · QUALIFY WITH A 2×4';
+  $('bSim').classList.toggle('on',!!S.sim);
+}
+function frame(){drawKnow();drawCam();requestAnimationFrame(frame);}
+
+/* ================= simulated Floor (no phone): a hidden brick, a finger that reaches r beyond the wall ================= */
+function gauss(){let u=0;while(!u)u=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*Math.random());}
+function simBrick(nm){return {nm,cx:30+Math.random()*10,cy:55+Math.random()*10,th:(Math.random()-0.5)*1.2,L:brickMM(...nm)[0],W:brickMM(...nm)[1]};}
+function simCorners(b){const c=Math.cos(b.th),s=Math.sin(b.th);return [[-1,-1],[1,-1],[1,1],[-1,1]].map(([u,v])=>[b.cx+u*b.L/2*c-v*b.W/2*s,b.cy+u*b.L/2*s+v*b.W/2*c]);}
+function simTouch(xmm,ymm){
+  const b=S.sim.brick,c=Math.cos(b.th),s=Math.sin(b.th),dx=xmm-b.cx,dy=ymm-b.cy,u=dx*c+dy*s,v=-dx*s+dy*c;
+  const du=b.L/2-Math.abs(u),dv=b.W/2-Math.abs(v);let pu=u,pv=v;
+  if(Math.abs(u)>b.L/2||Math.abs(v)>b.W/2){/* outside: slide to the nearest wall */ if(Math.abs(u)-b.L/2>Math.abs(v)-b.W/2){pu=Math.sign(u)*b.L/2;pv=Math.max(-b.W/2,Math.min(b.W/2,v));}else{pv=Math.sign(v)*b.W/2;pu=Math.max(-b.L/2,Math.min(b.L/2,u));}}
+  else if(du<dv)pu=Math.sign(u||1)*b.L/2;else pv=Math.sign(v||1)*b.W/2;
+  const onU=Math.abs(Math.abs(pu)-b.L/2)<1e-9&&Math.abs(pv)<b.W/2;
+  const r=S.sim.r+gauss()*0.25,t=gauss()*0.3;
+  if(onU){pu+=Math.sign(pu)*r;pv+=t;}else{pv+=Math.sign(pv)*r;pu+=t;}
+  const X=b.cx+pu*c-pv*s,Y=b.cy+pu*s+pv*c;
+  addTouch({x:X/S.sim.s,y:Y/S.sim.s,src:'sim'});
+}
+$('know').addEventListener('pointerdown',e=>{if(!S.sim)return;const r=e.currentTarget.getBoundingClientRect(),W=r.width,H=r.height;
+  const s=S.cal?S.cal.s:S.sim.s,P=S.touches.map(t=>[t.x*s,t.y*s]);let cx,cy;if(P.length){cx=P.reduce((u,p)=>u+p[0],0)/P.length;cy=P.reduce((u,p)=>u+p[1],0)/P.length;}else{cx=35;cy=60;}
+  const k=Math.min(W,H-40)/70,xm=cx+(e.clientX-r.left-W/2)/k,ym=cy+(e.clientY-r.top-H/2-8)/k;
+  simTouch(xm*S.sim.s/s,ym*S.sim.s/s);});
+
+/* ================= laptop actions ================= */
+function onMsgLaptop(m){
+  if(m.type==='hello'&&m.role==='floor'){const was=performance.now()-S.floorSeen<5000;S.floorSeen=performance.now();if(m.wh)S.floorWH=m.wh;if(!was){$('pairBox').classList.remove('on');sendState();render();}}
+  if(m.type==='t'){S.floorSeen=performance.now();S.floorWH=m.wh;addTouch({x:m.x,y:m.y,src:'floor'});}
+  if(m.type==='undo'){S.touches.pop();analyse();render();sendState();}
+  if(m.type==='clear'){S.touches=[];analyse();render();sendState();}
+}
+$('bPair').onclick=()=>{if(!ROOM){ROOM=Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join('');}joinRoom(ROOM);
+  const url=location.origin+location.pathname+'?floor&room='+ROOM;$('pairUrl').textContent=url;$('pairCode').textContent=ROOM;$('qr').innerHTML='';
+  try{new QRCode($('qr'),{text:url,width:150,height:150,correctLevel:QRCode.CorrectLevel.M});}catch(e){$('qr').textContent='(QR unavailable: type the address)';}
+  $('pairBox').classList.add('on');};
+$('bPairClose').onclick=()=>$('pairBox').classList.remove('on');
+$('bQual').onclick=()=>{
+  if(S.mode==='qualify'&&S.result&&S.result.kind==='qualify'&&S.result.ok){const R=S.result,h=S.fit.rect.half;
+    S.cal={s:R.s,r:R.r,u:Math.max(0.3,R.s*(h[0]+h[1]+h[2]+h[3])/2),when:Date.now()};try{localStorage.setItem('butter-cmm-cal',JSON.stringify(S.cal));}catch(e){}
+    S.mode='measure';S.touches=[];if(S.sim)S.sim.brick=simBrick(LEGO.filter(b=>b[0]<=2&&b[1]<=6&&!(b[0]===1&&b[1]===1))[Math.floor(Math.random()*8)]);}
+  else{S.mode='qualify';S.touches=[];if(S.sim)S.sim.brick=simBrick([2,4]);}
+  analyse();render();sendState();};
+$('bMeas').onclick=()=>{if(!S.cal)return;S.mode='measure';S.touches=[];if(S.sim)S.sim.brick=simBrick([[1,2],[2,2],[2,3],[2,4],[1,4],[1,6],[2,6]][Math.floor(Math.random()*7)]);analyse();render();sendState();};
+$('bUndo').onclick=()=>{S.touches.pop();analyse();render();sendState();};
+$('bClear').onclick=()=>{S.touches=[];analyse();render();sendState();};
+$('bSim').onclick=()=>{if(S.sim){S.sim=null;}else{S.sim={s:0.159,r:4.5,brick:simBrick(S.mode==='qualify'?[2,4]:[2,3])};}S.touches=[];analyse();render();};
+$('bCam').onclick=async()=>{
+  if(!window.MPHands){$('camMsg').textContent='The hand tracker (markov/hands.js) is not here. Camera A runs when this page is served from cineosis-lab/lab.';return;}
+  $('camMsg').textContent='starting: allow the camera';
+  try{S.cam=await MPHands.start({view:$('vidA'),on:{frame:tr=>{const h=(tr||[]).filter(t=>t.marks&&t.marks.length);if(h.length){S.hands=h;S.handAt=performance.now();}},error:m=>{$('camMsg').textContent='Camera: '+m;}}});
+    $('camStart').style.display='none';}catch(e){$('camMsg').textContent='FAULT · '+(e.message||e)+' · touches from the Floor still work';}};
+
+/* ================= the Floor (phone) ================= */
+const FL={touches:[],rect:null,label:'',scale:null,laptopAt:0,ptr:new Map()};
+function floorInit(){
+  $('app').style.display='none';$('floor').style.display='block';
+  if(!ROOM){$('flJoin').style.display='flex';$('flGo').onclick=()=>{const c=$('flCode').value.trim().toUpperCase();if(c.length>=4){$('flJoin').style.display='none';joinRoom(c);history.replaceState(null,'','?floor&room='+c);}};}
+  else joinRoom(ROOM);
+  const cv=$('flCv');
+  cv.addEventListener('pointerdown',e=>{e.preventDefault();wake();FL.ptr.set(e.pointerId,{x:e.clientX,y:e.clientY,t:performance.now()});});
+  cv.addEventListener('pointermove',e=>{const p=FL.ptr.get(e.pointerId);if(p){p.x=e.clientX;p.y=e.clientY;}});
+  /* the touch counts where the finger stopped against the brick: the last position before lifting */
+  cv.addEventListener('pointerup',e=>{const p=FL.ptr.get(e.pointerId);FL.ptr.delete(e.pointerId);if(!p)return;const x=e.clientX,y=e.clientY;
+    FL.touches.push([x,y]);send({type:'t',x,y,wh:[innerWidth,innerHeight]});$('flSay').style.display='none';});
+  cv.addEventListener('pointercancel',e=>FL.ptr.delete(e.pointerId));
+  $('flUndo').onclick=()=>{FL.touches.pop();send({type:'undo'});};$('flClear').onclick=()=>{FL.touches=[];FL.rect=null;send({type:'clear'});};
+  setInterval(()=>send({type:'hello',role:'floor',wh:[innerWidth,innerHeight]}),1500);
+  requestAnimationFrame(floorFrame);
+}
+let woke=false;async function wake(){if(woke)return;woke=true;try{await document.documentElement.requestFullscreen();}catch(e){}try{await navigator.wakeLock.request('screen');}catch(e){}}
+function onMsgFloor(m){if(m.type==='state'){FL.laptopAt=performance.now();FL.touches=m.touches;FL.rect=m.rect;FL.label=m.label;FL.scale=m.scale;}if(m.type==='hello'&&m.role==='laptop')FL.laptopAt=performance.now();}
+function floorFrame(){
+  const {g,W,H}=fitCv($('flCv'));g.fillStyle='#fff';g.fillRect(0,0,W,H);
+  if(FL.scale){const st=8/FL.scale;g.strokeStyle='rgba(0,0,0,0.08)';g.lineWidth=1;g.beginPath();for(let x=0;x<W;x+=st){g.moveTo(x,0);g.lineTo(x,H);}for(let y=0;y<H;y+=st){g.moveTo(0,y);g.lineTo(W,y);}g.stroke();}
+  if(FL.rect){g.strokeStyle='#19e6c8';g.lineWidth=4;poly(g,FL.rect);g.stroke();}
+  FL.touches.forEach((p,i)=>{g.fillStyle='#000';g.beginPath();g.arc(p[0],p[1],6,0,7);g.fill();g.font=font(700,12);g.fillText(String(i+1),p[0]+9,p[1]-9);});
+  for(const p of FL.ptr.values()){g.strokeStyle='#3b82f6';g.lineWidth=2;g.beginPath();g.arc(p.x,p.y,18,0,7);g.stroke();}
+  const linked=performance.now()-FL.laptopAt<5000;
+  $('flTop').textContent=`B · FLOOR · room ${ROOM||'----'} · ${linked?'laptop linked':'waiting for the laptop'}${FL.label?' · '+FL.label:''}`;
+  const n=FL.touches.length;$('flNext').textContent=n<6?`touch ${n+1} of 6 · ${nextRole(n)}`:(FL.label||'done');
+  requestAnimationFrame(floorFrame);
+}
+
+function onMsg(m){if(FLOOR)onMsgFloor(m);else onMsgLaptop(m);}
+if(FLOOR)floorInit();else{analyse();render();requestAnimationFrame(frame);setInterval(render,1000);new ResizeObserver(()=>render()).observe($('views'));}
+</script>
+</body>
+</html>
