@@ -704,14 +704,15 @@ const GBENCH=/[?&]bench\b/.test(location.search);
   if(GBENCH){if(!FLOOR&&/[?&]sim\b/.test(location.search))setTimeout(()=>{try{$('bSim').onclick();}catch(e){}},300);return;}
   const here=location.href.split(/[?#]/)[0];
   if(!FLOOR){ /* ---------- laptop ---------- */
-    const S={started:false,fault:null,chk:false,code:null,url:null};
+    const S={started:false,fault:null,chk:false,code:null,url:null,done:null,t0:0},MAXT=24;
     const camBox=$('pCam').querySelector('.box');camBox.classList.add('gfill');
     const _cf=camFail;camFail=function(m){S.fault=String(m);_cf(m);};
     const _om=onMsg;onMsg=m=>{if(m&&m.type==='t')S.chk=!!m.chk;_om(m);};
     GK.init(['app']);
     const codeEl=GK.note('gcode',''),urlEl=GK.note('gurl','');
     function start(){S.started=true;S.fault=null;AU.on=true;auStart();$('bPair').onclick();$('pairBox').classList.remove('on');codeEl.textContent=ROOM;urlEl.textContent=$('pairUrl').textContent;}
-    function over(){try{L.real.reset();sendPlan();}catch(e){}}
+    let lastG='',lastGt=0;function gst(o){const j=JSON.stringify(o),t=performance.now();if(j!==lastG||t-lastGt>1500){lastG=j;lastGt=t;send(Object.assign({type:'gst'},o));}}
+    function over(){S.done=null;S.t0=performance.now();try{L.real.reset();sendPlan();}catch(e){}send({type:'gst',done:false,n:0,max:MAXT});}
     function openFloor(){try{window.open(here+'?floor&room='+ROOM,'_blank');}catch(e){}}
     function tickG(){const now=performance.now(),C=L.real,heard=L.floorAt&&now-L.floorAt<5000,tipAge=L.lastTip?now-L.lastTip.t:1e9;
       if(!S.started){GK.view([]);GK.card({anim:'setup',head:'LEDGER',text:'The phone glass checks the camera. You tap lit squares on the phone. The laptop guesses each tap before it lands. The gap, in millimetres, shrinks as you play. You need this laptop\'s camera and a phone.',btns:[['START',start]],foot:[['watch a simulation first',here+'?bench&sim']]});return;}
@@ -720,25 +721,37 @@ const GBENCH=/[?&]bench\b/.test(location.search);
       if(!L.trkOn){GK.view([]);if(L.camBusy)GK.card({step:'STEP 2 OF 3',head:'Starting the camera',text:'Allow the camera when the browser asks. The hand tracker takes a few seconds to load.'});
         else GK.card({anim:'camera',step:'STEP 2 OF 3',head:'Phone linked. Turn on the camera.',text:'The camera watches your hand. Nothing is recorded or sent.',btns:[['TURN ON CAMERA',()=>{S.fault=null;camToggle();}]]});return;}
       GK.view([camBox]);
-      if(!C.pairs.length&&tipAge>1500){GK.card({anim:'handover',step:'STEP 3 OF 3',head:'Hold your hand over the phone',text:'Tilt the laptop screen until the camera sees your hand above the phone. This step ends by itself when it does.'});return;}
-      const md=C.med10(),scored=C.scored.length,last=C.pairs[C.pairs.length-1],blind=tipAge>3000||(last&&!last.cam);
-      const head={'NO MAP':'Tap the lit square on the phone','LEARNING':'Keep tapping the lit square','TRUSTED':'The camera is trusted','BUMPED':'Something moved. Keep tapping.'}[C.state]||C.state;
-      let text=C.pairs.length+' touches, '+scored+' scored.';
-      if(C.state==='NO MAP')text='Tap on the second beep. The first few taps build the map; then each tap is scored.';
-      else if(C.state==='TRUSTED')text+=' The camera now places your fingertip on the glass to within this distance. Keep playing or stop.';
-      else if(C.state==='BUMPED')text+=' The laptop or phone moved. Earlier touches are set aside.';
-      if(blind)text='The camera did not see your finger on the last tap. Keep your whole hand in view. '+text;
-      if(md!=null&&C.ppm&&!S.chk)text+=' Millimetres assume a typical phone screen.';
-      GK.card({anim:C.state==='TRUSTED'?null:'tap',step:C.state,head,big:md==null?'':fmt(md)+' '+C.unit,text,foot:C.pairs.length?[['start over',over]]:[]});}
+      if(!C.pairs.length&&tipAge>1500&&!S.done){GK.card({anim:'handover',step:'STEP 3 OF 3',head:'Hold your hand over the phone',text:'Tilt the laptop screen until the picture shows the phone and your hand above it. This step ends by itself when the camera sees your hand. After it: up to '+MAXT+' taps, about one minute.'});S.t0=now;return;}
+      const k=C.k,n=C.pairs.length,miss=C.pairs.filter(r=>!r.cam).length,md=C.med10(),last=C.pairs[n-1],u=' '+C.unit;
+      /* the round always ends: calibrated, or the camera is blind to the taps, or the tap limit is reached */
+      if(!S.done){if(C.state==='TRUSTED')S.done={kind:'ok',n,md};else if(n>=6&&miss>=n*2/3)S.done={kind:'blind',n,miss};else if(n>=MAXT)S.done={kind:'end',n,miss,md,why:C.why,fit:!!C.fit};}
+      if(S.done){const D=S.done;gst({done:true});
+        if(D.kind==='ok')GK.card({step:'FINISHED',head:'Calibrated',big:fmt(D.md)+u,text:'In '+D.n+' taps. The camera now places your fingertip on the glass to within about this distance.'+(C.ppm&&!S.chk?' Millimetres assume a typical phone screen.':''),btns:[['PLAY AGAIN',over]]});
+        else if(D.kind==='blind')GK.card({anim:'handover',step:'STOPPED',head:'The camera cannot see your fingertip on the phone',text:'It missed '+D.miss+' of '+D.n+' taps. Look at the picture above: the phone and your whole hand must be in it while you tap. Tip the laptop screen forward, or slide the phone further from the laptop. Then try again.',btns:[['TRY AGAIN',over]]});
+        else if(!D.fit)GK.card({anim:'handover',step:'FINISHED · NOT CALIBRATED',head:'No map could be built',text:'The camera saw your fingertip on only '+(D.n-D.miss)+' of '+D.n+' taps. Keep the whole hand in the picture and hold each tap for a moment.',btns:[['TRY AGAIN',over]]});
+        else GK.card({step:'FINISHED · NOT CALIBRATED',head:D.md<3*C.TH?'Close, but not calibrated':'Not calibrated',big:D.md==null?'':fmt(D.md)+u,text:'After '+D.n+' taps the typical gap between guess and tap is this; it has to be under '+fmt(C.TH)+u+'. '+(D.miss>D.n/4?'The camera missed '+D.miss+' taps. ':'')+'What helps: hold each tap still for a moment, tap with the same finger, keep the laptop and phone from moving, more light on the hand.',btns:[['TRY AGAIN',over]]});
+        return;}
+      gst({done:false,n,max:MAXT});
+      let fb='';if(last){fb=!last.cam?'Last tap: the camera did not see your fingertip. ':last.e!=null?'Last tap: the guess was '+fmt(last.e*k)+u+' off. ':'Last tap: seen by the camera. ';}
+      let need='';const w=C.why||'';
+      if(/^no map/.test(w))need='Building the map: it needs 3 taps the camera saw ('+(n-miss)+' so far).';
+      else if(/scored predictions/.test(w))need='Scoring has started: '+w+'.';
+      else if(/^median/.test(w))need='The typical gap has to come under '+fmt(C.TH)+u+'.';
+      else if(/regions/.test(w))need='A few more taps in other parts of the screen.';
+      else if(/worst cell/.test(w))need='The map is still unsure near the edges.';
+      else if(/move|far off/.test(w))need='Checking whether the laptop or phone moved.';
+      if(!n&&now-S.t0>15000)fb='No tap has arrived from the phone yet. If you have tapped, the link is down: reload this page and the phone page. ';
+      GK.card({anim:n<3?'tap':null,step:'TAP '+n+' OF '+MAXT+' AT MOST',head:n?'Keep tapping the lit square':'Tap the lit square on the second beep',big:md==null?'':fmt(md)+u,text:fb+need,foot:n?[['start over',over]]:[]});}
     setInterval(tickG,200);tickG();
   }else{ /* ---------- phone ---------- */
-    const S={begun:false,ring:false};
+    const S={begun:false,ring:false,gst:null};
+    const _omf=onMsg;onMsg=m=>{if(m&&m.type==='gst'){S.gst=m;FL.laptopAt=performance.now();return;}_omf(m);};
     FL.chk=FL.ppm!=null;if(FL.ppm==null)FL.ppm=6.3;flRing(false);$('flJoin').classList.remove('on');
     for(const id of['flSnd','flCan','flFull'])$(id).style.display='none';
     $('flBar').style.fontSize='16px';$('flBar').style.padding='8px 10px';$('flTxt').style.fontSize='16px';$('flTxt').style.fontWeight='700';$('flTxt').style.flex='0 1 auto';$('flTxt').style.order='0';
     const _send=send;send=function(m){if(m&&m.type==='t')m.chk=FL.chk;return _send(m);};
     flStatus=function(now){const heard=FL.laptopAt&&now-FL.laptopAt<5000,st=$('flState'),word=heard?FL.state:'NO LAPTOP';if(st.textContent!==word){st.textContent=word;st.className='st '+(heard?FL.state.replace(' ',''):'');}
-      $('flTxt').textContent=!heard?'waiting for the laptop':FL.med!=null?fmt(FL.med)+' '+FL.unit:'tap the lit square';};
+      const gs=S.gst,cnt=gs&&gs.max?'tap '+gs.n+' of '+gs.max+' · ':'';$('flTxt').textContent=!heard?'waiting for the laptop':cnt+(FL.med!=null?fmt(FL.med)+' '+FL.unit:'tap the lit square');};
     GK.init([]);
     function begin(){S.begun=true;AU.on=true;auStart();flWake();try{const p=document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();if(p&&p.catch)p.catch(()=>{});}catch(e){}}
     function join(v){const c=(v||'').trim().toUpperCase();if(/^[A-Z0-9]{4,8}$/.test(c)){joinRoom(c);try{history.replaceState(null,'','?floor&room='+c);}catch(e){}}else S.bad=true;}
@@ -746,6 +759,7 @@ const GBENCH=/[?&]bench\b/.test(location.search);
       if(!ROOM){GK.card({mode:'',head:'Type the code shown on the laptop',text:S.bad?'A code is 4 letters or digits.':'',input:8,btns:[['JOIN',join]]});return;}
       if(S.ring){GK.card({anim:'ring',mode:'thru',head:'Stand a drink can on the ring',text:'Press − or + until the ring matches the base of the can (66 mm). If the ring is wider than the screen, match its top and bottom.',btns:[['−',()=>{FL.ringPpm=clamp(FL.ringPpm*.99,2,30);},1],['+',()=>{FL.ringPpm=clamp(FL.ringPpm*1.01,2,30);},1],['IT MATCHES',()=>{FL.ppm=FL.ringPpm;FL.chk=true;store.set('butter-ledger-ppm',String(FL.ppm));S.ring=false;flRing(false);hello();}]],foot:[['back',()=>{S.ring=false;flRing(false);}]]});return;}
       if(!S.begun){GK.card({anim:'layflat',mode:'thru',head:'Lay the phone flat, screen up',text:'Put it in front of the laptop. Then tap the lit square on the second beep.',btns:[['BEGIN',begin]],foot:FL.chk?[]:[['optional: check the size with a drink can',()=>{S.ring=true;flRing(true);}]]});return;}
+      if(S.gst&&S.gst.done){GK.card({mode:'',head:'Finished',text:'Look at the laptop for the result.'});return;}
       GK.card({mode:'off'});}
     setInterval(tickF,200);tickF();
   }
