@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>LEDGER: every touch is a measurement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;border-radius:0!important}
+html,body{margin:0;height:100%;overflow:hidden;background:#fff;color:#000;font:12px/1.3 'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+button{font:inherit;background:#fff;color:#000;border:2px solid #000;padding:6px 8px;cursor:pointer;white-space:nowrap}
+button:disabled{color:#9a9a9a;border-color:#9a9a9a;cursor:default}
+button.on{background:#000;color:#fff}
+.st{font-weight:600;padding:1px 8px;border:2px solid #000;white-space:nowrap}
+.st.LEARNING{background:#ffd23f}.st.TRUSTED{background:#19e6c8}.st.BUMPED{background:#ff2e2e;color:#fff}
+#app{height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr) auto}
+#top{display:flex;gap:10px;align-items:center;border-bottom:2px solid #000;padding:4px 8px;white-space:nowrap;overflow:hidden}
+#top b{font-weight:600}
+#topErr{font-weight:600}
+#unit{color:#000;overflow:hidden;text-overflow:ellipsis}
+#views{display:grid;min-height:0;grid-template-columns:1fr 1fr;grid-template-rows:minmax(0,3fr) minmax(0,4fr) auto}
+.pane{min-height:0;min-width:0;display:flex;flex-direction:column;position:relative}
+#pCam{grid-column:1/3;border-bottom:2px solid #000}
+#pPlan{border-right:2px solid #000}
+#pRead{grid-column:1/3;border-top:2px solid #000}
+.cap{font-size:10px;padding:2px 6px;border-bottom:1px solid #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
+.box{flex:1;min-height:0;position:relative;overflow:hidden}
+.box canvas,.box video{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+video{object-fit:contain;background:#fff}
+#nums{display:grid;grid-template-columns:1fr 1fr;gap:0 10px;padding:3px 6px;font-size:10px}
+#nums div{display:flex;justify-content:space-between;gap:6px;white-space:nowrap;overflow:hidden}
+#nums .wide{grid-column:1/-1}
+#nums b{font-weight:600;overflow:hidden;text-overflow:ellipsis}
+#sparkBox{flex:none;height:46px;border-top:1px solid #000;border-bottom:1px solid #000}
+#msg{padding:3px 6px;font-size:10px;height:30px;overflow:hidden}
+#strip{border-top:2px solid #000;display:flex;flex-wrap:wrap;gap:4px;padding:4px;font-size:10px}
+#strip button{padding:5px 6px;flex:1 1 auto}
+#pairBox{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;border:2px solid #000;padding:12px;width:min(340px,94vw);display:none;z-index:9;max-height:96dvh;overflow:hidden}
+#pairBox.on{display:block}
+#qr{width:150px;height:150px;margin:8px 0;border:1px solid #000;display:flex;align-items:center;justify-content:center;font-size:10px;text-align:center}
+#pairUrl{word-break:break-all;font-size:10px;-webkit-user-select:text;user-select:text}
+#pairCode{font-size:28px;font-weight:600;letter-spacing:4px}
+@media(min-width:900px){
+  #views{grid-template-columns:minmax(0,1.5fr) minmax(0,.8fr) minmax(0,.8fr) 310px;grid-template-rows:minmax(0,1fr)}
+  #pCam{grid-column:auto;border-bottom:0;border-right:2px solid #000}
+  #pMap{border-right:2px solid #000}
+  #pRead{grid-column:auto;border-top:0}
+  #nums{grid-template-columns:1fr;font-size:12px;padding:6px 8px;gap:2px}
+  #sparkBox{height:130px}
+  #msg{font-size:11px;height:auto;flex:1;min-height:0;padding:6px 8px}
+  #strip{font-size:12px}#strip button{flex:0 0 auto;padding:6px 10px}
+  .cap{font-size:11px}
+}
+/* the Floor */
+#floor{display:none;height:100dvh;grid-template-rows:auto minmax(0,1fr) auto;touch-action:none}
+#flBar{display:flex;flex-wrap:wrap;gap:3px 6px;align-items:center;border-bottom:2px solid #000;padding:3px 6px;font-size:11px;white-space:nowrap;overflow:hidden}
+#flBar .sp{flex:1}
+#flBar button{padding:3px 6px;font-size:10px}
+#flTxt{flex:0 0 100%;order:9;overflow:hidden;text-overflow:ellipsis;font-size:10px}
+#flBox{position:relative;min-height:0;overflow:hidden;touch-action:none}
+#flCv{position:absolute;left:0;top:0;width:100%;height:100%;display:block;touch-action:none}
+#flRing{display:none;border-top:2px solid #000;padding:8px;font-size:11px;background:#fff}
+#flRing.on{display:block}
+#flRing .r{display:flex;gap:6px;margin-top:6px}
+#flRing button{flex:1;padding:12px 4px;font-size:14px}
+#flJoin{display:none;border-top:2px solid #000;padding:6px;font-size:11px;gap:6px;align-items:center;background:#fff}
+#flJoin.on{display:flex}
+#flCode{font:inherit;border:2px solid #000;padding:6px;width:90px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top"><b>LEDGER</b><span id="state" class="st">NO MAP</span><span id="topErr"></span><span id="unit"></span></div>
+  <div id="views">
+    <div class="pane" id="pCam"><div class="cap" id="capCam">CAMERA A: off</div><div class="box"><video id="vid" muted playsinline></video><canvas id="cvCam"></canvas></div></div>
+    <div class="pane" id="pPlan"><div class="cap" id="capPlan">FLOOR PLAN: glass point, camera prediction, gap</div><div class="box"><canvas id="cvPlan"></canvas></div></div>
+    <div class="pane" id="pMap"><div class="cap" id="capMap">PREDICTED ERROR PER CELL: next target</div><div class="box"><canvas id="cvMap"></canvas></div></div>
+    <div class="pane" id="pRead">
+      <div id="nums">
+        <div><span>last error</span><b id="rLast">not measured</b></div>
+        <div><span>median last 10</span><b id="rMed">not measured</b></div>
+        <div class="wide"><span>pairs used/aside/rej/unpaired</span><b id="rPairs">0/0/0/0</b></div>
+        <div><span>map model</span><b id="rModel">none</b></div>
+        <div><span>camera lag (solved)</span><b id="rLag">not measured</b></div>
+        <div><span>link delay</span><b id="rLink">not measured</b></div>
+        <div><span>tracker</span><b id="rTrk">off</b></div>
+        <div><span>Floor</span><b id="rFloor">not heard</b></div>
+      </div>
+      <div class="box" id="sparkBox"><canvas id="cvSpark"></canvas></div>
+      <div id="msg">No setup. Every touch on the Floor is a measurement. PAIR PHONE and CAMERA ON, or TRY WITHOUT A PHONE.</div>
+    </div>
+  </div>
+  <div id="strip">
+    <button id="bSim">TRY WITHOUT A PHONE</button>
+    <button id="bBump" disabled>BUMP</button>
+    <button id="bSpeed" disabled>SPEED 1x</button>
+    <button id="bPair">PAIR PHONE</button>
+    <button id="bCam">CAMERA ON</button>
+    <button id="bStrat">TARGETS: UNCERTAIN</button>
+    <button id="bSnd">SOUND OFF</button>
+    <button id="bClear">CLEAR LEDGER</button>
+  </div>
+  <div id="pairBox">
+    <div><b>PAIR THE FLOOR</b></div>
+    <div id="qr"></div>
+    <div>room code <span id="pairCode"></span></div>
+    <div id="pairUrl"></div>
+    <div id="pairNote" style="margin:6px 0;font-size:10px"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap"><button id="bPairOpen">OPEN FLOOR IN THIS BROWSER</button><button id="bPairClose">CLOSE</button></div>
+  </div>
+</div>
+<div id="floor">
+  <div id="flBar"><span id="flState" class="st">NO MAP</span><span class="sp"></span><span id="flTxt">laptop not heard</span><button id="flSnd">SOUND OFF</button><button id="flCan">CAN</button><button id="flFull">FULL</button></div>
+  <div id="flBox"><canvas id="flCv"></canvas></div>
+  <div id="flRing">
+    <div id="flRingTxt">Stand a standard drink can (66 mm base) on the glass inside the ring. Press + or - until the ring matches the base. If the ring is wider than the screen, match its top and bottom edges. This sets screen px per mm. SKIP keeps units in screen px.</div>
+    <div class="r"><button id="flMinus">-</button><button id="flPlus">+</button><button id="flSet">SET</button><button id="flSkip">SKIP</button></div>
+  </div>
+  <div id="flJoin"><span>room</span><input id="flCode" maxlength="8" autocomplete="off" autocapitalize="characters"><button id="flGo">JOIN</button><span id="flJoinTxt">no room code: only a laptop page in this same browser can hear this Floor</span></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" onerror="window.__noQR=true"></script>
+<script src="../../markov/hands.js" onerror="window.__noHandsJs=true"></script>
+<script>
+'use strict';
+/* ================= small tools ================= */
+const $=id=>document.getElementById(id);
+const FLOOR=/[?&]floor\b/.test(location.search);
+const uid=()=>Math.random().toString(36).slice(2,10);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const median=a=>{if(!a.length)return NaN;const s=a.slice().sort((x,y)=>x-y),m=s.length>>1;return s.length&1?s[m]:(s[m-1]+s[m])/2;};
+const fmt=v=>v==null||!isFinite(v)?'-':v<10?v.toFixed(1):v.toFixed(0);
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const gaussOf=R=>()=>{let u=0;while(u<1e-12)u=R();return Math.sqrt(-2*Math.log(u))*Math.cos(6.283185307179586*R());};
+const store={get(k){try{return localStorage.getItem(k);}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,v);return true;}catch(e){return false;}}};
+
+/* ================= linear algebra ================= */
+function solve(A,b){const n=b.length;A=A.map(r=>r.slice());b=b.slice();
+  for(let i=0;i<n;i++){let p=i;for(let r=i+1;r<n;r++)if(Math.abs(A[r][i])>Math.abs(A[p][i]))p=r;
+    if(!(Math.abs(A[p][i])>1e-13))return null;const tr=A[i];A[i]=A[p];A[p]=tr;const tb=b[i];b[i]=b[p];b[p]=tb;
+    for(let r=i+1;r<n;r++){const f=A[r][i]/A[i][i];if(f){for(let c=i;c<n;c++)A[r][c]-=f*A[i][c];b[r]-=f*b[i];}}}
+  const x=new Array(n);for(let i=n-1;i>=0;i--){let s=b[i];for(let c=i+1;c<n;c++)s-=A[i][c]*x[c];x[i]=s/A[i][i];}
+  for(const v of x)if(!isFinite(v))return null;return x;}
+function invert(A){const n=A.length,cols=[];for(let j=0;j<n;j++){const e=new Array(n).fill(0);e[j]=1;const c=solve(A,e);if(!c)return null;cols.push(c);}
+  return A.map((_,i)=>cols.map(c=>c[i]));}
+
+/* The map from camera pixels to Floor units. kind 'aff' = 6 numbers, 'hom' = 8 numbers (plane homography).
+   P: [{u,v,x,y,a}] a = age weight. Robust: Tukey weights on the residual, scale from the median residual, never below sMin.
+   Returns predict(u,v), sd(u,v) (predicted radial error of one new prediction there), inverse(x,y), res[], rob[]. */
+function fitModel(kind,P,sMin,s0){
+  const n=P.length,np=kind==='hom'?8:6;if(n<(kind==='hom'?4:3))return null;
+  let cu=0,cv=0,cx=0,cy=0;for(const p of P){cu+=p.u;cv+=p.v;cx+=p.x;cy+=p.y;}cu/=n;cv/=n;cx/=n;cy/=n;
+  let su=0,sx=0;for(const p of P){su+=Math.hypot(p.u-cu,p.v-cv);sx+=Math.hypot(p.x-cx,p.y-cy);}su/=n;sx/=n;if(!(su>1e-6)||!(sx>1e-6))return null;
+  const Q=P.map(p=>[(p.u-cu)/su,(p.v-cv)/su,(p.x-cx)/sx,(p.y-cy)/sx]);
+  const at=(h,U,V)=>{const D=h[6]*U+h[7]*V+1;return[(h[0]*U+h[1]*V+h[2])/D,(h[3]*U+h[4]*V+h[5])/D,D];};
+  const rob=new Array(n).fill(1),res=new Array(n).fill(0);let h=[1,0,0,0,1,0,0,0],N=null,cost=0,mad=0;
+  function normal(h,m){const A=[],g=new Array(m).fill(0);for(let i=0;i<m;i++)A.push(new Array(m).fill(0));let c=0;
+    for(let i=0;i<n;i++){const w=P[i].a*rob[i];if(!(w>0))continue;const q=Q[i],e=at(h,q[0],q[1]),D=e[2],rx=q[2]-e[0],ry=q[3]-e[1];
+      const Jx=[q[0]/D,q[1]/D,1/D,0,0,0,-e[0]*q[0]/D,-e[0]*q[1]/D],Jy=[0,0,0,q[0]/D,q[1]/D,1/D,-e[1]*q[0]/D,-e[1]*q[1]/D];
+      for(let a=0;a<m;a++){g[a]+=w*(Jx[a]*rx+Jy[a]*ry);for(let b=a;b<m;b++)A[a][b]+=w*(Jx[a]*Jx[b]+Jy[a]*Jy[b]);}c+=w*(rx*rx+ry*ry);}
+    for(let a=0;a<m;a++)for(let b=0;b<a;b++)A[a][b]=A[b][a];return{A,g,c};}
+  function costOf(h){let c=0;for(let i=0;i<n;i++){const w=P[i].a*rob[i];if(!(w>0))continue;const q=Q[i],e=at(h,q[0],q[1]);if(!(e[2]>1e-6))return Infinity;c+=w*((q[2]-e[0])**2+(q[3]-e[1])**2);}return c;}
+  for(let round=0;round<6;round++){
+    /* affine part first (linear, exact in one step), then the two perspective numbers by damped Gauss-Newton */
+    let L=normal([0,0,0,0,0,0,0,0],6),d=solve(L.A.map((r,i)=>r.map((v,j)=>v+(i===j?1e-10:0))),L.g);if(!d)return null;
+    let ha=[d[0],d[1],d[2],d[3],d[4],d[5],0,0];
+    if(kind==='aff'){h=ha;}
+    else{if(round===0||!(costOf(h)<=costOf(ha)))h=ha;let lam=1e-6;
+      for(let it=0;it<12;it++){const M=normal(h,8),c0=M.c;let ok=false;
+        for(let tr=0;tr<6&&!ok;tr++){const dd=solve(M.A.map((r,i)=>r.map((v,j)=>v+(i===j?lam*(1+v):0))),M.g);
+          if(dd){const hn=h.map((v,i)=>v+dd[i]),c1=costOf(hn);if(c1<=c0){const gain=c0-c1;h=hn;lam=Math.max(1e-9,lam/4);ok=true;if(gain<1e-12*(1+c0))it=99;}else lam*=10;}else lam*=10;}
+        if(!ok)break;}}
+    const live=[];for(let i=0;i<n;i++){const q=Q[i],e=at(h,q[0],q[1]);res[i]=sx*Math.hypot(q[2]-e[0],q[3]-e[1]);if(P[i].a>0)live.push(res[i]);}
+    mad=1.4826*median(live);const s=Math.max(sMin,mad),c=4.685*s;let kept=0;const nr=res.map(r=>r<c?(1-(r/c)**2)**2:0);for(const v of nr)if(v>.05)kept++;
+    if(kept<np/2+1){break;}for(let i=0;i<n;i++)rob[i]=nr[i];}
+  const F=normal(h,np);N=F.A;cost=F.c;const Ni=invert(N.map((r,i)=>r.map((v,j)=>v+(i===j?1e-10:0))));if(!Ni)return null;
+  let sw=0;for(let i=0;i<n;i++)sw+=P[i].a*rob[i];const nu0=4,sg0=s0/sx,sig2=(cost+nu0*sg0*sg0)/Math.max(1,2*sw-np+nu0);
+  const M=[[h[0],h[1],h[2]],[h[3],h[4],h[5]],[h[6],h[7],1]],Mi=invert(M);if(!Mi)return null;
+  return{kind,n,sx,mad,res,rob,sigma:sx*Math.sqrt(sig2),
+    predict(u,v){const e=at(h,(u-cu)/su,(v-cv)/su);return[e[0]*sx+cx,e[1]*sx+cy];},
+    sd(u,v){const U=(u-cu)/su,V=(v-cv)/su,e=at(h,U,V),D=e[2];if(!(D>1e-6))return Infinity;
+      const Jx=[U/D,V/D,1/D,0,0,0,-e[0]*U/D,-e[0]*V/D],Jy=[0,0,0,U/D,V/D,1/D,-e[1]*U/D,-e[1]*V/D];let q=0;
+      for(let a=0;a<np;a++)for(let b=0;b<np;b++)q+=Ni[a][b]*(Jx[a]*Jx[b]+Jy[a]*Jy[b]);return sx*Math.sqrt(Math.max(0,sig2*(q+2)));},
+    inverse(x,y){const X=(x-cx)/sx,Y=(y-cy)/sx,w=Mi[2][0]*X+Mi[2][1]*Y+Mi[2][2];return[(Mi[0][0]*X+Mi[0][1]*Y+Mi[0][2])/w*su+cu,(Mi[1][0]*X+Mi[1][1]*Y+Mi[1][2])/w*su+cv];}};}
+
+/* the target grid: cells close to square, 4 across the short side */
+function gridFor(W,H){const short=Math.min(W,H),cell=short/4;return{cols:clamp(Math.round(W/cell),2,12),rows:clamp(Math.round(H/cell),2,12)};}
+/* with no map: order cells by distance from every earlier point, farthest first */
+function spreadOrder(cols,rows,W,H,pts,R){const sc=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const x=(c+.5)*W/cols,y=(r+.5)*H/rows;let d=Infinity;for(const p of pts)d=Math.min(d,Math.hypot(p.x-x,p.y-y));
+    if(!pts.length)d=Math.hypot(x-W/2,y-H/2)+R()*W*.3;sc.push(d);}return sc;}
+
+/* ================= the ledger and its solver: sees only camera pixels and glass points ================= */
+class Core{
+  constructor(o){this.o=Object.assign({strategy:'cover',HL:60,rng:Math.random},o||{});this.W=390;this.H=780;this.ppm=null;this.onEvent=null;this.reset();}
+  get k(){return this.ppm?1/this.ppm:1;}          /* glass px -> units */
+  get q(){return this.ppm?1:6.3;}                 /* a length given in mm -> units (6.3 px per mm is a guess used only for thresholds when the scale is not set) */
+  get unit(){return this.ppm?'mm':'px';}
+  get TH(){return 5*this.q;}
+  reset(){this.pairs=[];this.scored=[];this.esr=[];this.eA=[];this.eH=[];this.bumps=[];this.alarmLog=[];this.alarms=0;this.cancelled=0;this.trial=null;this.bumped=false;this.state='NO MAP';this.why='no map: fewer than 3 usable pairs';this.cam=[];this.pending=[];
+    this.tau=80;this.tauKnown=false;this.fit=null;this.fitA=null;this.fitH=null;this.lastCamT=-1e9;this.lastCam=null;this.unpaired=0;this.trusted=false;this.nTouch=0;this.seen={};this.cover=0;this.worstSd=Infinity;
+    this.grid=gridFor(this.W,this.H);this.mkPlan();}
+  setFloor(W,H,ppm){const ch=W!==this.W||H!==this.H||ppm!==this.ppm;if(!ch)return false;if(W!==this.W||H!==this.H)this.seen={};this.W=W;this.H=H;this.ppm=ppm||null;this.grid=gridFor(W,H);for(const r of this.pairs)r.gc=this.cellOf(r.gx,r.gy);this.refit();this.mkPlan();this.setState();return true;}
+  say(type,text,rec){if(this.onEvent)try{this.onEvent(type,text,rec);}catch(e){}}
+  camSample(t,u,v){if(!isFinite(u)||!isFinite(v))return;this.cam.push({t,u,v});this.lastCamT=t;this.lastCam={t,u,v};while(this.cam.length&&this.cam[0].t<t-4000)this.cam.shift();this.tick(t);}
+  touch(m){this.pending.push(m);this.tick(Math.max(this.lastCamT,m.now||-1e9));}
+  tick(now){for(let i=0;i<this.pending.length;){const p=this.pending[i];if(this.lastCamT>=p.t+this.tau||now>=p.t+this.tau+250){this.pending.splice(i,1);this.process(p);}else i++;}
+    for(let i=Math.max(0,this.pairs.length-6);i<this.pairs.length;i++){const r=this.pairs[i];if(!r.win&&this.lastCamT>r.t+770){r.win=[];for(const c of this.cam){const d=c.t-r.t;if(d>=-120&&d<=760)r.win.push([d,c.u,c.v]);}}}}
+  static pick(L,t,maxGap){/* L sorted by time: [{t,u,v}] or [[t,u,v]] */
+    const T=e=>e.t!==undefined?e.t:e[0],U=e=>e.u!==undefined?e.u:e[1],V=e=>e.v!==undefined?e.v:e[2];
+    let j=L.length-1;while(j>=0&&T(L[j])>t)j--;const a=L[j],b=L[j+1];
+    if(a&&b&&T(b)-T(a)<120){const f=(t-T(a))/(T(b)-T(a));return{u:U(a)+f*(U(b)-U(a)),v:V(a)+f*(V(b)-V(a)),dt:0};}
+    const c=!a?b:!b?a:(t-T(a)<T(b)-t?a:b);if(!c||Math.abs(T(c)-t)>maxGap)return null;return{u:U(c),v:V(c),dt:T(c)-t};}
+  cellOf(x,y){const g=this.grid;return clamp(Math.floor(x/(this.W/g.cols)),0,g.cols-1)+clamp(Math.floor(y/(this.H/g.rows)),0,g.rows-1)*g.cols;}
+  classOf(cell){const g=this.grid,c=cell%g.cols,r=Math.floor(cell/g.cols),ec=c===0||c===g.cols-1,er=r===0||r===g.rows-1;return ec&&er?'corner':(ec||er)?'edge':'centre';}
+  /* THE SCORE. The camera sample is run through the map as it stood before this touch. Only afterwards does the pair enter the ledger and the fit. */
+  process(p){const k=this.k,c=Core.pick(this.cam,p.t+this.tau,200);this.nTouch++;
+    const dist=f=>{const q=f.predict(c.u,c.v);return Math.hypot(q[0]/k-p.x,q[1]/k-p.y);};
+    const rec={i:this.pairs.length,id:p.id,gx:p.x,gy:p.y,gc:this.cellOf(p.x,p.y),t:p.t,cam:c,pred:null,e:null,psd:null,stale:false,rej:false,win:null,cell:p.cell,hit:p.hit,model:null};
+    this.seen[rec.gc]=this.nTouch;
+    if(c){
+      if(this.trial){const T=this.trial,eo=dist(T.fitO);if(isFinite(eo)){T.eO.push(eo);if(T.fitN&&T.nN>=4){const en=dist(T.fitN);if(isFinite(en)){T.cmp.push([eo,en]);T.shadow.push({i:rec.i,gx:rec.gx,gy:rec.gy,gc:rec.gc,e:en});}}}}
+      if(this.fitA)this.eA.push(dist(this.fitA));
+      if(this.fitH)this.eH.push(dist(this.fitH));
+      if(this.fit){const q=this.fit.predict(c.u,c.v);if(isFinite(q[0])&&isFinite(q[1])){rec.pred={x:q[0]/k,y:q[1]/k};rec.e=Math.hypot(rec.pred.x-p.x,rec.pred.y-p.y);rec.psd=this.fit.sd(c.u,c.v)/k;rec.model=this.fit.kind;this.scored.push(rec);this.esr.push(rec);}}
+    }else this.unpaired++;
+    this.pairs.push(rec);
+    let ev=null;if(this.trial)ev=this.stepTrial(rec);else if(rec.e!=null)ev=this.checkShift(rec);
+    this.refit();if(this.nTouch%(this.tauKnown&&this.nTouch>40?8:4)===0)this.solveLag();this.mkPlan();this.setState();
+    const u=' '+this.unit;
+    if(ev&&ev.type==='alarm')this.say('alarm','errors rose from about '+fmt(ev.ref*k)+' to '+fmt(ev.now*k)+u+' on several touches. Possible move: earlier pairs count for less while a map from the new touches is tested against the old map.',rec);
+    else if(ev&&ev.type==='confirm')this.say('bump','move confirmed: on the same touches the new map was off by '+fmt(ev.mn*k)+u+', the old map by '+fmt(ev.mo*k)+u+'. '+ev.aside+' earlier pairs set aside.',rec);
+    else if(ev&&ev.type==='cancel')this.say('cancel','no move: the old map still predicts the new touches ('+fmt(ev.mo*k)+u+(ev.mn!=null?', new map '+fmt(ev.mn*k)+u:'')+'). Earlier pairs restored.',rec);
+    else if(!c)this.say('touch','touch '+(rec.i+1)+': the camera saw no fingertip within 0.2 s of it. Recorded, not paired.',rec);
+    else if(rec.e==null)this.say('touch','touch '+(rec.i+1)+': paired. No map yet, so no prediction to score.',rec);
+    else this.say('touch','touch '+(rec.i+1)+': camera predicted '+fmt(rec.e*k)+u+' from the glass point.',rec);
+    return rec;}
+  /* Has something moved? The limits come from the ledger's own recent prediction errors (median m, robust spread s), not from fixed millimetres.
+     An alarm needs a sustained shift: the last 3 errors all above m+4s, or the median of the last 8 above m+2s. One bad touch never raises it.
+     An alarm discards nothing. It starts a trial: see stepTrial. */
+  limits(){const E=this.esr,n=E.length;if(n<20)return null;const mm=this.q/this.k,ref=E.slice(Math.max(0,n-32),n-8).map(r=>r.e),m=median(ref),s=Math.max(1.4826*median(ref.map(v=>Math.abs(v-m))),.25*m,.3*mm);return{m,L4:m+4*s,L2:m+2*s,L1:m+s};}
+  checkShift(rec){const E=this.esr,n=E.length,lm=this.limits();if(!lm||!this.fit)return null;const m=lm.m,L4=lm.L4,L2=lm.L2;
+    const l3=E.slice(-3),l8=E.slice(-8);let onset=null;
+    let rule='A';if(l3.every(r=>r.e>L4))onset=l3[0];else{const m8=median(l8.map(r=>r.e));if(m8>L2){onset=l8.find(r=>r.e>L2);rule='B';}}
+    if(!onset)return null;
+    const old=this.active().filter(r=>r.i<onset.i),fitO=(old.length>=3&&fitModel(old.length>=7?'hom':'aff',this.mkP(old),this.q*.8,this.q*3))||this.fit;
+    this.trial={onset:onset.i,at:rec.i,rule,fitO,fitN:null,nN:0,eO:[],cmp:[],shadow:[],L1:lm.L1,ref:m,wasBumped:this.bumped};this.bumped=true;this.trusted=false;this.alarms++;
+    return{type:'alarm',ref:m,now:median(l3.map(r=>r.e))};}
+  /* The trial. Old pairs keep 1/4 of their weight in the working map. Two more maps are kept: one from old pairs only (frozen), one from pairs since the onset only.
+     Each new touch is predicted by both before it is used. If the new-only map is clearly better (median under 3/4 of the old map's over the latest 5 or 6 such touches), the move is
+     confirmed, the old pairs are set aside, and the new map's own predictions on those touches become the record trust is judged on. If the old map predicts normally again (median of 4 touches under m+s), or the new map is still no better after 14, the alarm is withdrawn and nothing is lost. */
+  stepTrial(rec){const T=this.trial;let res=null,mo=null,mn=null;
+    const c6=T.cmp.slice(-6);if(c6.length){mo=median(c6.map(c=>c[0]));mn=median(c6.map(c=>c[1]));}
+    if(T.eO.length>=4&&median(T.eO.slice(-4))<=T.L1){res='cancel';mo=median(T.eO.slice(-4));}
+    else if(c6.length>=5&&mn<.75*mo)res='confirm';
+    else if(T.cmp.length>=14)res='cancel';
+    if(!res&&rec.i-T.at>=24){res='cancel';if(mo==null)mo=T.eO.length?median(T.eO):0;}
+    if(!res)return null;this.trial=null;
+    if(res==='cancel'){this.bumped=T.wasBumped;this.cancelled++;this.alarmLog.push({at:T.at,end:rec.i,res,rule:T.rule});return{type:'cancel',mo,mn};}
+    let aside=0;for(const r of this.pairs)if(r.i<T.onset&&!r.stale){r.stale=true;aside++;}
+    this.esr=T.shadow.slice();this.eA=[];this.eH=[];this.seen={};for(const r of this.pairs)if(!r.stale)this.seen[r.gc]=r.i+1;
+    this.bumps.push({at:T.onset,declared:T.at,confirmed:rec.i,ref:T.ref,aside});this.alarmLog.push({at:T.at,end:rec.i,res});return{type:'confirm',mo,mn,aside};}
+  active(){const a=this.pairs.filter(r=>!r.stale&&r.cam);return a.length>160?a.slice(-160):a;}
+  mkP(list,down){const k=this.k,m=list.length,HL=this.o.HL;return list.map((r,j)=>({u:r.cam.u,v:r.cam.v,x:r.gx*k,y:r.gy*k,a:(HL>0?Math.pow(.5,(m-1-j)/HL):1)*(down!==undefined&&r.i<down?.25:1)}));}
+  refit(){const act=this.active(),m=act.length,T=this.trial,P=this.mkP(act,T?T.onset:undefined);
+    this.fitA=fitModel('aff',P,this.q*.8,this.q*3);this.fitH=fitModel('hom',P,this.q*.8,this.q*3);
+    let f=this.fitA;if(this.fitH){if(!this.fitA)f=this.fitH;else{const a=this.eA.slice(-20),h=this.eH.slice(-20);f=(a.length>=3&&h.length>=3)?(median(h)<=1.1*median(a)?this.fitH:this.fitA):(m>=7?this.fitH:this.fitA);}}
+    this.fit=f;for(const r of this.pairs)r.rej=false;if(f)act.forEach((r,j)=>{r.rej=f.rob[j]<.05;});
+    if(T){const fr=act.filter(r=>r.i>=T.onset);T.nN=fr.length;T.fitN=fitModel(fr.length>=7?'hom':'aff',this.mkP(fr),this.q*.8,this.q*3);}}
+  /* When, relative to the touch, should the fingertip sample be taken? For each candidate shift, re-pair every touch with the fingertip at (touch time + shift) and refit;
+     the shift with the smallest residual is the middle of the time the finger is seen resting on the glass. It contains the camera's lag but is not the lag. */
+  solveLag(){const k=this.k,act=this.active().filter(r=>r.win&&r.win.length>3);if(act.length<10)return;const m=act.length,HL=this.o.HL,cs=[];
+    const cost=tc=>{const P=[];act.forEach((r,j)=>{const c=Core.pick(r.win,tc,60);if(c)P.push({u:c.u,v:c.v,x:r.gx*k,y:r.gy*k,a:HL>0?Math.pow(.5,(m-1-j)/HL):1});});
+      if(P.length<m*.8)return Infinity;const f=fitModel('hom',P,this.q*.8,this.q*3);return f?f.mad:Infinity;};
+    /* searched from 40 ms before the touch to 640 ms after: every 40 ms, then every 20 ms around the best */
+    for(let tc=-40;tc<=640;tc+=40)cs.push([tc,cost(tc)]);
+    let bi=0;for(let i=1;i<cs.length;i++)if(cs[i][1]<cs[bi][1])bi=i;if(!isFinite(cs[bi][1]))return;
+    {const t0=cs[bi][0],add=[];for(const d of[-60,-20,20,60])if(t0+d>=-40&&t0+d<=640)add.push([t0+d,cost(t0+d)]);cs.push(...add);cs.sort((a,b)=>a[0]-b[0]);bi=0;for(let i=1;i<cs.length;i++)if(cs[i][1]<cs[bi][1])bi=i;}const lim=cs[bi][1]*1.1+this.q*.05;
+    let lo=bi,hi=bi;while(lo>0&&cs[lo-1][1]<=lim)lo--;while(hi<cs.length-1&&cs[hi+1][1]<=lim)hi++;const best=(cs[lo][0]+cs[hi][0])/2;
+    const was=this.tau;this.tau=this.tauKnown?this.tau+.3*(best-this.tau):best;this.tauKnown=true;this.lagCurve=cs;
+    if(Math.abs(this.tau-was)>4){for(const r of this.pairs)if(r.win&&r.cam){const c=Core.pick(r.win,this.tau,60);if(c)r.cam=c;}this.refit();}}
+  /* TRUSTED needs all of: 5 scored predictions since the last move; their median (last 10) under the limit; the last 12 spread over at least 4 of the 9 thirds of the glass;
+     and the fit's own predicted error at its worst cell under 1.5 x the limit. Two far-off predictions in a row suspend it at once. */
+  setState(){const k=this.k,E=this.esr,es=E.map(r=>r.e*k),med=median(es.slice(-10)),TH=this.TH,h=this.trusted?1.3:1,u=' '+this.unit;this.epochMed=es.length?med:null;
+    this.cover=new Set(E.slice(-12).map(r=>Math.min(2,Math.floor(3*r.gx/this.W))+3*Math.min(2,Math.floor(3*r.gy/this.H)))).size;
+    let why='';const lm=this.limits();
+    if(!this.fit)why='no map: fewer than 3 usable pairs';
+    else if(this.trial)why='a possible move is being tested';
+    else if(es.length<5)why=es.length+' of 5 scored predictions';
+    else if(lm&&E[E.length-1].e>lm.L4&&E[E.length-2].e>lm.L4)why='the last 2 predictions were both far off';
+    else if(!(med<h*TH))why='median '+fmt(med)+u+' is not under '+fmt(TH);
+    else if(this.cover<(this.trusted?3:4))why='recent touches cover '+this.cover+' of 9 regions, 4 needed';
+    else if(!(this.worstSd<=1.5*h*TH))why='predicted error at the worst cell is '+fmt(this.worstSd)+u+', over '+fmt(1.5*TH);
+    this.why=why;
+    if(!why){this.trusted=true;this.bumped=false;this.state='TRUSTED';}
+    else{this.trusted=false;this.state=this.bumped?'BUMPED':this.fit?'LEARNING':'NO MAP';}}
+  last(){const s=this.scored;return s.length?s[s.length-1].e*this.k:null;}
+  med10(){const s=this.esr.slice(-10);return s.length?median(s.map(r=>r.e*this.k)):null;}   /* scored since the last confirmed move */
+  medN(){return Math.min(10,this.esr.length);}
+  /* measured, not predicted: median of the last 10 scored errors in centre cells, edge cells and corner cells */
+  regionErr(){const k=this.k,o={centre:[],edge:[],corner:[]};for(const r of this.esr)o[this.classOf(r.gc)].push(r.e*k);const out={};for(const c in o){const a=o[c].slice(-10);out[c]={n:a.length,med:a.length?median(a):null};}return out;}
+  /* Target order. 'cover' (default): predicted error relative to the mean, plus how long since the cell was last touched (in units of one pass over the grid), plus a little chance.
+     Early on the uncertain cells lead; once the map is even, every cell comes round. 'unc': predicted error only. 'rand': chance only. */
+  mkPlan(){const{cols,rows}=this.grid,k=this.k,R=this.o.rng,n=cols*rows;let sd=[],hasMap=!!this.fit;
+    if(this.fit){let mx=0;for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const x=(c+.5)*this.W/cols*k,y=(r+.5)*this.H/rows*k,uv=this.fit.inverse(x,y);let s=this.fit.sd(uv[0],uv[1]);if(!isFinite(s))s=Infinity;else mx=Math.max(mx,s);sd.push(s);}
+      this.worstSd=sd.every(isFinite)?mx:Infinity;sd=sd.map(s=>isFinite(s)?s:mx*2||1);}
+    else{this.worstSd=Infinity;sd=spreadOrder(cols,rows,this.W,this.H,this.pairs.filter(r=>!r.stale).map(r=>({x:r.gx,y:r.gy})),R).map(d=>d*k);}
+    let order=[...Array(n).keys()];const st=this.o.strategy;
+    if(st==='rand'){for(let i=n-1;i>0;i--){const j=Math.floor(R()*(i+1));const t=order[i];order[i]=order[j];order[j]=t;}}
+    else if(st==='unc')order.sort((a,b)=>sd[b]-sd[a]);
+    else{const mean=sd.reduce((a,b)=>a+b,0)/n||1,key=sd.map((s,i)=>s/mean+(this.nTouch-(this.seen[i]===undefined?-n:this.seen[i]))/n+.3*R());order.sort((a,b)=>key[b]-key[a]);}
+    this.plan={cols,rows,sd,order,hasMap};return this.plan;}
+}
+
+/* ================= simulated room: a hidden camera, a hidden phone pose, a tracker with errors, a player with scatter ================= */
+class Sim{
+  constructor(seed,o){o=o||{};const R=this.R=mulberry32(seed),G=this.G=gaussOf(R),U=this.U=(a,b)=>a+(b-a)*R();
+    this.Wpx=390;this.Hpx=780;this.ppm=390/68;this.Wm=68;this.Hm=this.Hpx/this.ppm;
+    this.camP={x:U(-80,80),y:-U(260,420),z:U(240,380)};this.look={x:U(-25,25),y:U(-25,25),z:0};this.roll=U(-.07,.07);this.f=U(560,660);
+    this.T={x:0,y:0};this.th=U(-.15,.15);this.setCam();
+    this.lag=U(60,130);this.jit=1.8;this.wanderS=1.2;this.pGross=.04;this.pDrop=.02;this.padF=U(3,7);this.padZ=U(5,8);
+    this.shoulder={x:U(60,200),y:this.Hm/2+U(250,400)};this.linkBase=U(15,50);this.linkJit=12;
+    const hs=[];for(let i=0;i<9;i++)hs.push(this.linkBase+(Math.abs(G())+Math.abs(G()))*this.linkJit/2);this.delayMeasured=median(hs);
+    this.period=1000;this.t=0;this.nextFrame=0;this.nextCall=500;this.nextResp=1000;this.taps=[];this.queue=[];this.h0={x:this.Wm/2,y:this.Hm/2,z:35};
+    this.wan={x:0,y:0};this.truth={};this.lastCell=-1;this.target=-1;this.tip=null;this.onBeat=null;this.nTap=0;this.bumpLog=[];
+    this.base={jit:this.jit,wanderS:this.wanderS,pGross:this.pGross,lag:this.lag};this.padVar=o.padVar||0;this.G2=gaussOf(mulberry32(seed^0x0ff5e7));this.dF=0;this.dZ=0;this.dS=0;if(o.harsh)this.setNoise(true);
+    this.core=new Core({strategy:o.strategy||'cover',HL:o.HL===undefined?60:o.HL,rng:mulberry32(seed^0x51ed27)});this.core.setFloor(this.Wpx,this.Hpx,o.noScale?null:this.ppm);}
+  /* harsh: 3 x the jitter and wander, gross misses on 10 % of touches, 120 ms more lag */
+  setNoise(h){const b=this.base;this.harsh=!!h;this.jit=b.jit*(h?3:1);this.wanderS=b.wanderS*(h?3:1);this.pGross=h?.10:b.pGross;this.lag=b.lag+(h?120:0);}
+  setCam(){const c=this.camP,l=this.look,n=v=>{const m=Math.hypot(v[0],v[1],v[2]);return[v[0]/m,v[1]/m,v[2]/m];},X=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+    const f=n([l.x-c.x,l.y-c.y,l.z-c.z]);let r=n(X(f,[0,0,1])),u=X(r,f);const cr=Math.cos(this.roll),sr=Math.sin(this.roll);
+    this.bF=f;this.bR=[r[0]*cr+u[0]*sr,r[1]*cr+u[1]*sr,r[2]*cr+u[2]*sr];this.bU=[u[0]*cr-r[0]*sr,u[1]*cr-r[1]*sr,u[2]*cr-r[2]*sr];}
+  world(fx,fy){const c=Math.cos(this.th),s=Math.sin(this.th),x=fx-this.Wm/2,y=fy-this.Hm/2;return{x:this.T.x+c*x-s*y,y:this.T.y+s*x+c*y};}
+  projW(x,y,z){const d=[x-this.camP.x,y-this.camP.y,z-this.camP.z],F=this.bF,Rr=this.bR,Uu=this.bU,w=d[0]*F[0]+d[1]*F[1]+d[2]*F[2];
+    return[320+this.f*(d[0]*Rr[0]+d[1]*Rr[1]+d[2]*Rr[2])/w,240-this.f*(d[0]*Uu[0]+d[1]*Uu[1]+d[2]*Uu[2])/w];}
+  projF(fx,fy,z){const w=this.world(fx,fy);return this.projW(w.x,w.y,z||0);}
+  mark(fx,fy,z){/* where the tracker's fingertip landmark is when the pad is at (fx,fy,z): ahead of the pad along the finger, and above it */
+    const w=this.world(fx,fy),dx=w.x-this.shoulder.x,dy=w.y-this.shoulder.y,m=Math.hypot(dx,dy)||1,F=this.padF+this.dF,S=this.dS;return this.projW(w.x+F*dx/m-S*dy/m,w.y+F*dy/m+S*dx/m,z+Math.max(0,this.padZ+this.dZ));}
+  hand(t){let T=null,pi=-1;for(let i=this.taps.length-1;i>=0;i--)if(this.taps[i].ta<=t){T=this.taps[i];pi=i;break;}if(!T)return{p:this.h0,T:null};
+    const mj=s=>{s=clamp(s,0,1);return 10*s**3-15*s**4+6*s**5;},mix=(a,b,s)=>({x:a.x+(b.x-a.x)*s,y:a.y+(b.y-a.y)*s,z:a.z+(b.z-a.z)*s}),L={x:T.L.x,y:T.L.y,z:0};
+    if(t<T.tt)return{p:mix(T.from,L,mj((t-T.ta)/280)),T};if(t<T.tt+T.D)return{p:L,T};if(t<T.tt+T.D+200)return{p:mix(L,T.hover,mj((t-T.tt-T.D)/200)),T};return{p:T.hover,T};}
+  planTap(bc){const R=this.R,G=this.G,U=this.U,pl=this.core.plan,cols=pl.cols,rows=pl.rows;let cell=pl.order[0];if(cell===this.lastCell&&pl.order.length>1)cell=pl.order[1];
+    this.target=cell;this.lastCell=cell;if(R()<.05)return;                                   /* the player misses this beat */
+    let c=cell%cols,r=Math.floor(cell/cols);if(R()<.06){c=clamp(c+(R()<.5?-1:1),0,cols-1);r=clamp(r+(R()<.5?-1:1),0,rows-1);}   /* wrong cell */
+    const cw=this.Wm/cols,ch=this.Hm/rows,L={x:clamp((c+.5)*cw+G()*5,2,this.Wm-2),y:clamp((r+.5)*ch+G()*5,2,this.Hm-2)};
+    const prev=this.taps[this.taps.length-1],tt=bc+this.period/2+G()*45,from=prev?prev.hover:this.h0;
+    const tap={tt,ta:tt-280,D:U(90,220),L,from,hover:{x:clamp(L.x*.7+this.Wm*.15+G()*6,0,this.Wm),y:clamp(L.y*.7+this.Hm*.15+G()*6,0,this.Hm),z:U(25,45)},
+      dF:this.padVar?this.G2()*this.padVar:0,dZ:this.padVar?this.G2()*this.padVar*.5:0,dS:this.padVar?this.G2()*this.padVar:0,gross:R()<this.pGross?(a=>({x:Math.cos(a),y:Math.sin(a),m:U(20,90)}))(U(0,6.283)):null,drop:R()<this.pDrop,cell,hit:(c+r*cols)===cell};
+    this.taps.push(tap);if(this.taps.length>6)this.taps.shift();this.nTap++;this.truth['s'+this.nTap]={gross:!!tap.gross,drop:tap.drop};
+    const d=this.linkBase+(Math.abs(G())+Math.abs(G()))*this.linkJit/2;
+    this.queue.push({at:tt+d,msg:{x:L.x*this.ppm+G()*.3,y:L.y*this.ppm+G()*.3,t:tt+d-this.delayMeasured,id:'s'+this.nTap,cell,hit:tap.hit,now:tt+d}});this.queue.sort((a,b)=>a.at-b.at);}
+  atFrame(tf){
+    while(this.nextCall<=tf){this.planTap(this.nextCall);this.nextCall+=this.period;if(this.onBeat)this.onBeat('call');}
+    while(this.nextResp<=tf){this.nextResp+=this.period;if(this.onBeat)this.onBeat('resp');}
+    while(this.queue.length&&this.queue[0].at<=tf)this.core.touch(this.queue.shift().msg);
+    const tc=tf-this.lag,h=this.hand(tc),T=h.T,G=this.G;this.wan.x=.9*this.wan.x+G()*this.wanderS*.436;this.wan.y=.9*this.wan.y+G()*this.wanderS*.436;
+    if((T&&T.drop&&tc>T.tt-150&&tc<T.tt+350)||this.R()<.03){this.tip=null;this.core.tick(tf);return;}
+    this.dF=T?T.dF:0;this.dZ=T?T.dZ:0;this.dS=T?T.dS:0;const m=this.mark(h.p.x,h.p.y,h.p.z);let u=m[0]+G()*this.jit+this.wan.x,v=m[1]+G()*this.jit+this.wan.y;
+    if(T&&T.gross&&Math.abs(tc-T.tt)<350){u+=T.gross.x*T.gross.m;v+=T.gross.y*T.gross.m;}
+    this.tip={u,v,z:h.p.z};this.core.camSample(tf,u,v);}
+  advance(dt){this.t+=dt;while(this.nextFrame<=this.t){const tf=this.nextFrame;this.nextFrame+=1000/30;this.atFrame(tf);}}
+  bump(kind,scale){const U=this.U,R=this.R;scale=scale||1;kind=kind||(R()<.5?'cam':'phone');const a=U(0,6.283),sg=R()<.5?-1:1;let txt;
+    if(kind==='cam'){const d=U(15,40)*scale,yaw=sg*U(1.5,4)*scale*Math.PI/180;const lx=this.look.x-this.camP.x,ly=this.look.y-this.camP.y,c=Math.cos(yaw),s=Math.sin(yaw);
+      this.camP.x+=d*Math.cos(a);this.camP.y+=d*Math.sin(a);this.look.x=this.camP.x+c*lx-s*ly;this.look.y=this.camP.y+s*lx+c*ly;this.setCam();txt='camera moved '+d.toFixed(0)+' mm and turned '+(yaw*180/Math.PI).toFixed(1)+' deg';}
+    else{const d=U(10,30)*scale,rot=sg*U(3,10)*scale*Math.PI/180;this.T.x+=d*Math.cos(a);this.T.y+=d*Math.sin(a);this.th+=rot;txt='phone moved '+d.toFixed(0)+' mm and turned '+(rot*180/Math.PI).toFixed(1)+' deg';}
+    this.bumpLog.push({t:this.t,n:this.core.pairs.length,kind,txt});return txt;}
+  /* simulation only: the map's error at every cell centre against the hidden truth, with a noiseless fingertip */
+  mapErr(){const f=this.core.fit;if(!f)return null;const g=this.core.grid,es=[],sv=[this.dF,this.dZ,this.dS];this.dF=this.dZ=this.dS=0;for(let r=0;r<g.rows;r++)for(let c=0;c<g.cols;c++){const x=(c+.5)*this.Wm/g.cols,y=(r+.5)*this.Hm/g.rows,m=this.mark(x,y,0),q=f.predict(m[0],m[1]);es.push(Math.hypot(q[0]-x,q[1]-y));}
+    this.dF=sv[0];this.dZ=sv[1];this.dS=sv[2];return{med:median(es),max:Math.max(...es)};}
+}
+
+/* ================= sound: generated ticks, only after a click ================= */
+const AU={ctx:null,on:false};
+function auStart(){try{if(!AU.ctx){const A=window.AudioContext||window.webkitAudioContext;if(!A)return false;AU.ctx=new A();}if(AU.ctx.state==='suspended'){const p=AU.ctx.resume();if(p&&p.catch)p.catch(()=>{});}return true;}catch(e){return false;}}
+function tick(f,d,g){if(!AU.on||!AU.ctx||AU.ctx.state!=='running')return;try{const o=AU.ctx.createOscillator(),a=AU.ctx.createGain(),t=AU.ctx.currentTime;o.type='square';o.frequency.value=f;
+  a.gain.setValueAtTime(g||.1,t);a.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(a);a.connect(AU.ctx.destination);o.start(t);o.stop(t+d+.02);}catch(e){}}
+
+/* ================= the link: BroadcastChannel in one browser, public MQTT relays across devices (pattern from Butter Pair / butter-cmm) ================= */
+let BC=null;try{BC=new BroadcastChannel('butter-ledger');}catch(e){}
+const DEV=uid(),SEEN=new Set();let MID=0;
+const RELAYS=['wss://broker.emqx.io:8084/mqtt','wss://broker.hivemq.com:8884/mqtt','wss://test.mosquitto.org:8081/mqtt'];
+let ROOM=((location.search.match(/[?&]room=([A-Za-z0-9]{4,8})/)||[])[1]||'').toUpperCase()||null;
+const MQ={socks:[],urls:new Set()},TE=new TextEncoder(),TD=new TextDecoder();
+const cat=(...ps)=>{const o=new Uint8Array(ps.reduce((a,p)=>a+p.length,0));let i=0;for(const p of ps){o.set(p,i);i+=p.length;}return o;};
+const mqStr=s=>{const b=TE.encode(s);return cat(new Uint8Array([b.length>>8,b.length&255]),b);};
+const mqPkt=(h,body)=>{const r=[];let n=body.length;do{let d=n%128;n=Math.floor(n/128);if(n)d|=128;r.push(d);}while(n);return cat(new Uint8Array([h,...r]),body);};
+const topic=()=>'butter-ledger/v1/'+ROOM;
+function mqOpen(url){if(MQ.urls.has(url))return;MQ.urls.add(url);let ws;try{ws=new WebSocket(url,'mqtt');}catch(e){MQ.urls.delete(url);return;}
+  ws.binaryType='arraybuffer';const S={ws,ok:false,buf:new Uint8Array(0)};MQ.socks.push(S);
+  ws.onopen=()=>{try{ws.send(mqPkt(0x10,cat(mqStr('MQTT'),new Uint8Array([4,2,0,60]),mqStr('bl-'+DEV+'-'+uid().slice(0,4)))));}catch(e){}};
+  ws.onmessage=e=>{S.buf=cat(S.buf,new Uint8Array(e.data));for(;;){const b=S.buf;if(b.length<2)return;let m=1,len=0,i=1,d;do{if(i>=b.length)return;d=b[i++];len+=(d&127)*m;m*=128;}while(d&128);
+    if(b.length<i+len)return;const h=b[0],body=b.subarray(i,i+len);S.buf=b.slice(i+len);
+    if(h>>4===2){S.ok=true;try{ws.send(mqPkt(0x82,cat(new Uint8Array([0,1]),mqStr(topic()),new Uint8Array([0]))));}catch(x){}hello();}
+    else if(h>>4===3){const tl=(body[0]<<8)|body[1],off=2+tl+(((h>>1)&3)?2:0);try{recv(JSON.parse(TD.decode(body.subarray(off))));}catch(x){}}}};
+  ws.onclose=()=>{MQ.socks=MQ.socks.filter(x=>x!==S);MQ.urls.delete(url);if(ROOM)setTimeout(()=>mqOpen(url),3000);};ws.onerror=()=>{};}
+setInterval(()=>{for(const S of MQ.socks)if(S.ok)try{S.ws.send(new Uint8Array([0xC0,0]));}catch(e){}},25000);
+function joinRoom(c){ROOM=c;for(const u of RELAYS)mqOpen(u);}
+function send(m){m.from=DEV;m.mid=DEV+':'+(++MID);m.room=ROOM||'';try{BC&&BC.postMessage(m);}catch(e){}
+  if(ROOM&&MQ.socks.length){const p=mqPkt(0x30,cat(mqStr(topic()),TE.encode(JSON.stringify(m))));for(const S of MQ.socks)if(S.ok)try{S.ws.send(p);}catch(e){}}}
+function recv(m){if(!m||!m.type||m.from===DEV||SEEN.has(m.mid))return;if(m.room&&ROOM&&m.room!==ROOM)return;SEEN.add(m.mid);if(SEEN.size>800)SEEN.delete(SEEN.values().next().value);
+  try{onMsg(m);}catch(e){console.warn('message handler',e);}}
+if(BC)BC.onmessage=e=>recv(e.data);
+const relaysUp=()=>MQ.socks.filter(s=>s.ok).length;
+function hello(){const m={type:'hello',role:FLOOR?'floor':'laptop'};if(FLOOR&&FL.W){m.w=FL.W;m.h=FL.H;m.ppm=FL.ppm;}send(m);}
+setInterval(hello,2000);
+let onMsg=()=>{};
+
+/* ================= canvas helpers ================= */
+function fitCanvas(cv){const r=cv.parentElement.getBoundingClientRect(),d=Math.min(2,window.devicePixelRatio||1),w=Math.max(1,Math.round(r.width*d)),h=Math.max(1,Math.round(r.height*d));
+  if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;}const x=cv.getContext('2d');x.setTransform(d,0,0,d,0,0);return{x,w:r.width,h:r.height};}
+const INK='#000',TEAL='#19e6c8',AMBER='#ffd23f',RED='#ff2e2e',BLUE='#3b82f6';
+function cross(x,cx,cy,s){x.beginPath();x.moveTo(cx-s,cy-s);x.lineTo(cx+s,cy+s);x.moveTo(cx-s,cy+s);x.lineTo(cx+s,cy-s);x.stroke();}
+
+/* ================= laptop page ================= */
+const L={real:new Core({strategy:'unc'}),sim:null,simOn:false,speed:1,strategy:'unc',tracks:[],trkOn:false,trkNote:'off',trkFps:null,trkN:0,trkT:0,handle:null,ownStop:null,vw:640,vh:480,
+  floorAt:0,floorWH:null,rtts:[],offs:[],delay:null,off:null,lastT:0,log:[],hoverAt:0,planAt:0,pingAt:0,lastTip:null,camBusy:false};
+const core=()=>L.simOn&&L.sim?L.sim.core:L.real;
+function say(t){L.log.unshift(t);if(L.log.length>6)L.log.pop();const m=$('msg');m.textContent='';L.log.forEach((s,i)=>{const d=document.createElement('div');d.textContent=s;if(i)d.style.color='#777';m.appendChild(d);});}
+function wireCore(C,isSim){C.onEvent=(type,text,rec)=>{say((isSim?'[simulated] ':'')+text);
+  if(!isSim&&rec){send({type:'score',id:rec.id,px:rec.pred?rec.pred.x:null,py:rec.pred?rec.pred.y:null,err:rec.e!=null?rec.e*C.k:null,unit:C.unit,paired:!!rec.cam});sendPlan();}
+  if(type==='bump')tick(140,.35,.15);};}
+wireCore(L.real,false);
+function sendPlan(){const C=L.real,p=C.plan;send({type:'plan',cols:p.cols,rows:p.rows,order:p.order.slice(0,8),hasMap:p.hasMap,state:C.state,med:C.med10(),unit:C.unit,n:C.pairs.length});L.planAt=performance.now();}
+function laptopMsg(m){const now=performance.now();
+  if(m.type==='hello'&&m.role==='floor'){if(!L.floorAt)say('Floor heard'+(m.ppm?': '+m.ppm.toFixed(2)+' px per mm, set with the can ring.':': scale not set, units are screen px.'));L.floorAt=now;
+    if(m.w&&m.h){L.floorWH=[m.w,m.h,m.ppm||null];if(L.real.setFloor(m.w,m.h,m.ppm||null)&&L.real.pairs.length)say('Floor size or scale changed. The ledger is kept in screen px and re-solved.');}sendPlan();}
+  if(m.type==='pong'){const rtt=now-m.t0;if(rtt>=0&&rtt<5000){L.rtts.push(rtt);if(L.rtts.length>15)L.rtts.shift();L.offs.push({rtt,off:m.tf-(m.t0+rtt/2)});if(L.offs.length>15)L.offs.shift();
+      L.delay=median(L.rtts)/2;L.off=L.offs.reduce((a,b)=>b.rtt<a.rtt?b:a).off;}L.floorAt=now;}
+  if(m.type==='t'){L.floorAt=now;if(m.w&&m.h)L.real.setFloor(m.w,m.h,m.ppm||null);
+    /* when the touch happened, on this laptop's clock: the Floor's own touch time moved by the measured clock offset; before any ping has returned, receive time minus the measured delay (0 if not measured) */
+    const tT=L.off!=null?m.t-L.off:now-(L.delay||0);L.real.touch({x:m.x,y:m.y,t:Math.min(tT,now),id:m.id,cell:m.cell,hit:m.hit,now});}
+}
+/* camera */
+function onTracks(tracks){const now=performance.now(),v=$('vid');L.vw=v.videoWidth||640;L.vh=v.videoHeight||480;L.tracks=tracks||[];L.trkN++;
+  if(now-L.trkT>1000){L.trkFps=Math.round(L.trkN*1000/(now-L.trkT));L.trkN=0;L.trkT=now;}
+  if(!L.tracks.length)return;let best=L.tracks[0];if(L.tracks.length>1&&L.lastTip){let bd=Infinity;for(const t of L.tracks){const p=t.marks[8],d=Math.hypot(p.x*L.vw-L.lastTip.u,p.y*L.vh-L.lastTip.v);if(d<bd){bd=d;best=t;}}}
+  const p=best.marks&&best.marks[8];if(!p)return;L.lastTip={u:p.x*L.vw,v:p.y*L.vh,t:now};if(!L.simOn)L.real.camSample(now,L.lastTip.u,L.lastTip.v);}
+async function ownTracker(){/* used only when ../../markov/hands.js is absent */
+  const CDN='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21',MODEL='https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('this browser gives pages no camera (it needs https or localhost)');
+  const mod=await import(CDN+'/+esm');const files=await mod.FilesetResolver.forVisionTasks(CDN+'/wasm');
+  const mk=d=>mod.HandLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:MODEL,delegate:d},runningMode:'VIDEO',numHands:2});
+  let lm;try{lm=await mk('GPU');}catch(e){lm=await mk('CPU');}
+  const stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480},facingMode:'user'},audio:false});
+  const v=$('vid');v.srcObject=stream;await v.play().catch(()=>{});let stop=false,lastVT=-1;
+  (function loop(){if(stop)return;requestAnimationFrame(loop);if(v.readyState<2||v.currentTime===lastVT)return;lastVT=v.currentTime;
+    try{const r=lm.detectForVideo(v,performance.now());onTracks((r.landmarks||[]).map(m=>({marks:m})));}catch(e){stop=true;camFail('the hand tracker stopped: '+e.message);}})();
+  return()=>{stop=true;stream.getTracks().forEach(t=>t.stop());try{v.srcObject=null;}catch(e){}try{lm.close();}catch(e){}};}
+function camFail(msg){L.trkOn=false;L.trkNote='failed';L.tracks=[];$('bCam').textContent='CAMERA ON';$('bCam').classList.remove('on');
+  say('Camera or hand tracker not working: '+msg+'. Press CAMERA ON to try again. TRY WITHOUT A PHONE still works.');}
+async function camToggle(){if(L.camBusy)return;
+  if(L.trkOn){try{if(L.handle)L.handle.stop();if(L.ownStop)L.ownStop();}catch(e){}L.handle=null;L.ownStop=null;L.trkOn=false;L.trkNote='off';L.tracks=[];$('bCam').textContent='CAMERA ON';$('bCam').classList.remove('on');return;}
+  L.camBusy=true;$('bCam').textContent='CAMERA STARTING';L.trkNote='starting';
+  try{if(window.MPHands&&typeof window.MPHands.start==='function'){L.trkNote='starting (site tracker)';
+      L.handle=await window.MPHands.start({view:$('vid'),on:{frame:onTracks,error:m=>camFail(String(m)),step:(k,ok,txt)=>{if(ok===false)say('tracker: '+k+': '+txt);}}});L.trkNote='site tracker hands.js';}
+    else{L.trkNote='starting (own MediaPipe load)';say('The site tracker script ../../markov/hands.js is not present. Loading MediaPipe HandLandmarker from cdn.jsdelivr.net.');L.ownStop=await ownTracker();L.trkNote='own MediaPipe load';}
+    L.trkOn=true;L.trkT=performance.now();L.trkN=0;$('bCam').textContent='CAMERA OFF';$('bCam').classList.add('on');say('Camera A on. Point it at the phone. Touch the Floor targets on the beat.');}
+  catch(e){camFail((e&&e.message)||String(e));}
+  L.camBusy=false;}
+
+function contain(w,h,vw,vh){const s=Math.min(w/vw,h/vh);return{s,x:(w-vw*s)/2,y:(h-vh*s)/2};}
+const HAND=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[0,17],[17,18],[18,19],[19,20]];
+function drawCam(){const{x,w,h}=fitCanvas($('cvCam')),C=core();x.clearRect(0,0,w,h);const sim=L.simOn&&L.sim,vw=sim?640:L.vw,vh=sim?480:L.vh,R=contain(w,h,vw,vh),P=(u,v)=>[R.x+u*R.s,R.y+v*R.s];
+  x.lineWidth=2;x.strokeStyle=INK;
+  if(sim){x.fillStyle='#fff';x.fillRect(0,0,w,h);x.strokeRect(R.x+1,R.y+1,vw*R.s-2,vh*R.s-2);const S=L.sim;
+    /* the phone as the hidden camera sees it: drawn for the viewer, never given to the solver */
+    const cs=[[0,0],[S.Wm,0],[S.Wm,S.Hm],[0,S.Hm]].map(c=>P(...S.projF(c[0],c[1],0)));x.fillStyle='#eee';x.beginPath();cs.forEach((c,i)=>i?x.lineTo(c[0],c[1]):x.moveTo(c[0],c[1]));x.closePath();x.fill();x.lineWidth=1;x.stroke();
+    if(S.tip){const t=P(S.tip.u,S.tip.v),sh=S.projW(S.shoulder.x,S.shoulder.y,60),e=P(sh[0],sh[1]),dx=e[0]-t[0],dy=e[1]-t[1],m=Math.hypot(dx,dy)||1,len=Math.min(h*.45,m);
+      x.lineWidth=7;x.strokeStyle='#bbb';x.beginPath();x.moveTo(t[0],t[1]);x.lineTo(t[0]+dx/m*len,t[1]+dy/m*len);x.stroke();
+      x.lineWidth=2;x.strokeStyle=BLUE;x.strokeRect(t[0]-5,t[1]-5,10,10);}
+  }else if(L.trkOn){for(const t of L.tracks){const m=t.marks;if(!m)continue;for(const pass of[['#fff',5],[INK,2]]){x.strokeStyle=pass[0];x.lineWidth=pass[1];x.beginPath();for(const[a,b]of HAND){const p=P(m[a].x*vw,m[a].y*vh),q=P(m[b].x*vw,m[b].y*vh);x.moveTo(p[0],p[1]);x.lineTo(q[0],q[1]);}x.stroke();}
+      const p=P(m[8].x*vw,m[8].y*vh);x.fillStyle='#fff';x.fillRect(p[0]-6,p[1]-6,12,12);x.strokeStyle=BLUE;x.lineWidth=3;x.strokeRect(p[0]-6,p[1]-6,12,12);}
+  }else{x.fillStyle=INK;x.font="12px 'IBM Plex Mono',monospace";x.textAlign='center';x.fillText('camera A is off',w/2,h/2-8);x.fillText('CAMERA ON starts it',w/2,h/2+10);x.textAlign='left';}
+  /* the Floor outline as the solver believes it: the map run backwards */
+  if(C.fit&&(sim||L.trkOn)){const k=C.k,cs=[[0,0],[C.W,0],[C.W,C.H],[0,C.H]].map(c=>{const uv=C.fit.inverse(c[0]*k,c[1]*k);return P(uv[0],uv[1]);});
+    if(cs.every(c=>isFinite(c[0])&&isFinite(c[1])&&Math.abs(c[0])<4000&&Math.abs(c[1])<4000)){x.strokeStyle=TEAL;x.lineWidth=3;x.beginPath();cs.forEach((c,i)=>i?x.lineTo(c[0],c[1]):x.moveTo(c[0],c[1]));x.closePath();x.stroke();}}
+  $('capCam').textContent=sim?'CAMERA A (simulated). grey: phone, hidden from solver. teal: solved Floor outline. blue: tracked fingertip':'CAMERA A: '+L.trkNote+(L.trkOn?'. teal: solved Floor outline. blue: index fingertip':'');}
+function planRect(w,h,C){const m=8,s=Math.min((w-2*m)/C.W,(h-2*m)/C.H);return{s,x:(w-C.W*s)/2,y:(h-C.H*s)/2};}
+function drawPlan(){const{x,w,h}=fitCanvas($('cvPlan')),C=core(),R=planRect(w,h,C),g=C.grid,P=(a,b)=>[R.x+a*R.s,R.y+b*R.s];x.clearRect(0,0,w,h);
+  x.strokeStyle='#ccc';x.lineWidth=1;x.beginPath();for(let c=1;c<g.cols;c++){const X=R.x+c*C.W/g.cols*R.s;x.moveTo(X,R.y);x.lineTo(X,R.y+C.H*R.s);}for(let r=1;r<g.rows;r++){const Y=R.y+r*C.H/g.rows*R.s;x.moveTo(R.x,Y);x.lineTo(R.x+C.W*R.s,Y);}x.stroke();
+  const tgt=L.simOn&&L.sim?L.sim.target:C.plan.order[0];if(tgt>=0){const c=tgt%g.cols,r=Math.floor(tgt/g.cols);x.fillStyle=AMBER;x.fillRect(R.x+c*C.W/g.cols*R.s,R.y+r*C.H/g.rows*R.s,C.W/g.cols*R.s,C.H/g.rows*R.s);}
+  x.strokeStyle=INK;x.lineWidth=2;x.strokeRect(R.x,R.y,C.W*R.s,C.H*R.s);
+  const ps=C.pairs.slice(-90),nl=ps.length;ps.forEach((r,j)=>{const old=r.stale,a=P(r.gx,r.gy),recent=j>=nl-12;
+    if(r.pred){const b=P(r.pred.x,r.pred.y);x.strokeStyle=old?'#bbb':(r.e*C.k>C.TH?RED:INK);x.lineWidth=recent&&!old?2:1;x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke();x.strokeStyle=old?'#bbb':BLUE;x.lineWidth=recent&&!old?2:1;cross(x,b[0],b[1],3);}
+    x.fillStyle=old?'#bbb':r.rej?RED:!r.cam?'#fff':INK;x.fillRect(a[0]-2.5,a[1]-2.5,5,5);if(!r.cam&&!old){x.strokeStyle=INK;x.lineWidth=1;x.strokeRect(a[0]-2.5,a[1]-2.5,5,5);}});
+  /* where the camera alone puts the fingertip now (true only when the finger is on the glass) */
+  const tip=L.simOn&&L.sim?(L.sim.tip?{u:L.sim.tip.u,v:L.sim.tip.v}:null):(L.lastTip&&performance.now()-L.lastTip.t<300?L.lastTip:null);
+  if(tip&&C.fit){const q=C.fit.predict(tip.u,tip.v),p=P(q[0]/C.k,q[1]/C.k);if(isFinite(p[0])&&isFinite(p[1])){x.strokeStyle=BLUE;x.lineWidth=2;x.strokeRect(clamp(p[0],-20,w+20)-6,clamp(p[1],-20,h+20)-6,12,12);}}
+}
+function drawMap(){const{x,w,h}=fitCanvas($('cvMap')),C=core(),R=planRect(w,h,C),g=C.grid,pl=C.plan,cw=C.W/g.cols*R.s,ch=C.H/g.rows*R.s;x.clearRect(0,0,w,h);
+  const mx=Math.max(...pl.sd,1e-9),mn=Math.min(...pl.sd);x.font="10px 'IBM Plex Mono',monospace";x.textAlign='center';x.textBaseline='middle';
+  for(let i=0;i<pl.sd.length;i++){const c=i%g.cols,r=Math.floor(i/g.cols),X=R.x+c*cw,Y=R.y+r*ch,f=mx>mn?(pl.sd[i]-mn)/(mx-mn):1;
+    x.globalAlpha=.12+.88*f;x.fillStyle=AMBER;x.fillRect(X,Y,cw,ch);x.globalAlpha=1;x.strokeStyle='#fff';x.lineWidth=1;x.strokeRect(X,Y,cw,ch);
+    if(pl.hasMap&&cw>24&&ch>14){x.fillStyle=INK;x.fillText(fmt(pl.sd[i]),X+cw/2,Y+ch/2);}}
+  x.strokeStyle=INK;x.lineWidth=2;x.strokeRect(R.x,R.y,C.W*R.s,C.H*R.s);
+  const t=pl.order[0],c=t%g.cols,r=Math.floor(t/g.cols);x.lineWidth=3;x.strokeStyle=INK;x.strokeRect(R.x+c*cw+2,R.y+r*ch+2,cw-4,ch-4);x.fillStyle=TEAL;x.fillRect(R.x+c*cw+2,R.y+r*ch+2,8,8);
+  x.textAlign='left';x.textBaseline='alphabetic';
+  $('capMap').textContent=pl.hasMap?'PREDICTED ERROR PER CELL ('+C.unit+', from the fit, not measured). boxed: next target':'NO MAP: cells shaded by distance from earlier touches. boxed: next target';}
+function drawSpark(){const{x,w,h}=fitCanvas($('cvSpark')),C=core(),k=C.k,S=C.scored.slice(-140);x.clearRect(0,0,w,h);x.font="10px 'IBM Plex Mono',monospace";x.fillStyle=INK;
+  if(!S.length){x.fillText('prediction error per touch: none scored yet',6,h/2+3);return;}
+  const es=S.map(r=>r.e*k),top=Math.max(C.TH*3,Math.min(Math.max(...es),C.TH*12)),m=4,X=i=>m+(w-2*m)*(S.length>1?i/(S.length-1):.5),Y=v=>h-m-(h-2*m)*Math.min(1,v/top);
+  x.strokeStyle=INK;x.lineWidth=1;x.setLineDash([4,3]);x.beginPath();x.moveTo(0,Y(C.TH));x.lineTo(w,Y(C.TH));x.stroke();x.setLineDash([]);
+  for(const b of C.bumps){const j=S.findIndex(r=>r.i>=b.declared);if(j>=0){x.strokeStyle=RED;x.lineWidth=2;x.beginPath();x.moveTo(X(j),0);x.lineTo(X(j),h);x.stroke();}}
+  x.strokeStyle=INK;x.lineWidth=2;x.beginPath();es.forEach((v,i)=>i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v)));x.stroke();
+  es.forEach((v,i)=>{if(v>top){x.fillStyle=RED;x.fillRect(X(i)-2,0,4,4);}});const lab='error per scored touch, 0 to '+fmt(top)+' '+C.unit+'. dashed: '+fmt(C.TH)+' '+C.unit;x.fillStyle='#fff';x.fillRect(0,0,x.measureText(lab).width+12,13);x.fillStyle=INK;x.fillText(lab,6,10);}
+function readout(){const C=core(),now=performance.now(),st=$('state');if(st.textContent!==C.state){st.textContent=C.state;st.className='st '+C.state.replace(' ','');}
+  const la=C.last(),md=C.med10(),u=' '+C.unit;$('rLast').textContent=la==null?'not measured':fmt(la)+u;$('rMed').textContent=md==null?(C.bumps.length?'not measured since bump':'not measured'):fmt(md)+u+' n='+C.medN();
+  $('topErr').textContent=md==null?'':fmt(md)+u;
+  const used=C.pairs.filter(r=>!r.stale&&r.cam&&!r.rej).length,aside=C.pairs.filter(r=>r.stale).length,rej=C.pairs.filter(r=>r.rej).length;$('rPairs').textContent=used+'/'+aside+'/'+rej+'/'+C.unpaired;
+  $('rModel').textContent=C.fit?(C.fit.kind==='hom'?'homography (8)':'affine (6)'):'none';
+  $('rLag').textContent=C.tauKnown?Math.round(C.tau)+' ms':'not measured';
+  $('rLink').textContent=L.simOn?'simulated, '+Math.round(L.sim.delayMeasured)+' ms':(L.delay==null?'not measured':Math.round(L.delay)+' ms (n='+L.rtts.length+')');
+  $('rTrk').textContent=L.simOn?'simulated, 30 /s':(L.trkOn?(L.trkFps==null?'on':L.trkFps+' results/s')+(L.tracks.length?'':' no hand'):L.trkNote);
+  $('rFloor').textContent=L.simOn?'simulated 68 mm wide':(!L.floorAt?'not heard':(now-L.floorAt<4000?'heard':'silent '+Math.round((now-L.floorAt)/1000)+' s')+(BC?'':' (no BroadcastChannel)')+(ROOM?', relays '+relaysUp()+'/3':''));
+  $('unit').textContent=C.ppm?'units mm ('+C.ppm.toFixed(2)+' px/mm)':'units screen px: Floor scale not set, trust below '+fmt(C.TH)+' px';}
+let lastFrame=performance.now();
+function laptopFrame(){requestAnimationFrame(laptopFrame);const now=performance.now(),dt=Math.min(100,now-lastFrame);lastFrame=now;
+  try{if(L.simOn&&L.sim)L.sim.advance(dt*L.speed);else{L.real.tick(now);
+      if(now-L.pingAt>1000){L.pingAt=now;send({type:'ping',t0:now});}
+      if(now-L.planAt>1500)sendPlan();
+      if(L.real.fit&&L.lastTip&&now-L.lastTip.t<200&&now-L.hoverAt>120&&L.floorAt&&now-L.floorAt<4000){L.hoverAt=now;const q=L.real.fit.predict(L.lastTip.u,L.lastTip.v);if(isFinite(q[0])&&isFinite(q[1]))send({type:'hover',x:q[0]/L.real.k,y:q[1]/L.real.k});}}
+    drawCam();drawPlan();drawMap();drawSpark();readout();}catch(e){console.warn('frame',e);}}
+function simStart(){L.sim=new Sim((Math.random()*1e9)|0,{strategy:L.strategy});wireCore(L.sim.core,true);L.sim.onBeat=k=>k==='call'?tick(440,.05,.08):tick(880,.06,.12);L.simOn=true;
+  $('bSim').textContent='STOP SIMULATION';$('bSim').classList.add('on');$('bBump').disabled=false;$('bSpeed').disabled=false;
+  say('[simulated] A hidden camera and a simulated player. The solver gets only tracker pixels and glass points. Press BUMP after the state reads TRUSTED.');}
+function simStop(){L.simOn=false;L.sim=null;$('bSim').textContent='TRY WITHOUT A PHONE';$('bSim').classList.remove('on');$('bBump').disabled=true;$('bSpeed').disabled=true;say('Simulation stopped. Showing the real ledger ('+L.real.pairs.length+' touches).');}
+function laptopInit(){onMsg=laptopMsg;
+  $('bSim').onclick=()=>{auStart();L.simOn?simStop():simStart();};
+  $('bBump').onclick=()=>{if(L.sim)say('[simulated] BUMP pressed: '+L.sim.bump()+'. The solver is not told.');};
+  $('bSpeed').onclick=()=>{L.speed=L.speed===1?4:L.speed===4?16:1;$('bSpeed').textContent='SPEED '+L.speed+'x';};
+  $('bCam').onclick=()=>{camToggle();};
+  $('bStrat').onclick=()=>{L.strategy=L.strategy==='unc'?'mix':L.strategy==='mix'?'rand':'unc';L.real.o.strategy=L.strategy;L.real.mkPlan();if(L.sim){L.sim.core.o.strategy=L.strategy;L.sim.core.mkPlan();}
+    $('bStrat').textContent='TARGETS: '+({unc:'UNCERTAIN',mix:'MIXED',rand:'RANDOM'})[L.strategy];say(({unc:'Targets: the cell with the largest predicted error.',mix:'Targets: drawn at random, weighted by predicted error squared.',rand:'Targets: drawn at random, all cells equal.'})[L.strategy]);};
+  $('bSnd').onclick=()=>{AU.on=!AU.on;if(AU.on&&!auStart()){AU.on=false;say('This browser gave no audio output. Sound stays off.');}$('bSnd').textContent=AU.on?'SOUND ON':'SOUND OFF';$('bSnd').classList.toggle('on',AU.on);};
+  $('bClear').onclick=()=>{core().reset();say((L.simOn?'[simulated] ':'')+'Ledger cleared. No map.');if(!L.simOn)sendPlan();};
+  $('bPair').onclick=()=>{if(!ROOM)ROOM=Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join('');joinRoom(ROOM);
+    const url=location.href.split(/[?#]/)[0]+'?floor&room='+ROOM;$('pairUrl').textContent=url;$('pairCode').textContent=ROOM;$('qr').innerHTML='';
+    try{new QRCode($('qr'),{text:url,width:150,height:150,correctLevel:QRCode.CorrectLevel.M});}catch(e){$('qr').textContent='QR drawing script did not load. Type the address on the phone.';}
+    $('pairNote').textContent=(location.protocol==='file:'?'This page was opened from a file. A phone cannot open a file address: host the page over https, or open the Floor in this browser. ':'')+'Phone and laptop meet through public relays under the room code. Lay the phone flat, screen up, in view of camera A.';
+    $('pairBox').classList.add('on');};
+  $('bPairClose').onclick=()=>$('pairBox').classList.remove('on');
+  $('bPairOpen').onclick=()=>{let w=null;try{w=window.open(location.href.split(/[?#]/)[0]+'?floor'+(ROOM?'&room='+ROOM:''),'_blank');}catch(e){}if(!w)say('The browser blocked the new window. Allow pop-ups for this page, or open the address by hand.');};
+  if(window.__noHandsJs||!window.MPHands)say('No setup. Every touch on the Floor is a measurement. PAIR PHONE and CAMERA ON, or TRY WITHOUT A PHONE. (The site tracker script ../../markov/hands.js is absent here: CAMERA ON will load MediaPipe from cdn.jsdelivr.net instead.)');
+  window.LEDGER={L,core,Core,Sim};
+  requestAnimationFrame(laptopFrame);}
+
+/* ================= the Floor (phone) ================= */
+const FL={W:0,H:0,ppm:null,scaleMode:false,ringPpm:6.3,marks:[],plan:null,laptopAt:0,state:'NO MAP',med:null,unit:'px',bpm:108,beatAt:0,phase:0,target:-1,last:-1,respAt:0,callAt:0,hits:0,onBeat:0,n:0,flash:null,hover:null,own:[],wake:null};
+function flGrid(){return gridFor(FL.W,FL.H);}
+function flPickTarget(){const g=flGrid(),n=g.cols*g.rows;let order=null;if(FL.plan&&FL.plan.cols===g.cols&&FL.plan.rows===g.rows&&performance.now()-FL.laptopAt<5000)order=FL.plan.order;
+  if(!order){const sc=spreadOrder(g.cols,g.rows,FL.W,FL.H,FL.own.slice(-12),Math.random);order=[...Array(n).keys()].sort((a,b)=>sc[b]-sc[a]);}
+  let t=order[0];if(t===FL.last&&order.length>1)t=order[1];FL.target=t;FL.last=t;}
+function flBeat(now){const dur=60000/FL.bpm;if(!FL.beatAt){FL.beatAt=now+300;FL.phase=0;}
+  while(now>=FL.beatAt){if(FL.phase===0){flPickTarget();FL.callAt=FL.beatAt;FL.respAt=FL.beatAt+dur;tick(440,.05,.08);}else{tick(880,.06,.12);}FL.phase^=1;FL.beatAt+=dur;
+    if(now-FL.beatAt>2000){FL.beatAt=now+dur;}FL.bpm=FL.state==='TRUSTED'?132:108;}}
+function flDraw(){requestAnimationFrame(flDraw);const now=performance.now();let c;try{c=fitCanvas($('flCv'));}catch(e){return;}const{x,w,h}=c;
+  if(w!==FL.W||h!==FL.H){FL.W=w;FL.H=h;hello();}
+  x.clearRect(0,0,w,h);x.font="11px 'IBM Plex Mono',monospace";
+  if(FL.scaleMode){const d=66*FL.ringPpm;x.strokeStyle=INK;x.lineWidth=2;x.beginPath();x.arc(w/2,h/2,d/2,0,6.2832);x.stroke();x.lineWidth=1;x.beginPath();x.moveTo(w/2-8,h/2);x.lineTo(w/2+8,h/2);x.moveTo(w/2,h/2-8);x.lineTo(w/2,h/2+8);x.stroke();
+    x.fillStyle=INK;x.textAlign='center';x.fillText('ring = 66 mm at '+FL.ringPpm.toFixed(2)+' px per mm',w/2,h/2+24);x.textAlign='left';flStatus(now);return;}
+  flBeat(now);const g=flGrid(),cw=w/g.cols,ch=h/g.rows,dur=60000/FL.bpm;
+  x.strokeStyle='#ccc';x.lineWidth=1;x.beginPath();for(let i=1;i<g.cols;i++){x.moveTo(i*cw,0);x.lineTo(i*cw,h);}for(let i=1;i<g.rows;i++){x.moveTo(0,i*ch);x.lineTo(w,i*ch);}x.stroke();
+  if(FL.target>=0){const tc=FL.target%g.cols,tr=Math.floor(FL.target/g.cols),X=tc*cw,Y=tr*ch,fl=FL.flash&&now-FL.flash.t<220&&FL.flash.cell===FL.target;
+    x.fillStyle=fl?TEAL:AMBER;x.fillRect(X,Y,cw,ch);x.strokeStyle=INK;x.lineWidth=2;x.strokeRect(X+1,Y+1,cw-2,ch-2);
+    /* a square that closes onto the cell at the beat to tap on */
+    const f=clamp((FL.respAt-now)/dur,0,1),e=f*Math.min(cw,ch)*.9;if(f>0){x.lineWidth=3;x.strokeRect(X-e,Y-e,cw+2*e,ch+2*e);}}
+  if(FL.hover&&now-FL.hover.t<400){x.strokeStyle=BLUE;x.lineWidth=2;x.strokeRect(FL.hover.x-9,FL.hover.y-9,18,18);}
+  for(const m of FL.marks){const age=now-m.at;if(age>6000)continue;const a=age<4000?1:1-(age-4000)/2000;x.globalAlpha=a;
+    if(m.px!=null){x.strokeStyle=INK;x.lineWidth=2;x.beginPath();x.moveTo(m.x,m.y);x.lineTo(m.px,m.py);x.stroke();x.strokeStyle=BLUE;x.lineWidth=3;cross(x,m.px,m.py,7);if(m===FL.marks[FL.marks.length-1]||m===FL.marks[FL.marks.length-2]){x.fillStyle=INK;x.fillText(fmt(m.err)+' '+m.unit,Math.min(w-70,m.x+10),Math.max(12,m.y-10));}}
+    else if(m.scored){x.fillStyle=INK;x.fillText(m.paired?'no map yet':'camera saw no finger',Math.min(w-140,m.x+10),Math.max(12,m.y-10));}
+    x.fillStyle=INK;x.fillRect(m.x-4,m.y-4,8,8);x.globalAlpha=1;}
+  FL.marks=FL.marks.filter(m=>now-m.at<6000);
+  flStatus(now);}
+function flStatus(now){const heard=FL.laptopAt&&now-FL.laptopAt<5000,st=$('flState'),word=heard?FL.state:'NO LAPTOP';if(st.textContent!==word){st.textContent=word;st.className='st '+(heard?FL.state.replace(' ',''):'');}
+  $('flTxt').textContent=(heard?(FL.med!=null?'median '+fmt(FL.med)+' '+FL.unit+'. ':'no error measured yet. '):'laptop not heard: touches are not being received. ')+'touches '+FL.n+', in target '+FL.hits+', on beat '+FL.onBeat+(FL.ppm?'':'. units screen px');}
+function flTouch(e){if(FL.scaleMode)return;e.preventDefault();flWake();const now=performance.now(),r=$('flCv').getBoundingClientRect(),X=e.clientX-r.left,Y=e.clientY-r.top;
+  let t=e.timeStamp;if(!(t>now-1000&&t<=now+5))t=now;const g=flGrid(),cell=clamp(Math.floor(X/(FL.W/g.cols)),0,g.cols-1)+clamp(Math.floor(Y/(FL.H/g.rows)),0,g.rows-1)*g.cols;
+  const dur=60000/FL.bpm,hit=cell===FL.target,ob=Math.abs(t-FL.respAt)<dur*.3;FL.n++;if(hit){FL.hits++;FL.flash={t:now,cell};}if(hit&&ob)FL.onBeat++;
+  const id=DEV+'-'+FL.n;FL.marks.push({id,x:X,y:Y,at:now,px:null,py:null,err:null,scored:false});FL.own.push({x:X,y:Y});if(FL.own.length>40)FL.own.shift();
+  send({type:'t',id,x:X,y:Y,t,w:FL.W,h:FL.H,ppm:FL.ppm,cell:FL.target,hit});}
+function flWake(){if(AU.on)auStart();try{if(!FL.wake&&navigator.wakeLock){const p=navigator.wakeLock.request('screen');if(p&&p.then)p.then(w=>{FL.wake=w;w.addEventListener('release',()=>{FL.wake=null;});}).catch(()=>{});}}catch(e){}}
+function flRing(on){FL.scaleMode=on;$('flRing').classList.toggle('on',on);if(on)FL.ringPpm=FL.ppm||FL.ringPpm;}
+function floorMsg(m){const now=performance.now();
+  if(m.type==='ping'){send({type:'pong',t0:m.t0,tf:performance.now()});FL.laptopAt=now;}
+  if(m.type==='hello'&&m.role==='laptop')FL.laptopAt=now;
+  if(m.type==='plan'){FL.laptopAt=now;FL.plan=m;FL.state=m.state;FL.med=m.med;FL.unit=m.unit;}
+  if(m.type==='hover'){FL.hover={x:m.x,y:m.y,t:now};}
+  if(m.type==='score'){const k=FL.marks.find(x=>x.id===m.id);if(k){k.scored=true;k.paired=m.paired;if(m.px!=null){k.px=m.px;k.py=m.py;k.err=m.err;k.unit=m.unit;}}}}
+function floorInit(){$('app').style.display='none';$('floor').style.display='grid';onMsg=floorMsg;
+  const sv=store.get('butter-ledger-ppm');if(sv&&sv!=='skip'&&isFinite(+sv)&&+sv>1&&+sv<40)FL.ppm=+sv;
+  if(ROOM)joinRoom(ROOM);else{$('flJoin').classList.add('on');$('flGo').onclick=()=>{const c=$('flCode').value.trim().toUpperCase();if(/^[A-Z0-9]{4,8}$/.test(c)){joinRoom(c);$('flJoin').classList.remove('on');try{history.replaceState(null,'','?floor&room='+c);}catch(e){}}else $('flJoinTxt').textContent='a room code is 4 to 8 letters or digits';};}
+  const cv=$('flCv');cv.addEventListener('pointerdown',flTouch,{passive:false});cv.addEventListener('contextmenu',e=>e.preventDefault());
+  document.addEventListener('pointerup',()=>{if(AU.on)auStart();});
+  let rep=0;const hold=(el,d)=>{const step=()=>{FL.ringPpm=clamp(FL.ringPpm*(1+d),2,30);};el.addEventListener('pointerdown',e=>{e.preventDefault();step();clearInterval(rep);rep=setInterval(step,90);});for(const ev of['pointerup','pointerleave','pointercancel'])el.addEventListener(ev,()=>clearInterval(rep));};
+  hold($('flMinus'),-.004);hold($('flPlus'),.004);
+  $('flSet').onclick=()=>{FL.ppm=FL.ringPpm;const ok=store.set('butter-ledger-ppm',String(FL.ppm));flRing(false);hello();if(!ok)$('flTxt').textContent='scale set for this visit; this browser would not store it';};
+  $('flSkip').onclick=()=>{store.set('butter-ledger-ppm','skip');FL.ppm=null;flRing(false);hello();};
+  $('flCan').onclick=()=>flRing(!FL.scaleMode);
+  $('flSnd').onclick=()=>{AU.on=!AU.on;if(AU.on&&!auStart())AU.on=false;$('flSnd').textContent=AU.on?'SOUND ON':'SOUND OFF';$('flSnd').classList.toggle('on',AU.on);};
+  $('flFull').onclick=()=>{try{const d=document,el=d.documentElement;if(d.fullscreenElement){d.exitFullscreen();}else if(el.requestFullscreen){const p=el.requestFullscreen();if(p&&p.catch)p.catch(()=>{$('flTxt').textContent='this browser refused fullscreen';});}else $('flTxt').textContent='this browser has no fullscreen for pages';}catch(e){}};
+  if(sv==null)flRing(true);
+  window.LEDGER_FLOOR=FL;requestAnimationFrame(flDraw);}
+
+window.addEventListener('error',e=>{try{if(!FLOOR)say('A script error happened: '+(e.message||'unknown')+'. The page keeps running.');}catch(x){}});
+if(FLOOR)floorInit();else laptopInit();
+</script>
+</body>
+</html>

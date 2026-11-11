@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>GLARE · can position from reflected screen light</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box;border-radius:0!important;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#fff;color:#000;font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace;font-size:11px;line-height:1.35;-webkit-user-select:none;user-select:none;touch-action:none}
+#app{height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr) auto}
+#head{display:flex;gap:10px;justify-content:space-between;border-bottom:2px solid #000;padding:3px 8px;font-weight:700;white-space:nowrap;overflow:hidden}
+#head>span:last-child{font-weight:400;overflow:hidden;text-overflow:ellipsis}
+#main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr);min-height:0}
+#paneCam{position:relative;border-right:2px solid #000;min-height:0;min-width:0}
+#side{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:0;min-width:0}
+#panePlan{position:relative;border-right:2px solid #000;min-height:0;min-width:0}
+#paneSw{position:relative;min-height:0;min-width:0}
+.pane canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.tag{position:absolute;left:0;top:0;background:#000;color:#fff;padding:1px 6px;font-size:10px;font-weight:600;z-index:2;pointer-events:none}
+#vid{position:absolute;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none}
+#startBox{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#fff;z-index:3;padding:16px;text-align:center}
+#startBox p{max-width:46ch}
+#strip{border-top:2px solid #000;padding:5px 8px 6px;display:grid;gap:4px}
+#read{display:grid;gap:1px;font-size:11px;min-height:4.1em}
+#read b{font-weight:700}
+#read .e{color:#ff2e2e;font-weight:700}
+#btns{display:flex;flex-wrap:wrap;gap:4px}
+button{font:inherit;font-size:10px;font-weight:600;background:#fff;color:#000;border:2px solid #000;padding:5px 7px;cursor:pointer;touch-action:manipulation}
+button:active{background:#000;color:#fff}
+button.on{background:#19e6c8}
+button.big{font-size:13px;padding:10px 14px}
+button:disabled{color:#999;border-color:#999;cursor:default}
+#limit{font-size:10px;border-top:1px solid #000;padding-top:3px}
+.ovl{position:fixed;inset:0;background:#fff;z-index:20;display:none;flex-direction:column;padding:14px;gap:10px;overflow:auto;touch-action:pan-y}
+.ovl.on{display:flex}
+.ovl h2{font-size:13px;border-bottom:2px solid #000;padding-bottom:4px}
+.ovl li{margin:0 0 6px 16px;max-width:92ch}
+#qr{width:150px;height:150px;border:2px solid #000;padding:0}
+#pairCode{font-size:28px;font-weight:700;letter-spacing:4px}
+@media (max-width:760px){
+  #main{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1.05fr) minmax(0,1fr)}
+  #paneCam{border-right:0;border-bottom:2px solid #000}
+  #read{font-size:10px}
+  .wideOnly{display:none}
+}
+/* Floor page */
+#floor{display:none;position:fixed;inset:0;background:#000}
+#flCv{position:absolute;inset:0;width:100%;height:100%;display:block}
+#flSetup{position:absolute;left:0;right:0;bottom:0;background:#fff;border-top:2px solid #000;padding:10px;display:none;gap:8px;flex-direction:column}
+#flSetup .row{display:flex;gap:6px;flex-wrap:wrap}
+#flBar{position:absolute;left:0;top:0;background:#fff;border:2px solid #000;padding:6px 8px;display:none;gap:6px;flex-direction:column;max-width:86vw;font-size:11px}
+#flBar .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+input{font:inherit;border:2px solid #000;padding:5px;width:8ch;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="head"><span>GLARE<span class="wideOnly"> · CAN POSITION FROM REFLECTED SCREEN LIGHT</span></span><span id="link">no source</span></div>
+  <div id="main">
+    <div id="paneCam" class="pane"><div class="tag" id="tagCam">CAMERA A</div><canvas id="cvCam"></canvas><video id="vid" playsinline muted></video>
+      <div id="startBox">
+        <p><b>The phone screen is the light source. The can is a curved mirror. The camera reads the screen's code in the can and works out where the can is over the screen, in millimetres.</b></p>
+        <button class="big" id="bSim">TRY WITHOUT A PHONE</button>
+        <button class="big" id="bCam">START CAMERA A</button>
+        <p id="camMsg">The simulation computes a camera image by reflecting view rays off a cylinder onto a coded screen, adds ambient light, noise and colour error, and decodes from those pixels.</p>
+      </div>
+    </div>
+    <div id="side">
+      <div id="panePlan" class="pane"><div class="tag">PLAN OF THE SCREEN · mm</div><canvas id="cvPlan"></canvas></div>
+      <div id="paneSw" class="pane"><div class="tag">SAMPLED CELLS</div><canvas id="cvSw"></canvas></div>
+    </div>
+  </div>
+  <div id="strip">
+    <div id="read"><div id="r1">Nothing measured yet.</div><div id="r2"></div><div id="r3"></div></div>
+    <div id="btns">
+      <button id="bMode">CODE: 4 FRAMES</button>
+      <button id="bCal">CALIBRATE</button>
+      <button id="bEmpty">EMPTY SCENE</button>
+      <button id="bDist">CAMERA DISTANCE: 380 mm</button>
+      <button id="bLock">CAMERA LOCK: OFF</button>
+      <button id="bRoom" class="simOnly">ROOM: OFFICE</button>
+      <button id="bLift" class="simOnly">LIFT: 0 mm</button>
+      <button id="bRun" class="simOnly">RUN 200 POSITIONS</button>
+      <button id="bPair">PAIR FLOOR</button>
+      <button id="bLimits">LIMITS</button>
+      <button id="bSrc">SOURCE</button>
+    </div>
+    <div id="limit">Limits: each camera pixel on the can shows a patch of screen, not a point · room light adds to the reading · the can must sit still for one cycle · open LIMITS for the list.</div>
+  </div>
+</div>
+
+<div class="ovl" id="pairBox">
+  <h2>PAIR THE FLOOR (THE PHONE LYING FLAT)</h2>
+  <div>Open this address on the phone, or scan the code. The phone shows the patterns this page asks for.</div>
+  <div id="qr"></div><div id="pairCode"></div><div id="pairUrl" style="word-break:break-all;-webkit-user-select:text;user-select:text"></div>
+  <div>In one browser on one machine the two pages link without the relay (BroadcastChannel). Across devices the messages go through public MQTT relays; anyone who knows the room code can read them. They contain pattern names only.</div>
+  <div><button id="bPairClose">CLOSE</button></div>
+</div>
+<div class="ovl" id="limBox">
+  <h2>WHAT LIMITS THIS</h2>
+  <ul>
+    <li><b>A region, not a point.</b> The can is a convex mirror. One camera pixel on the can collects light from a patch of screen, and the patch is long near the can's left and right edges. The code is a linear ramp so that the average of a patch decodes to the centre of the patch. At the screen edge part of the patch is off the screen and the reading is pulled inward.</li>
+    <li><b>Most of the can does not show the screen.</b> A view ray that meets the can at height z leaves it downward and lands z / tan(camera elevation) further along. Only cells whose ray lands on the screen carry code. With the can lifted, or the camera low, few cells are lit and the answer is weak along the line to the camera. The amber box is the fit's estimate of that.</li>
+    <li><b>Room light.</b> The can also reflects the table and scatters room light. The 4-frame code shows black, white, x-ramp, y-ramp and uses (ramp − black) / (white − black) per cell, which removes room light and the can's own colour if the can and the light hold still for the four frames. The 1-frame colour code uses room light measured at calibration, which is wrong after the can moves.</li>
+    <li><b>Colour and tone.</b> The camera's red, green and blue each respond to all three screen colours. CALIBRATE flashes black, white, red, green, blue and three greys, reads them in the can, and builds a 3x3 unmixing matrix and a tone curve. Camera auto-exposure and auto white balance change between frames and break this; the page asks the camera to lock them and says if it could not.</li>
+    <li><b>Printed cans.</b> Ink scatters screen light from the whole screen into every cell, which pulls the reading toward the screen centre. A bare aluminium can works best. The bottom 10 mm of a real can is tapered and that taper is not in the model.</li>
+    <li><b>The box.</b> The sampling box must span the can's full width, because the horizontal place of a cell in the box is what tells the fit which way that part of the can faces.</li>
+    <li><b>The camera has to look down on the can.</b> If the camera is level with or below the sampled band, the reflected rays go upward and never reach the phone.</li>
+    <li><b>The simulated numbers are from simulated pixels.</b> No number on this page comes from real hardware until a real camera and phone are connected.</li>
+  </ul>
+  <div><button id="bLimClose">CLOSE</button></div>
+</div>
+
+<div id="floor">
+  <canvas id="flCv"></canvas>
+  <div id="flBar"><div id="flTxt"></div><div class="row"><input id="flCode" placeholder="ROOM" maxlength="8"><button id="flGo">JOIN</button><button id="flScale">SET SCALE</button><button id="flFull">FULL SCREEN</button></div></div>
+  <div id="flSetup"><div><b>Stand the can on the ring. Resize the ring until it matches the can's base (66 mm).</b></div>
+    <div class="row"><button class="big" data-d="-5">− 5</button><button class="big" data-d="-1">− 1</button><button class="big" data-d="1">+ 1</button><button class="big" data-d="5">+ 5</button><button class="big" id="flDone">IT MATCHES</button></div><div id="flPx"></div></div>
+</div>
+
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const FLOOR=/[?&]floor\b/.test(location.search);
+const uid=()=>Math.random().toString(36).slice(2,10);
+const lsGet=k=>{try{return localStorage.getItem(k);}catch(e){return null;}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,v);}catch(e){}};
+
+/* ================= the link: BroadcastChannel in one browser, public MQTT relays across devices (pattern from wg-butter-cmm) ================= */
+let BC=null;try{BC=new BroadcastChannel('butter-glare');}catch(e){}
+const DEV=uid(),SEEN=new Set();let MID=0;
+const RELAYS=['wss://broker.emqx.io:8084/mqtt','wss://broker.hivemq.com:8884/mqtt','wss://test.mosquitto.org:8081/mqtt'];
+let ROOM=((location.search.match(/[?&]room=([A-Za-z0-9]{4,8})/)||[])[1]||'').toUpperCase()||null;
+const MQ={socks:[],urls:new Set()},TE=new TextEncoder(),TD=new TextDecoder();
+const cat=(...ps)=>{const o=new Uint8Array(ps.reduce((a,p)=>a+p.length,0));let i=0;for(const p of ps){o.set(p,i);i+=p.length;}return o;};
+const mqStr=s=>{const b=TE.encode(s);return cat(new Uint8Array([b.length>>8,b.length&255]),b);};
+const mqPkt=(h,body)=>{const r=[];let n=body.length;do{let d=n%128;n=Math.floor(n/128);if(n)d|=128;r.push(d);}while(n);return cat(new Uint8Array([h,...r]),body);};
+const topic=()=>'butter-glare/v1/'+ROOM;
+function mqOpen(url){if(MQ.urls.has(url))return;MQ.urls.add(url);let ws;try{ws=new WebSocket(url,'mqtt');}catch(e){MQ.urls.delete(url);return;}
+  ws.binaryType='arraybuffer';const S={ws,ok:false,buf:new Uint8Array(0)};MQ.socks.push(S);
+  ws.onopen=()=>ws.send(mqPkt(0x10,cat(mqStr('MQTT'),new Uint8Array([4,2,0,60]),mqStr('bg-'+DEV+'-'+uid().slice(0,4)))));
+  ws.onmessage=e=>{S.buf=cat(S.buf,new Uint8Array(e.data));for(;;){const b=S.buf;if(b.length<2)return;let m=1,len=0,i=1,d;do{if(i>=b.length)return;d=b[i++];len+=(d&127)*m;m*=128;}while(d&128);
+    if(b.length<i+len)return;const h=b[0],body=b.subarray(i,i+len);S.buf=b.slice(i+len);
+    if(h>>4===2){S.ok=true;ws.send(mqPkt(0x82,cat(new Uint8Array([0,1]),mqStr(topic()),new Uint8Array([0]))));hello();}
+    else if(h>>4===3){const tl=(body[0]<<8)|body[1],off=2+tl+(((h>>1)&3)?2:0);try{recv(JSON.parse(TD.decode(body.subarray(off))));}catch(x){}}}};
+  ws.onclose=()=>{MQ.socks=MQ.socks.filter(x=>x!==S);MQ.urls.delete(url);if(ROOM)setTimeout(()=>mqOpen(url),3000);};ws.onerror=()=>{};}
+setInterval(()=>{for(const S of MQ.socks)if(S.ok)try{S.ws.send(new Uint8Array([0xC0,0]));}catch(e){}},25000);
+function joinRoom(c){ROOM=c;for(const u of RELAYS)mqOpen(u);}
+function send(m){m.from=DEV;m.mid=DEV+':'+(++MID);try{BC&&BC.postMessage(m);}catch(e){}
+  if(ROOM&&MQ.socks.length){const p=mqPkt(0x30,cat(mqStr(topic()),TE.encode(JSON.stringify(m))));for(const S of MQ.socks)if(S.ok)try{S.ws.send(p);}catch(e){}}}
+function recv(m){if(!m||!m.type||m.from===DEV||SEEN.has(m.mid))return;SEEN.add(m.mid);if(SEEN.size>800)SEEN.delete(SEEN.values().next().value);onMsg(m);}
+if(BC)BC.onmessage=e=>recv(e.data);
+function hello(){if(FLOOR)send({type:'hello',role:'floor',mm:FL.mm,pat:FL.pat});else send({type:'hello',role:'laptop'});}
+setInterval(hello,1500);
+function onMsg(m){if(FLOOR)onMsgFloor(m);else onMsgLab(m);}
+
+/* ================= shared: patterns, colour ================= */
+const CAN_R=33,CAN_H=122;
+/* pattern -> intended linear-light rgb at normalised screen position (xn across, yn down) */
+function patRGB(p,xn,yn,o){switch(p){
+  case 'K':o[0]=o[1]=o[2]=0;break; case 'W':o[0]=o[1]=o[2]=1;break;
+  case 'R':o[0]=1;o[1]=o[2]=0;break; case 'G':o[1]=1;o[0]=o[2]=0;break; case 'B':o[2]=1;o[0]=o[1]=0;break;
+  case 'G25':o[0]=o[1]=o[2]=0.25;break; case 'G50':o[0]=o[1]=o[2]=0.5;break; case 'G75':o[0]=o[1]=o[2]=0.75;break;
+  case 'X':o[0]=o[1]=o[2]=xn;break; case 'Y':o[0]=o[1]=o[2]=yn;break;
+  default:o[0]=xn;o[1]=yn;o[2]=1;}}
+const PAT_NAME={K:'black',W:'white',R:'red',G:'green',B:'blue',G25:'grey 25%',G50:'grey 50%',G75:'grey 75%',X:'x ramp',Y:'y ramp',C:'colour code (red = x, green = y, blue = full)'};
+const sEnc=v=>v<=0?0:v>=1?1:(v<=0.0031308?12.92*v:1.055*Math.pow(v,1/2.4)-0.055);
+const sDec=c=>c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4);
+const SDEC=new Float32Array(256);for(let i=0;i<256;i++)SDEC[i]=sDec(i/255);
+function fitCv(cv){const r=cv.getBoundingClientRect(),d=Math.min(2,window.devicePixelRatio||1),W=Math.max(1,Math.round(r.width)),H=Math.max(1,Math.round(r.height));
+  if(cv.width!==W*d||cv.height!==H*d){cv.width=W*d;cv.height=H*d;}const g=cv.getContext('2d');g.setTransform(d,0,0,d,0,0);return {g,W,H};}
+const font=(w,s)=>`${w} ${s}px 'IBM Plex Mono',monospace`;
+
+/* ================= the Floor (phone) ================= */
+const FL={pat:'C',pxmm:null,mm:null,ring:400,setup:false,laptopAt:0,seq:0,drawn:''};
+function floorInit(){
+  $('app').style.display='none';$('floor').style.display='block';
+  const st=parseFloat(lsGet('butter-glare-pxmm'));if(st>1&&st<40)FL.pxmm=st;
+  if(ROOM){joinRoom(ROOM);$('flCode').value=ROOM;}
+  $('flGo').onclick=()=>{const c=$('flCode').value.trim().toUpperCase();if(c.length>=4){joinRoom(c);try{history.replaceState(null,'','?floor&room='+c);}catch(e){}}};
+  $('flScale').onclick=()=>{FL.setup=true;FL.drawn='';};
+  $('flFull').onclick=wake;
+  for(const b of $('flSetup').querySelectorAll('button[data-d]'))b.onclick=()=>{FL.ring=Math.max(60,Math.min(3000,FL.ring+ +b.dataset.d));FL.drawn='';};
+  $('flDone').onclick=()=>{FL.pxmm=FL.ring/66;lsSet('butter-glare-pxmm',String(FL.pxmm));FL.setup=false;FL.drawn='';wake();hello();};
+  FL.ring=Math.round(66*(FL.pxmm||6.2));if(!FL.pxmm)FL.setup=true;
+  addEventListener('resize',()=>{FL.drawn='';});
+  requestAnimationFrame(floorFrame);
+}
+let woke=false;async function wake(){try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();}catch(e){}
+  if(woke)return;try{await navigator.wakeLock.request('screen');woke=true;document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible')try{await navigator.wakeLock.request('screen');}catch(e){}});}catch(e){}}
+function onMsgFloor(m){
+  if(m.type==='hello'&&m.role==='laptop')FL.laptopAt=performance.now();
+  if(m.type==='pat'&&PAT_NAME[m.pat]){FL.laptopAt=performance.now();FL.pat=m.pat;FL.seq=m.seq;FL.drawn='';
+    /* acknowledge after the pattern has been painted: two animation frames */
+    const seq=m.seq,pat=m.pat;requestAnimationFrame(()=>requestAnimationFrame(()=>send({type:'shown',seq,pat,mm:FL.mm})));}
+}
+function drawPattern(g,W,H,p){
+  g.globalCompositeOperation='source-over';g.fillStyle='#000';g.fillRect(0,0,W,H);
+  const o=[0,0,0],css=(r,gg,b)=>`rgb(${Math.round(sEnc(r)*255)},${Math.round(sEnc(gg)*255)},${Math.round(sEnc(b)*255)})`;
+  /* a ramp that is linear in emitted light needs many stops, because canvas gradients interpolate encoded values */
+  const ramp=(x1,y1,ch)=>{const gr=g.createLinearGradient(0,0,x1,y1);for(let i=0;i<=48;i++){const v=i/48;gr.addColorStop(v,css(ch[0]*v,ch[1]*v,ch[2]*v));}return gr;};
+  if(p==='X'){g.fillStyle=ramp(W,0,[1,1,1]);g.fillRect(0,0,W,H);}
+  else if(p==='Y'){g.fillStyle=ramp(0,H,[1,1,1]);g.fillRect(0,0,W,H);}
+  else if(p==='C'){g.globalCompositeOperation='lighter';g.fillStyle=ramp(W,0,[1,0,0]);g.fillRect(0,0,W,H);g.fillStyle=ramp(0,H,[0,1,0]);g.fillRect(0,0,W,H);g.fillStyle='rgb(0,0,255)';g.fillRect(0,0,W,H);g.globalCompositeOperation='source-over';}
+  else{patRGB(p,0,0,o);g.fillStyle=css(o[0],o[1],o[2]);g.fillRect(0,0,W,H);}
+}
+function floorFrame(){
+  const linked=performance.now()-FL.laptopAt<5000;
+  const key=[FL.pat,FL.setup,FL.ring,innerWidth,innerHeight].join('|');
+  if(key!==FL.drawn){FL.drawn=key;const {g,W,H}=fitCv($('flCv'));
+    if(FL.setup){g.fillStyle='#fff';g.fillRect(0,0,W,H);g.strokeStyle='#000';g.lineWidth=2;g.beginPath();g.arc(W/2,H*0.4,FL.ring/2,0,7);g.stroke();
+      g.beginPath();g.moveTo(W/2-8,H*0.4);g.lineTo(W/2+8,H*0.4);g.moveTo(W/2,H*0.4-8);g.lineTo(W/2,H*0.4+8);g.stroke();
+      $('flPx').textContent=`ring ${FL.ring} px across · ${(FL.ring/66).toFixed(2)} px per mm if it matches`;}
+    else drawPattern(g,W,H,FL.pat);
+    FL.mm=FL.pxmm?[+(innerWidth/FL.pxmm).toFixed(1),+(innerHeight/FL.pxmm).toFixed(1)]:null;}
+  $('flSetup').style.display=FL.setup?'flex':'none';
+  /* the status box covers part of the code, so it is shown only while no laptop is driving the patterns */
+  $('flBar').style.display=(!FL.setup&&!linked)?'flex':'none';
+  if(!linked)$('flTxt').textContent=`FLOOR · waiting for the laptop page${ROOM?' · room '+ROOM:''} · showing: ${PAT_NAME[FL.pat]}${FL.mm?` · screen ${FL.mm[0]} x ${FL.mm[1]} mm`:''}`;
+  window.__floor={pat:FL.pat,seq:FL.seq,mm:FL.mm,pxmm:FL.pxmm,linked};
+  requestAnimationFrame(floorFrame);
+}
+
+/* ================= laptop page ================= */
+const ROWS=6,COLS=24,UMAX=0.9;
+const BOXPAT={SEQ4:'W',RGB2:'C',RGB1:'C'};
+const CYC={SEQ4:['W','K','X','Y'],RGB2:['C','K'],RGB1:['C']};
+const MODE_LABEL={SEQ4:'CODE: 4 FRAMES (W K X Y)',RGB2:'CODE: 2 FRAMES (COLOUR + K)',RGB1:'CODE: 1 FRAME (COLOUR)'};
+const ROOMS={OFFICE:{amb:0.1,noise:1},WINDOW:{amb:1.0,noise:2.5},DARK:{amb:0.01,noise:1}};
+const S={src:null,mode:'SEQ4',room:'OFFICE',lift:0,box:null,frames:{},cells:{},cal:null,empty:null,res:null,lock:false,cam:null,hist:[],
+  floorAt:0,floorMM:null,seq:0,shown:{},wantCal:false,wantEmpty:false,status:'',trial:null,camNote:'',D:380,drag:null,view:null,planT:null,busyTrials:false,decN:0};
+const SIM={W:640,H:480,sw:68,sh:148,can:[34,74],lift:0,noCan:false,amb:0.1,noise:1,
+  pc:[64,-290,240],tgt:[34,74,25],hfov:62,rough:1.2*Math.PI/180,seed:1};
+
+/* ---------- simulated camera image: view rays reflected off a cylinder onto the coded screen ---------- */
+const DISP=new Float32Array(1025);for(let i=0;i<=1024;i++)DISP[i]=Math.pow(sEnc(i/1024),2.35); /* the simulated display is not exactly sRGB */
+const GAUSS=new Float32Array(8192);(function(){let s=12345;const r=()=>{s=(s*1664525+1013904223)>>>0;return (s+0.5)/4294967296;};for(let i=0;i<8192;i++)GAUSS[i]=Math.sqrt(-2*Math.log(r()))*Math.cos(6.2831853*r());})();
+const ENC22=new Uint8Array(4097);for(let i=0;i<=4096;i++)ENC22[i]=Math.round(255*Math.pow(i/4096,1/2.2)); /* the simulated camera tone curve is not exactly sRGB */
+const RSAMP=[[-1.6,0.1],[-0.7,0.25],[0,0.3],[0.7,0.25],[1.6,0.1]];
+let rndS=1;function rnd(){rndS=(rndS+0x6D2B79F5)|0;let t=Math.imul(rndS^(rndS>>>15),1|rndS);t=(t+Math.imul(t^(t>>>7),61|t))^t;return ((t^(t>>>14))>>>0)/4294967296;}
+function simCamBasis(){const p=SIM.pc,t=SIM.tgt;let f=[t[0]-p[0],t[1]-p[1],t[2]-p[2]];const l=Math.hypot(f[0],f[1],f[2]);f=f.map(v=>v/l);
+  /* screen coordinates: x right, y down the screen, z up. Looking along f, image-right is (-fy, fx). */
+  const hl=Math.hypot(f[0],f[1]),r=[-f[1]/hl,f[0]/hl,0];let d=[0-(-f[2])*f[0],0-(-f[2])*f[1],-1-(-f[2])*f[2]];const dl=Math.hypot(d[0],d[1],d[2]);d=d.map(v=>v/dl);
+  return {f,r,d,F:(SIM.W/2)/Math.tan(SIM.hfov*Math.PI/360)};}
+const _c=new Float32Array(3),_p=[0,0,0];
+function simRender(pat,ya,yb){ /* ya..yb: render only these image rows (the rest stays black); used for frames that are only read inside the box */
+  const W=SIM.W,H=SIM.H,out=new Uint8ClampedArray(W*H*4),B=simCamBasis(),amb=SIM.amb,sw=SIM.sw,sh=SIM.sh;
+  const px=SIM.pc[0],py=SIM.pc[1],pz=SIM.pc[2],cx=SIM.can[0],cy=SIM.can[1],z0=SIM.lift,z1=SIM.lift+CAN_H,R=CAN_R;
+  const expo=0.8/(0.62+0.7*amb),nR=0.004*SIM.noise,nS=0.0004*SIM.noise;
+  /* mean emitted light of the pattern, for the part of the can that scatters instead of mirroring */
+  let me=[0,0,0];for(let a=0;a<4;a++)for(let b=0;b<8;b++){patRGB(pat,(a+0.5)/4,(b+0.5)/8,_p);for(let c=0;c<3;c++)me[c]+=DISP[(_p[c]*1024)|0]/32;}
+  const tcam=Math.atan2(py-cy,px-cx),streakAz=tcam+0.95;
+  function floorRad(x,y,cosOff){ /* radiance leaving the table plane at (x,y) toward a viewer cosOff from the normal */
+    if(x>=0&&x<=sw&&y>=0&&y<=sh){patRGB(pat,x/sw,y/sh,_p);const fo=Math.pow(cosOff,0.6),gl=0.03*amb;
+      _c[0]=DISP[(_p[0]*1024)|0]*fo+gl;_c[1]=DISP[(_p[1]*1024)|0]*fo+gl;_c[2]=DISP[(_p[2]*1024)|0]*fo+gl;}
+    else if(x>=-4&&x<=sw+4&&y>=-8&&y<=sh+8){_c[0]=_c[1]=_c[2]=0.025*amb;}
+    else{const tx=0.30+0.05*Math.sin(x*0.21+2*Math.sin(y*0.013))+0.02*Math.sin(y*0.9);_c[0]=amb*tx;_c[1]=amb*tx*0.88;_c[2]=amb*tx*0.72;}}
+  let gi=(SIM.seed*7919)&8191;SIM.seed++;
+  const J0=ya==null?0:Math.max(0,Math.floor(ya)),J1=yb==null?H:Math.min(H,Math.ceil(yb));
+  for(let j=J0;j<J1;j++){const vy=j+0.5-H/2;for(let i=0;i<W;i++){const vx=i+0.5-W/2;
+    let dx=B.f[0]*B.F+B.r[0]*vx+B.d[0]*vy,dy=B.f[1]*B.F+B.r[1]*vx+B.d[1]*vy,dz=B.f[2]*B.F+B.r[2]*vx+B.d[2]*vy;
+    const dl=1/Math.hypot(dx,dy,dz);dx*=dl;dy*=dl;dz*=dl;
+    let r=0,g=0,b=0,done=false;
+    if(!SIM.noCan){const ox=px-cx,oy=py-cy,a=dx*dx+dy*dy,bq=ox*dx+oy*dy,cq=ox*ox+oy*oy-R*R,disc=bq*bq-a*cq;
+      if(disc>0){const t=(-bq-Math.sqrt(disc))/a,z=pz+t*dz;
+        if(t>0&&z>=z0&&z<=z1){done=true;const nx=(ox+t*dx)/R,ny=(oy+t*dy)/R,hx=px+t*dx,hy=py+t*dy;
+          if(dz<0){const tf=-z/dz,cosOff=-dz;
+            for(let s=0;s<5;s++){const de=RSAMP[s][0]*SIM.rough,cs=Math.cos(de),sn=Math.sin(de),mx=nx*cs-ny*sn,my=nx*sn+ny*cs,dn=dx*mx+dy*my;
+              floorRad(hx+(dx-2*dn*mx)*tf,hy+(dy-2*dn*my)*tf,cosOff);const w=RSAMP[s][1];r+=w*_c[0];g+=w*_c[1];b+=w*_c[2];}
+          }else{r=g=b=amb*0.55;}
+          /* mirror part (slightly warm aluminium) + scattered part + a streak of room light */
+          const az=Math.atan2(ny,nx);let da=az-streakAz;da=Math.atan2(Math.sin(da),Math.cos(da));const stz=amb*1.2*Math.exp(-(da*da)/(0.05*0.05));
+          const sp=0.3/(1+(z/50)*(z/50));
+          r=0.80*r+0.06*(amb*0.5+sp*me[0])+stz;g=0.78*g+0.06*(amb*0.5+sp*me[1])+stz;b=0.72*b+0.06*(amb*0.5+sp*me[2])+stz;}
+        else if(dz<0){const tt=(z1-pz)/dz,lx=px+tt*dx-cx,ly=py+tt*dy-cy;if(tt>0&&lx*lx+ly*ly<R*R){done=true;const q=lx*lx+ly*ly>(R-3)*(R-3)?0.6:0.42;r=g=b=amb*q;}}}}
+    if(!done){if(dz<0){const tf=-pz/dz;floorRad(px+dx*tf,py+dy*tf,-dz);r=_c[0];g=_c[1];b=_c[2];}else{r=amb*0.55;g=amb*0.56;b=amb*0.6;}}
+    /* camera: exposure, white-balance and channel crosstalk error, noise, tone curve, 8 bits */
+    r*=expo;g*=expo;b*=expo;
+    let cr=1.10*r+0.06*g+0.02*b,cg=0.05*r+1.00*g+0.08*b,cb=0.02*r+0.10*g+0.82*b;
+    cr+=GAUSS[gi=(gi+1)&8191]*Math.sqrt(nR*nR+nS*cr);cg+=GAUSS[gi=(gi+1)&8191]*Math.sqrt(nR*nR+nS*cg);cb+=GAUSS[gi=(gi+1)&8191]*Math.sqrt(nR*nR+nS*cb);
+    if((i&63)===0)gi=(gi+((rnd()*8191)|0))&8191;
+    const o=(j*W+i)*4;out[o]=ENC22[cr<=0?0:cr>=1?4096:(cr*4096)|0];out[o+1]=ENC22[cg<=0?0:cg>=1?4096:(cg*4096)|0];out[o+2]=ENC22[cb<=0?0:cb>=1?4096:(cb*4096)|0];out[o+3]=255;}}
+  return {w:W,h:H,data:out,pat,full:ya==null};
+}
+function simPointerToFloor(fx,fy){const B=simCamBasis(),vx=fx-SIM.W/2,vy=fy-SIM.H/2;const d=[0,1,2].map(k=>B.f[k]*B.F+B.r[k]*vx+B.d[k]*vy);if(d[2]>=0)return null;const t=-SIM.pc[2]/d[2];return [SIM.pc[0]+d[0]*t,SIM.pc[1]+d[1]*t];}
+
+/* ---------- finding the can in the image: difference from a frame of the empty scene ---------- */
+function downsample(fr){const bw=fr.w>>2,bh=fr.h>>2,o=new Float32Array(bw*bh*3),d=fr.data;for(let y=0;y<bh;y++)for(let x=0;x<bw;x++){let r=0,g=0,b=0;for(let v=0;v<4;v++)for(let u=0;u<4;u++){const q=((y*4+v)*fr.w+x*4+u)*4;r+=d[q];g+=d[q+1];b+=d[q+2];}const k=(y*bw+x)*3;o[k]=r/16;o[k+1]=g/16;o[k+2]=b/16;}return {bw,bh,o};}
+function autoBox(fr,emp){ if(!emp||emp.bw!==(fr.w>>2))return null;const c=downsample(fr),bw=c.bw,bh=c.bh,m=new Uint8Array(bw*bh),col=new Int32Array(bw),dfA=new Float32Array(bw*bh);
+  for(let y=0;y<bh;y++)for(let x=0;x<bw;x++){const k=(y*bw+x)*3,df=Math.abs(c.o[k]-emp.o[k])+Math.abs(c.o[k+1]-emp.o[k+1])+Math.abs(c.o[k+2]-emp.o[k+2]);dfA[y*bw+x]=df;}
+  /* threshold from the image itself: several times the typical difference where nothing changed */
+  const sd=Array.from(dfA).sort((a,b)=>a-b),TH=Math.max(5,6*sd[sd.length>>1]);
+  for(let y=0;y<bh;y++)for(let x=0;x<bw;x++)if(dfA[y*bw+x]>TH){m[y*bw+x]=1;col[x]++;}
+  let best=0,bx=-1;for(let x=0;x<bw;x++)if(col[x]>best){best=col[x];bx=x;}if(best<6)return null;
+  const th=Math.max(3,best*0.2);let x0=bx,x1=bx;while(x0>0&&col[x0-1]>=th)x0--;while(x1<bw-1&&col[x1+1]>=th)x1++;
+  if(x1-x0<5)return null;const mid=[];for(let x=Math.round(x0+(x1-x0)*0.4);x<=Math.round(x0+(x1-x0)*0.6);x++){let yb=-1;for(let y=bh-1;y>=0;y--)if(m[y*bw+x]){yb=y;break;}if(yb>=0)mid.push(yb);}
+  if(!mid.length)return null;mid.sort((a,b)=>a-b);const ybB=mid[mid.length>>1]+1,wB=x1-x0+1;
+  /* edges again, counted only in the band just above the base, and placed to a fraction of a block where the count crosses half */
+  const xm0=(x0+x1)/2,ra=Math.max(0,Math.round(ybB-wB*0.62)),rb=Math.max(ra+2,Math.round(ybB-wB*0.2)),c2=new Float32Array(bw);
+  for(let y=ra;y<rb&&y<bh;y++){ /* a block half covered by the can differs from the empty scene by about half as much as its neighbour inside the can */
+    for(let x=Math.max(1,x0-3);x<=Math.min(bw-2,x1+3);x++){const d=dfA[y*bw+x],inner=x<xm0?dfA[y*bw+x+1]:dfA[y*bw+x-1];if(d>TH&&d>0.5*inner)c2[x]+=1/(rb-ra);}}
+  const xm=(x0+x1)>>1;let xl=x0,xr=x1;
+  for(let x=Math.max(1,x0-3);x<=xm;x++){if(c2[x]>=0.5){xl=x-(c2[x]-0.5)/Math.max(1e-6,c2[x]-c2[x-1]);break;}}
+  for(let x=Math.min(bw-2,x1+3);x>=xm;x--){if(c2[x]>=0.5){xr=x+1+(c2[x]-0.5)/Math.max(1e-6,c2[x]-c2[x+1]);break;}}
+  const X0=xl*4,w=Math.max(20,(xr-xl)*4),yb=ybB*4,h=Math.round(w*0.42);
+  const B={x:X0,y:Math.max(0,yb-h),w,h:Math.min(h,yb)},mask=new Uint8Array(ROWS*COLS);
+  /* a cell counts as "on the can" only if the image there differs from the empty scene; cells below the can's rim show the screen directly and do not differ */
+  for(let k=0;k<ROWS;k++)for(let i=0;i<COLS;i++){const bx2=Math.min(bw-1,Math.max(0,Math.floor((B.x+B.w*(i+0.5)/COLS)/4))),by2=Math.min(bh-1,Math.max(0,Math.floor((B.y+B.h*(k+0.5)/ROWS)/4)));mask[k*COLS+i]=m[by2*bw+bx2];}
+  B.mask=mask;return B;}
+
+/* ---------- sampling: mean linear rgb of each cell of the box ---------- */
+function sampleCells(fr,box){const o=new Float32Array(ROWS*COLS*3),d=fr.data;
+  for(let k=0;k<ROWS;k++){const ya=Math.round(box.y+box.h*k/ROWS),yb=Math.max(ya+1,Math.round(box.y+box.h*(k+1)/ROWS));
+    for(let i=0;i<COLS;i++){const xa=Math.round(box.x+box.w*i/COLS),xb=Math.max(xa+1,Math.round(box.x+box.w*(i+1)/COLS));let r=0,g=0,b=0,n=0;
+      for(let y=ya;y<yb;y++){if(y<0||y>=fr.h)continue;for(let x=xa;x<xb;x++){if(x<0||x>=fr.w)continue;const q=(y*fr.w+x)*4;r+=SDEC[d[q]];g+=SDEC[d[q+1]];b+=SDEC[d[q+2]];n++;}}
+      const q=(k*COLS+i)*3;if(n){o[q]=r/n;o[q+1]=g/n;o[q+2]=b/n;}}}
+  return o;}
+function inv3(m){const [a,b,c,d,e,f,g,h,i]=m,A=e*i-f*h,Bq=-(d*i-f*g),C=d*h-e*g,det=a*A+b*Bq+c*C;if(Math.abs(det)<1e-12)return null;
+  return [A/det,-(b*i-c*h)/det,(b*f-c*e)/det,Bq/det,(a*i-c*g)/det,-(a*f-c*d)/det,C/det,-(a*h-b*g)/det,(a*e-b*d)/det];}
+
+/* ---------- calibration from reference frames read in the can ---------- */
+function calibrateFrom(cs){ /* cs: cells for K W R G B G25 G50 G75 at one can position */
+  const n=ROWS*COLS,sig=new Float32Array(n);let list=[];
+  for(let q=0;q<n;q++){let s=0;for(let c=0;c<3;c++){const d=cs.W[q*3+c]-cs.K[q*3+c];s+=d*d;}sig[q]=Math.sqrt(s);list.push(sig[q]);}
+  list.sort((a,b)=>a-b);const p90=list[Math.floor(n*0.9)],thr=Math.max(0.01,0.3*p90);let lit=0;
+  const A=new Float64Array(9),st=[0,0,0],sw=[0,0,0],mean={};for(const p of Object.keys(cs))mean[p]=[0,0,0];
+  let den=0;
+  for(let q=0;q<n;q++){if(sig[q]<thr)continue;const i=q%COLS,u=(i+0.5)/COLS*2-1;if(Math.abs(u)>UMAX)continue;lit++;
+    for(let c=0;c<3;c++){const k=cs.K[q*3+c],w=cs.W[q*3+c]-k;A[c*3]+=cs.R[q*3+c]-k;A[c*3+1]+=cs.G[q*3+c]-k;A[c*3+2]+=cs.B[q*3+c]-k;
+      st[0]+=(cs.G25[q*3+c]-k)*w;st[1]+=(cs.G50[q*3+c]-k)*w;st[2]+=(cs.G75[q*3+c]-k)*w;den+=w*w;
+      for(const p of Object.keys(cs))mean[p][c]+=cs[p][q*3+c];}}
+  if(lit<8)return {ok:false,lit,why:`only ${lit} cells showed the white flash; move the can over the screen and set the box across the can`};
+  for(const p of Object.keys(mean))for(let c=0;c<3;c++)mean[p][c]/=lit;
+  const Ai=inv3(Array.from(A));if(!Ai)return {ok:false,lit,why:'red, green and blue flashes were not distinguishable in the can'};
+  let stair=[[0,0],[0.25,st[0]/den],[0.5,st[1]/den],[0.75,st[2]/den],[1,1]];let mono=true;for(let i=1;i<5;i++)if(!(stair[i][1]>stair[i-1][1]+1e-4))mono=false;
+  if(!mono)stair=null;
+  const v2=[];for(let q=0;q<n;q++){if(sig[q]<thr)continue;let v=0;for(let c=0;c<3;c++)v+=Ai[6+c]*(cs.W[q*3+c]-cs.K[q*3+c]);v2.push(v);}v2.sort((a,b)=>a-b);
+  return {ok:true,lit,Ai,A:Array.from(A),stair,K:cs.K.slice(),mean,refSeq:p90,refRGB:v2[Math.floor(v2.length*0.9)]};}
+function toneInv(cal,r){if(!cal||!cal.stair)return r;const s=cal.stair;if(r<=0)return r*(s[1][0]/s[1][1]);for(let i=1;i<5;i++)if(r<=s[i][1]||i===4){const a=s[i-1],b=s[i];return a[0]+(r-a[1])*(b[0]-a[0])/(b[1]-a[1]);}return r;}
+
+/* ---------- per-cell decode: colour -> a point on the screen (mm) ---------- */
+function decodeCells(mode,cs,cal,sw,sh,mask){const n=ROWS*COLS,out=[],sig=new Float32Array(n),xs=new Float32Array(n),ys=new Float32Array(n);
+  for(let q=0;q<n;q++){
+    if(mode==='SEQ4'){let den=0,ax=0,ay=0;for(let c=0;c<3;c++){const k=cs.K[q*3+c],w=cs.W[q*3+c]-k;den+=w*w;ax+=(cs.X[q*3+c]-k)*w;ay+=(cs.Y[q*3+c]-k)*w;}
+      sig[q]=Math.sqrt(den);xs[q]=den>0?ax/den:0;ys[q]=den>0?ay/den:0;}
+    else{const K=mode==='RGB2'?cs.K:cal.K,Ai=cal.Ai,c0=cs.C[q*3]-K[q*3],c1=cs.C[q*3+1]-K[q*3+1],c2=cs.C[q*3+2]-K[q*3+2];
+      const v0=Ai[0]*c0+Ai[1]*c1+Ai[2]*c2,v1=Ai[3]*c0+Ai[4]*c1+Ai[5]*c2,v2=Ai[6]*c0+Ai[7]*c1+Ai[8]*c2;
+      sig[q]=v2>0?v2:0;xs[q]=v2>0?v0/v2:0;ys[q]=v2>0?v1/v2:0;}}
+  const srt=Array.from(sig).sort((a,b)=>a-b),p90=srt[Math.floor(n*0.9)],ref=cal&&cal.ok?(mode==='SEQ4'?cal.refSeq:cal.refRGB):0,thr=Math.max(mode==='SEQ4'?0.012:0,0.25*p90,0.15*ref);
+  for(let q=0;q<n;q++){const i=q%COLS,k=(q/COLS)|0,u=(i+0.5)/COLS*2-1;if(sig[q]<thr||Math.abs(u)>UMAX||(mask&&!mask[q]))continue;
+    const x=toneInv(cal,xs[q]),y=toneInv(cal,ys[q]);if(x<0.03||x>0.97||y<0.03||y>0.97)continue;
+    out.push({q,k,i,u,u0:u,F:[x*sw,y*sh],w:sig[q]*sig[q]});}
+  return out;}
+
+/* ---------- the fit: where must a 66 mm cylinder stand so that its reflections land on the decoded points ----------
+   A camera at horizontal distance D from the can axis, in direction theta (screen coordinates), looks at the can.
+   A cell at fraction u across the can's width sits where the wall faces phi = asin(u) - alpha away from the camera line.
+   Its view ray, unfolded through the mirror, travels a total horizontal distance Lambda before reaching the screen plane,
+   and has used rho of that before the mirror. So the screen point is  C + R n + (Lambda - rho) r,  r = reflected direction.
+   Lambda is one unknown per sampled pixel row. Unknowns: C (2), Lambda per row, one slope g, and theta. */
+const GEO={nx:0,ny:0,rx:0,ry:0,rho:0,dx:0,dy:0};
+function geo(th,D,u){const tx=Math.cos(th),ty=Math.sin(th),ex=ty,ey=-tx,al=Math.asin(Math.max(-1,Math.min(1,u*CAN_R/D))),ph=Math.asin(u)-al,c=Math.cos(ph),s=Math.sin(ph);
+  const nx=c*tx+s*ex,ny=c*ty+s*ey,vx=CAN_R*nx-D*tx,vy=CAN_R*ny-D*ty,rho=Math.hypot(vx,vy),dx=vx/rho,dy=vy/rho,dn=dx*nx+dy*ny;
+  GEO.nx=nx;GEO.ny=ny;GEO.rx=dx-2*dn*nx;GEO.ry=dy-2*dn*ny;GEO.rho=rho;GEO.dx=dx;GEO.dy=dy;}
+function solveLin(N,b,n){const A=N.map((r,i)=>r.concat([b[i]]));for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(A[r][c])>Math.abs(A[p][c]))p=r;if(Math.abs(A[p][c])<1e-12)return null;[A[c],A[p]]=[A[p],A[c]];
+    for(let r=0;r<n;r++){if(r===c)continue;const f=A[r][c]/A[c][c];if(f)for(let k=c;k<=n;k++)A[r][k]-=f*A[c][k];}}return A.map((r,i)=>r[n]/r[i]);}
+function invMat(N,n){const A=N.map((r,i)=>r.concat(Array.from({length:n},(_,k)=>k===i?1:0)));for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(A[r][c])>Math.abs(A[p][c]))p=r;if(Math.abs(A[p][c])<1e-14)return null;[A[c],A[p]]=[A[p],A[c]];
+    const d=A[c][c];for(let k=0;k<2*n;k++)A[c][k]/=d;for(let r=0;r<n;r++){if(r===c)continue;const f=A[r][c];if(f)for(let k=0;k<2*n;k++)A[r][k]-=f*A[c][k];}}return A.map(r=>r.slice(n));}
+function fitAt(th,D,cells,rowMap,nr,wx,wy){const np=3+nr,N=Array.from({length:np},()=>new Array(np).fill(0)),b=new Array(np).fill(0),gI=np-1;
+  for(const c of cells){geo(th,D,c.u);const w=c.w*(c.rw||1),k=2+rowMap[c.k],rx=GEO.rx,ry=GEO.ry,u=c.u,ax=w*wx,ay=w*wy,rr=ax*rx*rx+ay*ry*ry;
+    const tx=c.F[0]-CAN_R*GEO.nx+GEO.rho*rx,ty=c.F[1]-CAN_R*GEO.ny+GEO.rho*ry,bt=ax*rx*tx+ay*ry*ty;
+    /* x equation: Cx + Lam_k rx + g u rx = tx ; y equation likewise */
+    N[0][0]+=ax;N[0][k]+=ax*rx;N[0][gI]+=ax*u*rx;N[1][1]+=ay;N[1][k]+=ay*ry;N[1][gI]+=ay*u*ry;N[k][k]+=rr;N[k][gI]+=u*rr;N[gI][gI]+=u*u*rr;
+    b[0]+=ax*tx;b[1]+=ay*ty;b[k]+=bt;b[gI]+=u*bt;}
+  for(let i=0;i<np;i++)for(let j=0;j<i;j++)N[i][j]=N[j][i];
+  let tr=0;for(let i=0;i<np;i++)tr+=N[i][i];for(let i=0;i<np;i++)N[i][i]+=1e-9*tr;N[np-1][np-1]+=tr*2e-4;
+  const p=solveLin(N,b,np);if(!p)return null;let ss=0,neg=0;
+  for(const c of cells){geo(th,D,c.u);const w=c.w*(c.rw||1),lam=p[2+rowMap[c.k]]+p[np-1]*c.u,ex=p[0]+CAN_R*GEO.nx+(lam-GEO.rho)*GEO.rx-c.F[0],ey=p[1]+CAN_R*GEO.ny+(lam-GEO.rho)*GEO.ry-c.F[1];
+    c.ex=ex;c.ey=ey;c.disp=lam-GEO.rho;if(c.disp<0)neg++;ss+=w*(wx*ex*ex+wy*ey*ey);
+    /* the same pixel read as a direct view of the screen past the can instead of a reflection */
+    const qx=p[0]+CAN_R*GEO.nx+(lam-GEO.rho)*GEO.dx-c.F[0],qy=p[1]+CAN_R*GEO.ny+(lam-GEO.rho)*GEO.dy-c.F[1];c.dir=qx*qx+qy*qy<ex*ex+ey*ey;}
+  return {p,ss,N,np,neg:neg/cells.length};}
+function fitCanU(cellsIn,opt){ /* opt: {D, sw, sh, cam:[x,y]|null} */
+  const wx=1/(opt.sw*opt.sw),wy=1/(opt.sh*opt.sh);let cells=cellsIn.slice();for(const c of cells)c.rw=1;
+  let best=null,th=0,D=opt.D,rowMap,nr;
+  const prep=()=>{const cnt=new Array(ROWS).fill(0);for(const c of cells)cnt[c.k]++;cells=cells.filter(c=>cnt[c.k]>=3);rowMap=new Array(ROWS).fill(-1);nr=0;for(let k=0;k<ROWS;k++)if(cnt[k]>=3)rowMap[k]=nr++;
+    let ws=0;for(const c of cells)ws+=c.w;for(const c of cells)c.w*=cells.length/ws;return cells.length>=10&&nr>=1;};
+  const search=()=>{
+    if(opt.cam){let C=best?[best.p[0],best.p[1]]:[opt.sw/2,opt.sh/2];for(let it=0;it<4;it++){th=Math.atan2(opt.cam[1]-C[1],opt.cam[0]-C[0]);D=Math.max(120,Math.hypot(opt.cam[0]-C[0],opt.cam[1]-C[1]));best=fitAt(th,D,cells,rowMap,nr,wx,wy);if(!best)return false;C=[best.p[0],best.p[1]];}return true;}
+    let bt=0,bs=Infinity;const dA=opt.th0!=null?opt.th0*180/Math.PI-12:0,dB=opt.th0!=null?dA+24.01:360;for(let d=dA;d<dB;d+=4){const f=fitAt(d*Math.PI/180,D,cells,rowMap,nr,wx,wy);if(f&&f.neg<0.5&&f.ss<bs){bs=f.ss;bt=d*Math.PI/180;}}
+    /* a bearing whose rays would reach the screen before the mirror is the same picture seen from the opposite side: not allowed */
+    if(bs===Infinity)return false;
+    let lo=bt-4*Math.PI/180,hi=bt+4*Math.PI/180;const gr=0.618;for(let it=0;it<9;it++){const a=hi-gr*(hi-lo),b=lo+gr*(hi-lo),fa=fitAt(a,D,cells,rowMap,nr,wx,wy),fb=fitAt(b,D,cells,rowMap,nr,wx,wy);if(!fa||!fb)break;if(fa.ss<fb.ss)hi=b;else lo=a;}
+    th=(lo+hi)/2;best=fitAt(th,D,cells,rowMap,nr,wx,wy);return !!best;};
+  if(!prep())return {ok:false,n:cells.length,why:`${cells.length} lit cells, need 10`};
+  if(!search())return {ok:false,n:cells.length,why:'fit did not solve'};
+  if(opt.th0==null)opt=Object.assign({},opt,{th0:th});
+  for(let pass=0;pass<2;pass++){ /* drop cells whose ray would land before the mirror, then down-weight outliers */
+    const res=cells.map(c=>Math.sqrt(wx*c.ex*c.ex+wy*c.ey*c.ey)).sort((a,b)=>a-b),sg=Math.max(1e-4,1.48*res[res.length>>1]);
+    const keep=cells.filter(c=>c.disp>2&&!c.dir);if(keep.length<10)return {ok:false,n:keep.length,why:`${keep.length} cells are consistent with a mirror reflection, need 10 (the rest look like scattered light)`};cells=keep;for(const c of cells){const r=Math.sqrt(wx*c.ex*c.ex+wy*c.ey*c.ey)/sg;c.rw=r<2?1:2/r;}
+    if(!prep())return {ok:false,n:cells.length,why:`${cells.length} usable cells, need 10`};if(!search())return {ok:false,n:cells.length,why:'fit did not solve'};}
+  /* covariance of C, with theta as a free parameter when the camera is not locked */
+  const np=best.np,nq=opt.cam?np:np+1,dof=Math.max(1,2*cells.length-nq),s2=best.ss/dof,M=Array.from({length:nq},()=>new Array(nq).fill(0)),dth=0.002;
+  for(const c of cells){const w=c.w*(c.rw||1),k=2+rowMap[c.k],lam=best.p[k]+best.p[np-1]*c.u;geo(th,D,c.u);
+    const jx=new Array(nq).fill(0),jy=new Array(nq).fill(0);jx[0]=1;jy[1]=1;jx[k]=GEO.rx;jy[k]=GEO.ry;jx[np-1]=c.u*GEO.rx;jy[np-1]=c.u*GEO.ry;
+    if(!opt.cam){geo(th+dth,D,c.u);const ax=CAN_R*GEO.nx+(lam-GEO.rho)*GEO.rx,ay=CAN_R*GEO.ny+(lam-GEO.rho)*GEO.ry;geo(th-dth,D,c.u);jx[np]=(ax-CAN_R*GEO.nx-(lam-GEO.rho)*GEO.rx)/(2*dth);jy[np]=(ay-CAN_R*GEO.ny-(lam-GEO.rho)*GEO.ry)/(2*dth);}
+    for(let i=0;i<nq;i++)for(let j=0;j<nq;j++)M[i][j]+=w*(wx*jx[i]*jx[j]+wy*jy[i]*jy[j]);}
+  for(let i=0;i<nq;i++)M[i][i]*=1+1e-9;M[np-1][np-1]+=best.N[0][0]*2e-4;
+  const Mi=invMat(M,nq);let sx=NaN,sy=NaN;if(Mi){sx=Math.sqrt(Math.max(0,s2*Mi[0][0]));sy=Math.sqrt(Math.max(0,s2*Mi[1][1]));}
+  let rms=0;for(const c of cells)rms+=c.ex*c.ex+c.ey*c.ey;rms=Math.sqrt(rms/cells.length);
+  const lam=[];for(let k=0;k<ROWS;k++)lam.push(rowMap[k]>=0?best.p[2+rowMap[k]]:null);
+  return {ok:true,C:[best.p[0],best.p[1]],th,D,lam,g:best.p[np-1],sx,sy,rms,chi:s2,n:cells.length,cells,locked:!!opt.cam};}
+/* The box the user (or the difference image) gives is only roughly the can's outline. Two more unknowns: a sideways shift of the
+   can axis in the box and a width scale. They are searched around the box values with a penalty for moving far from them. */
+function fitCan(cellsIn,opt){
+  const base=fitCanU(cellsIn.map(c=>Object.assign({},c)),opt);if(!base.ok)return base;
+  const o2=Object.assign({},opt,{th0:base.th}),s2=Math.max(1e-9,base.chi),SC=0.04,SS=0.06;
+  const at=(a,b,o)=>fitCanU(cellsIn.map(c=>Object.assign({},c,{u:Math.max(-0.995,Math.min(0.995,(c.u0-a)/(1+b)))})),o||o2);
+  const f=(a,b)=>{const r=at(a,b);if(!r.ok)return {v:1e9,r};return {v:r.chi/s2+((a/SC)*(a/SC)+(b/SS)*(b/SS))/Math.max(1,r.n*2),r};};
+  let a=0,b=0,cur={v:1,r:base},sa=0.03,sb=0.04;
+  if(!opt.noShape)for(let it=0;it<5;it++){for(const [da,db] of [[sa,0],[-sa,0],[0,sb],[0,-sb]]){const t=f(a+da,b+db);if(t.v<cur.v){cur=t;a+=da;b+=db;}}sa*=0.55;sb*=0.55;}
+  const R=cur.r;R.shift=a;R.scale=1+b;
+  /* how far the answer moves when the things this page does not know are changed: the outline's place and width in the box, and the camera distance */
+  let dx=0,dy=0;const vs=[[a+0.04,b,null],[a-0.04,b,null],[a,b+0.05,null],[a,b-0.05,null],[a,b,0.8],[a,b,1.25]];
+  for(const [va,vb,k] of vs){const o=Object.assign({},o2);if(k){if(o.cam){o.cam=[R.C[0]+(o.cam[0]-R.C[0])*k,R.C[1]+(o.cam[1]-R.C[1])*k];}else o.D=opt.D*k;}
+    const r=at(va,vb,o);if(r.ok){dx=Math.max(dx,Math.abs(r.C[0]-R.C[0]));dy=Math.max(dy,Math.abs(r.C[1]-R.C[1]));}}
+  R.hx=Math.hypot(2*R.sx,dx);R.hy=Math.hypot(2*R.sy,dy);return R;}
+/* the camera's place in screen coordinates: the point where the "toward the camera" lines of many free fits cross */
+function learnCam(hist,opt){ if(hist.length<12)return null;
+  /* first guess: the point where the "toward the camera" lines of the free fits cross. Its bearing is usable, its range is not. */
+  let a=0,b=0,d=0,e1=0,e2=0,n=0,mx=0,my=0;for(const h of hist){const tx=Math.cos(h.th),ty=Math.sin(h.th),m00=1-tx*tx,m01=-tx*ty,m11=1-ty*ty;a+=m00;b+=m01;d+=m11;e1+=m00*h.C[0]+m01*h.C[1];e2+=m01*h.C[0]+m11*h.C[1];mx+=h.C[0];my+=h.C[1];n++;}
+  const det=a*d-b*b;if(det<1e-6)return null;mx/=n;my/=n;const x0=(d*e1-b*e2)/det,y0=(a*e2-b*e1)/det;let bear=Math.atan2(y0-my,x0-mx),dist=Math.hypot(x0-mx,y0-my);
+  /* then: the camera position for which all stored readings fit best at once */
+  const use=hist.slice(-24),cost=(be,di)=>{const cam=[mx+di*Math.cos(be),my+di*Math.sin(be)];let c=0;for(const h of use){const r=fitCanU(h.pts.map(q=>Object.assign({},q)),{D:di,sw:opt.sw,sh:opt.sh,cam});c+=r.ok?r.chi*r.n:1e3;}return c;};
+  let best=Infinity,bb=bear,bd=dist;for(const di of [150,200,260,330,420,540,700,900])for(const db of [-0.1,-0.05,0,0.05,0.1]){const c=cost(bear+db,di);if(c<best){best=c;bb=bear+db;bd=di;}}
+  let sb=0.03,sd=0.15;for(let it=0;it<7;it++){for(const [db,dd] of [[sb,0],[-sb,0],[0,sd],[0,-sd]]){const c=cost(bb+db,bd*Math.exp(dd));if(c<best){best=c;bb+=db;bd*=Math.exp(dd);}}sb*=0.6;sd*=0.6;}
+  return [mx+bd*Math.cos(bb),my+bd*Math.sin(bb)];}
+
+/* ---------- one cycle: acquire frames, sample, decode ---------- */
+const raf=()=>new Promise(r=>requestAnimationFrame(r)),sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function sendPat(p){S.seq++;send({type:'pat',pat:p,seq:S.seq});return S.seq;}
+async function acquire(p,roi){
+  const seq=sendPat(p);
+  if(S.src==='sim'){await raf();return roi?simRender(p,roi.y-2,roi.y+roi.h+2):simRender(p);}
+  /* real camera: wait until the Floor says it has painted the pattern, then let the camera catch up */
+  const t0=performance.now();while(!S.shown[seq]&&performance.now()-t0<900)await sleep(15);
+  S.lastAck=!!S.shown[seq];delete S.shown[seq];await sleep(320);return grabVideo(p);}
+let grabCv=null;
+function grabVideo(p){const v=$('vid');if(!v.videoWidth)return null;const w=640,h=Math.round(640*v.videoHeight/v.videoWidth);if(!grabCv)grabCv=document.createElement('canvas');grabCv.width=w;grabCv.height=h;
+  const g=grabCv.getContext('2d',{willReadFrequently:true});g.drawImage(v,0,0,w,h);return {w,h,data:g.getImageData(0,0,w,h).data,pat:p,full:true};}
+function setBoxFrom(fr,pat){if(S.empty&&S.empty[pat]){const b=autoBox(fr,S.empty[pat]);if(b){S.box=b;S.boxAuto=true;return;}S.boxAuto=false;}
+  if(!S.box)S.box={x:fr.w*0.44,y:fr.h*0.55,w:fr.w*0.12,h:fr.w*0.05};}
+function processFrames(frames,mode){
+  const pats=CYC[mode],bp=BOXPAT[mode],first=frames[bp];if(!first)return {ok:false,why:'no frame'};
+  setBoxFrom(first,bp);const cs={};for(const p of pats)cs[p]=sampleCells(frames[p],S.box);S.cells=cs;
+  if(mode!=='SEQ4'&&!(S.cal&&S.cal.ok))return {ok:false,why:'the colour code needs CALIBRATE first'};
+  const sw=scrW(),sh=scrH(),pts=decodeCells(mode,cs,S.cal,sw,sh,S.boxAuto&&S.box.mask);
+  const free=fitCan(pts.map(c=>Object.assign({},c)),{D:S.D,sw,sh,cam:null});let res=free;
+  if(S.lock&&S.cam){const lk=fitCan(pts.map(c=>Object.assign({},c)),{D:S.D,sw,sh,cam:S.cam});if(lk.ok)res=lk;}
+  res.pts=pts;res.free=free;res.lit=pts.length;return res;}
+async function cycleOnce(){
+  if(S.wantEmpty){S.wantEmpty=false;await doEmpty();return;}
+  if(S.wantCal){S.wantCal=false;await doCal();return;}
+  const pats=CYC[S.mode],frames={},c0=SIM.can.slice();let roi=null;for(const p of pats){const f=await acquire(p,roi);if(!f){S.status='the camera gave no frame';await sleep(200);return;}frames[p]=f;if(f.full)S.viewFrame=f;if(!roi&&S.src==='sim'){setBoxFrom(f,p);roi=S.box;}}
+  const res=processFrames(frames,S.mode);S.res=res;S.decN++;res.moved=S.src==='sim'&&Math.hypot(SIM.can[0]-c0[0],SIM.can[1]-c0[1])>0.5;
+  if(!res.moved&&res.free&&res.free.ok&&res.free.hx<8&&res.free.hy<8){const l=S.hist[S.hist.length-1];if(!l||Math.hypot(l.C[0]-res.free.C[0],l.C[1]-res.free.C[1])>6){S.hist.push({C:res.free.C.slice(),th:res.free.th,pts:res.pts});if(S.hist.length>40)S.hist.shift();if(S.lock&&S.hist.length>=12&&S.hist.length%4===0){const c=learnCam(S.hist,{sw:scrW(),sh:scrH()});if(c)S.cam=c;}}}
+  if(S.src==='sim'&&res.ok)res.err=Math.hypot(res.C[0]-SIM.can[0],res.C[1]-SIM.can[1]);
+  S.truth=S.src==='sim'?SIM.can.slice():null;paint();}
+async function doEmpty(){S.status=S.src==='sim'?'capturing the scene without the can':'capturing the empty scene: the can must be out of view';paint();
+  if(S.src==='sim')SIM.noCan=true;const e={};for(const p of ['W','C']){const f=await acquire(p);if(f)e[p]=downsample(f);}SIM.noCan=false;S.empty=e;S.status='empty scene stored; the box now follows the can';}
+async function doCal(){const pats=['W','K','R','G','B','G25','G50','G75'],cs={};S.status='calibrating: 8 reference frames';paint();
+  for(const p of pats){const f=await acquire(p,p==='W'?null:S.box);if(!f){S.status='calibration stopped: the camera gave no frame';return;}if(p==='W'){setBoxFrom(f,'W');}cs[p]=sampleCells(f,S.box);if(f.full)S.viewFrame=f;S.status='calibrating: '+PAT_NAME[p];paint();}
+  S.cal=calibrateFrom(cs);S.calCells=cs;S.status=S.cal.ok?`calibrated from ${S.cal.lit} lit cells${S.cal.stair?'':' (tone curve not usable, left as is)'}`:'calibration failed: '+S.cal.why;}
+async function loop(){for(;;){if(!S.src||S.busyTrials){await raf();continue;}try{await cycleOnce();}catch(e){S.status='error: '+(e.message||e);console.error(e);await sleep(300);}}}
+const scrW=()=>S.src==='sim'?SIM.sw:(S.floorMM?S.floorMM[0]:68),scrH=()=>S.src==='sim'?SIM.sh:(S.floorMM?S.floorMM[1]:148);
+function onMsgLab(m){if(m.type==='hello'&&m.role==='floor'){S.floorAt=performance.now();if(m.mm)S.floorMM=m.mm;}
+  if(m.type==='shown'){S.floorAt=performance.now();S.shown[m.seq]=true;S.ackN=(S.ackN||0)+1;if(m.mm)S.floorMM=m.mm;}}
+
+/* ---------- drawing ---------- */
+let frameCv=null;
+function paintCam(){const {g,W,H}=fitCv($('cvCam'));g.fillStyle='#fff';g.fillRect(0,0,W,H);let fw=640,fh=480;
+  if(S.src==='cam'){const v=$('vid');if(v.videoWidth){fw=640;fh=Math.round(640*v.videoHeight/v.videoWidth);}}
+  const sc=Math.min(W/fw,H/fh),ox=(W-fw*sc)/2,oy=(H-fh*sc)/2;S.view={sc,ox,oy,fw,fh};
+  if(S.src==='cam'){const v=$('vid');if(v.videoWidth)g.drawImage(v,ox,oy,fw*sc,fh*sc);}
+  else if(S.viewFrame){const f=S.viewFrame;if(!frameCv)frameCv=document.createElement('canvas');if(frameCv.width!==f.w){frameCv.width=f.w;frameCv.height=f.h;}frameCv.getContext('2d').putImageData(new ImageData(f.data,f.w,f.h),0,0);g.imageSmoothingEnabled=true;g.drawImage(frameCv,ox,oy,fw*sc,fh*sc);}
+  g.strokeStyle='#000';g.lineWidth=2;g.strokeRect(ox,oy,fw*sc,fh*sc);
+  if(S.box){const b=S.box,x=ox+b.x*sc,y=oy+b.y*sc,w=b.w*sc,h=b.h*sc;g.strokeStyle='#19e6c8';g.lineWidth=2;g.strokeRect(x,y,w,h);
+    g.lineWidth=1;g.beginPath();for(let k=1;k<ROWS;k++){g.moveTo(x,y+h*k/ROWS);g.lineTo(x+w,y+h*k/ROWS);}g.stroke();
+    if(S.res&&S.res.pts){g.fillStyle='#ffd23f';for(const c of S.res.pts)g.fillRect(x+w*(c.i+0.5)/COLS-1,y+h*(c.k+0.5)/ROWS-1,2,2);}
+    if(S.src==='cam'){g.fillStyle='#19e6c8';g.fillRect(x+w-5,y+h-5,10,10);}}
+  /* enlarged copy of the pixels inside and around the box */
+  const srcEl=S.src==='cam'?$('vid'):(S.viewFrame?frameCv:null);
+  if(S.box&&srcEl&&(S.src!=='cam'||$('vid').videoWidth)){const b=S.box,mx=b.w*0.12,my=b.h*0.35,rx=b.x-mx,ry=b.y-my,rw=b.w+2*mx,rh=b.h+2*my,k=(S.src==='cam'?$('vid').videoWidth/fw:1);
+    const iw=Math.min(W*0.4,300),ih=iw*rh/rw,ix=W-iw-6,iy=Math.max(oy+20,34);g.imageSmoothingEnabled=false;g.fillStyle='#000';g.fillRect(ix-2,iy-14,iw+4,ih+16);
+    try{g.drawImage(srcEl,rx*k,ry*k,rw*k,rh*k,ix,iy,iw,ih);}catch(e){}g.imageSmoothingEnabled=true;
+    const zs=iw/rw;g.strokeStyle='#19e6c8';g.lineWidth=2;g.strokeRect(ix+mx*zs,iy+my*zs,b.w*zs,b.h*zs);g.fillStyle='#fff';g.font=font(600,9);g.fillText('PIXELS IN THE BOX, ENLARGED',ix+2,iy-4);}
+  $('tagCam').textContent=S.src==='sim'?'SIMULATED CAMERA A · drag the can here or on the plan':S.src==='cam'?'CAMERA A · drag the box onto the can, corner resizes; it must span the can':'CAMERA A';}
+function paintPlan(){const {g,W,H}=fitCv($('cvPlan'));g.fillStyle='#fff';g.fillRect(0,0,W,H);const sw=scrW(),sh=scrH(),mg=38;
+  const sc=Math.min((W-16)/(sw+2*mg),(H-26)/(sh+2*mg)),ox=(W-sw*sc)/2,oy=18+(H-18-sh*sc)/2;S.planT={sc,ox,oy};const X=x=>ox+x*sc,Y=y=>oy+y*sc;
+  g.strokeStyle='#000';g.lineWidth=2;g.strokeRect(X(0),Y(0),sw*sc,sh*sc);g.lineWidth=1;g.font=font(400,9);g.fillStyle='#000';
+  g.beginPath();for(let x=0;x<=sw;x+=10){g.moveTo(X(x),Y(0));g.lineTo(X(x),Y(0)-(x%50?3:6));}for(let y=0;y<=sh;y+=10){g.moveTo(X(0),Y(y));g.lineTo(X(0)-(y%50?3:6),Y(y));}g.stroke();
+  g.fillText('0',X(0)-10,Y(0)-8);g.fillText(sw.toFixed(0),X(sw)-8,Y(0)-8);g.fillText(sh.toFixed(0),X(0)-22,Y(sh)+3);
+  const r=S.res;
+  if(r&&r.pts){ /* every lit cell: where on the screen its colour says it is looking, drawn in the colour that was sampled */
+    const cs=S.cells,pat=S.mode==='SEQ4'?'W':'C';for(const c of r.pts){const q=c.q*3,col=cs[pat]?`rgb(${enc8(cs[pat][q])},${enc8(cs[pat][q+1])},${enc8(cs[pat][q+2])})`:'#888';g.fillStyle=col;g.fillRect(X(c.F[0])-2.5,Y(c.F[1])-2.5,5,5);g.strokeStyle='#000';g.lineWidth=0.5;g.strokeRect(X(c.F[0])-2.5,Y(c.F[1])-2.5,5,5);}}
+  if(S.truth){g.strokeStyle='#3b82f6';g.lineWidth=2;g.setLineDash([5,4]);g.beginPath();g.arc(X(S.truth[0]),Y(S.truth[1]),CAN_R*sc,0,7);g.stroke();g.setLineDash([]);g.fillStyle='#3b82f6';g.fillRect(X(S.truth[0])-2,Y(S.truth[1])-2,4,4);}
+  if(r&&r.ok){const cx=X(r.C[0]),cy=Y(r.C[1]);
+    g.strokeStyle='#3b82f6';g.lineWidth=1;for(let k=0;k<ROWS;k++){if(r.lam[k]==null)continue;g.beginPath();let on=false;for(let u=-UMAX;u<=UMAX+1e-6;u+=0.03){geo(r.th,r.D,u);const d=r.lam[k]+r.g*u-GEO.rho;if(d<2){on=false;continue;}const px=X(r.C[0]+CAN_R*GEO.nx+d*GEO.rx),py=Y(r.C[1]+CAN_R*GEO.ny+d*GEO.ry);if(on)g.lineTo(px,py);else g.moveTo(px,py);on=true;}g.stroke();}
+    g.strokeStyle='#19e6c8';g.lineWidth=3;g.beginPath();g.arc(cx,cy,CAN_R*sc,0,7);g.stroke();
+    g.strokeStyle='#000';g.lineWidth=2;g.beginPath();g.moveTo(cx-7,cy);g.lineTo(cx+7,cy);g.moveTo(cx,cy-7);g.lineTo(cx,cy+7);g.stroke();
+    if(isFinite(r.hx)){g.fillStyle='rgba(255,210,63,0.45)';g.fillRect(cx-r.hx*sc,cy-r.hy*sc,2*r.hx*sc,2*r.hy*sc);g.strokeStyle='#000';g.lineWidth=1;g.strokeRect(cx-r.hx*sc,cy-r.hy*sc,2*r.hx*sc,2*r.hy*sc);}
+    /* direction to the camera, as fitted */
+    const ax=Math.cos(r.th),ay=Math.sin(r.th),L=CAN_R*sc+16;g.strokeStyle='#000';g.lineWidth=1;g.beginPath();g.moveTo(cx+ax*CAN_R*sc,cy+ay*CAN_R*sc);g.lineTo(cx+ax*L,cy+ay*L);g.stroke();g.fillStyle='#000';g.fillText('cam',cx+ax*(L+10)-8,cy+ay*(L+10)+3);
+    if(S.truth){g.strokeStyle='#ff2e2e';g.lineWidth=2;g.beginPath();g.moveTo(cx,cy);g.lineTo(X(S.truth[0]),Y(S.truth[1]));g.stroke();}}
+  g.fillStyle='#000';g.font=font(400,9);let ly=H-4;const leg=(c,t)=>{g.fillStyle=c;g.fillRect(4,ly-7,8,8);g.strokeStyle='#000';g.lineWidth=0.5;g.strokeRect(4,ly-7,8,8);g.fillStyle='#000';g.fillText(t,16,ly);ly-=11;};
+  if(S.truth)leg('#3b82f6','true can (simulation)');leg('#ffd23f','uncertainty box');leg('#19e6c8','decoded can');}
+const enc8=v=>Math.round(255*sEnc(v));
+function paintSw(){const {g,W,H}=fitCv($('cvSw'));g.fillStyle='#fff';g.fillRect(0,0,W,H);const pats=CYC[S.mode].filter(p=>S.cells[p]);g.font=font(600,9);
+  const top=18,calH=S.cal&&S.cal.ok?30:0,n=Math.max(1,pats.length),gh=Math.max(10,(H-top-calH-6)/n-13),cw=(W-8)/COLS,ch=Math.min(gh/ROWS,cw*1.6);let y=top;
+  for(const p of pats){g.fillStyle='#000';g.fillText(PAT_NAME[p].toUpperCase(),4,y+8);y+=11;const c=S.cells[p];
+    for(let k=0;k<ROWS;k++)for(let i=0;i<COLS;i++){const q=(k*COLS+i)*3;g.fillStyle=`rgb(${enc8(c[q])},${enc8(c[q+1])},${enc8(c[q+2])})`;g.fillRect(4+i*cw,y+k*ch,cw+0.5,ch+0.5);}
+    g.strokeStyle='#000';g.lineWidth=1;g.strokeRect(4,y,cw*COLS,ch*ROWS);y+=ch*ROWS+2;}
+  if(calH){const m=S.cal.mean,ks=['K','W','R','G','B','G25','G50','G75'],w=(W-8)/8;y=H-calH;g.fillStyle='#000';g.fillText('CALIBRATION FLASHES IN THE CAN',4,y+8);
+    ks.forEach((k,i)=>{const c=m[k];g.fillStyle=`rgb(${enc8(c[0])},${enc8(c[1])},${enc8(c[2])})`;g.fillRect(4+i*w,y+12,w,14);g.strokeStyle='#000';g.strokeRect(4+i*w,y+12,w,14);});}
+  if(!pats.length){g.fillStyle='#000';g.font=font(400,10);g.fillText('no cells sampled yet',6,34);}}
+function paint(){paintCam();paintPlan();paintSw();
+  const r=S.res,f1=v=>v.toFixed(1);let a='Nothing measured yet.',b='',c='';
+  if(r){if(r.ok){a=`<b>DECODED</b> x ${f1(r.C[0])} y ${f1(r.C[1])} mm · uncertainty box ±${isFinite(r.hx)?f1(r.hx):'?'} x ±${isFinite(r.hy)?f1(r.hy):'?'} mm`;
+      if(S.src==='sim')b=r.moved?'The can moved during these frames. This reading is not valid.':`<b>TRUE</b> x ${f1(S.truth[0])} y ${f1(S.truth[1])} mm · <span class="e">error ${f1(r.err)} mm</span> (simulated pixels)`;
+      else b='No ground truth here: this is a real camera reading.';
+      c=`${r.n} of ${ROWS*COLS} cells used · fit residual ${f1(r.rms)} mm rms · camera bearing ${((r.th*180/Math.PI+360)%360).toFixed(0)} deg${r.locked?' (locked)':''}`;}
+    else{a=`<b>NO DECODE</b> · ${r.why||''}`;c=`${r.lit||0} of ${ROWS*COLS} cells carried screen light`;}}
+  if(S.trial)b=S.trial;
+  $('r1').innerHTML=a;$('r2').innerHTML=b;const linked=performance.now()-S.floorAt<5000;
+  $('r3').textContent=(S.src==='cam'&&!linked?'NO FLOOR PAGE IS LINKED: the patterns are not being shown, so nothing here is a measurement · ':'')+(S.status?S.status+' · ':'')+c;
+  $('link').textContent=(S.src==='sim'?'simulated camera and screen':S.src==='cam'?'camera A'+(S.camNote?' ('+S.camNote+')':''):'no source')+' · '+(linked?'Floor linked'+(S.floorMM?` ${S.floorMM[0]} x ${S.floorMM[1]} mm`:' (scale not set)'):'no Floor page')+(ROOM?' · room '+ROOM:'');
+  $('bMode').textContent=MODE_LABEL[S.mode];$('bLock').textContent='CAMERA LOCK: '+(S.lock?(S.cam?'ON':'ON (learning)'):'OFF');$('bLock').classList.toggle('on',S.lock&&!!S.cam);
+  $('bRoom').textContent='ROOM: '+S.room;$('bLift').textContent='LIFT: '+SIM.lift+' mm';
+  for(const e of document.querySelectorAll('.simOnly'))e.style.display=S.src==='sim'?'':'none';$('bEmpty').style.display=$('bDist').style.display=S.src==='cam'?'':'none';$('bDist').textContent='CAMERA DISTANCE: about '+S.D+' mm';}
+
+/* ---------- controls ---------- */
+function startSim(){S.src='sim';S.res=null;S.box=null;S.cal=null;S.empty=null;S.hist=[];S.cam=null;$('startBox').style.display='none';applyRoom();S.wantEmpty=true;S.wantCal=true;paint();}
+function applyRoom(){SIM.amb=ROOMS[S.room].amb;SIM.noise=ROOMS[S.room].noise;}
+async function startCam(){ $('camMsg').textContent='starting: allow the camera';
+  try{if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('this browser has no camera interface here (it needs https or localhost)');
+    const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280},height:{ideal:720}},audio:false});const v=$('vid');v.srcObject=st;await v.play();
+    S.camNote='exposure not locked';try{const tr=st.getVideoTracks()[0],cp=tr.getCapabilities?tr.getCapabilities():{};const adv={};if(cp.exposureMode&&cp.exposureMode.includes('manual'))adv.exposureMode='manual';if(cp.whiteBalanceMode&&cp.whiteBalanceMode.includes('manual'))adv.whiteBalanceMode='manual';
+      if(Object.keys(adv).length){await tr.applyConstraints({advanced:[adv]});S.camNote=(adv.exposureMode?'exposure locked':'exposure not locked')+(adv.whiteBalanceMode?', white balance locked':'');}}catch(e){}
+    S.src='cam';S.res=null;S.box=null;S.cal=null;S.empty=null;S.hist=[];S.cam=null;S.truth=null;$('startBox').style.display='none';S.status='set the box across the can, then CALIBRATE';paint();}
+  catch(e){$('camMsg').innerHTML='<b>Camera A did not start: '+String(e.name||'')+' '+String(e.message||e)+'.</b> The simulation still works.';}}
+function labInit(){
+  if(ROOM)joinRoom(ROOM);
+  $('bSim').onclick=startSim;$('bCam').onclick=startCam;
+  $('bSrc').onclick=()=>{S.src=null;try{const v=$('vid');if(v.srcObject){v.srcObject.getTracks().forEach(t=>t.stop());v.srcObject=null;}}catch(e){}$('startBox').style.display='flex';paint();};
+  $('bMode').onclick=()=>{S.mode=S.mode==='SEQ4'?'RGB2':S.mode==='RGB2'?'RGB1':'SEQ4';S.res=null;paint();};
+  $('bCal').onclick=()=>{if(S.src)S.wantCal=true;};$('bEmpty').onclick=()=>{if(S.src)S.wantEmpty=true;};
+  $('bDist').onclick=()=>{const k=[250,320,380,460,560];S.D=k[(k.indexOf(S.D)+1)%k.length];paint();};
+  $('bLock').onclick=()=>{S.lock=!S.lock;paint();};
+  $('bRoom').onclick=()=>{const k=Object.keys(ROOMS);S.room=k[(k.indexOf(S.room)+1)%k.length];applyRoom();S.wantEmpty=true;S.wantCal=true;paint();};
+  $('bLift').onclick=()=>{SIM.lift=SIM.lift===0?15:SIM.lift===15?30:0;paint();};
+  $('bRun').onclick=runTrialsUI;
+  $('bPair').onclick=()=>{if(!ROOM){ROOM=Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join('');}joinRoom(ROOM);
+    const url=location.origin+location.pathname+'?floor&room='+ROOM;$('pairUrl').textContent=url;$('pairCode').textContent=ROOM;$('qr').innerHTML='';
+    try{new QRCode($('qr'),{text:url,width:146,height:146,correctLevel:QRCode.CorrectLevel.M});}catch(e){$('qr').textContent='QR not available: type the address';}
+    $('pairBox').classList.add('on');};
+  $('bPairClose').onclick=()=>$('pairBox').classList.remove('on');
+  $('bLimits').onclick=()=>$('limBox').classList.add('on');$('bLimClose').onclick=()=>$('limBox').classList.remove('on');
+  const cc=$('cvCam'),toF=e=>{const r=cc.getBoundingClientRect(),v=S.view;return v?[(e.clientX-r.left-v.ox)/v.sc,(e.clientY-r.top-v.oy)/v.sc]:[0,0];};
+  const clampCan=p=>[Math.max(-25,Math.min(SIM.sw+25,p[0])),Math.max(-25,Math.min(SIM.sh+25,p[1]))];
+  cc.addEventListener('pointerdown',e=>{if(!S.src)return;const p=toF(e);try{cc.setPointerCapture(e.pointerId);}catch(x){}
+    if(S.src==='sim'){const cur=simProj(SIM.can[0],SIM.can[1],0);S.drag={kind:'can',off:[cur[0]-p[0],cur[1]-p[1]]};}
+    else if(S.box){const b=S.box;S.drag=(Math.abs(p[0]-(b.x+b.w))<14&&Math.abs(p[1]-(b.y+b.h))<14)?{kind:'size'}:{kind:'box',off:[b.x+b.w/2-p[0],b.y+b.h/2-p[1]],moved:false};
+      if(S.drag.kind==='box'&&!(p[0]>b.x&&p[0]<b.x+b.w&&p[1]>b.y&&p[1]<b.y+b.h)){S.drag.off=[0,0];b.x=p[0]-b.w/2;b.y=p[1]-b.h/2;}S.empty=null;}});
+  cc.addEventListener('pointermove',e=>{if(!S.drag)return;const p=toF(e);
+    if(S.drag.kind==='can'){const f=simPointerToFloor(p[0]+S.drag.off[0],p[1]+S.drag.off[1]);if(f)SIM.can=clampCan(f);}
+    else if(S.drag.kind==='box'){S.box.x=p[0]+S.drag.off[0]-S.box.w/2;S.box.y=p[1]+S.drag.off[1]-S.box.h/2;paintCam();}
+    else if(S.drag.kind==='size'){S.box.w=Math.max(24,p[0]-S.box.x);S.box.h=Math.max(12,p[1]-S.box.y);paintCam();}});
+  const end=()=>{S.drag=null;};cc.addEventListener('pointerup',end);cc.addEventListener('pointercancel',end);
+  const pc=$('cvPlan'),toP=e=>{const r=pc.getBoundingClientRect(),t=S.planT;return [(e.clientX-r.left-t.ox)/t.sc,(e.clientY-r.top-t.oy)/t.sc];};let pd=false;
+  pc.addEventListener('pointerdown',e=>{if(S.src!=='sim'||!S.planT)return;pd=true;try{pc.setPointerCapture(e.pointerId);}catch(x){}SIM.can=clampCan(toP(e));});
+  pc.addEventListener('pointermove',e=>{if(pd)SIM.can=clampCan(toP(e));});pc.addEventListener('pointerup',()=>pd=false);pc.addEventListener('pointercancel',()=>pd=false);
+  new ResizeObserver(()=>paint()).observe($('main'));
+  (function camDraw(){if(S.src==='cam')paintCam();requestAnimationFrame(camDraw);})();
+  setInterval(()=>{if(!S.src||S.src==='cam')paint();},700);
+  paint();loop();
+  if(/[?&]sim\b/.test(location.search))startSim();
+}
+function simProj(x,y,z){const B=simCamBasis(),v=[x-SIM.pc[0],y-SIM.pc[1],z-SIM.pc[2]],f=v[0]*B.f[0]+v[1]*B.f[1]+v[2]*B.f[2];return [SIM.W/2+B.F*(v[0]*B.r[0]+v[1]*B.r[1]+v[2]*B.r[2])/f,SIM.H/2+B.F*(v[0]*B.d[0]+v[1]*B.d[1]+v[2]*B.d[2])/f];}
+
+/* ---------- measurement over many simulated positions (synchronous; used by the RUN button and by the test script) ---------- */
+function trialSetup(o){SIM.amb=ROOMS[o.room].amb;SIM.noise=ROOMS[o.room].noise;SIM.lift=o.lift||0;SIM.seed=o.seed||1;rndS=o.seed||1;
+  SIM.noCan=true;const empty={W:downsample(simRender('W')),C:downsample(simRender('C'))};SIM.noCan=false;
+  SIM.can=[SIM.sw/2,SIM.sh/2];const cs={};let box=null;for(const p of ['W','K','R','G','B','G25','G50','G75']){const f=box?simRender(p,box.y-2,box.y+box.h+2):simRender(p);if(!box)box=autoBox(f,empty.W);if(!box)return null;cs[p]=sampleCells(f,box);}
+  return {empty,cal:calibrateFrom(cs)};}
+function trialOne(T,o,pos,cam){SIM.can=pos;const pats=CYC[o.mode],fr={};fr[pats[0]]=simRender(pats[0]);const box=autoBox(fr[pats[0]],T.empty[pats[0]]);if(!box)return {ok:false,why:'can not found in the image'};
+  for(const p of pats.slice(1))fr[p]=simRender(p,box.y-2,box.y+box.h+2);
+  const cs={};for(const p of pats)cs[p]=sampleCells(fr[p],box);const pts=decodeCells(o.mode,cs,o.noCal?Object.assign({},T.cal,{stair:null}):T.cal,SIM.sw,SIM.sh,box.mask);
+  const r=fitCan(pts,{D:o.D||380,sw:SIM.sw,sh:SIM.sh,cam:cam||null,noShape:!!o.noShape});r.box=box;r.pts=pts;r.lit=pts.length;if(r.ok){r.err=Math.hypot(r.C[0]-pos[0],r.C[1]-pos[1]);r.inside=Math.abs(r.C[0]-pos[0])<=r.hx&&Math.abs(r.C[1]-pos[1])<=r.hy;}return r;}
+function summarise(rs,n){const e=rs.filter(r=>r.ok).map(r=>r.err).sort((a,b)=>a-b),q=p=>e.length?e[Math.min(e.length-1,Math.floor(p*e.length))]:null;
+  return {n,decoded:e.length,median:q(0.5),p95:q(0.95),max:e.length?e[e.length-1]:null,insideBox:e.length?rs.filter(r=>r.ok&&r.inside).length/e.length:null,meanCells:e.length?rs.filter(r=>r.ok).reduce((a,r)=>a+r.n,0)/e.length:null};}
+function randPos(o){const m=o.margin||0;return [m+rnd()*(SIM.sw-2*m),m+rnd()*(SIM.sh-2*m)];}
+function runTrials(o){o=Object.assign({n:200,room:'OFFICE',mode:'SEQ4',lock:false,seed:7,lift:0},o||{});const keep=SIM.can.slice(),kl=SIM.lift;
+  const T=trialSetup(o);if(!T||!T.cal.ok){SIM.can=keep;SIM.lift=kl;applyRoom();return {error:'calibration failed'+(T?': '+T.cal.why:'')};}
+  let cam=null,learnN=0;if(o.lock){const h=[];for(let i=0;i<40;i++){const r=trialOne(T,o,randPos(o),null);if(r.ok&&r.hx<8&&r.hy<8)h.push({C:r.C,th:r.th,pts:r.pts});}learnN=h.length;cam=learnCam(h,{sw:SIM.sw,sh:SIM.sh});}
+  const rs=[];for(let i=0;i<o.n;i++){const pos=randPos(o),r=trialOne(T,o,pos,cam);rs.push({ok:r.ok,err:r.err,inside:r.inside,n:r.n,pos,C:r.C,sx:r.sx,sy:r.sy,th:r.th});}
+  SIM.can=keep;SIM.lift=kl;applyRoom();const s=summarise(rs,o.n);s.opts=o;s.cam=cam;s.learnN=learnN;s.trueCam=[SIM.pc[0],SIM.pc[1]];if(o.raw)s.raw=rs;return s;}
+async function runTrialsUI(){if(S.busyTrials||S.src!=='sim')return;S.busyTrials=true;const o={n:200,room:S.room,mode:S.mode,lock:S.lock,seed:(Date.now()&0xffff)|1,lift:SIM.lift};const keep=SIM.can.slice();
+  S.trial='measuring 200 random positions: setup';paint();await raf();const T=trialSetup(o);
+  if(!T||!T.cal.ok){S.trial='200 positions: calibration failed';}else{let cam=null;if(o.lock){const h=[];for(let i=0;i<40;i++){const r=trialOne(T,o,randPos(o),null);if(r.ok&&r.hx<8&&r.hy<8)h.push({C:r.C,th:r.th,pts:r.pts});if(i%8===0){S.trial=`learning the camera position: ${i} of 40`;paint();await raf();}}cam=learnCam(h,{sw:SIM.sw,sh:SIM.sh});}
+    const rs=[];for(let i=0;i<o.n;i++){const r=trialOne(T,o,randPos(o),cam);rs.push(r);if(i%8===7){S.trial=`measuring 200 random positions: ${i+1}`;paint();await raf();}}
+    const s=summarise(rs,o.n);S.trial=s.decoded?`<b>200 RANDOM POSITIONS</b> (${o.room}, ${o.mode}${o.lock&&cam?', camera locked':''}, lift ${o.lift}) · decoded ${s.decoded} · median <span class="e">${s.median.toFixed(1)} mm</span> · 95% under ${s.p95.toFixed(1)} mm · truth inside the box ${(100*s.insideBox).toFixed(0)}%`:'200 random positions: none decoded';}
+  SIM.can=keep;applyRoom();S.busyTrials=false;paint();}
+window.GLARE={S,SIM,runTrials,trialSetup,trialOne,autoBox,geo,GEO,simProj,simRender,fitCan,learnCam};
+
+if(FLOOR)floorInit();else labInit();
+</script>
+</body>
+</html>

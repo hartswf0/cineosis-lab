@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>CAN LABEL ENCODER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;border-radius:0}
+html,body{margin:0;height:100dvh;overflow:hidden;background:#fff;color:#000;font-family:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:1.25}
+#app{display:grid;grid-template-rows:auto minmax(0,1fr) auto;height:100dvh;width:100vw}
+header{border-bottom:2px solid #000;padding:3px 6px;display:flex;gap:10px;align-items:baseline;white-space:nowrap;overflow:hidden}
+header b{font-weight:600}
+header span{overflow:hidden;text-overflow:ellipsis}
+#stage{display:grid;min-height:0;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr)}
+#viewWrap{position:relative;min-height:0;min-width:0;border-right:2px solid #000;overflow:hidden}
+#view{width:100%;height:100%;object-fit:contain;display:block;touch-action:none;cursor:crosshair}
+#status{position:absolute;left:0;right:0;bottom:0;background:#fff;border-top:2px solid #000;padding:2px 6px;min-height:18px}
+#status .w{color:#ff2e2e;font-weight:600}
+#side{display:grid;grid-template-rows:auto auto minmax(0,1fr);min-height:0;min-width:0}
+#r1{display:grid;grid-template-columns:minmax(0,1fr) auto;border-bottom:2px solid #000;min-width:0}
+#read{padding:3px 6px;min-width:0;overflow:hidden}
+#read table{border-collapse:collapse;width:100%}
+#read td,#read th{text-align:right;padding:0 4px 0 0;font-weight:400;white-space:nowrap}
+#read th{font-weight:600;border-bottom:2px solid #000}
+#read td:first-child,#read th:first-child{text-align:left}
+#read .ln{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dial{width:132px;height:132px;border-left:2px solid #000;display:block}
+#maps{width:100%;display:block;border-bottom:2px solid #000;aspect-ratio:520/150;max-height:24dvh;object-fit:contain}
+#r3{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);min-height:0}
+#demoWrap{min-height:0;min-width:0;position:relative;border-right:2px solid #000}
+#demo{position:absolute;inset:0;width:100%;height:100%;display:block}
+#limits{padding:4px 6px;overflow:hidden;min-height:0}
+#limits h3{margin:0 0 2px;font-size:11px;font-weight:600;border-bottom:2px solid #000}
+#limits p{margin:2px 0}
+#limits i{font-style:normal;display:inline-block;width:8px;height:8px;background:#ff2e2e;margin-right:4px}
+#ctl{border-top:2px solid #000;padding:4px 6px;display:grid;gap:4px}
+.btns{display:flex;flex-wrap:wrap;gap:4px}
+button{font:inherit;background:#fff;color:#000;border:2px solid #000;padding:2px 6px;cursor:pointer}
+button.on{background:#000;color:#fff}
+button.go{background:#19e6c8}
+.sl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px 12px}
+.sl label{display:grid;grid-template-columns:44px minmax(0,1fr) 40px;align-items:center;gap:4px;white-space:nowrap}
+.sl label b{font-weight:400;text-align:right}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:16px;background:transparent;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:#000}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:9px;height:16px;background:#000;margin-top:-7px;border:0}
+input[type=range]::-moz-range-track{height:2px;background:#000}
+input[type=range]::-moz-range-thumb{width:9px;height:16px;background:#000;border:0;border-radius:0}
+.hide{display:none!important}
+#limBtn{display:none}
+@media(max-width:700px){
+ html,body{font-size:10px}
+ #stage{grid-template-columns:minmax(0,1fr);grid-template-rows:35dvh minmax(0,1fr)}
+ #viewWrap{border-right:0;border-bottom:2px solid #000}
+ #dial{width:96px;height:96px}
+ #r3{grid-template-columns:minmax(0,1fr)}
+ #demoWrap{border-right:0}
+ #limits{display:none;position:absolute;left:0;right:0;top:24px;background:#fff;border-bottom:2px solid #000;z-index:5}
+ #limits.open{display:block}
+ #limBtn{display:inline-block}
+ .sl{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #limits h3{font-size:10px}
+ #maps{max-height:15dvh}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<header><b>CAN LABEL ENCODER</b><span id="hdr">a drink can, 66 x 122 mm, read by one camera</span></header>
+<div id="stage">
+ <div id="viewWrap"><canvas id="view" width="640" height="480"></canvas><div id="status"></div></div>
+ <div id="side">
+  <div id="r1"><div id="read"></div><canvas id="dial" width="264" height="264"></canvas></div>
+  <canvas id="maps" width="520" height="150"></canvas>
+  <div id="r3">
+   <div id="demoWrap"><canvas id="demo"></canvas></div>
+   <div id="limits">
+    <h3>WHERE THIS BREAKS</h3>
+    <p><i></i>Plain unprinted can: no print, no twist reading. Position and tilt still work.</p>
+    <p><i></i>Label that repeats around the can: twist is known only inside one repeat.</p>
+    <p><i></i>Glare: print under the bright stripe is dropped. A wide stripe leaves too little print.</p>
+    <p><i></i>Fast motion: blur removes print. Enrolment needs under 12 deg per frame.</p>
+    <p><i></i>The hand is removed by its colour. Print in the same colour as the hand is lost with it.</p>
+    <p><i></i>The outline comes from background difference. Anything else that moves, or an exposure change, spoils it.</p>
+    <p><i></i>A can leaning toward or away from the camera is not modelled.</p>
+    <p><i></i>A rigid can has one twist. Top third and bottom third are the same angle read twice. Where you hold the can chooses which ring that angle drives.</p>
+   </div>
+  </div>
+ </div>
+</div>
+<div id="ctl">
+ <div class="btns">
+  <button id="bSim" class="on">TRY WITHOUT A CAMERA</button>
+  <button id="bCam">USE CAMERA</button>
+  <button id="bBg">1 TAKE EMPTY BACKGROUND</button>
+  <button id="bHandL">2 SHOW EMPTY HAND</button>
+  <button id="bEnrol">3 LEARN LABEL (ONE TURN)</button>
+  <button id="bZero">ZERO</button>
+  <button id="bSnd">SOUND OFF</button>
+  <button id="bHand" class="simonly on">HAND ON</button>
+  <button id="bLabel" class="simonly">LABEL: PRINTED</button>
+  <button id="limBtn">LIMITS</button>
+ </div>
+ <div class="sl" id="sliders"></div>
+</div>
+</div>
+<video id="vid" playsinline muted class="hide"></video>
+<script>
+"use strict";
+/* ---------- constants ---------- */
+const W=640,H=480,CX=W/2,CY=H/2,D2R=Math.PI/180,R2D=180/Math.PI;
+const RC=33,HT=61,RTOP=27,RBOT=30,BODY_TOP=46,BODY_BOT=-56;   // can, millimetres
+const NR=48,ROWH=(BODY_TOP-BODY_BOT)/NR;                        // label rows along the axis
+const SW=113,SC=56,C0=10,C1=102;                                // strip columns, 1 deg each, centre SC
+const MW=360,EW=MW+SW-1;                                        // map and its wrapped copy
+const BWID=960,BORG=480;                                        // enrolment buffer
+const DET=15;                                                   // degrees per detent
+const cam={f:(W/2)/Math.tan(30*D2R),fovKnown:true};
+const cfg={thresh:48};
+const $=id=>document.getElementById(id);
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+let rnd=mulberry(12345);
+const wrap180=d=>{d=((d+180)%360+360)%360-180;return d};
+const wrap360=d=>((d%360)+360)%360;
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const rowH=r=>BODY_TOP-(r+0.5)*ROWH;
+
+/* ---------- simulated camera (truth lives only here) ---------- */
+const sim={X:0,Y:0,Z:420,tilt:0,twist:0,grip:0,hand:true,glare:0.6,noise:4,label:'printed',showCan:true,handOnly:false};
+const TEXW=720,TEXH=424;let texData=null;
+function makeLabel(kind){
+ const c=document.createElement('canvas');c.width=TEXW;c.height=TEXH;const g=c.getContext('2d',{willReadFrequently:true});
+ const r=mulberry(777);
+ if(kind==='plain'){g.fillStyle='#c6c8cc';g.fillRect(0,0,TEXW,TEXH)}
+ else{
+  const tile=(x0,w)=>{
+   g.save();g.beginPath();g.rect(x0,0,w,TEXH);g.clip();g.translate(x0,0);
+   g.fillStyle='#ece6d6';g.fillRect(0,0,w,TEXH);
+   if(w>400){
+    g.fillStyle='#1f4fa8';g.beginPath();g.moveTo(0,300);g.lineTo(w,170);g.lineTo(w,250);g.lineTo(0,385);g.fill();
+    g.fillStyle='#d42a20';g.fillRect(24,56,236,150);
+    g.fillStyle='#fff';g.font='bold 104px monospace';g.textBaseline='middle';g.fillText('KANN',30,134);
+    g.fillStyle='#ffd23f';g.beginPath();g.arc(352,118,72,0,7);g.fill();
+    g.fillStyle='#111';g.beginPath();g.moveTo(352,60);g.lineTo(404,152);g.lineTo(300,152);g.fill();
+    g.fillStyle='#111';g.font='bold 150px monospace';g.fillText('66',452,116);
+    g.fillStyle='#19a08c';for(let i=0;i<6;i++){g.fillRect(40+i*34+(i*i)*2,330,8+i*5,80)}
+    g.strokeStyle='#111';g.lineWidth=4;g.strokeRect(286,236,150,168);
+    for(let i=1;i<7;i++){g.fillStyle='#111';g.fillRect(286,236+i*24,150,i%3==0?5:2);g.fillRect(296,242+i*24-22,30+r()*90,9)}
+    g.fillStyle='#111';for(let y=206;y<300;y+=13){let x=470;while(x<690){const l=10+r()*46;g.fillRect(x,y,l,6);x+=l+7+r()*10}}
+    g.fillStyle='#fff';g.fillRect(540,318,160,92);g.fillStyle='#111';let x=548;while(x<692){const l=2+((r()*4)|0)*2;g.fillRect(x,324,l,80);x+=l+2+((r()*3)|0)*2}
+    g.fillStyle='#d42a20';g.beginPath();for(let i=0;i<16;i++){const a=i*Math.PI/8,rr=i%2?20:44;g.lineTo(206+Math.cos(a)*rr,290+Math.sin(a)*rr)}g.fill();
+    g.fillStyle='#111';g.fillRect(0,16,w,10);g.fillStyle='#d42a20';g.fillRect(0,30,w,5);
+   }else{
+    g.fillStyle='#1f4fa8';g.fillRect(0,280,w,70);
+    g.fillStyle='#d42a20';g.beginPath();g.arc(w/2,130,58,0,7);g.fill();
+    g.fillStyle='#fff';g.font='bold 76px monospace';g.textBaseline='middle';g.fillText('K',w/2-22,132);
+    g.fillStyle='#111';for(let i=0;i<5;i++)g.fillRect(20+i*30,372,14,36);
+    g.fillStyle='#111';g.fillRect(0,16,w,10);g.fillRect(16,226,w-32,8);
+   }
+   g.restore();
+  };
+  if(kind==='repeat'){for(let k=0;k<4;k++)tile(k*180,180)}else tile(0,TEXW);
+ }
+ texData=g.getImageData(0,0,TEXW,TEXH).data;
+}
+const bgTrue=new Uint8ClampedArray(W*H*4);
+function makeBackground(){
+ const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d',{willReadFrequently:true});const r=mulberry(4242);
+ try{g.filter='blur(1.3px)'}catch(e){}
+ const gr=g.createLinearGradient(0,0,W,H);gr.addColorStop(0,'#b9b3a6');gr.addColorStop(1,'#8f8a84');g.fillStyle=gr;g.fillRect(0,0,W,H);
+ g.fillStyle='#5d5045';g.fillRect(0,330,W,150);g.fillStyle='#74655a';g.fillRect(0,330,W,10);
+ g.fillStyle='#22262b';g.fillRect(30,70,210,150);g.fillStyle='#3d5a7a';g.fillRect(40,80,190,130);g.fillStyle='#22262b';g.fillRect(120,220,30,40);g.fillRect(80,258,110,8);
+ const cols=['#a23b2e','#d9c9a0','#2f5d50','#c98d2b','#3b3f66','#e6e1d6','#7a2f4f','#1f4fa8','#d42a20','#ece6d6'];
+ let x=300;while(x<W-10){const w=10+r()*26,h=70+r()*70;g.fillStyle=cols[(r()*cols.length)|0];g.fillRect(x,330-h,w,h);g.fillStyle='rgba(0,0,0,.25)';g.fillRect(x+2,330-h+8,w-4,4);x+=w+1}
+ g.fillStyle='#d8d2c4';g.fillRect(420,40,150,110);for(let i=0;i<7;i++){g.fillStyle=cols[(i*3)%cols.length];g.fillRect(428+i*20,48,12,94)}
+ g.fillStyle='#2f5d50';for(let i=0;i<14;i++){const a=r()*6.3,l=30+r()*40;g.beginPath();g.moveTo(275,150);g.lineTo(275+Math.cos(a)*l,150+Math.sin(a)*l*0.8-20);g.lineTo(275+Math.cos(a+.3)*l*.6,150+Math.sin(a+.3)*l*.5-20);g.fill()}
+ g.fillStyle='#8a6a4f';g.fillRect(262,150,26,40);
+ for(let i=0;i<40;i++){g.fillStyle='rgba('+((r()*255)|0)+','+((r()*255)|0)+','+((r()*255)|0)+',.35)';g.fillRect(r()*W,340+r()*130,6+r()*50,3+r()*14)}
+ g.fillStyle='#c9c4ba';g.fillRect(60,380,130,70);g.fillStyle='#111';for(let i=0;i<5;i++)g.fillRect(68,390+i*11,60+r()*50,3);
+ bgTrue.set(g.getImageData(0,0,W,H).data);
+}
+const NT=65536,noiseTab=new Float32Array(NT);
+(function(){const r=mulberry(99);for(let i=0;i<NT;i++){const u=Math.max(1e-9,r()),v=r();noiseTab[i]=Math.sqrt(-2*Math.log(u))*Math.cos(6.2831853*v)}})();
+const blurTmp=new Uint8ClampedArray(W*H*4);
+function renderSim(st,out){
+ out.set(bgTrue);
+ const f=cam.f;
+ if(st.showCan||st.handOnly){
+  const th=st.tilt*D2R,ax=Math.sin(th),ay=-Math.cos(th),nx=Math.cos(th),ny=Math.sin(th);
+  const X=st.X,Y=st.Y,Z=st.Z,T=st.twist*D2R;
+  const pcx=CX+f*X/Z,pcy=CY+f*Y/Z,rad=f*72/(Z-36)+3;
+  const x0=Math.max(0,Math.floor(pcx-rad)),x1=Math.min(W-1,Math.ceil(pcx+rad)),y0=Math.max(0,Math.floor(pcy-rad)),y1=Math.min(H-1,Math.ceil(pcy+rad));
+  const h0=-(X*ax+Y*ay),q0x=-X-h0*ax,q0y=-Y-h0*ay,q0z=-Z;
+  let Lx=-0.35,Ly=-0.55,Lz=-0.76;{const l=Math.hypot(Lx,Ly,Lz);Lx/=l;Ly/=l;Lz/=l}
+  const q0q0=q0x*q0x+q0y*q0y+q0z*q0z;
+  const segs=[[RC,0,-57,47,0],[RC+47*3/7,-3/7,47,61,1],[RC+57*0.75,0.75,-61,-57,1]];
+  const gl=st.glare,plain=st.label==='plain';
+  if(st.showCan)for(let y=y0;y<=y1;y++){for(let x=x0;x<=x1;x++){
+   const dx=(x-CX)/f,dy=(y-CY)/f;
+   const h1=dx*ax+dy*ay,q1x=dx-h1*ax,q1y=dy-h1*ay,q1z=1;
+   const q1q1=q1x*q1x+q1y*q1y+1,q0q1=q0x*q1x+q0y*q1y+q0z*q1z;
+   let bt=1e9,bk=-1,bh=0;
+   for(let k=0;k<3;k++){const a=segs[k][0],b=segs[k][1];const rr=a+b*h0;
+    const A2=q1q1-b*b*h1*h1,B=q0q1-b*rr*h1,Cc=q0q0-rr*rr,disc=B*B-A2*Cc;if(disc<0)continue;
+    const t=(-B-Math.sqrt(disc))/A2;if(t<=0||t>=bt)continue;const h=h0+t*h1;if(h<segs[k][2]||h>segs[k][3])continue;bt=t;bk=k;bh=h}
+   if(Math.abs(h1)>1e-9){for(let k=0;k<2;k++){const hc=k?-HT:HT,rc=k?RBOT:RTOP,t=(hc-h0)/h1;if(t<=0||t>=bt)continue;
+    const qx=q0x+t*q1x,qy=q0y+t*q1y,qz=q0z+t;if(qx*qx+qy*qy+qz*qz<=rc*rc){bt=t;bk=3+k;bh=hc}}}
+   if(bk<0)continue;
+   const qx=q0x+bt*q1x,qy=q0y+bt*q1y,qz=q0z+bt,ql=Math.hypot(qx,qy,qz)||1;
+   let n_x,n_y,n_z,cr,cg,cb,metal=1;
+   if(bk>=3){const sgn=bk===3?1:-1;n_x=ax*sgn;n_y=ay*sgn;n_z=0;cr=cg=cb=150}
+   else{n_x=qx/ql;n_y=qy/ql;n_z=qz/ql;
+    if(bk===0&&bh<=BODY_TOP&&bh>=BODY_BOT){
+     let psi=Math.atan2(qx*nx+qy*ny,-qz)-T;let u=psi/6.2831853;u-=Math.floor(u);
+     const tu=u*TEXW,tv=clamp((HT-bh)/122*TEXH,0,TEXH-1.001);const iu=tu|0,iv=tv|0,fu=tu-iu,fv=tv-iv,iu1=(iu+1)%TEXW;
+     const o00=(iv*TEXW+iu)*4,o10=(iv*TEXW+iu1)*4,o01=o00+TEXW*4,o11=o10+TEXW*4,w00=(1-fu)*(1-fv),w10=fu*(1-fv),w01=(1-fu)*fv,w11=fu*fv;
+     cr=texData[o00]*w00+texData[o10]*w10+texData[o01]*w01+texData[o11]*w11;
+     cg=texData[o00+1]*w00+texData[o10+1]*w10+texData[o01+1]*w01+texData[o11+1]*w11;
+     cb=texData[o00+2]*w00+texData[o10+2]*w10+texData[o01+2]*w01+texData[o11+2]*w11;metal=plain?1.3:1;
+    }else{cr=198;cg=200;cb=204;metal=1.3}
+   }
+   const dl=Math.hypot(dx,dy,1),vx=-dx/dl,vy=-dy/dl,vz=-1/dl;
+   const diff=Math.max(0,n_x*Lx+n_y*Ly+n_z*Lz);
+   let hx=Lx+vx,hy=Ly+vy,hz=Lz+vz;const hl=Math.hypot(hx,hy,hz);const nh=Math.max(0,(n_x*hx+n_y*hy+n_z*hz)/hl);
+   const sp=gl*metal*(Math.pow(nh,120)*1.15+Math.pow(nh,14)*0.2)*255,sh=0.42+0.58*diff;
+   const o=(y*W+x)*4;out[o]=cr*sh+sp;out[o+1]=cg*sh+sp;out[o+2]=cb*sh+sp;
+  }}
+  if(st.handOnly||(st.hand&&st.showCan)){
+   const k=Z/f,g=st.grip,dirx=0.5,diry=0.866;
+   const P0x=pcx+(66*nx+(g-8)*ax)/k,P0y=pcy+(66*ny+(g-8)*ay)/k;
+   const tips=[-37,-40,-34];
+   for(let y=0;y<H;y++){for(let x=0;x<W;x++){
+    const dxp=x-pcx,dyp=y-pcy,u=(dxp*nx+dyp*ny)*k,hh=(dxp*ax+dyp*ay)*k-g;
+    let s=-1;const rx=x-P0x,ry=y-P0y,tt=rx*dirx+ry*diry;
+    if(u>-50&&u<86&&hh>-36&&hh<36){
+     if(u<=60){for(let j=0;j<3;j++){const hk=(j-1)*18,dv=hh-hk;let d;if(u<tips[j])d=Math.hypot(u-tips[j],dv);else d=Math.abs(dv);
+       if(d<8.7){const q=d/8.7;s=Math.max(s,0.7+0.3*Math.sqrt(1-q*q))}}}
+     const e=((u-58)/24)**2+((hh+2)/31)**2;if(e<1)s=Math.max(s,0.78+0.16*Math.sqrt(1-e));
+    }
+    if(tt>0){const ttm=tt*k,dd=Math.abs(rx*diry-ry*dirx)*k,hw=24+0.035*ttm+1.5*Math.sin(ttm/9);if(dd<hw){const q=dd/hw;s=Math.max(s,0.68+0.3*Math.sqrt(1-q*q))}}
+    if(s>0){const o=(y*W+x)*4,v=Math.sin(u*0.21+hh*0.13)*Math.sin(tt*0.05+1);out[o]=(202+8*v)*s;out[o+1]=(150-7*v)*s;out[o+2]=(122-9*v)*s}
+   }}
+  }
+  // optical blur around the can
+  const bx0=Math.max(1,x0-60),bx1=Math.min(W-2,x1+90),by0=Math.max(1,y0-60),by1=Math.min(H-2,y1+90);
+  for(let y=by0-1;y<=by1+1;y++){for(let x=bx0;x<=bx1;x++){const o=(y*W+x)*4;for(let c=0;c<3;c++)blurTmp[o+c]=(out[o+c-4]+2*out[o+c]+out[o+c+4])*0.25}}
+  for(let y=by0;y<=by1;y++){for(let x=bx0;x<=bx1;x++){const o=(y*W+x)*4;for(let c=0;c<3;c++)out[o+c]=(blurTmp[o+c-W*4]+2*blurTmp[o+c]+blurTmp[o+c+W*4])*0.25}}
+ }
+ const sg=st.noise,gain=1+(rnd()-0.5)*0.02;
+ for(let y=0;y<H;y++){let idx=(rnd()*NT)|0,o=y*W*4;for(let x=0;x<W;x++,o+=4){out[o]=out[o]*gain+noiseTab[idx++&65535]*sg;out[o+1]=out[o+1]*gain+noiseTab[idx++&65535]*sg;out[o+2]=out[o+2]*gain+noiseTab[idx++&65535]*sg}}
+}
+
+/* ---------- tracker: reads pixels only ---------- */
+const bgRef=new Uint8Array(W*H*3),bgAcc=new Float32Array(W*H*3);let bgN=0,hasBg=false;
+const raw=new Uint8Array(W*H),fx=new Int16Array(W*H),fy=new Int16Array(W*H),sx=new Int16Array(W*H/4),sy=new Int16Array(W*H/4);
+const OFF=420,NB=842;
+const mn=new Float32Array(NB),mx=new Float32Array(NB),inb=new Uint16Array(NB),hist=new Uint16Array(NB+2),cleanB=new Uint8Array(NB);
+let roi=null,roiLost=0;
+const fgRaw=new Uint8Array(W*H),hRaw=new Uint8Array(W*H),handMap=new Uint8Array(W*H),sat=new Int32Array((W+1)*(H+1));
+const HB=32,handCnt=new Float32Array(HB*HB),handBin=new Uint8Array(HB*HB);let hasHand=false,handN=0;
+function handStart(){handCnt.fill(0);handBin.fill(0);hasHand=false;handN=0}
+function handAdd(fr){const T=cfg.thresh;
+ for(let i=0,j=0;i<W*H;i++,j+=3){const o=i*4,r=fr[o],g=fr[o+1],b=fr[o+2];let d=r-bgRef[j];if(d<0)d=-d;let e=g-bgRef[j+1];if(e<0)e=-e;let q=b-bgRef[j+2];if(q<0)q=-q;
+  if(d+e+q>T*1.5){const sm=r+g+b;if(sm>90){handCnt[((r*HB/sm)|0)*HB+((g*HB/sm)|0)]++}}}handN++}
+function handFinish(){let tot=0;for(let i=0;i<HB*HB;i++)tot+=handCnt[i];handBin.fill(0);if(tot<800){hasHand=false;return false}
+ const t=tot*0.004;for(let a=1;a<HB-1;a++)for(let b=1;b<HB-1;b++){if(handCnt[a*HB+b]>t){handBin[a*HB+b]=1}}
+ hasHand=true;return true}
+function boxSat(src){for(let x=0;x<=W;x++)sat[x]=0;for(let y=0;y<H;y++){let row=0;const o=(y+1)*(W+1),p=y*(W+1);sat[o]=0;for(let x=0;x<W;x++){row+=src[y*W+x];sat[o+x+1]=sat[p+x+1]+row}}}
+function boxCnt(x,y,r){const x0=x-r<0?0:x-r,y0=y-r<0?0:y-r,x1=x+r+1>W?W:x+r+1,y1=y+r+1>H?H:y+r+1;return sat[y1*(W+1)+x1]-sat[y0*(W+1)+x1]-sat[y1*(W+1)+x0]+sat[y0*(W+1)+x0]}
+function bgStart(){bgAcc.fill(0);bgN=0}
+function bgAdd(fr){for(let i=0,j=0;i<W*H;i++,j+=3){const o=i*4;bgAcc[j]+=fr[o];bgAcc[j+1]+=fr[o+1];bgAcc[j+2]+=fr[o+2]}bgN++}
+function bgFinish(){for(let j=0;j<W*H*3;j++)bgRef[j]=bgAcc[j]/bgN+0.5;hasBg=true}
+function buildMask(fr){
+ const T=cfg.thresh;
+ let nh=0;
+ for(let i=0,j=0;i<W*H;i++,j+=3){const o=i*4,r=fr[o],gg=fr[o+1],b=fr[o+2];let d=r-bgRef[j];if(d<0)d=-d;let e=gg-bgRef[j+1];if(e<0)e=-e;let g=b-bgRef[j+2];if(g<0)g=-g;
+  const fg=(d+e+g)>T?1:0;raw[i]=fg;let hh=0;if(fg&&hasHand){const sm=r+gg+b;if(sm>90&&handBin[((r*HB/sm)|0)*HB+((gg*HB/sm)|0)])hh=1}hRaw[i]=hh;nh+=hh}
+ if(hasHand&&nh>50){ // keep only solid hand regions (5x5 nearly full), then grow them 3 px; the can mask is foreground minus that
+  boxSat(hRaw);for(let y=0;y<H;y++)for(let x=0;x<W;x++)fgRaw[y*W+x]=boxCnt(x,y,2)>=22?1:0;
+  boxSat(fgRaw);for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=y*W+x,h=boxCnt(x,y,3)>0?1:0;handMap[i]=h;if(h)raw[i]=0}
+ }else handMap.fill(0);
+ let n=0,ns=0;const r2=roi?roi.r*roi.r:0;
+ for(let y=1;y<H-1;y++){let i=y*W+1;for(let x=1;x<W-1;x++,i++){
+  const c=raw[i-W-1]+raw[i-W]+raw[i-W+1]+raw[i-1]+raw[i]+raw[i+1]+raw[i+W-1]+raw[i+W]+raw[i+W+1];
+  if(c>=5){if(roi){const ddx=x-roi.x,ddy=y-roi.y;if(ddx*ddx+ddy*ddy>r2)continue}
+   fx[n]=x;fy[n]=y;n++;if(!(x&1)&&!(y&1)){sx[ns]=x;sy[ns]=y;ns++}}}}
+ return [n,ns];
+}
+function slices(th,px,py,n,bin){
+ const ax=Math.sin(th),ay=-Math.cos(th),nx=Math.cos(th),ny=Math.sin(th);
+ mn.fill(1e9);mx.fill(-1e9);let lo=NB,hi=-1;const ib=1/bin;
+ for(let i=0;i<n;i++){const dx=px[i]-CX,dy=py[i]-CY,s=dx*ax+dy*ay,p=dx*nx+dy*ny,b=((s+OFF)*ib)|0;
+  if(p<mn[b])mn[b]=p;if(p>mx[b])mx[b]=p;if(b<lo)lo=b;if(b>hi)hi=b}
+ return [lo,hi];
+}
+let mdP=0,mdC=0;
+function modeOf(arr,lo,hi,hb){
+ hist.fill(0);const ih=1/hb;
+ for(let b=lo;b<=hi;b++){const v=arr[b];if(v>1e8||v<-1e8)continue;hist[((v+OFF)*ih)|0]++}
+ let best=-1,bi=0;for(let i=0;i<NB;i++){const c=hist[i]+hist[i+1];if(c>best){best=c;bi=i}}
+ const c0=hist[bi],c1=hist[bi+1];mdC=best;mdP=best>0?((bi+0.5)*hb*c0+(bi+1.5)*hb*c1)/(c0+c1)-OFF:0;
+}
+function track(fr){
+ const [n,ns]=buildMask(fr);
+ if(n<400)return{found:false,why:'NO CAN OUTLINE FOUND (too few changed pixels)'};
+ if(n>W*H*0.6)return{found:false,why:'MOST OF THE VIEW CHANGED. Take the empty background again.'};
+ // coarse angle search: the can is the thing with two long straight parallel edges
+ let bestS=0,bestTh=0;
+ for(let ti=0;ti<60;ti++){
+  const th=(-90+ti*3)*D2R;const [lo,hi]=slices(th,sx,sy,ns,2);
+  modeOf(mn,lo,hi,2);const pL=mdP,cL=mdC;modeOf(mx,lo,hi,2);const pR=mdP,cR=mdC;
+  const w=pR-pL;if(w<14)continue;
+  let sa=1e9,sb=-1e9,ext=0,xa=1e9,xb=-1e9;const mid=(pL+pR)/2;
+  for(let b=lo;b<=hi;b++){if(mn[b]>1e8)continue;if(mn[b]<mid&&mx[b]>mid&&mn[b]>pL-6&&mx[b]<pR+6){if(b<xa)xa=b;if(b>xb)xb=b}
+   if(Math.abs(mn[b]-pL)<=3||Math.abs(mx[b]-pR)<=3){if(b<sa)sa=b;if(b>sb)sb=b}}
+  const er=(xb-xa)*2/w,cr=(sb-sa)*2/w;if(er<0.8||er>2.3||cr<0.45)continue;
+  const sc=cL+cR;if(sc>bestS){bestS=sc;bestTh=th}
+ }
+ if(bestS<16)return{found:false,why:'NO STRAIGHT-SIDED CAN OUTLINE FOUND'};
+ let th=bestTh,cLl=0,cRr=0,m=0,lo=0,hi=0,nL=0,nR=0;
+ for(let it=0;it<6;it++){
+  [lo,hi]=slices(th,fx,fy,n,1);
+  modeOf(mn,lo,hi,1);cLl=mdP;modeOf(mx,lo,hi,1);cRr=mdP;m=0;
+  for(let pass=0;pass<3;pass++){const tol=pass?1.6:2.6;
+   let aN=0,aS=0,aP=0,aSS=0,aSP=0,bN=0,bS=0,bP=0,bSS=0,bSP=0;
+   for(let b=lo;b<=hi;b++){if(mn[b]>1e8)continue;const s=b+0.5-OFF;
+    if(Math.abs(mn[b]-(cLl+m*s))<=tol){aN++;aS+=s;aP+=mn[b];aSS+=s*s;aSP+=s*mn[b]}
+    if(Math.abs(mx[b]-(cRr+m*s))<=tol){bN++;bS+=s;bP+=mx[b];bSS+=s*s;bSP+=s*mx[b]}}
+   nL=aN;nR=bN;if(aN<6||bN<6)return{found:false,why:'CAN EDGES TOO SHORT TO FIT'};
+   const den=(aSS-aS*aS/aN)+(bSS-bS*bS/bN);if(den<1e-6)break;
+   m=((aSP-aS*aP/aN)+(bSP-bS*bP/bN))/den;cLl=aP/aN-m*aS/aN;cRr=bP/bN-m*bS/bN;
+  }
+  const d=Math.atan(m);if(Math.abs(d)<0.0006)break;th+=d;
+ }
+ const ax=Math.sin(th),ay=-Math.cos(th),nx=Math.cos(th),ny=Math.sin(th),w=cRr-cLl;
+ if(w<14)return{found:false,why:'OUTLINE TOO NARROW'};
+ // extent along the axis inside the central half of the band
+ inb.fill(0);const bL=cLl+0.25*w,bR=cRr-0.25*w;
+ for(let i=0;i<n;i++){const dx=fx[i]-CX,dy=fy[i]-CY,s=dx*ax+dy*ay,p=dx*nx+dy*ny-m*s;if(p>bL&&p<bR)inb[(s+OFF)|0]++}
+ let nc=0,cs=0;cleanB.fill(0);
+ for(let b=lo;b<=hi;b++){if(mn[b]>1e8)continue;const s=b+0.5-OFF;if(Math.abs(mn[b]-(cLl+m*s))<=2.5&&Math.abs(mx[b]-(cRr+m*s))<=2.5){cleanB[b]=1;nc++;cs+=b}}
+ if(nc<4)return{found:false,why:'NO UNCOVERED CAN WALL VISIBLE'};
+ const st=Math.round(cs/nc),pres=0.25*w,reach=Math.round(w*2.6);
+ let e1=-1,e0=-1;for(let b=Math.max(0,st-reach);b<=Math.min(NB-1,st+reach);b++){if(inb[b]>=pres){if(e0<0)e0=b;e1=b}}
+ if(e0<0)return{found:false,why:'NO CAN BODY BETWEEN THE EDGES'};
+ const sTm=e1+1-OFF,sBm=e0-OFF,Lm=sTm-sBm;
+ // distance and sideways offset from the two edge lines
+ const f=cam.f,sMid=(sTm+sBm)/2,p1=cLl+m*sMid-0.5,p2=cRr+m*sMid+0.5;
+ const a1=Math.atan(p1/f),a2=Math.atan(p2/f),alpha=(a1+a2)/2,beta=(a2-a1)/2,rho=RC/Math.sin(beta),z=rho*Math.cos(alpha),xn=rho*Math.sin(alpha);
+ const sT=ca=>{const h=ca+HT;return f*h/(z-(h>0?RTOP:-RTOP))},sB=ca=>{const h=ca-HT;return f*h/(z+(h>0?RBOT:-RBOT))};
+ let ca=sMid*z/f;for(let i=0;i<5;i++)ca+=(sMid-(sT(ca)+sB(ca))/2)*z/f;
+ const Lp=sT(ca)-sB(ca);let endsOk=true,endNote='';
+ if(Math.abs(Lm-Lp)>0.06*Lp){
+  let tT=false,tB=false;const lim=0.24*Lp;
+  for(let b=e1;b>=e1-lim&&b>=0;b--)if(cleanB[b]){tT=true;break}
+  for(let b=e0;b<=e0+lim&&b<NB;b++)if(cleanB[b]){tB=true;break}
+  if(tT&&!tB){for(let i=0;i<5;i++)ca+=(sTm-sT(ca))*z/f;endNote='bottom end hidden'}
+  else if(tB&&!tT){for(let i=0;i<5;i++)ca+=(sBm-sB(ca))*z/f;endNote='top end hidden'}
+  else{ // neither end settles it: use the straight wall (104 mm long, centred 5 mm below the can middle)
+   let c0=-1,c1=-1;for(let b=lo;b<=hi;b++)if(cleanB[b]){if(c0<0)c0=b;c1=b}
+   const wall=(c1+1-c0)*z/f;
+   if(Math.abs(wall-104)<=8){ca=((c0+c1+1)/2-OFF)*z/f+5;endNote='one end not seen, placed by the straight wall'}
+   else return{found:false,why:'OUTLINE LENGTH DOES NOT FIT A 66 x 122 mm CAN'}
+  }
+ }
+ const occ=new Uint8Array(NR);
+ const X=xn*nx+ca*ax,Y=xn*ny+ca*ay;
+ return{found:true,th,tilt:th*R2D,ax,ay,nx,ny,cL:cLl,cR:cRr,m,sT:sTm,sB:sBm,w,z,xn,ca,alpha,X,Y,Z:z,occ,gripH:0,gripN:0,endsOk,endNote,nL,nR,
+  px:CX+f*X/z,py:CY+f*Y/z};
+}
+
+/* ---------- unwrapped strip, label map, matching ---------- */
+const SL=new Float32Array(NR*SW),SV=new Uint8Array(NR*SW),SK=new Uint8Array(NR*SW),SH=new Float32Array(NR*SW);
+const ML=new Float32Array(NR*MW),MV=new Uint8Array(NR*MW);
+const XL=new Float32Array(NR*EW),XV=new Uint8Array(NR*EW),XH=new Float32Array(NR*EW);
+const BS=new Float32Array(NR*BWID),BWt=new Float32Array(NR*BWID),BL=new Float32Array(NR*BWID),BV=new Uint8Array(NR*BWID),BH=new Float32Array(NR*BWID);
+const pfS=new Float64Array(BWID+2),pfN=new Float64Array(BWID+2);
+let hasMap=false,mapInfo=null;
+function hpRow(src,val,o,n,dst){
+ pfS[0]=0;pfN[0]=0;for(let i=0;i<n;i++){const v=val[o+i];pfS[i+1]=pfS[i]+(v?src[o+i]:0);pfN[i+1]=pfN[i]+(v?1:0)}
+ for(let i=0;i<n;i++){if(!val[o+i]){dst[o+i]=0;continue}const lo=i-9<0?0:i-9,hi=i+10>n?n:i+10;dst[o+i]=src[o+i]-(pfS[hi]-pfS[lo])/(pfN[hi]-pfN[lo])}
+}
+let stripGlare=0,stripRms=0;
+function unwrap(fr,P){
+ const f=cam.f;let gl=0,tot=0,e=0,en=0,gs=0,gn=0;const rc=new Uint16Array(NR);SK.fill(0);
+ for(let c=0;c<SW;c++){
+  const ph=(c-SC)*D2R-P.alpha,pn=P.xn+RC*Math.sin(ph),pz=P.z-RC*Math.cos(ph),pp=f*pn/pz;
+  for(let r=0;r<NR;r++){
+   const ss=f*(P.ca+rowH(r))/pz,x=CX+pp*P.nx+ss*P.ax,y=CY+pp*P.ny+ss*P.ay,i=r*SW+c;
+   if(x<0||y<0||x>=W-1||y>=H-1){SL[i]=0;SV[i]=0;continue}
+   const ix=x|0,iy=y|0,fx_=x-ix,fy_=y-iy,o=(iy*W+ix)*4,o2=o+W*4;
+   const l00=fr[o]*0.3+fr[o+1]*0.59+fr[o+2]*0.11,l10=fr[o+4]*0.3+fr[o+5]*0.59+fr[o+6]*0.11,l01=fr[o2]*0.3+fr[o2+1]*0.59+fr[o2+2]*0.11,l11=fr[o2+4]*0.3+fr[o2+5]*0.59+fr[o2+6]*0.11;
+   const l=(l00*(1-fx_)+l10*fx_)*(1-fy_)+(l01*(1-fx_)+l11*fx_)*fy_;
+   SL[i]=l;let v=1;if(handMap[((y+0.5)|0)*W+((x+0.5)|0)]){v=0;SK[i]=1;rc[r]++;if(c>=SC-30&&c<=SC+30){gs+=rowH(r);gn++}}else{tot++;if(l>246||l00>250||l11>250){v=0;gl++;SK[i]=2}}SV[i]=v;
+  }
+ }
+ for(let r=0;r<NR;r++){P.occ[r]=rc[r]>SW*0.5?1:0;hpRow(SL,SV,r*SW,SW,SH)}
+ P.gripH=gn?gs/gn:0;P.gripN=gn;
+ for(let r=0;r<NR;r++)for(let c=C0;c<=C1;c++){const i=r*SW+c;if(SV[i]){e+=SH[i]*SH[i];en++}}
+ stripGlare=tot?gl/tot:0;stripRms=en?Math.sqrt(e/en):0;
+}
+const rSM=new Float32Array(NR*MW),rMM=new Float32Array(NR*MW),rSS=new Float32Array(NR*MW);
+function corrRows(MH,MVv,stride,off,aLo,na){
+ for(let r=0;r<NR;r++){const so=r*SW,mo=r*stride+off+aLo,ro=r*MW;
+  for(let ai=0;ai<na;ai++){const base=mo+ai;let sm=0,mm=0,ss=0;
+   for(let c=C0;c<=C1;c++){const s=SH[so+c],mv=MH[base+c];sm+=s*mv;ss+=s*s*MVv[base+c];mm+=mv*mv*SV[so+c]}
+   rSM[ro+ai]=sm;rMM[ro+ai]=mm;rSS[ro+ai]=ss}}
+}
+const curve=new Float32Array(MW),rowOn=new Uint8Array(NR);
+function pooled(r0,r1,na,circ){
+ let best=-2,bi=0;
+ for(let ai=0;ai<na;ai++){let sm=0,mm=0,ss=0;for(let r=r0;r<r1;r++){if(!rowOn[r])continue;const i=r*MW+ai;sm+=rSM[i];mm+=rMM[i];ss+=rSS[i]}
+  const v=(mm>1e-6&&ss>1e-6)?sm/Math.sqrt(mm*ss):0;curve[ai]=v;if(v>best){best=v;bi=ai}}
+ let fr=0;const l=circ?curve[(bi+na-1)%na]:(bi>0?curve[bi-1]:best),rr=circ?curve[(bi+1)%na]:(bi<na-1?curve[bi+1]:best);
+ const den=l-2*best+rr;if(den<-1e-9)fr=clamp(0.5*(l-rr)/den,-0.5,0.5);
+ return{a:bi+fr,sc:best,ai:bi};
+}
+function buildExt(){
+ for(let r=0;r<NR;r++){for(let j=0;j<EW;j++){const k=((j-SC)%MW+MW)%MW;XL[r*EW+j]=ML[r*MW+k];XV[r*EW+j]=MV[r*MW+k]}hpRow(XL,XV,r*EW,EW,XH)}
+}
+const dispCurve=new Float32Array(MW);
+function matchTwist(P){
+ for(let r=0;r<NR;r++)rowOn[r]=1;
+ corrRows(XH,XV,EW,0,0,MW);
+ let all=pooled(0,NR,MW,true);
+ // drop rows that disagree at the first answer, then match again
+ let dropped=0;for(let r=0;r<NR;r++){const i=r*MW+all.ai;if(rSS[i]>1e-6&&rMM[i]>1e-6){if(rSM[i]/Math.sqrt(rSS[i]*rMM[i])<0.15){rowOn[r]=0;dropped++}}}
+ if(dropped&&dropped<NR*0.7)all=pooled(0,NR,MW,true);else for(let r=0;r<NR;r++)rowOn[r]=1;
+ dispCurve.set(curve);
+ let second=-2,secAt=0;for(let a=0;a<MW;a++){const d=Math.abs(wrap180(a-all.ai));if(d>20&&curve[a]>second){second=curve[a];secAt=a}}
+ const top=pooled(0,12,MW,true),bot=pooled(31,NR,MW,true);
+ const al=P.alpha*R2D;
+ return{a:all.a,score:all.sc,second,secAt:wrap180(-(secAt-all.ai)),twist:wrap360(-(all.a+al)),top:wrap360(-(top.a+al)),topSc:top.sc,bot:wrap360(-(bot.a+al)),botSc:bot.sc,dropped};
+}
+/* enrolment */
+const en={on:false,a:0,minA:0,maxA:0,first:true,lost:0,fast:0,frames:0,step:0,msg:''};
+function enrolStart(){BS.fill(0);BWt.fill(0);en.on=true;en.a=0;en.minA=0;en.maxA=0;en.first=true;en.lost=0;en.fast=0;en.frames=0;en.step=0;en.msg='';hasMap=false}
+function enrolStep(P){
+ let sc=1;
+ if(!en.first){
+  for(let i=0;i<NR*BWID;i++){const w=BWt[i];if(w>0){BL[i]=BS[i]/w;BV[i]=1}else{BL[i]=0;BV[i]=0}}
+  for(let r=0;r<NR;r++)hpRow(BL,BV,r*BWID,BWID,BH);
+  for(let r=0;r<NR;r++)rowOn[r]=1;
+  const aLo=Math.round(en.a)-14;corrRows(BH,BV,BWID,BORG-SC,aLo,29);
+  const res=pooled(0,NR,29,false);sc=res.sc;
+  if(sc<0.3){en.lost++;en.msg='label not matched this frame';if(en.lost>120&&en.maxA-en.minA<60){en.on=false;mapInfo=null;en.msg='LABEL NOT LEARNED: no print could be followed around the can.'}return}
+  const na=aLo+res.a;en.step=na-en.a;if(Math.abs(en.step)>12){en.fast++;en.msg='TOO FAST'}else en.msg='';en.a=na;
+ }
+ en.first=false;en.frames++;
+ const ai=Math.round(en.a);
+ for(let r=0;r<NR;r++){for(let c=SC-38;c<=SC+38;c++){const i=r*SW+c;if(!SV[i])continue;const cw=Math.cos((c-SC)*D2R);const j=r*BWID+BORG+ai+c-SC;BS[j]+=SL[i]*cw*cw;BWt[j]+=cw*cw}}
+ if(en.a<en.minA)en.minA=en.a;if(en.a>en.maxA)en.maxA=en.a;
+ if(en.maxA-en.minA>=398)enrolFinish();
+}
+function enrolFinish(){
+ en.on=false;
+ for(let i=0;i<NR*BWID;i++){const w=BWt[i];if(w>0){BL[i]=BS[i]/w;BV[i]=1}else{BL[i]=0;BV[i]=0}}
+ for(let r=0;r<NR;r++)hpRow(BL,BV,r*BWID,BWID,BH);
+ const dir=en.maxA>-en.minA?1:-1,j0=dir>0?BORG-40:BORG-30,j1=j0+70;
+ let best=-2,bL=360;const cv=[];
+ for(let L=330;L<=392;L++){let sxy=0,sxx=0,syy=0;for(let r=0;r<NR;r++){const o=r*BWID;for(let j=j0;j<j1;j++){const k=j+dir*L;if(BV[o+j]&&BV[o+k]){const x=BH[o+j],y=BH[o+k];sxy+=x*y;sxx+=x*x;syy+=y*y}}}
+  const v=sxx>1e-6&&syy>1e-6?sxy/Math.sqrt(sxx*syy):0;cv.push(v);if(v>best){best=v;bL=L}}
+ let Lf=bL;const bi=bL-330;if(bi>0&&bi<cv.length-1){const den=cv[bi-1]-2*cv[bi]+cv[bi+1];if(den<-1e-9)Lf+=clamp(0.5*(cv[bi-1]-cv[bi+1])/den,-0.5,0.5)}
+ if(best<0.3){mapInfo={ok:false,L:Lf,ncc:best};hasMap=false;en.msg='LOOP NOT CLOSED: the start of the label was not found again. Learn the label again.';return}
+ let cells=0;
+ for(let r=0;r<NR;r++){const o=r*BWID;for(let k=0;k<MW;k++){const a=dir>0?k*Lf/360:k*Lf/360-Lf,jf=BORG+a,j=Math.floor(jf),t=jf-j;
+   const v0=BV[o+j],v1=BV[o+j+1];let v=0,ok=1;if(v0&&v1)v=BL[o+j]*(1-t)+BL[o+j+1]*t;else if(v0)v=BL[o+j];else if(v1)v=BL[o+j+1];else ok=0;
+   ML[r*MW+k]=v;MV[r*MW+k]=ok;cells+=ok}}
+ buildExt();hasMap=true;mapInfo={ok:true,L:Lf,ncc:best,dir,frames:en.frames,fast:en.fast,lost:en.lost,fill:cells/(NR*MW)};
+}
+let fillDirty=0;
+function fillMap(P,M){
+ if(M.score<0.55)return;const ai=Math.round(M.a);
+ for(let r=0;r<NR;r++){let near=false;for(let q=Math.max(0,r-3);q<=Math.min(NR-1,r+3);q++)if(P.occ[q]||!rowOn[q])near=true;if(near)continue;
+  for(let c=SC-30;c<=SC+30;c++){const i=r*SW+c;if(!SV[i])continue;const k=((ai+c-SC)%MW+MW)%MW;if(!MV[r*MW+k]){ML[r*MW+k]=SL[i];MV[r*MW+k]=1;fillDirty++}}}
+}
+
+/* ---------- one analysis of one frame ---------- */
+let zeroOff=0;
+function analyse(fr,allowFill){
+ const P=track(fr);if(!P.found)return{found:false,why:P.why};
+ unwrap(fr,P);const R={found:true,P,glare:stripGlare,rms:stripRms};
+ if(en.on){enrolStep(P);R.enrol=true;return R}
+ if(hasMap){const M=matchTwist(P);R.M=M;R.twist=wrap360(M.twist-zeroOff);R.top=M.topSc>=0.35?wrap360(M.top-zeroOff):null;R.bot=M.botSc>=0.35?wrap360(M.bot-zeroOff):null;
+  R.amb=M.score>0?M.second/M.score:1;R.locked=M.score>=0.35&&R.amb<0.9;
+  if(allowFill&&R.locked){fillMap(P,M);if(fillDirty>60){buildExt();fillDirty=0}}}
+ return R;
+}
+
+/* ---------- test hooks: run the same code synchronously ---------- */
+const frame=new Uint8ClampedArray(W*H*4);
+window.__lab={
+ setup(o){Object.assign(sim,o||{});if(o&&o.seed!=null)rnd=mulberry(o.seed);makeLabel(sim.label);roi=null;zeroOff=0;
+  const keep={X:sim.X,Y:sim.Y,Z:sim.Z,tilt:sim.tilt,twist:sim.twist};
+  sim.showCan=false;sim.handOnly=false;bgStart();for(let i=0;i<8;i++){renderSim(sim,frame);bgAdd(frame)}bgFinish();
+  sim.handOnly=true;sim.X=0;sim.Y=0;sim.Z=420;sim.tilt=0;handStart();for(let i=0;i<6;i++){sim.X=-60+i*24;sim.Z=330+i*40;renderSim(sim,frame);handAdd(frame)}const hOk=handFinish();sim.handOnly=false;sim.showCan=true;
+  sim.X=0;sim.Y=0;sim.Z=(o&&o.enrolZ)||420;sim.tilt=0;sim.twist=0;enrolStart();let fails=0,i=0;
+  const step=(o&&o.enrolStep)||3;
+  while(en.on&&i<400){sim.twist=wrap360(i*step+(rnd()-0.5));sim.X=(rnd()-0.5)*6;sim.Y=(rnd()-0.5)*6;sim.tilt=(rnd()-0.5)*2;renderSim(sim,frame);const R=analyse(frame,false);if(!R.found)fails++;i++}
+  Object.assign(sim,keep);phase='run';simAuto=null;truthZero=0;ctl.prev=null;
+  return Object.assign({frames:i,poseFails:fails,enrolStillOn:en.on,handModel:hOk},en.on?{ok:false}:(mapInfo||{}));
+ },
+ trial(s,fill){Object.assign(sim,s);renderSim(sim,frame);const R=analyse(frame,!!fill);
+  if(!R.found)return{found:false,why:R.why};const P=R.P,o={found:true,X:P.X,Y:P.Y,Z:P.Z,tilt:P.tilt,gripH:P.gripH,gripN:P.gripN>=60?P.gripN:0,glare:R.glare,rms:R.rms,endNote:P.endNote};
+  if(R.M)Object.assign(o,{twist:R.twist,top:R.top,bot:R.bot,score:R.M.score,amb:R.amb,locked:R.locked,topSc:R.M.topSc,botSc:R.M.botSc,dropped:R.M.dropped});return o},
+ sim,cam,get ctl(){return ctl},state(){return{mode,phase,hasBg,hasHand,hasMap,camMsg,sound,enOn:en.on,enMsg:en.msg}},
+ shot(s){Object.assign(sim,s);renderSim(sim,frame);lastR=analyse(frame,false);drawView();return view.toDataURL('image/png')},
+ mask(){const d=vimg.data;for(let i=0;i<W*H;i++){const v=raw[i]?255:0;d[i*4]=d[i*4+1]=d[i*4+2]=v;d[i*4+3]=255}vctx.putImageData(vimg,0,0);return view.toDataURL('image/png')}
+};
+
+/* ---------- live page state ---------- */
+let handOk=true,mode='sim',phase='bg',simAuto=null,truthZero=0,lastR=null,camMsg='',fps=0,lastT=0,sound=false,actx=null;
+const ctl={prev:null,jump:0,acc:[0,0],det:[0,0],ring:0,z0:null,zs:null,sel:0,zRef:null,base:1,
+ items:[0,1,2,3,4].map(i=>({value:6,scale:1}))};
+function click(ring){if(!sound||!actx)return;try{const t=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.type='square';o.frequency.value=ring?1150:1900;
+ g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(0.25,t+0.001);g.gain.exponentialRampToValueAtTime(0.0001,t+0.03);o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+0.04)}catch(e){}}
+function control(R){
+ if(!R||!R.found||!R.M||!R.locked){ctl.prev=null;return}
+ const P=R.P;
+ if(P.gripN>=60){if(P.gripH>8)ctl.ring=0;else if(P.gripH<-8)ctl.ring=1}
+ if(ctl.prev!=null){let d=wrap180(R.twist-ctl.prev);
+  if(Math.abs(d)>35){if(++ctl.jump<4)return;d=0}ctl.jump=0;ctl.acc[ctl.ring]+=d}
+ ctl.prev=R.twist;
+ const k=ctl.ring,t=ctl.acc[k]/DET,old=ctl.det[k];
+ if(Math.abs(t-old)>0.62){const nw=Math.round(t);const steps=nw-old;ctl.det[k]=nw;for(let i=0;i<Math.min(3,Math.abs(steps));i++)click(k);
+  if(k===1){const it=ctl.items[ctl.sel];it.value=clamp(it.value+steps,0,12)}}
+ ctl.zs=ctl.zs==null?P.Z:ctl.zs+0.35*(P.Z-ctl.zs);
+ const sel=((ctl.det[0]%5)+5)%5;
+ if(sel!==ctl.sel||ctl.zRef==null){ctl.sel=sel;ctl.zRef=ctl.zs;ctl.base=ctl.items[sel].scale}
+ ctl.items[ctl.sel].scale=clamp(ctl.base*ctl.zRef/ctl.zs,0.4,2.2);ctl.tilt=P.tilt;
+}
+function startBg(){phase='bg';bgStart();hasBg=false;hasMap=false;en.on=false;handStart();if(mode==='sim'){sim.showCan=false;sim.handOnly=false}}
+function startHand(){if(!hasBg)return;phase='hand';handStart();hasMap=false;en.on=false;if(mode==='sim'){sim.showCan=false;sim.handOnly=true}}
+function startEnrol(){if(!hasBg)return;enrolStart();phase='enrol';ctl.prev=null;if(mode==='sim'){simAuto={t0:sim.twist,i:0};truthZero=sim.twist}}
+function step(fr){
+ if(phase==='bg'){bgAdd(fr);lastR=null;if(bgN>=8){bgFinish();phase='run';if(mode==='sim')startHand()}return}
+ if(phase==='hand'){handAdd(fr);lastR=null;if(handN>=(mode==='sim'?8:30)){handOk=handFinish();phase='run';if(mode==='sim'){sim.handOnly=false;sim.showCan=true;startEnrol()}}return}
+ if(!hasBg){lastR=null;return}
+ lastR=analyse(fr,true);
+ if(phase==='enrol'&&!en.on){phase='run';if(mode==='sim'){simAuto=null;setSlider('twist',sim.twist)}if(lastR&&lastR.found){ctl.zRef=null}}
+ if(mode==='cam'&&roi){if(lastR.found){roi.x=lastR.P.px;roi.y=lastR.P.py;roiLost=0}else if(++roiLost>30)roi=null}
+ control(lastR);
+}
+/* camera */
+const vid=$('vid'),work=document.createElement('canvas');work.width=W;work.height=H;const wctx=work.getContext('2d',{willReadFrequently:true});
+async function startCam(){
+ camMsg='';
+ try{
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('this browser gives no camera access to this page (needs https or localhost)');
+  const s=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480},facingMode:'user'},audio:false});
+  vid.srcObject=s;await vid.play();mode='cam';hasBg=false;hasMap=false;en.on=false;handStart();phase='run';lastR=null;roi=null;cam.fovKnown=false;setFov();uiMode();
+ }catch(e){camMsg='CAMERA FAILED: '+((e&&e.name)?e.name+': ':'')+((e&&e.message)||e)+'. The simulated mode below still works.';stopCam(true)}
+}
+function stopCam(keepMsg){try{const s=vid.srcObject;if(s)s.getTracks().forEach(t=>t.stop());vid.srcObject=null}catch(e){}
+ if(mode!=='sim'||!hasBg){mode='sim';cam.f=(W/2)/Math.tan(30*D2R);cam.fovKnown=true;roi=null;startBg()}uiMode();if(!keepMsg)camMsg=''}
+function grabCam(){
+ if(!vid.videoWidth)return false;const vw=vid.videoWidth,vh=vid.videoHeight,sc=Math.max(W/vw,H/vh),dw=vw*sc,dh=vh*sc;
+ wctx.save();wctx.translate(W,0);wctx.scale(-1,1);wctx.drawImage(vid,(W-dw)/2,(H-dh)/2,dw,dh);wctx.restore();
+ frame.set(wctx.getImageData(0,0,W,H).data);return true;
+}
+let fovDeg=60;function setFov(){cam.f=(W/2)/Math.tan(fovDeg/2*D2R)}
+
+/* ---------- drawing ---------- */
+const view=$('view'),vctx=view.getContext('2d'),vimg=vctx.createImageData(W,H);
+const INK='#000',TEAL='#19e6c8',AMBER='#ffd23f',RED='#ff2e2e',BLUE='#3b82f6';
+function drawView(){
+ vimg.data.set(frame);for(let i=3;i<W*H*4;i+=4)vimg.data[i]=255;vctx.putImageData(vimg,0,0);
+ const R=lastR;if(!R||!R.found)return;const P=R.P,g=vctx;
+ const pt=(s,p)=>[CX+p*P.nx+s*P.ax,CY+p*P.ny+s*P.ay];
+ const ln=(a,b,c,w)=>{g.strokeStyle=c;g.lineWidth=w;g.beginPath();g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);g.stroke()};
+ const eL=s=>P.cL+P.m*s,eR=s=>P.cR+P.m*s;
+ ln(pt(P.sB,eL(P.sB)),pt(P.sT,eL(P.sT)),TEAL,2);ln(pt(P.sB,eR(P.sB)),pt(P.sT,eR(P.sT)),TEAL,2);
+ ln(pt(P.sB,eL(P.sB)),pt(P.sB,eR(P.sB)),TEAL,2);ln(pt(P.sT,eL(P.sT)),pt(P.sT,eR(P.sT)),TEAL,2);
+ const mid=(P.cL+P.cR)/2;ln(pt(P.sB-12,mid),pt(P.sT+12,mid),AMBER,2);
+ const f=cam.f;
+ for(let r=0;r<NR;r++){if(!P.occ[r])continue;const s=f*(P.ca+rowH(r))/P.z;ln(pt(s,eL(s)-9),pt(s,eL(s)-3),RED,2);ln(pt(s,eR(s)+3),pt(s,eR(s)+9),RED,2)}
+ const br=(h0,h1,lab)=>{const s0=f*(P.ca+h0)/P.z,s1=f*(P.ca+h1)/P.z,p=eR(s0)+8;ln(pt(s0,p),pt(s1,p),BLUE,3);ln(pt(s0,p-4),pt(s0,p),BLUE,3);ln(pt(s1,p-4),pt(s1,p),BLUE,3);
+  const q=pt((s0+s1)/2,p+6);g.fillStyle='#fff';g.fillRect(q[0]-1,q[1]-9,26,12);g.fillStyle=INK;g.font='10px "IBM Plex Mono",monospace';g.fillText(lab,q[0],q[1])};
+ br(20.3,BODY_TOP,'TOP');br(BODY_BOT,-20.3,'BOT');
+ g.fillStyle=AMBER;g.fillRect(P.px-3,P.py-3,6,6);
+ if(roi){g.strokeStyle=BLUE;g.lineWidth=1;g.strokeRect(roi.x-roi.r,roi.y-roi.r,roi.r*2,roi.r*2)}
+}
+const maps=$('maps'),mctx=maps.getContext('2d');
+const mOff=document.createElement('canvas');mOff.width=MW;mOff.height=NR;const mOc=mOff.getContext('2d'),mImg=mOc.createImageData(MW,NR);
+const sOff=document.createElement('canvas');sOff.width=SW;sOff.height=NR;const sOc=sOff.getContext('2d'),sImg=sOc.createImageData(SW,NR);
+function drawMaps(){
+ const g=mctx;g.fillStyle='#fff';g.fillRect(0,0,520,150);g.imageSmoothingEnabled=false;g.font='10px "IBM Plex Mono",monospace';g.fillStyle=INK;
+ const d=mImg.data;let any=false;
+ for(let r=0;r<NR;r++)for(let k=0;k<MW;k++){const o=(r*MW+k)*4;let v=-1;
+  if(hasMap){if(MV[r*MW+k])v=ML[r*MW+k]}
+  else if(en.on||phase==='enrol'){const a=r*BWID+BORG+k,b=a-360;if(BWt[a]>0)v=BS[a]/BWt[a];else if(BWt[b]>0)v=BS[b]/BWt[b]}
+  if(v<0){const h=((k+r)&3)===0;d[o]=h?255:255;d[o+1]=h?210:255;d[o+2]=h?63:255}else{d[o]=d[o+1]=d[o+2]=v;any=true}d[o+3]=255}
+ mOc.putImageData(mImg,0,0);g.drawImage(mOff,4,14,360,96);
+ g.strokeStyle=INK;g.lineWidth=2;g.strokeRect(4,14,360,96);
+ g.fillText(hasMap?'LABEL MAP 360 deg (learned)':(en.on?'LABEL MAP (learning)':'LABEL MAP (not learned)'),4,10);
+ g.fillText('VISIBLE STRIP +-56 deg',388,10);
+ const R=lastR,e=sImg.data;
+ for(let r=0;r<NR;r++)for(let c=0;c<SW;c++){const i=r*SW+c,o=i*4;let v=R&&R.found?SL[i]:255;e[o]=e[o+1]=e[o+2]=v;e[o+3]=255;
+  if(R&&R.found&&!SV[i]){if(SK[i]===1){e[o]=255;e[o+1]=(v*0.4)|0;e[o+2]=(v*0.4)|0}else{e[o]=255;e[o+1]=210;e[o+2]=63}}}
+ sOc.putImageData(sImg,0,0);g.drawImage(sOff,388,14,113,96);g.strokeRect(388,14,113,96);
+ g.strokeStyle=BLUE;g.lineWidth=2;g.strokeRect(388+C0,14,C1-C0+1,96);
+ // matched window on the map, and the score curve
+ g.strokeStyle=INK;g.lineWidth=1;g.strokeRect(4,116,360,30);
+ if(R&&R.found&&R.M){
+  const a=R.M.a;g.strokeStyle=TEAL;g.lineWidth=3;
+  for(const sh of[-360,0,360]){const x0=4+a+(C0-SC)+sh,x1=4+a+(C1-SC)+sh;const l=Math.max(4,x0),r=Math.min(364,x1);if(r>l)g.strokeRect(l,15,r-l,94)}
+  g.strokeStyle=INK;g.lineWidth=1;g.beginPath();for(let k=0;k<MW;k++){const y=145-clamp(dispCurve[k],0,1)*28;if(k)g.lineTo(4+k,y);else g.moveTo(4+k,y)}g.stroke();
+  const mk=(tw,c,y)=>{const aa=wrap360(-(tw+zeroOff)-R.P.alpha*R2D);g.fillStyle=c;g.fillRect(4+aa-2,y,4,6)};
+  mk(R.twist,TEAL,117);if(R.top!=null)mk(R.top,BLUE,124);if(R.bot!=null)mk(R.bot,AMBER,131);
+  g.fillStyle=INK;g.fillText('score '+R.M.score.toFixed(2),388,126);g.fillText('next best '+R.M.second.toFixed(2),388,138);
+  g.fillStyle=TEAL;g.fillRect(388,141,6,6);g.fillStyle=BLUE;g.fillRect(420,141,6,6);g.fillStyle=AMBER;g.fillRect(452,141,6,6);g.fillStyle=INK;g.fillText('all',396,148);g.fillText('top',428,148);g.fillText('bot',460,148);
+ }else{g.fillStyle=INK;g.fillText('match score along the map',10,134)}
+}
+const dial=$('dial'),dctx=dial.getContext('2d');
+function drawDial(){
+ const g=dctx,c=132;g.fillStyle='#fff';g.fillRect(0,0,264,264);
+ const R=lastR;
+ for(let i=0;i<72;i++){let got=false;
+  if(hasMap){for(let r=0;r<NR&&!got;r+=3)if(MV[r*MW+i*5+2])got=true}
+  else if(en.on){const a0=en.minA-38,a1=en.maxA+38;if(a1-a0>=360)got=true;else{const k=i*5+2;for(const sh of[-720,-360,0,360,720])if(k+sh>=a0&&k+sh<=a1)got=true}}
+  const t0=(i*5-90)*D2R,t1=(i*5+4-90)*D2R;g.beginPath();g.arc(c,c,122,t0,t1);g.arc(c,c,104,t1,t0,true);g.closePath();
+  if(got){g.fillStyle=TEAL;g.fill()}g.strokeStyle=INK;g.lineWidth=1.5;g.stroke()}
+ g.strokeStyle=INK;g.lineWidth=2;
+ for(let i=0;i<24;i++){const t=(i*DET-90)*D2R;g.beginPath();g.moveTo(c+Math.cos(t)*86,c+Math.sin(t)*86);g.lineTo(c+Math.cos(t)*98,c+Math.sin(t)*98);g.stroke()}
+ g.font='600 22px "IBM Plex Mono",monospace';g.textAlign='center';g.fillStyle=INK;
+ if(en.on){const p=Math.min(360,Math.round(en.maxA-en.minA));g.fillText(p+'/360',c,c+2);g.font='18px "IBM Plex Mono",monospace';g.fillText('LEARNING',c,c+28)}
+ else if(R&&R.found&&R.M&&R.locked){const t=(R.twist-90)*D2R;g.strokeStyle=RED;g.lineWidth=5;g.beginPath();g.moveTo(c,c);g.lineTo(c+Math.cos(t)*100,c+Math.sin(t)*100);g.stroke();
+  g.fillStyle='#fff';g.fillRect(c-46,c+18,92,56);g.strokeStyle=INK;g.lineWidth=2;g.strokeRect(c-46,c+18,92,56);g.fillStyle=INK;
+  g.fillText('R'+(ctl.ring+1)+' '+ctl.det[ctl.ring],c,c+42);g.font='18px "IBM Plex Mono",monospace';g.fillText('detent',c,c+64)}
+ else{g.fillText('NO',c,c-4);g.fillText('TWIST',c,c+22)}
+ g.textAlign='left';
+}
+const demo=$('demo'),xctx=demo.getContext('2d');let demoW=300,demoH=150;
+function sizeDemo(){const r=demo.parentElement.getBoundingClientRect(),d=Math.min(2,window.devicePixelRatio||1);demoW=Math.max(60,r.width);demoH=Math.max(40,r.height);demo.width=demoW*d;demo.height=demoH*d;xctx.setTransform(d,0,0,d,0,0)}
+function drawDemo(){
+ const g=xctx,w=demoW,h=demoH;g.fillStyle='#fff';g.fillRect(0,0,w,h);g.font='10px "IBM Plex Mono",monospace';g.fillStyle=INK;
+ const small=h<120;
+ if(w>380){g.fillText('RING 1 hold upper half: PICK   RING 2 hold lower half: LEVEL',4,11);if(!small)g.fillText('PUSH / PULL: SIZE   TILT: TURNS IT',4,23)}
+ else{g.fillText('RING 1 (hold upper half): PICK',4,11);if(!small){g.fillText('RING 2 (hold lower half): LEVEL',4,23);g.fillText('PUSH / PULL: SIZE  TILT: TURNS IT',4,35)}}
+ const cols=[TEAL,AMBER,RED,BLUE,'#000'],top=small?16:40,cw=w/5,cy=top+(h-top-14)/2,base=Math.min(cw*0.36,(h-top-18)*0.36);
+ for(let i=0;i<5;i++){const it=ctl.items[i],cx=cw*(i+0.5),s=base*it.scale,sel=i===ctl.sel;
+  g.save();g.translate(cx,cy);if(sel&&ctl.tilt!=null)g.rotate(ctl.tilt*D2R);
+  const path=()=>{g.beginPath();if(i===0)g.rect(-s,-s,2*s,2*s);else if(i===1){g.moveTo(0,-s);g.lineTo(s,s);g.lineTo(-s,s);g.closePath()}else if(i===2){g.moveTo(0,-s);g.lineTo(s,0);g.lineTo(0,s);g.lineTo(-s,0);g.closePath()}
+   else if(i===3){const t=s/3;g.moveTo(-t,-s);g.lineTo(t,-s);g.lineTo(t,-t);g.lineTo(s,-t);g.lineTo(s,t);g.lineTo(t,t);g.lineTo(t,s);g.lineTo(-t,s);g.lineTo(-t,t);g.lineTo(-s,t);g.lineTo(-s,-t);g.lineTo(-t,-t);g.closePath()}
+   else g.rect(-s*0.45,-s,s*0.9,2*s)};
+  g.save();path();g.clip();g.fillStyle=cols[i];const fh=2*s*it.value/12;g.fillRect(-s,s-fh,2*s,fh);g.restore();
+  path();g.strokeStyle=INK;g.lineWidth=sel?4:2;g.stroke();g.restore();
+  g.fillStyle=INK;g.textAlign='center';g.fillText(it.value+'/12'+(sel?' x'+it.scale.toFixed(2):''),cx,h-4);g.textAlign='left';
+  if(sel){g.fillStyle=INK;g.fillRect(cx-cw*0.4,h-16,cw*0.8,2)}
+ }
+}
+const fmt=(v,d=1)=>v==null||!isFinite(v)?'--':v.toFixed(d);
+function drawRead(){
+ const R=lastR,sm=mode==='sim',ok=R&&R.found,P=ok?R.P:null,tw=ok&&R.M?R.twist:null;
+ const tt=wrap360(sim.twist-truthZero);
+ const row=(n,e,t,er,d=1)=>'<tr><td>'+n+'</td><td>'+fmt(e,d)+'</td>'+(sm?'<td>'+fmt(t,d)+'</td><td>'+fmt(er,d)+'</td>':'')+'</tr>';
+ let h='<table><tr><th></th><th>MEASURED</th>'+(sm?'<th>TRUE</th><th>ERROR</th>':'')+'</tr>';
+ h+=row('X mm',P&&P.X,sim.X,P?P.X-sim.X:null)+row('Y mm',P&&P.Y,sim.Y,P?P.Y-sim.Y:null)+row('Z mm',P&&P.Z,sim.Z,P?P.Z-sim.Z:null);
+ h+=row('TILT deg',P&&P.tilt,sim.tilt,P?P.tilt-sim.tilt:null)+row('TWIST deg',tw,hasMap&&sm?tt:null,tw!=null?wrap180(tw-tt):null)+'</table>';
+ const th3=v=>v==null?'covered':v.toFixed(1);h+='<div class="ln">TOP THIRD '+(ok&&R.M?th3(R.top):'--')+'  BOTTOM THIRD '+(ok&&R.M?th3(R.bot):'--')+'</div>';
+ h+='<div class="ln">RING 1 detent '+ctl.det[0]+'  RING 2 detent '+ctl.det[1]+'  ACTIVE '+(ctl.ring+1)+'</div>';
+ h+='<div class="ln">'+(P&&P.gripN>=60?'grip centre '+fmt(P.gripH,0)+' mm from can middle':'no grip seen')+'  '+fps.toFixed(0)+' frames/s</div>';
+ if(!sm)h+='<div class="ln">X Y Z assume a '+fovDeg+' deg wide lens. Not measured.</div>';
+ else if(mapInfo&&mapInfo.ok)h+='<div class="ln">learned turn closed at '+mapInfo.L.toFixed(1)+' deg (ideal 360)</div>';
+ $('read').innerHTML=h;
+}
+function drawStatus(){
+ const R=lastR;let s='',w=[];
+ if(camMsg)w.push(camMsg);
+ if(phase==='bg')s='Taking the empty background. Keep the can and your hand out of view.';
+ else if(phase==='hand')s='Learning the colour of the hand. Show the empty hand and forearm, no can. '+handN+' frames.';
+ else if(!hasBg)s='Step 1: point the camera at a still scene with no can and no hand in it, then press 1 TAKE EMPTY BACKGROUND.';
+ else if(en.on)s='Learning the label: turn the can slowly one full turn. '+Math.min(360,Math.round(en.maxA-en.minA))+' of 360 deg. '+(mode==='sim'?'(the simulation turns it for you)':'');
+ else if(!hasHand&&!hasMap)s=(handOk?'':'Too few hand pixels seen. ')+'Step 2: show your empty hand and forearm and press 2 SHOW EMPTY HAND. If you skip it the hand counts as part of the can.';
+ else if(!hasMap)s=(en.msg?en.msg+' ':'')+'Step 3: hold the can upright in view and press 3 LEARN LABEL, then turn it one full turn.';
+ else s=mode==='sim'?'Simulated camera. The tracker reads only the pixels above. Move the sliders or drag the can.':'Twist the can. Click the can in the picture if the outline is on the wrong thing.';
+ if(hasBg&&phase!=='bg'&&phase!=='hand'){
+  if(!R||!R.found)w.push(R&&R.why?R.why:'NO CAN FOUND');
+  else{
+   if(R.P.endNote)w.push(R.P.endNote.toUpperCase());
+   if(en.on&&en.msg)w.push(en.msg.toUpperCase()+(en.msg==='TOO FAST'?': '+Math.abs(en.step).toFixed(0)+' deg per frame':''));
+   if(R.glare>0.12)w.push('GLARE hides '+(R.glare*100).toFixed(0)+'% of the strip');
+   if(R.rms<3.2)w.push('NO PRINT VISIBLE (contrast '+R.rms.toFixed(1)+'): a plain can gives no twist');
+   if(R.M){if(R.M.score<0.35)w.push('LABEL NOT MATCHED (score '+R.M.score.toFixed(2)+')');
+    else if(R.amb>=0.9)w.push('LABEL REPEATS: a match '+Math.abs(R.M.secAt).toFixed(0)+' deg away scores '+(R.amb*100).toFixed(0)+'% as well. Twist is ambiguous.');
+    else if(R.top!=null&&R.bot!=null&&Math.abs(wrap180(R.top-R.bot))>10)w.push('TOP AND BOTTOM DISAGREE by '+Math.abs(wrap180(R.top-R.bot)).toFixed(0)+' deg')}
+  }
+ }
+ $('status').innerHTML=s+(w.length?' <span class="w">'+w.join(' / ')+'</span>':'');
+}
+
+/* ---------- controls ---------- */
+const SLD=[['X','X',-150,150,1,'mm','simonly'],['Y','Y',-70,70,1,'mm','simonly'],['Z','Z',250,700,1,'mm','simonly'],['TILT','tilt',-60,60,0.5,'deg','simonly'],
+ ['TWIST','twist',0,360,0.5,'deg','simonly'],['GRIP','grip',-30,30,1,'mm','simonly'],['GLARE','glare',0,1,0.05,'','simonly'],['NOISE','noise',0,12,0.5,'','simonly'],
+ ['LENS','fov',40,100,1,'deg','camonly'],['THRESH','thresh',20,120,1,'','camonly']];
+const slEls={};
+function buildSliders(){const box=$('sliders');for(const[s,k,a,b,st,u,cls]of SLD){const l=document.createElement('label');l.className=cls;
+ const v=k==='fov'?fovDeg:k==='thresh'?cfg.thresh:sim[k];l.innerHTML='<span>'+s+'</span><input type="range" min="'+a+'" max="'+b+'" step="'+st+'" value="'+v+'" aria-label="'+s+'"><b></b>';
+ const inp=l.querySelector('input'),out=l.querySelector('b');const show=()=>{out.textContent=(+inp.value).toFixed(st<1?(st<0.1?2:1):0)};show();
+ inp.addEventListener('input',()=>{const x=+inp.value;if(k==='fov'){fovDeg=x;setFov();store('fov',x)}else if(k==='thresh')cfg.thresh=x;else{sim[k]=x;if(k==='twist')simAuto=null}show()});
+ slEls[k]={inp,show};box.appendChild(l)}}
+function setSlider(k,v){const e=slEls[k];if(e){e.inp.value=v;e.show()}}
+function store(k,v){try{localStorage.setItem('canlabel.'+k,String(v))}catch(e){}}
+function load(k){try{return localStorage.getItem('canlabel.'+k)}catch(e){return null}}
+function uiMode(){const s=mode==='sim';document.querySelectorAll('.simonly').forEach(e=>e.classList.toggle('hide',!s));document.querySelectorAll('.camonly').forEach(e=>e.classList.toggle('hide',s));
+ $('bSim').classList.toggle('on',s);$('bCam').classList.toggle('on',!s);$('hdr').textContent=s?'simulated camera: synthetic pixels, tracker never sees the true state':'live camera'}
+$('bSim').onclick=()=>{camMsg='';if(mode==='cam'){stopCam()}else{startBg()}};
+$('bCam').onclick=()=>{startCam()};
+$('bBg').onclick=()=>startBg();
+$('bEnrol').onclick=()=>startEnrol();
+$('bHandL').onclick=()=>startHand();
+$('bZero').onclick=()=>{if(lastR&&lastR.found&&lastR.M){zeroOff=wrap360(zeroOff+lastR.twist);truthZero=sim.twist;ctl.prev=null;ctl.acc=[0,0];ctl.det=[0,0];ctl.zRef=null}};
+$('bSnd').onclick=()=>{sound=!sound;try{if(sound){if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();}}catch(e){sound=false}
+ $('bSnd').textContent=sound?'SOUND ON':'SOUND OFF';$('bSnd').classList.toggle('on',sound);if(sound)click(0)};
+$('bHand').onclick=()=>{sim.hand=!sim.hand;$('bHand').textContent=sim.hand?'HAND ON':'HAND OFF';$('bHand').classList.toggle('on',sim.hand)};
+$('bLabel').onclick=()=>{const o=['printed','repeat','plain'],n=o[(o.indexOf(sim.label)+1)%3];sim.label=n;makeLabel(n);$('bLabel').textContent='LABEL: '+({printed:'PRINTED',repeat:'REPEATS x4',plain:'PLAIN CAN'})[n];if(hasBg&&mode==='sim')startEnrol()};
+$('limBtn').onclick=()=>{$('limits').classList.toggle('open');$('limBtn').classList.toggle('on')};
+function viewXY(ev){const r=view.getBoundingClientRect(),sc=Math.min(r.width/W,r.height/H),ox=(r.width-W*sc)/2,oy=(r.height-H*sc)/2;return[(ev.clientX-r.left-ox)/sc,(ev.clientY-r.top-oy)/sc]}
+let drag=null;
+view.addEventListener('pointerdown',ev=>{const[x,y]=viewXY(ev);if(mode==='sim'){drag={x,y,X:sim.X,Y:sim.Y};try{view.setPointerCapture(ev.pointerId)}catch(e){}}else{roi={x,y,r:170};roiLost=0}});
+view.addEventListener('pointermove',ev=>{if(!drag)return;const[x,y]=viewXY(ev),k=sim.Z/cam.f;sim.X=clamp(drag.X+(x-drag.x)*k,-150,150);sim.Y=clamp(drag.Y+(y-drag.y)*k,-70,70);setSlider('X',sim.X);setSlider('Y',sim.Y)});
+view.addEventListener('pointerup',()=>{drag=null});view.addEventListener('pointercancel',()=>{drag=null});
+view.addEventListener('wheel',ev=>{if(mode!=='sim')return;ev.preventDefault();sim.Z=clamp(sim.Z+ev.deltaY*0.3,250,700);setSlider('Z',sim.Z)},{passive:false});
+
+/* ---------- main loop ---------- */
+function tick(t){
+ requestAnimationFrame(tick);
+ if(t&&lastT){const d=t-lastT;if(d>0)fps=fps?fps*0.9+100/d:1000/d}lastT=t;
+ let ok=true;
+ if(mode==='sim'){if(simAuto&&en.on){simAuto.i++;sim.twist=wrap360(simAuto.t0+simAuto.i*4);if(en.first)truthZero=sim.twist;setSlider('twist',sim.twist)}renderSim(sim,frame)}else ok=grabCam();
+ if(ok)step(frame);
+ drawView();drawMaps();drawDial();drawDemo();drawRead();drawStatus();
+}
+(function init(){
+ const fv=parseFloat(load('fov'));if(fv>=40&&fv<=100)fovDeg=fv;
+ makeLabel('printed');makeBackground();buildSliders();uiMode();sizeDemo();
+ try{new ResizeObserver(sizeDemo).observe(demo.parentElement)}catch(e){window.addEventListener('resize',sizeDemo)}
+ startBg();requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
