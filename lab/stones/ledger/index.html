@@ -603,5 +603,154 @@ function floorInit(){$('app').style.display='none';$('floor').style.display='gri
 window.addEventListener('error',e=>{try{if(!FLOOR)say('A script error happened: '+(e.message||'unknown')+'. The page keeps running.');}catch(x){}});
 if(FLOOR)floorInit();else laptopInit();
 </script>
+<!--GUIDE-BEGIN-->
+<style>
+body.guided .ghide{position:fixed!important;left:-300vw!important;top:0!important;width:900px!important;height:700px!important;visibility:hidden!important}
+#g{position:fixed;inset:0;display:grid;grid-template-rows:minmax(0,1fr) auto;background:#fff;z-index:50;font-family:'IBM Plex Mono',ui-monospace,monospace;color:#000;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#g.thru{background:transparent;pointer-events:none}
+#g.thru #gCard{pointer-events:auto}
+#g.off{display:none}
+#gView{position:relative;min-height:0;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+#gView>.gfill{align-self:stretch;flex:1 1 0;min-height:0;width:100%;position:relative;overflow:hidden}
+#gCard{background:#fff;border-top:2px solid #000;padding:12px 16px 14px;display:grid;gap:6px}
+#gAnim{width:100%;height:104px;display:none;border-bottom:1px solid #000;margin-bottom:4px}
+#gStep{font-size:11px;letter-spacing:.12em;font-weight:600;min-height:14px}
+#gHead{font-size:20px;font-weight:700;line-height:1.2}
+#gBig{font-size:54px;font-weight:700;line-height:1}
+#gBig:empty,#gText:empty,#gStep:empty,#gFoot:empty,#gBtns:empty{display:none}
+#gText{font-size:14px;line-height:1.4}
+#gIn{font:inherit;font-size:26px;font-weight:700;letter-spacing:.2em;text-align:center;text-transform:uppercase;border:2px solid #000;padding:8px;width:100%;display:none;border-radius:0}
+#gBtns{display:flex;gap:8px;margin-top:4px}
+#gBtns button{flex:1;font:inherit;font-size:16px;font-weight:700;letter-spacing:.04em;padding:14px 10px;border:2px solid #000;background:#000;color:#fff;border-radius:0;cursor:pointer}
+#gBtns button.sec{background:#fff;color:#000}
+#gFoot{font-size:11px;display:flex;justify-content:space-between;gap:12px;margin-top:2px}
+#gFoot a{color:#000;cursor:pointer;text-decoration:underline}
+.gcode{font-size:34px;font-weight:700;letter-spacing:.25em}
+.gurl{font-size:11px;word-break:break-all;max-width:90%;text-align:center;-webkit-user-select:text;user-select:text}
+@media(min-width:900px){#g{grid-template-rows:none;grid-template-columns:minmax(0,1fr) 400px}#gCard{border-top:0;border-left:2px solid #000;align-content:center;padding:28px}#gHead{font-size:26px}#gAnim{height:190px}#gBig{font-size:84px}#gText{font-size:15px}}
+</style>
+<script>
+/* guide kit: one card, one step at a time. The step shown is worked out from what is true now, not from which buttons were pressed. */
+const GK=(()=>{const el=id=>document.getElementById(id),home=new Map();let sig='',hs=[],fs=[],fsig='';
+  function init(hide){document.body.classList.add('guided');for(const id of hide||[]){const e=el(id);if(e)e.classList.add('ghide');}
+    const g=document.createElement('div');g.id='g';g.innerHTML='<div id="gView"></div><div id="gCard"><canvas id="gAnim" aria-hidden="true"></canvas><div id="gStep"></div><div id="gHead"></div><div id="gBig"></div><div id="gText"></div><input id="gIn" autocomplete="off" autocapitalize="characters"><div id="gBtns"></div><div id="gFoot"></div></div>';document.body.appendChild(g);}
+  function view(nodes){const v=el('gView'),want=(nodes||[]).filter(Boolean),cur=[...v.children];if(cur.length===want.length&&cur.every((c,i)=>c===want[i]))return;
+    for(const c of cur){const h=home.get(c);if(h)h.appendChild(c);else c.remove();}
+    for(const n of want){if(!home.has(n)&&n.parentElement&&n.parentElement!==v)home.set(n,n.parentElement);v.appendChild(n);}}
+  const set=(id,t)=>{const e=el(id);t=t||'';if(e.textContent!==t)e.textContent=t;};
+  function card(c){GA.set(c.anim);set('gStep',c.step);set('gHead',c.head);set('gBig',c.big);set('gText',c.text);
+    el('g').className=c.mode||'';const inp=el('gIn');inp.style.display=c.input?'block':'none';if(c.input&&inp.maxLength!==c.input)inp.maxLength=c.input;
+    const bs=c.btns||[],s=bs.map(b=>b[0]+(b[2]?'*':'')).join('|');hs=bs.map(b=>b[1]);
+    if(s!==sig){sig=s;const box=el('gBtns');box.textContent='';bs.forEach((b,i)=>{const k=document.createElement('button');k.textContent=b[0];if(b[2])k.className='sec';k.onclick=()=>{try{hs[i](el('gIn').value);}catch(e){console.warn(e);}};box.appendChild(k);});}
+    const ft=c.foot||[],f=ft.map(b=>b[0]).join('|');fs=ft.map(b=>b[1]);
+    if(f!==fsig){fsig=f;const box=el('gFoot');box.textContent='';ft.forEach((b,i)=>{const a=document.createElement('a');a.textContent=b[0];if(typeof b[1]==='string')a.href=b[1];else a.onclick=()=>fs[i]();box.appendChild(a);});}}
+  function note(cls,txt){let d=document.createElement('div');d.className=cls;d.textContent=txt;return d;}
+  return{init,view,card,note,el};})();
+
+/* explainer animations: line drawings that show the one action a step asks for. Side view unless noted. */
+const GA=(()=>{let name=null,cv=null,t0=performance.now();const INK='#000',TEAL='#19e6c8',AMBER='#ffd23f',BLUE='#3b82f6',RED='#ff2e2e';
+  const still=(()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){return false;}})();
+  const ez=u=>{u=u<0?0:u>1?1:u;return u*u*(3-2*u);},seg=(p,a,b)=>ez((p-a)/(b-a)),mix=(a,b,u)=>a+(b-a)*u;
+  let g;const L=(x1,y1,x2,y2,w,c)=>{g.strokeStyle=c||INK;g.lineWidth=w||2;g.beginPath();g.moveTo(x1,y1);g.lineTo(x2,y2);g.stroke();};
+  const R=(x,y,w,h,f,c)=>{if(f){g.fillStyle=f;g.fillRect(x,y,w,h);}if(c!==null){g.strokeStyle=c||INK;g.lineWidth=2;g.strokeRect(x,y,w,h);}};
+  const C=(x,y,r,f,c,w)=>{g.beginPath();g.arc(x,y,r,0,6.2832);if(f){g.fillStyle=f;g.fill();}if(c!==null){g.strokeStyle=c||INK;g.lineWidth=w||2;g.stroke();}};
+  const table=()=>L(8,104,292,104,2);
+  function laptop(lean){const hx=58,hy=104,a=(100+(lean||0))*Math.PI/180,tx=hx+Math.cos(a)*-1*0+Math.cos(Math.PI-a)*-66,ty=hy-Math.sin(a)*66;L(hx,hy,hx+70,hy,5);L(hx,hy,tx,ty,4);C(tx,ty,3.5,BLUE,INK,1.5);return[tx,ty];}
+  function cone(c,on,x1,x2){if(on<=0)return;g.globalAlpha=.18*on;g.fillStyle=BLUE;g.beginPath();g.moveTo(c[0],c[1]);g.lineTo(x1,104);g.lineTo(x2,104);g.closePath();g.fill();g.globalAlpha=on;g.setLineDash([4,4]);L(c[0],c[1],x1,104,1,BLUE);L(c[0],c[1],x2,104,1,BLUE);g.setLineDash([]);g.globalAlpha=1;}
+  const phone=(x,lit)=>{R(x,99,52,5,lit||INK);};
+  function hand(x,y,open){g.strokeStyle=INK;g.lineWidth=5;g.lineCap='round';g.beginPath();g.moveTo(x+70,y-34);g.lineTo(x+14,y-8);g.stroke();g.lineCap='butt';
+    g.fillStyle='#fff';g.beginPath();g.ellipse(x+8,y-6,11,7,-.4,0,6.2832);g.fill();g.strokeStyle=INK;g.lineWidth=2;g.stroke();
+    if(open){for(let i=0;i<4;i++)L(x+1+i*4,y-2,x-5+i*4,y+9,2.5);}else L(x+2,y-2,x,y+10,3);}
+  function can(x,y,stripe,col){R(x-11,y-41,22,41,col||'#fff');if(stripe!=null){g.save();g.beginPath();g.rect(x-10,y-40,20,39);g.clip();for(let i=-1;i<4;i++){const sx=x-11+(((i*9+stripe)%27)+27)%27-3;R(sx,y-33,4,25,i%2?AMBER:INK,null);}g.restore();}g.beginPath();g.ellipse(x,y-41,11,3,0,0,6.2832);g.fillStyle='#fff';g.fill();g.strokeStyle=INK;g.lineWidth=2;g.stroke();}
+  function arrow(x1,y1,x2,y2,c){L(x1,y1,x2,y2,2,c);const a=Math.atan2(y2-y1,x2-x1);L(x2,y2,x2-7*Math.cos(a-.5),y2-7*Math.sin(a-.5),2,c);L(x2,y2,x2-7*Math.cos(a+.5),y2-7*Math.sin(a+.5),2,c);}
+  function turnArrow(x,y,r,p){g.strokeStyle=INK;g.lineWidth=2;g.beginPath();g.ellipse(x,y,r,r*.32,0,Math.PI*.15,Math.PI*.15+Math.PI*1.5*p);g.stroke();const a=Math.PI*.15+Math.PI*1.5*p,ex=x+r*Math.cos(a),ey=y+r*.32*Math.sin(a);C(ex,ey,3,INK,null);}
+  const SC={
+    setup(p){table();laptop();const u=seg(p,.1,.6);phone(mix(300,150,u));if(p>.65)hand(mix(230,176,seg(p,.65,.9)),mix(40,70,seg(p,.65,.9)),true);},
+    scan(p){table();laptop();R(22,44,22,22,'#fff');for(let i=0;i<9;i++)if([0,2,3,4,6,8].includes(i))R(25+(i%3)*6,47+Math.floor(i/3)*6,4,4,INK,null);
+      const x=mix(250,150,seg(p,.05,.5));R(x,40,7,44,INK);if(p>.5){g.setLineDash([3,3]);L(x,60,46,56,1.5,TEAL);g.setLineDash([]);C(x+3.5,34,mix(2,9,(p-.5)*2),null,TEAL,2);}},
+    layflat(p){table();laptop();const u=seg(p,.15,.6),a=(1-u)*Math.PI/2,cx=176,cy=101;g.save();g.translate(cx,cy);g.rotate(-a);R(-26,-2.5-(1-u)*26,52,5,INK);g.restore();if(u>=1)arrow(176,70,176,92,TEAL);},
+    camera(p){table();const c=laptop();phone(150);cone(c,seg(p,.15,.6),120,236);if(p>.6)C(c[0],c[1],mix(4,11,(p-.6)*2.5),null,BLUE,1.5);},
+    handover(p){table();const c=laptop();phone(150);cone(c,1,120,236);const u=seg(p,.1,.6);hand(mix(262,170,u),mix(30,74,u),true);if(u>=1)C(176,62,mix(6,16,(p-.6)*2.5),null,TEAL,2);},
+    tap(p){/* top view of the phone */const x=112,y=6,w=76,h=108;R(x,y,w,h,'#fff');for(let i=1;i<3;i++)L(x+i*w/3,y,x+i*w/3,y+h,1,'#bbb');for(let i=1;i<4;i++)L(x,y+i*h/4,x+w,y+i*h/4,1,'#bbb');
+      const k=Math.floor(p*3)%3,q=(p*3)%1,cell=[[2,0],[0,2],[1,3]][k],cx=x+(cell[0]+.5)*w/3,cy=y+(cell[1]+.5)*h/4;R(x+cell[0]*w/3,y+cell[1]*h/4,w/3,h/4,q>.55?TEAL:AMBER);
+      const fx=mix(250,cx,seg(q,.05,.5)),fy=mix(100,cy,seg(q,.05,.5));if(q>.5){C(cx,cy,mix(3,14,(q-.5)*2),null,INK,1.5);const gap=[16,9,3][k],bx=cx-gap,by=cy+gap*.6;L(cx,cy,bx,by,2);L(bx-4,by-4,bx+4,by+4,2.5,BLUE);L(bx-4,by+4,bx+4,by-4,2.5,BLUE);
+        g.fillStyle=INK;g.font="600 11px 'IBM Plex Mono',monospace";g.fillText(['9 mm','5 mm','2 mm'][k],x+w+10,cy+4);}
+      C(fx,fy,5,INK,null);L(fx+3,fy+3,fx+26,fy+22,5);},
+    empty(p){table();const c=laptop();cone(c,1,120,236);const u=seg(p,.2,.75);can(mix(170,300,u),104,2);hand(mix(186,316,u),mix(74,60,u),false);if(u<1)arrow(210,50,250,50,RED);else{g.fillStyle=INK;g.font="600 11px 'IBM Plex Mono',monospace";g.fillText('empty',152,60);}},
+    showhand(p){table();const c=laptop();cone(c,1,120,236);const u=seg(p,.1,.55);hand(mix(280,168,u),mix(40,70,u),true);if(u>=1)R(150,48,52,40,null,TEAL);},
+    holdcan(p){table();const c=laptop();cone(c,1,120,236);const u=seg(p,.1,.55),x=mix(290,176,u),y=mix(70,92,u);can(x,y,2);hand(x+8,y-18,false);if(u>=1)R(160,44,32,54,null,TEAL);},
+    turn(p){/* front view */can(150,96,p*54);can(150,96,p*54);hand(162,74,false);turnArrow(150,28,26,p);g.fillStyle=INK;g.font="600 12px 'IBM Plex Mono',monospace";g.fillText(Math.round(p*360)+'°',196,34);},
+    twist(p){const a=Math.sin(p*6.2832)*20;can(150,96,a);hand(162,74,false);const n=Math.round(a/7);for(let i=-3;i<=3;i++)L(150+i*10,14,150+i*10,i===n?4:9,i===n?3:1.5,i===n?TEAL:INK);arrow(150+a*.9-8*Math.sign(Math.cos(p*6.2832)||1),24,150+a*.9+8*Math.sign(Math.cos(p*6.2832)||1),24);},
+    ring(p){/* top view of the phone */const x=112,y=4,w=76,h=112;R(x,y,w,h,'#fff');const u=p<.5?seg(p,.05,.45):1,r=mix(20,31,u);C(150,56,r,null,INK,2);C(150,56,31,p>.5?'rgba(25,230,200,.35)':null,p>.5?TEAL:'#999',p>.5?3:1.5);
+      g.fillStyle=INK;g.font="600 12px 'IBM Plex Mono',monospace";g.fillText(p>.5?'matches':'+',x+w+12,60);if(p<=.5)arrow(150+r-8,56,150+r+2,56);},
+    canaway(p){table();const c=laptop(-12);phone(150,INK);cone(c,1,120,236);const u=seg(p,.15,.7);can(mix(176,300,u),mix(99,60,Math.sin(u*Math.PI)*.9+u*.2),null);if(u<1)arrow(200,40,246,40,RED);},
+    canon(p){table();const u=seg(p,.1,.5),c=laptop(-12*seg(p,.5,.85));phone(150,p>.5?AMBER:INK);cone(c,seg(p,.5,.85),132,222);can(176,mix(50,99,u),null,p>.6?'#ffe9a8':'#fff');if(u<1)arrow(176,8,176,mix(6,40,u),TEAL);},
+    slide(p){table();const c=laptop(-12);const x=176+Math.sin(p*6.2832)*18;g.fillStyle=RED;g.fillRect(150,99,17,5);g.fillStyle=AMBER;g.fillRect(167,99,17,5);g.fillStyle=TEAL;g.fillRect(184,99,18,5);cone(c,1,132,222);can(x,99,null,x<168?'#ffc2c2':x<186?'#ffe9a8':'#b8f7ee');arrow(x-22,30,x+22,30);arrow(x+22,30,x-22,30);}
+  };
+  function frame(){requestAnimationFrame(frame);if(!cv||!name||!SC[name]||cv.style.display==='none')return;const r=cv.getBoundingClientRect();if(r.width<2)return;const d=Math.min(2,devicePixelRatio||1);
+    if(cv.width!==Math.round(r.width*d)||cv.height!==Math.round(r.height*d)){cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d);}
+    g=cv.getContext('2d');g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cv.width,cv.height);const s=Math.min(cv.width/300,cv.height/120);g.setTransform(s,0,0,s,(cv.width-300*s)/2,(cv.height-120*s)/2);
+    const T=name==='tap'?5.4:name==='turn'?4:name==='twist'||name==='slide'?3.2:3.4;let p=still?.8:((performance.now()-t0)/1000%T)/T;
+    if(!still&&name!=='tap'&&name!=='turn'&&name!=='twist'&&name!=='slide')p=Math.min(1,p*1.25);/* hold the last pose before the loop restarts */
+    try{SC[name](p);}catch(e){}}
+  function set(n){if(!cv){cv=document.getElementById('gAnim');if(!cv)return;requestAnimationFrame(frame);}n=n&&SC[n]?n:null;if(n!==name){name=n;t0=performance.now();cv.style.display=n?'block':'none';}}
+  window.__drawScene=(c,n,p)=>{g=c.getContext('2d');g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,c.width,c.height);SC[n](p);};
+  return{set,SC};})();
+const GBENCH=/[?&]bench\b/.test(location.search);
+</script>
+<script>
+(function(){
+  if(GBENCH){if(!FLOOR&&/[?&]sim\b/.test(location.search))setTimeout(()=>{try{$('bSim').onclick();}catch(e){}},300);return;}
+  const here=location.href.split(/[?#]/)[0];
+  if(!FLOOR){ /* ---------- laptop ---------- */
+    const S={started:false,fault:null,chk:false,code:null,url:null};
+    const camBox=$('pCam').querySelector('.box');camBox.classList.add('gfill');
+    const _cf=camFail;camFail=function(m){S.fault=String(m);_cf(m);};
+    const _om=onMsg;onMsg=m=>{if(m&&m.type==='t')S.chk=!!m.chk;_om(m);};
+    GK.init(['app']);
+    const codeEl=GK.note('gcode',''),urlEl=GK.note('gurl','');
+    function start(){S.started=true;S.fault=null;AU.on=true;auStart();$('bPair').onclick();$('pairBox').classList.remove('on');codeEl.textContent=ROOM;urlEl.textContent=$('pairUrl').textContent;}
+    function over(){try{L.real.reset();sendPlan();}catch(e){}}
+    function openFloor(){try{window.open(here+'?floor&room='+ROOM,'_blank');}catch(e){}}
+    function tickG(){const now=performance.now(),C=L.real,heard=L.floorAt&&now-L.floorAt<5000,tipAge=L.lastTip?now-L.lastTip.t:1e9;
+      if(!S.started){GK.view([]);GK.card({anim:'setup',head:'LEDGER',text:'The phone glass checks the camera. You tap lit squares on the phone. The laptop guesses each tap before it lands. The gap, in millimetres, shrinks as you play. You need this laptop\'s camera and a phone.',btns:[['START',start]],foot:[['watch a simulation first',here+'?bench&sim']]});return;}
+      if(!heard){GK.view([$('qr'),codeEl,urlEl]);GK.card({anim:'scan',step:'STEP 1 OF 3',head:'Scan this with the phone',text:'Or open the address on the phone. Then lay the phone flat, screen up, in front of the laptop. This step ends by itself when the phone answers.'+(C.pairs.length?' Your '+C.pairs.length+' touches are kept.':''),foot:[['no phone here: open the Floor in a second window',openFloor]]});return;}
+      if(S.fault&&!L.trkOn&&!L.camBusy){GK.view([]);GK.card({step:'STEP 2 OF 3',head:'The camera did not start',text:S.fault,btns:[['TRY AGAIN',()=>{S.fault=null;camToggle();}]]});return;}
+      if(!L.trkOn){GK.view([]);if(L.camBusy)GK.card({step:'STEP 2 OF 3',head:'Starting the camera',text:'Allow the camera when the browser asks. The hand tracker takes a few seconds to load.'});
+        else GK.card({anim:'camera',step:'STEP 2 OF 3',head:'Phone linked. Turn on the camera.',text:'The camera watches your hand. Nothing is recorded or sent.',btns:[['TURN ON CAMERA',()=>{S.fault=null;camToggle();}]]});return;}
+      GK.view([camBox]);
+      if(!C.pairs.length&&tipAge>1500){GK.card({anim:'handover',step:'STEP 3 OF 3',head:'Hold your hand over the phone',text:'Tilt the laptop screen until the camera sees your hand above the phone. This step ends by itself when it does.'});return;}
+      const md=C.med10(),scored=C.scored.length,last=C.pairs[C.pairs.length-1],blind=tipAge>3000||(last&&!last.cam);
+      const head={'NO MAP':'Tap the lit square on the phone','LEARNING':'Keep tapping the lit square','TRUSTED':'The camera is trusted','BUMPED':'Something moved. Keep tapping.'}[C.state]||C.state;
+      let text=C.pairs.length+' touches, '+scored+' scored.';
+      if(C.state==='NO MAP')text='Tap on the second beep. The first few taps build the map; then each tap is scored.';
+      else if(C.state==='TRUSTED')text+=' The camera now places your fingertip on the glass to within this distance. Keep playing or stop.';
+      else if(C.state==='BUMPED')text+=' The laptop or phone moved. Earlier touches are set aside.';
+      if(blind)text='The camera did not see your finger on the last tap. Keep your whole hand in view. '+text;
+      if(md!=null&&C.ppm&&!S.chk)text+=' Millimetres assume a typical phone screen.';
+      GK.card({anim:C.state==='TRUSTED'?null:'tap',step:C.state,head,big:md==null?'':fmt(md)+' '+C.unit,text,foot:C.pairs.length?[['start over',over]]:[]});}
+    setInterval(tickG,200);tickG();
+  }else{ /* ---------- phone ---------- */
+    const S={begun:false,ring:false};
+    FL.chk=FL.ppm!=null;if(FL.ppm==null)FL.ppm=6.3;flRing(false);$('flJoin').classList.remove('on');
+    for(const id of['flSnd','flCan','flFull'])$(id).style.display='none';
+    $('flBar').style.fontSize='16px';$('flBar').style.padding='8px 10px';$('flTxt').style.fontSize='16px';$('flTxt').style.fontWeight='700';$('flTxt').style.flex='0 1 auto';$('flTxt').style.order='0';
+    const _send=send;send=function(m){if(m&&m.type==='t')m.chk=FL.chk;return _send(m);};
+    flStatus=function(now){const heard=FL.laptopAt&&now-FL.laptopAt<5000,st=$('flState'),word=heard?FL.state:'NO LAPTOP';if(st.textContent!==word){st.textContent=word;st.className='st '+(heard?FL.state.replace(' ',''):'');}
+      $('flTxt').textContent=!heard?'waiting for the laptop':FL.med!=null?fmt(FL.med)+' '+FL.unit:'tap the lit square';};
+    GK.init([]);
+    function begin(){S.begun=true;AU.on=true;auStart();flWake();try{const p=document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();if(p&&p.catch)p.catch(()=>{});}catch(e){}}
+    function join(v){const c=(v||'').trim().toUpperCase();if(/^[A-Z0-9]{4,8}$/.test(c)){joinRoom(c);try{history.replaceState(null,'','?floor&room='+c);}catch(e){}}else S.bad=true;}
+    function tickF(){
+      if(!ROOM){GK.card({mode:'',head:'Type the code shown on the laptop',text:S.bad?'A code is 4 letters or digits.':'',input:8,btns:[['JOIN',join]]});return;}
+      if(S.ring){GK.card({anim:'ring',mode:'thru',head:'Stand a drink can on the ring',text:'Press − or + until the ring matches the base of the can (66 mm). If the ring is wider than the screen, match its top and bottom.',btns:[['−',()=>{FL.ringPpm=clamp(FL.ringPpm*.99,2,30);},1],['+',()=>{FL.ringPpm=clamp(FL.ringPpm*1.01,2,30);},1],['IT MATCHES',()=>{FL.ppm=FL.ringPpm;FL.chk=true;store.set('butter-ledger-ppm',String(FL.ppm));S.ring=false;flRing(false);hello();}]],foot:[['back',()=>{S.ring=false;flRing(false);}]]});return;}
+      if(!S.begun){GK.card({anim:'layflat',mode:'thru',head:'Lay the phone flat, screen up',text:'Put it in front of the laptop. Then tap the lit square on the second beep.',btns:[['BEGIN',begin]],foot:FL.chk?[]:[['optional: check the size with a drink can',()=>{S.ring=true;flRing(true);}]]});return;}
+      GK.card({mode:'off'});}
+    setInterval(tickF,200);tickF();
+  }
+})();
+</script>
+<!--GUIDE-END-->
 </body>
 </html>
